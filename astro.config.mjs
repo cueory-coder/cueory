@@ -3,10 +3,16 @@ import { defineConfig } from 'astro/config';
 
 import react from '@astrojs/react';
 import tailwindcss from '@tailwindcss/vite';
+import { createHash } from 'node:crypto';
 import { newsletter, site } from './src/config/site.ts';
+import { themeHeadScript } from './src/scripts/theme.ts';
 
 // The signup form posts to Kit, so the CSP must allow that one address.
 const formOrigin = newsletter.formAction ? ` ${new URL(newsletter.formAction).origin}` : '';
+
+// Astro doesn't hash hand-written inline scripts, so allow the theme script by its exact hash.
+/** @type {`sha256-${string}`} */
+const themeHeadScriptHash = `sha256-${createHash('sha256').update(themeHeadScript).digest('base64')}`;
 
 // https://astro.build/config
 export default defineConfig({
@@ -39,6 +45,7 @@ export default defineConfig({
       ],
       scriptDirective: {
         resources: ["'self'", 'https://static.cloudflareinsights.com'],
+        hashes: [themeHeadScriptHash],
       },
     },
   },

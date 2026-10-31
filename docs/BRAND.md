@@ -58,4 +58,5 @@ spec wins. Colors are applied in `src/styles/tokens.css`. Logo files are built f
   signal.
 - Website color roles (spec section 6): buttons Espresso on Ivory text (day) / Sand with Charcoal text (evening);
   form borders and focus outlines Bronze (day) / Sand (evening).
-- Not built yet: a Light / Dark / Follow-device switch (spec section 9). Today the site follows the device setting.
+- Light / Dark / Follow device (spec section 9): a switch in every page footer. Follow device is the default; a
+  Light or Dark pick overrides the device and is remembered in the browser. Colors change, layout never does.

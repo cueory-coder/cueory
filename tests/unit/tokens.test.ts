@@ -4,8 +4,20 @@ import { contrastRatio, readColorTokens } from './contrast';
 
 const css = readFileSync(new URL('../../src/styles/tokens.css', import.meta.url), 'utf8');
 const [daytimeCss, eveningCss] = css.split('@media (prefers-color-scheme: dark)');
+const [eveningDeviceCss, eveningPickedCss] = eveningCss.split(':root[data-theme="dark"]');
 const daytime = readColorTokens(daytimeCss);
-const evening = { ...daytime, ...readColorTokens(eveningCss) };
+const evening = { ...daytime, ...readColorTokens(eveningDeviceCss) };
+
+describe('evening palette copies', () => {
+  it('has one copy for Follow device and one for a Dark pick', () => {
+    expect(eveningDeviceCss).toContain(':root:not([data-theme="light"])');
+    expect(eveningPickedCss).toBeDefined();
+  });
+
+  it('keeps both copies identical', () => {
+    expect(readColorTokens(eveningPickedCss)).toEqual(readColorTokens(eveningDeviceCss));
+  });
+});
 
 // Exact brand-guide colors. Tokens may only use these.
 const brand = {

@@ -8,6 +8,7 @@ Last updated: 2026-10-31
 - Pages: home (with launch-updates signup), `/learn/study-skills` (Lesson 1 placeholder, read from
   `/content/lessons`), `/privacy` (draft), `/terms` and `/disclaimer` (marked spots for Christian's text), `/support`
   (Ko-fi link), `/subscribed` (after signup), 404. "We're still building" notice on every page.
+- Light / Dark / Follow-device theme switch in every page footer (brand spec section 9).
 - Brand applied (docs/BRAND.md, brand-source/Cueory_Branding_Spec.md): Daytime and Evening palettes with automatic
   dark mode, Inter, exact lowercase motto and product description, traced vector logo built into wordmark, square and
   3:1 banner files (light and dark, SVG and PNG) with a checksum manifest. Logo approved by Christian and frozen as
@@ -24,9 +25,6 @@ Last updated: 2026-10-31
 ## In review
 - [Task 1 pull request into `staging`](https://github.com/lilchristxan/Cueory/pull/1). Needs Codex review and
   Christian's approval, because it adds workflows and deployment settings.
-
-## Next small pull request (after Task 1)
-- Light / Dark / Follow-device switch (brand spec section 9).
 
 ## Blocked
 - **Signup form** shows "Signups open soon" until the Kit form exists (SETUP.md, Part I).

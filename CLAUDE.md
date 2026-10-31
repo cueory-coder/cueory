@@ -64,8 +64,8 @@ task-N/feature ──PR──▶ staging ──PR──▶ main
 
 Follow [docs/BRAND.md](docs/BRAND.md): only the exact brand colors (Daytime and Evening palettes), Inter for all text,
 and the lowercase "cueory" wordmark, which is traced artwork and is never retyped in a font. Dark mode uses the
-Evening palette automatically. `brand-source/Cueory_Branding_Spec.md` is Christian's detailed handoff and wins over
-older notes.
+Evening palette: it follows the device unless the visitor picks Light or Dark in the footer.
+`brand-source/Cueory_Branding_Spec.md` is Christian's detailed handoff and wins over older notes.
 Minimal, editorial, generous spacing, nothing decorative. The study screen is quieter (no main navigation).
 
 ## Where things live
@@ -78,6 +78,7 @@ Minimal, editorial, generous spacing, nothing decorative. The study screen is qu
 | Pages | `src/pages/` |
 | Shared layout, header, footer, signup form | `src/layouts/`, `src/components/` |
 | Interactive React parts | `src/islands/` (keep logic in plain `.ts` files so it can be unit tested) |
+| Small page scripts (theme switch) | `src/scripts/` |
 | Lesson content | `/content` (validated by `src/content.config.ts`) |
 | Security headers | `public/_headers` + the CSP settings in `astro.config.mjs` |
 | Unit tests / browser tests | `tests/unit/` (Vitest) / `tests/e2e/` (Playwright + axe) |

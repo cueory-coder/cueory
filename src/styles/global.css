@@ -7,6 +7,15 @@
     color-scheme: light dark;
   }
 
+  /* A Light or Dark pick (footer theme switch) also sets scrollbars and form controls. */
+  :root[data-theme="light"] {
+    color-scheme: light;
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+  }
+
   html {
     background-color: var(--color-page);
     color: var(--color-ink);

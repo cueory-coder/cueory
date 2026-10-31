@@ -51,3 +51,8 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
 - **D-23** Colors follow the spec's website table: dark-mode buttons are Sand (not Evening Ivory), and form borders and
   focus outlines are Bronze (day) / Sand (evening). Headings stay Inter, as the brand board says. The spec's
   Bodoni Moda heading idea is marked there as a proposal only.
+- **D-25** Theme switch: a Light / Dark / Follow device radio group in the footer of every page, Follow device by
+  default. A pick sets `data-theme` on the page and is kept in the browser's local storage (never sent to us). A tiny
+  inline `<head>` script applies the saved pick before the page paints; Astro doesn't hash hand-written inline scripts,
+  so `astro.config.mjs` adds that script's exact hash to the CSP, and a build test checks every inline script is allowed.
+  Without JavaScript the switch stays hidden and the device setting decides.

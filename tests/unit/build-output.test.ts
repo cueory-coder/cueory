@@ -1,12 +1,14 @@
 /**
  * Checks the built site in dist/. Run `npm run build` first (CI does).
  */
+import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { newsletter, site } from '../../src/config/site';
 
-const dist = new URL('../../dist/', import.meta.url).pathname;
+const dist = fileURLToPath(new URL('../../dist/', import.meta.url));
 
 function htmlFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -42,6 +44,18 @@ describe.skipIf(!existsSync(dist))('built site', () => {
     expect(csp).toContain("object-src 'none'");
     expect(csp).not.toContain('unsafe-inline');
     expect(csp).not.toContain('unsafe-eval');
+  });
+
+  it.each(pages.map((p) => [p.replace(dist, '')]))('%s: the CSP allows every inline script by hash', (page) => {
+    const html = readFileSync(join(dist, page), 'utf8');
+    const csp = /<meta http-equiv="content-security-policy" content="([^"]+)"/.exec(html)![1];
+    const scriptSrc = /script-src ([^;]+)/.exec(csp)![1];
+    const inline = [...html.matchAll(/<script(?![^>]*\ssrc=)[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+    expect(inline.length).toBeGreaterThan(0);
+    for (const body of inline) {
+      const hash = `'sha256-${createHash('sha256').update(body).digest('base64')}'`;
+      expect(scriptSrc, `inline script not allowed: ${body.slice(0, 60)}`).toContain(hash);
+    }
   });
 
   it.runIf(site.showBuildingNotice).each(pages.map((p) => [p.replace(dist, '')]))(

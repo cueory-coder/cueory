@@ -57,3 +57,46 @@ test('home page has a launch-updates signup that works by keyboard', async ({ pa
   await page.keyboard.press('Tab');
   await expect(page.getByRole('button', { name: 'Sign up' })).toBeFocused();
 });
+
+test.describe('theme switch', () => {
+  const pageBackground = (page: import('@playwright/test').Page) =>
+    page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  const charcoal = 'rgb(27, 23, 21)';
+  const ivory = 'rgb(249, 245, 239)';
+
+  test('Light, Dark and Follow device change the palette and are remembered', async ({ page }, testInfo) => {
+    const deviceIsDark = testInfo.project.use.colorScheme === 'dark';
+    await page.goto('/');
+    const picker = page.getByRole('group', { name: 'Theme' });
+    await expect(picker.getByRole('radio', { name: 'Follow device' })).toBeChecked();
+    expect(await pageBackground(page)).toBe(deviceIsDark ? charcoal : ivory);
+
+    await picker.getByRole('radio', { name: 'Dark' }).check();
+    expect(await pageBackground(page)).toBe(charcoal);
+
+    // The pick carries over to other pages and survives a reload.
+    await page.goto('/privacy');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await expect(page.getByRole('radio', { name: 'Dark' })).toBeChecked();
+    expect(await pageBackground(page)).toBe(charcoal);
+
+    await page.getByRole('radio', { name: 'Light' }).check();
+    expect(await pageBackground(page)).toBe(ivory);
+    const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+    expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+
+    await page.getByRole('radio', { name: 'Follow device' }).check();
+    await page.reload();
+    await expect(page.locator('html')).not.toHaveAttribute('data-theme');
+    expect(await pageBackground(page)).toBe(deviceIsDark ? charcoal : ivory);
+  });
+
+  test('can be used with the keyboard', async ({ page }) => {
+    await page.goto('/');
+    const followDevice = page.getByRole('radio', { name: 'Follow device' });
+    await followDevice.focus();
+    await page.keyboard.press('ArrowLeft');
+    await expect(page.getByRole('radio', { name: 'Dark' })).toBeChecked();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  });
+});
