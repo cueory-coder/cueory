@@ -57,15 +57,13 @@ Last updated: 2026-10-31
   - [Rollback guide](https://github.com/lilchristxan/Cueory/pull/22) in `docs/SETUP.md`.
 - In `staging`, waiting for the next release ([#26](https://github.com/lilchristxan/Cueory/pull/26), open for Christian):
   [home hero, ☰ side panel and account corner](https://github.com/lilchristxan/Cueory/pull/24) in the all-lowercase
-  voice (D-46, D-47), with phone, tablet and desktop browser tests (D-48), and the
-  ["ways to study" carousel](https://github.com/lilchristxan/Cueory/pull/28) (D-50).
+  voice (D-46, D-47), with phone, tablet and desktop browser tests (D-48), [search in the ☰ panel](https://github.com/lilchristxan/Cueory/pull/27)
+  (D-49) and the ["ways to study" carousel](https://github.com/lilchristxan/Cueory/pull/28) (D-50).
 
 ## In review
-- [Search in the ☰ panel](https://github.com/lilchristxan/Cueory/pull/27) (D-49): Pagefind indexes the site when it
-  is built; results appear as you type. It adds a package and lets the content security policy compile WebAssembly
-  (`'wasm-unsafe-eval'`, needed by Pagefind), so it waits for Christian's merge.
 - [Study-mode preview and hover zoom](https://github.com/lilchristxan/Cueory/pull/29) (D-51): a card grows into a
-  preview with its moving illustration; the auto-merge takes it once it is clean.
+  preview with its moving illustration, two plain lines, "try it" and the free-account link; X, Escape, the darkened
+  page or a swipe down closes it. The auto-merge takes it once it is clean.
 - Silk scenes down the home page (D-52): the hero, "ways to study" and the launch-updates panel are three scenes of one
   silk, with numbered sections, a figure caption and one thin rhythm line. The auto-merge takes it once it is clean.
 

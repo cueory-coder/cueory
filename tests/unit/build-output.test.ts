@@ -60,7 +60,27 @@ describe.skipIf(!existsSync(dist))('built site', () => {
     expect(csp).toContain("default-src 'self'");
     expect(csp).toContain("object-src 'none'");
     expect(csp).not.toContain('unsafe-inline');
-    expect(csp).not.toContain('unsafe-eval');
+    // Never 'unsafe-eval'. The one exception is 'wasm-unsafe-eval', which allows WebAssembly only, for site search
+    // (D-49), and only in script-src.
+    expect(csp!.split(/[\s;]+/)).not.toContain("'unsafe-eval'");
+    expect(csp!.replaceAll("'wasm-unsafe-eval'", '')).not.toContain('unsafe-eval');
+    const scriptSrc = /script-src ([^;]+)/.exec(csp!)![1]!;
+    expect(csp!.replace(scriptSrc, '')).not.toContain('wasm-unsafe-eval');
+  });
+
+  it('builds the site search index next to the pages (D-49)', () => {
+    expect(existsSync(join(dist, 'pagefind', 'pagefind.js'))).toBe(true);
+    expect(htmlFiles(join(dist, 'pagefind'))).toEqual([]);
+  });
+
+  it.each(pages.map((p) => [p.replace(dist, '')]))('%s: site search indexes it only if search engines may (D-49)', (page) => {
+    const html = readFileSync(join(dist, page), 'utf8');
+    const noindex = html.includes('<meta name="robots" content="noindex');
+    const body = /<main[^>]*\sdata-pagefind-body(?:="")?[\s>]/.test(html);
+    expect(body, noindex ? 'a noindex page must stay out of site search' : 'this page should be searchable').toBe(
+      !noindex,
+    );
+    if (body) expect(html).toMatch(/<main[^>]*\sdata-pagefind-meta="title:[^"]+"/);
   });
 
   it.each(pages.map((p) => [p.replace(dist, '')]))('%s: the CSP allows every inline script by hash', (page) => {
