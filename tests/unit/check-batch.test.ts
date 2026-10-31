@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { checkBatch, linkProblem, REVIEWER_ROSTER, type BatchInput } from '../../scripts/check-batch/check.ts';
+import { answerLetters, checkBatch, itemType, linkProblem, REVIEWER_ROSTER, type BatchInput } from '../../scripts/check-batch/check.ts';
 import { CsvError, parseCsv, toCsv, type CsvRow } from '../../scripts/check-batch/csv.ts';
 import { failedCsv, passedCsv, pendingCsv, reportMd } from '../../scripts/check-batch/report.ts';
 
@@ -261,7 +261,7 @@ describe('checkBatch', () => {
   });
 
   it('warns when correct answers lean on one letter, but only for batches of 20 or more', () => {
-    expect(checkBatch(batch(4)).warnings).toEqual(['answer balance not judged: fewer than 20 keyed items']);
+    expect(checkBatch(batch(4)).warnings).toEqual(['answer balance not judged: fewer than 20 keyed single-answer items']);
     expect(checkBatch(batch(20)).warnings).toEqual([]);
 
     const skewed = batch(20);
@@ -270,6 +270,101 @@ describe('checkBatch', () => {
     const w = checkBatch(skewed).warnings;
     expect(w).toContain('answer balance: A is correct in 60% of items (an even share is 25%)');
     expect(checkBatch(skewed).failed).toEqual([]); // a warning, not an item failure
+  });
+});
+
+/** A select-all-that-apply item with a rationale for every choice. */
+function sataItem(n: number, over: Partial<CsvRow> = {}): CsvRow {
+  return item(n, {
+    type: 'sata',
+    rationale_a: 'Placeholder reason A.',
+    rationale_b: 'Placeholder reason B.',
+    rationale_c: 'Placeholder reason C.',
+    rationale_d: 'Placeholder reason D.',
+    ...over,
+  });
+}
+
+/** A clean batch: the four single-answer items plus one select-all-that-apply item keyed A;C. */
+function sataBatch(over: Partial<CsvRow> = {}, answers: Record<string, string> = {}): BatchInput {
+  const b = batch(4);
+  b.items.push(sataItem(5, over));
+  b.key.push({ item_id: 'q5', answer: 'A;C' });
+  for (const r of REVIEWERS) b.reviewers[r]!.push({ item_id: 'q5', answer: answers[r] ?? 'A;C', verdict: 'pass' });
+  return b;
+}
+
+describe('select-all-that-apply items (D-45)', () => {
+  it('reads the type, blank meaning single', () => {
+    expect(itemType(item(1))).toBe('single');
+    expect(itemType(item(1, { type: ' Single ' }))).toBe('single');
+    expect(itemType(item(1, { type: 'SATA' }))).toBe('sata');
+    expect(itemType(item(1, { type: 'multi' }))).toBeNull();
+  });
+
+  it('reads answer letters in any order, case or spacing, and rejects bad ones', () => {
+    const offered = ['A', 'B', 'C', 'D'] as const;
+    expect(answerLetters(' c ; a ', offered)).toEqual({ letters: ['A', 'C'] });
+    expect(answerLetters('', offered)).toEqual({ problem: 'is empty' });
+    expect(answerLetters('A;E', offered)).toEqual({ problem: '"A;E" is not one of the choices (A, B, C, D)' });
+    expect(answerLetters('A;a', offered)).toEqual({ problem: '"A;a" names a choice twice' });
+  });
+
+  it('passes when every reviewer picks exactly the key letters, in any order', () => {
+    const result = checkBatch(sataBatch({}, { codex: 'C;A', gemini: ' a ; c ' }));
+    expect(result.failed).toEqual([]);
+    expect(result.passed.map((p) => p.item_id)).toContain('q5');
+    expect(result.sata).toBe(1);
+    expect(result.agreement.codex).toEqual({ matched: 5, answered: 5 });
+  });
+
+  it('is all-or-nothing: missing or adding a letter is a disagreement', () => {
+    expect(reasonsFor(sataBatch({}, { codex: 'A' }), 'q5')).toEqual(['codex: answered A, key says A;C']);
+    expect(reasonsFor(sataBatch({}, { gpt1: 'A;B;C' }), 'q5')).toEqual(['gpt1: answered A;B;C, key says A;C']);
+  });
+
+  it('needs a rationale for every choice', () => {
+    expect(reasonsFor(sataBatch({ rationale_b: ' ' }), 'q5')).toEqual([
+      'choice B has no rationale (rationale_b); select-all-that-apply needs one for every choice',
+    ]);
+    const withE = sataBatch({ choice_e: 'Option five' });
+    expect(reasonsFor(withE, 'q5')).toEqual([
+      'choice E has no rationale (rationale_e); select-all-that-apply needs one for every choice',
+    ]);
+  });
+
+  it('catches a key with several letters on a single-answer item, and unknown types', () => {
+    const b = batch(4);
+    b.key[0] = { item_id: 'q1', answer: 'A;C' };
+    expect(reasonsFor(b, 'q1')).toContain(
+      'key gives A;C but the item is single-answer; set type to sata for select-all-that-apply',
+    );
+    const typo = batch(4);
+    typo.items[1] = item(2, { type: 'multi' });
+    expect(reasonsFor(typo, 'q2')).toContain('type "multi" must be single or sata (blank means single)');
+  });
+
+  it('rejects key and reviewer answers that are not clean lists of choices', () => {
+    const b = sataBatch({}, { gpt2: 'A;F' });
+    b.key[4] = { item_id: 'q5', answer: 'A;A' };
+    const reasons = reasonsFor(b, 'q5');
+    expect(reasons).toContain('key answer "A;A" names a choice twice');
+    expect(reasons).toContain('gpt2: answer "A;F" must be letters from the choices, separated by ;');
+  });
+
+  it('leaves select-all-that-apply items out of the answer balance', () => {
+    const b = batch(20);
+    for (let n = 21; n <= 30; n++) {
+      b.items.push(sataItem(n));
+      b.key.push({ item_id: `q${n}`, answer: 'A;B' });
+      for (const r of REVIEWERS) b.reviewers[r]!.push({ item_id: `q${n}`, answer: 'A;B', verdict: 'pass' });
+    }
+    const result = checkBatch(b);
+    expect(result.failed).toEqual([]);
+    expect(result.warnings).toEqual([]);
+    expect(result.balance).toEqual({ A: 5, B: 5, C: 5, D: 5 });
+    expect(result.sata).toBe(10);
+    expect(reportMd(result, 'mixed')).toContain('10 select-all-that-apply items are scored all-or-nothing');
   });
 });
 

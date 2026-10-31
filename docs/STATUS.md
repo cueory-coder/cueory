@@ -30,14 +30,22 @@ Last updated: 2026-10-31
   ([#3](https://github.com/lilchristxan/Cueory/pull/3), `/learn/study-skills/cards`) merged into `staging`.
 - Task 4 flashcards ([#6](https://github.com/lilchristxan/Cueory/pull/6)): shuffle, star, Know it / Still learning, stars
   kept in the browser only (D-37). In `staging`.
+- Staging auto-merge ([#12](https://github.com/lilchristxan/Cueory/pull/12), D-39) merged into `staging`: clean,
+  non-sensitive pull requests merge into `staging` on their own; sensitive ones get the `needs-christian` label. It
+  starts working once it reaches `main` with the next release.
 
 ## In review
-- **Staging auto-merge** (D-39), this pull request: merges clean, non-sensitive pull requests into `staging`; sensitive
-  ones get the `needs-christian` label. It touches `.github/`, so Christian approves it, and it starts working once it
-  reaches `main`.
+- **Select-all-that-apply in the batch checker** (D-45), this pull request: an optional `type` column, a rationale
+  for every choice, and all-or-nothing agreement with the key. Old batches check exactly as before.
+- [Video start wording](https://github.com/lilchristxan/Cueory/pull/13) (D-40),
+  [marketing redesign](https://github.com/lilchristxan/Cueory/pull/14) (D-41),
+  [pre-launch mode for the auto-merge](https://github.com/lilchristxan/Cueory/pull/15) (D-42),
+  [Dependabot ignore rules](https://github.com/lilchristxan/Cueory/pull/16),
+  [Learn mode](https://github.com/lilchristxan/Cueory/pull/17) (D-43) and
+  [Matching](https://github.com/lilchristxan/Cueory/pull/18) (D-44).
 - Dependabot [#9](https://github.com/lilchristxan/Cueory/pull/9) (`@types/node` 26) and
-  [#10](https://github.com/lilchristxan/Cueory/pull/10) (TypeScript 7): told to ignore those major versions. We run
-  Node 24 (D-01), and Astro's type checker accepts TypeScript only up to 6 (D-02).
+  [#10](https://github.com/lilchristxan/Cueory/pull/10) (TypeScript 7): don't merge. We run Node 24 (D-01), and
+  Astro's type checker accepts TypeScript only up to 6 (D-02).
 
 ## Blocked
 - **Task 2 (accounts and database)** waits for Christian to create the two Supabase projects, and its sign-in and
@@ -65,6 +73,6 @@ Follow [docs/SETUP.md](SETUP.md):
   the key and marks pass; unfinished reviews are pending, not failed), and the answer-balance warning (10 points off an even share, batches of 20+).
 - [x] Select-all-that-apply questions: yes, scored all-or-nothing for now, with each option's rationale shown
   afterward ([answer on issue #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6545756502)). The batch
-  checker still handles single-answer questions only (D-30) until that change is built.
+  checker handles them from D-45 (in review).
 - [x] Videos: one tap on the cover loads YouTube's player and starts that video (Christian confirmed "play
   immediately"). D-32 and ROADMAP Task 4d get the new wording in their own pull request.
