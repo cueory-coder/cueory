@@ -1,0 +1,10 @@
+# Christian must approve changes to sensitive areas (see CLAUDE.md, rule 3).
+/.github/              @lilchristxan
+/supabase/             @lilchristxan
+/public/_headers       @lilchristxan
+/astro.config.mjs      @lilchristxan
+/SECURITY.md           @lilchristxan
+/CLAUDE.md             @lilchristxan
+/AGENTS.md             @lilchristxan
+/brand-source/         @lilchristxan
+/public/brand/         @lilchristxan

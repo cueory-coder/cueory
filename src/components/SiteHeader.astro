@@ -1,0 +1,31 @@
+---
+import Wordmark from './Wordmark.astro';
+import { site } from '../config/site';
+
+interface Props {
+  /** The study screen gets a quieter header with fewer links. */
+  quiet?: boolean;
+}
+
+const { quiet = false } = Astro.props;
+---
+
+<header class="mx-auto flex w-full max-w-page items-center justify-between gap-4 px-gutter py-6">
+  <!-- Padding keeps the brand guide's clear space (0.25 × letter height) around the logo. -->
+  <a href="/" class="p-1 text-ink" aria-label={`${site.name} home`}>
+    <Wordmark class="w-(--logo-width)" />
+  </a>
+  {
+    !quiet && (
+      <nav aria-label="Main">
+        <ul class="flex items-center gap-5 text-sm">
+          <li>
+            <a href="/learn/study-skills" class="text-ink-soft no-underline hover:text-ink hover:underline">
+              Start learning
+            </a>
+          </li>
+        </ul>
+      </nav>
+    )
+  }
+</header>
