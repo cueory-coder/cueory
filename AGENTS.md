@@ -14,6 +14,9 @@ Read [CLAUDE.md](CLAUDE.md) (project rules) and [SECURITY.md](SECURITY.md) first
 4. End with one line: `Verdict: approve`, `Verdict: approve after fixes`, or `Verdict: request changes`.
 5. If the pull request touches a sensitive area (list below), add the line
    `Needs Christian's approval: <area>` even if you approve it.
+6. Your review is the last gate for non-sensitive pull requests: once CI and the preview build pass and your latest
+   review of the head commit has no findings, the staging auto-merge merges it into `staging` (D-39). Anything that
+   should stop a merge must be posted as a finding, not only mentioned in prose.
 
 ## Review guidelines
 
@@ -36,6 +39,10 @@ Read [CLAUDE.md](CLAUDE.md) (project rules) and [SECURITY.md](SECURITY.md) first
 - Only email, display name, onboarding answers and study progress are stored about a person.
 - No cross-site trackers, ad pixels, fingerprinting, or third-party scripts, fonts or CDNs. The newsletter signup is a
   plain HTML form that posts to Kit; no Kit script is loaded.
+- The one third-party frame allowed is the YouTube lesson player (Christian's decision, 2026-10-31): embedded from
+  `https://www.youtube-nocookie.com` behind a click-to-play cover with a self-hosted thumbnail, so nothing loads from
+  YouTube before the student clicks. No autoplay. `frame-src` lists only that origin. Video IDs live in `/content`, and
+  `/privacy` says YouTube may set cookies once a video plays. Video files are never stored on our servers.
 - Delete-my-account and export-my-data still cover any new personal data.
 - `/privacy` still describes what the code does.
 
@@ -58,6 +65,12 @@ Read [CLAUDE.md](CLAUDE.md) (project rules) and [SECURITY.md](SECURITY.md) first
   another font, never narrower than 96px.
 - Content (lessons, items, cards, scripts) lives in `/content` or the database, not hard-coded in components.
 - No clinical facts written by an engineer or an AI without a source and review record.
+- Learn mode may check a card's answer in the browser, because a card's back is public study material. Questions from
+  the reviewed question bank are only checked by `check_answer` (D-33).
+- Adaptive quizzes and level tests (Task 4b) are rule-based and never show an exam-score prediction or a chance of
+  passing.
+- Image occlusion (Task 4c) uses only images with a recorded license and a visible credit.
+- From Task 2, every lesson, card, question, puzzle and page has the "Flag or comment" button.
 
 ### Process
 - Pull request is small and on one topic, and targets `staging` (only `staging` → `main` pull requests target `main`).

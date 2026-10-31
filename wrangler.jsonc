@@ -1,4 +1,4 @@
-// Cloudflare Workers settings (DECISIONS.md, D-29).
+// Cloudflare Workers settings (DECISIONS.md, D-38).
 // The site is plain static files from `npm run build` (the dist folder); no server code runs.
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
@@ -10,5 +10,7 @@
     "not_found_handling": "404-page",
     // /privacy, not /privacy/ (matches trailingSlash: 'never' in astro.config.mjs).
     "html_handling": "drop-trailing-slash"
-  }
+  },
+  // Branch previews (every branch except main). Required by `wrangler preview`; it may stay empty.
+  "previews": {}
 }

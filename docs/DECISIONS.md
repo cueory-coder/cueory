@@ -7,7 +7,7 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
 - **D-03** Tailwind v4 with `@theme` in `src/styles/tokens.css`. The default palette is removed so only tokens can
   be used.
 - **D-04** (Replaced by D-19.) Starter fonts were Newsreader and Atkinson Hyperlegible Next.
-- **D-05** (Replaced by D-29.) Cloudflare **Pages**, not Workers. Cloudflare's docs tell new projects to start on Workers, but Workers
+- **D-05** (Replaced by D-38.) Cloudflare **Pages**, not Workers. Cloudflare's docs tell new projects to start on Workers, but Workers
   builds can only be switched on or off for *all* non-production branches. Pages documents exactly what the brief asks
   for: "Preview branch control → Custom branches = `staging`" (feature branches never use the 500 free builds) and a
   one-click "Enable access policy" lock for previews. The site is plain static files, so moving to Workers later is a
@@ -56,12 +56,73 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   inline `<head>` script applies the saved pick before the page paints; Astro doesn't hash hand-written inline scripts,
   so `astro.config.mjs` adds that script's exact hash to the CSP, and a build test checks every inline script is allowed.
   Without JavaScript the switch stays hidden and the device setting decides.
+- **D-26** Batch checker (Task 3): `npm run check-batch -- <folder>`, a TypeScript script run straight by Node 24
+  (type stripping, no extra dependency), with its own strict CSV reader so a malformed file stops the check instead of
+  being half-read. Format and pass rule in `docs/BATCHES.md`: a question passes only if every reviewer (at least five)
+  matches the key and marks it pass, and every mechanical check passes. Answer balance is a warning, not a failure.
+  Links are checked offline by default; `--check-links` asks the websites and is never run in CI. Real batches stay
+  under `content/batches/`, which git ignores, so answer keys and reviewer results never reach the repository (D-07).
 - **D-27** The lesson stepper renders only in the browser (`client:only`), so without JavaScript the page shows just
   the full lesson list, with no duplicate first sentence and no dead buttons. Codex review of PR #1.
 - **D-28** Components may not use Tailwind "arbitrary values" (`text-[3.5rem]` and the like); every size, spacing and
   letter-spacing value is a named token. A unit test scans `src/` for them. Codex review of PR #1.
-- **D-29** Hosting moves to Cloudflare **Workers** with static assets (`wrangler.jsonc`). Cloudflare's dashboard now
+- **D-31** (Buttons and saving updated by D-37.) Cards mode (Task 4): decks are JSON files in `content/cards/`, one per lesson, checked by the build. One card
+  at a time with real buttons ("Show answer", "Got it", "See again", "Back"); "See again" puts the card at the end of
+  the round. No flip animation, so there's nothing to turn off for reduced motion. Progress isn't saved yet; that comes
+  with guest progress later in Task 4.
+- **D-29** When the batch checker can't read a batch, it deletes the earlier `passed.csv` and `failed.csv` and writes a
+  "not checked" `report.md`, so a stale approval can't be mistaken for a current one. Codex review of PR #2.
+- **D-30** Batch checker rules, from the development director: reviewer file names must be on the Task 2 roster (gpt1,
+  gpt2, gpt3, gemini, claude_sonnet, codex, claude_final, christian), so a typo is a batch problem (exit 2) instead of
+  silently counting; at least five files, none individually required. The pass rule stays unanimous. A `pending`
+  verdict is its own status: an item with nothing wrong except pending reviews goes to `pending.csv`, never passes,
+  and the exit code is 1 (0 only when every item passed). Items are single-answer only; select-all-that-apply waits
+  for Christian's content decision. Answer balance unchanged.
+- **D-32** Lesson videos (Christian's decision, 2026-10-31): hosted on Cueory's YouTube channel and embedded from
+  `youtube-nocookie.com` behind a click-to-play cover (self-hosted thumbnail and play button), never stored on our
+  servers. No autoplay, so after the click the student presses play in YouTube's own player. `frame-src` allows only
+  that origin, video IDs live in `/content`, and `/privacy` mentions YouTube's cookies. Reason: video hosting stays
+  free, and nothing loads from YouTube until a student asks for it.
+- **D-33** Learn mode starts with the card decks and checks those answers in the browser, because a card's back is
+  public study material that anyone can flip to. Questions from the reviewed question bank are only ever checked by
+  `check_answer` (Task 2). Reason: Learn mode can ship before accounts without putting a protected answer key in the
+  browser.
+- **D-34** The "Flag or comment" button (Christian's decision, 2026-10-31) is built with Task 2, because it needs a
+  database table with row-level security, server-side rate limits and the `/admin` inbox. No real content goes public
+  before it works.
+- **D-35** When a task waits on Christian (today: Task 2 waits for the Supabase projects), the next task that doesn't
+  wait goes first. Reason: work keeps moving without skipping any of his approvals.
+- **D-36** Adaptive quizzes and level tests (Task 4b) are rule-based and never predict an exam score (Christian's
+  decision, 2026-10-31). Reason: a rule can be explained to a student, and we have no data that could back a
+  prediction.
+- **D-37** Flashcards (Task 4): "Know it" and "Still learning" replace "Got it" and "See again". A round shows each
+  card once; when every card is sorted, the next round is only the "Still learning" pile. "Back" undoes the last sort.
+  Shuffle (Fisher–Yates) reorders the cards still to come: before any card in a round is flipped or sorted it
+  reorders the whole round; after that the card on screen stays put, even after "Back" or "Show question", so nothing
+  the student is working on jumps. Stars are saved per deck in the browser's local storage (`cueory-stars-<deck>`, a
+  list of card ids) and never sent to us; "Only starred cards" studies just those. Reason: it follows the flashcard
+  plan in ROADMAP Task 4, with short rounds a student can count.
+- **D-38** Hosting moves to Cloudflare **Workers** with static assets (`wrangler.jsonc`). Cloudflare's dashboard now
   only offers Workers when creating an application, so the Pages setup in D-05 couldn't be followed. The site stays
   plain static files; `_headers` still applies. Previews: every branch builds a preview, all locked by the Worker's
   "Protect with Cloudflare Access" switch, so the staging lock no longer depends on Pages. Wrangler is pinned in
   devDependencies so builds don't download a changing version.
+- **D-39** Staging auto-merge (Christian's plan: "a bot merges non-sensitive pull requests once Codex calls them
+  clean; sensitive paths need Christian's tap"). `.github/workflows/staging-automerge.yml` runs
+  `scripts/staging_automerge.ts`, which merges a pull request into `staging` with a merge commit only when it targets
+  `staging`, comes from this repository, isn't a draft, every required check passed (type check/build/tests, gitleaks,
+  Semgrep, Workers Builds) and no other check failed, Codex's latest review summary is for the exact head commit and
+  reports no findings, and GitHub says it merges cleanly. The merge is pinned to the checked head commit, and the pull
+  request is fetched again right before merging so a new commit or a new base (such as `main`) stops it; lists too
+  long to read in full make it wait rather than judge from part of them. It never merges into `main`; because GitHub's
+  merge call can't pin the base, the server-side guarantee is a `main` rule that only Christian can update (Codex
+  review of PR #12). Pull requests that change `.github/`, `supabase/`, `public/_headers`, `astro.config.mjs`,
+  `wrangler.jsonc`, `SECURITY.md`, `CLAUDE.md`, `AGENTS.md`, `brand-source/`, `public/brand/`, any `package.json` or
+  `package-lock.json`, the auto-merge rules themselves, `.node-version` or `src/config/site.ts` (newsletter form
+  settings) get the "needs-christian" label instead. The workflow reads pull requests through the API only and never
+  runs their code; it always checks out the default branch's copy of the rules, and manual runs work only from the
+  default branch. It starts on CI completion, Cloudflare's preview check, Codex's review summary, or by hand (dry run
+  by default), and because GitHub runs those events only from the default branch, it works once it reaches `main`.
+  Merges made by the workflow don't start CI on `staging` (GitHub doesn't start workflows from its own token's
+  pushes); each pull request's CI already tested it merged with `staging`. Reason: Christian keeps his hands for
+  sensitive changes and releases, and clean work reaches the staging site without waiting for him.

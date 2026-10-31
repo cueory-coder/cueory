@@ -47,13 +47,16 @@ task-N/feature ──PR──▶ staging ──PR──▶ main
 
 - Feature branches get CI and Codex review, never a deploy.
 - `staging` deploys to the locked staging site. Christian checks it there.
+- A pull request into `staging` is merged automatically once CI, the Workers preview build and Codex are all clean,
+  unless it touches a sensitive path; those get the `needs-christian` label and wait for him (D-39). Never weaken
+  those rules in `scripts/automerge/` without his approval.
 - `main` is the live site. Only Christian merges into `main`.
 
 ## Stack
 
 - Astro (static output) with React islands, TypeScript (strict) and Tailwind CSS v4.
 - Cloudflare Workers with static assets (`wrangler.jsonc`): production branch `main`; every other branch gets a
-  preview locked with Cloudflare Access (docs/DECISIONS.md D-29).
+  preview locked with Cloudflare Access (docs/DECISIONS.md D-38).
 - Kit for launch-update emails (plain HTML form, no Kit script on our pages).
 - Cloudflare Web Analytics now; PostHog later for study events.
 - From Task 2: Supabase (`cueory-staging`, `cueory-prod`), Google sign-in first and email magic links as backup,
@@ -91,6 +94,12 @@ Minimal, editorial, generous spacing, nothing decorative. The study screen is qu
 - Branch from `staging`. Branch names: `task-N/short-description`. One topic per pull request, aimed at `staging`.
 - Never use a color, font or spacing value directly in a component. Add a token instead.
 - No inline `<script>` or `style=""` that the CSP would block. No third-party scripts, fonts or CDNs; self-host.
+- Lesson videos (Christian's decision, 2026-10-31) are the one exception: they live on Cueory's YouTube channel and
+  are embedded from `youtube-nocookie.com` behind a click-to-play cover with a self-hosted thumbnail, so YouTube loads
+  only after a student clicks. No autoplay, `frame-src` allows only that origin, video IDs live in `/content`, and video
+  files are never stored on our servers. Details: docs/ROADMAP.md, Task 4d.
+- From Task 2, every lesson, card, question, puzzle and page has the "Flag or comment" button, and no real content goes
+  public before it works.
 - Every page uses `Layout.astro` so it gets the building notice, header, footer and skip link.
 - Astro dev server: `npx astro dev --background` (stop with `astro dev stop`).
 - Update `docs/STATUS.md` and, when a decision is made, `docs/DECISIONS.md` in the same pull request.

@@ -16,3 +16,16 @@ describe('lesson content files', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 });
+
+const cardsDir = new URL('../../content/cards/', import.meta.url);
+const cardFiles = readdirSync(cardsDir).filter((f) => f.endsWith('.json'));
+
+describe('card content files', () => {
+  it.each(cardFiles)('%s has unique card ids and belongs to a lesson that exists', (file) => {
+    const deck = JSON.parse(readFileSync(new URL(file, cardsDir), 'utf8'));
+    expect(deck.id).toBe(file.replace(/\.json$/, ''));
+    expect(files).toContain(`${deck.lesson}.json`);
+    const ids = deck.cards.map((c: { id: string }) => c.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+});

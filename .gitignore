@@ -32,3 +32,7 @@ playwright-report/
 !.env.example
 *.gpg
 backup/
+
+# real review batches hold answer keys and reviewer results: never commit them (DECISIONS.md, D-07, D-26)
+content/batches/*
+!content/batches/.gitkeep
