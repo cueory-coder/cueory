@@ -1,7 +1,17 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-const pages = ['/', '/learn/study-skills', '/learn/study-skills/cards', '/privacy', '/terms', '/disclaimer', '/support', '/subscribed'];
+const pages = [
+  '/',
+  '/learn/study-skills',
+  '/learn/study-skills/cards',
+  '/learn/study-skills/learn-mode',
+  '/privacy',
+  '/terms',
+  '/disclaimer',
+  '/support',
+  '/subscribed',
+];
 
 for (const path of pages) {
   test(`${path} loads, shows the notice, and passes accessibility checks`, async ({ page }) => {
@@ -122,6 +132,74 @@ test('shuffle keeps every card in the round exactly once', async ({ page }) => {
   await expect(page.getByText("That's every card for now.")).toBeVisible();
 });
 
+test('Learn mode brings back what you miss until you know every card', async ({ page }) => {
+  const deck: Record<string, { back: string; blank?: string }> = {
+    'Placeholder card 1, front.': { back: "Placeholder card 1, back. Christian's reviewed card text replaces this." },
+    'Placeholder card 2, front.': { back: 'Placeholder card 2, back.', blank: 'card 2' },
+    'Placeholder card 3, front.': { back: 'Placeholder card 3, back.' },
+  };
+  await page.goto('/learn/study-skills');
+  await page.getByRole('link', { name: "Learn this lesson's cards in Learn mode" }).click();
+  await expect(page).toHaveURL(/\/learn\/study-skills\/learn-mode$/);
+  await expect(page.getByText('Mastered 0 of 3')).toBeVisible();
+
+  const steps: string[] = [];
+  let missedOnce = false;
+  let typoOnce = false;
+  for (let turn = 0; turn < 20; turn++) {
+    if (await page.getByText('You know all 3 cards.').isVisible()) break;
+    const step = (await page.getByTestId('learn-step').textContent())!;
+    const card = deck[(await page.getByTestId('learn-prompt').textContent())!]!;
+    steps.push(step);
+
+    if (step === 'New card') {
+      // By keyboard: the answer, then the next card.
+      await page.getByRole('button', { name: 'Show answer' }).focus();
+      await page.keyboard.press('Enter');
+      await expect(page.getByText(card.back)).toBeVisible();
+      await page.getByRole('button', { name: 'Next card' }).focus();
+      await page.keyboard.press('Enter');
+    } else if (step === 'Choose the answer') {
+      const answers = await page.getByRole('list', { name: 'Answers' }).getByRole('button').allTextContents();
+      expect(answers).toContain(card.back);
+      const pick = missedOnce ? card.back : answers.find((a) => a !== card.back)!;
+      await page.getByRole('button', { name: pick, exact: true }).click();
+      await expect(page.getByText(missedOnce ? 'Correct.' : 'Not quite.')).toBeVisible();
+      if (!missedOnce) await expect(page.getByText('The answer', { exact: true })).toBeVisible();
+      missedOnce = true;
+      await page.getByRole('button', { name: 'Continue' }).click();
+    } else if (step === 'Fill in the blank') {
+      await expect(page.getByText('Placeholder ______blank, back.')).toBeVisible();
+      await page.getByLabel('The missing words').fill(card.blank!);
+      await page.keyboard.press('Enter');
+      await expect(page.getByText('Correct.')).toBeVisible();
+      await page.getByRole('button', { name: 'Continue' }).click();
+    } else {
+      expect(step).toBe('Type the answer');
+      // The first typed answer has a typo, and the student counts it as right.
+      await page.getByLabel('Your answer').fill(typoOnce ? card.back.toUpperCase() : `${card.back}x`);
+      await page.keyboard.press('Enter');
+      if (typoOnce) await expect(page.getByText('Correct.')).toBeVisible();
+      else {
+        await expect(page.getByText('Not quite.')).toBeVisible();
+        await page.getByRole('button', { name: 'I was right' }).click();
+        await expect(page.getByText('Counted as right.')).toBeVisible();
+      }
+      typoOnce = true;
+      await page.getByRole('button', { name: 'Continue' }).click();
+    }
+  }
+
+  await expect(page.getByText('You know all 3 cards.')).toBeVisible();
+  expect(steps.filter((s) => s === 'New card')).toHaveLength(3);
+  expect(steps.filter((s) => s === 'Choose the answer')).toHaveLength(4);
+  expect(steps).toContain('Fill in the blank');
+  expect(steps.filter((s) => s === 'Type the answer')).toHaveLength(2);
+
+  await page.getByRole('button', { name: 'Start again' }).click();
+  await expect(page.getByText('Mastered 0 of 3')).toBeVisible();
+});
+
 test.describe('without JavaScript', () => {
   test.use({ javaScriptEnabled: false });
 
@@ -140,6 +218,17 @@ test.describe('without JavaScript', () => {
     await expect(page.getByRole('button')).toHaveCount(0);
     expect(await page.locator('dl dt').count()).toBe(3);
     expect(await page.locator('dl dd').count()).toBe(3);
+  });
+
+  test('Learn mode says it needs JavaScript and points to the cards', async ({ page }) => {
+    await page.goto('/learn/study-skills/learn-mode');
+    await expect(page.getByRole('button')).toHaveCount(0);
+    // Playwright's text matching skips <noscript>, so these use CSS.
+    await expect(page.locator('noscript p')).toHaveText(
+      'Learn mode needs JavaScript. You can read every card and its answer on the cards page.',
+    );
+    await page.locator('noscript a[href="/learn/study-skills/cards"]').click();
+    await expect(page).toHaveURL(/\/learn\/study-skills\/cards$/);
   });
 });
 

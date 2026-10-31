@@ -126,3 +126,13 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   Merges made by the workflow don't start CI on `staging` (GitHub doesn't start workflows from its own token's
   pushes); each pull request's CI already tested it merged with `staging`. Reason: Christian keeps his hands for
   sensitive changes and releases, and clean work reaches the staging site without waiting for him.
+- **D-43** Learn mode for card decks (ROADMAP Task 4). Each card climbs three steps: see it (its answer one tap
+  away), choose its answer from up to four in the deck (only answers that read differently), then recall it: fill in
+  its blank when the deck names one (a card's optional `blank`: words that appear in its back exactly as written,
+  checked when the site builds), otherwise type the whole answer. A right choice moves the card up and a right recall
+  masters it; a wrong choice stays on that step and a wrong recall goes back to choosing. Anything not mastered comes
+  back after two other cards. Typed answers ignore case, accents, punctuation and extra spaces, and "I was right"
+  counts a near miss once the student has seen the answer. A deck with only one answer skips the choice step.
+  Nothing is saved yet (guest progress is its own Task 4 item); without JavaScript the page points to the cards page.
+  Reason: Christian's plan for Learn mode, "mixing cards, multiple choice, typed answers and fill-in until mastered",
+  starting with card decks, whose answers students can already see (D-33).
