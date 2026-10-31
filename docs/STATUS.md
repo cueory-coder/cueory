@@ -26,13 +26,12 @@ Last updated: 2026-10-31
   ([#7](https://github.com/lilchristxan/Cueory/pull/7), D-38).
 - Roadmap additions ([#5](https://github.com/lilchristxan/Cueory/pull/5)): Christian's 2026-10-31 study features and
   the YouTube video rule (D-32 to D-36).
+- Task 3 batch checker ([#2](https://github.com/lilchristxan/Cueory/pull/2)) and Task 4 Cards
+  ([#3](https://github.com/lilchristxan/Cueory/pull/3), `/learn/study-skills/cards`) merged into `staging`.
 
 ## In review
-- [Task 3 batch checker](https://github.com/lilchristxan/Cueory/pull/2) into `staging`. CI green, Codex clean.
-- [Task 4 Cards](https://github.com/lilchristxan/Cueory/pull/3) (`/learn/study-skills/cards`) into `staging`. CI
-  green, Codex clean.
-- [Task 4 flashcards: shuffle, star, Know it / Still learning](https://github.com/lilchristxan/Cueory/pull/6), stacked
-  on Task 4 Cards (D-37). Stars are kept in the browser only.
+- [Task 4 flashcards: shuffle, star, Know it / Still learning](https://github.com/lilchristxan/Cueory/pull/6) into
+  `staging` (D-37). Stars are kept in the browser only.
 - Dependabot [#9](https://github.com/lilchristxan/Cueory/pull/9) (`@types/node` 26) and
   [#10](https://github.com/lilchristxan/Cueory/pull/10) (TypeScript 7): hold. We run Node 24 (D-01), and Astro's type
   checker accepts TypeScript only up to 6 (D-02).
