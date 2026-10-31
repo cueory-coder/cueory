@@ -1,0 +1,83 @@
+# Merges a pull request into `staging` (never `main`) once it is safe: every required check passed, the Workers
+# preview built, Codex's latest review of the head commit is clean, and nothing sensitive changed. Sensitive pull
+# requests get the "needs-christian" label instead. Rules: scripts/automerge/decide.ts (DECISIONS.md, D-39).
+#
+# It only reads pull request details through GitHub's API and never checks out or runs pull request code.
+# GitHub starts check_run, issue_comment, workflow_run and workflow_dispatch workflows only from the default
+# branch, so this works once it reaches `main`:
+# https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows
+name: Staging auto-merge
+
+on:
+  # CI finished on a pull request.
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+  # Cloudflare's preview build finished (GitHub doesn't send this event for GitHub Actions' own checks).
+  check_run:
+    types: [completed]
+  # Codex posted or updated its review summary.
+  issue_comment:
+    types: [created, edited]
+  # By hand, from the Actions tab. Dry run unless unticked.
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Pull request number (leave empty for every open pull request into staging)
+        required: false
+        type: string
+      dry_run:
+        description: Only report what would happen
+        required: false
+        type: boolean
+        default: true
+
+permissions: {}
+
+concurrency:
+  group: staging-automerge
+  cancel-in-progress: false
+
+jobs:
+  automerge:
+    name: Merge clean pull requests into staging
+    # Only start a runner when the event could complete a pull request's checks (saves free Actions minutes).
+    # By hand, only the default branch's own copy of this workflow may run (never a feature branch's).
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref_name == github.event.repository.default_branch) ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request' &&
+       github.event.workflow_run.conclusion == 'success') ||
+      (github.event_name == 'check_run' && github.event.check_run.name == 'Workers Builds: cueory' &&
+       github.event.check_run.conclusion == 'success') ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request &&
+       github.event.comment.user.login == 'chatgpt-codex-connector[bot]' &&
+       contains(github.event.comment.body, 'codex-review-state') &&
+       contains(github.event.comment.body, '"status":"completed"'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write # merge a pull request
+      pull-requests: write # merge and label pull requests
+      issues: write # create the needs-christian label the first time
+      checks: read # read check results
+    steps:
+      # Always the default branch's reviewed copy of the rules, never a pull request's or another branch's.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+
+      - name: Merge or label
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR: ${{ inputs.pr }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          args=()
+          if [ -n "$PR" ]; then args+=(--pr "$PR"); fi
+          if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+          node scripts/staging_automerge.ts "${args[@]}"

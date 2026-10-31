@@ -14,6 +14,9 @@ Read [CLAUDE.md](CLAUDE.md) (project rules) and [SECURITY.md](SECURITY.md) first
 4. End with one line: `Verdict: approve`, `Verdict: approve after fixes`, or `Verdict: request changes`.
 5. If the pull request touches a sensitive area (list below), add the line
    `Needs Christian's approval: <area>` even if you approve it.
+6. Your review is the last gate for non-sensitive pull requests: once CI and the preview build pass and your latest
+   review of the head commit has no findings, the staging auto-merge merges it into `staging` (D-39). Anything that
+   should stop a merge must be posted as a finding, not only mentioned in prose.
 
 ## Review guidelines
 
