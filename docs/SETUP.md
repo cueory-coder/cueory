@@ -36,54 +36,48 @@ If any of this asks you to pay, stop and tell Claude.
 
 ---
 
-## Part C — Connect the repository to Cloudflare Pages (10 minutes)
+## Part C — Connect the repository to Cloudflare Workers (10 minutes)
 
-1. Open https://dash.cloudflare.com and sign in.
-2. In the left sidebar, click **Workers & Pages**.
-3. Click **Create application**.
-4. Choose **Pages** (not Workers), then **Connect to Git**.
-   Cloudflare may show a note recommending Workers. Ignore it; we use Pages on purpose (DECISIONS.md, D-05).
-5. Click **GitHub**. If asked, sign in to GitHub.
-6. On GitHub's screen, choose **Only select repositories**, pick **Cueory**, then click **Install & Authorize**.
-7. Back in Cloudflare, select **Cueory** and click **Begin setup**.
-8. **Project name:** type `cueory`. (If Cloudflare says it's taken, accept its suggestion and tell Claude the name.)
-9. **Production branch:** choose `main`.
-10. **Framework preset:** choose **Astro**.
-    You should see Build command `npm run build` and Build output directory `dist`. If not, type those in.
-11. Leave environment variables empty. Click **Save and Deploy**.
-12. The first build **fails**. This is expected: `main` is still empty until Task 1 is approved. Click
-    **Continue to project** (or open the project from **Workers & Pages**).
+Cloudflare's "Create application" now sets up a **Worker** (DECISIONS.md, D-38). The repository's `wrangler.jsonc`
+tells it to serve the built site as static files.
 
----
+### Set up Zero Trust first (one time, for the staging lock)
+1. On the **Workers & Pages** page, find the **Cloudflare Access** card on the right and click **Set up Zero Trust**.
+2. Choose a team name (for example `cueory`) and the **Free** plan (up to 50 users, $0).
+   If any screen shows a price above $0, stop and tell Claude.
 
-## Part D — Only build `main` and `staging` (3 minutes)
-
-1. In the **cueory** Pages project, click **Settings**.
-2. Find **Branch control** (under **Builds & deployments** or **Build**).
-3. Production branch: `main`, with automatic deployments **on**.
-4. **Preview branch:** choose **Custom branches**.
-5. **Include Preview branches:** type `staging`. Leave **Exclude Preview branches** empty.
-6. Click **Save**.
-   You should see Production = `main` and Preview = Custom branches (`staging`).
+### Create the Worker
+3. Back on **Workers & Pages**, click **Create application** → **Import a repository** → **GitHub**.
+4. Pick **lilchristxan/Cueory** and continue.
+5. Fill in exactly:
+   - **Project name:** `cueory`
+   - **Build command:** `npm run build`
+   - **Deploy command:** `npx wrangler deploy`
+   - **Preview command:** `npx wrangler versions upload`
+   - **Enable Preview builds:** on
+   - **Protect with Cloudflare Access:** **on** (this is the staging lock)
+6. Open **Advanced settings** and leave everything as it is.
+7. Click **Deploy**. The first build of `main` may fail because `main` is still almost empty. That's expected.
 
 ---
 
-## Part E — Lock the staging site (10 minutes)
+## Part D — Check the branches (3 minutes)
 
-### Set up Zero Trust (one time)
-1. In the Cloudflare left sidebar, click **Zero Trust**.
-2. Choose a team name (for example `cueory`) and continue.
-3. Choose the **Free** plan (up to 50 users, $0).
-   Cloudflare may ask for a payment card even on the free plan; the charge stays $0. If any screen shows a price above
-   $0, stop and tell Claude.
+1. Open the **cueory** Worker → **Settings** → **Builds**.
+2. **Production branch:** `main`.
+3. Leave non-production (preview) builds **on**. Every branch, including `staging`, gets its own locked preview address.
+   You should see the GitHub repository listed with no red error. If you see "Error fetching GitHub User", click
+   **Disconnect**, then connect GitHub again.
 
-### Turn on the lock
-4. Go back to **Workers & Pages** → **cueory** → **Settings** → **General**.
-5. Find **Access policy** and click **Enable access policy**.
-   You should see it change to show a **Manage** link.
-6. Click **Manage**.
-7. Open the policy and check that its **Include** rule is **Emails** = your business Gmail. If it's anything else,
-   change it to that email and click **Save**.
+---
+
+## Part E — Check the lock (5 minutes)
+
+1. In the Worker, open the **Access** tab. It should show Access as **on** for preview addresses.
+2. Click **Manage** (or open **Zero Trust → Access → Applications**) and check the policy's **Include** rule is
+   **Emails** = your business Gmail. If not, change it and click **Save**.
+3. Open the Worker's **Deployments** tab, find the `staging` preview and open its address. You should see a
+   Cloudflare login screen. Sign in with the Gmail; you should then see the site.
 
 ---
 
