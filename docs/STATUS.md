@@ -30,14 +30,19 @@ Last updated: 2026-10-31
   ([#3](https://github.com/lilchristxan/Cueory/pull/3), `/learn/study-skills/cards`) merged into `staging`.
 - Task 4 flashcards ([#6](https://github.com/lilchristxan/Cueory/pull/6)): shuffle, star, Know it / Still learning, stars
   kept in the browser only (D-37). In `staging`.
+- Staging auto-merge ([#12](https://github.com/lilchristxan/Cueory/pull/12), D-39) merged into `staging`: clean,
+  non-sensitive pull requests merge into `staging` on their own; sensitive ones get the `needs-christian` label. It
+  starts working once it reaches `main` with the next release.
 
 ## In review
-- **Staging auto-merge** (D-39), this pull request: merges clean, non-sensitive pull requests into `staging`; sensitive
-  ones get the `needs-christian` label. It touches `.github/`, so Christian approves it, and it starts working once it
-  reaches `main`.
+- [Video start wording](https://github.com/lilchristxan/Cueory/pull/13) (D-40),
+  [marketing redesign](https://github.com/lilchristxan/Cueory/pull/14) (D-41) and
+  [pre-launch mode for the auto-merge](https://github.com/lilchristxan/Cueory/pull/15) (D-42).
+- **Dependabot ignore rules**, this pull request: `.github/dependabot.yml` stops offering TypeScript 7 and
+  `@types/node` above 24. It changes `.github/`, so Christian approves it; Dependabot reads it once it reaches `main`.
 - Dependabot [#9](https://github.com/lilchristxan/Cueory/pull/9) (`@types/node` 26) and
-  [#10](https://github.com/lilchristxan/Cueory/pull/10) (TypeScript 7): told to ignore those major versions. We run
-  Node 24 (D-01), and Astro's type checker accepts TypeScript only up to 6 (D-02).
+  [#10](https://github.com/lilchristxan/Cueory/pull/10) (TypeScript 7): don't merge. We run Node 24 (D-01), and
+  Astro's type checker accepts TypeScript only up to 6 (D-02).
 
 ## Blocked
 - **Task 2 (accounts and database)** waits for Christian to create the two Supabase projects, and its sign-in and

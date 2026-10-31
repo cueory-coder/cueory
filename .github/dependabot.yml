@@ -7,6 +7,13 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 5
+    ignore:
+      # Astro's type checker accepts TypeScript only up to 6 (DECISIONS.md, D-02).
+      - dependency-name: typescript
+        versions: ['>=7.0.0']
+      # Node's type files must match the Node major version in .node-version, which is 24 (D-01).
+      - dependency-name: '@types/node'
+        versions: ['>=25.0.0']
     groups:
       minor-and-patch:
         update-types: [minor, patch]
