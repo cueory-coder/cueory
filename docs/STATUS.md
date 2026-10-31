@@ -61,6 +61,5 @@ Follow [docs/SETUP.md](SETUP.md):
 - [x] Select-all-that-apply questions: yes, scored all-or-nothing for now, with each option's rationale shown
   afterward ([answer on issue #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6545756502)). The batch
   checker still handles single-answer questions only (D-30) until that change is built.
-- [ ] Confirm the video answer on [issue #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6545756502):
-  one tap on the cover loads YouTube's player and starts that video. It replaces the "no autoplay" wording in D-32,
-  so it needs Christian's own yes.
+- [x] Videos: one tap on the cover loads YouTube's player and starts that video (Christian confirmed "play
+  immediately", [issue #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6546595207); D-40).

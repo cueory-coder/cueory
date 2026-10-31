@@ -78,7 +78,8 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   verdict is its own status: an item with nothing wrong except pending reviews goes to `pending.csv`, never passes,
   and the exit code is 1 (0 only when every item passed). Items are single-answer only; select-all-that-apply waits
   for Christian's content decision. Answer balance unchanged.
-- **D-32** Lesson videos (Christian's decision, 2026-10-31): hosted on Cueory's YouTube channel and embedded from
+- **D-32** (How a video starts is updated by D-40.) Lesson videos (Christian's decision, 2026-10-31): hosted on
+  Cueory's YouTube channel and embedded from
   `youtube-nocookie.com` behind a click-to-play cover (self-hosted thumbnail and play button), never stored on our
   servers. No autoplay, so after the click the student presses play in YouTube's own player. `frame-src` allows only
   that origin, video IDs live in `/content`, and `/privacy` mentions YouTube's cookies. Reason: video hosting stays
@@ -107,3 +108,7 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   plain static files; `_headers` still applies. Previews: every branch builds a preview, all locked by the Worker's
   "Protect with Cloudflare Access" switch, so the staging lock no longer depends on Pages. Wrangler is pinned in
   devDependencies so builds don't download a changing version.
+- **D-40** Lesson videos start on the first tap (Christian confirmed "play immediately", 2026-10-31). The cover's one
+  tap loads the `youtube-nocookie.com` player with autoplay switched on for that video only, so the student doesn't
+  press play twice. Nothing loads from YouTube before the tap, and nothing ever plays on page load. Replaces D-32's
+  "press play in YouTube's own player". Reason: the student has already chosen to watch.
