@@ -1,7 +1,17 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-const pages = ['/', '/learn/study-skills', '/learn/study-skills/cards', '/privacy', '/terms', '/disclaimer', '/support', '/subscribed'];
+const pages = [
+  '/',
+  '/learn/study-skills',
+  '/learn/study-skills/cards',
+  '/learn/study-skills/matching',
+  '/privacy',
+  '/terms',
+  '/disclaimer',
+  '/support',
+  '/subscribed',
+];
 
 for (const path of pages) {
   test(`${path} loads, shows the notice, and passes accessibility checks`, async ({ page }) => {
@@ -122,6 +132,42 @@ test('shuffle keeps every card in the round exactly once', async ({ page }) => {
   await expect(page.getByText("That's every card for now.")).toBeVisible();
 });
 
+test('Matching pairs terms with meanings by keyboard, counting misses', async ({ page }) => {
+  await page.goto('/learn/study-skills');
+  await page.getByRole('link', { name: "Match this lesson's terms and meanings" }).click();
+  await expect(page).toHaveURL(/\/learn\/study-skills\/matching$/);
+  await expect(page.getByText('Matched 0 of 3 · Misses: 0')).toBeVisible();
+
+  const terms = page.getByRole('region', { name: 'Terms' });
+  const meanings = page.getByRole('region', { name: 'Meanings' });
+
+  // A wrong pair, by keyboard.
+  await terms.getByRole('button', { name: 'Placeholder card 1, front.' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(terms.getByRole('button', { name: /Placeholder card 1, front\./ })).toHaveAttribute('aria-pressed', 'true');
+  await meanings.getByRole('button', { name: 'Placeholder card 2, back.' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('Not a match. Try again.')).toBeVisible();
+  await expect(page.getByText('Matched 0 of 3 · Misses: 1')).toBeVisible();
+
+  // Right pairs, starting from either side.
+  await terms.getByRole('button', { name: 'Placeholder card 1, front.' }).click();
+  await meanings.getByRole('button', { name: /^Placeholder card 1, back\./ }).click();
+  await expect(page.getByText('Matched: Placeholder card 1, front.')).toBeVisible();
+  await meanings.getByRole('button', { name: 'Placeholder card 2, back.' }).click();
+  await terms.getByRole('button', { name: 'Placeholder card 2, front.' }).click();
+  await terms.getByRole('button', { name: 'Placeholder card 3, front.' }).click();
+  await meanings.getByRole('button', { name: 'Placeholder card 3, back.' }).click();
+
+  await expect(page.getByText('All 3 matched.')).toBeVisible();
+  await expect(page.getByText('Matched 3 of 3 · Misses: 1')).toBeVisible();
+  await expect(terms.getByRole('button', { name: /Matched$/ })).toHaveCount(3);
+  await expect(terms.getByRole('button', { disabled: true })).toHaveCount(3);
+
+  await page.getByRole('button', { name: 'Play again' }).click();
+  await expect(page.getByText('Matched 0 of 3 · Misses: 0')).toBeVisible();
+});
+
 test.describe('without JavaScript', () => {
   test.use({ javaScriptEnabled: false });
 
@@ -140,6 +186,17 @@ test.describe('without JavaScript', () => {
     await expect(page.getByRole('button')).toHaveCount(0);
     expect(await page.locator('dl dt').count()).toBe(3);
     expect(await page.locator('dl dd').count()).toBe(3);
+  });
+
+  test('Matching says it needs JavaScript and points to the cards', async ({ page }) => {
+    await page.goto('/learn/study-skills/matching');
+    await expect(page.getByRole('button')).toHaveCount(0);
+    // Playwright's text matching skips <noscript>, so these use CSS.
+    await expect(page.locator('noscript p')).toHaveText(
+      'Matching needs JavaScript. You can read every card and its answer on the cards page.',
+    );
+    await page.locator('noscript a[href="/learn/study-skills/cards"]').click();
+    await expect(page).toHaveURL(/\/learn\/study-skills\/cards$/);
   });
 });
 

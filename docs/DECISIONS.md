@@ -126,3 +126,11 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   Merges made by the workflow don't start CI on `staging` (GitHub doesn't start workflows from its own token's
   pushes); each pull request's CI already tested it merged with `staging`. Reason: Christian keeps his hands for
   sensitive changes and releases, and clean work reaches the staging site without waiting for him.
+- **D-44** Matching for card decks (ROADMAP Task 4). A round lays out up to six cards as two lists, terms (fronts) and
+  meanings (backs), each in random order; the student picks one from each list in either order. A right pair is
+  marked "Matched" in words and with a tick and stays on screen (nothing disappears or moves by itself); a wrong pair
+  counts as a miss and is cleared. Picking a second item from the same list moves the pick, and picking the same item
+  again lets go. Two cards whose answers (or terms) read the same can be paired either way. Bigger decks play six
+  pairs a round in deck order. Every item is a button, so there is no dragging, and there is no timer. Nothing is
+  saved yet; without JavaScript the page points to the cards page. Reason: the home page promises "Pair terms with
+  what they mean", and the card decks already hold the pairs.
