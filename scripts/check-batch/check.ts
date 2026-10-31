@@ -30,6 +30,11 @@ export const BALANCE_MIN_ITEMS = 20;
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E'] as const;
 type Letter = (typeof LETTERS)[number];
+/**
+ * `single`: one right answer (the default when the optional `type` column is blank or missing). `sata`: select all
+ * that apply, scored all-or-nothing, with a rationale for every choice (Christian's decision, 2026-10-31; D-45).
+ */
+export type ItemType = 'single' | 'sata';
 const VERDICTS = new Set(['pass', 'fail', 'pending']);
 const ID = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/;
 /** The reviewers Task 2's admin screen has a column for. A file with any other name is a typo until proven otherwise. */
@@ -70,8 +75,10 @@ export interface BatchResult {
   failed: ItemResult[];
   /** Nothing is wrong, but some reviewer's verdict is still `pending`. A pending item never passes. */
   pending: ItemResult[];
-  /** Correct-answer count per letter, over items that have a usable key. */
+  /** Correct-answer count per letter, over single-answer items that have a usable key. */
   balance: Partial<Record<Letter, number>>;
+  /** How many items are select-all-that-apply (they are not counted in `balance`). */
+  sata: number;
   /** Reviewer → items where their answer matched the key / items they answered. */
   agreement: Record<string, { matched: number; answered: number }>;
 }
@@ -87,6 +94,29 @@ const normalize = (text: string): string => text.toLowerCase().replace(/\s+/g, '
 /** Letters this item offers: A–D always, E only when the batch has a `choice_e` column and this item fills it. */
 function choiceLetters(item: CsvRow): Letter[] {
   return LETTERS.filter((l) => l !== 'E' || (item.choice_e ?? '') !== '');
+}
+
+/** The item's type from the optional `type` column, or null when the cell holds something else. */
+export function itemType(item: CsvRow): ItemType | null {
+  const type = (item.type ?? '').trim().toLowerCase();
+  if (type === '' || type === 'single') return 'single';
+  if (type === 'sata') return 'sata';
+  return null;
+}
+
+/**
+ * The letters in a select-all-that-apply answer cell, separated by `;` ("A;C;D"). Case, spaces and order don't
+ * matter. Returns the sorted letters, or a problem: no letters, an empty place between `;`, one that isn't a choice,
+ * or the same letter twice. Single-answer cells never come here: they must be exactly one letter, as before D-45.
+ */
+export function answerLetters(cell: string, offered: readonly Letter[]): { letters: Letter[] } | { problem: string } {
+  if (cell.trim() === '') return { problem: 'is empty' };
+  const parts = cell.split(';').map((p) => p.trim().toUpperCase());
+  if (parts.some((p) => p === '')) return { problem: `"${cell}" has an empty place between ;` };
+  const outside = parts.filter((p) => !(offered as readonly string[]).includes(p));
+  if (outside.length > 0) return { problem: `"${cell}" is not one of the choices (${offered.join(', ')})` };
+  if (new Set(parts).size !== parts.length) return { problem: `"${cell}" names a choice twice` };
+  return { letters: [...(parts as Letter[])].sort() };
 }
 
 /**
@@ -177,6 +207,7 @@ export function checkBatch(input: BatchInput): BatchResult {
   }
 
   const balance: Partial<Record<Letter, number>> = {};
+  let sataCount = 0;
   const agreement: BatchResult['agreement'] = Object.fromEntries(
     reviewerNames.map((n) => [n, { matched: 0, answered: 0 }]),
   );
@@ -219,11 +250,37 @@ export function checkBatch(input: BatchInput): BatchResult {
       else if (badSources.has(s)) reasons.push(badSources.get(s) as string);
     }
 
-    const answer = (key.get(id)?.answer ?? '').toUpperCase();
-    const keyed = (letters as string[]).includes(answer);
-    if (answer === '') reasons.push('has no answer in key.csv');
-    else if (!keyed) reasons.push(`key answer "${answer}" is not one of the choices (${letters.join(', ')})`);
-    if (keyed) balance[answer as Letter] = (balance[answer as Letter] ?? 0) + 1;
+    const type = itemType(item);
+    if (type === null) reasons.push(`type "${item.type ?? ''}" must be single or sata (blank means single)`);
+    const sata = type === 'sata';
+    if (sata) {
+      sataCount += 1;
+      // Select-all-that-apply shows why each choice is right or wrong once the student has answered.
+      for (const l of letters) {
+        if ((item[`rationale_${l.toLowerCase()}`] ?? '').trim() === '') {
+          reasons.push(`choice ${l} has no rationale (rationale_${l.toLowerCase()}); select-all-that-apply needs one for every choice`);
+        }
+      }
+    }
+
+    const keyCell = key.get(id)?.answer ?? '';
+    // The key: one letter on a single-answer item (checked exactly as before D-45), a `;` list on a sata item.
+    let answer: string | null = null;
+    if (keyCell === '') reasons.push('has no answer in key.csv');
+    else if (!sata) {
+      const single = keyCell.toUpperCase();
+      const asList = answerLetters(keyCell, letters);
+      if ((letters as string[]).includes(single)) answer = single;
+      else if (!('problem' in asList) && asList.letters.length > 1) {
+        reasons.push(`key gives ${asList.letters.join(';')} but the item is single-answer; set type to sata for select-all-that-apply`);
+      } else reasons.push(`key answer "${single}" is not one of the choices (${letters.join(', ')})`);
+    } else {
+      const keyAnswer = answerLetters(keyCell, letters);
+      if ('problem' in keyAnswer) reasons.push(`key answer ${keyAnswer.problem}`);
+      else answer = keyAnswer.letters.join(';');
+    }
+    const keyed = answer !== null;
+    if (keyed && !sata) balance[answer as Letter] = (balance[answer as Letter] ?? 0) + 1;
 
     for (const [name, rows] of reviews) {
       const review = rows.get(id);
@@ -231,14 +288,22 @@ export function checkBatch(input: BatchInput): BatchResult {
         reasons.push(`${name}: no review`);
         continue;
       }
-      const given = (review.answer ?? '').toUpperCase();
       const verdict = (review.verdict ?? '').toLowerCase();
-      if (!(letters as string[]).includes(given)) {
-        reasons.push(`${name}: answer "${review.answer ?? ''}" is not one of the choices`);
+      // A single-answer review is exactly one letter, as before D-45; a sata review is a `;` list.
+      const single = (review.answer ?? '').toUpperCase();
+      const given = sata ? answerLetters(review.answer ?? '', letters) : null;
+      const picked = sata ? (given && !('problem' in given) ? given.letters.join(';') : null) : (letters as string[]).includes(single) ? single : null;
+      if (picked === null) {
+        reasons.push(
+          sata
+            ? `${name}: answer "${review.answer ?? ''}" must be letters from the choices, separated by ;`
+            : `${name}: answer "${review.answer ?? ''}" is not one of the choices`,
+        );
       } else {
+        // All-or-nothing: a reviewer matches only by picking exactly the key's letters.
         agreement[name]!.answered += 1;
-        if (keyed && given === answer) agreement[name]!.matched += 1;
-        else if (keyed) reasons.push(`${name}: answered ${given}, key says ${answer}`);
+        if (keyed && picked === answer) agreement[name]!.matched += 1;
+        else if (keyed) reasons.push(`${name}: answered ${picked}, key says ${answer}`);
       }
       if (!VERDICTS.has(verdict)) reasons.push(`${name}: verdict "${review.verdict ?? ''}" must be pass, fail or pending`);
       else if (verdict === 'fail') reasons.push(`${name}: marked it fail`);
@@ -248,10 +313,13 @@ export function checkBatch(input: BatchInput): BatchResult {
     results.push({ item_id: id, concept_id: item.concept_id ?? '', reasons, waiting });
   }
 
+  // Balance is judged over single-answer items only: a select-all-that-apply key has several letters.
   const keyedTotal = Object.values(balance).reduce((a, b) => a + b, 0);
   if (keyedTotal >= BALANCE_MIN_ITEMS) {
-    // Every item offers A–D; E counts only if some item offers it.
-    const offered = LETTERS.filter((l) => l !== 'E' || [...items.values()].some((it) => (it.choice_e ?? '') !== ''));
+    // Every item offers A–D; E counts only if some single-answer item offers it.
+    const offered = LETTERS.filter(
+      (l) => l !== 'E' || [...items.values()].some((it) => itemType(it) === 'single' && (it.choice_e ?? '') !== ''),
+    );
     const even = 100 / offered.length;
     for (const l of offered) {
       const share = ((balance[l] ?? 0) / keyedTotal) * 100;
@@ -262,7 +330,7 @@ export function checkBatch(input: BatchInput): BatchResult {
       }
     }
   } else if (keyedTotal > 0) {
-    warnings.push(`answer balance not judged: fewer than ${BALANCE_MIN_ITEMS} keyed items`);
+    warnings.push(`answer balance not judged: fewer than ${BALANCE_MIN_ITEMS} keyed single-answer items`);
   }
 
   if (batchErrors.length > 0) {
@@ -275,6 +343,7 @@ export function checkBatch(input: BatchInput): BatchResult {
     failed: results.filter((r) => r.reasons.length > 0),
     pending: results.filter((r) => r.reasons.length === 0 && r.waiting.length > 0),
     balance,
+    sata: sataCount,
     agreement,
   };
 }

@@ -46,16 +46,16 @@ Last updated: 2026-10-31
     deployment, new or major-version dependencies and anything labelled `needs-christian` wait for Christian.
   - [Dependabot ignore rules](https://github.com/lilchristxan/Cueory/pull/16): no more TypeScript 7 or `@types/node`
     above 24.
+- Dependabot closed [#9](https://github.com/lilchristxan/Cueory/pull/9) (`@types/node` 26) and
+  [#10](https://github.com/lilchristxan/Cueory/pull/10) (TypeScript 7) itself once the ignore rules reached `main`.
+- In `staging`, waiting for the next release: [Matching](https://github.com/lilchristxan/Cueory/pull/18) (D-44), the
+  first pull request the pre-launch auto-merge took on its own.
 
 ## In review
-- [Matching](https://github.com/lilchristxan/Cueory/pull/18) (D-44) and
-  [select-all-that-apply in the batch checker](https://github.com/lilchristxan/Cueory/pull/19) (D-45): the auto-merge
-  takes these once they are clean.
+- [Select-all-that-apply in the batch checker](https://github.com/lilchristxan/Cueory/pull/19) (D-45) and the
+  [rollback guide](https://github.com/lilchristxan/Cueory/pull/22): the auto-merge takes these once they are clean.
 - [Learn mode](https://github.com/lilchristxan/Cueory/pull/17) (D-43): it changes one placeholder card in `content/`,
   so pre-launch mode holds it for Christian's merge.
-- Dependabot [#9](https://github.com/lilchristxan/Cueory/pull/9) (`@types/node` 26) and
-  [#10](https://github.com/lilchristxan/Cueory/pull/10) (TypeScript 7): don't merge. We run Node 24 (D-01), and
-  Astro's type checker accepts TypeScript only up to 6 (D-02).
 
 ## Blocked
 - **Task 2 (accounts and database)** waits for Christian to create the two Supabase projects, and its sign-in and
