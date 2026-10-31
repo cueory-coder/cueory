@@ -300,3 +300,54 @@ test.describe('theme switch', () => {
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   });
 });
+
+test.describe('marketing look (D-41)', () => {
+  test('the home hero fills the first screen: logo, serif headline, one line of copy, one button', async ({ page }) => {
+    await page.goto('/');
+    const height = page.viewportSize()!.height;
+    const headline = page.getByRole('heading', { level: 1 });
+    await expect(headline).toHaveText('Nursing school is hard enough.');
+    const button = page.getByRole('link', { name: 'Start the free study-skills course' });
+    for (const element of [headline, button]) {
+      const box = (await element.boundingBox())!;
+      expect(box.y + box.height).toBeLessThanOrEqual(height);
+    }
+    expect(await headline.evaluate((el) => getComputedStyle(el).fontFamily)).toMatch(/^"?Bodoni Moda/);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+
+  test('the serif comes from our own site and is ready once the page has loaded', async ({ page }) => {
+    const fonts: string[] = [];
+    page.on('request', (r) => r.resourceType() === 'font' && fonts.push(r.url()));
+    await page.goto('/');
+    await page.evaluate(() => document.fonts.ready);
+    expect(await page.evaluate(() => document.fonts.check('500 44px "Bodoni Moda"'))).toBe(true);
+    expect(fonts.length).toBeGreaterThan(0);
+    for (const url of fonts) expect(new URL(url).origin).toBe(new URL(page.url()).origin);
+  });
+
+  test('nothing on the home page jumps while it loads', async ({ page }) => {
+    await page.goto('/', { waitUntil: 'load' });
+    await page.evaluate(() => document.fonts.ready);
+    const shift = await page.evaluate(
+      () =>
+        new Promise<number>((resolve) => {
+          let total = 0;
+          new PerformanceObserver((list) => {
+            for (const entry of list.getEntries() as unknown as { value: number; hadRecentInput: boolean }[]) {
+              if (!entry.hadRecentInput) total += entry.value;
+            }
+          }).observe({ type: 'layout-shift', buffered: true });
+          setTimeout(() => resolve(total), 300);
+        }),
+    );
+    expect(shift).toBeLessThan(0.02);
+  });
+
+  test('study screens stay plain, with no texture behind lesson text', async ({ page }) => {
+    await page.goto('/learn/study-skills');
+    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundImage)).toBe('none');
+    await page.goto('/privacy');
+    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundImage)).not.toBe('none');
+  });
+});

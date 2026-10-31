@@ -37,17 +37,17 @@ Last updated: 2026-10-31
   loads YouTube's player and starts that video; nothing plays on page load.
 - Release 31 Oct ([#20](https://github.com/lilchristxan/Cueory/pull/20)): Cards and flashcards for lesson 1, the batch
   checker, the roadmap additions and the staging auto-merge are on `main`.
+- In `staging`, approved by Christian on 31 Oct, waiting for the next release to `main`:
+  - [Marketing redesign](https://github.com/lilchristxan/Cueory/pull/14) (D-41): quiet-luxury home hero and frosted
+    panels on the support, legal and 404 pages; study screens unchanged.
+  - [Pre-launch mode for the auto-merge](https://github.com/lilchristxan/Cueory/pull/15) (D-42): `automation.json`
+    says `"prelaunch": true`, so until launch only workflows, the automation, the rules files, content, the database,
+    deployment, new or major-version dependencies and anything labelled `needs-christian` wait for Christian. The
+    auto-merge runs the rules on `main`, so this takes effect with the next release.
+  - [Dependabot ignore rules](https://github.com/lilchristxan/Cueory/pull/16): no more TypeScript 7 or `@types/node`
+    above 24. Dependabot reads its settings from `main`, so this also takes effect with the next release.
 
 ## In review
-- [Marketing redesign](https://github.com/lilchristxan/Cueory/pull/14) (D-41): quiet-luxury home hero and frosted
-  panels on the support, legal and 404 pages; study screens unchanged. It edits CLAUDE.md and AGENTS.md, so Christian
-  approves it.
-- [Pre-launch mode for the auto-merge](https://github.com/lilchristxan/Cueory/pull/15) (D-42): `automation.json`
-  says `"prelaunch": true`, so until launch only workflows, the automation, the rules files, content, the database,
-  deployment, new or major-version dependencies and anything labelled `needs-christian` wait for Christian. It changes
-  the automation's own rules, so Christian approves it.
-- [Dependabot ignore rules](https://github.com/lilchristxan/Cueory/pull/16): no more TypeScript 7 or `@types/node`
-  above 24. It changes `.github/`, so Christian approves it.
 - [Learn mode](https://github.com/lilchristxan/Cueory/pull/17) (D-43), [Matching](https://github.com/lilchristxan/Cueory/pull/18)
   (D-44) and [select-all-that-apply in the batch checker](https://github.com/lilchristxan/Cueory/pull/19) (D-45): the
   auto-merge takes these once they are clean.
@@ -74,8 +74,12 @@ Follow [docs/SETUP.md](SETUP.md):
 - [ ] I. Create the Kit account and form; decide on the mailing address shown in emails
 - [ ] J. Decide whether hello@cueory.app should forward to your Gmail (needs email DNS records)
 - [ ] Provide disclaimer and terms text
-- [ ] In Settings → Rules, make the `main` ruleset "Restrict updates" with only the repository admin (you) on its
-  bypass list, so no robot can ever change `main` (D-39; the auto-merge is live since the 31 Oct release)
+- [x] `main` ruleset: protect-main stays active (pull request required, no force pushes, no deletion). "Restrict
+  updates" stays off for now, Christian's call on 31 Oct, because it would block an auto-release
+  ([answer on issue #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6548304193)).
+- [ ] Auto-release (`staging` into `main` with no person in the loop): Christian's yes reached the repo through
+  another Claude session on issue #4. The safety check of the session that builds it needs that yes from Christian
+  himself, in the Claude chat that runs these updates, before it builds anything that changes the live site on its own.
 - [ ] Confirm or change the Task 3 batch defaults (docs/BATCHES.md, D-26) before real batches use them: the CSV
   columns, which reviewers count (at least five files, names from the Task 2 roster), the pass rule (every reviewer matches
   the key and marks pass; unfinished reviews are pending, not failed), and the answer-balance warning (10 points off an even share, batches of 20+).
