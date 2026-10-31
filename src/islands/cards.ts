@@ -105,13 +105,15 @@ export function nextRound(state: CardsState, shuffle: boolean, random: Random = 
 }
 
 /**
- * Turning shuffle on or off reorders only the cards still to come. Cards already sorted and the card on screen stay
- * where they are, so nothing the student is looking at jumps.
+ * Turning shuffle on or off reorders the cards still to come. Cards already sorted stay where they are. Once the
+ * student has sorted a card or flipped the one on screen, that card stays too, so nothing they're working on jumps;
+ * at the very start of a round, the whole round is reordered.
  */
 export function reorderRest(state: CardsState, shuffle: boolean, random: Random = Math.random): CardsState {
   if (isRoundOver(state)) return state;
-  const keep = state.round.slice(0, state.pos + 1);
-  const rest = order(state.round.slice(state.pos + 1), shuffle, random);
+  const fresh = state.pos === 0 && !state.flipped;
+  const keep = state.round.slice(0, fresh ? 0 : state.pos + 1);
+  const rest = order(state.round.slice(keep.length), shuffle, random);
   return { ...state, round: [...keep, ...rest] };
 }
 

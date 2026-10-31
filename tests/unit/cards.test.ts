@@ -161,9 +161,16 @@ describe('shuffle', () => {
     expect(s.round.slice(2)).not.toEqual([2, 3, 4, 5, 6, 7]);
   });
 
-  it('turning shuffle off puts the cards still to come back in deck order', () => {
-    const s = reorderRest(start([3, 1, 2, 0]), false);
+  it('turning shuffle off puts the cards still to come back in deck order, keeping a flipped card on screen', () => {
+    const s = reorderRest(flip(start([3, 1, 2, 0])), false);
     expect(s.round).toEqual([3, 0, 1, 2]);
+    expect(current(s)).toBe(3);
+  });
+
+  it('at the very start of a round, reorders the whole round', () => {
+    const all = [0, 1, 2, 3, 4, 5, 6, 7];
+    expect(reorderRest(start(all), true, seeded(5)).round).toEqual(order(all, true, seeded(5)));
+    expect(reorderRest(start([3, 1, 2, 0]), false).round).toEqual([0, 1, 2, 3]);
   });
 
   it('leaves a finished round alone', () => {
