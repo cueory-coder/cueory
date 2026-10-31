@@ -56,10 +56,24 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   inline `<head>` script applies the saved pick before the page paints; Astro doesn't hash hand-written inline scripts,
   so `astro.config.mjs` adds that script's exact hash to the CSP, and a build test checks every inline script is allowed.
   Without JavaScript the switch stays hidden and the device setting decides.
+- **D-26** Batch checker (Task 3): `npm run check-batch -- <folder>`, a TypeScript script run straight by Node 24
+  (type stripping, no extra dependency), with its own strict CSV reader so a malformed file stops the check instead of
+  being half-read. Format and pass rule in `docs/BATCHES.md`: a question passes only if every reviewer (at least five)
+  matches the key and marks it pass, and every mechanical check passes. Answer balance is a warning, not a failure.
+  Links are checked offline by default; `--check-links` asks the websites and is never run in CI. Real batches stay
+  under `content/batches/`, which git ignores, so answer keys and reviewer results never reach the repository (D-07).
 - **D-27** The lesson stepper renders only in the browser (`client:only`), so without JavaScript the page shows just
   the full lesson list, with no duplicate first sentence and no dead buttons. Codex review of PR #1.
 - **D-28** Components may not use Tailwind "arbitrary values" (`text-[3.5rem]` and the like); every size, spacing and
   letter-spacing value is a named token. A unit test scans `src/` for them. Codex review of PR #1.
+- **D-29** When the batch checker can't read a batch, it deletes the earlier `passed.csv` and `failed.csv` and writes a
+  "not checked" `report.md`, so a stale approval can't be mistaken for a current one. Codex review of PR #2.
+- **D-30** Batch checker rules, from the development director: reviewer file names must be on the Task 2 roster (gpt1,
+  gpt2, gpt3, gemini, claude_sonnet, codex, claude_final, christian), so a typo is a batch problem (exit 2) instead of
+  silently counting; at least five files, none individually required. The pass rule stays unanimous. A `pending`
+  verdict is its own status: an item with nothing wrong except pending reviews goes to `pending.csv`, never passes,
+  and the exit code is 1 (0 only when every item passed). Items are single-answer only; select-all-that-apply waits
+  for Christian's content decision. Answer balance unchanged.
 - **D-32** Lesson videos (Christian's decision, 2026-10-31): hosted on Cueory's YouTube channel and embedded from
   `youtube-nocookie.com` behind a click-to-play cover (self-hosted thumbnail and play button), never stored on our
   servers. No autoplay, so after the click the student presses play in YouTube's own player. `frame-src` allows only
