@@ -1,0 +1,138 @@
+---
+/**
+ * One small original illustration per study mode for the "ways to study" carousel (D-50): what the mode does, drawn
+ * in brand colors only (classes in global.css, no colors here). Each is still and complete by default; the card in
+ * the middle of the carousel plays a short loop (keyframes in global.css), never with reduced motion or after the
+ * pause button. Decorative: hidden from screen readers, because the card's name and line say the same in words.
+ */
+import type { StudyMode } from '../config/modes';
+
+interface Props {
+  mode: StudyMode['id'];
+}
+
+const { mode } = Astro.props;
+---
+
+<svg viewBox="0 0 200 140" class="ill" aria-hidden="true" focusable="false">
+  {
+    mode === 'lesson' && (
+      <g>
+        <rect class="ill-paper" x="30" y="14" width="140" height="112" rx="10" />
+        <rect class="ill-line ill-anim ill-lesson-1" x="46" y="34" width="108" height="9" rx="4.5" />
+        <rect class="ill-line ill-anim ill-lesson-2" x="46" y="55" width="92" height="9" rx="4.5" />
+        <rect class="ill-accent ill-anim ill-lesson-3" x="46" y="76" width="100" height="9" rx="4.5" />
+        <rect class="ill-line ill-anim ill-lesson-4" x="46" y="97" width="66" height="9" rx="4.5" />
+      </g>
+    )
+  }
+  {
+    mode === 'cards' && (
+      <g>
+        <rect class="ill-shadow" x="62" y="26" width="84" height="98" rx="10" />
+        <g class="ill-anim ill-flip-front">
+          <rect class="ill-paper" x="56" y="20" width="84" height="98" rx="10" />
+          <rect class="ill-ink" x="74" y="62" width="48" height="12" rx="6" />
+        </g>
+        <g class="ill-anim ill-flip-back">
+          <rect class="ill-surface-card" x="56" y="20" width="84" height="98" rx="10" />
+          <rect class="ill-soft" x="70" y="48" width="56" height="7" rx="3.5" />
+          <rect class="ill-soft" x="70" y="62" width="48" height="7" rx="3.5" />
+          <rect class="ill-soft" x="70" y="76" width="52" height="7" rx="3.5" />
+        </g>
+      </g>
+    )
+  }
+  {
+    mode === 'learn' && (
+      <g>
+        <rect class="ill-paper ill-anim ill-learn-card-1" x="22" y="34" width="34" height="44" rx="6" />
+        <rect class="ill-paper ill-anim ill-learn-card-2" x="22" y="62" width="34" height="44" rx="6" />
+        <circle class="ill-ring-track" cx="126" cy="70" r="40" />
+        <circle class="ill-ring ill-anim ill-learn-ring" cx="126" cy="70" r="40" pathLength="100" />
+        <path class="ill-check ill-anim ill-learn-check" d="M108 70l12 12 24-24" pathLength="100" />
+      </g>
+    )
+  }
+  {
+    mode === 'fill-in' && (
+      <g>
+        <rect class="ill-paper" x="18" y="36" width="164" height="78" rx="10" />
+        <rect class="ill-line" x="32" y="58" width="44" height="9" rx="4.5" />
+        <rect class="ill-blank" x="84" y="53" width="52" height="19" rx="5" />
+        <rect class="ill-line" x="144" y="58" width="24" height="9" rx="4.5" />
+        <rect class="ill-line" x="32" y="84" width="100" height="9" rx="4.5" />
+        <rect class="ill-ink ill-anim ill-fill-word" x="90" y="57" width="40" height="11" rx="5.5" />
+      </g>
+    )
+  }
+  {
+    mode === 'matching' && (
+      <g>
+        <rect class="ill-paper" x="22" y="24" width="56" height="20" rx="6" />
+        <rect class="ill-paper" x="22" y="60" width="56" height="20" rx="6" />
+        <rect class="ill-paper" x="22" y="96" width="56" height="20" rx="6" />
+        <rect class="ill-surface-card" x="122" y="24" width="56" height="20" rx="6" />
+        <rect class="ill-surface-card" x="122" y="60" width="56" height="20" rx="6" />
+        <rect class="ill-surface-card" x="122" y="96" width="56" height="20" rx="6" />
+        <path class="ill-link ill-anim ill-match-1" d="M78 34C100 34 100 70 122 70" pathLength="100" />
+        <path class="ill-link ill-anim ill-match-2" d="M78 70C100 70 100 106 122 106" pathLength="100" />
+        <path class="ill-link ill-anim ill-match-3" d="M78 106C100 106 100 34 122 34" pathLength="100" />
+      </g>
+    )
+  }
+  {
+    mode === 'organizer' && (
+      <g>
+        <rect class="ill-group" x="20" y="64" width="74" height="64" rx="8" />
+        <rect class="ill-group" x="106" y="64" width="74" height="64" rx="8" />
+        <rect class="ill-soft" x="32" y="72" width="34" height="6" rx="3" />
+        <rect class="ill-soft" x="118" y="72" width="34" height="6" rx="3" />
+        <rect class="ill-ink ill-anim ill-sort-1" x="30" y="86" width="54" height="12" rx="6" />
+        <rect class="ill-accent ill-anim ill-sort-2" x="116" y="86" width="54" height="12" rx="6" />
+        <rect class="ill-ink ill-anim ill-sort-3" x="30" y="104" width="54" height="12" rx="6" />
+      </g>
+    )
+  }
+  {
+    mode === 'questions' && (
+      <g>
+        <rect class="ill-paper" x="30" y="10" width="140" height="120" rx="10" />
+        <circle class="ill-option" cx="50" cy="32" r="7" />
+        <rect class="ill-line" x="64" y="28" width="80" height="8" rx="4" />
+        <circle class="ill-option" cx="50" cy="54" r="7" />
+        <rect class="ill-line" x="64" y="50" width="70" height="8" rx="4" />
+        <circle class="ill-option ill-anim ill-q-pick" cx="50" cy="76" r="7" />
+        <rect class="ill-line" x="64" y="72" width="88" height="8" rx="4" />
+        <circle class="ill-option" cx="50" cy="98" r="7" />
+        <rect class="ill-line" x="64" y="94" width="60" height="8" rx="4" />
+        <path class="ill-check ill-anim ill-q-check" d="M146 70l5 5 10-10" pathLength="100" />
+        <rect class="ill-accent ill-anim ill-q-why" x="44" y="113" width="100" height="6" rx="3" />
+      </g>
+    )
+  }
+  {
+    mode === 'review' && (
+      <g>
+        <rect class="ill-paper" x="20" y="20" width="160" height="104" rx="10" />
+        <rect class="ill-surface-card" x="20" y="20" width="160" height="20" rx="10" />
+        <g class="ill-days">
+          {[0, 1, 2, 3, 4, 5, 6].flatMap((col) =>
+            [0, 1, 2].map((row) => (
+              <rect class="ill-day" x={32 + col * 20} y={50 + row * 24} width="14" height="14" rx="3" />
+            )),
+          )}
+        </g>
+        <circle class="ill-ink ill-anim ill-review-1" cx="39" cy="57" r="4" />
+        <circle class="ill-ink ill-anim ill-review-2" cx="119" cy="57" r="4" />
+        <circle class="ill-ink ill-anim ill-review-3" cx="79" cy="81" r="4" />
+        <circle class="ill-ink ill-anim ill-review-4" cx="139" cy="81" r="4" />
+        <circle class="ill-ink ill-anim ill-review-5" cx="59" cy="105" r="4" />
+        <g class="ill-anim ill-review-flag">
+          <path class="ill-pole" d="M152 114V92" />
+          <path class="ill-accent" d="M152 92h16l-5 5 5 5h-16z" />
+        </g>
+      </g>
+    )
+  }
+</svg>

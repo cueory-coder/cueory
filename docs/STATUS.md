@@ -57,18 +57,20 @@ Last updated: 2026-10-31
   - [Rollback guide](https://github.com/lilchristxan/Cueory/pull/22) in `docs/SETUP.md`.
 - In `staging`, waiting for the next release ([#26](https://github.com/lilchristxan/Cueory/pull/26), open for Christian):
   [home hero, ☰ side panel and account corner](https://github.com/lilchristxan/Cueory/pull/24) in the all-lowercase
-  voice (D-46, D-47), with phone, tablet and desktop browser tests (D-48).
+  voice (D-46, D-47), with phone, tablet and desktop browser tests (D-48), and the
+  ["ways to study" carousel](https://github.com/lilchristxan/Cueory/pull/28) (D-50).
 
 ## In review
 - Search in the ☰ panel (D-49): Pagefind indexes the site when it is built; results appear as you type. It adds a
   package and lets the content security policy compile WebAssembly (`'wasm-unsafe-eval'`, needed by Pagefind), so it
   waits for Christian's merge.
+- [Study-mode preview and hover zoom](https://github.com/lilchristxan/Cueory/pull/29) (D-51): a card grows into a
+  preview with its moving illustration; the auto-merge takes it once it is clean.
 
 ## Queued (Christian's change requests on issue #4, in his order)
-1. "ways to study" carousel with illustrations, hover zoom, grow-into-preview and the preview panel.
-2. Silk scenes down the whole page, social links (Simple Icons), then the once-only promo panel.
-3. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
-4. Auto-release (`staging` into `main` in pre-launch mode), after the change requests.
+1. Silk scenes down the whole page, social links (Simple Icons), then the once-only promo panel.
+2. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
+3. Auto-release (`staging` into `main` in pre-launch mode), after the change requests.
 
 ## Blocked
 - **Task 2 (accounts and database)** waits for Christian to create the two Supabase projects, and its sign-in and

@@ -103,11 +103,16 @@ describe.skipIf(!existsSync(dist))('built site', () => {
     },
   );
 
-  it('home page calls the sentence-by-sentence reader "Lesson", so "Learn" only means Learn mode (D-43)', () => {
+  it('home page: "lesson" is the sentence-by-sentence reader and "learn" is Learn mode (D-43, D-50)', () => {
     const html = readFileSync(join(dist, 'index.html'), 'utf8');
-    const modes = [...html.matchAll(/<h3[^>]*>([^<]+)<\/h3>/g)].map((m) => m[1]!.trim());
-    expect(modes).toContain('Lesson');
-    expect(modes).not.toContain('Learn');
+    const card = (id: string) => {
+      const match = new RegExp(`<div[^>]*id="mode-${id}"[\\s\\S]*?<h3[^>]*>([^<]+)</h3>[\\s\\S]*?(?:href="([^"]+)"|coming soon)`).exec(html);
+      expect(match, `card ${id}`).not.toBeNull();
+      return { name: match![1]!.trim(), href: match![2] };
+    };
+    expect(card('lesson')).toEqual({ name: 'lesson', href: '/learn/study-skills' });
+    expect(card('learn')).toEqual({ name: 'learn', href: '/learn/study-skills/learn-mode' });
+    expect(card('fill-in')).toEqual({ name: 'fill-in', href: undefined });
   });
 
   it('keeps the signup thank-you page out of search engines', () => {

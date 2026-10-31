@@ -147,6 +147,31 @@ describe('marketing background (D-41)', () => {
     expect(contrastRatio(colors['ink-soft']!, background)).toBeGreaterThanOrEqual(4.5);
     expect(contrastRatio(colors.button!, background)).toBeGreaterThanOrEqual(3);
   });
+
+  /*
+    "ways to study" carousel (D-50): its cards are the frosted panels checked above, so their text is covered as long
+    as nothing fades a card. The row scrolls, scales and lowers the cards, but never masks, fades or blurs them, the row
+    or the chips. (The illustrations inside the cards are decoration and may use opacity.)
+  */
+  it('never masks, fades or blurs the carousel row, its cards or its chips', () => {
+    const globalCss = readFileSync(new URL('../../src/styles/global.css', import.meta.url), 'utf8');
+    const rules = [...globalCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+      .map(([, selector, body]) => [selector!.replace(/\/\*[\s\S]*?\*\//g, '').trim(), body!] as const)
+      .filter(([selector]) => /\.(modes-track|mode-card|mode-chip)\b/.test(selector) && !/\.ill[\w-]*\s*$/.test(selector));
+    expect(rules.length).toBeGreaterThanOrEqual(4);
+    for (const [selector, body] of rules) {
+      expect(body, selector).not.toMatch(/(^|[\s;{])(-webkit-)?(mask[\w-]*|opacity|filter)\s*:/);
+    }
+  });
+
+  it.each([
+    ['Daytime', daytime, darkestDay],
+    ['Evening', evening, lightestEvening],
+  ] as const)('%s carousel chips stay readable on the silk, with a visible outline', (_name, colors, silk) => {
+    expect(contrastRatio(colors.ink!, silk)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(colors.control!, silk)).toBeGreaterThanOrEqual(3);
+    expect(contrastRatio(colors['on-button']!, colors.button!)).toBeGreaterThanOrEqual(4.5);
+  });
 });
 
 /*

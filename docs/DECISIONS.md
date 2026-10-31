@@ -234,3 +234,18 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   running JavaScript strings, and scripts still come only from this site (a build test checks there is no other
   `unsafe-eval`). Reason: Christian asked for real search with Pagefind; a static, self-hosted index keeps the site
   free and private, and without `'wasm-unsafe-eval'` the search fails in every browser.
+- **D-50** "ways to study" carousel on the home page (Christian's change request, 2026-10-31). A small label, a centered
+  heading, one chip per study mode in his order (lesson, cards, learn, fill-in, matching, organizer, questions, review),
+  and a row of frosted cards that scrolls sideways and snaps each card to the middle, so swiping, the keyboard and pages
+  without JavaScript all work (without it, each chip is a link to its card). The script adds the coverflow look
+  (neighbours smaller and a little lower; the row runs the full width of the window, so the window's edge cuts off the
+  neighbours and nothing masks or fades a card), previous and next buttons, Left/Right/Home/End keys, and a 6-second
+  auto-advance that pauses on hover or focus, waits while the carousel is off screen, stops for good once the visitor
+  uses it, and never runs with reduced motion. Each card has an original inline-SVG illustration of what the mode does,
+  in brand colors only, which loops only on the card in the middle; a pause button stops both the auto-advance and the
+  loops (WCAG 2.2.2). Card text stays fully opaque, so its contrast never drops (a unit test fails if the carousel
+  styles ever mask, fade or blur a card). Once the visitor is using the carousel, only the card where the row comes to
+  rest is announced, never the cards a swipe or glide passes. The modes and their links live in `src/config/modes.ts`;
+  open modes link to their page and the rest say "coming soon". The hover zoom, grow-into-preview and preview panel
+  follow in their own pull request. Reason: Christian's request; a scroll-snap row keeps every feature working on every
+  device (D-48) without a carousel library.
