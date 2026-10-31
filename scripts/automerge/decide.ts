@@ -148,15 +148,24 @@ export function heldPaths(files: readonly ChangedFile[], mode: Mode): string[] {
 
 /** The dependency lists in a package.json. */
 const DEPENDENCY_FIELDS = ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies'] as const;
+/** Fields that can swap a package's version anywhere in the tree (npm, Yarn, pnpm): any change to them waits. */
+const OVERRIDE_FIELDS = ['overrides', 'resolutions', 'pnpm'] as const;
+
+/**
+ * A version the bot can size: one exact version, or one with a caret or tilde in front ("^7.4.4", "~6.0.3",
+ * "4.156.0", "^1.2.3-beta.1"). Each allows exactly one major version. Ranges such as ">=6", "6.x", "*",
+ * "^6 || ^7", tags, links and aliases could allow another one, so they can't be sized.
+ */
+const SIZEABLE = /^[\^~]?(\d+)\.(\d+)\.(\d+)(?:-[0-9A-Za-z.-]+)?$/;
 
 /**
  * The part of a version that marks a breaking change: "^7.4.4" → "7", "4.156.0" → "4", and below 1.0 the minor
- * version too ("^0.9.12" → "0.9"). Null when the text has no version number.
+ * version too ("^0.9.12" → "0.9"). Null when the version can't be sized (see SIZEABLE).
  */
 export function majorOf(spec: string): string | null {
-  const m = /(\d+)(?:\.(\d+))?/.exec(spec);
+  const m = SIZEABLE.exec(spec.trim());
   if (!m) return null;
-  return m[1] === '0' && m[2] !== undefined ? `0.${m[2]}` : m[1]!;
+  return m[1] === '0' ? `0.${m[2]}` : m[1]!;
 }
 
 /** A package.json a pull request changes: its text on the base branch and in the pull request. */
@@ -167,31 +176,40 @@ export interface DependencyFile {
   after: string | null | undefined;
 }
 
-function dependencyMap(text: string | null): Map<string, string> | undefined {
-  if (text === null) return new Map();
+interface PackageFacts {
+  /** "devDependencies:typescript" → "^6.0.3". */
+  versions: Map<string, string>;
+  /** The override fields, as text, to see whether they changed. */
+  overrides: string;
+}
+
+function packageFacts(text: string | null): PackageFacts | undefined {
+  // A file that doesn't exist on one side counts as an empty package.json.
+  if (text === null) return packageFacts('{}');
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
   } catch {
     return undefined;
   }
-  if (!parsed || typeof parsed !== 'object') return undefined;
-  const map = new Map<string, string>();
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return undefined;
+  const pkg = parsed as Record<string, unknown>;
+  const versions = new Map<string, string>();
   for (const field of DEPENDENCY_FIELDS) {
-    const list = (parsed as Record<string, unknown>)[field];
+    const list = pkg[field];
     if (!list || typeof list !== 'object') continue;
-    for (const [name, spec] of Object.entries(list as Record<string, unknown>)) {
-      map.set(`${field}:${name}`, String(spec));
-    }
+    for (const [name, spec] of Object.entries(list as Record<string, unknown>)) versions.set(`${field}:${name}`, String(spec));
   }
-  return map;
+  const overrides = JSON.stringify(Object.fromEntries(OVERRIDE_FIELDS.map((f) => [f, pkg[f] ?? null])));
+  return { versions, overrides };
 }
 
 /**
  * What in a pull request's package.json changes waits for Christian before launch (D-42): a new dependency (it
- * could be a paid service, and every package is code we run) and any major version change (TypeScript 7 and
- * @types/node above Node 24 are never accepted, D-01, D-02). It reads the files themselves, so a pull request's
- * title can't hide an update. A file it can't read waits too.
+ * could be a paid service, and every package is code we run), any version change the bot can't show stays within
+ * one major version (TypeScript 7 and @types/node above Node 24 are never accepted, D-01, D-02), and any change to
+ * overrides. It reads the files themselves, so a pull request's title can't hide an update. A file it can't read
+ * waits too.
  */
 export function dependencyHolds(files: readonly DependencyFile[]): string[] {
   const reasons: string[] = [];
@@ -200,21 +218,22 @@ export function dependencyHolds(files: readonly DependencyFile[]): string[] {
       reasons.push(`couldn't read ${path}`);
       continue;
     }
-    const old = dependencyMap(before);
-    const now = dependencyMap(after);
+    const old = packageFacts(before);
+    const now = packageFacts(after);
     if (!old || !now) {
       reasons.push(`couldn't read the dependencies in ${path}`);
       continue;
     }
-    for (const [key, spec] of now) {
+    for (const [key, spec] of now.versions) {
       const name = key.slice(key.indexOf(':') + 1);
-      const was = old.get(key);
+      const was = old.versions.get(key);
       if (was === undefined) reasons.push(`adds ${name}`);
       else if (was !== spec) {
         const from = majorOf(was);
         if (from === null || from !== majorOf(spec)) reasons.push(`${name} ${was} to ${spec}`);
       }
     }
+    if (old.overrides !== now.overrides) reasons.push(`changes the overrides in ${path}`);
   }
   return [...new Set(reasons)];
 }

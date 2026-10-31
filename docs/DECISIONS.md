@@ -134,9 +134,10 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   code (so a robot can't loosen its own rules), `CLAUDE.md`, `AGENTS.md` and `SECURITY.md` (the rules the AI builders
   and reviewers follow), `content/` (real lessons and questions need his approval and never release automatically;
   the bot can't tell them from placeholders), `supabase/` and `wrangler.jsonc` (sign-in, database policies and
-  deployment stay his under CLAUDE.md rule 3), any `package.json` change that adds a dependency or changes a major
-  version (read from the files on both sides, never from the title; a new package could be a paid service, and
-  TypeScript 7 and `@types/node` above Node 24 are never accepted, D-01, D-02), and any pull request labelled
+  deployment stay his under CLAUDE.md rule 3), any `package.json` change that adds a dependency, changes a major
+  version, uses a version range that could allow another major, or touches overrides (read from the files on both
+  sides, never from the title; a new package could be a paid service, and TypeScript 7 and `@types/node` above Node
+  24 are never accepted, D-01, D-02), and any pull request labelled
   `needs-christian` (anyone can add the label to stop the bot, for example on sign-in or payment work; the bot looks
   for it again right before merging). Once launched, the rest of the D-39 list is held too. A
   missing or unreadable `automation.json` means the launched rules. Reason: there are no students, accounts or real

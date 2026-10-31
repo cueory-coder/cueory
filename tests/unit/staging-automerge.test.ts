@@ -156,7 +156,13 @@ describe('dependency changes', () => {
     expect(majorOf('4.156.0')).toBe('4');
     expect(majorOf('~26.6.5')).toBe('26');
     expect(majorOf('^0.9.12')).toBe('0.9');
-    expect(majorOf('latest')).toBeNull();
+    expect(majorOf('^1.2.3-beta.1')).toBe('1');
+  });
+
+  it("can't size a range that might allow another major version", () => {
+    for (const spec of ['latest', '>=6.0.3', '^6.0.3 || ^7.0.2', '6.x', '*', '^6', '6.0.3 - 7.0.0', 'npm:typescript@^7.0.2', 'github:x/y']) {
+      expect(majorOf(spec)).toBeNull();
+    }
   });
 
   it('lets minor and patch updates through', () => {
@@ -174,6 +180,21 @@ describe('dependency changes', () => {
     ]);
     expect(dependencyHolds(change(pkg({}, { x: '^0.9.12' }), pkg({}, { x: '^0.10.0' })))).toEqual(['x ^0.9.12 to ^0.10.0']);
     expect(dependencyHolds(change(pkg({ x: '^1.0.0' }), pkg({ x: 'latest' })))).toEqual(['x ^1.0.0 to latest']);
+  });
+
+  it('holds a range that could let in another major version', () => {
+    const before = pkg({}, { typescript: '^6.0.3' });
+    for (const spec of ['^6.0.3 || ^7.0.2', '>=6.0.3', '6.x']) {
+      expect(dependencyHolds(change(before, pkg({}, { typescript: spec })))).toEqual([`typescript ^6.0.3 to ${spec}`]);
+    }
+    expect(dependencyHolds(change(pkg({ wrangler: '4.156.0' }), pkg({ wrangler: '4.157.0' })))).toEqual([]);
+  });
+
+  it('holds any change to overrides', () => {
+    const before = JSON.stringify({ devDependencies: { typescript: '^6.0.3' } });
+    const after = JSON.stringify({ devDependencies: { typescript: '^6.0.3' }, overrides: { typescript: '7.0.2' } });
+    expect(dependencyHolds(change(before, after))).toEqual(['changes the overrides in package.json']);
+    expect(dependencyHolds(change(after, after))).toEqual([]);
   });
 
   it('holds new dependencies, including a new package.json', () => {
