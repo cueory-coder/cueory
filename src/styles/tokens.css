@@ -111,6 +111,7 @@
   --drop-mode-card: 1rem;       /* how much lower a neighbouring card sits, per card away from the middle */
   --zoom-mode-card: 1.04;       /* a "ways to study" card under the mouse or keyboard focus grows this much (D-51) */
   --container-mode-preview: 28rem; /* the study-mode preview panel (D-51) */
+  --nudge-mode-preview: 1rem;   /* how far the preview slides in when previous or next changes the mode (D-51) */
 
   /* ---------- Logo (brand guide: min 96px wide, clear space 0.25 × letter height) ---------- */
   --logo-width: 7.5rem;         /* 120px in the header */

@@ -403,6 +403,8 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
       let shown = 0;
       let closing = false;
       let returnFocus = true;
+      // How far a step nudges the panel sideways: the --nudge-mode-preview token, read once.
+      const nudge = getComputedStyle(panel).getPropertyValue('--nudge-mode-preview').trim() || '0px';
 
       /** Puts a mode's illustration, name, lines and link into the panel. */
       const fill = (index: number) => {
@@ -490,7 +492,7 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
         if (!state.reducedMotion) {
           // A step during the grow finishes the grow from where it is, instead of jumping back to its start later.
           const from = stopPanel();
-          panel.animate([{ transform: from === 'none' ? `translateX(${delta * 16}px)` : from }, { transform: 'none' }], {
+          panel.animate([{ transform: from === 'none' ? `translateX(calc(${delta} * ${nudge}))` : from }, { transform: 'none' }], {
             duration: STEP_MS,
             easing: PREVIEW_EASING,
           });
