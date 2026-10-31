@@ -167,5 +167,7 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   back after two other cards. Typed answers ignore case, accents, punctuation and extra spaces, and "I was right"
   counts a near miss once the student has seen the answer. A deck with only one answer skips the choice step.
   Nothing is saved yet (guest progress is its own Task 4 item); without JavaScript the page points to the cards page.
-  Reason: Christian's plan for Learn mode, "mixing cards, multiple choice, typed answers and fill-in until mastered",
-  starting with card decks, whose answers students can already see (D-33).
+  The home page's sentence-by-sentence reader is now called "Lesson", so "Learn" only ever means Learn mode
+  (Christian's answer on issue #4, 2026-10-31). Reason: Christian's plan for Learn mode, "mixing cards, multiple
+  choice, typed answers and fill-in until mastered", starting with card decks, whose answers students can already see
+  (D-33).
