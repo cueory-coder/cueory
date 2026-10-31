@@ -164,6 +164,17 @@ describe('marketing background (D-41)', () => {
     }
   });
 
+  // The study-mode preview (D-51) is drawn in the frosted panels' color but fully opaque, over a darkened page.
+  it.each([
+    ['Daytime', daytime, day.veil],
+    ['Evening', evening, eve.veil],
+  ] as const)('%s study-mode preview panel keeps its text readable', (_name, colors, panel) => {
+    expect(contrastRatio(colors.ink!, panel)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(colors['ink-soft']!, panel)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(colors.control!, panel)).toBeGreaterThanOrEqual(3);
+    expect(contrastRatio(colors.button!, panel)).toBeGreaterThanOrEqual(3);
+  });
+
   it.each([
     ['Daytime', daytime, darkestDay],
     ['Evening', evening, lightestEvening],

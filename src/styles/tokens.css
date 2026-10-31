@@ -109,6 +109,9 @@
   --container-mode-card: min(68vw, 20rem); /* a "ways to study" card: most of a phone, 320px on bigger screens */
   --gap-mode-card: 1rem;        /* space between "ways to study" cards */
   --drop-mode-card: 1rem;       /* how much lower a neighbouring card sits, per card away from the middle */
+  --zoom-mode-card: 1.04;       /* a "ways to study" card under the mouse or keyboard focus grows this much (D-51) */
+  --container-mode-preview: 28rem; /* the study-mode preview panel (D-51) */
+  --nudge-mode-preview: 1rem;   /* how far the preview slides in when previous or next changes the mode (D-51) */
 
   /* ---------- Logo (brand guide: min 96px wide, clear space 0.25 × letter height) ---------- */
   --logo-width: 7.5rem;         /* 120px in the header */
@@ -124,7 +127,9 @@
 
   /* ---------- Depth (marketing pages) ---------- */
   --shadow-soft: 0 1px 2px rgb(var(--shadow-tint) / 0.06), 0 12px 32px rgb(var(--shadow-tint) / 0.1);
+  --shadow-lift: 0 2px 6px rgb(var(--shadow-tint) / 0.08), 0 18px 40px rgb(var(--shadow-tint) / 0.15); /* hovered card, open preview */
   --blur-veil: 14px;            /* frosted-glass blur behind panels */
+  --blur-scrim: 4px;            /* the softly frosted page behind the study-mode preview (D-51) */
 
   /* ---------- Focus ---------- */
   --focus-width: 3px;
