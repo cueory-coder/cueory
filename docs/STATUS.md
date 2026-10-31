@@ -37,14 +37,15 @@ Last updated: 2026-10-31
 ## In review
 - **Pre-launch mode for the staging auto-merge** (D-42), this pull request: `automation.json` says
   `"prelaunch": true`, so until launch the auto-merge holds only workflows, the automation itself, the rules files,
-  content, the database and deployment settings, Dependabot major updates and anything labelled `needs-christian`.
+  content, the database and deployment settings, new dependencies and major version updates, and anything labelled
+  `needs-christian`.
   It changes the automation's own rules, so Christian approves it.
 - [Video start wording](https://github.com/lilchristxan/Cueory/pull/13) (D-40) and
   [marketing redesign](https://github.com/lilchristxan/Cueory/pull/14) (D-41).
 - Dependabot [#9](https://github.com/lilchristxan/Cueory/pull/9) (`@types/node` 26) and
   [#10](https://github.com/lilchristxan/Cueory/pull/10) (TypeScript 7): don't merge. We run Node 24 (D-01), and
-  Astro's type checker accepts TypeScript only up to 6 (D-02). The auto-merge holds major updates (D-42), and an
-  ignore rule in `.github/dependabot.yml` is next.
+  Astro's type checker accepts TypeScript only up to 6 (D-02). The auto-merge holds major updates (D-42), and
+  [#16](https://github.com/lilchristxan/Cueory/pull/16) adds an ignore rule to `.github/dependabot.yml`.
 
 ## Blocked
 - **Task 2 (accounts and database)** waits for Christian to create the two Supabase projects, and its sign-in and

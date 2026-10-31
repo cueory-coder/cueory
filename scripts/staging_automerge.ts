@@ -13,7 +13,18 @@
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
-import { BASE_BRANCH, decide, NEEDS_CHRISTIAN_LABEL, parseAutomation, type Decision, type Mode } from './automerge/decide.ts';
+import {
+  BASE_BRANCH,
+  decide,
+  dependencyPaths,
+  NEEDS_CHRISTIAN_LABEL,
+  parseAutomation,
+  type ChangedFile,
+  type Decision,
+  type DependencyFile,
+  type Mode,
+  type PullRequest,
+} from './automerge/decide.ts';
 import { createGitHub, GitHubError, TruncatedError, type GitHub } from './automerge/github.ts';
 
 export type Done = 'merged' | 'labelled' | 'nothing' | 'would merge' | 'would label' | 'merge refused';
@@ -51,7 +62,8 @@ export async function runAutomerge({
       const [files, checks, comments] = relevant
         ? await Promise.all([gh.files(n), gh.checks(pull.head.sha), gh.comments(n)])
         : [[], [], []];
-      decision = decide({ repo, mode, pr: pull, files, checks, comments });
+      const dependencies = relevant ? await readDependencies(gh, pull, files) : [];
+      decision = decide({ repo, mode, pr: pull, files, dependencies, checks, comments });
     } catch (e) {
       // Fail closed: a list too long to read in full is never judged from part of it.
       if (!(e instanceof TruncatedError)) throw e;
@@ -68,6 +80,10 @@ export async function runAutomerge({
         if (now.state !== 'open' || now.base.ref !== BASE_BRANCH || now.head.sha !== pull.head.sha) {
           done = 'merge refused';
           decision.reasons.push(`changed while it was being checked (now ${now.state}, into ${now.base.ref})`);
+        } else if (now.labels.some((l) => l.name === NEEDS_CHRISTIAN_LABEL)) {
+          // Someone stopped the bot while it was checking.
+          done = 'merge refused';
+          decision.reasons.push(`labelled ${NEEDS_CHRISTIAN_LABEL} while it was being checked`);
         } else {
           try {
             await gh.merge(n, pull.head.sha);
@@ -97,6 +113,19 @@ export async function runAutomerge({
   }
   if (numbers.length === 0) log(`No open pull requests into ${BASE_BRANCH}.`);
   return outcomes;
+}
+
+/**
+ * Every package.json the pull request touches, as it is now on the base branch and in the pull request's head
+ * commit, so decide() can compare the dependency lists themselves.
+ */
+async function readDependencies(gh: GitHub, pull: PullRequest, files: readonly ChangedFile[]): Promise<DependencyFile[]> {
+  return Promise.all(
+    dependencyPaths(files).map(async (path) => {
+      const [before, after] = await Promise.all([gh.fileAt(path, pull.base.ref), gh.fileAt(path, pull.head.sha)]);
+      return { path, before, after };
+    }),
+  );
 }
 
 async function main(): Promise<number> {

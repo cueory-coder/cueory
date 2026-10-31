@@ -6,9 +6,11 @@ import {
   codexProblems,
   codexState,
   decide,
-  dependabotHold,
+  dependencyHolds,
+  dependencyPaths,
   heldPaths,
   isHeldPath,
+  majorOf,
   parseAutomation,
   REQUIRED_CHECKS,
   type CheckRun,
@@ -65,6 +67,7 @@ const input = (over: Partial<Parameters<typeof decide>[0]> = {}) => ({
   mode: 'launched' as Mode,
   pr: pull(),
   files: [{ filename: 'src/islands/cards.ts' }, { filename: 'docs/STATUS.md' }],
+  dependencies: [],
   checks: greenChecks(),
   comments: [codexComment(clean())],
   ...over,
@@ -141,27 +144,61 @@ describe('held paths', () => {
   });
 });
 
-describe('Dependabot updates', () => {
-  const bot = { login: 'dependabot[bot]' };
-  it.each([
-    'Bump typescript from 6.0.3 to 7.0.2',
-    'Bump @types/node from 24.19.2 to 26.6.5',
-    'Bump actions/checkout from v7.0.1 to v8.0.0',
-    'Bump the actions group across 1 directory with 3 updates',
-    'Something new from Dependabot',
-  ])('"%s" waits for Christian', (title) => {
-    expect(dependabotHold({ title, user: bot })).toMatch(/^needs Christian/);
+describe('dependency changes', () => {
+  const pkg = (deps: Record<string, string>, dev: Record<string, string> = {}) =>
+    JSON.stringify({ name: 'cueory', dependencies: deps, devDependencies: dev });
+  const change = (before: string | null | undefined, after: string | null | undefined) => [
+    { path: 'package.json', before, after },
+  ];
+
+  it('reads the breaking part of a version', () => {
+    expect(majorOf('^7.4.4')).toBe('7');
+    expect(majorOf('4.156.0')).toBe('4');
+    expect(majorOf('~26.6.5')).toBe('26');
+    expect(majorOf('^0.9.12')).toBe('0.9');
+    expect(majorOf('latest')).toBeNull();
   });
 
-  it.each(['Bump the minor-and-patch group with 4 updates', 'Bump astro from 7.4.4 to 7.5.0', 'Bump vitest from 5.0.5 to 5.0.6'])(
-    '"%s" can be merged by the bot',
-    (title) => {
-      expect(dependabotHold({ title, user: bot })).toBeNull();
-    },
-  );
+  it('lets minor and patch updates through', () => {
+    expect(dependencyHolds(change(pkg({ astro: '^7.4.4' }), pkg({ astro: '^7.5.0' })))).toEqual([]);
+    expect(dependencyHolds(change(pkg({}, { vitest: '^5.0.5' }), pkg({}, { vitest: '^5.0.6' })))).toEqual([]);
+    expect(dependencyHolds(change(pkg({ astro: '^7.4.4', react: '^19.3.1' }), pkg({ astro: '^7.4.4' })))).toEqual([]);
+  });
 
-  it('only applies to Dependabot itself', () => {
-    expect(dependabotHold({ title: 'Bump typescript from 6.0.3 to 7.0.2', user: { login: 'lilchristxan' } })).toBeNull();
+  it('holds major updates, whatever the pull request is called', () => {
+    expect(dependencyHolds(change(pkg({}, { typescript: '^6.0.3' }), pkg({}, { typescript: '^7.0.2' })))).toEqual([
+      'typescript ^6.0.3 to ^7.0.2',
+    ]);
+    expect(dependencyHolds(change(pkg({}, { '@types/node': '^24.19.2' }), pkg({}, { '@types/node': '^26.6.5' })))).toEqual([
+      '@types/node ^24.19.2 to ^26.6.5',
+    ]);
+    expect(dependencyHolds(change(pkg({}, { x: '^0.9.12' }), pkg({}, { x: '^0.10.0' })))).toEqual(['x ^0.9.12 to ^0.10.0']);
+    expect(dependencyHolds(change(pkg({ x: '^1.0.0' }), pkg({ x: 'latest' })))).toEqual(['x ^1.0.0 to latest']);
+  });
+
+  it('holds new dependencies, including a new package.json', () => {
+    expect(dependencyHolds(change(pkg({ astro: '^7.4.4' }), pkg({ astro: '^7.4.4', 'some-sdk': '^1.0.0' })))).toEqual([
+      'adds some-sdk',
+    ]);
+    expect(dependencyHolds([{ path: 'tools/package.json', before: null, after: pkg({ left: '^1.0.0' }) }])).toEqual([
+      'adds left',
+    ]);
+    expect(dependencyHolds([{ path: 'tools/package.json', before: pkg({ left: '^1.0.0' }), after: null }])).toEqual([]);
+  });
+
+  it("holds a package.json it can't read", () => {
+    expect(dependencyHolds(change(undefined, pkg({})))).toEqual(["couldn't read package.json"]);
+    expect(dependencyHolds(change(pkg({}), '{not json'))).toEqual(["couldn't read the dependencies in package.json"]);
+  });
+
+  it('finds every package.json a pull request touches', () => {
+    const files = [
+      { filename: 'package.json' },
+      { filename: 'package-lock.json' },
+      { filename: 'tools/new/package.json', previous_filename: 'tools/old/package.json' },
+      { filename: 'docs/package.json.md' },
+    ];
+    expect(dependencyPaths(files)).toEqual(['package.json', 'tools/new/package.json', 'tools/old/package.json']);
   });
 });
 
@@ -270,16 +307,19 @@ describe('decide', () => {
     expect(decision).toEqual({ action: 'label', reasons: ['needs Christian: labelled needs-christian'] });
   });
 
-  it('holds a Dependabot major update in both modes and merges a minor one before launch', () => {
+  it('before launch, holds a major update or a new dependency and merges a minor update', () => {
     const files = [{ filename: 'package.json' }, { filename: 'package-lock.json' }];
-    const major = pull({ title: 'Bump typescript from 6.0.3 to 7.0.2', user: { login: 'dependabot[bot]' } });
-    const minor = pull({ title: 'Bump astro from 7.4.4 to 7.5.0', user: { login: 'dependabot[bot]' } });
-    expect(decide(input({ pr: major, files, mode: 'prelaunch' }))).toEqual({
+    const before = JSON.stringify({ devDependencies: { typescript: '^6.0.3', astro: '^7.4.4' } });
+    const major = [{ path: 'package.json', before, after: before.replace('^6.0.3', '^7.0.2') }];
+    const minor = [{ path: 'package.json', before, after: before.replace('^7.4.4', '^7.5.0') }];
+    // A misleading title changes nothing: the files are what count.
+    const pr = pull({ title: 'Bump the minor-and-patch group with 1 update', user: { login: 'dependabot[bot]' } });
+    expect(decide(input({ pr, files, dependencies: major, mode: 'prelaunch' }))).toEqual({
       action: 'label',
-      reasons: ['needs Christian: a major version update (6 to 7)'],
+      reasons: ['needs Christian: dependency changes (typescript ^6.0.3 to ^7.0.2)'],
     });
-    expect(decide(input({ pr: minor, files, mode: 'prelaunch' })).action).toBe('merge');
-    expect(decide(input({ pr: minor, files, mode: 'launched' })).action).toBe('label');
+    expect(decide(input({ pr, files, dependencies: minor, mode: 'prelaunch' })).action).toBe('merge');
+    expect(decide(input({ pr, files, dependencies: minor, mode: 'launched' })).action).toBe('label');
   });
 
   it('labels a pull request too big for GitHub to list in full', () => {
@@ -311,6 +351,8 @@ function fakeGitHub(
     endlessComments = false,
     /** What GET /pulls/N returns from its second call on (someone changed the pull request mid-run). */
     later = undefined as Partial<PullRequest> | undefined,
+    /** File texts by "ref:path", for GET /contents. */
+    contents = {} as Record<string, string>,
   } = {},
 ) {
   const seen = new Map<number, number>();
@@ -330,6 +372,11 @@ function fakeGitHub(
     }
     if (method === 'GET' && (m = path.match(/^\/pulls\/(\d+)\/files$/))) return json(pr(m[1]!)!.files.map((filename) => ({ filename })));
     if (method === 'GET' && path.startsWith('/commits/')) return json({ total_count: 5, check_runs: greenChecks() });
+    if (method === 'GET' && (m = path.match(/^\/contents\/(.+)\?ref=(.+)$/))) {
+      const text = contents[`${decodeURIComponent(m[2]!)}:${decodeURIComponent(m[1]!)}`];
+      if (text === undefined) return json({ message: 'Not Found' }, 404);
+      return json({ type: 'file', encoding: 'base64', content: Buffer.from(text).toString('base64') });
+    }
     if (method === 'GET' && path.match(/^\/issues\/\d+\/comments$/)) {
       return json(endlessComments ? Array.from({ length: 100 }, () => codexComment(clean())) : [codexComment(clean())]);
     }
@@ -380,6 +427,18 @@ describe('the auto-merge run', () => {
     expect(calls.filter((c) => c.method !== 'GET').map((c) => c.path)).toEqual(['/pulls/7/merge', '/pulls/8/merge']);
   });
 
+  it('before launch, reads package.json on both sides and holds a major update', async () => {
+    const before = JSON.stringify({ devDependencies: { typescript: '^6.0.3' } });
+    const { gh, calls } = fakeGitHub(
+      { 7: { pr: pull(), files: ['package.json', 'package-lock.json'] } },
+      { contents: { 'staging:package.json': before, [`${HEAD}:package.json`]: before.replace('^6.0.3', '^7.0.2') } },
+    );
+    const outcomes = await runAutomerge({ gh, repo: REPO, mode: 'prelaunch', dryRun: false, log: () => {} });
+    expect(outcomes[0]!.done).toBe('labelled');
+    expect(outcomes[0]!.decision.reasons).toEqual(['needs Christian: dependency changes (typescript ^6.0.3 to ^7.0.2)']);
+    expect(calls.some((c) => c.method === 'PUT')).toBe(false);
+  });
+
   it("doesn't label twice or create a label that exists", async () => {
     const already = { 8: { pr: pull({ number: 8, labels: [{ name: 'needs-christian' }] }), files: ['CLAUDE.md'] } };
     const first = fakeGitHub(already);
@@ -411,6 +470,14 @@ describe('the auto-merge run', () => {
     const outcomes = await runAutomerge({ gh, repo: REPO, mode: 'launched', dryRun: false, log: () => {} });
     expect(outcomes[0]!.done).toBe('merge refused');
     expect(outcomes[0]!.decision.reasons.at(-1)).toContain('into main');
+    expect(calls.filter((c) => c.method !== 'GET')).toEqual([]);
+  });
+
+  it('stops if someone labelled it needs-christian while it was being checked', async () => {
+    const { gh, calls } = fakeGitHub({ 7: { pr: pull(), files: ['src/x.ts'] } }, { later: { labels: [{ name: 'needs-christian' }] } });
+    const outcomes = await runAutomerge({ gh, repo: REPO, mode: 'prelaunch', dryRun: false, log: () => {} });
+    expect(outcomes[0]!.done).toBe('merge refused');
+    expect(outcomes[0]!.decision.reasons.at(-1)).toBe('labelled needs-christian while it was being checked');
     expect(calls.filter((c) => c.method !== 'GET')).toEqual([]);
   });
 

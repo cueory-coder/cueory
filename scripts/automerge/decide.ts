@@ -5,7 +5,8 @@
  * - it is open, not a draft, comes from this repository (not a fork) and targets `staging`;
  * - it changes no held path for the current mode and isn't labelled "needs-christian" (those wait for Christian and
  *   are never merged by the bot);
- * - it isn't a Dependabot major-version update;
+ * - before launch, its package.json changes add no dependency and change no major version (read from the files
+ *   themselves, never from the title);
  * - every required check on its head commit passed, and no other check failed;
  * - Codex's latest review summary is for that exact head commit, finished, and reports no findings;
  * - GitHub says it merges cleanly.
@@ -18,7 +19,6 @@
 export const BASE_BRANCH = 'staging';
 export const NEEDS_CHRISTIAN_LABEL = 'needs-christian';
 export const CODEX_LOGIN = 'chatgpt-codex-connector[bot]';
-export const DEPENDABOT_LOGIN = 'dependabot[bot]';
 
 /** Checks that must have run and passed on the head commit (names as GitHub shows them). */
 export const REQUIRED_CHECKS = [
@@ -146,23 +146,88 @@ export function heldPaths(files: readonly ChangedFile[], mode: Mode): string[] {
   return [...hits].sort();
 }
 
-/** "Bump typescript from 6.0.3 to 7.0.2" → majors 6 and 7. */
-const BUMP = /\bfrom v?(\d+)\S* to v?(\d+)\S*/i;
-/** Dependabot's npm group, which dependabot.yml limits to minor and patch updates. */
-const MINOR_PATCH_GROUP = /^Bump the minor-and-patch group\b/i;
+/** The dependency lists in a package.json. */
+const DEPENDENCY_FIELDS = ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies'] as const;
 
 /**
- * Why a Dependabot pull request must wait for Christian, or null when it is a minor or patch update. Major versions
- * can break the build in ways tests miss (TypeScript 7 and @types/node above Node 24 are never accepted, D-01, D-02),
- * so only single updates within one major version and the minor-and-patch group pass. Anything unrecognised waits.
+ * The part of a version that marks a breaking change: "^7.4.4" → "7", "4.156.0" → "4", and below 1.0 the minor
+ * version too ("^0.9.12" → "0.9"). Null when the text has no version number.
  */
-export function dependabotHold(pr: Pick<PullRequest, 'title' | 'user'>): string | null {
-  if (pr.user?.login !== DEPENDABOT_LOGIN) return null;
-  if (MINOR_PATCH_GROUP.test(pr.title)) return null;
-  const bump = BUMP.exec(pr.title);
-  if (!bump) return "needs Christian: a Dependabot update the bot can't size";
-  if (bump[1] !== bump[2]) return `needs Christian: a major version update (${bump[1]} to ${bump[2]})`;
-  return null;
+export function majorOf(spec: string): string | null {
+  const m = /(\d+)(?:\.(\d+))?/.exec(spec);
+  if (!m) return null;
+  return m[1] === '0' && m[2] !== undefined ? `0.${m[2]}` : m[1]!;
+}
+
+/** A package.json a pull request changes: its text on the base branch and in the pull request. */
+export interface DependencyFile {
+  path: string;
+  /** null when the file doesn't exist on that side; undefined when it couldn't be read. */
+  before: string | null | undefined;
+  after: string | null | undefined;
+}
+
+function dependencyMap(text: string | null): Map<string, string> | undefined {
+  if (text === null) return new Map();
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+  if (!parsed || typeof parsed !== 'object') return undefined;
+  const map = new Map<string, string>();
+  for (const field of DEPENDENCY_FIELDS) {
+    const list = (parsed as Record<string, unknown>)[field];
+    if (!list || typeof list !== 'object') continue;
+    for (const [name, spec] of Object.entries(list as Record<string, unknown>)) {
+      map.set(`${field}:${name}`, String(spec));
+    }
+  }
+  return map;
+}
+
+/**
+ * What in a pull request's package.json changes waits for Christian before launch (D-42): a new dependency (it
+ * could be a paid service, and every package is code we run) and any major version change (TypeScript 7 and
+ * @types/node above Node 24 are never accepted, D-01, D-02). It reads the files themselves, so a pull request's
+ * title can't hide an update. A file it can't read waits too.
+ */
+export function dependencyHolds(files: readonly DependencyFile[]): string[] {
+  const reasons: string[] = [];
+  for (const { path, before, after } of files) {
+    if (before === undefined || after === undefined) {
+      reasons.push(`couldn't read ${path}`);
+      continue;
+    }
+    const old = dependencyMap(before);
+    const now = dependencyMap(after);
+    if (!old || !now) {
+      reasons.push(`couldn't read the dependencies in ${path}`);
+      continue;
+    }
+    for (const [key, spec] of now) {
+      const name = key.slice(key.indexOf(':') + 1);
+      const was = old.get(key);
+      if (was === undefined) reasons.push(`adds ${name}`);
+      else if (was !== spec) {
+        const from = majorOf(was);
+        if (from === null || from !== majorOf(spec)) reasons.push(`${name} ${was} to ${spec}`);
+      }
+    }
+  }
+  return [...new Set(reasons)];
+}
+
+/** Every package.json a pull request touches, counting both sides of a rename (the files to read for dependencyHolds). */
+export function dependencyPaths(files: readonly ChangedFile[]): string[] {
+  const hits = new Set<string>();
+  for (const f of files) {
+    for (const path of [f.filename, f.previous_filename]) {
+      if (path && path.slice(path.lastIndexOf('/') + 1) === 'package.json') hits.add(path);
+    }
+  }
+  return [...hits].sort();
 }
 
 /** The newest run of each check name (a re-run replaces the earlier result). */
@@ -237,11 +302,13 @@ export interface DecideInput {
   mode: Mode;
   pr: PullRequest;
   files: readonly ChangedFile[];
+  /** Every package.json the pull request touches, read on both sides (see dependencyPaths). */
+  dependencies: readonly DependencyFile[];
   checks: readonly CheckRun[];
   comments: readonly IssueComment[];
 }
 
-export function decide({ repo, mode, pr, files, checks, comments }: DecideInput): Decision {
+export function decide({ repo, mode, pr, files, dependencies, checks, comments }: DecideInput): Decision {
   if (pr.state !== 'open') return { action: 'skip', reasons: ['not open'] };
   if (pr.base.ref !== BASE_BRANCH) return { action: 'skip', reasons: [`targets ${pr.base.ref}, not ${BASE_BRANCH}`] };
   if (pr.head.repo?.full_name !== repo) return { action: 'skip', reasons: ['comes from another repository'] };
@@ -256,8 +323,8 @@ export function decide({ repo, mode, pr, files, checks, comments }: DecideInput)
   if (files.length >= MAX_LISTED_FILES) {
     return { action: 'label', reasons: ['needs Christian: too many files for the bot to check'] };
   }
-  const dependabot = dependabotHold(pr);
-  if (dependabot) return { action: 'label', reasons: [dependabot] };
+  const deps = dependencyHolds(dependencies);
+  if (deps.length > 0) return { action: 'label', reasons: [`needs Christian: dependency changes (${deps.join('; ')})`] };
 
   const problems = [...checkProblems(checks), ...codexProblems(codexState(comments), pr.head.sha)];
   if (pr.mergeable === null) problems.push('GitHub is still checking whether it merges cleanly');
