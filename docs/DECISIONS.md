@@ -72,7 +72,7 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   with guest progress later in Task 4.
 - **D-29** When the batch checker can't read a batch, it deletes the earlier `passed.csv` and `failed.csv` and writes a
   "not checked" `report.md`, so a stale approval can't be mistaken for a current one. Codex review of PR #2.
-- **D-30** Batch checker rules, from the development director: reviewer file names must be on the Task 2 roster (gpt1,
+- **D-30** (Select-all-that-apply added by D-45.) Batch checker rules, from the development director: reviewer file names must be on the Task 2 roster (gpt1,
   gpt2, gpt3, gemini, claude_sonnet, codex, claude_final, christian), so a typo is a batch problem (exit 2) instead of
   silently counting; at least five files, none individually required. The pass rule stays unanimous. A `pending`
   verdict is its own status: an item with nothing wrong except pending reviews goes to `pending.csv`, never passes,
@@ -159,3 +159,21 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   missing or unreadable `automation.json` means the launched rules. Reason: there are no students, accounts or real
   content yet, so speed matters more than a human checkpoint, while the automation, the agents' rules, the deploy
   setup, the database and content still can't change without Christian.
+- **D-44** Matching for card decks (ROADMAP Task 4). A round lays out up to six cards as two lists, terms (fronts) and
+  meanings (backs), each in random order; the student picks one from each list in either order. A right pair is
+  marked "Matched" in words and with a tick and stays on screen (nothing disappears or moves by itself), and the
+  button just used keeps keyboard focus (`aria-disabled`, not `disabled`); a wrong pair counts as a miss and is
+  cleared. Picking a second item from the same list moves the pick, and picking the same item again lets go. No two
+  cards in a round read the same on either side: a card that repeats another's term or meaning waits for a later
+  round, so a pair is right only when both halves come from the same card and every round can be finished (Codex
+  review of PR #18). Bigger decks play six pairs a round in deck order. Every item is a button, so there is no
+  dragging, and there is no timer. Nothing is saved yet; without JavaScript the page points to the cards page.
+  Reason: the home page promises "Pair terms with what they mean", and the card decks already hold the pairs.
+- **D-45** Select-all-that-apply questions in batches (Christian's decision, 2026-10-31: yes, scored all-or-nothing,
+  with each option's rationale shown afterward). `items.csv` gets an optional `type` column (blank or `single`, or
+  `sata`) and optional `rationale_a` … `rationale_e` columns, required for every choice on a `sata` question. The key
+  and each reviewer's answer list the letters separated by `;`, in any order and case. A reviewer agrees only by
+  picking exactly the key's letters, the same all-or-nothing rule students get. A single-answer question with several
+  key letters, an unknown type, a repeated letter or one outside the choices fails the question. Answer balance counts
+  single-answer questions only, and the report gives the number of `sata` questions. Batches without the new columns
+  check exactly as before. Reason: nursing exams use select-all-that-apply heavily, and Christian approved them.
