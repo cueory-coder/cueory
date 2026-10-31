@@ -7,7 +7,7 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
 - **D-03** Tailwind v4 with `@theme` in `src/styles/tokens.css`. The default palette is removed so only tokens can
   be used.
 - **D-04** (Replaced by D-19.) Starter fonts were Newsreader and Atkinson Hyperlegible Next.
-- **D-05** Cloudflare **Pages**, not Workers. Cloudflare's docs tell new projects to start on Workers, but Workers
+- **D-05** (Replaced by D-29.) Cloudflare **Pages**, not Workers. Cloudflare's docs tell new projects to start on Workers, but Workers
   builds can only be switched on or off for *all* non-production branches. Pages documents exactly what the brief asks
   for: "Preview branch control → Custom branches = `staging`" (feature branches never use the 500 free builds) and a
   one-click "Enable access policy" lock for previews. The site is plain static files, so moving to Workers later is a
@@ -60,3 +60,8 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   the full lesson list, with no duplicate first sentence and no dead buttons. Codex review of PR #1.
 - **D-28** Components may not use Tailwind "arbitrary values" (`text-[3.5rem]` and the like); every size, spacing and
   letter-spacing value is a named token. A unit test scans `src/` for them. Codex review of PR #1.
+- **D-29** Hosting moves to Cloudflare **Workers** with static assets (`wrangler.jsonc`). Cloudflare's dashboard now
+  only offers Workers when creating an application, so the Pages setup in D-05 couldn't be followed. The site stays
+  plain static files; `_headers` still applies. Previews: every branch builds a preview, all locked by the Worker's
+  "Protect with Cloudflare Access" switch, so the staging lock no longer depends on Pages. Wrangler is pinned in
+  devDependencies so builds don't download a changing version.
