@@ -23,13 +23,6 @@ Last updated: 2026-10-31
 - Repository branches: `main` (live) and `staging` (test), both starting from one empty commit.
 
 ## In review
-<<<<<<< HEAD
-- [Task 1 pull request into `staging`](https://github.com/lilchristxan/Cueory/pull/1). Needs Codex review and
-  Christian's approval, because it adds workflows and deployment settings.
-- **Task 3 batch checker** (`npm run check-batch`, format in docs/BATCHES.md). Pull request stacked on Task 1;
-  needs Codex review. Reviewer names are limited to the Task 2 roster, and unfinished reviews get their own
-  "pending" list (D-30). It runs only on your computer and never touches the live site.
-=======
 - [Task 1 site foundation](https://github.com/lilchristxan/Cueory/pull/1) into `staging`. CI green; Codex found nothing
   more after its two fixes. Waits for Christian's approval and merge, because it adds workflows and deployment
   settings.
@@ -37,7 +30,6 @@ Last updated: 2026-10-31
 - [Task 4 Cards](https://github.com/lilchristxan/Cueory/pull/3), stacked on Task 1. CI green, Codex clean.
 - **Roadmap additions**, stacked on Task 1: Christian's 2026-10-31 study features (flashcards, Learn mode, adaptive
   quizzes and level tests, image occlusion, the "Flag or comment" button) and the YouTube video rule (D-32 to D-36).
->>>>>>> origin/staging
 
 ## Blocked
 - **Task 2 (accounts and database)** waits for Christian to create the two Supabase projects, and its sign-in and
@@ -58,13 +50,10 @@ Follow [docs/SETUP.md](SETUP.md):
 - [ ] I. Create the Kit account and form; decide on the mailing address shown in emails
 - [ ] J. Decide whether hello@cueory.app should forward to your Gmail (needs email DNS records)
 - [ ] Provide disclaimer and terms text
-<<<<<<< HEAD
 - [ ] Confirm or change the Task 3 batch defaults (docs/BATCHES.md, D-26) before real batches use them: the CSV
   columns, which reviewers count (at least five files, names from the Task 2 roster), the pass rule (every reviewer matches
   the key and marks pass; unfinished reviews are pending, not failed), and the answer-balance warning (10 points off an even share, batches of 20+).
-=======
 - [ ] Decide whether question batches will include select-all-that-apply questions (the batch checker handles
   single-answer questions only for now)
 - [ ] Decide how lesson videos start: today's plan (D-32) is that a click loads YouTube's player and the student presses
   play there, so nothing ever plays by itself. The other choice is that one click loads and starts the video.
->>>>>>> origin/staging
