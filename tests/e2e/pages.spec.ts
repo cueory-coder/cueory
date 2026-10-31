@@ -32,6 +32,20 @@ test('lesson can be stepped through with the keyboard', async ({ page }) => {
   await expect(page.getByText("That's the whole lesson for now.")).toBeVisible();
 });
 
+test.describe('without JavaScript', () => {
+  test.use({ javaScriptEnabled: false });
+
+  test('the lesson shows every sentence once and no stepper controls', async ({ page }) => {
+    await page.goto('/learn/study-skills');
+    await expect(page.getByText('Sentence 1 of')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Next sentence' })).toHaveCount(0);
+    const items = page.locator('ol > li');
+    const texts = await items.allTextContents();
+    expect(texts.length).toBeGreaterThan(1);
+    expect(new Set(texts).size).toBe(texts.length);
+  });
+});
+
 test('keyboard focus is visible', async ({ page }) => {
   await page.goto('/');
   await page.keyboard.press('Tab');

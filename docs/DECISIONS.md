@@ -56,3 +56,7 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   inline `<head>` script applies the saved pick before the page paints; Astro doesn't hash hand-written inline scripts,
   so `astro.config.mjs` adds that script's exact hash to the CSP, and a build test checks every inline script is allowed.
   Without JavaScript the switch stays hidden and the device setting decides.
+- **D-27** The lesson stepper renders only in the browser (`client:only`), so without JavaScript the page shows just
+  the full lesson list, with no duplicate first sentence and no dead buttons. Codex review of PR #1.
+- **D-28** Components may not use Tailwind "arbitrary values" (`text-[3.5rem]` and the like); every size, spacing and
+  letter-spacing value is a named token. A unit test scans `src/` for them. Codex review of PR #1.
