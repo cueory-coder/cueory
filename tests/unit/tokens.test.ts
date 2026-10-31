@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { contrastRatio, readColorTokens } from './contrast';
 
@@ -61,5 +61,16 @@ describe.each([
 
   it.each(pairs)('%s on %s is readable (at least %s:1)', (fg, bg, min) => {
     expect(contrastRatio(colors[fg], colors[bg])).toBeGreaterThanOrEqual(min);
+  });
+});
+
+describe('components', () => {
+  // Tailwind "arbitrary values" such as text-[3.5rem] skip the tokens, so they are not allowed.
+  const srcDir = new URL('../../src/', import.meta.url);
+  const files = readdirSync(srcDir, { recursive: true, encoding: 'utf8' }).filter((f) => /\.(astro|tsx)$/.test(f));
+
+  it.each(files)('%s uses only token-based classes', (file) => {
+    const source = readFileSync(new URL(file, srcDir), 'utf8');
+    expect(source.match(/[\w:]+-\[[^\]\s]+\]/g) ?? []).toEqual([]);
   });
 });

@@ -12,7 +12,7 @@ interface Props {
 
 /**
  * Reveals a lesson one atomic sentence at a time.
- * Without JavaScript, the page shows every sentence (see the <noscript> list in the page).
+ * Rendered only in the browser (client:only); without JavaScript the page shows its <noscript> list instead.
  */
 export default function SentenceStepper({ sentences }: Props) {
   const [state, setState] = useState(() => start(sentences.length));

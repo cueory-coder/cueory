@@ -62,5 +62,9 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   matches the key and marks it pass, and every mechanical check passes. Answer balance is a warning, not a failure.
   Links are checked offline by default; `--check-links` asks the websites and is never run in CI. Real batches stay
   under `content/batches/`, which git ignores, so answer keys and reviewer results never reach the repository (D-07).
+- **D-27** The lesson stepper renders only in the browser (`client:only`), so without JavaScript the page shows just
+  the full lesson list, with no duplicate first sentence and no dead buttons. Codex review of PR #1.
+- **D-28** Components may not use Tailwind "arbitrary values" (`text-[3.5rem]` and the like); every size, spacing and
+  letter-spacing value is a named token. A unit test scans `src/` for them. Codex review of PR #1.
 - **D-29** When the batch checker can't read a batch, it deletes the earlier `passed.csv` and `failed.csv` and writes a
   "not checked" `report.md`, so a stale approval can't be mistaken for a current one. Codex review of PR #2.

@@ -54,6 +54,11 @@
   --text-2xl--line-height: 1.15;
   --text-3xl: 2.75rem;
   --text-3xl--line-height: 1.08;
+  --text-hero: 3.5rem;          /* home page headline on wider screens */
+  --text-hero--line-height: 1.05;
+
+  /* ---------- Letter spacing ---------- */
+  --tracking-label: 0.02em;     /* small label above the home headline */
 
   /* ---------- Spacing ---------- */
   --spacing: 0.25rem;           /* base unit: p-4 = 4 × 0.25rem = 1rem */
@@ -64,6 +69,7 @@
   /* ---------- Widths ---------- */
   --container-prose: 40rem;     /* comfortable reading width */
   --container-page: 64rem;      /* widest content width */
+  --container-headline: 18ch;   /* home headline wraps at about 18 letters */
 
   /* ---------- Logo (brand guide: min 96px wide, clear space 0.25 × letter height) ---------- */
   --logo-width: 7.5rem;         /* 120px in the header */
