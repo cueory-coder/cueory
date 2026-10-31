@@ -30,11 +30,13 @@ Last updated: 2026-10-31
   ([#3](https://github.com/lilchristxan/Cueory/pull/3), `/learn/study-skills/cards`) merged into `staging`.
 - Task 4 flashcards ([#6](https://github.com/lilchristxan/Cueory/pull/6)): shuffle, star, Know it / Still learning, stars
   kept in the browser only (D-37). In `staging`.
+- Staging auto-merge ([#12](https://github.com/lilchristxan/Cueory/pull/12), D-39) merged into `staging`: clean,
+  non-sensitive pull requests merge into `staging` on their own; sensitive ones get the `needs-christian` label. It
+  starts working once it reaches `main` with the next release.
 
 ## In review
-- **Staging auto-merge** (D-39), this pull request: merges clean, non-sensitive pull requests into `staging`; sensitive
-  ones get the `needs-christian` label. It touches `.github/`, so Christian approves it, and it starts working once it
-  reaches `main`.
+- **Video start wording** (D-40), this pull request: one tap on a lesson video's cover loads YouTube's player and
+  starts that video; nothing plays on page load. It edits CLAUDE.md and AGENTS.md, so Christian approves it.
 - Dependabot [#9](https://github.com/lilchristxan/Cueory/pull/9) (`@types/node` 26) and
   [#10](https://github.com/lilchristxan/Cueory/pull/10) (TypeScript 7): told to ignore those major versions. We run
   Node 24 (D-01), and Astro's type checker accepts TypeScript only up to 6 (D-02).
@@ -67,4 +69,4 @@ Follow [docs/SETUP.md](SETUP.md):
   afterward ([answer on issue #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6545756502)). The batch
   checker still handles single-answer questions only (D-30) until that change is built.
 - [x] Videos: one tap on the cover loads YouTube's player and starts that video (Christian confirmed "play
-  immediately"). D-32 and ROADMAP Task 4d get the new wording in their own pull request.
+  immediately", [issue #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6546595207); D-40).
