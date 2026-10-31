@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { contrastRatio, readColorTokens } from './contrast';
+import { contrastRatio, parseHex, readColorTokens } from './contrast';
 
 const css = readFileSync(new URL('../../src/styles/tokens.css', import.meta.url), 'utf8');
 const [daytimeCss, eveningCss] = css.split('@media (prefers-color-scheme: dark)');
@@ -72,5 +72,79 @@ describe('components', () => {
   it.each(files)('%s uses only token-based classes', (file) => {
     const source = readFileSync(new URL(file, srcDir), 'utf8');
     expect(source.match(/[\w:]+-\[[^\]\s]+\]/g) ?? []).toEqual([]);
+  });
+});
+
+/*
+  Marketing pages (D-41): text sits on draped silk, an embossed logo and frosted panels, so the checks above (flat
+  token pairs) aren't enough. These compose the worst case for each palette: the darkest Daytime point (Linen, both fold
+  layers, the grain at its strongest) and the lightest Evening point (Walnut plus grain), then require WCAG AA.
+*/
+describe('marketing background (D-41)', () => {
+  const toHex = (rgb: number[]) => `#${rgb.map((c) => Math.round(c).toString(16).padStart(2, '0')).join('')}`;
+  const mix = (top: string, alpha: number, bottom: string) => {
+    const [t, b] = [parseHex(top), parseHex(bottom)];
+    return toHex(t.map((c, i) => alpha * c + (1 - alpha) * b[i]!));
+  };
+  const number = (chunk: string, name: string) => Number(new RegExp(`--${name}:\\s*([\\d.]+)`).exec(chunk)![1]);
+  const rgb = (chunk: string, name: string) => toHex(new RegExp(`--${name}:\\s*(\\d+) (\\d+) (\\d+)`).exec(chunk)!.slice(1).map(Number));
+
+  /** The grain tile's color and strongest opacity, from its feColorMatrix. */
+  const grain = (file: string) => {
+    const svg = readFileSync(new URL(`../../public/textures/${file}`, import.meta.url), 'utf8');
+    const v = /values="([^"]+)"/.exec(svg)![1]!.trim().split(/\s+/).map(Number);
+    return { color: toHex([v[4]! * 255, v[9]! * 255, v[14]! * 255]), alpha: v[18]!, bytes: Buffer.byteLength(svg) };
+  };
+
+  const day = {
+    fold: number(daytimeCss, 'silk-fold-alpha'),
+    foldColor: rgb(daytimeCss, 'silk-fold-rgb'),
+    veil: rgb(daytimeCss, 'veil-rgb'),
+    veilAlpha: number(daytimeCss, 'veil-alpha'),
+    grain: grain('grain-day.svg'),
+  };
+  const eve = {
+    fold: number(eveningDeviceCss, 'silk-fold-alpha'),
+    foldColor: rgb(eveningDeviceCss, 'silk-fold-rgb'),
+    veil: rgb(eveningDeviceCss, 'veil-rgb'),
+    veilAlpha: number(eveningDeviceCss, 'veil-alpha'),
+    grain: grain('grain-evening.svg'),
+  };
+
+  it('uses only brand colors for panels and grain, the same in both Evening copies', () => {
+    expect(brand.daytime).toContain(day.veil);
+    expect(brand.evening).toContain(eve.veil);
+    expect(brand.daytime).toContain(day.foldColor);
+    expect(brand.evening).toContain(eve.foldColor);
+    expect(day.grain.color).toBe(daytime.ink);
+    expect(eve.grain.color).toBe(evening.ink);
+    expect(rgb(eveningPickedCss, 'veil-rgb')).toBe(eve.veil);
+    expect(number(eveningPickedCss, 'silk-fold-alpha')).toBe(eve.fold);
+    expect(rgb(eveningPickedCss, 'silk-fold-rgb')).toBe(eve.foldColor);
+  });
+
+  it('keeps the texture tiny (under 30 KB together)', () => {
+    expect(day.grain.bytes + eve.grain.bytes).toBeLessThan(30 * 1024);
+  });
+
+  const darkestDay = mix(
+    day.grain.color,
+    day.grain.alpha,
+    mix(day.foldColor, day.fold, mix(day.foldColor, day.fold / 2, daytime['silk-shade']!)),
+  );
+  const lightestEvening = mix(eve.grain.color, eve.grain.alpha, evening['silk-sheen']!);
+  const surfaces: Array<[string, Record<string, string>, string]> = [
+    ['Daytime silk at its darkest', daytime, darkestDay],
+    ['Daytime embossed logo', daytime, daytime.emboss!],
+    ['Daytime frosted panel', daytime, mix(day.veil, day.veilAlpha, darkestDay)],
+    ['Evening silk at its lightest', evening, lightestEvening],
+    ['Evening embossed logo', evening, mix(eve.grain.color, eve.grain.alpha, evening.emboss!)],
+    ['Evening frosted panel', evening, mix(eve.veil, eve.veilAlpha, lightestEvening)],
+  ];
+
+  it.each(surfaces)('%s keeps text readable (AA) and buttons visible', (_name, colors, background) => {
+    expect(contrastRatio(colors.ink!, background)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(colors['ink-soft']!, background)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(colors.button!, background)).toBeGreaterThanOrEqual(3);
   });
 });

@@ -1,7 +1,17 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-const pages = ['/', '/learn/study-skills', '/learn/study-skills/cards', '/privacy', '/terms', '/disclaimer', '/support', '/subscribed'];
+const pages = [
+  '/',
+  '/learn/study-skills',
+  '/learn/study-skills/cards',
+  '/learn/study-skills/matching',
+  '/privacy',
+  '/terms',
+  '/disclaimer',
+  '/support',
+  '/subscribed',
+];
 
 for (const path of pages) {
   test(`${path} loads, shows the notice, and passes accessibility checks`, async ({ page }) => {
@@ -122,6 +132,54 @@ test('shuffle keeps every card in the round exactly once', async ({ page }) => {
   await expect(page.getByText("That's every card for now.")).toBeVisible();
 });
 
+test('Matching pairs terms with meanings by keyboard, counting misses', async ({ page }) => {
+  await page.goto('/learn/study-skills');
+  await page.getByRole('link', { name: "Match this lesson's terms and meanings" }).click();
+  await expect(page).toHaveURL(/\/learn\/study-skills\/matching$/);
+  await expect(page.getByText('Matched 0 of 3 · Misses: 0')).toBeVisible();
+
+  const terms = page.getByRole('region', { name: 'Terms' });
+  const meanings = page.getByRole('region', { name: 'Meanings' });
+
+  // A wrong pair, by keyboard.
+  await terms.getByRole('button', { name: 'Placeholder card 1, front.' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(terms.getByRole('button', { name: /Placeholder card 1, front\./ })).toHaveAttribute('aria-pressed', 'true');
+  await meanings.getByRole('button', { name: 'Placeholder card 2, back.' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('Not a match. Try again.')).toBeVisible();
+  await expect(page.getByText('Matched 0 of 3 · Misses: 1')).toBeVisible();
+
+  // A right pair by keyboard: the button just used keeps focus once it is matched.
+  await terms.getByRole('button', { name: 'Placeholder card 1, front.' }).focus();
+  await page.keyboard.press('Enter');
+  const meaningOne = meanings.getByRole('button', { name: /^Placeholder card 1, back\./ });
+  await meaningOne.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('Matched: Placeholder card 1, front.')).toBeVisible();
+  await expect(meaningOne).toBeFocused();
+  await expect(meaningOne).toHaveAttribute('aria-disabled', 'true');
+  // Pressing a matched item again changes nothing.
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('Matched 1 of 3 · Misses: 1')).toBeVisible();
+
+  // Right pairs by tap, starting from either side.
+  await meanings.getByRole('button', { name: 'Placeholder card 2, back.' }).click();
+  await terms.getByRole('button', { name: 'Placeholder card 2, front.' }).click();
+  await terms.getByRole('button', { name: 'Placeholder card 3, front.' }).click();
+  await meanings.getByRole('button', { name: 'Placeholder card 3, back.' }).click();
+
+  await expect(page.getByText('All 3 matched.')).toBeVisible();
+  await expect(page.getByText('Matched 3 of 3 · Misses: 1')).toBeVisible();
+  const finished = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+  expect(finished.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+  await expect(terms.getByRole('button', { name: /Matched$/ })).toHaveCount(3);
+  await expect(terms.getByRole('button', { disabled: true })).toHaveCount(3);
+
+  await page.getByRole('button', { name: 'Play again' }).click();
+  await expect(page.getByText('Matched 0 of 3 · Misses: 0')).toBeVisible();
+});
+
 test.describe('without JavaScript', () => {
   test.use({ javaScriptEnabled: false });
 
@@ -140,6 +198,17 @@ test.describe('without JavaScript', () => {
     await expect(page.getByRole('button')).toHaveCount(0);
     expect(await page.locator('dl dt').count()).toBe(3);
     expect(await page.locator('dl dd').count()).toBe(3);
+  });
+
+  test('Matching says it needs JavaScript and points to the cards', async ({ page }) => {
+    await page.goto('/learn/study-skills/matching');
+    await expect(page.getByRole('button')).toHaveCount(0);
+    // Playwright's text matching skips <noscript>, so these use CSS.
+    await expect(page.locator('noscript p')).toHaveText(
+      'Matching needs JavaScript. You can read every card and its answer on the cards page.',
+    );
+    await page.locator('noscript a[href="/learn/study-skills/cards"]').click();
+    await expect(page).toHaveURL(/\/learn\/study-skills\/cards$/);
   });
 });
 
@@ -209,5 +278,56 @@ test.describe('theme switch', () => {
     await page.keyboard.press('ArrowLeft');
     await expect(page.getByRole('radio', { name: 'Dark' })).toBeChecked();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  });
+});
+
+test.describe('marketing look (D-41)', () => {
+  test('the home hero fills the first screen: logo, serif headline, one line of copy, one button', async ({ page }) => {
+    await page.goto('/');
+    const height = page.viewportSize()!.height;
+    const headline = page.getByRole('heading', { level: 1 });
+    await expect(headline).toHaveText('Nursing school is hard enough.');
+    const button = page.getByRole('link', { name: 'Start the free study-skills course' });
+    for (const element of [headline, button]) {
+      const box = (await element.boundingBox())!;
+      expect(box.y + box.height).toBeLessThanOrEqual(height);
+    }
+    expect(await headline.evaluate((el) => getComputedStyle(el).fontFamily)).toMatch(/^"?Bodoni Moda/);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+
+  test('the serif comes from our own site and is ready once the page has loaded', async ({ page }) => {
+    const fonts: string[] = [];
+    page.on('request', (r) => r.resourceType() === 'font' && fonts.push(r.url()));
+    await page.goto('/');
+    await page.evaluate(() => document.fonts.ready);
+    expect(await page.evaluate(() => document.fonts.check('500 44px "Bodoni Moda"'))).toBe(true);
+    expect(fonts.length).toBeGreaterThan(0);
+    for (const url of fonts) expect(new URL(url).origin).toBe(new URL(page.url()).origin);
+  });
+
+  test('nothing on the home page jumps while it loads', async ({ page }) => {
+    await page.goto('/', { waitUntil: 'load' });
+    await page.evaluate(() => document.fonts.ready);
+    const shift = await page.evaluate(
+      () =>
+        new Promise<number>((resolve) => {
+          let total = 0;
+          new PerformanceObserver((list) => {
+            for (const entry of list.getEntries() as unknown as { value: number; hadRecentInput: boolean }[]) {
+              if (!entry.hadRecentInput) total += entry.value;
+            }
+          }).observe({ type: 'layout-shift', buffered: true });
+          setTimeout(() => resolve(total), 300);
+        }),
+    );
+    expect(shift).toBeLessThan(0.02);
+  });
+
+  test('study screens stay plain, with no texture behind lesson text', async ({ page }) => {
+    await page.goto('/learn/study-skills');
+    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundImage)).toBe('none');
+    await page.goto('/privacy');
+    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundImage)).not.toBe('none');
   });
 });
