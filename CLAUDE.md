@@ -10,8 +10,10 @@ steps, one action per step, and say exactly what he should see. Never ask him to
 1. **Security.** Row-level security on every table. Answer keys, reserved checks and admin data never reach the
    browser except through permission-checked RPC functions. No secrets in code, commits or chat: secrets go only in
    GitHub secrets and Cloudflare/Supabase settings. Strict security headers and content security policy. Validate input
-   everywhere. Rate limits on sign-in, sign-up and forms. Dependabot, CodeQL and secret scanning stay on. Two-factor is
-   required for the admin account. Details: [SECURITY.md](SECURITY.md).
+   everywhere. Rate limits on sign-in, sign-up and forms. Dependabot, code scanning and secret scanning stay on. While
+   the repository is private (Christian's decision, 2026-10-31), code scanning is Semgrep and secret scanning is
+   gitleaks, both free in CI. CodeQL is ready and runs automatically if the repository is ever made public. Two-factor
+   is required for the admin account. Details: [SECURITY.md](SECURITY.md).
 2. **Privacy.** Store only email, display name, onboarding answers and study progress. Delete-my-account and
    export-my-data must work. No cross-site trackers. Keep the plain-language privacy page (`/privacy`) true.
 3. **Small pull requests with tests.** Never merge to `main` yourself. Codex reviews every pull request (see
@@ -58,11 +60,18 @@ task-N/feature ──PR──▶ staging ──PR──▶ main
 - From Task 2: Supabase (`cueory-staging`, `cueory-prod`), Google sign-in first and email magic links as backup,
   Resend for account emails.
 
+## Design
+
+Follow [docs/BRAND.md](docs/BRAND.md): only the exact brand colors (Daytime and Evening palettes), Inter for all text,
+and the lowercase "cueory" wordmark in Bodoni Moda Medium. Dark mode uses the Evening palette automatically.
+Minimal, editorial, generous spacing, nothing decorative. The study screen is quieter (no main navigation).
+
 ## Where things live
 
 | What | Where |
 | --- | --- |
 | Every color, font, size and spacing value | `src/styles/tokens.css` (components use token names only) |
+| Brand rules / logo files | `docs/BRAND.md` / `public/brand/` (built by `scripts/build-logo.mjs`) |
 | Site name, building notice switch, tip link, contact email, Kit form settings | `src/config/site.ts` |
 | Pages | `src/pages/` |
 | Shared layout, header, footer, signup form | `src/layouts/`, `src/components/` |

@@ -62,7 +62,7 @@ export default function SentenceStepper({ sentences }: Props) {
           type="button"
           onClick={() => setState(next)}
           disabled={done}
-          className="rounded-pill bg-accent px-5 py-2.5 text-on-accent hover:bg-accent-strong disabled:opacity-50"
+          className="rounded-pill bg-button px-5 py-2.5 text-on-button hover:bg-ink-soft disabled:opacity-50"
         >
           Next sentence
         </button>

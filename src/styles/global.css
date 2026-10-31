@@ -1,9 +1,12 @@
 @import "tailwindcss";
 @import "./tokens.css";
-@import "@fontsource-variable/newsreader";
-@import "@fontsource-variable/atkinson-hyperlegible-next";
+@import "@fontsource-variable/inter";
 
 @layer base {
+  :root {
+    color-scheme: light dark;
+  }
+
   html {
     background-color: var(--color-page);
     color: var(--color-ink);
@@ -21,9 +24,8 @@
   h1,
   h2,
   h3 {
-    font-family: var(--font-display);
-    font-weight: 500;
-    letter-spacing: -0.01em;
+    font-weight: 600;
+    letter-spacing: -0.02em;
     text-wrap: balance;
   }
 
@@ -32,13 +34,13 @@
   }
 
   a {
-    color: var(--color-accent);
+    color: var(--color-ink);
     text-decoration-thickness: 1px;
     text-underline-offset: 0.2em;
   }
 
   a:hover {
-    color: var(--color-accent-strong);
+    text-decoration-thickness: 2px;
   }
 
   /* Visible focus for keyboard users on every interactive element. */

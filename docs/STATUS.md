@@ -8,7 +8,11 @@ Last updated: 2026-10-31
 - Pages: home (with launch-updates signup), `/learn/study-skills` (Lesson 1 placeholder, read from
   `/content/lessons`), `/privacy` (draft), `/terms` and `/disclaimer` (marked spots for Christian's text), `/support`
   (Ko-fi link), `/subscribed` (after signup), 404. "We're still building" notice on every page.
+- Brand guide applied (docs/BRAND.md): Daytime and Evening palettes with automatic dark mode, Inter, the "cueory"
+  wordmark, tagline, favicon and logo files in `public/brand/`.
 - Security headers and a hash-based content security policy.
+- Repository stays private: Semgrep (code scanning) and gitleaks (secret scanning) run free in CI in place of
+  GitHub's paid CodeQL and secret scanning.
 - CI on every pull request (type check, build, unit tests, browser + accessibility tests, gitleaks secret scan),
   CodeQL, Dependabot version updates (target `staging`) and Dependabot security alerts. Dependabot's automatic
   security-fix pull requests are off, because they always target `main` and would skip staging.
@@ -20,14 +24,12 @@ Last updated: 2026-10-31
   Christian's approval, because it adds workflows and deployment settings.
 
 ## Blocked
-- **CodeQL and GitHub secret scanning** don't run on a private personal repository without a paid GitHub plan
-  (GitHub's docs). Branch protection rules may also need a paid plan on private repositories (not yet tested). Waiting
-  on Christian: make the repository public (recommended, free) or decide otherwise (D-07).
 - **Signup form** shows "Signups open soon" until the Kit form exists (SETUP.md, Part I).
+- **Logo**: the site uses a stand-in wordmark generated from Bodoni Moda Medium. It needs Christian's original logo
+  file (SVG preferred) to match the artwork exactly.
 
 ## Needs Christian's hands
 Follow [docs/SETUP.md](SETUP.md):
-- [ ] Decide: public or private repository
 - [ ] A. Two-factor login on Google, GitHub, Cloudflare
 - [ ] B. Turn on Codex reviews
 - [ ] C. Connect the repository to Cloudflare Pages
@@ -39,3 +41,4 @@ Follow [docs/SETUP.md](SETUP.md):
 - [ ] I. Create the Kit account and form; decide on the mailing address shown in emails
 - [ ] J. Decide whether hello@cueory.app should forward to your Gmail (needs email DNS records)
 - [ ] Provide disclaimer and terms text
+- [ ] Add the original logo files (SVG preferred) to the `cueory/brand-source/` folder in Finder

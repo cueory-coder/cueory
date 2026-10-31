@@ -1,39 +1,42 @@
 /*
   CUEORY DESIGN TOKENS — the one place to change the look of the site.
 
-  Every color, font, size and spacing value lives here. Components only use
-  the names below (for example `bg-page`, `text-ink`, `font-display`), so
-  changing a value here changes it everywhere.
+  Colors and fonts come from the cueory brand guide. Use only these exact
+  colors. Components only use the names below (for example `bg-page`,
+  `text-ink`, `border-control`), so changing a value here changes it
+  everywhere.
+
+  There are two palettes: Daytime (light, below) and Evening (dark, at the
+  bottom of this file). Visitors get whichever matches their device setting.
 
   After you change a color, the automated tests check that text is still
-  readable (WCAG contrast). If a test fails, the color is too light or too
+  readable (WCAG contrast). If a test fails, that color is too light or too
   dark for the background it sits on.
 */
 
 @theme {
-  /* Remove Tailwind's built-in palette so only our colors can be used. */
+  /* Remove Tailwind's built-in palette so only brand colors can be used. */
   --color-*: initial;
 
-  /* ---------- Colors ---------- */
-  --color-page: #f7f3ea;        /* warm ivory: main background */
-  --color-surface: #fcfaf5;     /* cards and panels, a touch lighter */
-  --color-study: #f9f6ef;       /* study screen background: quieter */
-  --color-ink: #1f1f1d;         /* charcoal: main text */
-  --color-ink-soft: #4b4a45;    /* secondary text */
-  --color-sage: #56664f;        /* muted sage: labels and small accents */
-  --color-sage-soft: #e3e8dc;   /* sage tint for quiet backgrounds */
-  --color-line: #ddd5c4;        /* borders and dividers */
-  --color-accent: #a3401c;      /* the one accent color: links, main buttons */
-  --color-accent-strong: #84330f; /* accent on hover/press */
-  --color-on-accent: #ffffff;   /* text on top of the accent color */
-  --color-focus: #1f1f1d;       /* keyboard focus outline */
-  --color-correct: #2e6b3a;     /* "right" — always paired with an icon or word */
-  --color-incorrect: #a12a2a;   /* "wrong" — always paired with an icon or word */
+  /* ---------- Daytime palette (brand guide) ---------- */
+  --color-page: #f9f5ef;        /* Ivory    — page background */
+  --color-surface: #eadccf;     /* Linen    — cards and panels */
+  --color-soft: #d3b7a1;        /* Taupe    — decorative / soft fill (notice bar) */
+  --color-highlight: #8b6f5b;   /* Mocha    — accents and highlights (not for small text) */
+  --color-ink: #3f2e24;         /* Espresso — primary text, logo, buttons */
+  --color-ink-soft: #6b5243;    /* Bronze   — secondary text and icons */
+
+  /* ---------- Roles built from the palette ---------- */
+  --color-line: #d3b7a1;        /* dividers (Taupe) */
+  --color-control: #8b6f5b;     /* form field borders (Mocha) */
+  --color-button: #3f2e24;      /* main button background (Espresso) */
+  --color-on-button: #f9f5ef;   /* text on main buttons (Ivory) */
+  --color-focus: #3f2e24;       /* keyboard focus outline (Espresso) */
 
   /* ---------- Fonts ---------- */
-  --font-display: "Newsreader Variable", "Iowan Old Style", Georgia, serif;
-  --font-body: "Atkinson Hyperlegible Next Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-body: "Inter Variable", system-ui, -apple-system, "Segoe UI", sans-serif; /* headings, body, UI, buttons */
   --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  /* The logo is drawn from Bodoni Moda Medium as outlines (scripts/build-logo.mjs); no logo font is loaded. */
 
   /* ---------- Type scale (mobile first; large and readable) ---------- */
   --text-sm: 0.9375rem;
@@ -59,6 +62,9 @@
   --container-prose: 40rem;     /* comfortable reading width */
   --container-page: 64rem;      /* widest content width */
 
+  /* ---------- Logo (brand guide: min 96px wide, clear space 0.25 × letter height) ---------- */
+  --logo-width: 7.5rem;         /* 120px in the header */
+
   /* ---------- Shape ---------- */
   --radius-sm: 0.25rem;
   --radius-md: 0.5rem;
@@ -67,4 +73,22 @@
   /* ---------- Focus ---------- */
   --focus-width: 3px;
   --focus-offset: 3px;
+}
+
+/* ---------- Evening palette (brand guide), used when the device is in dark mode ---------- */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-page: #1b1715;      /* Charcoal      — page background */
+    --color-surface: #3a2d24;   /* Walnut        — cards and panels */
+    --color-soft: #3a2d24;      /* Walnut        — notice bar */
+    --color-highlight: #6b5243; /* Bronze        — accents and highlights (not for text) */
+    --color-ink: #efe6da;       /* Evening Ivory — primary text and logo */
+    --color-ink-soft: #cbb8a4;  /* Sand          — secondary text and UI */
+
+    --color-line: #6b5243;      /* Bronze */
+    --color-control: #cbb8a4;   /* Sand */
+    --color-button: #efe6da;    /* Evening Ivory */
+    --color-on-button: #1b1715; /* Charcoal */
+    --color-focus: #efe6da;     /* Evening Ivory */
+  }
 }

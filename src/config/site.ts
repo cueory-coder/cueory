@@ -3,7 +3,7 @@
  */
 export const site = {
   name: 'Cueory',
-  tagline: 'Free study help for nursing students.',
+  tagline: 'By nursing students, for nursing students.',
 
   /** The live address. */
   url: 'https://cueory.app',

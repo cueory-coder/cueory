@@ -90,8 +90,8 @@ If any of this asks you to pay, stop and tell Claude.
 ## Part F — Approve Task 1 into staging (10 minutes)
 
 1. Open the Task 1 pull request (Claude sends you the link).
-2. Scroll to the bottom. Wait until every check shows a green ✓. ("CodeQL" shows as skipped while the repository is
-   private. That's expected.)
+2. Scroll to the bottom. Wait until every check shows a green ✓. ("CodeQL" shows as skipped because the repository
+   is private. That's expected; Semgrep does the code scan instead.)
 3. Read Codex's review. If Codex found problems, tell Claude before merging.
 4. Click **Merge pull request**, then **Confirm merge**.
 5. In Cloudflare, open **Workers & Pages** → **cueory** → **Deployments**.

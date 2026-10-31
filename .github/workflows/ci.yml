@@ -65,3 +65,23 @@ jobs:
 
       - name: Scan full history
         run: ./gitleaks git --redact --no-banner --exit-code 1 .
+
+  code-scan:
+    # Free stand-in for CodeQL while the repository is private (DECISIONS.md, D-18).
+    name: Scan code for security issues (Semgrep)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Semgrep Community Edition
+        run: pipx install semgrep==1.183.0
+
+      - name: Scan
+        run: >-
+          semgrep scan --metrics=off --error
+          --config p/javascript --config p/typescript --config p/react
+          --config p/github-actions --config p/secrets
+          --exclude node_modules --exclude dist .

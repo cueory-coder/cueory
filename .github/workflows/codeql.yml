@@ -1,5 +1,6 @@
 # GitHub's code security scanner. Free on public repositories only; on a
-# private repository it needs a paid license, so the job is skipped there.
+# private repository it needs a paid license, so the job is skipped there and
+# Semgrep (in ci.yml) scans the code instead.
 name: CodeQL
 
 on:

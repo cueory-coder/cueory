@@ -29,10 +29,11 @@ const isStudy = variant === 'study';
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="theme-color" content="#f7f3ea" />
+    <meta name="theme-color" content="#f9f5ef" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1b1715" media="(prefers-color-scheme: dark)" />
     {noindex && <meta name="robots" content="noindex, nofollow" />}
   </head>
-  <body class:list={['flex flex-col', isStudy ? 'bg-study' : 'bg-page']}>
+  <body class="flex flex-col bg-page">
     <a
       href="#main"
       class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-10 focus:bg-surface focus:px-4 focus:py-2"

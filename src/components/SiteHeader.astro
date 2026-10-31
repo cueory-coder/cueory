@@ -1,4 +1,5 @@
 ---
+import Wordmark from './Wordmark.astro';
 import { site } from '../config/site';
 
 interface Props {
@@ -9,8 +10,11 @@ interface Props {
 const { quiet = false } = Astro.props;
 ---
 
-<header class="mx-auto flex w-full max-w-page items-center justify-between gap-4 px-gutter py-5">
-  <a href="/" class="font-display text-xl text-ink no-underline hover:text-ink">{site.name}</a>
+<header class="mx-auto flex w-full max-w-page items-center justify-between gap-4 px-gutter py-6">
+  <!-- Padding keeps the brand guide's clear space (0.25 × letter height) around the logo. -->
+  <a href="/" class="p-1 text-ink" aria-label={`${site.name} home`}>
+    <Wordmark class="w-(--logo-width)" />
+  </a>
   {
     !quiet && (
       <nav aria-label="Main">

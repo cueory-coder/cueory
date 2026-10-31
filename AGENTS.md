@@ -54,6 +54,8 @@ Read [CLAUDE.md](CLAUDE.md) (project rules) and [SECURITY.md](SECURITY.md) first
 - Daily puzzles (Task 7) use original names, rules and look. Never the names Wordle, Connections or NYT, and never a
   copy of their design. This is a Blocker.
 - Components use design tokens from `src/styles/tokens.css`, never raw colors, fonts or spacing values.
+- Only exact brand colors from `docs/BRAND.md`; Inter for text; the logo stays lowercase "cueory", never retyped in
+  another font, never narrower than 96px.
 - Content (lessons, items, cards, scripts) lives in `/content` or the database, not hard-coded in components.
 - No clinical facts written by an engineer or an AI without a source and review record.
 

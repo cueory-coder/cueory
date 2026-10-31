@@ -13,6 +13,7 @@ export default defineConfig({
   },
   projects: [
     { name: 'phone', use: { ...devices['Pixel 7'] } },
+    { name: 'phone-evening', use: { ...devices['Pixel 7'], colorScheme: 'dark' } },
     { name: 'desktop', use: { ...devices['Desktop Chrome'] } },
   ],
   webServer: {

@@ -1,0 +1,24 @@
+---
+/**
+ * The "cueory" wordmark, drawn as outlines (see scripts/build-logo.mjs).
+ * It takes the current text color, so it is Espresso on Ivory and Evening
+ * Ivory on Charcoal automatically. Brand guide: never narrower than 96px.
+ */
+import wordmark from '../assets/brand/wordmark-path.json';
+
+interface Props {
+  class?: string;
+}
+
+const { class: className } = Astro.props;
+---
+
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox={wordmark.viewBox}
+  class:list={['block h-auto min-w-24 fill-current', className]}
+  aria-hidden="true"
+  focusable="false"
+>
+  <path d={wordmark.d}></path>
+</svg>

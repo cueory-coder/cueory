@@ -14,14 +14,17 @@ to reply within 7 days.
    `search_path`, explicit `auth.uid()` and role checks). They are never committed to a public repository.
 3. **No secrets in code, commits or chat.** Secrets live only in GitHub Actions secrets, Cloudflare settings and
    Supabase settings. The browser only ever gets public keys (for example Supabase's *publishable* key). CI scans every
-   commit with gitleaks, and GitHub secret scanning with push protection is on wherever GitHub offers it.
+   commit with gitleaks.
 4. **Strict headers.** Every page has a content security policy (hash-based, no `unsafe-inline`/`unsafe-eval`, forms
    may post only to our own site and our newsletter provider), `frame-ancestors 'none'`, HSTS, `nosniff`, a strict
    referrer policy and a locked-down permissions policy. See `public/_headers` and `astro.config.mjs`.
 5. **Validate input everywhere**, on the server as well as in the browser.
 6. **Rate limits** on sign-in, sign-up and every form. The newsletter form relies on Kit's own abuse protection and
    double opt-in; our own forms (from Task 2) get server-side limits.
-7. **Automated checks stay on:** Dependabot, CodeQL, secret scanning, and CI on every pull request.
+7. **Automated checks stay on:** Dependabot alerts and updates, code scanning, secret scanning, and CI on every pull
+   request. While the repository is private, code scanning is Semgrep Community Edition and secret scanning is
+   gitleaks, both run free in CI on every pull request. GitHub's CodeQL and secret scanning need a paid plan on
+   private repositories. The CodeQL workflow is kept and starts working if the repository becomes public.
 8. **Two-factor authentication** is required on the admin account and on every account that controls the business
    (GitHub, Cloudflare, Kit, Google, and from Task 2 Supabase and Resend).
 9. **Business accounts use Christian's business Gmail**, never an address on `cueory.app`, so a domain or email
