@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cleanUrl, excerptParts, MAX_RESULTS, moveFocus, statusText } from '../../src/scripts/search';
+import { cleanUrl, excerptParts, keepFocus, MAX_RESULTS, moveFocus, statusText } from '../../src/scripts/search';
 
 describe('site search helpers (D-49)', () => {
   it('links results to the addresses visitors type, without .html', () => {
@@ -61,5 +61,12 @@ describe('site search helpers (D-49)', () => {
     expect(moveFocus(-1, 0, 'ArrowDown')).toBeUndefined();
     expect(moveFocus(1, 3, 'Enter')).toBeUndefined();
     expect(moveFocus(1, 3, 'Tab')).toBeUndefined();
+  });
+
+  it('keeps keyboard focus on a result, or on the field, when new results replace the list', () => {
+    expect(keepFocus(2, 5)).toBe(2);
+    expect(keepFocus(4, 2)).toBe(1);
+    expect(keepFocus(0, 1)).toBe(0);
+    expect(keepFocus(3, 0)).toBe(-1);
   });
 });

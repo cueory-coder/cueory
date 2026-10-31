@@ -104,7 +104,7 @@ const current = currentHref(
 
 <script>
   import { isCloseKey, wrapFocus } from '../scripts/menu';
-  import { cleanUrl, excerptParts, MAX_RESULTS, moveFocus, PAGEFIND_URL, statusText } from '../scripts/search';
+  import { cleanUrl, excerptParts, keepFocus, MAX_RESULTS, moveFocus, PAGEFIND_URL, statusText } from '../scripts/search';
 
   /** The parts of Pagefind's browser API the panel uses (https://pagefind.app/docs/api/). */
   interface PagefindResult {
@@ -143,6 +143,8 @@ const current = currentHref(
     let latest = 0;
 
     const render = (results: PagefindResult[]) => {
+      // If a result had keyboard focus, it keeps a place to go once the list is replaced (Codex review on #27).
+      const focused = links().indexOf(document.activeElement as HTMLAnchorElement);
       list.replaceChildren(
         ...results.map((result) => {
           const item = document.createElement('li');
@@ -167,6 +169,11 @@ const current = currentHref(
         }),
       );
       list.hidden = results.length === 0;
+      if (focused !== -1) {
+        const target = keepFocus(focused, results.length);
+        if (target === -1) input.focus();
+        else links()[target]?.focus();
+      }
     };
 
     input.addEventListener('focus', () => {

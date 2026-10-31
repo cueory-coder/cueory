@@ -82,3 +82,11 @@ export function moveFocus(index: number, count: number, key: string): number | u
   if (key === 'ArrowUp') return index === -1 ? undefined : index - 1;
   return undefined;
 }
+
+/**
+ * When new results replace a list that had keyboard focus on result `index`, where focus goes: the result at the same
+ * place, the last result if the new list is shorter, or the search field (-1) when there are no results.
+ */
+export function keepFocus(index: number, count: number): number {
+  return count === 0 ? -1 : Math.min(index, count - 1);
+}

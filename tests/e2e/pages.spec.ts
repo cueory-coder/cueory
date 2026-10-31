@@ -605,6 +605,35 @@ test.describe('site search in the ☰ panel (D-49)', () => {
     await expect(page).toHaveURL(/\/privacy$/);
   });
 
+  test('a new search while a result has keyboard focus keeps focus in the panel', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'menu', exact: true }).click();
+    const panel = page.getByTestId('site-menu');
+    const field = panel.getByRole('searchbox', { name: 'search the site' });
+    const results = panel.getByRole('list', { name: 'search results' });
+    const search = (term: string) =>
+      field.evaluate((el, value) => {
+        const input = el as HTMLInputElement;
+        input.value = value;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      }, term);
+
+    await field.fill('card');
+    await expect(results.getByRole('link').nth(1)).toBeVisible();
+    // Focus moves onto a result before the next search's results arrive (Codex review on #27).
+    await results.getByRole('link').nth(1).focus();
+    await search('privacy');
+    // The new results are in once the privacy page leads the list ("card" never puts it first).
+    await expect(results.getByRole('link').first()).toHaveAccessibleName(/^privacy/);
+    await expect
+      .poll(() => page.evaluate(() => document.activeElement?.closest('[aria-label="search results"]') !== null))
+      .toBe(true);
+
+    await search('zzqxv');
+    await expect(panel.locator('#site-search-status')).toHaveText('no results for “zzqxv”');
+    await expect(field).toBeFocused();
+  });
+
   test('says "no results" plainly, and clearing the field clears the results', async ({ page }) => {
     await page.goto('/learn/study-skills');
     await page.getByRole('button', { name: 'menu', exact: true }).click();
