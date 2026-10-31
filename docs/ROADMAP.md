@@ -43,8 +43,8 @@ missing rationales, unknown fact IDs, broken source links). Writes `passed.csv`,
   anything the student misses until it's mastered. It starts with the card decks: the answer is the card's back, which
   students can already see by flipping. Questions from the reviewed question bank join once `check_answer` exists
   (Task 2), so their answer keys never reach the browser (D-33).
-- Other study modes: Matching, Organizer (tap and keyboard alternatives to dragging), Questions with rationales,
-  Review.
+- Other study modes: Matching (built for card decks, D-44), Organizer (tap and keyboard alternatives to dragging),
+  Questions with rationales, Review.
 - Guest progress saved in the browser; creating an account imports it.
 - Onboarding questions (including exam date).
 - Review scheduler: about 1, 3, 7 and 14 days, adjusted to the exam date.
