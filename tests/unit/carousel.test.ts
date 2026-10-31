@@ -4,10 +4,14 @@ import {
   AUTO_ADVANCE_MS,
   canAutoAdvance,
   distance,
+  flipFrom,
+  isSwipeDown,
   keyTarget,
   MAX_DISTANCE,
   nearestIndex,
+  PREVIEW_MS,
   slideAnnouncement,
+  SWIPE_CLOSE_PX,
   wrap,
   type MotionState,
 } from '../../src/scripts/carousel';
@@ -102,5 +106,42 @@ describe('"ways to study" carousel (D-50)', () => {
     expect(canAutoAdvance({ ...idle, hovering: true })).toBe(false);
     expect(canAutoAdvance({ ...idle, focusInside: true })).toBe(false);
     expect(canAutoAdvance({ ...idle, onScreen: false })).toBe(false);
+  });
+});
+
+describe('the study-mode preview (D-51)', () => {
+  it('gives every mode two plain lines for the preview, in the lowercase voice', () => {
+    for (const mode of studyModes) {
+      expect(mode.more.length, mode.id).toBeGreaterThan(mode.text.length);
+      expect(mode.more, mode.id).toBe(mode.more.toLowerCase());
+      expect(mode.more.endsWith('.'), mode.id).toBe(true);
+    }
+  });
+
+  it('starts the panel exactly over the card it grows from: same middle, same size', () => {
+    const card = { left: 100, top: 300, width: 320, height: 480 };
+    const panel = { left: 50, top: 100, width: 448, height: 640 };
+    // Middles: card (260, 540), panel (274, 420).
+    expect(flipFrom(card, panel)).toBe('translate(-14px, 120px) scale(0.714, 0.75)');
+    expect(flipFrom(panel, panel)).toBe('translate(0px, 0px) scale(1, 1)');
+  });
+
+  it('leaves a panel with no size alone', () => {
+    expect(flipFrom({ left: 0, top: 0, width: 300, height: 400 }, { left: 0, top: 0, width: 0, height: 0 })).toBe('none');
+  });
+
+  it('closes on a mostly downward swipe of at least 80px, never on a short, upward or sideways one', () => {
+    expect(SWIPE_CLOSE_PX).toBe(80);
+    expect(isSwipeDown(0, 80)).toBe(true);
+    expect(isSwipeDown(40, 120)).toBe(true);
+    expect(isSwipeDown(0, 79)).toBe(false);
+    expect(isSwipeDown(0, -200)).toBe(false);
+    expect(isSwipeDown(150, 120)).toBe(false);
+    expect(isSwipeDown(-150, 120)).toBe(false);
+  });
+
+  it('grows and shrinks quickly enough to feel direct', () => {
+    expect(PREVIEW_MS).toBeGreaterThanOrEqual(200);
+    expect(PREVIEW_MS).toBeLessThanOrEqual(400);
   });
 });

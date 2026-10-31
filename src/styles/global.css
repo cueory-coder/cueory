@@ -419,7 +419,9 @@ html:has(dialog.menu-panel[open]) {
     overscroll-behavior-x: contain;
     scroll-snap-type: x mandatory;
     scrollbar-width: none;
-    padding-block: calc(var(--spacing) * 6) calc(var(--spacing) * 10);
+    /* Room below for a hovered card's deeper shadow (D-51); the negative margin keeps the buttons where they were. */
+    padding-block: calc(var(--spacing) * 6) calc(var(--spacing) * 20);
+    margin-block-end: calc(var(--spacing) * -10);
     padding-inline: calc((100% - var(--container-mode-card)) / 2);
   }
 
@@ -428,6 +430,7 @@ html:has(dialog.menu-panel[open]) {
   }
 
   .mode-card {
+    position: relative;
     display: flex;
     flex: 0 0 var(--container-mode-card);
     flex-direction: column;
@@ -436,6 +439,25 @@ html:has(dialog.menu-panel[open]) {
     transform: translateY(calc(var(--mode-distance, 0) * var(--drop-mode-card)))
       scale(calc(1 - var(--mode-distance, 0) * 0.08));
     transform-origin: 50% 0;
+  }
+
+  /*
+    The card's preview button (D-51) covers the whole card, so a tap anywhere on it opens the preview; its focus ring
+    outlines the card. The card's own link sits above it and still goes straight to the mode.
+  */
+  .mode-open {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border: 0;
+    border-radius: inherit;
+    background-color: transparent;
+    cursor: pointer;
+  }
+
+  .mode-card a {
+    position: relative;
+    z-index: 2;
   }
 
   .mode-art {
@@ -576,11 +598,11 @@ html:has(dialog.menu-panel[open]) {
 }
 
 /*
-  The illustration loops play only on the card in the middle, only once the script has checked the visitor's motion
-  setting (data-motion), and stop with the pause button (data-paused). Without them every illustration is still and
+  The illustration loops play only on the card in the middle and in the open preview, only once the script has checked
+  the visitor's motion setting (data-motion), and stop with either pause button (data-paused). Without them every illustration is still and
   complete. Each loop is 6 s, the same as the auto-advance.
 */
-.modes[data-motion]:not([data-paused]) .mode-card[data-active] {
+.modes[data-motion]:not([data-paused]) :is(.mode-card[data-active], .mode-preview) {
   & .ill-lesson-1,
   & .ill-lesson-2,
   & .ill-lesson-3,
@@ -629,6 +651,100 @@ html:has(dialog.menu-panel[open]) {
   .modes-track {
     scroll-behavior: auto;
   }
+}
+
+/*
+  Hover zoom (D-51): with a mouse, the card under the pointer or keyboard focus grows a little and lifts. Polish only:
+  touch screens and reduced motion skip it, and nothing depends on it. `scale` adds to the coverflow transform.
+*/
+@media (hover: hover) and (pointer: fine) {
+  .modes[data-motion] .mode-card {
+    transition:
+      scale 200ms ease,
+      box-shadow 200ms ease;
+  }
+
+  .modes[data-motion] .mode-card:is(:hover, :has(.mode-open:focus-visible)) {
+    scale: var(--zoom-mode-card);
+    box-shadow: var(--shadow-lift);
+  }
+}
+
+/*
+  The study-mode preview (D-51): a native modal <dialog> that fills the window. Behind the panel, the page is darkened
+  and softly frosted (the scrim); the panel itself is opaque, in the frosted cards' own color (Ivory, Evening: Walnut),
+  so its text has the plain page-color contrast the token tests check. The grow and shrink are drawn by the script.
+*/
+@layer components {
+  .mode-preview {
+    position: fixed;
+    inset: 0;
+    margin: 0;
+    inline-size: 100%;
+    max-inline-size: none;
+    block-size: 100dvh;
+    max-block-size: none;
+    padding: max(var(--spacing-gutter), env(safe-area-inset-top)) var(--spacing-gutter)
+      max(var(--spacing-gutter), env(safe-area-inset-bottom));
+    border: 0;
+    color: var(--color-ink);
+    background-color: transparent;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .mode-preview[open] {
+    display: grid;
+    place-items: center;
+  }
+
+  .mode-preview::backdrop {
+    background-color: transparent;
+  }
+
+  .mode-preview-scrim {
+    position: fixed;
+    inset: 0;
+    background-color: rgb(var(--shadow-tint) / var(--scrim-alpha));
+    -webkit-backdrop-filter: blur(var(--blur-scrim));
+    backdrop-filter: blur(var(--blur-scrim));
+  }
+
+  .mode-preview-panel {
+    position: relative;
+    inline-size: 100%;
+    max-inline-size: var(--container-mode-preview);
+    padding: calc(var(--spacing) * 5) calc(var(--spacing) * 6) calc(var(--spacing) * 7);
+    border: 1px solid color-mix(in srgb, var(--color-line) 55%, transparent);
+    border-radius: var(--radius-xl);
+    background-color: rgb(var(--veil-rgb));
+    box-shadow: var(--shadow-lift);
+  }
+
+  /* "coming soon" in the button's place: an outline, not a button, since there is nothing to press yet. */
+  .mode-soon {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: calc(var(--spacing) * 11);
+    padding-inline: calc(var(--spacing) * 5);
+    border: 1px dashed var(--color-control);
+    border-radius: var(--radius-pill);
+    color: var(--color-ink-soft);
+  }
+
+  .mode-soon[hidden] {
+    display: none;
+  }
+}
+
+/*
+  While the preview is open the page behind stays put. Where scrollbars take up room, that room is kept so nothing
+  shifts, and tinted like the darkened page.
+*/
+html:has(dialog.mode-preview[open]) {
+  overflow: hidden;
+  scrollbar-gutter: stable;
+  background-color: color-mix(in srgb, rgb(var(--shadow-tint)) calc(var(--scrim-alpha) * 100%), var(--color-page));
 }
 
 @keyframes ill-lesson-line {

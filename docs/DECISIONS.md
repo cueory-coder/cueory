@@ -238,3 +238,16 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   open modes link to their page and the rest say "coming soon". The hover zoom, grow-into-preview and preview panel
   follow in their own pull request. Reason: Christian's request; a scroll-snap row keeps every feature working on every
   device (D-48) without a carousel library.
+- **D-51** Study-mode preview and hover zoom on the "ways to study" carousel (Christian's change request, 2026-10-31).
+  Tapping or clicking a card grows it from its place into a larger preview: a native modal `<dialog>` over the darkened,
+  softly frosted page, with the mode's illustration playing, its name, two plain lines on what you do and why it helps
+  (`more` in `src/config/modes.ts`), "try it" (or "coming soon") and "create your free account to save progress". It
+  closes with the X, Escape, a tap on the darkened page or a swipe down on touch screens, and shrinks back into its
+  card; previous and next inside move through the modes in the carousel's order, and the row behind follows. Focus moves
+  in, stays in and returns to the card; the page behind is inert and keeps its place. The grow and shrink are FLIP
+  animations (measure the card and the panel, then animate a transform between them) in every browser, rather than the
+  View Transitions API with a FLIP fallback: one code path looks the same in Safari, Chrome, Edge and Firefox and is
+  tested once. With reduced motion the preview opens and closes at once. The panel is opaque, in the frosted cards'
+  color, so its text keeps the plain page-color contrast; a pause button in it shares the row's setting (WCAG 2.2.2).
+  With a mouse, the card under the pointer or keyboard focus grows to 1.04 with a deeper shadow; touch screens and
+  reduced motion skip it. Reason: Christian's request.

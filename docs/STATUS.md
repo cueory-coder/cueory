@@ -61,13 +61,15 @@ Last updated: 2026-10-31
 ## In review
 - "ways to study" carousel (D-50): one chip per study mode, cards with original moving illustrations, arrows, keys,
   swipe and a gentle auto-advance with a pause button. The auto-merge takes it once it is clean.
+- Study-mode preview and hover zoom (D-51): a card grows into a preview with its moving illustration, two plain lines,
+  "try it" and the free-account link; X, Escape, the darkened page or a swipe down closes it. The auto-merge takes it
+  once it is clean.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. Search in the ☰ panel (Pagefind, a new package, so it waits for Christian's merge).
-2. The carousel's hover zoom, grow-into-preview and the preview panel.
-3. Silk scenes down the whole page, social links (Simple Icons), then the once-only promo panel.
-4. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
-5. Auto-release (`staging` into `main` in pre-launch mode), after the change requests.
+2. Silk scenes down the whole page, social links (Simple Icons), then the once-only promo panel.
+3. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
+4. Auto-release (`staging` into `main` in pre-launch mode), after the change requests.
 
 ## Blocked
 - **Task 2 (accounts and database)** waits for Christian to create the two Supabase projects, and its sign-in and
