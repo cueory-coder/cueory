@@ -28,16 +28,21 @@ Last updated: 2026-10-31
   the YouTube video rule (D-32 to D-36).
 - Task 3 batch checker ([#2](https://github.com/lilchristxan/Cueory/pull/2)) and Task 4 Cards
   ([#3](https://github.com/lilchristxan/Cueory/pull/3), `/learn/study-skills/cards`) merged into `staging`.
+- Task 4 flashcards ([#6](https://github.com/lilchristxan/Cueory/pull/6)): shuffle, star, Know it / Still learning, stars
+  kept in the browser only (D-37). In `staging`.
+- Staging auto-merge ([#12](https://github.com/lilchristxan/Cueory/pull/12), D-39) merged into `staging`: clean,
+  non-sensitive pull requests merge into `staging` on their own; sensitive ones get the `needs-christian` label. It
+  starts working once it reaches `main` with the next release.
 
 ## In review
 - **Marketing redesign** (D-41), this pull request: quiet-luxury home hero (Bodoni headline, draped-silk background,
   embossed logo) and frosted panels on the support, legal and 404 pages. Study screens unchanged. It edits CLAUDE.md
   and AGENTS.md, so Christian approves it.
-- [Task 4 flashcards: shuffle, star, Know it / Still learning](https://github.com/lilchristxan/Cueory/pull/6) into
-  `staging` (D-37). Stars are kept in the browser only.
+- [Video start wording](https://github.com/lilchristxan/Cueory/pull/13) (D-40): one tap on a lesson video's cover
+  loads YouTube's player and starts that video; nothing plays on page load.
 - Dependabot [#9](https://github.com/lilchristxan/Cueory/pull/9) (`@types/node` 26) and
-  [#10](https://github.com/lilchristxan/Cueory/pull/10) (TypeScript 7): hold. We run Node 24 (D-01), and Astro's type
-  checker accepts TypeScript only up to 6 (D-02).
+  [#10](https://github.com/lilchristxan/Cueory/pull/10) (TypeScript 7): told to ignore those major versions. We run
+  Node 24 (D-01), and Astro's type checker accepts TypeScript only up to 6 (D-02).
 
 ## Blocked
 - **Task 2 (accounts and database)** waits for Christian to create the two Supabase projects, and its sign-in and
@@ -58,12 +63,13 @@ Follow [docs/SETUP.md](SETUP.md):
 - [ ] I. Create the Kit account and form; decide on the mailing address shown in emails
 - [ ] J. Decide whether hello@cueory.app should forward to your Gmail (needs email DNS records)
 - [ ] Provide disclaimer and terms text
+- [ ] Before the staging auto-merge (D-39) reaches `main`: in Settings → Rules, make the `main` ruleset "Restrict
+  updates" with only the repository admin (you) on its bypass list, so no robot can ever change `main`
 - [ ] Confirm or change the Task 3 batch defaults (docs/BATCHES.md, D-26) before real batches use them: the CSV
   columns, which reviewers count (at least five files, names from the Task 2 roster), the pass rule (every reviewer matches
   the key and marks pass; unfinished reviews are pending, not failed), and the answer-balance warning (10 points off an even share, batches of 20+).
 - [x] Select-all-that-apply questions: yes, scored all-or-nothing for now, with each option's rationale shown
   afterward ([answer on issue #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6545756502)). The batch
   checker still handles single-answer questions only (D-30) until that change is built.
-- [ ] Confirm the video answer on [issue #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6545756502):
-  one tap on the cover loads YouTube's player and starts that video. It replaces the "no autoplay" wording in D-32,
-  so it needs Christian's own yes.
+- [x] Videos: one tap on the cover loads YouTube's player and starts that video (Christian confirmed "play
+  immediately"). D-32 and ROADMAP Task 4d get the new wording in their own pull request.

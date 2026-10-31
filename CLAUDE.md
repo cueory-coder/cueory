@@ -47,6 +47,9 @@ task-N/feature ──PR──▶ staging ──PR──▶ main
 
 - Feature branches get CI and Codex review, never a deploy.
 - `staging` deploys to the locked staging site. Christian checks it there.
+- A pull request into `staging` is merged automatically once CI, the Workers preview build and Codex are all clean,
+  unless it touches a sensitive path; those get the `needs-christian` label and wait for him (D-39). Never weaken
+  those rules in `scripts/automerge/` without his approval.
 - `main` is the live site. Only Christian merges into `main`.
 
 ## Stack
