@@ -737,6 +737,39 @@ test.describe('study-mode preview (D-51)', () => {
     await expect(preview).toBeHidden();
   });
 
+  test('moving to a mode that is not open yet keeps focus in the preview when "try it" had it', async ({ page }) => {
+    await openPreview(page, 'lesson');
+    const preview = dialog(page);
+    await preview.getByRole('link', { name: 'try it' }).focus();
+    await page.keyboard.press('ArrowLeft');
+    await expect(page.getByRole('dialog', { name: 'review' })).toBeVisible();
+    await expect(preview.getByRole('button', { name: 'previous study mode' })).toBeFocused();
+    // The arrow keys still work from there.
+    await page.keyboard.press('ArrowLeft');
+    await expect(page.getByRole('dialog', { name: 'questions' })).toBeVisible();
+  });
+
+  test('closing in the middle of the grow still shrinks the preview exactly back into its card', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('#ways-to-study').scrollIntoViewIfNeeded();
+    const gaps = await page.evaluate(async () => {
+      document.querySelector<HTMLButtonElement>('#mode-lesson [data-mode-open]')!.click();
+      // Escape a tenth of a second into the 320 ms grow.
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      const card = document.querySelector('#mode-lesson')!.getBoundingClientRect();
+      document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      const panel = document.querySelector<HTMLElement>('[data-mode-preview-panel]')!;
+      const [shrink] = panel.getAnimations();
+      if (!shrink) return undefined;
+      shrink.pause();
+      shrink.currentTime = Number(shrink.effect!.getComputedTiming().endTime);
+      const box = panel.getBoundingClientRect();
+      return [box.left - card.left, box.top - card.top, box.width - card.width, box.height - card.height];
+    });
+    expect(gaps).toBeDefined();
+    for (const gap of gaps!) expect(Math.abs(gap)).toBeLessThan(2);
+  });
+
   test('keyboard focus stays inside the open preview', async ({ page }) => {
     await openPreview(page, 'lesson');
     for (let i = 0; i < 9; i++) {

@@ -237,20 +237,22 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
     /**
      * Only the card where the row comes to rest is announced: a swipe, a long glide to a far chip, or a glide the
      * visitor interrupts reads out where it lands, never every card it passes. The cards themselves update at once.
+     * At rest means a card sits exactly in the middle, which is where scroll snapping always leaves the row.
      */
     let settle = 0;
     const announce = () => {
       window.clearTimeout(settle);
       update();
       if (!live || announced === active) return;
+      if (Math.abs(centers()[active]! - middle()) > 2) return;
       announced = active;
       if (quiet) return;
       live.textContent = slideAnnouncement(cards[active]!.dataset.name ?? '', active, cards.length);
     };
-    // Browsers with a scrollend event say when scrolling, snapping and any glide are over; for the others a short pause
-    // in scrolling counts as resting.
-    const hasScrollEnd = 'onscrollend' in window;
-    if (hasScrollEnd) track.addEventListener('scrollend', announce);
+    // scrollend says at once when scrolling, snapping and any glide are over. Not every scroll gets one (in Chrome, a
+    // scroll that starts just as another ends can finish without its own), and some browsers have none, so a short
+    // pause in scrolling counts too.
+    track.addEventListener('scrollend', announce);
 
     const goTo = (index: number) => {
       const card = cards[wrap(index, cards.length)]!;
@@ -268,15 +270,13 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
     track.addEventListener(
       'scroll',
       () => {
+        window.clearTimeout(settle);
+        settle = window.setTimeout(announce, SETTLE_MS);
         if (frame) return;
         frame = requestAnimationFrame(() => {
           frame = 0;
           update();
         });
-        if (!hasScrollEnd) {
-          window.clearTimeout(settle);
-          settle = window.setTimeout(announce, SETTLE_MS);
-        }
       },
       { passive: true },
     );
@@ -422,6 +422,16 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
 
       const animations = () => [...panel.getAnimations(), ...scrim.getAnimations()];
 
+      /**
+       * Stops whatever the panel is doing (a grow, a shrink or a nudge) where it is now, so the next animation starts
+       * from what the visitor sees and measures the panel's own box, not a box still mid-move. Returns where it was.
+       */
+      const stopPanel = () => {
+        const transform = getComputedStyle(panel).transform;
+        for (const animation of panel.getAnimations()) animation.cancel();
+        return transform === 'none' ? 'none' : transform;
+      };
+
       const open = (index: number) => {
         if (dialog.open) return;
         takeOver();
@@ -449,10 +459,14 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
         }
         closing = true;
         const card = cards[shown]!.getBoundingClientRect();
+        // Closing in the middle of the grow or a nudge shrinks from where the panel is now.
+        const from = stopPanel();
+        const shade = getComputedStyle(scrim).opacity;
+        for (const animation of scrim.getAnimations()) animation.cancel();
         const box = panel.getBoundingClientRect();
         const timing = { duration: PREVIEW_MS, easing: PREVIEW_EASING, fill: 'forwards' as const };
-        const shrink = panel.animate([{ transform: 'none' }, { transform: flipFrom(card, box) }], timing);
-        scrim.animate([{ opacity: 1 }, { opacity: 0 }], { ...timing, easing: 'ease' });
+        const shrink = panel.animate([{ transform: from }, { transform: flipFrom(card, box) }], timing);
+        scrim.animate([{ opacity: shade }, { opacity: 0 }], { ...timing, easing: 'ease' });
         try {
           await shrink.finished;
         } catch {
@@ -463,12 +477,20 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
 
       /** Previous and next inside the preview: the next mode in the carousel's order, and the row behind follows. */
       const step = (delta: number) => {
+        if (closing) return;
         const next = wrap(shown + delta, cards.length);
+        // "try it" disappears for a mode that isn't open yet; if it had focus, focus moves to the arrow going that way.
+        const tryHadFocus = !!tryLink && document.activeElement === tryLink;
         fill(next);
+        if (tryHadFocus && tryLink?.hidden) {
+          dialog.querySelector<HTMLElement>(delta > 0 ? '[data-mode-preview-next]' : '[data-mode-preview-prev]')?.focus();
+        }
         goTo(next);
         if (previewLive) previewLive.textContent = slideAnnouncement(cards[next]!.dataset.name ?? '', next, cards.length);
         if (!state.reducedMotion) {
-          panel.animate([{ transform: `translateX(${delta * 16}px)` }, { transform: 'none' }], {
+          // A step during the grow finishes the grow from where it is, instead of jumping back to its start later.
+          const from = stopPanel();
+          panel.animate([{ transform: from === 'none' ? `translateX(${delta * 16}px)` : from }, { transform: 'none' }], {
             duration: STEP_MS,
             easing: PREVIEW_EASING,
           });
