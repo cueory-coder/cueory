@@ -19,14 +19,24 @@ export function failedCsv(result: BatchResult): string {
   );
 }
 
+export function pendingCsv(result: BatchResult): string {
+  return toCsv(
+    ['item_id', 'concept_id', 'waiting_for'],
+    result.pending.map((r) => ({ item_id: r.item_id, concept_id: r.concept_id, waiting_for: r.waiting.join('; ') })),
+  );
+}
+
 export function reportMd(result: BatchResult, batchName: string, extraWarnings: string[] = []): string {
-  const total = result.passed.length + result.failed.length;
+  const total = result.passed.length + result.failed.length + result.pending.length;
   const out: string[] = [`# Batch check: ${md(batchName)}`, ''];
 
   if (result.batchErrors.length > 0) {
     out.push(`**Not ready.** The batch itself has problems, so no item can pass until they are fixed.`, '');
   } else {
-    out.push(`**${result.passed.length} of ${total} items passed.** ${result.failed.length} need another look.`, '');
+    out.push(
+      `**${result.passed.length} of ${total} items passed.** ${result.failed.length} failed and ${result.pending.length} are waiting on a reviewer.`,
+      '',
+    );
   }
 
   if (result.batchErrors.length > 0) {
@@ -52,6 +62,13 @@ export function reportMd(result: BatchResult, batchName: string, extraWarnings: 
       out.push(`| ${md(n)} | ${a.matched} | ${a.answered} |`);
     }
     out.push('');
+  }
+
+  if (result.pending.length > 0) {
+    out.push('## Items waiting on a reviewer (not passed yet)', '');
+    for (const p of result.pending) {
+      out.push(`### \`${md(p.item_id)}\``, '', ...p.waiting.map((w) => `- ${md(w)}`), '');
+    }
   }
 
   if (result.failed.length > 0) {

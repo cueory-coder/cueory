@@ -32,7 +32,17 @@ const LETTERS = ['A', 'B', 'C', 'D', 'E'] as const;
 type Letter = (typeof LETTERS)[number];
 const VERDICTS = new Set(['pass', 'fail', 'pending']);
 const ID = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/;
-const REVIEWER_NAME = /^[a-z0-9][a-z0-9_]{0,31}$/;
+/** The reviewers Task 2's admin screen has a column for. A file with any other name is a typo until proven otherwise. */
+export const REVIEWER_ROSTER = [
+  'claude_final',
+  'claude_sonnet',
+  'christian',
+  'codex',
+  'gemini',
+  'gpt1',
+  'gpt2',
+  'gpt3',
+] as const;
 
 export interface BatchInput {
   items: CsvRow[];
@@ -46,7 +56,10 @@ export interface BatchInput {
 export interface ItemResult {
   item_id: string;
   concept_id: string;
+  /** What is wrong. Any entry here means the item failed. */
   reasons: string[];
+  /** Reviews that haven't come in yet. With no `reasons`, the item is pending: neither passed nor failed. */
+  waiting: string[];
 }
 
 export interface BatchResult {
@@ -55,6 +68,8 @@ export interface BatchResult {
   warnings: string[];
   passed: ItemResult[];
   failed: ItemResult[];
+  /** Nothing is wrong, but some reviewer's verdict is still `pending`. A pending item never passes. */
+  pending: ItemResult[];
   /** Correct-answer count per letter, over items that have a usable key. */
   balance: Partial<Record<Letter, number>>;
   /** Reviewer → items where their answer matched the key / items they answered. */
@@ -114,8 +129,10 @@ export function checkBatch(input: BatchInput): BatchResult {
 
   const reviewerNames = Object.keys(input.reviewers).sort();
   for (const name of reviewerNames) {
-    if (!REVIEWER_NAME.test(name)) {
-      batchErrors.push(`reviewer file "${name}.csv": name must be lower-case letters, digits or _ (like gpt1)`);
+    if (!(REVIEWER_ROSTER as readonly string[]).includes(name)) {
+      batchErrors.push(
+        `reviewer file "${name}.csv": not a known reviewer (expected one of ${REVIEWER_ROSTER.join(', ')}); check for a typo`,
+      );
     }
   }
   if (reviewerNames.length < MIN_REVIEWERS) {
@@ -167,6 +184,7 @@ export function checkBatch(input: BatchInput): BatchResult {
 
   for (const [id, item] of items) {
     const reasons: string[] = [];
+    const waiting: string[] = [];
     const letters = choiceLetters(item);
 
     if (!ID.test(item.concept_id ?? '')) reasons.push('concept_id is blank or malformed');
@@ -224,10 +242,10 @@ export function checkBatch(input: BatchInput): BatchResult {
       }
       if (!VERDICTS.has(verdict)) reasons.push(`${name}: verdict "${review.verdict ?? ''}" must be pass, fail or pending`);
       else if (verdict === 'fail') reasons.push(`${name}: marked it fail`);
-      else if (verdict === 'pending') reasons.push(`${name}: review still pending`);
+      else if (verdict === 'pending') waiting.push(`${name}: review still pending`);
     }
 
-    results.push({ item_id: id, concept_id: item.concept_id ?? '', reasons });
+    results.push({ item_id: id, concept_id: item.concept_id ?? '', reasons, waiting });
   }
 
   const keyedTotal = Object.values(balance).reduce((a, b) => a + b, 0);
@@ -253,8 +271,9 @@ export function checkBatch(input: BatchInput): BatchResult {
   return {
     batchErrors,
     warnings,
-    passed: results.filter((r) => r.reasons.length === 0),
+    passed: results.filter((r) => r.reasons.length === 0 && r.waiting.length === 0),
     failed: results.filter((r) => r.reasons.length > 0),
+    pending: results.filter((r) => r.reasons.length === 0 && r.waiting.length > 0),
     balance,
     agreement,
   };

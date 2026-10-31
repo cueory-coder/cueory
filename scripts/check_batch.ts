@@ -3,7 +3,9 @@
  *
  * Run: npm run check-batch -- <batch-folder> [--out <folder>] [--check-links]
  *
- * Exit code: 0 every item passed, 1 some items failed, 2 the batch has problems of its own (missing or malformed
+ * Writes passed.csv, failed.csv, pending.csv (items only waiting on a reviewer) and report.md.
+ *
+ * Exit code: 0 every item passed, 1 some item failed or is pending, 2 the batch has problems of its own (missing or malformed
  * files, too few reviewers, duplicate ids) and no item can pass.
  * --check-links also asks each source's website whether the page exists. It needs the internet, so CI never uses it.
  */
@@ -21,7 +23,7 @@ import {
   type BatchInput,
 } from './check-batch/check.ts';
 import { CsvError, parseCsv, type CsvRow } from './check-batch/csv.ts';
-import { failedCsv, passedCsv, reportMd } from './check-batch/report.ts';
+import { failedCsv, passedCsv, pendingCsv, reportMd } from './check-batch/report.ts';
 
 const LINK_TIMEOUT_MS = 10_000;
 
@@ -33,6 +35,7 @@ function writeNotChecked(out: string, batchName: string, problem: string): void 
   mkdirSync(out, { recursive: true });
   rmSync(join(out, 'passed.csv'), { force: true });
   rmSync(join(out, 'failed.csv'), { force: true });
+  rmSync(join(out, 'pending.csv'), { force: true });
   writeFileSync(
     join(out, 'report.md'),
     `# Batch ${batchName}: not checked\n\n` +
@@ -113,14 +116,15 @@ async function main(): Promise<number> {
   mkdirSync(out, { recursive: true });
   writeFileSync(join(out, 'passed.csv'), passedCsv(result));
   writeFileSync(join(out, 'failed.csv'), failedCsv(result));
+  writeFileSync(join(out, 'pending.csv'), pendingCsv(result));
   writeFileSync(join(out, 'report.md'), reportMd(result, basename(dir), linkWarnings));
 
   console.log(
-    `${result.passed.length} passed, ${result.failed.length} failed` +
+    `${result.passed.length} passed, ${result.failed.length} failed, ${result.pending.length} pending` +
       (result.batchErrors.length > 0 ? `, ${result.batchErrors.length} batch problem(s)` : '') +
       `. Report: ${join(out, 'report.md')}`,
   );
-  return result.batchErrors.length > 0 ? 2 : result.failed.length > 0 ? 1 : 0;
+  return result.batchErrors.length > 0 ? 2 : result.failed.length > 0 || result.pending.length > 0 ? 1 : 0;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

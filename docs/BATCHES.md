@@ -1,7 +1,7 @@
 # Review batches and the batch checker
 
 A batch is one folder of CSV files: a set of questions, its answer key, and what each reviewer said. The checker
-reads the folder, runs mechanical checks and writes three files: `passed.csv`, `failed.csv` and `report.md`.
+reads the folder, runs mechanical checks and writes four files: `passed.csv`, `failed.csv`, `pending.csv` and `report.md`.
 
 The checker only checks structure and agreement. It never judges whether a clinical fact is right; that is the
 reviewers' and Christian's job.
@@ -18,7 +18,7 @@ never go in the repository (DECISIONS.md, D-07 and D-26).
 npm run check-batch -- content/batches/2026-11-fundamentals-01
 ```
 
-The three result files are written into the same folder. Add `--out <folder>` to write them somewhere else, or
+The four result files are written into the same folder. Add `--out <folder>` to write them somewhere else, or
 `--check-links` to also ask every source's website whether the page exists. That needs the internet, and problems it
 finds show up as warnings in the report.
 
@@ -27,10 +27,10 @@ The command prints a one-line summary and finishes with:
 | Exit code | Meaning |
 | --- | --- |
 | 0 | Every item passed. |
-| 1 | Some items failed. `failed.csv` and `report.md` say why. |
+| 1 | Some item failed or is still pending. `failed.csv`, `pending.csv` and `report.md` say which and why. |
 | 2 | The batch itself has a problem (a missing or malformed file, too few reviewers, a repeated id), so no item can pass. |
 
-If a file is missing or can't be read, the checker deletes any `passed.csv` and `failed.csv` from an earlier run and
+If a file is missing or can't be read, the checker deletes any `passed.csv`, `failed.csv` and `pending.csv` from an earlier run and
 writes a `report.md` that says the batch was not checked, so an old approval can never be mistaken for the current one.
 
 ## Files in a batch folder
@@ -68,25 +68,32 @@ with `;`.
 
 ### `reviewers/<name>.csv`: one file per reviewer
 
-At least five reviewer files. The file name is the reviewer's name in lower case, for example `reviewers/gpt1.csv`
-or `reviewers/claude_sonnet.csv`.
+At least five reviewer files. The file name must be one of these reviewers, in lower case: `gpt1`, `gpt2`, `gpt3`,
+`gemini`, `claude_sonnet`, `codex`, `claude_final`, `christian` (for example `reviewers/gpt1.csv`). Any other name is a
+batch problem (exit code 2), so a typo like `gtp1.csv` is caught instead of quietly counting. No particular reviewer is
+required.
 
 | Column | What goes in it |
 | --- | --- |
 | `item_id` | The question. |
 | `answer` | The letter this reviewer picked when answering the question themselves. |
-| `verdict` | `pass`, `fail` or `pending`. |
+| `verdict` | `pass`, `fail` or `pending` (the review isn't finished yet). |
 | `notes` | Optional. Not read by the checker. |
 
 ## What makes a question pass
 
 A question passes only when every one of these is true:
 
-- Every reviewer reviewed it, picked the same letter as the key, and marked it `pass`.
+- Every reviewer reviewed it, picked the same letter as the key, and marked it `pass`. All must agree; a majority is
+  not enough.
 - The key's answer is one of the question's choices.
 - The question, the rationale and every choice are filled in, and no two choices are the same.
 - No other question in the batch has the same text (ignoring capitals and spacing).
 - It cites at least one fact and one source. Every one exists, and every source link is a proper `https://` address.
+
+A question that has nothing wrong except that some reviewer's verdict is still `pending` is **pending**: it goes in
+`pending.csv`, is counted separately in the report, and never passes. If it is also wrong in some other way, it
+fails.
 
 ## Batch warnings
 
@@ -100,6 +107,7 @@ Warnings appear in the report but don't fail any question:
 
 - `passed.csv`: `item_id`, `concept_id` of every question that passed. The importer (Task 2) will read this.
 - `failed.csv`: `item_id`, `concept_id` and `reasons`, all reasons in one cell separated by `;`.
+- `pending.csv`: `item_id`, `concept_id` and `waiting_for` (which reviewers haven't finished), separated by `;`.
 - `report.md`: a plain-language summary with the balance table and each reviewer's agreement with the key.
 
 The result files contain ids and reasons only, never question text. Any cell that a spreadsheet app could mistake for a

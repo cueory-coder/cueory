@@ -68,3 +68,9 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   letter-spacing value is a named token. A unit test scans `src/` for them. Codex review of PR #1.
 - **D-29** When the batch checker can't read a batch, it deletes the earlier `passed.csv` and `failed.csv` and writes a
   "not checked" `report.md`, so a stale approval can't be mistaken for a current one. Codex review of PR #2.
+- **D-30** Batch checker rules, from the development director: reviewer file names must be on the Task 2 roster (gpt1,
+  gpt2, gpt3, gemini, claude_sonnet, codex, claude_final, christian), so a typo is a batch problem (exit 2) instead of
+  silently counting; at least five files, none individually required. The pass rule stays unanimous. A `pending`
+  verdict is its own status: an item with nothing wrong except pending reviews goes to `pending.csv`, never passes,
+  and the exit code is 1 (0 only when every item passed). Items are single-answer only; select-all-that-apply waits
+  for Christian's content decision. Answer balance unchanged.

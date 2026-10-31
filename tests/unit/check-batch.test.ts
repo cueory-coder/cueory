@@ -3,9 +3,9 @@ import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { checkBatch, linkProblem, type BatchInput } from '../../scripts/check-batch/check.ts';
+import { checkBatch, linkProblem, REVIEWER_ROSTER, type BatchInput } from '../../scripts/check-batch/check.ts';
 import { CsvError, parseCsv, toCsv, type CsvRow } from '../../scripts/check-batch/csv.ts';
-import { failedCsv, passedCsv, reportMd } from '../../scripts/check-batch/report.ts';
+import { failedCsv, passedCsv, pendingCsv, reportMd } from '../../scripts/check-batch/report.ts';
 
 // Made-up placeholder data only: no clinical content belongs in tests (CLAUDE.md rule 5).
 const REVIEWERS = ['claude_sonnet', 'codex', 'gemini', 'gpt1', 'gpt2'];
@@ -118,12 +118,32 @@ describe('checkBatch', () => {
     expect(checkBatch(b).agreement.gemini).toEqual({ matched: 3, answered: 4 });
   });
 
-  it('fails an item a reviewer marked fail or pending, or did not review', () => {
+  it('fails an item a reviewer marked fail or did not review', () => {
     const b = batch();
     b.reviewers.gpt1![0]!.verdict = 'fail';
-    b.reviewers.gpt2![0]!.verdict = 'Pending';
     b.reviewers.codex = b.reviewers.codex!.filter((r) => r.item_id !== 'q1');
-    expect(reasonsFor(b, 'q1')).toEqual(['codex: no review', 'gpt1: marked it fail', 'gpt2: review still pending']);
+    expect(reasonsFor(b, 'q1')).toEqual(['codex: no review', 'gpt1: marked it fail']);
+  });
+
+  it('puts an item that is only waiting on a reviewer in pending, never in passed or failed', () => {
+    const b = batch();
+    b.reviewers.gpt2![0]!.verdict = 'Pending';
+    b.reviewers.gemini![0]!.verdict = 'pending';
+    const r = checkBatch(b);
+    expect(r.pending.map((p) => [p.item_id, p.waiting])).toEqual([
+      ['q1', ['gemini: review still pending', 'gpt2: review still pending']],
+    ]);
+    expect(r.passed.map((p) => p.item_id)).toEqual(['q2', 'q3', 'q4']);
+    expect(r.failed).toEqual([]);
+  });
+
+  it('fails, rather than parks, an item that is both pending and wrong', () => {
+    const b = batch();
+    b.reviewers.gpt2![0]!.verdict = 'pending';
+    b.reviewers.gpt1![0]!.verdict = 'fail';
+    const r = checkBatch(b);
+    expect(r.failed.map((f) => f.item_id)).toEqual(['q1']);
+    expect(r.pending).toEqual([]);
   });
 
   it('rejects unknown verdicts and answers outside the choices', () => {
@@ -180,14 +200,28 @@ describe('checkBatch', () => {
     expect(r.failed.every((f) => f.reasons[0] === 'the batch has errors (see report)')).toBe(true);
   });
 
-  it('requires at least five reviewer files with safe names', () => {
+  it('requires at least five reviewer files', () => {
     const b = batch();
     delete b.reviewers.gpt2;
-    b.reviewers['Bad Name'] = b.reviewers.gpt1!;
+    expect(checkBatch(b).batchErrors).toEqual(['found 4 reviewer file(s); at least 5 are required']);
+  });
+
+  it('accepts every name on the reviewer roster', () => {
+    const rows = batch().reviewers.gpt1!;
+    const b = batch();
+    b.reviewers = Object.fromEntries(REVIEWER_ROSTER.map((name) => [name, rows]));
+    expect(checkBatch(b).batchErrors).toEqual([]);
+  });
+
+  it.each(['gtp1', 'GPT1', 'gpt4', 'claude', 'Bad Name'])('treats reviewer file "%s.csv" as a batch problem', (name) => {
+    const b = batch();
+    b.reviewers[name] = b.reviewers.gpt1!;
     delete b.reviewers.gpt1;
-    const errors = checkBatch(b).batchErrors;
-    expect(errors).toContain('reviewer file "Bad Name.csv": name must be lower-case letters, digits or _ (like gpt1)');
-    expect(errors).toContain('found 4 reviewer file(s); at least 5 are required');
+    const r = checkBatch(b);
+    expect(r.batchErrors).toEqual([
+      `reviewer file "${name}.csv": not a known reviewer (expected one of ${REVIEWER_ROSTER.join(', ')}); check for a typo`,
+    ]);
+    expect(r.passed).toEqual([]);
   });
 
   it('reports key and review rows for items that do not exist', () => {
@@ -247,9 +281,21 @@ describe('report', () => {
     expect(passedCsv(r)).toBe('item_id,concept_id\nq2,c1\nq3,c1\nq4,c1\n');
     expect(failedCsv(r)).toBe('item_id,concept_id,reasons\nq1,c1,"gemini: answered D, key says A"\n');
     const md = reportMd(r, 'demo');
-    expect(md).toContain('**3 of 4 items passed.** 1 need another look.');
+    expect(md).toContain('**3 of 4 items passed.** 1 failed and 0 are waiting on a reviewer.');
     expect(md).toContain('| gemini | 3 | 4 |');
     expect(md).toContain('- gemini: answered D, key says A');
+  });
+
+  it('lists pending items in pending.csv and the report, separately from failures', () => {
+    const b = batch();
+    b.reviewers.gpt2![0]!.verdict = 'pending';
+    const r = checkBatch(b);
+    expect(pendingCsv(r)).toBe('item_id,concept_id,waiting_for\nq1,c1,gpt2: review still pending\n');
+    expect(failedCsv(r)).toBe('item_id,concept_id,reasons\n');
+    const md = reportMd(r, 'demo');
+    expect(md).toContain('**3 of 4 items passed.** 0 failed and 1 are waiting on a reviewer.');
+    expect(md).toContain('## Items waiting on a reviewer (not passed yet)');
+    expect(md).not.toContain('## Items that need another look');
   });
 
   it('says "Not ready" when the batch itself has problems', () => {
@@ -289,11 +335,12 @@ describe('check_batch command', () => {
     }
   }
 
-  it('exits 0 and writes all three files for a clean batch', () => {
+  it('exits 0 and writes all four files for a clean batch', () => {
     const folder = write(batch());
     const { code, out } = run(folder);
     expect(code).toBe(0);
-    expect(out).toContain('4 passed, 0 failed');
+    expect(out).toContain('4 passed, 0 failed, 0 pending');
+    expect(readFileSync(join(folder, 'pending.csv'), 'utf8')).toBe('item_id,concept_id,waiting_for\n');
     expect(readFileSync(join(folder, 'passed.csv'), 'utf8')).toContain('q4,c1');
     expect(readFileSync(join(folder, 'failed.csv'), 'utf8')).toBe('item_id,concept_id,reasons\n');
     expect(readFileSync(join(folder, 'report.md'), 'utf8')).toContain('4 of 4 items passed');
@@ -303,6 +350,17 @@ describe('check_batch command', () => {
     const b = batch();
     b.reviewers.gpt1![0]!.verdict = 'fail';
     expect(run(write(b)).code).toBe(1);
+  });
+
+  it('exits 1 when an item is only pending, and lists it in pending.csv', () => {
+    const b = batch();
+    b.reviewers.gpt1![0]!.verdict = 'pending';
+    const folder = write(b);
+    const { code, out } = run(folder);
+    expect(code).toBe(1);
+    expect(out).toContain('3 passed, 0 failed, 1 pending');
+    expect(readFileSync(join(folder, 'pending.csv'), 'utf8')).toContain('q1,c1,gpt1: review still pending');
+    expect(readFileSync(join(folder, 'passed.csv'), 'utf8')).not.toContain('q1');
   });
 
   it('exits 2 with a clear message when a file is missing or malformed', () => {
@@ -326,6 +384,7 @@ describe('check_batch command', () => {
       expect(run(folder, ...outArgs).code).toBe(2);
       expect(existsSync(join(out, 'passed.csv'))).toBe(false);
       expect(existsSync(join(out, 'failed.csv'))).toBe(false);
+      expect(existsSync(join(out, 'pending.csv'))).toBe(false);
       const report = readFileSync(join(out, 'report.md'), 'utf8');
       expect(report).toContain('not checked');
       expect(report).toContain('reviewers/gpt1.csv');

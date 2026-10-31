@@ -26,7 +26,8 @@ Last updated: 2026-10-31
 - [Task 1 pull request into `staging`](https://github.com/lilchristxan/Cueory/pull/1). Needs Codex review and
   Christian's approval, because it adds workflows and deployment settings.
 - **Task 3 batch checker** (`npm run check-batch`, format in docs/BATCHES.md). Pull request stacked on Task 1;
-  needs Codex review. It runs only on your computer and never touches the live site.
+  needs Codex review. Reviewer names are limited to the Task 2 roster, and unfinished reviews get their own
+  "pending" list (D-30). It runs only on your computer and never touches the live site.
 
 ## Blocked
 - **Signup form** shows "Signups open soon" until the Kit form exists (SETUP.md, Part I).
@@ -45,5 +46,5 @@ Follow [docs/SETUP.md](SETUP.md):
 - [ ] J. Decide whether hello@cueory.app should forward to your Gmail (needs email DNS records)
 - [ ] Provide disclaimer and terms text
 - [ ] Confirm or change the Task 3 batch defaults (docs/BATCHES.md, D-26) before real batches use them: the CSV
-  columns, which reviewers count (at least five files, any names), the pass rule (every reviewer matches the key and
-  marks pass), and the answer-balance warning (10 points off an even share, batches of 20+).
+  columns, which reviewers count (at least five files, names from the Task 2 roster), the pass rule (every reviewer matches
+  the key and marks pass; unfinished reviews are pending, not failed), and the answer-balance warning (10 points off an even share, batches of 20+).
