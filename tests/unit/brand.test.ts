@@ -16,6 +16,13 @@ describe('brand assets (Cueory_Branding_Spec.md)', () => {
     expect(site.tagline).toBe('by nursing students, for nursing students.');
   });
 
+  it('uses the approved, frozen geometry master v1.0 (changing it needs Christian\'s approval)', () => {
+    expect(manifest.master.file).toBe('brand-source/cueory-geometry-master-v1.0.json');
+    expect(sha(readFileSync(new URL(manifest.master.file, root)))).toBe(
+      '4982f24f4bae805840320267d522d2046c4332069349338dfcdf1dd3703adea6',
+    );
+  });
+
   it('were built from the recorded geometry master and reference banner', () => {
     expect(sha(readFileSync(new URL(manifest.master.file, root)))).toBe(manifest.master.sha256);
     expect(sha(readFileSync(new URL('brand-source/cueory-banner-reference-light.png', root)))).toBe(

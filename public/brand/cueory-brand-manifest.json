@@ -1,9 +1,9 @@
 {
-  "version": "0.1-reconstruction",
-  "status": "awaiting Christian's approval",
+  "version": "1.0",
+  "status": "approved by Christian on 2026-10-31; geometry frozen. Any change needs a new version and Christian's approval.",
   "master": {
-    "file": "brand-source/cueory-geometry-master-v0.1.json",
-    "sha256": "f22138607f2db696e5f837f03ae48d7961c83959bf197be0cf445e4697b65889"
+    "file": "brand-source/cueory-geometry-master-v1.0.json",
+    "sha256": "4982f24f4bae805840320267d522d2046c4332069349338dfcdf1dd3703adea6"
   },
   "reference": {
     "file": "brand-source/cueory-banner-reference-light.png",

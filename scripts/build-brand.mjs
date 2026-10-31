@@ -8,7 +8,7 @@
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
-const MASTER = 'brand-source/cueory-geometry-master-v0.1.json';
+const MASTER = 'brand-source/cueory-geometry-master-v1.0.json';
 const master = JSON.parse(readFileSync(MASTER, 'utf8'));
 const { upscale: UP, regions, rules, source } = master;
 const word = regions.wordmark;

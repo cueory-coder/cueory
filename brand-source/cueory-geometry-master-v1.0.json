@@ -1,7 +1,7 @@
 {
  "name": "cueory geometry master",
- "version": "0.1-reconstruction",
- "status": "awaiting Christian's approval",
+ "version": "1.0",
+ "status": "approved by Christian on 2026-10-31; geometry frozen. Any change needs a new version and Christian's approval.",
  "source": {
   "file": "brand-source/cueory-banner-reference-light.png",
   "width": 2172,

@@ -45,8 +45,9 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
 - **D-21** Favicon is the square Evening logo (charcoal with Evening Ivory), following the guide's 1:1 primary format.
 - **D-22** Logo = vector traced from Christian's banner (potrace 2.1.8 via sharp 0.35.5, run outside the project; 4×
   upscale, threshold 170 as in the spec). The traced paths are stored as one geometry master in `brand-source/`, and
-  every logo file is built from it, so light and dark can never drift apart. Labeled "reconstruction v0.1" until
-  Christian approves it (spec section 7).
+  every logo file is built from it, so light and dark can never drift apart.
+- **D-24** Christian approved the traced logo on 2026-10-31. It is frozen as geometry master v1.0, and a test pins its
+  checksum. Brand files need Christian's review (CODEOWNERS).
 - **D-23** Colors follow the spec's website table: dark-mode buttons are Sand (not Evening Ivory), and form borders and
   focus outlines are Bronze (day) / Sand (evening). Headings stay Inter, as the brand board says. The spec's
   Bodoni Moda heading idea is marked there as a proposal only.

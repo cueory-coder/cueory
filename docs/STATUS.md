@@ -10,7 +10,8 @@ Last updated: 2026-10-31
   (Ko-fi link), `/subscribed` (after signup), 404. "We're still building" notice on every page.
 - Brand applied (docs/BRAND.md, brand-source/Cueory_Branding_Spec.md): Daytime and Evening palettes with automatic
   dark mode, Inter, exact lowercase motto and product description, traced vector logo built into wordmark, square and
-  3:1 banner files (light and dark, SVG and PNG) with a checksum manifest.
+  3:1 banner files (light and dark, SVG and PNG) with a checksum manifest. Logo approved by Christian and frozen as
+  master v1.0.
 - Security headers and a hash-based content security policy.
 - Repository stays private: Semgrep (code scanning) and gitleaks (secret scanning) run free in CI in place of
   GitHub's paid CodeQL and secret scanning.
@@ -29,8 +30,6 @@ Last updated: 2026-10-31
 
 ## Blocked
 - **Signup form** shows "Signups open soon" until the Kit form exists (SETUP.md, Part I).
-- **Logo approval**: the logo is a vector traced from Christian's banner (reconstruction v0.1). Per the brand spec, it
-  needs Christian's approval before it's frozen as the master.
 
 ## Needs Christian's hands
 Follow [docs/SETUP.md](SETUP.md):
@@ -45,4 +44,3 @@ Follow [docs/SETUP.md](SETUP.md):
 - [ ] I. Create the Kit account and form; decide on the mailing address shown in emails
 - [ ] J. Decide whether hello@cueory.app should forward to your Gmail (needs email DNS records)
 - [ ] Provide disclaimer and terms text
-- [ ] Approve the traced logo (compare `public/brand/cueory-banner-light-3000x1000.png` with your banner)

@@ -35,9 +35,10 @@ spec wins. Colors are applied in `src/styles/tokens.css`. Logo files are built f
 | Primary text / logo | Evening Ivory | `#EFE6DA` |
 
 ## Logo
-- **Status: reconstruction v0.1, awaiting Christian's approval.** Traced with potrace from
-  `brand-source/cueory-banner-reference-light.png` (SHA-256 `056266ef…a962e0`). Once approved, the geometry master
-  `brand-source/cueory-geometry-master-v0.1.json` is frozen.
+- **Status: approved master v1.0** (approved by Christian on 2026-10-31). Traced with potrace from
+  `brand-source/cueory-banner-reference-light.png` (SHA-256 `056266ef…a962e0`). The geometry master
+  `brand-source/cueory-geometry-master-v1.0.json` (SHA-256 `4982f24f…3adea6`) is frozen: a test fails if it changes.
+  Any change needs a new version and Christian's approval.
 - Files in `public/brand/`: wordmark, square and 3:1 banner, each light and dark with identical geometry, plus PNG
   exports and `cueory-brand-manifest.json` (checksums). Tests fail if a file drifts from the master.
 - Primary aspect ratio 1:1 (square), wordmark centered. The full banner is 3:1; use it only where the motto stays
