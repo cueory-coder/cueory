@@ -13,7 +13,9 @@ spec wins. Colors are applied in `src/styles/tokens.css`. Logo files are built f
 ## Typography
 - **Logo (wordmark "cueory"):** traced artwork from the approved banner. It is never typed in a font. Bodoni Moda
   Medium was only an earlier approximation (spec section 1).
-- **Headings, body text, UI and buttons:** Inter. Live-text motto: Inter Medium, letter spacing 0.02em.
+- **Body text, UI, buttons, and headings on study screens:** Inter. Live-text motto: Inter Medium, letter spacing 0.02em.
+- **Marketing headings and their italic accent line:** Bodoni Moda Medium (spec section 4: 36–72 px, line height 1.12,
+  letter spacing −0.025em), self-hosted Latin files in `public/fonts/` under the SIL Open Font License (D-41).
 
 ## Daytime (light) palette
 | Role | Name | HEX |
@@ -46,6 +48,21 @@ spec wins. Colors are applied in `src/styles/tokens.css`. Logo files are built f
 - Clear space: at least 0.25 × letter height on all sides.
 - Minimum size: 96 px wide on screen, 25 mm (1 in) wide in print.
 - Espresso logo on ivory backgrounds. Evening Ivory logo on charcoal backgrounds.
+
+## Marketing look (D-41)
+Christian's redesign brief (2026-10-31) for the marketing pages only: home, support, the legal pages and 404. It relaxes
+"nothing decorative" there at his request; study screens stay plain.
+- **Mood:** quiet luxury, editorial, like a high-end "launching soon" page. Lots of empty space.
+- **Home hero:** full first screen, centered: the small traced wordmark, the motto, a large Bodoni headline, an italic
+  Bodoni accent line, one short line of Inter copy and one pill-shaped button.
+- **Background:** draped silk drawn in code from brand colors only: Ivory, Linen and Taupe by day; Charcoal and Walnut in
+  the evening. CSS gradients plus a tiny SVG grain (about 1 KB for both palettes). No stock photos. A photo Christian
+  supplies could replace it later.
+- **Embossed logo:** the traced wordmark, very large and tone-on-tone (Linen by day, Walnut in the evening) behind the
+  hero, hidden from screen readers.
+- **Panels:** frosted (Ivory or Walnut, three-quarters opaque, blurred), rounded `--radius-xl`, soft shadow.
+- **Readable:** tests compose the darkest Daytime and lightest Evening point of every background and require WCAG AA for
+  Espresso/Bronze and Evening Ivory/Sand text.
 
 ## Usage rules
 - Use only the exact colors, the fonts above, and the lowercase spelling "cueory".

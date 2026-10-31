@@ -107,3 +107,14 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   plain static files; `_headers` still applies. Previews: every branch builds a preview, all locked by the Worker's
   "Protect with Cloudflare Access" switch, so the staging lock no longer depends on Pages. Wrangler is pinned in
   devDependencies so builds don't download a changing version.
+- **D-41** Marketing redesign (Christian's brief, 2026-10-31): a quiet-luxury editorial look for marketing pages only
+  (home, support, privacy, terms, disclaimer, subscribed, 404). Headlines and the italic accent line use Bodoni Moda,
+  which the brand spec already lists for marketing headings. It is self-hosted as two Latin files (about 100 KB, SIL
+  Open Font License, copied from Fontsource 5.3.0 so no new dependency is added). The fonts use `font-display: optional`
+  and are preloaded on marketing pages, so text never jumps. Background: draped silk from brand colors only (CSS
+  gradients and a 0.5 KB SVG grain per palette), a faint embossed traced wordmark behind the hero (hidden from screen
+  readers), and frosted panels with soft shadows. Folds and panels use plain `rgb()` with transparency, so every browser
+  draws them correctly. Daytime folds stay at 16% and grain at 6%, so Bronze text keeps AA contrast at the darkest point,
+  and tests check every text color on every background. This relaxes "nothing decorative" and the spec's
+  no-gradient/no-texture note for marketing pages only, at Christian's request. Study screens keep a plain background.
+  Reason: Christian's brief; the brand spec already allows Bodoni Moda for marketing headings.

@@ -9,8 +9,11 @@ import { themeHeadScript } from '../scripts/theme';
 interface Props {
   title: string;
   description?: string;
-  /** 'study' is the quieter lesson screen. */
-  variant?: 'default' | 'study';
+  /**
+   * 'study' is the quieter lesson screen (plain background, no decoration). 'home' is the home page: a full-screen
+   * hero with its own logo instead of the header. Every other page gets the marketing look (D-41).
+   */
+  variant?: 'default' | 'study' | 'home';
   /** Keep this page out of search engines. */
   noindex?: boolean;
 }
@@ -19,6 +22,7 @@ const { title, description = site.description, variant = 'default', noindex = fa
 const fullTitle = title === site.name ? title : `${title} · ${site.name}`;
 const canonical = new URL(Astro.url.pathname, site.url).href;
 const isStudy = variant === 'study';
+const isHome = variant === 'home';
 ---
 
 <!doctype html>
@@ -35,8 +39,15 @@ const isStudy = variant === 'study';
     {noindex && <meta name="robots" content="noindex, nofollow" />}
     <!-- Applies a saved Light or Dark pick before the page paints (ThemePicker.astro, src/scripts/theme.ts). -->
     <script is:inline set:html={themeHeadScript} />
+    {
+      /* Marketing pages fetch their serif early so it is ready before the page is drawn (font-display: optional). */
+      !isStudy && (
+        <link rel="preload" href="/fonts/bodoni-moda-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin />
+      )
+    }
+    {isHome && <link rel="preload" href="/fonts/bodoni-moda-latin-opsz-italic.woff2" as="font" type="font/woff2" crossorigin />}
   </head>
-  <body class="flex flex-col bg-page">
+  <body class:list={['flex flex-col', isStudy ? 'bg-page' : 'silk-quiet']}>
     <a
       href="#main"
       class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-10 focus:bg-surface focus:px-4 focus:py-2"
@@ -44,8 +55,8 @@ const isStudy = variant === 'study';
       Skip to content
     </a>
     <BuildingNotice />
-    <SiteHeader quiet={isStudy} />
-    <main id="main" class="mx-auto w-full max-w-page flex-1 px-gutter">
+    {!isHome && <SiteHeader quiet={isStudy} />}
+    <main id="main" class:list={['w-full flex-1', !isHome && 'mx-auto max-w-page px-gutter']}>
       <slot />
     </main>
     <SiteFooter />

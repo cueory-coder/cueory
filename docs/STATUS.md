@@ -30,6 +30,9 @@ Last updated: 2026-10-31
   ([#3](https://github.com/lilchristxan/Cueory/pull/3), `/learn/study-skills/cards`) merged into `staging`.
 
 ## In review
+- **Marketing redesign** (D-41), this pull request: quiet-luxury home hero (Bodoni headline, draped-silk background,
+  embossed logo) and frosted panels on the support, legal and 404 pages. Study screens unchanged. It edits CLAUDE.md
+  and AGENTS.md, so Christian approves it.
 - [Task 4 flashcards: shuffle, star, Know it / Still learning](https://github.com/lilchristxan/Cueory/pull/6) into
   `staging` (D-37). Stars are kept in the browser only.
 - Dependabot [#9](https://github.com/lilchristxan/Cueory/pull/9) (`@types/node` 26) and
