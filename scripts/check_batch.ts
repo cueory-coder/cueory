@@ -50,8 +50,14 @@ function read(dir: string, file: string, columns: readonly string[]): CsvRow[] {
   try {
     return parseCsv(readFileSync(path, 'utf8'), columns);
   } catch (e) {
-    throw e instanceof CsvError ? new CsvError(`${file}: ${e.message}`) : e;
+    if (e instanceof CsvError) throw new CsvError(`${file}: ${e.message}`);
+    if (isFileSystemError(e)) throw new CsvError(`${file} could not be read (${e.code})`);
+    throw e;
   }
+}
+
+function isFileSystemError(e: unknown): e is NodeJS.ErrnoException & { code: string } {
+  return e instanceof Error && typeof (e as NodeJS.ErrnoException).code === 'string';
 }
 
 export function loadBatch(dir: string): BatchInput {
@@ -104,9 +110,11 @@ async function main(): Promise<number> {
   try {
     input = loadBatch(dir);
   } catch (e) {
-    if (!(e instanceof CsvError)) throw e;
+    // Whatever went wrong, earlier results must not survive a run that couldn't read the batch.
+    const problem = e instanceof CsvError || isFileSystemError(e) ? e.message : 'an unexpected error (see the terminal)';
+    writeNotChecked(out, basename(dir), problem);
+    if (!(e instanceof CsvError) && !isFileSystemError(e)) throw e;
     console.error(`Could not check the batch: ${e.message}`);
-    writeNotChecked(out, basename(dir), e.message);
     return 2;
   }
 

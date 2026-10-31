@@ -30,7 +30,7 @@ The command prints a one-line summary and finishes with:
 | 1 | Some item failed or is still pending. `failed.csv`, `pending.csv` and `report.md` say which and why. |
 | 2 | The batch itself has a problem (a missing or malformed file, too few reviewers, a repeated id), so no item can pass. |
 
-If a file is missing or can't be read, the checker deletes any `passed.csv`, `failed.csv` and `pending.csv` from an earlier run and
+If a file is missing, malformed or unreadable (for example a folder where a file should be), the checker deletes any `passed.csv`, `failed.csv` and `pending.csv` from an earlier run and
 writes a `report.md` that says the batch was not checked, so an old approval can never be mistaken for the current one.
 
 ## Files in a batch folder

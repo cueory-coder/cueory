@@ -391,4 +391,17 @@ describe('check_batch command', () => {
       expect(report).not.toContain('items passed');
     },
   );
+
+  it('removes earlier results when a batch file cannot be read at all', () => {
+    const folder = write(batch());
+    expect(run(folder).code).toBe(0);
+
+    // A folder where a file should be makes reading it fail with a file-system error, not a CSV error.
+    rmSync(join(folder, 'reviewers', 'gpt1.csv'));
+    mkdirSync(join(folder, 'reviewers', 'gpt1.csv'));
+    expect(run(folder)).toEqual({ code: 2, out: expect.stringContaining('reviewers/gpt1.csv could not be read') });
+    expect(existsSync(join(folder, 'passed.csv'))).toBe(false);
+    expect(existsSync(join(folder, 'failed.csv'))).toBe(false);
+    expect(readFileSync(join(folder, 'report.md'), 'utf8')).toContain('not checked');
+  });
 });
