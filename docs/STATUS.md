@@ -23,20 +23,20 @@ Last updated: 2026-10-31
 - Repository branches: `main` (live) and `staging` (test), both starting from one empty commit.
 
 ## In review
-- [Task 1 pull request into `staging`](https://github.com/lilchristxan/Cueory/pull/1). Codex's two findings are fixed
-  (hero sizes are tokens; the lesson no longer shows twice without JavaScript); fresh Codex review requested. Needs
-  Christian's approval, because it adds workflows and deployment settings.
-- [Task 3 batch checker](https://github.com/lilchristxan/Cueory/pull/2), stacked on Task 1. Codex's finding is fixed
-  (a failed check no longer leaves old results behind). Reviewer-name list and a separate "pending" status are being
-  added.
-- **Task 4, Cards mode** (`/learn/study-skills/cards`), stacked on Task 1: one card at a time, "Show answer", then
-  "Got it" or "See again"; works by tap and keyboard; placeholder cards from `content/cards/`.
+- [Task 1 site foundation](https://github.com/lilchristxan/Cueory/pull/1) into `staging`. CI green; Codex found nothing
+  more after its two fixes. Waits for Christian's approval and merge, because it adds workflows and deployment
+  settings.
+- [Task 3 batch checker](https://github.com/lilchristxan/Cueory/pull/2), stacked on Task 1. CI green, Codex clean.
+- [Task 4 Cards](https://github.com/lilchristxan/Cueory/pull/3) (`/learn/study-skills/cards`), stacked on Task 1. CI
+  green, Codex clean.
+- [Roadmap additions](https://github.com/lilchristxan/Cueory/pull/5), stacked on Task 1: Christian's 2026-10-31 study
+  features and the YouTube video rule.
+- **Task 4 flashcards: shuffle, star, Know it / Still learning**, stacked on Task 4 Cards (D-37). Stars are kept in
+  the browser only.
 
 ## Blocked
 - **Task 2 (accounts and database)** waits for Christian to create the two Supabase projects, and its sign-in and
   database-policy parts need his approval. Task 4 parts that don't need accounts go first.
-
-## Blocked
 - **Signup form** shows "Signups open soon" until the Kit form exists (SETUP.md, Part I).
 
 ## Needs Christian's hands

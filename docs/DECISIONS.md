@@ -60,7 +60,13 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   the full lesson list, with no duplicate first sentence and no dead buttons. Codex review of PR #1.
 - **D-28** Components may not use Tailwind "arbitrary values" (`text-[3.5rem]` and the like); every size, spacing and
   letter-spacing value is a named token. A unit test scans `src/` for them. Codex review of PR #1.
-- **D-31** Cards mode (Task 4): decks are JSON files in `content/cards/`, one per lesson, checked by the build. One card
+- **D-31** (Buttons and saving updated by D-37.) Cards mode (Task 4): decks are JSON files in `content/cards/`, one per lesson, checked by the build. One card
   at a time with real buttons ("Show answer", "Got it", "See again", "Back"); "See again" puts the card at the end of
   the round. No flip animation, so there's nothing to turn off for reduced motion. Progress isn't saved yet; that comes
   with guest progress later in Task 4.
+- **D-37** Flashcards (Task 4): "Know it" and "Still learning" replace "Got it" and "See again". A round shows each
+  card once; when every card is sorted, the next round is only the "Still learning" pile. "Back" undoes the last sort.
+  Shuffle (Fisher–Yates) reorders only the cards still to come, so the card on screen never jumps. Stars are saved per
+  deck in the browser's local storage (`cueory-stars-<deck>`, a list of card ids) and never sent to us; "Only starred
+  cards" studies just those. Reason: it follows the flashcard plan in ROADMAP Task 4, with short rounds a student can
+  count.
