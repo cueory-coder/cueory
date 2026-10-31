@@ -105,13 +105,14 @@ export function itemType(item: CsvRow): ItemType | null {
 }
 
 /**
- * The letters in an answer cell: one letter, or for select-all-that-apply several separated by `;` ("A;C;D"). Case,
- * spaces and order don't matter. Returns the sorted letters, or a problem: no letters, one that isn't a choice, or
- * the same letter twice.
+ * The letters in a select-all-that-apply answer cell, separated by `;` ("A;C;D"). Case, spaces and order don't
+ * matter. Returns the sorted letters, or a problem: no letters, an empty place between `;`, one that isn't a choice,
+ * or the same letter twice. Single-answer cells never come here: they must be exactly one letter, as before D-45.
  */
 export function answerLetters(cell: string, offered: readonly Letter[]): { letters: Letter[] } | { problem: string } {
-  const parts = list(cell).map((p) => p.toUpperCase());
-  if (parts.length === 0) return { problem: 'is empty' };
+  if (cell.trim() === '') return { problem: 'is empty' };
+  const parts = cell.split(';').map((p) => p.trim().toUpperCase());
+  if (parts.some((p) => p === '')) return { problem: `"${cell}" has an empty place between ;` };
   const outside = parts.filter((p) => !(offered as readonly string[]).includes(p));
   if (outside.length > 0) return { problem: `"${cell}" is not one of the choices (${offered.join(', ')})` };
   if (new Set(parts).size !== parts.length) return { problem: `"${cell}" names a choice twice` };
@@ -263,13 +264,21 @@ export function checkBatch(input: BatchInput): BatchResult {
     }
 
     const keyCell = key.get(id)?.answer ?? '';
-    const keyAnswer = keyCell.trim() === '' ? null : answerLetters(keyCell, letters);
+    // The key: one letter on a single-answer item (checked exactly as before D-45), a `;` list on a sata item.
     let answer: string | null = null;
-    if (keyAnswer === null) reasons.push('has no answer in key.csv');
-    else if ('problem' in keyAnswer) reasons.push(`key answer ${keyAnswer.problem}`);
-    else if (!sata && keyAnswer.letters.length > 1) {
-      reasons.push(`key gives ${keyAnswer.letters.join(';')} but the item is single-answer; set type to sata for select-all-that-apply`);
-    } else answer = keyAnswer.letters.join(';');
+    if (keyCell === '') reasons.push('has no answer in key.csv');
+    else if (!sata) {
+      const single = keyCell.toUpperCase();
+      const asList = answerLetters(keyCell, letters);
+      if ((letters as string[]).includes(single)) answer = single;
+      else if (!('problem' in asList) && asList.letters.length > 1) {
+        reasons.push(`key gives ${asList.letters.join(';')} but the item is single-answer; set type to sata for select-all-that-apply`);
+      } else reasons.push(`key answer "${single}" is not one of the choices (${letters.join(', ')})`);
+    } else {
+      const keyAnswer = answerLetters(keyCell, letters);
+      if ('problem' in keyAnswer) reasons.push(`key answer ${keyAnswer.problem}`);
+      else answer = keyAnswer.letters.join(';');
+    }
     const keyed = answer !== null;
     if (keyed && !sata) balance[answer as Letter] = (balance[answer as Letter] ?? 0) + 1;
 
@@ -280,8 +289,11 @@ export function checkBatch(input: BatchInput): BatchResult {
         continue;
       }
       const verdict = (review.verdict ?? '').toLowerCase();
-      const given = answerLetters(review.answer ?? '', letters);
-      if ('problem' in given || (!sata && given.letters.length > 1)) {
+      // A single-answer review is exactly one letter, as before D-45; a sata review is a `;` list.
+      const single = (review.answer ?? '').toUpperCase();
+      const given = sata ? answerLetters(review.answer ?? '', letters) : null;
+      const picked = sata ? (given && !('problem' in given) ? given.letters.join(';') : null) : (letters as string[]).includes(single) ? single : null;
+      if (picked === null) {
         reasons.push(
           sata
             ? `${name}: answer "${review.answer ?? ''}" must be letters from the choices, separated by ;`
@@ -289,7 +301,6 @@ export function checkBatch(input: BatchInput): BatchResult {
         );
       } else {
         // All-or-nothing: a reviewer matches only by picking exactly the key's letters.
-        const picked = given.letters.join(';');
         agreement[name]!.answered += 1;
         if (keyed && picked === answer) agreement[name]!.matched += 1;
         else if (keyed) reasons.push(`${name}: answered ${picked}, key says ${answer}`);

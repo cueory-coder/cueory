@@ -308,6 +308,18 @@ describe('select-all-that-apply items (D-45)', () => {
     expect(answerLetters('', offered)).toEqual({ problem: 'is empty' });
     expect(answerLetters('A;E', offered)).toEqual({ problem: '"A;E" is not one of the choices (A, B, C, D)' });
     expect(answerLetters('A;a', offered)).toEqual({ problem: '"A;a" names a choice twice' });
+    expect(answerLetters('A;', offered)).toEqual({ problem: '"A;" has an empty place between ;' });
+    expect(answerLetters('A;;C', offered)).toEqual({ problem: '"A;;C" has an empty place between ;' });
+  });
+
+  it('keeps single-answer cells to exactly one letter, as before', () => {
+    const b = batch(4);
+    b.key[0] = { item_id: 'q1', answer: 'A;' };
+    b.reviewers.gpt1![1] = { item_id: 'q2', answer: 'B;', verdict: 'pass' };
+    expect(reasonsFor(b, 'q1')).toContain('key answer "A;" is not one of the choices (A, B, C, D)');
+    expect(reasonsFor(b, 'q2')).toEqual(['gpt1: answer "B;" is not one of the choices']);
+    // q2's answer isn't counted; q1 has no usable key, so it is answered but can't match.
+    expect(checkBatch(b).agreement.gpt1).toEqual({ matched: 2, answered: 3 });
   });
 
   it('passes when every reviewer picks exactly the key letters, in any order', () => {
