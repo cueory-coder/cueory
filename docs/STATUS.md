@@ -20,8 +20,9 @@ Last updated: 2026-10-31
   Christian's approval, because it adds workflows and deployment settings.
 
 ## Blocked
-- **CodeQL, GitHub secret scanning and branch protection** don't run on a private personal repository without a paid
-  GitHub plan. Waiting on Christian: make the repository public (recommended, free) or decide otherwise (D-07).
+- **CodeQL and GitHub secret scanning** don't run on a private personal repository without a paid GitHub plan
+  (GitHub's docs). Branch protection rules may also need a paid plan on private repositories (not yet tested). Waiting
+  on Christian: make the repository public (recommended, free) or decide otherwise (D-07).
 - **Signup form** shows "Signups open soon" until the Kit form exists (SETUP.md, Part I).
 
 ## Needs Christian's hands
