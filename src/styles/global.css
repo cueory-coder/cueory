@@ -332,6 +332,99 @@
     color: var(--color-panel-ink);
   }
 
+  /*
+    Site search at the top of the ☰ panel (D-49): an outlined field with a magnifier on the right, results under it.
+    Everything sits straight on the panel color and uses the panel's two inks, the pair the contrast tests check.
+  */
+  .menu-search {
+    position: relative;
+  }
+
+  .menu-search-input {
+    inline-size: 100%;
+    min-block-size: calc(var(--spacing) * 11);
+    padding-block: calc(var(--spacing) * 2.5);
+    padding-inline: calc(var(--spacing) * 4) calc(var(--spacing) * 11);
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--color-panel-ink-soft);
+    color: var(--color-panel-ink);
+    background-color: transparent;
+    letter-spacing: var(--tracking-menu);
+    appearance: none;
+  }
+
+  .menu-search-input::placeholder {
+    color: var(--color-panel-ink-soft);
+    opacity: 1;
+  }
+
+  /* The magnifier is the field's only icon, so browsers' own clear button stays out of its way. */
+  .menu-search-input::-webkit-search-cancel-button,
+  .menu-search-input::-webkit-search-decoration {
+    appearance: none;
+  }
+
+  .menu-search-icon {
+    position: absolute;
+    inset-inline-end: calc(var(--spacing) * 4);
+    inset-block-start: 50%;
+    inline-size: calc(var(--spacing) * 5);
+    block-size: calc(var(--spacing) * 5);
+    translate: 0 -50%;
+    color: var(--color-panel-ink-soft);
+    pointer-events: none;
+  }
+
+  .menu-search-status {
+    margin-block-start: calc(var(--spacing) * 2);
+    color: var(--color-panel-ink-soft);
+    font-size: var(--text-sm);
+    line-height: var(--text-sm--line-height);
+  }
+
+  .menu-search-status:empty {
+    display: none;
+  }
+
+  .menu-search-results {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--spacing) * 1);
+    margin-block-start: calc(var(--spacing) * 2);
+  }
+
+  /* A result: the page title, then a short excerpt with the matched words in bold (not by color alone). */
+  .menu-result {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-block-size: calc(var(--spacing) * 11);
+    padding-block: calc(var(--spacing) * 2);
+    color: var(--color-panel-ink);
+    text-decoration: none;
+  }
+
+  .menu-result:hover .menu-result-title {
+    text-decoration: underline;
+  }
+
+  .menu-result-title {
+    font-weight: 500;
+    letter-spacing: var(--tracking-menu);
+  }
+
+  .menu-result-excerpt {
+    color: var(--color-panel-ink-soft);
+    font-size: var(--text-sm);
+    line-height: var(--text-sm--line-height);
+  }
+
+  .menu-result mark {
+    color: var(--color-panel-ink);
+    background-color: transparent;
+    font-weight: 650;
+  }
+
   /* The small account menu below the account button. */
   .account-menu {
     position: absolute;

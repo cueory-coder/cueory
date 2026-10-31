@@ -223,3 +223,14 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   edits `.github/`; the same pull request adds the rule to CLAUDE.md. Reason: running three engines on every pull
   request would use up GitHub's free Actions minutes; the release check still covers every engine before anything
   reaches the live site.
+- **D-49** Site search in the ☰ panel (Christian's change request, 2026-10-31). Pagefind 1.5.2 (MIT, pinned) runs
+  after `astro build` (`pagefind --site dist`) and writes a static index to `dist/pagefind/`; nothing is sent to anyone
+  else. It indexes only each page's `<main>`, never the menus, notice or footer, and leaves out pages kept out of search
+  engines (404, the signup thank-you page). Results take each page's own title ("home" for the home page). The index
+  loads the first time the field is used, never with the page, and runs on the page itself (`noWorker`), so no `blob:`
+  worker is needed. Results are built as text: the matched words are bold, and no HTML from the index reaches the
+  page. Arrow keys move between the field and the results, and an empty search says "no results" plainly. Pagefind
+  searches with WebAssembly, so `script-src` gains `'wasm-unsafe-eval'`: it allows compiling WebAssembly, never
+  running JavaScript strings, and scripts still come only from this site (a build test checks there is no other
+  `unsafe-eval`). Reason: Christian asked for real search with Pagefind; a static, self-hosted index keeps the site
+  free and private, and without `'wasm-unsafe-eval'` the search fails in every browser.

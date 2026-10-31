@@ -572,6 +572,58 @@ test.describe('☰ side panel and account corner (D-46)', () => {
   });
 });
 
+test.describe('site search in the ☰ panel (D-49)', () => {
+  test('finds pages as you type, works by keyboard, and goes to the result', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'menu', exact: true }).click();
+    const panel = page.getByTestId('site-menu');
+    const field = panel.getByRole('searchbox', { name: 'search the site' });
+    await expect(field).toHaveAttribute('placeholder', 'search');
+
+    await field.fill('privacy');
+    const results = panel.getByRole('list', { name: 'search results' });
+    const privacy = results.getByRole('link', { name: /^privacy/ });
+    await expect(privacy).toBeVisible();
+    await expect(privacy).toHaveAttribute('href', '/privacy');
+    await expect(panel.locator('#site-search-status')).toHaveText(/^(1 result|\d+ results|\d+ of \d+ results)$/);
+    // The matched word is marked by weight, not color alone.
+    const mark = results.locator('mark').first();
+    await expect(mark).toBeVisible();
+    expect(Number(await mark.evaluate((el) => getComputedStyle(el).fontWeight))).toBeGreaterThan(500);
+
+    const axe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+    expect(axe.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+
+    // Down from the field goes to the first result; Up goes back.
+    await field.press('ArrowDown');
+    await expect(results.getByRole('link').first()).toBeFocused();
+    await page.keyboard.press('ArrowUp');
+    await expect(field).toBeFocused();
+
+    await privacy.focus();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/privacy$/);
+  });
+
+  test('says "no results" plainly, and clearing the field clears the results', async ({ page }) => {
+    await page.goto('/learn/study-skills');
+    await page.getByRole('button', { name: 'menu', exact: true }).click();
+    const panel = page.getByTestId('site-menu');
+    const field = panel.getByRole('searchbox', { name: 'search the site' });
+    const status = panel.locator('#site-search-status');
+
+    await field.fill('zzqxv');
+    await expect(status).toHaveText('no results for “zzqxv”');
+    await expect(panel.getByRole('list', { name: 'search results' })).toBeHidden();
+
+    await field.fill('placeholder card');
+    await expect(panel.getByRole('list', { name: 'search results' }).getByRole('link').first()).toBeVisible();
+    await field.fill('');
+    await expect(status).toBeHidden();
+    await expect(panel.getByRole('list', { name: 'search results' })).toBeHidden();
+  });
+});
+
 test.describe('without JavaScript, the corners', () => {
   test.use({ javaScriptEnabled: false });
 
