@@ -68,7 +68,8 @@ const items = [
 
     toggle.addEventListener('click', () => setOpen(menu.hidden !== false));
 
-    corner.addEventListener('keydown', (event) => {
+    // On the whole page, because some browsers (Safari) don't focus a button when it is clicked.
+    document.addEventListener('keydown', (event) => {
       if (isCloseKey(event.key) && !menu.hidden) {
         event.preventDefault();
         setOpen(false);
