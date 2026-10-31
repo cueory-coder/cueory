@@ -65,8 +65,6 @@ Last updated: 2026-10-31
   `packageManager`, and lockfile changes that add a package, an install script or a download from outside the npm
   registry. Version bumps of existing packages still merge themselves. Edits `scripts/automerge/`, so Christian
   approves and merges it.
-- "ways to study" carousel (D-50): one chip per study mode, cards with original moving illustrations, arrows, keys,
-  swipe and a gentle auto-advance with a pause button. The auto-merge takes it once it is clean.
 - Search in the ☰ panel (D-49): Pagefind indexes the site when it is built; results appear as you type. It adds a
   package and lets the content security policy compile WebAssembly (`'wasm-unsafe-eval'`, needed by Pagefind), so it
   waits for Christian's merge.
