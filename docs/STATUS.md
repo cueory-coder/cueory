@@ -30,19 +30,30 @@ Last updated: 2026-10-31
   ([#3](https://github.com/lilchristxan/Cueory/pull/3), `/learn/study-skills/cards`) merged into `staging`.
 - Task 4 flashcards ([#6](https://github.com/lilchristxan/Cueory/pull/6)): shuffle, star, Know it / Still learning, stars
   kept in the browser only (D-37). In `staging`.
-- Staging auto-merge ([#12](https://github.com/lilchristxan/Cueory/pull/12), D-39) merged into `staging`: clean,
-  non-sensitive pull requests merge into `staging` on their own; sensitive ones get the `needs-christian` label. It
-  starts working once it reaches `main` with the next release.
+- Staging auto-merge ([#12](https://github.com/lilchristxan/Cueory/pull/12), D-39): clean, non-sensitive pull
+  requests merge into `staging` on their own; sensitive ones get the `needs-christian` label. Live since the 31 Oct
+  release.
+- Video start wording ([#13](https://github.com/lilchristxan/Cueory/pull/13), D-40): one tap on a lesson video's cover
+  loads YouTube's player and starts that video; nothing plays on page load.
+- Release 31 Oct ([#20](https://github.com/lilchristxan/Cueory/pull/20)): Cards and flashcards for lesson 1, the batch
+  checker, the roadmap additions and the staging auto-merge are on `main`.
 
 ## In review
-- **Marketing redesign** (D-41), this pull request: quiet-luxury home hero (Bodoni headline, draped-silk background,
-  embossed logo) and frosted panels on the support, legal and 404 pages. Study screens unchanged. It edits CLAUDE.md
-  and AGENTS.md, so Christian approves it.
-- [Video start wording](https://github.com/lilchristxan/Cueory/pull/13) (D-40): one tap on a lesson video's cover
-  loads YouTube's player and starts that video; nothing plays on page load.
+- [Marketing redesign](https://github.com/lilchristxan/Cueory/pull/14) (D-41): quiet-luxury home hero and frosted
+  panels on the support, legal and 404 pages; study screens unchanged. It edits CLAUDE.md and AGENTS.md, so Christian
+  approves it.
+- [Pre-launch mode for the auto-merge](https://github.com/lilchristxan/Cueory/pull/15) (D-42): `automation.json`
+  says `"prelaunch": true`, so until launch only workflows, the automation, the rules files, content, the database,
+  deployment, new or major-version dependencies and anything labelled `needs-christian` wait for Christian. It changes
+  the automation's own rules, so Christian approves it.
+- [Dependabot ignore rules](https://github.com/lilchristxan/Cueory/pull/16): no more TypeScript 7 or `@types/node`
+  above 24. It changes `.github/`, so Christian approves it.
+- [Learn mode](https://github.com/lilchristxan/Cueory/pull/17) (D-43), [Matching](https://github.com/lilchristxan/Cueory/pull/18)
+  (D-44) and [select-all-that-apply in the batch checker](https://github.com/lilchristxan/Cueory/pull/19) (D-45): the
+  auto-merge takes these once they are clean.
 - Dependabot [#9](https://github.com/lilchristxan/Cueory/pull/9) (`@types/node` 26) and
-  [#10](https://github.com/lilchristxan/Cueory/pull/10) (TypeScript 7): told to ignore those major versions. We run
-  Node 24 (D-01), and Astro's type checker accepts TypeScript only up to 6 (D-02).
+  [#10](https://github.com/lilchristxan/Cueory/pull/10) (TypeScript 7): don't merge. We run Node 24 (D-01), and
+  Astro's type checker accepts TypeScript only up to 6 (D-02).
 
 ## Blocked
 - **Task 2 (accounts and database)** waits for Christian to create the two Supabase projects, and its sign-in and
@@ -63,13 +74,13 @@ Follow [docs/SETUP.md](SETUP.md):
 - [ ] I. Create the Kit account and form; decide on the mailing address shown in emails
 - [ ] J. Decide whether hello@cueory.app should forward to your Gmail (needs email DNS records)
 - [ ] Provide disclaimer and terms text
-- [ ] Before the staging auto-merge (D-39) reaches `main`: in Settings → Rules, make the `main` ruleset "Restrict
-  updates" with only the repository admin (you) on its bypass list, so no robot can ever change `main`
+- [ ] In Settings → Rules, make the `main` ruleset "Restrict updates" with only the repository admin (you) on its
+  bypass list, so no robot can ever change `main` (D-39; the auto-merge is live since the 31 Oct release)
 - [ ] Confirm or change the Task 3 batch defaults (docs/BATCHES.md, D-26) before real batches use them: the CSV
   columns, which reviewers count (at least five files, names from the Task 2 roster), the pass rule (every reviewer matches
   the key and marks pass; unfinished reviews are pending, not failed), and the answer-balance warning (10 points off an even share, batches of 20+).
 - [x] Select-all-that-apply questions: yes, scored all-or-nothing for now, with each option's rationale shown
   afterward ([answer on issue #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6545756502)). The batch
-  checker still handles single-answer questions only (D-30) until that change is built.
+  checker handles them once [#19](https://github.com/lilchristxan/Cueory/pull/19) (D-45) is in.
 - [x] Videos: one tap on the cover loads YouTube's player and starts that video (Christian confirmed "play
-  immediately"). D-32 and ROADMAP Task 4d get the new wording in their own pull request.
+  immediately", [issue #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6546595207); D-40).
