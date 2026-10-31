@@ -7,7 +7,7 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
 - **D-03** Tailwind v4 with `@theme` in `src/styles/tokens.css`. The default palette is removed so only tokens can
   be used.
 - **D-04** (Replaced by D-19.) Starter fonts were Newsreader and Atkinson Hyperlegible Next.
-- **D-05** Cloudflare **Pages**, not Workers. Cloudflare's docs tell new projects to start on Workers, but Workers
+- **D-05** (Replaced by D-38.) Cloudflare **Pages**, not Workers. Cloudflare's docs tell new projects to start on Workers, but Workers
   builds can only be switched on or off for *all* non-production branches. Pages documents exactly what the brief asks
   for: "Preview branch control → Custom branches = `staging`" (feature branches never use the 500 free builds) and a
   one-click "Enable access policy" lock for previews. The site is plain static files, so moving to Workers later is a
@@ -68,7 +68,11 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   card once; when every card is sorted, the next round is only the "Still learning" pile. "Back" undoes the last sort.
   Shuffle (Fisher–Yates) reorders the cards still to come: before any card in a round is flipped or sorted it
   reorders the whole round; after that the card on screen stays put, even after "Back" or "Show question", so nothing
-  the student is working on jumps. Stars are saved per
-  deck in the browser's local storage (`cueory-stars-<deck>`, a list of card ids) and never sent to us; "Only starred
-  cards" studies just those. Reason: it follows the flashcard plan in ROADMAP Task 4, with short rounds a student can
-  count.
+  the student is working on jumps. Stars are saved per deck in the browser's local storage (`cueory-stars-<deck>`, a
+  list of card ids) and never sent to us; "Only starred cards" studies just those. Reason: it follows the flashcard
+  plan in ROADMAP Task 4, with short rounds a student can count.
+- **D-38** Hosting moves to Cloudflare **Workers** with static assets (`wrangler.jsonc`). Cloudflare's dashboard now
+  only offers Workers when creating an application, so the Pages setup in D-05 couldn't be followed. The site stays
+  plain static files; `_headers` still applies. Previews: every branch builds a preview, all locked by the Worker's
+  "Protect with Cloudflare Access" switch, so the staging lock no longer depends on Pages. Wrangler is pinned in
+  devDependencies so builds don't download a changing version.
