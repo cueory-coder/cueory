@@ -26,4 +26,26 @@ const lessons = defineCollection({
   }),
 });
 
-export const collections = { lessons };
+/**
+ * Cards are content too: one JSON file per lesson deck in /content/cards. `lesson` names the lesson the deck
+ * belongs to (a file name in /content/lessons, without .json).
+ */
+const cards = defineCollection({
+  loader: glob({ base: './content/cards', pattern: '**/*.json' }),
+  schema: z.object({
+    lesson: z.string().regex(/^[a-z0-9-]+$/),
+    title: z.string().min(1).max(120),
+    status: z.enum(['placeholder', 'draft', 'in_review', 'published']),
+    cards: z
+      .array(
+        z.object({
+          id: z.string().regex(/^[a-z0-9-]+$/),
+          front: z.string().min(1).max(300),
+          back: z.string().min(1).max(600),
+        }),
+      )
+      .min(1),
+  }),
+});
+
+export const collections = { lessons, cards };

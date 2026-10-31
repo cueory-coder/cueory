@@ -66,6 +66,10 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   the full lesson list, with no duplicate first sentence and no dead buttons. Codex review of PR #1.
 - **D-28** Components may not use Tailwind "arbitrary values" (`text-[3.5rem]` and the like); every size, spacing and
   letter-spacing value is a named token. A unit test scans `src/` for them. Codex review of PR #1.
+- **D-31** Cards mode (Task 4): decks are JSON files in `content/cards/`, one per lesson, checked by the build. One card
+  at a time with real buttons ("Show answer", "Got it", "See again", "Back"); "See again" puts the card at the end of
+  the round. No flip animation, so there's nothing to turn off for reduced motion. Progress isn't saved yet; that comes
+  with guest progress later in Task 4.
 - **D-29** When the batch checker can't read a batch, it deletes the earlier `passed.csv` and `failed.csv` and writes a
   "not checked" `report.md`, so a stale approval can't be mistaken for a current one. Codex review of PR #2.
 - **D-30** Batch checker rules, from the development director: reviewer file names must be on the Task 2 roster (gpt1,
