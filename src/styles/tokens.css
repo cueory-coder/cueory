@@ -106,6 +106,9 @@
   --container-hero: 46rem;      /* the centered hero column */
   --container-menu: min(85vw, 22.5rem); /* the ☰ side panel: most of a phone, 360px on bigger screens */
   --container-account-menu: 15rem; /* the small account menu */
+  --container-mode-card: min(68vw, 20rem); /* a "ways to study" card: most of a phone, 320px on bigger screens */
+  --gap-mode-card: 1rem;        /* space between "ways to study" cards */
+  --drop-mode-card: 1rem;       /* how much lower a neighbouring card sits, per card away from the middle */
 
   /* ---------- Logo (brand guide: min 96px wide, clear space 0.25 × letter height) ---------- */
   --logo-width: 7.5rem;         /* 120px in the header */

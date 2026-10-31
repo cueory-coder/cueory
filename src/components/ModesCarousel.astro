@@ -1,0 +1,284 @@
+---
+/**
+ * "ways to study" on the home page (D-50): a small label, a centered heading, one chip per study mode, and a row of
+ * cards that scrolls sideways and snaps each card to the middle, with previous, pause and next buttons below.
+ *
+ * Without JavaScript it still works: the row scrolls by swiping or the keyboard, and each chip is a link to its card.
+ * The script adds the coverflow look, chip and arrow navigation, arrow keys, and a gentle auto-advance that stops for
+ * good once the visitor uses the carousel, pauses on hover or focus, and never runs with reduced motion. The pause
+ * button stops the auto-advance and the illustration loops (WCAG 2.2.2).
+ */
+import { studyModes } from '../config/modes';
+import ModeIllustration from './ModeIllustration.astro';
+
+const count = studyModes.length;
+const open = studyModes.filter((mode) => mode.link).map((mode) => mode.name);
+const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
+---
+
+<section
+  id="ways-to-study"
+  class="modes mt-section scroll-mt-section"
+  aria-labelledby="modes-heading"
+  aria-roledescription="carousel"
+  data-modes
+>
+  <div class="text-center">
+    <p class="text-sm font-medium tracking-label text-ink-soft">study modes</p>
+    <h2 id="modes-heading" class="display mt-3 text-title sm:text-title-lg">ways to study</h2>
+  </div>
+
+  <div class="mt-8 flex flex-wrap justify-center gap-2" role="group" aria-label="pick a study mode">
+    {
+      studyModes.map((mode, index) => (
+        <a
+          href={`#mode-${mode.id}`}
+          class="mode-chip"
+          aria-current={index === 0 ? 'true' : undefined}
+          aria-controls="modes-track"
+          data-mode-chip
+        >
+          {mode.name}
+        </a>
+      ))
+    }
+  </div>
+
+  <div
+    id="modes-track"
+    class="modes-track mt-4"
+    role="group"
+    tabindex="0"
+    aria-label="study mode cards"
+    data-modes-track
+  >
+    {
+      studyModes.map((mode, index) => (
+        <div
+          id={`mode-${mode.id}`}
+          class="mode-card veil"
+          role="group"
+          aria-roledescription="slide"
+          aria-label={`${index + 1} of ${count}`}
+          data-mode-card
+          data-name={mode.name}
+        >
+          <div class="mode-art">
+            <ModeIllustration mode={mode.id} />
+          </div>
+          <h3 class="mt-5 text-xl font-medium">{mode.name}</h3>
+          <p class="mt-2 flex-1 text-ink-soft">{mode.text}</p>
+          {mode.link ? (
+            <a href={mode.link.href} class="mt-5 font-medium">
+              {mode.link.label}
+            </a>
+          ) : (
+            <p class="mt-5 text-sm text-ink-soft">coming soon</p>
+          )}
+        </div>
+      ))
+    }
+  </div>
+
+  <div class="invisible flex justify-center gap-3" data-modes-controls>
+    <button type="button" class="corner-button" aria-label="previous study mode" data-modes-prev>
+      <svg viewBox="0 0 24 24" class="size-6" aria-hidden="true" focusable="false">
+        <path d="M14.5 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
+      </svg>
+    </button>
+    <button type="button" class="corner-button" aria-label="pause the slideshow" data-modes-pause>
+      <svg viewBox="0 0 24 24" class="size-6" aria-hidden="true" focusable="false" data-icon-pause>
+        <path d="M9 7v10M15 7v10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+      </svg>
+      <svg viewBox="0 0 24 24" class="hidden size-6" aria-hidden="true" focusable="false" data-icon-play>
+        <path d="M9 6.5l8.5 5.5L9 17.5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"></path>
+      </svg>
+    </button>
+    <button type="button" class="corner-button" aria-label="next study mode" data-modes-next>
+      <svg viewBox="0 0 24 24" class="size-6" aria-hidden="true" focusable="false">
+        <path d="M9.5 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
+      </svg>
+    </button>
+  </div>
+
+  <p class="sr-only" aria-live="off" aria-atomic="true" data-modes-live></p>
+
+  <p class="mt-8 text-center text-sm text-ink-soft">
+    {openList} are open now, with placeholder cards. the rest are on the way.
+  </p>
+</section>
+
+<script>
+  import { AUTO_ADVANCE_MS, canAutoAdvance, distance, keyTarget, nearestIndex, slideAnnouncement, wrap } from '../scripts/carousel';
+
+  const root = document.querySelector<HTMLElement>('[data-modes]');
+  const track = root?.querySelector<HTMLElement>('[data-modes-track]');
+
+  if (root && track) {
+    const cards = [...track.querySelectorAll<HTMLElement>('[data-mode-card]')];
+    const chips = [...root.querySelectorAll<HTMLAnchorElement>('[data-mode-chip]')];
+    const live = root.querySelector<HTMLElement>('[data-modes-live]');
+    const pauseButton = root.querySelector<HTMLButtonElement>('[data-modes-pause]');
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    const state = {
+      reducedMotion: reducedMotion.matches,
+      paused: false,
+      tookOver: false,
+      hovering: false,
+      focusInside: false,
+      onScreen: false,
+    };
+    let active = 0;
+    /** Where an arrow, chip or key is taking the row: only that card is announced, not every card passed on the way. */
+    let heading: number | undefined;
+
+    const centers = () => cards.map((card) => card.offsetLeft + card.offsetWidth / 2);
+    const middle = () => track.scrollLeft + track.clientWidth / 2;
+
+    /** Coverflow: each card's distance from the middle, and which card is in the middle. */
+    const update = () => {
+      const all = centers();
+      const step = cards.length > 1 ? all[1]! - all[0]! : 1;
+      const mid = middle();
+      cards.forEach((card, index) => card.style.setProperty('--mode-distance', distance(all[index]!, mid, step).toFixed(3)));
+      const nearest = nearestIndex(all, mid);
+      if (nearest !== active || !cards[nearest]!.hasAttribute('data-active')) setActive(nearest);
+      if (nearest === heading) heading = undefined;
+    };
+
+    const setActive = (index: number) => {
+      active = index;
+      cards.forEach((card, i) => card.toggleAttribute('data-active', i === index));
+      chips.forEach((chip, i) => {
+        if (i === index) chip.setAttribute('aria-current', 'true');
+        else chip.removeAttribute('aria-current');
+      });
+      if (live && (heading === undefined || heading === index)) {
+        live.textContent = slideAnnouncement(cards[index]!.dataset.name ?? '', index, cards.length);
+      }
+    };
+
+    const goTo = (index: number) => {
+      heading = wrap(index, cards.length);
+      const card = cards[heading]!;
+      const left = card.offsetLeft + card.offsetWidth / 2 - track.clientWidth / 2;
+      // Already there: nothing will scroll, so nothing is on its way.
+      if (Math.abs(track.scrollLeft - left) < 1) heading = undefined;
+      track.scrollTo({ left, behavior: state.reducedMotion ? 'auto' : 'smooth' });
+    };
+
+    /** Anything the visitor does on the carousel puts them in charge: auto-advance stops and changes are announced. */
+    const takeOver = () => {
+      state.tookOver = true;
+      live?.setAttribute('aria-live', 'polite');
+    };
+
+    let frame = 0;
+    track.addEventListener(
+      'scroll',
+      () => {
+        if (frame) return;
+        frame = requestAnimationFrame(() => {
+          frame = 0;
+          update();
+        });
+      },
+      { passive: true },
+    );
+    window.addEventListener('resize', update, { passive: true });
+
+    chips.forEach((chip, index) =>
+      chip.addEventListener('click', (event) => {
+        event.preventDefault();
+        takeOver();
+        goTo(index);
+      }),
+    );
+    root.querySelector('[data-modes-prev]')?.addEventListener('click', () => {
+      takeOver();
+      goTo(active - 1);
+    });
+    root.querySelector('[data-modes-next]')?.addEventListener('click', () => {
+      takeOver();
+      goTo(active + 1);
+    });
+
+    track.addEventListener('keydown', (event) => {
+      if (event.target !== track) return;
+      const target = keyTarget(event.key, active, cards.length);
+      if (target === undefined) return;
+      event.preventDefault();
+      takeOver();
+      goTo(target);
+    });
+
+    // A finger or a mouse wheel on the row also puts the visitor in charge.
+    track.addEventListener('pointerdown', takeOver, { passive: true });
+    track.addEventListener(
+      'wheel',
+      (event) => {
+        // Only sideways scrolling: scrolling the page past the carousel leaves the auto-advance alone.
+        if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) takeOver();
+      },
+      { passive: true },
+    );
+
+    root.addEventListener('pointerenter', (event) => {
+      if (event.pointerType === 'mouse') state.hovering = true;
+    });
+    root.addEventListener('pointerleave', () => {
+      state.hovering = false;
+    });
+    root.addEventListener('focusin', () => {
+      state.focusInside = true;
+    });
+    root.addEventListener('focusout', (event) => {
+      if (!root.contains(event.relatedTarget as Node | null)) state.focusInside = false;
+    });
+
+    const showPaused = () => {
+      root.toggleAttribute('data-paused', state.paused);
+      pauseButton?.setAttribute('aria-label', state.paused ? 'play the slideshow' : 'pause the slideshow');
+      pauseButton?.querySelector('[data-icon-pause]')?.classList.toggle('hidden', state.paused);
+      pauseButton?.querySelector('[data-icon-play]')?.classList.toggle('hidden', !state.paused);
+      live?.setAttribute('aria-live', state.paused || state.tookOver ? 'polite' : 'off');
+    };
+    pauseButton?.addEventListener('click', () => {
+      state.paused = !state.paused;
+      // Playing again lets the auto-advance run again, even after the visitor took over.
+      if (!state.paused) state.tookOver = false;
+      showPaused();
+    });
+
+    const applyMotion = () => {
+      state.reducedMotion = reducedMotion.matches;
+      root.toggleAttribute('data-motion', !state.reducedMotion);
+      // With reduced motion nothing moves by itself, so there is nothing to pause: the button keeps its space only.
+      pauseButton?.classList.toggle('invisible', state.reducedMotion);
+    };
+    reducedMotion.addEventListener('change', applyMotion);
+    applyMotion();
+
+    let intersecting = false;
+    const showing = () => {
+      state.onScreen = intersecting && !document.hidden;
+    };
+    new IntersectionObserver(
+      ([entry]) => {
+        intersecting = !!entry?.isIntersecting;
+        showing();
+      },
+      { threshold: 0.5 },
+    ).observe(track);
+    document.addEventListener('visibilitychange', showing);
+
+    window.setInterval(() => {
+      if (canAutoAdvance(state)) goTo(active + 1);
+    }, AUTO_ADVANCE_MS);
+
+    showPaused();
+    update();
+    root.querySelector('[data-modes-controls]')?.classList.remove('invisible');
+  }
+</script>

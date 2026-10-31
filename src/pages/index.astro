@@ -1,18 +1,9 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import ModesCarousel from '../components/ModesCarousel.astro';
 import SignupForm from '../components/SignupForm.astro';
 import Wordmark from '../components/Wordmark.astro';
 import { accountHref, site } from '../config/site';
-
-const modes = [
-  { name: 'Lesson', text: 'Read a lesson one short sentence at a time.' },
-  { name: 'Cards', text: 'Flip through the key ideas.' },
-  { name: 'Fill-in', text: 'Recall the missing word.' },
-  { name: 'Matching', text: 'Pair terms with what they mean.' },
-  { name: 'Organizer', text: 'Sort ideas into groups by tapping, typing or dragging.' },
-  { name: 'Questions', text: 'Practice questions, each with a rationale.' },
-  { name: 'Review', text: 'Come back at the right time, paced to your exam date.' },
-];
 ---
 
 <Layout title={site.name} variant="home">
@@ -44,20 +35,7 @@ const modes = [
   </section>
 
   <div class="mx-auto w-full max-w-page px-gutter">
-    <section id="ways-to-study" class="veil mt-section scroll-mt-section p-6 sm:p-10" aria-labelledby="modes-heading">
-      <h2 id="modes-heading" class="display text-title">Ways to study</h2>
-      <ul class="mt-6 grid gap-x-10 gap-y-6 border-t border-line pt-6 sm:grid-cols-2">
-        {
-          modes.map((m) => (
-            <li>
-              <h3 class="text-lg">{m.name}</h3>
-              <p class="mt-1 text-ink-soft">{m.text}</p>
-            </li>
-          ))
-        }
-      </ul>
-      <p class="mt-8 text-sm text-ink-soft">More study modes are on the way. The first lesson and its cards are open now.</p>
-    </section>
+    <ModesCarousel />
 
     <div class="mt-section">
       <SignupForm />

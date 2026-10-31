@@ -59,11 +59,12 @@ Last updated: 2026-10-31
   in the all-lowercase voice (D-46, D-47), with phone, tablet and desktop browser tests (D-48).
 
 ## In review
-- Nothing open right now.
+- "ways to study" carousel (D-50): one chip per study mode, cards with original moving illustrations, arrows, keys,
+  swipe and a gentle auto-advance with a pause button. The auto-merge takes it once it is clean.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. Search in the ☰ panel (Pagefind, a new package, so it waits for Christian's merge).
-2. "ways to study" carousel with illustrations, hover zoom, grow-into-preview and the preview panel.
+2. The carousel's hover zoom, grow-into-preview and the preview panel.
 3. Silk scenes down the whole page, social links (Simple Icons), then the once-only promo panel.
 4. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
 5. Auto-release (`staging` into `main` in pre-launch mode), after the change requests.
