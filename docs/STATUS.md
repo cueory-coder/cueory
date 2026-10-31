@@ -44,3 +44,6 @@ Follow [docs/SETUP.md](SETUP.md):
 - [ ] I. Create the Kit account and form; decide on the mailing address shown in emails
 - [ ] J. Decide whether hello@cueory.app should forward to your Gmail (needs email DNS records)
 - [ ] Provide disclaimer and terms text
+- [ ] Confirm or change the Task 3 batch defaults (docs/BATCHES.md, D-26) before real batches use them: the CSV
+  columns, which reviewers count (at least five files, any names), the pass rule (every reviewer matches the key and
+  marks pass), and the answer-balance warning (10 points off an even share, batches of 20+).
