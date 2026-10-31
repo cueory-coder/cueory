@@ -1,0 +1,61 @@
+---
+// Light / Dark / Follow device switch (brand spec section 9). Hidden until its script runs, so visitors without
+// JavaScript simply follow their device setting.
+const options = [
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+  { value: 'device', label: 'Follow device' },
+];
+---
+
+<fieldset data-theme-picker hidden>
+  <legend class="mb-1">Theme</legend>
+  <div class="flex flex-wrap gap-x-5">
+    {
+      options.map((option) => (
+        <label class="inline-flex min-h-11 cursor-pointer items-center gap-2">
+          <input type="radio" name="theme" value={option.value} class="size-5 cursor-pointer accent-ink" />
+          {option.label}
+        </label>
+      ))
+    }
+  </div>
+</fieldset>
+
+<script>
+  import { applyChoice, browserStorage, isThemeChoice, readChoice, saveChoice } from '../scripts/theme';
+
+  const picker = document.querySelector<HTMLFieldSetElement>('[data-theme-picker]');
+  const root = document.documentElement;
+  const storage = browserStorage();
+
+  // Phones tint the browser bar with theme-color. Match an explicit pick; restore the device-based values otherwise.
+  const themeColors = [...document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')].map((meta) => ({
+    meta,
+    original: meta.content,
+  }));
+
+  function syncThemeColor(choice: string) {
+    const page = getComputedStyle(root).getPropertyValue('--color-page').trim();
+    for (const { meta, original } of themeColors) meta.content = choice === 'device' || !page ? original : page;
+  }
+
+  if (picker) {
+    const current = readChoice(storage);
+    applyChoice(root, current);
+    syncThemeColor(current);
+
+    const selected = picker.querySelector<HTMLInputElement>(`input[value="${current}"]`);
+    if (selected) selected.checked = true;
+
+    picker.addEventListener('change', (event) => {
+      const value = (event.target as HTMLInputElement).value;
+      if (!isThemeChoice(value)) return;
+      applyChoice(root, value);
+      saveChoice(storage, value);
+      syncThemeColor(value);
+    });
+
+    picker.hidden = false;
+  }
+</script>

@@ -1,0 +1,35 @@
+{
+  "version": "1.0",
+  "status": "approved by Christian on 2026-10-31; geometry frozen. Any change needs a new version and Christian's approval.",
+  "master": {
+    "file": "brand-source/cueory-geometry-master-v1.0.json",
+    "sha256": "4982f24f4bae805840320267d522d2046c4332069349338dfcdf1dd3703adea6"
+  },
+  "reference": {
+    "file": "brand-source/cueory-banner-reference-light.png",
+    "width": 2172,
+    "height": 724,
+    "sha256": "056266ef0b4687918de8e3b1b952562c13f415ad03d3327d17b0beec01a962e0"
+  },
+  "themes": {
+    "light": {
+      "background": "#F9F5EF",
+      "wordmark": "#3F2E24",
+      "motto": "#6B5243"
+    },
+    "dark": {
+      "background": "#1B1715",
+      "wordmark": "#EFE6DA",
+      "motto": "#CBB8A4"
+    }
+  },
+  "files": {
+    "public/brand/cueory-wordmark-light.svg": "becf41ae3d8a8830c271c56c3a62692ae017896a79b2c04f53bfa1e8d1b40412",
+    "public/brand/cueory-wordmark-dark.svg": "b67d802bfa63c1deaffeedd1781c128e9923349b2e538009d50444f63540f227",
+    "public/brand/cueory-square-light.svg": "69702fe197313d08ccc05f780a1b0cce7b9403f519b620d8b17c8ff51820a3e1",
+    "public/brand/cueory-square-dark.svg": "30c485c8ab1ccca2ec1d262b08ea89b353b8a74de6e56fa4d5a54aaa186aa404",
+    "public/brand/cueory-banner-light.svg": "2a06b4bbddaf8f7b8b77d6c7152388dae69998b4532ce07e4b735622407de639",
+    "public/brand/cueory-banner-dark.svg": "a34829ba5dc1f1a1d8e958dff24f024ff930e035d8426c15b41867f6abfc3999",
+    "public/favicon.svg": "30c485c8ab1ccca2ec1d262b08ea89b353b8a74de6e56fa4d5a54aaa186aa404"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "id": "study-skills-01",
+  "course": "study-skills",
+  "order": 1,
+  "title": "Lesson 1: How to study for nursing school",
+  "summary": "Placeholder lesson. Christian's real lesson text replaces these sentences.",
+  "status": "placeholder",
+  "sentences": [
+    { "id": "ss01-s01", "text": "Placeholder sentence 1. The first atomic sentence of this lesson goes here." },
+    { "id": "ss01-s02", "text": "Placeholder sentence 2. Each sentence should make sense on its own." },
+    { "id": "ss01-s03", "text": "Placeholder sentence 3. Keep each sentence to one idea." }
+  ]
+}
