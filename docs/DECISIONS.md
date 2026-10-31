@@ -56,3 +56,9 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   inline `<head>` script applies the saved pick before the page paints; Astro doesn't hash hand-written inline scripts,
   so `astro.config.mjs` adds that script's exact hash to the CSP, and a build test checks every inline script is allowed.
   Without JavaScript the switch stays hidden and the device setting decides.
+- **D-26** Batch checker (Task 3): `npm run check-batch -- <folder>`, a TypeScript script run straight by Node 24
+  (type stripping, no extra dependency), with its own strict CSV reader so a malformed file stops the check instead of
+  being half-read. Format and pass rule in `docs/BATCHES.md`: a question passes only if every reviewer (at least five)
+  matches the key and marks it pass, and every mechanical check passes. Answer balance is a warning, not a failure.
+  Links are checked offline by default; `--check-links` asks the websites and is never run in CI. Real batches stay
+  under `content/batches/`, which git ignores, so answer keys and reviewer results never reach the repository (D-07).

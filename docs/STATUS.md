@@ -25,6 +25,8 @@ Last updated: 2026-10-31
 ## In review
 - [Task 1 pull request into `staging`](https://github.com/lilchristxan/Cueory/pull/1). Needs Codex review and
   Christian's approval, because it adds workflows and deployment settings.
+- **Task 3 batch checker** (`npm run check-batch`, format in docs/BATCHES.md). Pull request stacked on Task 1;
+  needs Codex review. It runs only on your computer and never touches the live site.
 
 ## Blocked
 - **Signup form** shows "Signups open soon" until the Kit form exists (SETUP.md, Part I).
