@@ -3,6 +3,11 @@
  */
 export const site = {
   name: 'Cueory',
+  /**
+   * The name as the wordmark writes it. Lowercase-styled UI (page titles, buttons, menus) uses this; prose keeps
+   * "Cueory" (D-47, all-lowercase brand voice).
+   */
+  wordmarkName: 'cueory',
   /** Exact motto: always lowercase, with the comma and final period (brand spec section 2). */
   tagline: 'by nursing students, for nursing students.',
   /** Product description (brand spec section 2). */
@@ -35,8 +40,32 @@ export const newsletter = {
 } as const;
 
 export const footerLinks = [
-  { href: '/privacy', label: 'Privacy' },
-  { href: '/terms', label: 'Terms' },
-  { href: '/disclaimer', label: 'Disclaimer' },
-  { href: '/support', label: 'Support Cueory' },
+  { href: '/privacy', label: 'privacy' },
+  { href: '/terms', label: 'terms' },
+  { href: '/disclaimer', label: 'disclaimer' },
+  { href: '/support', label: 'support cueory' },
+] as const;
+
+/**
+ * Where the "create your free account" buttons go until accounts exist (ROADMAP Task 2): the launch-updates signup
+ * on the home page.
+ */
+export const accountHref = '/#signup';
+
+/**
+ * The ☰ side panel (D-46). Lowercase on purpose (D-47). A link with a note shows it beside the label, for things
+ * that aren't open yet. Search joins the top of the panel in its own pull request.
+ */
+export const menuLinks = [
+  { href: '/', label: 'home' },
+  { href: '/#ways-to-study', label: 'ways to study' },
+  { href: '/learn/study-skills', label: 'lessons' },
+  { href: accountHref, label: 'my progress', note: 'free account, coming soon' },
+  { href: '/support', label: 'support cueory' },
+] as const;
+
+/** Small links at the bottom of the side panel. */
+export const menuSmallLinks = [
+  { href: '/privacy', label: 'privacy' },
+  { href: '/terms', label: 'terms' },
 ] as const;

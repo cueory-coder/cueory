@@ -1,31 +1,44 @@
 ---
+import AccountCorner from './AccountCorner.astro';
+import SiteMenu from './SiteMenu.astro';
 import Wordmark from './Wordmark.astro';
 import { site } from '../config/site';
 
 interface Props {
-  /** The study screen gets a quieter header with fewer links. */
+  /** Study screens: the same corners, kept quiet (no frosted circles). */
   quiet?: boolean;
+  /**
+   * The home page: only the two corners, laid over the top of the full-screen hero, which shows its own logo. The
+   * header leaves the page flow there (Layout.astro wraps it in a zero-height box under the notice), so the hero
+   * still fills the first screen and nothing moves.
+   */
+  overlay?: boolean;
 }
 
-const { quiet = false } = Astro.props;
+const { quiet = false, overlay = false } = Astro.props;
 ---
 
-<header class="mx-auto flex w-full max-w-page items-center justify-between gap-4 px-gutter py-6">
-  <!-- Padding keeps the brand guide's clear space (0.25 × letter height) around the logo. -->
-  <a href="/" class="p-1 text-ink" aria-label={`${site.name} home`}>
-    <Wordmark class="w-(--logo-width)" />
-  </a>
+<header
+  class:list={[
+    'z-20 flex w-full items-center gap-4 px-gutter py-4',
+    overlay ? 'absolute inset-x-0 top-0' : 'relative',
+  ]}
+>
+  <!-- ☰ in the top-left corner, the account in the top-right (D-46). -->
+  <div class="flex flex-1 justify-start">
+    <SiteMenu quiet={quiet} />
+  </div>
   {
-    !quiet && (
-      <nav aria-label="Main">
-        <ul class="flex items-center gap-5 text-sm">
-          <li>
-            <a href="/learn/study-skills" class="text-ink-soft no-underline hover:text-ink hover:underline">
-              Start learning
-            </a>
-          </li>
-        </ul>
-      </nav>
+    overlay ? (
+      <span />
+    ) : (
+      <a href="/" class="p-1 text-ink" aria-label={`${site.name} home`}>
+        {/* Padding keeps the brand guide's clear space (0.25 × letter height) around the logo. */}
+        <Wordmark class="w-(--logo-width)" />
+      </a>
     )
   }
+  <div class="flex flex-1 justify-end">
+    <AccountCorner quiet={quiet} />
+  </div>
 </header>

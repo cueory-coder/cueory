@@ -154,6 +154,243 @@
   }
 }
 
+/*
+  ☰ side panel, account corner and the glassy hero button (D-46), on every page. Colors are brand tokens, some mixed
+  toward transparent; tests/unit/tokens.test.ts checks the text on them at the worst point. Where a browser can't blur
+  what's behind (backdrop-filter), the same colors are drawn solid, so nothing becomes see-through and hard to read.
+*/
+@layer components {
+  /* Round 44 × 44 px corner buttons (☰ and account). Frosted on marketing pages. */
+  .corner-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: calc(var(--spacing) * 11);
+    block-size: calc(var(--spacing) * 11);
+    border-radius: var(--radius-pill);
+    color: var(--color-ink);
+    background-color: rgb(var(--veil-rgb) / var(--veil-alpha));
+    border: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+    box-shadow: var(--shadow-soft);
+    -webkit-backdrop-filter: blur(var(--blur-veil));
+    backdrop-filter: blur(var(--blur-veil));
+    cursor: pointer;
+    transition: background-color 150ms ease;
+  }
+
+  .corner-button:hover {
+    background-color: var(--color-surface);
+  }
+
+  /* Study screens: the same buttons, quiet (no frosted circle, no shadow). */
+  .corner-button-quiet {
+    background-color: transparent;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  /* The close button inside the dark panel. */
+  .corner-button-panel {
+    color: var(--color-panel-ink);
+    background-color: transparent;
+    border-color: color-mix(in srgb, var(--color-panel-ink-soft) 60%, transparent);
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .corner-button-panel:hover {
+    background-color: rgb(var(--glass-rim-rgb) / 0.12);
+  }
+
+  /* Glassy pill button: translucent brand glass, a light rim, a soft shadow. */
+  .glass-button {
+    display: inline-block;
+    padding: calc(var(--spacing) * 3.5) calc(var(--spacing) * 8);
+    border-radius: var(--radius-pill);
+    color: var(--color-on-button);
+    text-decoration: none;
+    background-color: rgb(var(--glass-rgb) / var(--glass-alpha));
+    border: 1px solid rgb(var(--glass-rim-rgb) / var(--glass-rim-alpha));
+    box-shadow:
+      inset 0 1px 0 rgb(var(--glass-rim-rgb) / var(--glass-rim-alpha)),
+      var(--shadow-soft);
+    -webkit-backdrop-filter: blur(var(--blur-veil)) saturate(1.2);
+    backdrop-filter: blur(var(--blur-veil)) saturate(1.2);
+    transition: background-color 150ms ease;
+  }
+
+  .glass-button:hover {
+    color: var(--color-on-button);
+    background-color: rgb(var(--glass-hover-rgb) / var(--glass-hover-alpha));
+  }
+
+  /* The ☰ side panel: full height, from the left, dark glass. A native modal <dialog>. */
+  .menu-panel {
+    position: fixed;
+    inset: 0 auto 0 0;
+    margin: 0;
+    padding: 0;
+    inline-size: var(--container-menu);
+    max-inline-size: none;
+    block-size: 100dvh;
+    max-block-size: none;
+    border: 0;
+    border-inline-end: 1px solid rgb(var(--glass-rim-rgb) / 0.18);
+    color: var(--color-panel-ink);
+    background-color: rgb(var(--panel-rgb) / var(--panel-alpha));
+    box-shadow: var(--shadow-soft);
+    -webkit-backdrop-filter: blur(var(--blur-veil));
+    backdrop-filter: blur(var(--blur-veil));
+    /* Inside the dark panel, focus outlines and text use the panel's light ink. */
+    --color-focus: var(--color-panel-ink);
+    transform: translateX(-100%);
+    transition:
+      transform 280ms ease,
+      overlay 280ms ease allow-discrete,
+      display 280ms ease allow-discrete;
+  }
+
+  .menu-panel[open] {
+    transform: none;
+  }
+
+  @starting-style {
+    .menu-panel[open] {
+      transform: translateX(-100%);
+    }
+  }
+
+  .menu-panel::backdrop {
+    background-color: rgb(var(--shadow-tint) / var(--scrim-alpha));
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+  }
+
+  /* Fills the whole dialog, so a click on the dialog itself means the dimmed page beside it. */
+  .menu-panel-inner {
+    display: flex;
+    flex-direction: column;
+    block-size: 100%;
+    overflow-y: auto;
+    padding: max(calc(var(--spacing) * 4), env(safe-area-inset-top)) calc(var(--spacing) * 6)
+      max(calc(var(--spacing) * 6), env(safe-area-inset-bottom)) max(calc(var(--spacing) * 6), env(safe-area-inset-left));
+  }
+
+  .menu-link {
+    position: relative;
+    display: inline-flex;
+    flex-direction: column;
+    min-block-size: calc(var(--spacing) * 11);
+    justify-content: center;
+    color: var(--color-panel-ink);
+    font-size: var(--text-lg);
+    line-height: var(--text-lg--line-height);
+    font-weight: 500;
+    letter-spacing: var(--tracking-menu);
+    text-decoration: none;
+  }
+
+  .menu-link:hover {
+    color: var(--color-panel-ink);
+    text-decoration: underline;
+  }
+
+  /* The current page: a short line beside the link (and bolder text), not color alone. */
+  .menu-link[aria-current="page"] {
+    font-weight: 650;
+  }
+
+  .menu-link[aria-current="page"]::before {
+    content: "";
+    position: absolute;
+    inset-inline-start: calc(var(--spacing) * -4);
+    inset-block-start: 50%;
+    inline-size: calc(var(--spacing) * 2.5);
+    block-size: 2px;
+    background-color: currentColor;
+  }
+
+  .menu-note {
+    display: block;
+    color: var(--color-panel-ink-soft);
+    font-size: var(--text-sm);
+    line-height: var(--text-sm--line-height);
+    font-weight: 400;
+    letter-spacing: normal;
+  }
+
+  .menu-small-link {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: calc(var(--spacing) * 11);
+    color: var(--color-panel-ink-soft);
+  }
+
+  .menu-small-link:hover {
+    color: var(--color-panel-ink);
+  }
+
+  /* The small account menu below the account button. */
+  .account-menu {
+    position: absolute;
+    inset-block-start: calc(100% + var(--spacing) * 2);
+    inset-inline-end: 0;
+    z-index: 30;
+    inline-size: var(--container-account-menu);
+    padding: calc(var(--spacing) * 2);
+    border-radius: var(--radius-lg);
+    border: 1px solid rgb(var(--glass-rim-rgb) / 0.18);
+    color: var(--color-panel-ink);
+    background-color: rgb(var(--panel-rgb) / var(--panel-alpha));
+    box-shadow: var(--shadow-soft);
+    -webkit-backdrop-filter: blur(var(--blur-veil));
+    backdrop-filter: blur(var(--blur-veil));
+    --color-focus: var(--color-panel-ink);
+  }
+
+  .account-link {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-block-size: calc(var(--spacing) * 11);
+    padding: calc(var(--spacing) * 2) calc(var(--spacing) * 3);
+    border-radius: var(--radius-md);
+    color: var(--color-panel-ink);
+    text-decoration: none;
+  }
+
+  .account-link:hover {
+    color: var(--color-panel-ink);
+    background-color: rgb(var(--glass-rim-rgb) / 0.12);
+  }
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .corner-button:not(.corner-button-quiet, .corner-button-panel) {
+      background-color: rgb(var(--veil-rgb));
+    }
+
+    .glass-button {
+      background-color: rgb(var(--glass-rgb));
+    }
+
+    .glass-button:hover {
+      background-color: rgb(var(--glass-hover-rgb));
+    }
+
+    .menu-panel,
+    .account-menu {
+      background-color: rgb(var(--panel-rgb));
+    }
+  }
+}
+
+/* While the side panel is open, the page behind it doesn't scroll. */
+html:has(dialog.menu-panel[open]) {
+  overflow: hidden;
+}
+
 /* Serif display headings (Bodoni Moda Medium, brand spec: tracking -0.025em). A utility, so variants work on it. */
 @utility display {
   font-family: var(--font-display);

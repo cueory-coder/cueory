@@ -177,3 +177,37 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   key letters, an unknown type, a repeated letter or one outside the choices fails the question. Answer balance counts
   single-answer questions only, and the report gives the number of `sata` questions. Batches without the new columns
   check exactly as before. Reason: nursing exams use select-all-that-apply heavily, and Christian approved them.
+- **D-46** Home hero, ☰ menu and account corner (Christian's change request, 2026-10-31). The hero drops the "Short,
+  clear lessons…" line; "cueory makes studying simpler." stays as the line under the headline. The headline stays on
+  one line at every width: its size follows the hero box (`--text-display-fit`, a container-query size, 13.3 × the
+  font size is the headline's width in Bodoni Moda, so 14 leaves room for fallback serifs; 72 px at most), and in the
+  rare case a much wider fallback font is drawn it wraps rather than being cut off. The pill button is glassy
+  (translucent Espresso or Sand, blur, light rim; solid where blur isn't supported; tests check AA text on every
+  background) and reads "create your free account", with "save your progress and pick up where you left off." under
+  it; until accounts exist (Task 2) it goes to the launch-updates signup (`/#signup`), and a quiet link keeps the free
+  study-skills course on the page. Every page gets two 44 px corner buttons: ☰ top-left and account top-right
+  (frosted on marketing pages, plain on study screens, which still have no visible navigation bar). ☰ opens a native
+  modal `<dialog>`: it slides in from the left (no slide with reduced motion), dims the page, moves focus to its close
+  button, keeps Tab inside, and closes with the close button, Escape, a tap on the dimmed page or any link; focus then
+  returns to ☰, except after a link to a spot on the same page. Links: home, ways to study, lessons, my progress
+  ("free account, coming soon" until Task 2), support cueory; privacy and terms small at the bottom. The current page
+  gets `aria-current="page"`, bolder text and a short line beside it. "about" waits until there is an about page, and
+  search (Pagefind) comes in its own pull request because it adds a package. The account button opens a small menu,
+  "create free account" and "sign in", both "coming soon" and linked to the signup until Task 2; it closes with
+  Escape (focus back on the button), a tap elsewhere or focus leaving it. Without JavaScript both buttons stay hidden
+  but keep their space (no layout shift), and the footer and hero links still work. Reason: Christian's brief, built
+  from native browser parts (dialog, buttons, links) so it works the same with keyboard, touch and screen readers.
+- **D-47** All-lowercase brand voice (Christian's decision, 2026-10-31). Headlines, taglines, labels, buttons,
+  navigation, menus, footer links and browser-tab titles ("privacy · cueory") are written in lowercase in the source;
+  nursing content, acronyms, proper nouns, legal body text and careful instructions keep normal capitals, and CSS
+  `text-transform` is never used (docs/BRAND.md). `site.wordmarkName` ("cueory") is the name in lowercase UI; prose
+  keeps "Cueory". This pull request switches the hero, corners, side panel, footer, theme switch, skip link, tab
+  titles and marketing page headings; the "ways to study" section and the signup panel switch when their redesigns
+  land (carousel, silk sections). Reason: Christian's brand voice; writing it in the source keeps NCLEX or COPD exact.
+- **D-48** Same features on every device (Christian's requirement, 2026-10-31). Browser tests now run in Chromium at
+  phone (390 × 844, Light and Evening), tablet (820 × 1180, touch) and desktop (1440 × 900) sizes on every pull request,
+  and every page fails the build if anything scrolls sideways. Corner buttons are tested at 44 × 44 px or more. Safari's
+  engine (WebKit) and Firefox join on Release pull requests through a CI change, which waits for Christian because it
+  edits `.github/`; the same pull request adds the rule to CLAUDE.md. Reason: running three engines on every pull
+  request would use up GitHub's free Actions minutes; the release check still covers every engine before anything
+  reaches the live site.

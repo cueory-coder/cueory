@@ -5,7 +5,8 @@ spec wins. Colors are applied in `src/styles/tokens.css`. Logo files are built f
 `scripts/build-brand.mjs`.
 
 ## Identity
-- **Brand name:** Cueory (the logo is always lowercase: "cueory")
+- **Brand name:** Cueory (the logo is always lowercase: "cueory"). In prose the name is "Cueory"; in lowercase-styled
+  UI (headlines, buttons, menus, page titles) it is "cueory", matching the wordmark (D-47).
 - **Motto (exact, always lowercase):** `by nursing students, for nursing students.`
 - **Product description:** Nursing school is hard enough. Cueory makes studying simpler.
 - **Use:** website, app, social, and all brand materials
@@ -53,8 +54,17 @@ spec wins. Colors are applied in `src/styles/tokens.css`. Logo files are built f
 Christian's redesign brief (2026-10-31) for the marketing pages only: home, support, the legal pages and 404. It relaxes
 "nothing decorative" there at his request; study screens stay plain.
 - **Mood:** quiet luxury, editorial, like a high-end "launching soon" page. Lots of empty space.
-- **Home hero:** full first screen, centered: the small traced wordmark, the motto, a large Bodoni headline, an italic
-  Bodoni accent line, one short line of Inter copy and one pill-shaped button.
+- **Home hero (D-46):** full first screen, centered: the small traced wordmark, the motto, the Bodoni headline
+  "nursing school is hard enough." on one straight line at every width (its size follows the screen, 72 px at most),
+  the italic accent line "cueory makes studying simpler.", and one glassy pill button, "create your free account",
+  with a small line under it. Until accounts exist it goes to the launch-updates signup; a quiet link keeps the free
+  study-skills course one tap away.
+- **Glassy button:** translucent brand glass (Espresso by day, Sand in the evening, about 80% opaque), a blur behind
+  it, a thin light rim and a soft shadow. Where a browser can't blur, it is drawn solid.
+- **Corners (every page, D-46):** a round ☰ button top-left and an account button top-right, 44 px, frosted on
+  marketing pages and plain on study screens. ☰ opens a full-height side panel of dark glass (Espresso-tinted by day
+  with Ivory text, Charcoal in the evening) that slides in from the left and dims the page; the current page is marked
+  with a short line, not color alone. The account button opens a small menu of the same glass.
 - **Background:** draped silk drawn in code from brand colors only: Ivory, Linen and Taupe by day; Charcoal and Walnut in
   the evening. CSS gradients plus a tiny SVG grain (about 1 KB for both palettes). No stock photos. A photo Christian
   supplies could replace it later.
@@ -63,6 +73,18 @@ Christian's redesign brief (2026-10-31) for the marketing pages only: home, supp
 - **Panels:** frosted (Ivory or Walnut, three-quarters opaque, blurred), rounded `--radius-xl`, soft shadow.
 - **Readable:** tests compose the darkest Daytime and lightest Evening point of every background and require WCAG AA for
   Espresso/Bronze and Evening Ivory/Sand text.
+
+## Voice: all lowercase (D-47)
+Christian's decision (2026-10-31), to match how younger students write.
+- **Lowercase:** headlines, taglines, section labels, buttons, navigation and menu items, panels, carousel chips and
+  card titles, footer links, browser-tab titles, email and social copy. "nursing school is hard enough.",
+  "create your free account", "support cueory".
+- **Normal capitals stay** where accuracy and trust matter more than style: all nursing content (lessons, cards,
+  questions, rationales; ABG, COPD, IV, mmHg and Na+ stay exact), acronyms and proper nouns anywhere (NCLEX, Open RN,
+  YouTube, Ko-fi, Google), legal body text (privacy, terms, disclaimer; their headings can be lowercase), and error
+  messages or form instructions that must be read carefully.
+- **How:** write the copy in lowercase in the source. Never use CSS `text-transform` (it would change acronyms and
+  names too). Screen-reader labels stay natural; lowercase reads the same aloud.
 
 ## Usage rules
 - Use only the exact colors, the fonts above, and the lowercase spelling "cueory".

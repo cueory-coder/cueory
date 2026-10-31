@@ -26,6 +26,8 @@ for (const path of pages) {
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
     expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
     expect(errors).toEqual([]);
+    // Nothing scrolls sideways, on any screen size (D-48).
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 }
 
@@ -282,18 +284,56 @@ test.describe('theme switch', () => {
 });
 
 test.describe('marketing look (D-41)', () => {
-  test('the home hero fills the first screen: logo, serif headline, one line of copy, one button', async ({ page }) => {
+  test('the home hero fills the first screen: logo, a one-line serif headline, the accent line, one button', async ({
+    page,
+  }) => {
     await page.goto('/');
+    await page.evaluate(() => document.fonts.ready);
     const height = page.viewportSize()!.height;
     const headline = page.getByRole('heading', { level: 1 });
-    await expect(headline).toHaveText('Nursing school is hard enough.');
-    const button = page.getByRole('link', { name: 'Start the free study-skills course' });
+    await expect(headline).toHaveText('nursing school is hard enough.');
+    await expect(page.getByText('cueory makes studying simpler.')).toBeVisible();
+    await expect(page.getByText('Short, clear lessons')).toHaveCount(0);
+    const button = page.getByRole('link', { name: 'create your free account', exact: true });
+    await expect(button).toHaveAttribute('href', '/#signup');
+    await expect(page.getByText('save your progress and pick up where you left off.')).toBeVisible();
+    // The free course stays one tap away until accounts exist.
+    await expect(page.getByRole('link', { name: 'or start the free study-skills course' })).toHaveAttribute(
+      'href',
+      '/learn/study-skills',
+    );
     for (const element of [headline, button]) {
       const box = (await element.boundingBox())!;
       expect(box.y + box.height).toBeLessThanOrEqual(height);
     }
+    // One straight line at every width (D-46): one line tall, nothing cut off, inside the screen.
+    const fit = await headline.evaluate((el) => {
+      const style = getComputedStyle(el);
+      const box = el.getBoundingClientRect();
+      return {
+        lines: box.height / parseFloat(style.lineHeight),
+        clipped: el.scrollWidth > el.clientWidth + 1,
+        inside: box.left >= 0 && box.right <= window.innerWidth,
+      };
+    });
+    expect(fit.lines).toBeLessThan(1.5);
+    expect(fit.clipped).toBe(false);
+    expect(fit.inside).toBe(true);
     expect(await headline.evaluate((el) => getComputedStyle(el).fontFamily)).toMatch(/^"?Bodoni Moda/);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+
+  test('the glassy button is see-through glass with a blur, and its text stays readable', async ({ page }) => {
+    await page.goto('/');
+    const button = page.getByRole('link', { name: 'create your free account', exact: true });
+    const look = await button.evaluate((el) => {
+      const style = getComputedStyle(el);
+      return { background: style.backgroundColor, blur: style.backdropFilter || style.getPropertyValue('-webkit-backdrop-filter') };
+    });
+    expect(look.background).toMatch(/^rgba\(\d+, \d+, \d+, 0\.\d+\)$/);
+    expect(look.blur).toContain('blur(');
+    const results = await new AxeBuilder({ page }).include('#hero-heading ~ *').withRules(['color-contrast']).analyze();
+    expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
   });
 
   test('the serif comes from our own site and is ready once the page has loaded', async ({ page }) => {
@@ -329,5 +369,125 @@ test.describe('marketing look (D-41)', () => {
     expect(await page.evaluate(() => getComputedStyle(document.body).backgroundImage)).toBe('none');
     await page.goto('/privacy');
     expect(await page.evaluate(() => getComputedStyle(document.body).backgroundImage)).not.toBe('none');
+  });
+});
+
+test.describe('☰ side panel and account corner (D-46)', () => {
+  for (const path of ['/', '/privacy', '/learn/study-skills']) {
+    test(`☰ opens the side panel on ${path}, keeps focus inside, and Escape brings focus back`, async ({ page }) => {
+      await page.goto(path);
+      const open = page.getByRole('button', { name: 'menu', exact: true });
+      await expect(open).toHaveAttribute('aria-expanded', 'false');
+      await open.click();
+      const panel = page.getByTestId('site-menu');
+      await expect(panel).toBeVisible();
+      await expect(open).toHaveAttribute('aria-expanded', 'true');
+      await expect(panel.getByRole('button', { name: 'close menu' })).toBeFocused();
+
+      const nav = panel.getByRole('navigation', { name: 'site' });
+      for (const name of ['home', 'ways to study', 'lessons', 'my progress', 'support cueory']) {
+        await expect(nav.getByRole('link', { name })).toBeVisible();
+      }
+      await expect(panel.getByRole('link', { name: 'privacy' })).toBeVisible();
+      await expect(panel.getByRole('link', { name: 'terms' })).toBeVisible();
+
+      // Tab never leaves the panel while it is open.
+      for (let i = 0; i < 9; i++) {
+        await page.keyboard.press('Tab');
+        expect(await page.evaluate(() => document.activeElement?.closest('#site-menu') !== null)).toBe(true);
+      }
+
+      const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+      expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+
+      await page.keyboard.press('Escape');
+      await expect(panel).toBeHidden();
+      await expect(open).toBeFocused();
+      await expect(open).toHaveAttribute('aria-expanded', 'false');
+    });
+  }
+
+  test('the current page is marked in the side panel by more than color', async ({ page }) => {
+    await page.goto('/learn/study-skills/cards');
+    await page.getByRole('button', { name: 'menu', exact: true }).click();
+    const current = page.getByTestId('site-menu').locator('[aria-current="page"]');
+    await expect(current).toHaveCount(1);
+    await expect(current).toHaveText('lessons');
+    // A short line beside the link, drawn by ::before.
+    expect(await current.evaluate((el) => getComputedStyle(el, '::before').content)).not.toBe('none');
+  });
+
+  test('the close button and a tap on the dimmed page close the side panel', async ({ page }) => {
+    await page.goto('/');
+    const open = page.getByRole('button', { name: 'menu', exact: true });
+    const panel = page.getByTestId('site-menu');
+    await open.click();
+    await panel.getByRole('button', { name: 'close menu' }).click();
+    await expect(panel).toBeHidden();
+    await expect(open).toBeFocused();
+
+    await open.click();
+    await expect(panel).toBeVisible();
+    const viewport = page.viewportSize()!;
+    await page.mouse.click(viewport.width - 8, viewport.height / 2);
+    await expect(panel).toBeHidden();
+  });
+
+  test('a side-panel link to a spot on the home page closes the panel and goes there', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'menu', exact: true }).click();
+    await page.getByTestId('site-menu').getByRole('link', { name: 'ways to study' }).click();
+    await expect(page.getByTestId('site-menu')).toBeHidden();
+    await expect(page).toHaveURL(/#ways-to-study$/);
+    await expect(page.getByRole('heading', { name: 'Ways to study' })).toBeInViewport();
+  });
+
+  test('the account corner offers "create free account" and "sign in", both coming soon', async ({ page }) => {
+    await page.goto('/');
+    const account = page.getByRole('button', { name: 'account', exact: true });
+    const menu = page.getByTestId('account-menu');
+    await expect(menu).toBeHidden();
+    await account.focus();
+    await page.keyboard.press('Enter');
+    await expect(menu).toBeVisible();
+    await expect(account).toHaveAttribute('aria-expanded', 'true');
+    await expect(menu.getByRole('link', { name: /create free account/ })).toHaveAttribute('href', '/#signup');
+    await expect(menu.getByRole('link', { name: /sign in/ })).toHaveAttribute('href', '/#signup');
+    await expect(menu.getByText('coming soon')).toHaveCount(2);
+
+    const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+    expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+
+    await page.keyboard.press('Escape');
+    await expect(menu).toBeHidden();
+    await expect(account).toBeFocused();
+
+    // A tap anywhere else closes it too.
+    await account.click();
+    await expect(menu).toBeVisible();
+    await page.getByRole('heading', { level: 1 }).click();
+    await expect(menu).toBeHidden();
+  });
+
+  test('corner buttons are at least 44 by 44 px', async ({ page }) => {
+    for (const path of ['/', '/learn/study-skills']) {
+      await page.goto(path);
+      for (const name of ['menu', 'account']) {
+        const box = (await page.getByRole('button', { name, exact: true }).boundingBox())!;
+        expect(box.width).toBeGreaterThanOrEqual(44);
+        expect(box.height).toBeGreaterThanOrEqual(44);
+      }
+    }
+  });
+});
+
+test.describe('without JavaScript, the corners', () => {
+  test.use({ javaScriptEnabled: false });
+
+  test('stay hidden but keep their space, so nothing moves', async ({ page }) => {
+    await page.goto('/privacy');
+    await expect(page.getByRole('button', { name: 'menu', exact: true })).toBeHidden();
+    await expect(page.getByRole('button', { name: 'account', exact: true })).toBeHidden();
+    await expect(page.getByRole('navigation', { name: 'footer' }).getByRole('link', { name: 'support cueory' })).toBeVisible();
   });
 });

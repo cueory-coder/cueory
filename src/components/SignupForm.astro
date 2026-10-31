@@ -9,7 +9,7 @@ import { newsletter } from '../config/site';
 const ready = newsletter.formAction.startsWith('https://');
 ---
 
-<section class="veil p-6 sm:p-10" aria-labelledby="signup-heading">
+<section id="signup" class="veil scroll-mt-section p-6 sm:p-10" aria-labelledby="signup-heading">
   <h2 id="signup-heading" class="display text-title">Get launch updates</h2>
   {
     ready ? (
