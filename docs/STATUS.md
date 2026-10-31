@@ -23,8 +23,18 @@ Last updated: 2026-10-31
 - Repository branches: `main` (live) and `staging` (test), both starting from one empty commit.
 
 ## In review
-- [Task 1 pull request into `staging`](https://github.com/lilchristxan/Cueory/pull/1). Needs Codex review and
+- [Task 1 pull request into `staging`](https://github.com/lilchristxan/Cueory/pull/1). Codex's two findings are fixed
+  (hero sizes are tokens; the lesson no longer shows twice without JavaScript); fresh Codex review requested. Needs
   Christian's approval, because it adds workflows and deployment settings.
+- [Task 3 batch checker](https://github.com/lilchristxan/Cueory/pull/2), stacked on Task 1. Codex's finding is fixed
+  (a failed check no longer leaves old results behind). Reviewer-name list and a separate "pending" status are being
+  added.
+- **Task 4, Cards mode** (`/learn/study-skills/cards`), stacked on Task 1: one card at a time, "Show answer", then
+  "Got it" or "See again"; works by tap and keyboard; placeholder cards from `content/cards/`.
+
+## Blocked
+- **Task 2 (accounts and database)** waits for Christian to create the two Supabase projects, and its sign-in and
+  database-policy parts need his approval. Task 4 parts that don't need accounts go first.
 
 ## Blocked
 - **Signup form** shows "Signups open soon" until the Kit form exists (SETUP.md, Part I).
@@ -32,7 +42,7 @@ Last updated: 2026-10-31
 ## Needs Christian's hands
 Follow [docs/SETUP.md](SETUP.md):
 - [ ] A. Two-factor login on Google, GitHub, Cloudflare
-- [ ] B. Turn on Codex reviews
+- [x] B. Turn on Codex reviews
 - [ ] C. Connect the repository to Cloudflare Pages
 - [ ] D. Limit builds to `main` and `staging`
 - [ ] E. Lock the staging site
@@ -42,3 +52,5 @@ Follow [docs/SETUP.md](SETUP.md):
 - [ ] I. Create the Kit account and form; decide on the mailing address shown in emails
 - [ ] J. Decide whether hello@cueory.app should forward to your Gmail (needs email DNS records)
 - [ ] Provide disclaimer and terms text
+- [ ] Decide whether question batches will include select-all-that-apply questions (the checker handles
+  single-answer questions only for now)

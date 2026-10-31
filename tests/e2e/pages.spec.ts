@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-const pages = ['/', '/learn/study-skills', '/privacy', '/terms', '/disclaimer', '/support', '/subscribed'];
+const pages = ['/', '/learn/study-skills', '/learn/study-skills/cards', '/privacy', '/terms', '/disclaimer', '/support', '/subscribed'];
 
 for (const path of pages) {
   test(`${path} loads, shows the notice, and passes accessibility checks`, async ({ page }) => {
@@ -32,6 +32,29 @@ test('lesson can be stepped through with the keyboard', async ({ page }) => {
   await expect(page.getByText("That's the whole lesson for now.")).toBeVisible();
 });
 
+test('cards can be studied with the keyboard, and "See again" brings a card back', async ({ page }) => {
+  await page.goto('/learn/study-skills');
+  await page.getByRole('link', { name: 'Practice this lesson with cards' }).click();
+  await expect(page).toHaveURL(/\/learn\/study-skills\/cards$/);
+  await expect(page.getByText('Card 1 · 3 left')).toBeVisible();
+  await expect(page.getByText('Question', { exact: true })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Show answer' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('Answer', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'See again' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('Card 2 · 3 left')).toBeVisible();
+
+  for (let i = 0; i < 3; i++) {
+    await page.getByRole('button', { name: 'Show answer' }).click();
+    await page.getByRole('button', { name: 'Got it' }).click();
+  }
+  await expect(page.getByText("That's every card for now.")).toBeVisible();
+  await page.getByRole('button', { name: 'Start over' }).click();
+  await expect(page.getByText('Card 1 · 3 left')).toBeVisible();
+});
+
 test.describe('without JavaScript', () => {
   test.use({ javaScriptEnabled: false });
 
@@ -43,6 +66,13 @@ test.describe('without JavaScript', () => {
     const texts = await items.allTextContents();
     expect(texts.length).toBeGreaterThan(1);
     expect(new Set(texts).size).toBe(texts.length);
+  });
+
+  test('the cards page lists every card with its answer and no controls', async ({ page }) => {
+    await page.goto('/learn/study-skills/cards');
+    await expect(page.getByRole('button')).toHaveCount(0);
+    expect(await page.locator('dl dt').count()).toBe(3);
+    expect(await page.locator('dl dd').count()).toBe(3);
   });
 });
 
