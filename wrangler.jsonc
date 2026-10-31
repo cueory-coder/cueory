@@ -10,5 +10,7 @@
     "not_found_handling": "404-page",
     // /privacy, not /privacy/ (matches trailingSlash: 'never' in astro.config.mjs).
     "html_handling": "drop-trailing-slash"
-  }
+  },
+  // Branch previews (every branch except main). Required by `wrangler preview`; it may stay empty.
+  "previews": {}
 }

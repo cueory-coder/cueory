@@ -64,6 +64,23 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   at a time with real buttons ("Show answer", "Got it", "See again", "Back"); "See again" puts the card at the end of
   the round. No flip animation, so there's nothing to turn off for reduced motion. Progress isn't saved yet; that comes
   with guest progress later in Task 4.
+- **D-32** Lesson videos (Christian's decision, 2026-10-31): hosted on Cueory's YouTube channel and embedded from
+  `youtube-nocookie.com` behind a click-to-play cover (self-hosted thumbnail and play button), never stored on our
+  servers. No autoplay, so after the click the student presses play in YouTube's own player. `frame-src` allows only
+  that origin, video IDs live in `/content`, and `/privacy` mentions YouTube's cookies. Reason: video hosting stays
+  free, and nothing loads from YouTube until a student asks for it.
+- **D-33** Learn mode starts with the card decks and checks those answers in the browser, because a card's back is
+  public study material that anyone can flip to. Questions from the reviewed question bank are only ever checked by
+  `check_answer` (Task 2). Reason: Learn mode can ship before accounts without putting a protected answer key in the
+  browser.
+- **D-34** The "Flag or comment" button (Christian's decision, 2026-10-31) is built with Task 2, because it needs a
+  database table with row-level security, server-side rate limits and the `/admin` inbox. No real content goes public
+  before it works.
+- **D-35** When a task waits on Christian (today: Task 2 waits for the Supabase projects), the next task that doesn't
+  wait goes first. Reason: work keeps moving without skipping any of his approvals.
+- **D-36** Adaptive quizzes and level tests (Task 4b) are rule-based and never predict an exam score (Christian's
+  decision, 2026-10-31). Reason: a rule can be explained to a student, and we have no data that could back a
+  prediction.
 - **D-37** Flashcards (Task 4): "Know it" and "Still learning" replace "Got it" and "See again". A round shows each
   card once; when every card is sorted, the next round is only the "Still learning" pile. "Back" undoes the last sort.
   Shuffle (Fisher–Yates) reorders the cards still to come: before any card in a round is flipped or sorted it
