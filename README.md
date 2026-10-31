@@ -25,16 +25,17 @@ You can edit any of these files right on GitHub: open the file, click the pencil
 1. Every change is made on its own branch. Those branches are tested and reviewed but never published anywhere.
 2. Automated checks run: the site builds, tests pass, accessibility checks pass, no secrets are leaked.
 3. Codex reviews the change. You approve anything touching sign-in, the database, payments, deployment or secrets.
-4. The change is merged into **`staging`**. Cloudflare publishes it to the staging site
-   (`staging.cueory.pages.dev`), which only you can open.
+4. The change is merged into **`staging`**: automatically once the checks and Codex are clean, or by you when it
+   touches a sensitive area (those get a `needs-christian` label). Cloudflare publishes `staging` to a locked preview
+   address that only you can open.
 5. You check it there. If it's good, you merge `staging` into **`main`**, and Cloudflare publishes it to
    **cueory.app**.
 
 ## Where things are hosted (all free plans)
 
-- **Cloudflare Pages**: the website. Only `main` (live) and `staging` (test) are ever built, so the 500 free builds a
-  month go a long way.
-- **Cloudflare Access**: locks the staging site to your email.
+- **Cloudflare Workers**: the website (plain static files). `main` is the live site; every other branch gets a
+  preview address (D-38).
+- **Cloudflare Access**: locks the staging site and every preview to your email.
 - **Kit**: launch-update emails and signups (free up to 10,000 subscribers).
 - **GitHub**: the code, automated tests and security scans.
 - From Task 2: **Supabase** (accounts and study progress) and **Resend** (sign-in emails).
