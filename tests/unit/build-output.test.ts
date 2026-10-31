@@ -83,6 +83,13 @@ describe.skipIf(!existsSync(dist))('built site', () => {
     },
   );
 
+  it('home page calls the sentence-by-sentence reader "Lesson", so "Learn" only means Learn mode (D-43)', () => {
+    const html = readFileSync(join(dist, 'index.html'), 'utf8');
+    const modes = [...html.matchAll(/<h3[^>]*>([^<]+)<\/h3>/g)].map((m) => m[1]!.trim());
+    expect(modes).toContain('Lesson');
+    expect(modes).not.toContain('Learn');
+  });
+
   it('keeps the signup thank-you page out of search engines', () => {
     const html = readFileSync(join(dist, 'subscribed.html'), 'utf8');
     expect(html).toContain('<meta name="robots" content="noindex, nofollow">');

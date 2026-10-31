@@ -28,7 +28,8 @@ const lessons = defineCollection({
 
 /**
  * Cards are content too: one JSON file per lesson deck in /content/cards. `lesson` names the lesson the deck
- * belongs to (a file name in /content/lessons, without .json).
+ * belongs to (a file name in /content/lessons, without .json). A card's optional `blank` is the words from its back
+ * that Learn mode's fill-in leaves out (D-43); they must appear in the back exactly as written.
  */
 const cards = defineCollection({
   loader: glob({ base: './content/cards', pattern: '**/*.json' }),
@@ -38,11 +39,17 @@ const cards = defineCollection({
     status: z.enum(['placeholder', 'draft', 'in_review', 'published']),
     cards: z
       .array(
-        z.object({
-          id: z.string().regex(/^[a-z0-9-]+$/),
-          front: z.string().min(1).max(300),
-          back: z.string().min(1).max(600),
-        }),
+        z
+          .object({
+            id: z.string().regex(/^[a-z0-9-]+$/),
+            front: z.string().min(1).max(300),
+            back: z.string().min(1).max(600),
+            blank: z.string().trim().min(1).max(120).optional(),
+          })
+          .refine((card) => card.blank === undefined || card.back.includes(card.blank), {
+            message: "blank must be words that appear in the card's back, exactly as written",
+            path: ['blank'],
+          }),
       )
       .min(1),
   }),

@@ -48,7 +48,9 @@ with `;`.
 | `stem` | The question text. |
 | `choice_a` … `choice_d` | The four answer choices. |
 | `choice_e` | Optional column. Fill it only on questions with a fifth choice. |
+| `type` | Optional column. Blank or `single`: one right answer. `sata`: select all that apply (D-45). |
 | `rationale` | Why the right answer is right. |
+| `rationale_a` … `rationale_e` | Optional columns: why each choice is right or wrong, shown after the student answers. Required for every choice on `sata` questions. |
 | `fact_ids` | The facts the question relies on (`f-001;f-014`). At least one. |
 | `source_ids` | The sources the question cites (`s-01`). At least one. |
 
@@ -57,7 +59,7 @@ with `;`.
 | Column | What goes in it |
 | --- | --- |
 | `item_id` | The question. |
-| `answer` | The correct letter, `A` to `E`. |
+| `answer` | The correct letter, `A` to `E`. For select-all-that-apply, every correct letter separated by `;` (`A;C;D`), in any order. |
 
 ### `facts.csv` and `sources.csv`
 
@@ -76,7 +78,7 @@ required.
 | Column | What goes in it |
 | --- | --- |
 | `item_id` | The question. |
-| `answer` | The letter this reviewer picked when answering the question themselves. |
+| `answer` | The letter this reviewer picked when answering the question themselves (for select-all-that-apply, every letter they picked, separated by `;`). |
 | `verdict` | `pass`, `fail` or `pending` (the review isn't finished yet). |
 | `notes` | Optional. Not read by the checker. |
 
@@ -85,8 +87,11 @@ required.
 A question passes only when every one of these is true:
 
 - Every reviewer reviewed it, picked the same letter as the key, and marked it `pass`. All must agree; a majority is
-  not enough.
-- The key's answer is one of the question's choices.
+  not enough. On a select-all-that-apply question a reviewer must pick exactly the key's letters, no more and no fewer
+  (all-or-nothing, the same way students are scored).
+- The key's answer is one of the question's choices. A single-answer question has exactly one letter in the key; a
+  select-all-that-apply question has one or more, each named once.
+- A select-all-that-apply question has a rationale for every choice (`rationale_a` …), as well as the main rationale.
 - The question, the rationale and every choice are filled in, and no two choices are the same.
 - No other question in the batch has the same text (ignoring capitals and spacing).
 - It cites at least one fact and one source. Every one exists, and every source link is a proper `https://` address.
@@ -100,7 +105,8 @@ fails.
 Warnings appear in the report but don't fail any question:
 
 - **Answer balance.** If one letter is the right answer much more or less often than an even share (more than 10
-  percentage points off), the report says so. Only judged on batches of 20 or more questions.
+  percentage points off), the report says so. Only single-answer questions count, and only batches with 20 or more of
+  them are judged. The report says how many select-all-that-apply questions the batch has.
 - **Unreachable links** (only with `--check-links`).
 
 ## Result files

@@ -49,9 +49,15 @@ export function reportMd(result: BatchResult, batchName: string, extraWarnings: 
 
   const letters = Object.keys(result.balance).sort();
   if (letters.length > 0) {
-    out.push('## Correct-answer balance', '', '| Letter | Items |', '| --- | --- |');
+    out.push('## Correct-answer balance (single-answer items)', '', '| Letter | Items |', '| --- | --- |');
     for (const l of letters) out.push(`| ${l} | ${result.balance[l as keyof typeof result.balance]} |`);
     out.push('');
+  }
+  if (result.sata > 0) {
+    out.push(
+      `${result.sata} select-all-that-apply ${result.sata === 1 ? 'item is' : 'items are'} scored all-or-nothing and not counted in the balance.`,
+      '',
+    );
   }
 
   const names = Object.keys(result.agreement).sort();

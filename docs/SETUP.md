@@ -162,3 +162,25 @@ DNS records. If you don't already have email on cueory.app, Cloudflare Email Rou
 for it, until you say yes.
 
 Tell Claude when you're done, or which step didn't match.
+
+---
+
+## If a release breaks the live site (2 minutes)
+
+A release is a pull request from `staging` into `main`. If the live site looks wrong after one, put the previous
+version back first and fix the problem afterwards. A rollback changes only what Cloudflare serves; the code in GitHub
+stays as it is.
+
+1. In Cloudflare, open **Workers & Pages** → **cueory** → **Deployments**.
+2. Under **Version History**, find the version that was live before the release: the newest version built from
+   `main` that is older than the release. A preview of `staging` or any other branch never counts, even if it is newer:
+   it may hold the very change that broke the site. If you can't tell which version came from `main`, stop and comment
+   on the "Daily report" issue with what the list shows. Claude will help you pick it. Don't guess from the dates.
+3. Click the three dots at the right of that version, then **Rollback**.
+   You should see that version become the **Active Deployment**. Cloudflare switches the live site to it right away.
+4. Open the live site in a private window. You should see it as it was before the release.
+5. Comment on the "Daily report" issue: what looked wrong, on which page. Claude fixes it through `staging`, and the
+   next release replaces the rolled-back version.
+
+Cloudflare keeps the 100 most recent versions to roll back to. Source:
+[Cloudflare: Rollbacks](https://developers.cloudflare.com/workers/versions-and-deployments/rollbacks/).
