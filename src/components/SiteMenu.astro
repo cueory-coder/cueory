@@ -43,6 +43,32 @@ const current = currentHref(
       </button>
     </div>
 
+    <!-- Site search (D-49): results appear as you type; the index loads only once the field is used. -->
+    <div role="search" class="mt-4" data-site-search>
+      <div class="menu-search">
+        <label for="site-search" class="sr-only">search the site</label>
+        <input
+          id="site-search"
+          type="search"
+          class="menu-search-input"
+          placeholder="search"
+          autocomplete="off"
+          spellcheck="false"
+          enterkeyhint="search"
+          aria-describedby="site-search-status"
+          aria-controls="site-search-results"
+          data-search-input
+        />
+        <svg viewBox="0 0 24 24" class="menu-search-icon" aria-hidden="true" focusable="false">
+          <circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" stroke-width="1.6"></circle>
+          <path d="M15 15l5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
+        </svg>
+      </div>
+      <p id="site-search-status" class="menu-search-status" aria-live="polite" data-search-status></p>
+      <ul id="site-search-results" class="menu-search-results" aria-label="search results" hidden data-search-results>
+      </ul>
+    </div>
+
     <nav aria-label="site" class="my-auto py-section">
       <ul class="flex flex-col gap-7">
         {
@@ -78,6 +104,117 @@ const current = currentHref(
 
 <script>
   import { isCloseKey, wrapFocus } from '../scripts/menu';
+  import { cleanUrl, excerptParts, keepFocus, MAX_RESULTS, moveFocus, PAGEFIND_URL, statusText } from '../scripts/search';
+
+  /** The parts of Pagefind's browser API the panel uses (https://pagefind.app/docs/api/). */
+  interface PagefindResult {
+    url: string;
+    excerpt: string;
+    meta: { title?: string };
+  }
+  interface Pagefind {
+    options(options: Record<string, unknown>): Promise<void>;
+    init(): Promise<void> | void;
+    debouncedSearch(term: string): Promise<{ results: { data(): Promise<PagefindResult> }[] } | null>;
+  }
+
+  /** Site search (D-49). The index loads the first time the field gets focus, never with the page. */
+  function setUpSearch(root: HTMLElement) {
+    const input = root.querySelector<HTMLInputElement>('[data-search-input]');
+    const status = root.querySelector<HTMLElement>('[data-search-status]');
+    const list = root.querySelector<HTMLUListElement>('[data-search-results]');
+    if (!input || !status || !list) return;
+
+    let pagefind: Promise<Pagefind> | undefined;
+    const load = () => {
+      pagefind ??= (async () => {
+        // A plain URL, so the bundler leaves it alone: the index is built after the site, by `pagefind --site dist`.
+        const url: string = PAGEFIND_URL;
+        const module = (await import(/* @vite-ignore */ url)) as Pagefind;
+        // Search on the page itself rather than in a worker, so the content security policy needs no `blob:`.
+        await module.options({ noWorker: true });
+        await module.init();
+        return module;
+      })();
+      return pagefind;
+    };
+
+    const links = () => [...list.querySelectorAll<HTMLAnchorElement>('a')];
+    let latest = 0;
+
+    const render = (results: PagefindResult[]) => {
+      // If a result had keyboard focus, it keeps a place to go once the list is replaced (Codex review on #27).
+      const focused = links().indexOf(document.activeElement as HTMLAnchorElement);
+      list.replaceChildren(
+        ...results.map((result) => {
+          const item = document.createElement('li');
+          const link = document.createElement('a');
+          link.className = 'menu-result';
+          link.href = cleanUrl(result.url);
+          const title = document.createElement('span');
+          title.className = 'menu-result-title';
+          title.textContent = result.meta.title ?? cleanUrl(result.url);
+          const excerpt = document.createElement('span');
+          excerpt.className = 'menu-result-excerpt';
+          for (const part of excerptParts(result.excerpt)) {
+            if (part.mark) {
+              const mark = document.createElement('mark');
+              mark.textContent = part.text;
+              excerpt.append(mark);
+            } else excerpt.append(part.text);
+          }
+          link.append(title, excerpt);
+          item.append(link);
+          return item;
+        }),
+      );
+      list.hidden = results.length === 0;
+      if (focused !== -1) {
+        const target = keepFocus(focused, results.length);
+        if (target === -1) input.focus();
+        else links()[target]?.focus();
+      }
+    };
+
+    input.addEventListener('focus', () => {
+      load().catch(() => undefined);
+    });
+
+    input.addEventListener('input', async () => {
+      const term = input.value;
+      const run = ++latest;
+      if (term.trim() === '') {
+        render([]);
+        status.textContent = '';
+        return;
+      }
+      try {
+        const search = await (await load()).debouncedSearch(term);
+        // A newer search replaced this one, or the field changed while it ran.
+        if (search === null || run !== latest) return;
+        const shown = await Promise.all(search.results.slice(0, MAX_RESULTS).map((result) => result.data()));
+        if (run !== latest) return;
+        render(shown);
+        status.textContent = statusText(term, search.results.length, shown.length);
+      } catch {
+        if (run !== latest) return;
+        render([]);
+        status.textContent = 'Search isn’t available right now. The links below still work.';
+      }
+    });
+
+    // Arrow keys move between the field and the results; Tab and Enter work as usual.
+    root.addEventListener('keydown', (event) => {
+      const items = links();
+      const index = items.indexOf(document.activeElement as HTMLAnchorElement);
+      if (index === -1 && document.activeElement !== input) return;
+      const target = moveFocus(index, items.length, event.key);
+      if (target === undefined) return;
+      event.preventDefault();
+      if (target === -1) input.focus();
+      else items[target]?.focus();
+    });
+  }
 
   const dialog = document.querySelector<HTMLDialogElement>('#site-menu');
   const openButton = document.querySelector<HTMLButtonElement>('[data-menu-open]');
@@ -106,7 +243,7 @@ const current = currentHref(
       }
       // Tab stays inside the panel instead of leaving for the browser's own buttons.
       if (event.key === 'Tab') {
-        const items = [...dialog.querySelectorAll<HTMLElement>('a[href], button')];
+        const items = [...dialog.querySelectorAll<HTMLElement>('a[href], button, input')];
         const target = wrapFocus(items.indexOf(document.activeElement as HTMLElement), items.length, event.shiftKey);
         if (target !== undefined) {
           event.preventDefault();
@@ -128,6 +265,9 @@ const current = currentHref(
         dialog.close();
       });
     }
+
+    const search = dialog.querySelector<HTMLElement>('[data-site-search]');
+    if (search) setUpSearch(search);
 
     openButton.classList.remove('invisible');
   }
