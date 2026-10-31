@@ -238,3 +238,12 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   open modes link to their page and the rest say "coming soon". The hover zoom, grow-into-preview and preview panel
   follow in their own pull request. Reason: Christian's request; a scroll-snap row keeps every feature working on every
   device (D-48) without a carousel library.
+- **D-52** Auto-merge holds package.json scripts and risky lockfile changes before launch (found in a repo review,
+  2026-10-31). The pre-launch auto-merge (D-42) now also waits for Christian when a pull request changes, adds or
+  removes `scripts`, `engines` or `packageManager` in a package.json (a changed `build` or a `postinstall` would run in
+  the staging build the moment the bot merged it), or when its `package-lock.json` adds a package name the base
+  lockfile lacks, gives a package an install script, or downloads anything from outside `https://registry.npmjs.org/`.
+  A lockfile that only moves existing packages to other versions still merges itself, so minor bumps keep working
+  (D-42). A lockfile that can't be read on either side waits. Once the site is live every lockfile change is held, as
+  before. Reason: before this, only package.json's dependency lists were compared, so a lockfile alone could pull in
+  new code. This pull request edits `scripts/automerge/`, so it waits for Christian like any change to the auto-merge.

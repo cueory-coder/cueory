@@ -59,6 +59,10 @@ Last updated: 2026-10-31
   in the all-lowercase voice (D-46, D-47), with phone, tablet and desktop browser tests (D-48).
 
 ## In review
+- Auto-merge hardening (D-52): before launch the bot now also holds changes to package.json `scripts`, `engines` and
+  `packageManager`, and lockfile changes that add a package, an install script or a download from outside the npm
+  registry. Version bumps of existing packages still merge themselves. Edits `scripts/automerge/`, so Christian
+  approves and merges it.
 - "ways to study" carousel (D-50): one chip per study mode, cards with original moving illustrations, arrows, keys,
   swipe and a gentle auto-advance with a pause button. The auto-merge takes it once it is clean.
 
