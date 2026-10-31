@@ -1,18 +1,24 @@
 /**
- * Staging auto-merge rules (D-39). Pure functions only: no network, so every rule is unit tested.
+ * Staging auto-merge rules (D-39, pre-launch mode D-42). Pure functions only: no network, so every rule is unit tested.
  *
  * A pull request is merged into `staging` only when ALL of these hold:
  * - it is open, not a draft, comes from this repository (not a fork) and targets `staging`;
- * - it changes no sensitive path (those get the "needs-christian" label instead and are never merged by the bot);
+ * - it changes no held path for the current mode and isn't labelled "needs-christian" (those wait for Christian and
+ *   are never merged by the bot);
+ * - it isn't a Dependabot major-version update;
  * - every required check on its head commit passed, and no other check failed;
  * - Codex's latest review summary is for that exact head commit, finished, and reports no findings;
  * - GitHub says it merges cleanly.
  * It never targets `main`: the merge call itself refuses any base other than `staging` (see staging_automerge.ts).
+ *
+ * The mode comes from automation.json at the repository root (parseAutomation below). Before launch only the paths
+ * that must always be Christian's are held; once the site is live, the longer sensitive list is held too.
  */
 
 export const BASE_BRANCH = 'staging';
 export const NEEDS_CHRISTIAN_LABEL = 'needs-christian';
 export const CODEX_LOGIN = 'chatgpt-codex-connector[bot]';
+export const DEPENDABOT_LOGIN = 'dependabot[bot]';
 
 /** Checks that must have run and passed on the head commit (names as GitHub shows them). */
 export const REQUIRED_CHECKS = [
@@ -22,26 +28,38 @@ export const REQUIRED_CHECKS = [
   'Workers Builds: cueory',
 ] as const;
 
+/** "prelaunch" until Christian says the site is live for students (automation.json). */
+export type Mode = 'prelaunch' | 'launched';
+
 /**
- * Paths only Christian may approve. The brief's list, plus three more for the same reason: the auto-merge rules
- * themselves, the Node version every build uses, and the newsletter form settings (AGENTS.md sensitive areas).
+ * Held in both modes (D-42):
+ * - `.github/`: GitHub doesn't let the automation's own token change workflow files, and they are the automation;
+ * - `automation.json` and the auto-merge's own code, so a robot can never loosen its own rules;
+ * - `CLAUDE.md`, `AGENTS.md` and `SECURITY.md`: the rules the AI builders and reviewers follow, which only Christian
+ *   changes;
+ * - `content/`: real lessons, questions and cards need Christian's approval, and the bot can't tell them from
+ *   placeholders;
+ * - `supabase/` (sign-in and database policies) and `wrangler.jsonc` (deployment), which CLAUDE.md rule 3 reserves
+ *   for Christian.
  */
-const SENSITIVE_PREFIXES = ['.github/', 'supabase/', 'brand-source/', 'public/brand/', 'scripts/automerge/'];
-const SENSITIVE_FILES = new Set([
-  'public/_headers',
-  'astro.config.mjs',
-  'wrangler.jsonc',
-  'SECURITY.md',
+const ALWAYS_HELD_PREFIXES = ['.github/', 'scripts/automerge/', 'content/', 'supabase/'];
+const ALWAYS_HELD_FILES = new Set([
+  'automation.json',
+  'scripts/staging_automerge.ts',
   'CLAUDE.md',
   'AGENTS.md',
-  'package.json',
-  'package-lock.json',
-  'scripts/staging_automerge.ts',
-  '.node-version',
-  'src/config/site.ts',
+  'SECURITY.md',
+  'wrangler.jsonc',
 ]);
+
+/**
+ * Also held once the site is live: the rest of the brief's sensitive list, plus the Node version every build uses and
+ * the newsletter form settings (AGENTS.md sensitive areas).
+ */
+const LAUNCHED_HELD_PREFIXES = ['brand-source/', 'public/brand/'];
+const LAUNCHED_HELD_FILES = new Set(['public/_headers', 'astro.config.mjs', '.node-version', 'src/config/site.ts']);
 /** A dependency list anywhere in the tree counts, not just the root one. */
-const SENSITIVE_BASENAMES = new Set(['package.json', 'package-lock.json']);
+const LAUNCHED_HELD_BASENAMES = new Set(['package.json', 'package-lock.json']);
 
 /** GitHub's file list stops at 3,000 files; a pull request that big is never merged by the bot. */
 export const MAX_LISTED_FILES = 3000;
@@ -50,6 +68,8 @@ export interface PullRequest {
   number: number;
   state: string;
   draft: boolean;
+  title: string;
+  user: { login: string } | null;
   /** null while GitHub is still working it out. */
   mergeable: boolean | null;
   base: { ref: string };
@@ -90,22 +110,59 @@ export interface Decision {
   reasons: string[];
 }
 
-export function isSensitivePath(path: string): boolean {
-  if (SENSITIVE_FILES.has(path)) return true;
-  if (SENSITIVE_PREFIXES.some((prefix) => path.startsWith(prefix))) return true;
-  const base = path.slice(path.lastIndexOf('/') + 1);
-  return SENSITIVE_BASENAMES.has(base);
+/**
+ * The mode from automation.json's text (undefined when the file is missing). Anything but a clear
+ * `"prelaunch": true` gives the stricter launched rules, with a note saying why.
+ */
+export function parseAutomation(text: string | undefined): { mode: Mode; note?: string } {
+  if (text === undefined) return { mode: 'launched', note: 'automation.json is missing, so the launched rules apply' };
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return { mode: 'launched', note: "automation.json isn't valid JSON, so the launched rules apply" };
+  }
+  const prelaunch = parsed && typeof parsed === 'object' ? (parsed as { prelaunch?: unknown }).prelaunch : undefined;
+  if (prelaunch === true) return { mode: 'prelaunch' };
+  if (prelaunch === false) return { mode: 'launched' };
+  return { mode: 'launched', note: 'automation.json has no true/false "prelaunch" setting, so the launched rules apply' };
 }
 
-/** Every sensitive path a pull request touches, counting both sides of a rename. */
-export function sensitivePaths(files: readonly ChangedFile[]): string[] {
+export function isHeldPath(path: string, mode: Mode): boolean {
+  if (ALWAYS_HELD_FILES.has(path) || ALWAYS_HELD_PREFIXES.some((prefix) => path.startsWith(prefix))) return true;
+  if (mode === 'prelaunch') return false;
+  if (LAUNCHED_HELD_FILES.has(path) || LAUNCHED_HELD_PREFIXES.some((prefix) => path.startsWith(prefix))) return true;
+  return LAUNCHED_HELD_BASENAMES.has(path.slice(path.lastIndexOf('/') + 1));
+}
+
+/** Every held path a pull request touches, counting both sides of a rename. */
+export function heldPaths(files: readonly ChangedFile[], mode: Mode): string[] {
   const hits = new Set<string>();
   for (const f of files) {
     for (const path of [f.filename, f.previous_filename]) {
-      if (path && isSensitivePath(path)) hits.add(path);
+      if (path && isHeldPath(path, mode)) hits.add(path);
     }
   }
   return [...hits].sort();
+}
+
+/** "Bump typescript from 6.0.3 to 7.0.2" → majors 6 and 7. */
+const BUMP = /\bfrom v?(\d+)\S* to v?(\d+)\S*/i;
+/** Dependabot's npm group, which dependabot.yml limits to minor and patch updates. */
+const MINOR_PATCH_GROUP = /^Bump the minor-and-patch group\b/i;
+
+/**
+ * Why a Dependabot pull request must wait for Christian, or null when it is a minor or patch update. Major versions
+ * can break the build in ways tests miss (TypeScript 7 and @types/node above Node 24 are never accepted, D-01, D-02),
+ * so only single updates within one major version and the minor-and-patch group pass. Anything unrecognised waits.
+ */
+export function dependabotHold(pr: Pick<PullRequest, 'title' | 'user'>): string | null {
+  if (pr.user?.login !== DEPENDABOT_LOGIN) return null;
+  if (MINOR_PATCH_GROUP.test(pr.title)) return null;
+  const bump = BUMP.exec(pr.title);
+  if (!bump) return "needs Christian: a Dependabot update the bot can't size";
+  if (bump[1] !== bump[2]) return `needs Christian: a major version update (${bump[1]} to ${bump[2]})`;
+  return null;
 }
 
 /** The newest run of each check name (a re-run replaces the earlier result). */
@@ -177,28 +234,35 @@ export function codexProblems(state: CodexState | null, headSha: string): string
 
 export interface DecideInput {
   repo: string;
+  mode: Mode;
   pr: PullRequest;
   files: readonly ChangedFile[];
   checks: readonly CheckRun[];
   comments: readonly IssueComment[];
 }
 
-export function decide({ repo, pr, files, checks, comments }: DecideInput): Decision {
+export function decide({ repo, mode, pr, files, checks, comments }: DecideInput): Decision {
   if (pr.state !== 'open') return { action: 'skip', reasons: ['not open'] };
   if (pr.base.ref !== BASE_BRANCH) return { action: 'skip', reasons: [`targets ${pr.base.ref}, not ${BASE_BRANCH}`] };
   if (pr.head.repo?.full_name !== repo) return { action: 'skip', reasons: ['comes from another repository'] };
   if (pr.draft) return { action: 'skip', reasons: ['still a draft'] };
 
-  const sensitive = sensitivePaths(files);
-  if (sensitive.length > 0) return { action: 'label', reasons: [`needs Christian: changes ${sensitive.join(', ')}`] };
+  // Anyone may hold a pull request for Christian by adding the label (for example sign-in or payment work).
+  if (pr.labels.some((l) => l.name === NEEDS_CHRISTIAN_LABEL)) {
+    return { action: 'label', reasons: [`needs Christian: labelled ${NEEDS_CHRISTIAN_LABEL}`] };
+  }
+  const held = heldPaths(files, mode);
+  if (held.length > 0) return { action: 'label', reasons: [`needs Christian: changes ${held.join(', ')}`] };
   if (files.length >= MAX_LISTED_FILES) {
     return { action: 'label', reasons: ['needs Christian: too many files for the bot to check'] };
   }
+  const dependabot = dependabotHold(pr);
+  if (dependabot) return { action: 'label', reasons: [dependabot] };
 
   const problems = [...checkProblems(checks), ...codexProblems(codexState(comments), pr.head.sha)];
   if (pr.mergeable === null) problems.push('GitHub is still checking whether it merges cleanly');
   else if (!pr.mergeable) problems.push("it doesn't merge cleanly into staging");
   if (problems.length > 0) return { action: 'wait', reasons: problems };
 
-  return { action: 'merge', reasons: ['checks passed, Codex is clean, nothing sensitive'] };
+  return { action: 'merge', reasons: [`checks passed, Codex is clean, nothing held (${mode} rules)`] };
 }

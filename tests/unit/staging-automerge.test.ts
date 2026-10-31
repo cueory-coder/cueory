@@ -6,11 +6,14 @@ import {
   codexProblems,
   codexState,
   decide,
-  isSensitivePath,
+  dependabotHold,
+  heldPaths,
+  isHeldPath,
+  parseAutomation,
   REQUIRED_CHECKS,
-  sensitivePaths,
   type CheckRun,
   type IssueComment,
+  type Mode,
   type PullRequest,
 } from '../../scripts/automerge/decide.ts';
 import { createGitHub, type Fetch } from '../../scripts/automerge/github.ts';
@@ -24,6 +27,8 @@ function pull(over: Partial<PullRequest> = {}): PullRequest {
     number: 7,
     state: 'open',
     draft: false,
+    title: 'Cards: a thing',
+    user: { login: 'lilchristxan' },
     mergeable: true,
     base: { ref: 'staging' },
     head: { sha: HEAD, ref: 'task-4/thing', repo: { full_name: REPO } },
@@ -57,6 +62,7 @@ const clean = (sha = HEAD) => ({
 
 const input = (over: Partial<Parameters<typeof decide>[0]> = {}) => ({
   repo: REPO,
+  mode: 'launched' as Mode,
   pr: pull(),
   files: [{ filename: 'src/islands/cards.ts' }, { filename: 'docs/STATUS.md' }],
   checks: greenChecks(),
@@ -64,40 +70,98 @@ const input = (over: Partial<Parameters<typeof decide>[0]> = {}) => ({
   ...over,
 });
 
-describe('sensitive paths', () => {
-  it.each([
+describe('automation.json', () => {
+  it('turns on the pre-launch rules only for a clear "prelaunch": true', () => {
+    expect(parseAutomation('{"prelaunch": true}')).toEqual({ mode: 'prelaunch' });
+    expect(parseAutomation('{"prelaunch": false}')).toEqual({ mode: 'launched' });
+  });
+
+  it('falls back to the stricter launched rules, saying why, when the file is missing or unclear', () => {
+    for (const text of [undefined, '{prelaunch: true}', '{"prelaunch": "yes"}', '{}', 'true', 'null', '[]']) {
+      const result = parseAutomation(text);
+      expect(result.mode).toBe('launched');
+      expect(result.note).toMatch(/launched rules apply/);
+    }
+  });
+
+  it('is in pre-launch mode in this repository until Christian says the site is live (D-42)', () => {
+    const text = readFileSync(new URL('../../automation.json', import.meta.url), 'utf8');
+    expect(JSON.parse(text)).toEqual({ prelaunch: true });
+  });
+});
+
+describe('held paths', () => {
+  const always = [
     '.github/workflows/ci.yml',
-    'supabase/migrations/001.sql',
-    'public/_headers',
-    'astro.config.mjs',
-    'wrangler.jsonc',
-    'SECURITY.md',
+    '.github/dependabot.yml',
+    'automation.json',
+    'scripts/automerge/decide.ts',
+    'scripts/staging_automerge.ts',
     'CLAUDE.md',
     'AGENTS.md',
+    'SECURITY.md',
+    'content/cards/study-skills-01.json',
+    'content/README.md',
+    'supabase/migrations/001.sql',
+    'wrangler.jsonc',
+  ];
+  const launchedOnly = [
+    'public/_headers',
+    'astro.config.mjs',
     'brand-source/cueory-geometry-master-v1.0.json',
     'public/brand/cueory-square-dark.svg',
     'package.json',
     'package-lock.json',
-    'scripts/automerge/decide.ts',
-    'scripts/staging_automerge.ts',
     '.node-version',
     'src/config/site.ts',
     'tools/extra/package.json',
-  ])('%s needs Christian', (path) => {
-    expect(isSensitivePath(path)).toBe(true);
+  ];
+  const never = ['src/islands/cards.ts', 'docs/STATUS.md', 'tests/unit/x.test.ts', 'public/favicon.svg', 'scripts/check_batch.ts'];
+
+  it.each(always)('%s waits for Christian in both modes', (path) => {
+    expect(isHeldPath(path, 'prelaunch')).toBe(true);
+    expect(isHeldPath(path, 'launched')).toBe(true);
   });
 
-  it.each(['src/islands/cards.ts', 'docs/STATUS.md', 'content/cards/study-skills-01.json', 'tests/unit/x.test.ts', 'public/favicon.svg'])(
-    '%s does not',
-    (path) => {
-      expect(isSensitivePath(path)).toBe(false);
+  it.each(launchedOnly)('%s waits for Christian only once the site is live', (path) => {
+    expect(isHeldPath(path, 'prelaunch')).toBe(false);
+    expect(isHeldPath(path, 'launched')).toBe(true);
+  });
+
+  it.each(never)('%s never does', (path) => {
+    expect(isHeldPath(path, 'prelaunch')).toBe(false);
+    expect(isHeldPath(path, 'launched')).toBe(false);
+  });
+
+  it('counts both sides of a rename', () => {
+    const renamed = [{ filename: 'docs/old-headers.txt', previous_filename: 'public/_headers' }];
+    expect(heldPaths(renamed, 'launched')).toEqual(['public/_headers']);
+    expect(heldPaths(renamed, 'prelaunch')).toEqual([]);
+    expect(heldPaths([{ filename: 'docs/x.json', previous_filename: 'content/x.json' }], 'prelaunch')).toEqual(['content/x.json']);
+  });
+});
+
+describe('Dependabot updates', () => {
+  const bot = { login: 'dependabot[bot]' };
+  it.each([
+    'Bump typescript from 6.0.3 to 7.0.2',
+    'Bump @types/node from 24.19.2 to 26.6.5',
+    'Bump actions/checkout from v7.0.1 to v8.0.0',
+    'Bump the actions group across 1 directory with 3 updates',
+    'Something new from Dependabot',
+  ])('"%s" waits for Christian', (title) => {
+    expect(dependabotHold({ title, user: bot })).toMatch(/^needs Christian/);
+  });
+
+  it.each(['Bump the minor-and-patch group with 4 updates', 'Bump astro from 7.4.4 to 7.5.0', 'Bump vitest from 5.0.5 to 5.0.6'])(
+    '"%s" can be merged by the bot',
+    (title) => {
+      expect(dependabotHold({ title, user: bot })).toBeNull();
     },
   );
 
-  it('counts both sides of a rename', () => {
-    expect(sensitivePaths([{ filename: 'docs/old-headers.txt', previous_filename: 'public/_headers' }])).toEqual([
-      'public/_headers',
-    ]);
+  it('only applies to Dependabot itself', () => {
+    expect(dependabotHold({ title: 'Bump typescript from 6.0.3 to 7.0.2', user: { login: 'lilchristxan' } })).toBeNull();
   });
 });
 
@@ -180,14 +244,50 @@ describe('decide', () => {
     expect(decide(input({ pr: pull({ head: { sha: HEAD, ref: 'x', repo: null } }) })).action).toBe('skip');
   });
 
-  it('labels a sensitive pull request for Christian even when everything else is clean', () => {
+  it('labels a held pull request for Christian even when everything else is clean', () => {
     const decision = decide(input({ files: [{ filename: 'src/x.ts' }, { filename: '.github/workflows/ci.yml' }] }));
     expect(decision).toEqual({ action: 'label', reasons: ['needs Christian: changes .github/workflows/ci.yml'] });
   });
 
+  it('before launch, merges settings, brand and dependency changes that wait once the site is live', () => {
+    const files = [{ filename: 'astro.config.mjs' }, { filename: 'package.json' }, { filename: 'public/_headers' }];
+    expect(decide(input({ files, mode: 'prelaunch' })).action).toBe('merge');
+    expect(decide(input({ files, mode: 'launched' }))).toEqual({
+      action: 'label',
+      reasons: ['needs Christian: changes astro.config.mjs, package.json, public/_headers'],
+    });
+  });
+
+  it("before launch, still holds workflows, the automation and the agents' rules, content, the database and deployment", () => {
+    const always = ['.github/workflows/ci.yml', 'automation.json', 'scripts/automerge/decide.ts', 'CLAUDE.md', 'AGENTS.md', 'SECURITY.md', 'content/lessons/x.json', 'supabase/x.sql', 'wrangler.jsonc'];
+    for (const filename of always) {
+      expect(decide(input({ files: [{ filename }], mode: 'prelaunch' })).action).toBe('label');
+    }
+  });
+
+  it('holds anything labelled needs-christian, so a person can stop the bot', () => {
+    const decision = decide(input({ pr: pull({ labels: [{ name: 'needs-christian' }] }), mode: 'prelaunch' }));
+    expect(decision).toEqual({ action: 'label', reasons: ['needs Christian: labelled needs-christian'] });
+  });
+
+  it('holds a Dependabot major update in both modes and merges a minor one before launch', () => {
+    const files = [{ filename: 'package.json' }, { filename: 'package-lock.json' }];
+    const major = pull({ title: 'Bump typescript from 6.0.3 to 7.0.2', user: { login: 'dependabot[bot]' } });
+    const minor = pull({ title: 'Bump astro from 7.4.4 to 7.5.0', user: { login: 'dependabot[bot]' } });
+    expect(decide(input({ pr: major, files, mode: 'prelaunch' }))).toEqual({
+      action: 'label',
+      reasons: ['needs Christian: a major version update (6 to 7)'],
+    });
+    expect(decide(input({ pr: minor, files, mode: 'prelaunch' })).action).toBe('merge');
+    expect(decide(input({ pr: minor, files, mode: 'launched' })).action).toBe('label');
+  });
+
   it('labels a pull request too big for GitHub to list in full', () => {
-    const files = Array.from({ length: 3000 }, (_, i) => ({ filename: `content/f${i}.json` }));
-    expect(decide(input({ files })).action).toBe('label');
+    const files = Array.from({ length: 3000 }, (_, i) => ({ filename: `src/f${i}.ts` }));
+    expect(decide(input({ files, mode: 'prelaunch' }))).toEqual({
+      action: 'label',
+      reasons: ['needs Christian: too many files for the bot to check'],
+    });
   });
 
   it('waits for checks, Codex and a clean merge', () => {
@@ -250,18 +350,19 @@ describe('the auto-merge run', () => {
   it('in a dry run, reports what it would do and changes nothing', async () => {
     const { gh, calls } = fakeGitHub(pulls());
     const lines: string[] = [];
-    const outcomes = await runAutomerge({ gh, repo: REPO, dryRun: true, log: (l) => lines.push(l) });
+    const outcomes = await runAutomerge({ gh, repo: REPO, mode: 'launched', dryRun: true, log: (l) => lines.push(l) });
     expect(outcomes.map((o) => [o.pr, o.done])).toEqual([
       [7, 'would merge'],
       [8, 'would label'],
     ]);
     expect(calls.filter((c) => c.method !== 'GET')).toEqual([]);
-    expect(lines[1]).toContain('needs Christian: changes public/_headers');
+    expect(lines[0]).toBe('Rules: launched (automation.json)');
+    expect(lines[2]).toContain('needs Christian: changes public/_headers');
   });
 
   it('merges with a merge commit pinned to the checked head, and labels the sensitive one', async () => {
     const { gh, calls } = fakeGitHub(pulls());
-    await runAutomerge({ gh, repo: REPO, dryRun: false, log: () => {} });
+    await runAutomerge({ gh, repo: REPO, mode: 'launched', dryRun: false, log: () => {} });
     expect(calls.filter((c) => c.method !== 'GET')).toEqual([
       { method: 'PUT', path: '/pulls/7/merge', body: { merge_method: 'merge', sha: HEAD } },
       { method: 'POST', path: '/labels', body: expect.objectContaining({ name: 'needs-christian' }) },
@@ -269,27 +370,37 @@ describe('the auto-merge run', () => {
     ]);
   });
 
+  it('before launch, merges the settings change too and labels nothing', async () => {
+    const { gh, calls } = fakeGitHub(pulls());
+    const outcomes = await runAutomerge({ gh, repo: REPO, mode: 'prelaunch', dryRun: false, log: () => {} });
+    expect(outcomes.map((o) => [o.pr, o.done])).toEqual([
+      [7, 'merged'],
+      [8, 'merged'],
+    ]);
+    expect(calls.filter((c) => c.method !== 'GET').map((c) => c.path)).toEqual(['/pulls/7/merge', '/pulls/8/merge']);
+  });
+
   it("doesn't label twice or create a label that exists", async () => {
     const already = { 8: { pr: pull({ number: 8, labels: [{ name: 'needs-christian' }] }), files: ['CLAUDE.md'] } };
     const first = fakeGitHub(already);
-    await runAutomerge({ gh: first.gh, repo: REPO, dryRun: false, log: () => {} });
+    await runAutomerge({ gh: first.gh, repo: REPO, mode: 'launched', dryRun: false, log: () => {} });
     expect(first.calls.filter((c) => c.method !== 'GET')).toEqual([]);
 
     const second = fakeGitHub({ 8: { pr: pull({ number: 8 }), files: ['CLAUDE.md'] } }, { labelExists: true });
-    await runAutomerge({ gh: second.gh, repo: REPO, dryRun: false, log: () => {} });
+    await runAutomerge({ gh: second.gh, repo: REPO, mode: 'launched', dryRun: false, log: () => {} });
     expect(second.calls.filter((c) => c.method !== 'GET').map((c) => c.path)).toEqual(['/issues/8/labels']);
   });
 
   it('never merges a pull request into main, even when asked for it by number', async () => {
     const { gh, calls } = fakeGitHub({ 9: { pr: pull({ number: 9, base: { ref: 'main' } }), files: ['src/x.ts'] } });
-    const outcomes = await runAutomerge({ gh, repo: REPO, pr: 9, dryRun: false, log: () => {} });
+    const outcomes = await runAutomerge({ gh, repo: REPO, mode: 'launched', pr: 9, dryRun: false, log: () => {} });
     expect(outcomes[0]!.decision.action).toBe('skip');
     expect(calls.filter((c) => c.method !== 'GET')).toEqual([]);
   });
 
   it('waits instead of judging from part of a list that is too long to read in full', async () => {
     const { gh, calls } = fakeGitHub({ 7: { pr: pull(), files: ['src/x.ts'] } }, { endlessComments: true });
-    const outcomes = await runAutomerge({ gh, repo: REPO, dryRun: false, log: () => {} });
+    const outcomes = await runAutomerge({ gh, repo: REPO, mode: 'launched', dryRun: false, log: () => {} });
     expect(outcomes[0]!.decision.action).toBe('wait');
     expect(outcomes[0]!.decision.reasons[0]).toContain('too much to read in full');
     expect(calls.filter((c) => c.method !== 'GET')).toEqual([]);
@@ -297,7 +408,7 @@ describe('the auto-merge run', () => {
 
   it('looks again right before merging and stops if the pull request now targets main', async () => {
     const { gh, calls } = fakeGitHub({ 7: { pr: pull(), files: ['src/x.ts'] } }, { later: { base: { ref: 'main' } } });
-    const outcomes = await runAutomerge({ gh, repo: REPO, dryRun: false, log: () => {} });
+    const outcomes = await runAutomerge({ gh, repo: REPO, mode: 'launched', dryRun: false, log: () => {} });
     expect(outcomes[0]!.done).toBe('merge refused');
     expect(outcomes[0]!.decision.reasons.at(-1)).toContain('into main');
     expect(calls.filter((c) => c.method !== 'GET')).toEqual([]);
@@ -305,7 +416,7 @@ describe('the auto-merge run', () => {
 
   it('stops if a new commit arrived between the checks and the merge', async () => {
     const { gh, calls } = fakeGitHub({ 7: { pr: pull(), files: ['src/x.ts'] } }, { later: { head: { sha: 'ffff', ref: 'x', repo: { full_name: REPO } } } });
-    expect((await runAutomerge({ gh, repo: REPO, dryRun: false, log: () => {} }))[0]!.done).toBe('merge refused');
+    expect((await runAutomerge({ gh, repo: REPO, mode: 'launched', dryRun: false, log: () => {} }))[0]!.done).toBe('merge refused');
     expect(calls.filter((c) => c.method !== 'GET')).toEqual([]);
   });
 
