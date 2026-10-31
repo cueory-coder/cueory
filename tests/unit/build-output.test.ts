@@ -109,7 +109,7 @@ describe.skipIf(!existsSync(dist))('built site', () => {
       expect(html).toContain(`name="${newsletter.emailFieldName}"`);
       expect(formAction).toBe(`'self' ${new URL(newsletter.formAction).origin}`);
     } else {
-      expect(html).toContain('Signups open soon.');
+      expect(html).toContain('signups open soon.');
       expect(html).not.toContain('<form');
       expect(formAction).toBe("'self'");
     }

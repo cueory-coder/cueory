@@ -1,54 +1,60 @@
 ---
 /**
- * Launch-updates signup. A plain HTML form that posts straight to Kit, so it
- * works without JavaScript and loads no third-party script. Kit validates the
- * address, sends the confirmation (double opt-in) email and handles unsubscribes.
+ * Launch-updates signup, the home page's last silk scene (D-52): a numbered label under a fine rule and a frosted card
+ * with a serif heading. A plain HTML form that posts straight to Kit, so it works without JavaScript and loads no
+ * third-party script. Kit validates the address, sends the confirmation (double opt-in) email and handles
+ * unsubscribes. Until Kit is connected, the card says signups open soon. Lowercase brand voice (D-47).
  */
 import { newsletter } from '../config/site';
 
 const ready = newsletter.formAction.startsWith('https://');
 ---
 
-<section id="signup" class="veil scroll-mt-section p-6 sm:p-10" aria-labelledby="signup-heading">
-  <h2 id="signup-heading" class="display text-title">Get launch updates</h2>
-  {
-    ready ? (
-      <form
-        action={newsletter.formAction}
-        method="post"
-        class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end"
-        data-testid="signup-form"
-      >
-        <div class="flex flex-1 flex-col gap-1">
-          <label for="signup-email" class="text-sm text-ink-soft">
-            Email address
-          </label>
-          <input
-            id="signup-email"
-            name={newsletter.emailFieldName}
-            type="email"
-            required
-            maxlength="254"
-            autocomplete="email"
-            inputmode="email"
-            class="rounded-md border border-control bg-page px-4 py-3 text-ink"
-          />
-        </div>
-        <button
-          type="submit"
-          class="rounded-pill bg-button px-6 py-3 text-on-button hover:bg-button-hover"
-        >
-          Sign up
-        </button>
-      </form>
-    ) : (
-      <p class="mt-3 text-ink-soft" data-testid="signup-pending">
-        Signups open soon.
+<section id="signup" class="scene scene-low scroll-mt-section py-section" aria-labelledby="signup-heading">
+  <div class="mx-auto max-w-page px-gutter text-center">
+    <p class="scene-rule text-sm font-medium tracking-label text-ink-soft" data-section-label>02 — stay in touch</p>
+  </div>
+
+  <div class="mx-auto mt-8 max-w-prose px-gutter">
+    <div class="veil p-6 sm:p-10">
+      <h2 id="signup-heading" class="display text-title">get launch updates</h2>
+      {
+        ready ? (
+          <form
+            action={newsletter.formAction}
+            method="post"
+            class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end"
+            data-testid="signup-form"
+          >
+            <div class="flex flex-1 flex-col gap-1">
+              <label for="signup-email" class="text-sm text-ink-soft">
+                email address
+              </label>
+              <input
+                id="signup-email"
+                name={newsletter.emailFieldName}
+                type="email"
+                required
+                maxlength="254"
+                autocomplete="email"
+                inputmode="email"
+                class="rounded-md border border-control bg-page px-4 py-3 text-ink"
+              />
+            </div>
+            <button type="submit" class="rounded-pill bg-button px-6 py-3 text-on-button hover:bg-button-hover">
+              sign up
+            </button>
+          </form>
+        ) : (
+          <p class="mt-3 text-ink-soft" data-testid="signup-pending">
+            signups open soon.
+          </p>
+        )
+      }
+      <p class="mt-4 text-sm text-ink-soft">
+        a few emails about new lessons and the launch. unsubscribe any time. emails are sent by {newsletter.provider};
+        see our <a href="/privacy">privacy page</a>.
       </p>
-    )
-  }
-  <p class="mt-4 text-sm text-ink-soft">
-    A few emails about new lessons and the launch. Unsubscribe any time. Emails are sent by {newsletter.provider};
-    see our <a href="/privacy">privacy page</a>.
-  </p>
+    </div>
+  </div>
 </section>

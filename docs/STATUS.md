@@ -55,27 +55,30 @@ Last updated: 2026-10-31
     [select-all-that-apply in the batch checker](https://github.com/lilchristxan/Cueory/pull/19) (D-45), the first
     pull requests the pre-launch auto-merge took on its own.
   - [Rollback guide](https://github.com/lilchristxan/Cueory/pull/22) in `docs/SETUP.md`.
-- In `staging`, waiting for the next release: [home hero, ☰ side panel and account corner](https://github.com/lilchristxan/Cueory/pull/24)
-  in the all-lowercase voice (D-46, D-47), with phone, tablet and desktop browser tests (D-48).
+- In `staging`, waiting for the next release ([#26](https://github.com/lilchristxan/Cueory/pull/26), open for Christian):
+  [home hero, ☰ side panel and account corner](https://github.com/lilchristxan/Cueory/pull/24) in the all-lowercase
+  voice (D-46, D-47), with phone, tablet and desktop browser tests (D-48), and the
+  ["ways to study" carousel](https://github.com/lilchristxan/Cueory/pull/28) (D-50).
 
 ## In review
-- "ways to study" carousel (D-50): one chip per study mode, cards with original moving illustrations, arrows, keys,
-  swipe and a gentle auto-advance with a pause button. The auto-merge takes it once it is clean.
-- Study-mode preview and hover zoom (D-51): a card grows into a preview with its moving illustration, two plain lines,
-  "try it" and the free-account link; X, Escape, the darkened page or a swipe down closes it. The auto-merge takes it
-  once it is clean.
+- [Search in the ☰ panel](https://github.com/lilchristxan/Cueory/pull/27) (D-49): Pagefind indexes the site when it
+  is built; results appear as you type. It adds a package and lets the content security policy compile WebAssembly
+  (`'wasm-unsafe-eval'`, needed by Pagefind), so it waits for Christian's merge.
+- [Study-mode preview and hover zoom](https://github.com/lilchristxan/Cueory/pull/29) (D-51): a card grows into a
+  preview with its moving illustration; the auto-merge takes it once it is clean.
+- Silk scenes down the home page (D-52): the hero, "ways to study" and the launch-updates panel are three scenes of one
+  silk, with numbered sections, a figure caption and one thin rhythm line. The auto-merge takes it once it is clean.
 
 ## Queued (Christian's change requests on issue #4, in his order)
-1. Search in the ☰ panel (Pagefind, a new package, so it waits for Christian's merge).
-2. Silk scenes down the whole page, social links (Simple Icons), then the once-only promo panel.
-3. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
-4. Auto-release (`staging` into `main` in pre-launch mode), after the change requests.
+1. Social links (Simple Icons), then the once-only promo panel.
+2. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
+3. Auto-release (`staging` into `main` in pre-launch mode), after the change requests.
 
 ## Blocked
 - **Task 2 (accounts and database)** waits for Christian to create the two Supabase projects, and its sign-in and
   database-policy parts need his approval. The "Flag or comment" button is built with it (D-34). Task 4 parts that
   don't need accounts go first (D-35).
-- **Signup form** shows "Signups open soon" until the Kit form exists (SETUP.md, Part I).
+- **Signup form** shows "signups open soon" until the Kit form exists (SETUP.md, Part I).
 
 ## Needs Christian's hands
 Follow [docs/SETUP.md](SETUP.md):
