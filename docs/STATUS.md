@@ -50,8 +50,9 @@ Follow [docs/SETUP.md](SETUP.md):
 - [ ] I. Create the Kit account and form; decide on the mailing address shown in emails
 - [ ] J. Decide whether hello@cueory.app should forward to your Gmail (needs email DNS records)
 - [ ] Provide disclaimer and terms text
-- [ ] Decide whether question batches will include select-all-that-apply questions (the checker handles
-  single-answer questions only for now)
+- [ ] Confirm or change the Task 3 batch defaults (docs/BATCHES.md, D-26) before real batches use them: the CSV
+  columns, which reviewers count (at least five files, names from the Task 2 roster), the pass rule (every reviewer matches
+  the key and marks pass; unfinished reviews are pending, not failed), and the answer-balance warning (10 points off an even share, batches of 20+).
 - [ ] Decide whether question batches will include select-all-that-apply questions (the batch checker handles
   single-answer questions only for now)
 - [ ] Decide how lesson videos start: today's plan (D-32) is that a click loads YouTube's player and the student presses
