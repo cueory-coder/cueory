@@ -203,6 +203,16 @@ describe('glass button and side panel (D-46)', () => {
     }
   });
 
+  it('rows in the dark panels never lighten on hover, so their notes keep the contrast checked above', () => {
+    // Codex review of #24: a light hover layer dropped the Taupe "coming soon" note below AA.
+    const styles = readFileSync(new URL('../../src/styles/global.css', import.meta.url), 'utf8');
+    for (const selector of ['.account-link:hover', '.menu-link:hover', '.menu-small-link:hover']) {
+      const rule = new RegExp(`${selector.replace(/[.:]/g, '\\$&')}\\s*\\{([^}]*)\\}`).exec(styles);
+      expect(rule, `${selector} rule`).not.toBeNull();
+      expect(rule![1]).not.toMatch(/background/);
+    }
+  });
+
   it('corner buttons keep their icon visible (3:1) on the frosted circle', () => {
     for (const [colors, chunk, bgs] of [
       [daytime, daytimeCss, dayBackgrounds],

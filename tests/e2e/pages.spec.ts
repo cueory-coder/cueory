@@ -458,6 +458,17 @@ test.describe('☰ side panel and account corner (D-46)', () => {
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
     expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
 
+    // Hovering a row underlines it but never lightens it, so the "coming soon" note keeps the AA contrast that
+    // tests/unit/tokens.test.ts checks on the panel glass (Codex review of #24). axe can't judge text on see-through
+    // glass over silk, so this checks the hover layer directly.
+    for (const name of [/create free account/, /sign in/]) {
+      const link = menu.getByRole('link', { name });
+      await link.hover();
+      expect(await link.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
+      expect(await link.evaluate((el) => getComputedStyle(el).textDecorationLine)).toBe('underline');
+    }
+    await account.focus();
+
     await page.keyboard.press('Escape');
     await expect(menu).toBeHidden();
     await expect(account).toBeFocused();

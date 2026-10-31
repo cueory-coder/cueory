@@ -361,9 +361,14 @@
     text-decoration: none;
   }
 
+  /* Hover underlines the label instead of lightening the row, so the "coming soon" note keeps AA contrast. */
   .account-link:hover {
     color: var(--color-panel-ink);
-    background-color: rgb(var(--glass-rim-rgb) / 0.12);
+    text-decoration: underline;
+  }
+
+  .account-link:hover .menu-note {
+    text-decoration: none;
   }
 
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
