@@ -66,7 +66,7 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   the full lesson list, with no duplicate first sentence and no dead buttons. Codex review of PR #1.
 - **D-28** Components may not use Tailwind "arbitrary values" (`text-[3.5rem]` and the like); every size, spacing and
   letter-spacing value is a named token. A unit test scans `src/` for them. Codex review of PR #1.
-- **D-31** Cards mode (Task 4): decks are JSON files in `content/cards/`, one per lesson, checked by the build. One card
+- **D-31** (Buttons and saving updated by D-37.) Cards mode (Task 4): decks are JSON files in `content/cards/`, one per lesson, checked by the build. One card
   at a time with real buttons ("Show answer", "Got it", "See again", "Back"); "See again" puts the card at the end of
   the round. No flip animation, so there's nothing to turn off for reduced motion. Progress isn't saved yet; that comes
   with guest progress later in Task 4.
@@ -95,6 +95,13 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
 - **D-36** Adaptive quizzes and level tests (Task 4b) are rule-based and never predict an exam score (Christian's
   decision, 2026-10-31). Reason: a rule can be explained to a student, and we have no data that could back a
   prediction.
+- **D-37** Flashcards (Task 4): "Know it" and "Still learning" replace "Got it" and "See again". A round shows each
+  card once; when every card is sorted, the next round is only the "Still learning" pile. "Back" undoes the last sort.
+  Shuffle (Fisher–Yates) reorders the cards still to come: before any card in a round is flipped or sorted it
+  reorders the whole round; after that the card on screen stays put, even after "Back" or "Show question", so nothing
+  the student is working on jumps. Stars are saved per deck in the browser's local storage (`cueory-stars-<deck>`, a
+  list of card ids) and never sent to us; "Only starred cards" studies just those. Reason: it follows the flashcard
+  plan in ROADMAP Task 4, with short rounds a student can count.
 - **D-38** Hosting moves to Cloudflare **Workers** with static assets (`wrangler.jsonc`). Cloudflare's dashboard now
   only offers Workers when creating an application, so the Pages setup in D-05 couldn't be followed. The site stays
   plain static files; `_headers` still applies. Previews: every branch builds a preview, all locked by the Worker's

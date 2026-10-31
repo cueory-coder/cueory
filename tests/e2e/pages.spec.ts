@@ -32,27 +32,94 @@ test('lesson can be stepped through with the keyboard', async ({ page }) => {
   await expect(page.getByText("That's the whole lesson for now.")).toBeVisible();
 });
 
-test('cards can be studied with the keyboard, and "See again" brings a card back', async ({ page }) => {
+test('cards can be sorted with the keyboard, and "Still learning" cards come back next round', async ({ page }) => {
   await page.goto('/learn/study-skills');
   await page.getByRole('link', { name: 'Practice this lesson with cards' }).click();
   await expect(page).toHaveURL(/\/learn\/study-skills\/cards$/);
-  await expect(page.getByText('Card 1 · 3 left')).toBeVisible();
+  await expect(page.getByText('Card 1 of 3 · Know it: 0 · Still learning: 0')).toBeVisible();
   await expect(page.getByText('Question', { exact: true })).toBeVisible();
 
   await page.getByRole('button', { name: 'Show answer' }).focus();
   await page.keyboard.press('Enter');
   await expect(page.getByText('Answer', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'See again' }).focus();
+  await page.getByRole('button', { name: 'Still learning' }).focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByText('Card 2 · 3 left')).toBeVisible();
+  await expect(page.getByText('Card 2 of 3 · Know it: 0 · Still learning: 1')).toBeVisible();
 
-  for (let i = 0; i < 3; i++) {
+  // Back undoes the last sort.
+  await page.getByRole('button', { name: 'Back' }).click();
+  await expect(page.getByText('Card 1 of 3 · Know it: 0 · Still learning: 0')).toBeVisible();
+  await page.getByRole('button', { name: 'Show answer' }).click();
+  await page.getByRole('button', { name: 'Still learning' }).click();
+
+  for (let i = 0; i < 2; i++) {
     await page.getByRole('button', { name: 'Show answer' }).click();
-    await page.getByRole('button', { name: 'Got it' }).click();
+    await page.getByRole('button', { name: 'Know it' }).click();
   }
+  await expect(page.getByText('Round 1 done.')).toBeVisible();
+  await expect(page.getByText('Know it: 2 · Still learning: 1')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Study the 1 still learning' }).click();
+  await expect(page.getByText('Round 2 · Card 1 of 1 · Know it: 0 · Still learning: 0')).toBeVisible();
+  await expect(page.getByText('Placeholder card 1, front.')).toBeVisible();
+  await page.getByRole('button', { name: 'Show answer' }).click();
+  await page.getByRole('button', { name: 'Know it' }).click();
   await expect(page.getByText("That's every card for now.")).toBeVisible();
+
   await page.getByRole('button', { name: 'Start over' }).click();
-  await expect(page.getByText('Card 1 · 3 left')).toBeVisible();
+  await expect(page.getByText('Card 1 of 3 · Know it: 0 · Still learning: 0')).toBeVisible();
+});
+
+test('starred cards are remembered in this browser and can be studied on their own', async ({ page }) => {
+  await page.goto('/learn/study-skills/cards');
+  const star = page.getByRole('button', { name: 'Star', exact: true });
+  const onlyStarred = page.getByRole('checkbox', { name: /Only starred cards/ });
+  await expect(star).toHaveAttribute('aria-pressed', 'false');
+  await expect(onlyStarred).toBeDisabled();
+
+  await page.getByRole('button', { name: 'Show answer' }).click();
+  await page.getByRole('button', { name: 'Know it' }).click();
+  await star.focus();
+  await page.keyboard.press('Space'); // star card 2
+  await expect(star).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('checkbox', { name: 'Only starred cards (1)' })).toBeEnabled();
+  expect(await page.evaluate(() => localStorage.getItem('cueory-stars-study-skills-01'))).toBe('["ss01-c02"]');
+
+  const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+  expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+
+  await page.reload();
+  await onlyStarred.check();
+  await expect(page.getByText('Card 1 of 1 · Know it: 0 · Still learning: 0')).toBeVisible();
+  await expect(page.getByText('Placeholder card 2, front.')).toBeVisible();
+  await expect(star).toHaveAttribute('aria-pressed', 'true');
+
+  // Removing the last star turns "Only starred cards" off; the next start uses every card again.
+  await star.click();
+  await expect(star).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByRole('checkbox', { name: 'Only starred cards (0)' })).not.toBeChecked();
+  expect(await page.evaluate(() => localStorage.getItem('cueory-stars-study-skills-01'))).toBeNull();
+  await page.getByRole('button', { name: 'Show answer' }).click();
+  await page.getByRole('button', { name: 'Know it' }).click();
+  await page.getByRole('button', { name: 'Start over' }).click();
+  await expect(page.getByText('Card 1 of 3 · Know it: 0 · Still learning: 0')).toBeVisible();
+});
+
+test('shuffle keeps every card in the round exactly once', async ({ page }) => {
+  await page.goto('/learn/study-skills/cards');
+  await page.getByRole('checkbox', { name: 'Shuffle' }).check();
+  const fronts: string[] = [];
+  for (let i = 0; i < 3; i++) {
+    fronts.push((await page.getByTestId('card-text').textContent()) ?? '');
+    await page.getByRole('button', { name: 'Show answer' }).click();
+    await page.getByRole('button', { name: 'Know it' }).click();
+  }
+  expect([...fronts].sort()).toEqual([
+    'Placeholder card 1, front.',
+    'Placeholder card 2, front.',
+    'Placeholder card 3, front.',
+  ]);
+  await expect(page.getByText("That's every card for now.")).toBeVisible();
 });
 
 test.describe('without JavaScript', () => {

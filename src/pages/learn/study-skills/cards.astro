@@ -18,7 +18,7 @@ const { title, cards, status } = deck.data;
 
     <div class="mt-10">
       {/* client:only: nothing is pre-rendered, so without JavaScript only the full list below shows. */}
-      <CardDeck client:only="react" cards={cards} />
+      <CardDeck client:only="react" deckId={deck.id} cards={cards} />
       <noscript>
         <dl class="space-y-stack">
           {

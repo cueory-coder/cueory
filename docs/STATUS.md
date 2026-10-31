@@ -21,15 +21,20 @@ Last updated: 2026-10-31
   security-fix pull requests are off, because they always target `main` and would skip staging.
 - Rules and docs: CLAUDE.md, AGENTS.md, SECURITY.md, README, ROADMAP (Tasks 2–7), DECISIONS, SETUP.
 - Repository branches: `main` (live) and `staging` (test), both starting from one empty commit.
+- Task 1 merged into `staging` ([#1](https://github.com/lilchristxan/Cueory/pull/1)) and released to `main`
+  ([#8](https://github.com/lilchristxan/Cueory/pull/8)). Hosting moved to Cloudflare Workers
+  ([#7](https://github.com/lilchristxan/Cueory/pull/7), D-38).
+- Roadmap additions ([#5](https://github.com/lilchristxan/Cueory/pull/5)): Christian's 2026-10-31 study features and
+  the YouTube video rule (D-32 to D-36).
+- Task 3 batch checker ([#2](https://github.com/lilchristxan/Cueory/pull/2)) and Task 4 Cards
+  ([#3](https://github.com/lilchristxan/Cueory/pull/3), `/learn/study-skills/cards`) merged into `staging`.
 
 ## In review
-- [Task 1 site foundation](https://github.com/lilchristxan/Cueory/pull/1) into `staging`. CI green; Codex found nothing
-  more after its two fixes. Waits for Christian's approval and merge, because it adds workflows and deployment
-  settings.
-- [Task 3 batch checker](https://github.com/lilchristxan/Cueory/pull/2), stacked on Task 1. CI green, Codex clean.
-- [Task 4 Cards](https://github.com/lilchristxan/Cueory/pull/3), stacked on Task 1. CI green, Codex clean.
-- **Roadmap additions**, stacked on Task 1: Christian's 2026-10-31 study features (flashcards, Learn mode, adaptive
-  quizzes and level tests, image occlusion, the "Flag or comment" button) and the YouTube video rule (D-32 to D-36).
+- [Task 4 flashcards: shuffle, star, Know it / Still learning](https://github.com/lilchristxan/Cueory/pull/6) into
+  `staging` (D-37). Stars are kept in the browser only.
+- Dependabot [#9](https://github.com/lilchristxan/Cueory/pull/9) (`@types/node` 26) and
+  [#10](https://github.com/lilchristxan/Cueory/pull/10) (TypeScript 7): hold. We run Node 24 (D-01), and Astro's type
+  checker accepts TypeScript only up to 6 (D-02).
 
 ## Blocked
 - **Task 2 (accounts and database)** waits for Christian to create the two Supabase projects, and its sign-in and
@@ -41,11 +46,11 @@ Last updated: 2026-10-31
 Follow [docs/SETUP.md](SETUP.md):
 - [ ] A. Two-factor login on Google, GitHub, Cloudflare
 - [x] B. Turn on Codex reviews
-- [ ] C. Connect the repository to Cloudflare Pages
-- [ ] D. Limit builds to `main` and `staging`
-- [ ] E. Lock the staging site
-- [ ] F. Approve Task 1 into `staging`, check the locked staging site
-- [ ] G. Approve `staging` into `main`
+- [x] C. Connect the repository to Cloudflare Workers
+- [ ] D. Check the branches
+- [ ] E. Check the lock
+- [x] F. Approve Task 1 into `staging`
+- [x] G. Put Task 1 live (`staging` into `main`)
 - [ ] H. Connect cueory.app, turn on Web Analytics
 - [ ] I. Create the Kit account and form; decide on the mailing address shown in emails
 - [ ] J. Decide whether hello@cueory.app should forward to your Gmail (needs email DNS records)
@@ -53,7 +58,9 @@ Follow [docs/SETUP.md](SETUP.md):
 - [ ] Confirm or change the Task 3 batch defaults (docs/BATCHES.md, D-26) before real batches use them: the CSV
   columns, which reviewers count (at least five files, names from the Task 2 roster), the pass rule (every reviewer matches
   the key and marks pass; unfinished reviews are pending, not failed), and the answer-balance warning (10 points off an even share, batches of 20+).
-- [ ] Decide whether question batches will include select-all-that-apply questions (the batch checker handles
-  single-answer questions only for now)
-- [ ] Decide how lesson videos start: today's plan (D-32) is that a click loads YouTube's player and the student presses
-  play there, so nothing ever plays by itself. The other choice is that one click loads and starts the video.
+- [x] Select-all-that-apply questions: yes, scored all-or-nothing for now, with each option's rationale shown
+  afterward ([answer on issue #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6545756502)). The batch
+  checker still handles single-answer questions only (D-30) until that change is built.
+- [ ] Confirm the video answer on [issue #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6545756502):
+  one tap on the cover loads YouTube's player and starts that video. It replaces the "no autoplay" wording in D-32,
+  so it needs Christian's own yes.

@@ -6,6 +6,8 @@
  * themeHeadScript repeats readChoice in <head> so a saved pick applies before the page paints.
  */
 
+import { browserStorage, type KeyValueStorage } from './storage';
+
 export type ThemeChoice = 'light' | 'dark' | 'device';
 
 export const THEME_STORAGE_KEY = 'cueory-theme';
@@ -18,20 +20,9 @@ export const themeHeadScript =
   `try{var t=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)});` +
   `if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}`;
 
-export interface ThemeStorage {
-  getItem(key: string): string | null;
-  setItem(key: string, value: string): void;
-  removeItem(key: string): void;
-}
-
-/** Browser storage can be missing or blocked (private windows, strict settings). Then picks just aren't remembered. */
-export function browserStorage(): ThemeStorage | undefined {
-  try {
-    return window.localStorage;
-  } catch {
-    return undefined;
-  }
-}
+/** If browser storage is missing or blocked, picks just aren't remembered (src/scripts/storage.ts). */
+export type ThemeStorage = KeyValueStorage;
+export { browserStorage };
 
 export function readChoice(storage: ThemeStorage | undefined): ThemeChoice {
   try {
