@@ -171,3 +171,13 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   (Christian's answer on issue #4, 2026-10-31). Reason: Christian's plan for Learn mode, "mixing cards, multiple
   choice, typed answers and fill-in until mastered", starting with card decks, whose answers students can already see
   (D-33).
+- **D-44** Matching for card decks (ROADMAP Task 4). A round lays out up to six cards as two lists, terms (fronts) and
+  meanings (backs), each in random order; the student picks one from each list in either order. A right pair is
+  marked "Matched" in words and with a tick and stays on screen (nothing disappears or moves by itself), and the
+  button just used keeps keyboard focus (`aria-disabled`, not `disabled`); a wrong pair counts as a miss and is
+  cleared. Picking a second item from the same list moves the pick, and picking the same item again lets go. No two
+  cards in a round read the same on either side: a card that repeats another's term or meaning waits for a later
+  round, so a pair is right only when both halves come from the same card and every round can be finished (Codex
+  review of PR #18). Bigger decks play six pairs a round in deck order. Every item is a button, so there is no
+  dragging, and there is no timer. Nothing is saved yet; without JavaScript the page points to the cards page.
+  Reason: the home page promises "Pair terms with what they mean", and the card decks already hold the pairs.
