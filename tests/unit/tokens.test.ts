@@ -148,3 +148,80 @@ describe('marketing background (D-41)', () => {
     expect(contrastRatio(colors.button!, background)).toBeGreaterThanOrEqual(3);
   });
 });
+
+/*
+  ☰ side panel, account menu and the glassy hero button (D-46). They are see-through glass, so text is checked on the
+  glass mixed over the worst page color behind it: the lightest point for light text, the darkest for dark text.
+*/
+describe('glass button and side panel (D-46)', () => {
+  const toHex = (rgb: number[]) => `#${rgb.map((c) => Math.round(c).toString(16).padStart(2, '0')).join('')}`;
+  const mix = (top: string, alpha: number, bottom: string) => {
+    const [t, b] = [parseHex(top), parseHex(bottom)];
+    return toHex(t.map((c, i) => alpha * c + (1 - alpha) * b[i]!));
+  };
+  const number = (chunk: string, name: string) => Number(new RegExp(`--${name}:\\s*([\\d.]+)`).exec(chunk)![1]);
+  const rgb = (chunk: string, name: string) =>
+    toHex(new RegExp(`--${name}:\\s*(\\d+) (\\d+) (\\d+)`).exec(chunk)!.slice(1).map(Number));
+  const glass = (chunk: string) => ({
+    fill: rgb(chunk, 'glass-rgb'),
+    alpha: number(chunk, 'glass-alpha'),
+    hover: rgb(chunk, 'glass-hover-rgb'),
+    hoverAlpha: number(chunk, 'glass-hover-alpha'),
+    rim: rgb(chunk, 'glass-rim-rgb'),
+    panel: rgb(chunk, 'panel-rgb'),
+    panelAlpha: number(chunk, 'panel-alpha'),
+  });
+  const day = glass(daytimeCss);
+  const eve = glass(eveningDeviceCss);
+
+  it('uses only brand colors, the same in both Evening copies', () => {
+    for (const hex of [day.fill, day.hover, day.rim, day.panel]) expect(brand.daytime).toContain(hex);
+    for (const hex of [eve.fill, eve.hover, eve.rim, eve.panel]) expect(brand.evening).toContain(hex);
+    expect(glass(eveningPickedCss)).toEqual(eve);
+  });
+
+  // Every page color the glass can sit on: plain pages, silk, frosted panels.
+  const dayBackgrounds = [daytime.page!, daytime['silk-base']!, daytime['silk-shade']!, daytime.surface!];
+  const eveBackgrounds = [evening.page!, evening['silk-base']!, evening['silk-sheen']!, evening.surface!];
+  const cases: Array<[string, Record<string, string>, ReturnType<typeof glass>, string[]]> = [
+    ['Daytime', daytime, day, dayBackgrounds],
+    ['Evening', evening, eve, eveBackgrounds],
+  ];
+
+  it.each(cases)('%s glass button text is readable (AA) on every background, also on hover', (_n, colors, g, bgs) => {
+    for (const bg of bgs) {
+      expect(contrastRatio(colors['on-button']!, mix(g.fill, g.alpha, bg))).toBeGreaterThanOrEqual(4.5);
+      expect(contrastRatio(colors['on-button']!, mix(g.hover, g.hoverAlpha, bg))).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it.each(cases)('%s side panel text, notes and focus outline are readable on every background', (_n, colors, g, bgs) => {
+    for (const bg of bgs) {
+      const panel = mix(g.panel, g.panelAlpha, bg);
+      expect(contrastRatio(colors['panel-ink']!, panel)).toBeGreaterThanOrEqual(4.5);
+      expect(contrastRatio(colors['panel-ink-soft']!, panel)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it('rows in the dark panels never lighten on hover, so their notes keep the contrast checked above', () => {
+    // Codex review of #24: a light hover layer dropped the Taupe "coming soon" note below AA.
+    const styles = readFileSync(new URL('../../src/styles/global.css', import.meta.url), 'utf8');
+    for (const selector of ['.account-link:hover', '.menu-link:hover', '.menu-small-link:hover']) {
+      const rule = new RegExp(`${selector.replace(/[.:]/g, '\\$&')}\\s*\\{([^}]*)\\}`).exec(styles);
+      expect(rule, `${selector} rule`).not.toBeNull();
+      expect(rule![1]).not.toMatch(/background/);
+    }
+  });
+
+  it('corner buttons keep their icon visible (3:1) on the frosted circle', () => {
+    for (const [colors, chunk, bgs] of [
+      [daytime, daytimeCss, dayBackgrounds],
+      [evening, eveningDeviceCss, eveBackgrounds],
+    ] as const) {
+      for (const bg of bgs) {
+        const circle = mix(rgb(chunk, 'veil-rgb'), number(chunk, 'veil-alpha'), bg);
+        expect(contrastRatio(colors.ink!, circle)).toBeGreaterThanOrEqual(3);
+      }
+    }
+  });
+});

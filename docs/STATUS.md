@@ -52,10 +52,22 @@ Last updated: 2026-10-31
   [select-all-that-apply in the batch checker](https://github.com/lilchristxan/Cueory/pull/19) (D-45), the first pull
   requests the pre-launch auto-merge took on its own.
 
+- [Rollback guide](https://github.com/lilchristxan/Cueory/pull/22) is in `staging` (merged by the auto-merge).
+
 ## In review
-- [Rollback guide](https://github.com/lilchristxan/Cueory/pull/22): the auto-merge takes it once it is clean.
+- Home hero, ☰ side panel and account corner, in the all-lowercase voice (D-46, D-47), with phone, tablet and
+  desktop browser tests (D-48). The auto-merge takes it once CI, the preview build and Codex are clean.
 - [Learn mode](https://github.com/lilchristxan/Cueory/pull/17) (D-43): it changes one placeholder card in `content/`,
   so pre-launch mode holds it for Christian's merge.
+- [Release #23](https://github.com/lilchristxan/Cueory/pull/23): Matching and select-all-that-apply, waiting for
+  Christian's merge.
+
+## Queued (Christian's change requests on issue #4, in his order)
+1. Search in the ☰ panel (Pagefind, a new package, so it waits for Christian's merge).
+2. "ways to study" carousel with illustrations, hover zoom, grow-into-preview and the preview panel.
+3. Silk scenes down the whole page, social links (Simple Icons), then the once-only promo panel.
+4. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
+5. Auto-release (`staging` into `main` in pre-launch mode), after the change requests.
 
 ## Blocked
 - **Task 2 (accounts and database)** waits for Christian to create the two Supabase projects, and its sign-in and
@@ -82,6 +94,9 @@ Follow [docs/SETUP.md](SETUP.md):
 - [ ] Auto-release (`staging` into `main` with no person in the loop): Christian's yes reached the repo through
   another Claude session on issue #4. The safety check of the session that builds it needs that yes from Christian
   himself, in the Claude chat that runs these updates, before it builds anything that changes the live site on its own.
+- [ ] An "about" page for the ☰ panel: the text is Christian's (D-46 leaves the link out until it exists).
+- [ ] Later decision: show a student's Google profile photo in the account corner instead of initials (it would load
+  images from Google; ROADMAP Task 2).
 - [ ] Confirm or change the Task 3 batch defaults (docs/BATCHES.md, D-26) before real batches use them: the CSV
   columns, which reviewers count (at least five files, names from the Task 2 roster), the pass rule (every reviewer matches
   the key and marks pass; unfinished reviews are pending, not failed), and the answer-balance warning (10 points off an even share, batches of 20+).

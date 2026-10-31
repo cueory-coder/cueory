@@ -11,10 +11,16 @@ export default defineConfig({
     baseURL: `http://localhost:${port}`,
     trace: 'retain-on-failure',
   },
+  // Phone 390 × 844, tablet 820 × 1180 and desktop 1440 × 900 in Chromium on every pull request (D-48). Safari's
+  // engine (WebKit) and Firefox join on Release pull requests once that CI change is approved.
   projects: [
-    { name: 'phone', use: { ...devices['Pixel 7'] } },
-    { name: 'phone-evening', use: { ...devices['Pixel 7'], colorScheme: 'dark' } },
-    { name: 'desktop', use: { ...devices['Desktop Chrome'] } },
+    { name: 'phone', use: { ...devices['Pixel 7'], viewport: { width: 390, height: 844 } } },
+    { name: 'phone-evening', use: { ...devices['Pixel 7'], viewport: { width: 390, height: 844 }, colorScheme: 'dark' } },
+    {
+      name: 'tablet',
+      use: { ...devices['Desktop Chrome'], viewport: { width: 820, height: 1180 }, hasTouch: true, isMobile: true },
+    },
+    { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } },
   ],
   webServer: {
     // Serves the already-built dist/ folder. Run `npm run build` first.

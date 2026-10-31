@@ -8,11 +8,11 @@ const year = new Date().getFullYear();
 <footer class="mt-section border-t border-line">
   <div class="mx-auto flex w-full max-w-page flex-col gap-4 px-gutter py-8 text-sm text-ink-soft sm:flex-row sm:items-center sm:justify-between">
     <div class="flex flex-col gap-1">
-      <p>© {year} {site.name}. Study help, not medical advice.</p>
+      <p>© {year} {site.wordmarkName}. study help, not medical advice.</p>
       {site.contactEmail && <p><a href={`mailto:${site.contactEmail}`} class="text-ink-soft hover:text-ink">{site.contactEmail}</a></p>}
       <ThemePicker />
     </div>
-    <nav aria-label="Footer">
+    <nav aria-label="footer">
       <ul class="flex flex-wrap gap-x-5 gap-y-2">
         {
           footerLinks.map((link) => (

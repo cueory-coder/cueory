@@ -2,14 +2,14 @@
 // Light / Dark / Follow device switch (brand spec section 9). Hidden until its script runs, so visitors without
 // JavaScript simply follow their device setting.
 const options = [
-  { value: 'light', label: 'Light' },
-  { value: 'dark', label: 'Dark' },
-  { value: 'device', label: 'Follow device' },
+  { value: 'light', label: 'light' },
+  { value: 'dark', label: 'dark' },
+  { value: 'device', label: 'follow device' },
 ];
 ---
 
 <fieldset data-theme-picker hidden>
-  <legend class="mb-1">Theme</legend>
+  <legend class="mb-1">theme</legend>
   <div class="flex flex-wrap gap-x-5">
     {
       options.map((option) => (

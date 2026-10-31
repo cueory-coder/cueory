@@ -42,6 +42,10 @@
   --color-silk-shade: #eadccf;  /* Linen    — the shaded side of a fold (fold shadows: --silk-fold-rgb below) */
   --color-emboss: #eadccf;      /* Linen    — the faint tone-on-tone logo behind the hero */
 
+  /* ---------- ☰ side panel and account menu (D-46): dark glass on every page ---------- */
+  --color-panel-ink: #f9f5ef;   /* Ivory    — text on the Espresso glass panel */
+  --color-panel-ink-soft: #d3b7a1; /* Taupe — notes and small links on the panel */
+
   /* ---------- Fonts ---------- */
   --font-body: "Inter Variable", system-ui, -apple-system, "Segoe UI", sans-serif; /* headings, body, UI, buttons */
   /* Marketing headings and the italic accent line only (brand spec section 4; D-41). Self-hosted in public/fonts. */
@@ -68,6 +72,13 @@
   --text-display--line-height: 1.12;
   --text-display-lg: 4.5rem;    /* marketing hero headline on wider screens (72px, the spec's largest) */
   --text-display-lg--line-height: 1.12;
+  /*
+    The home headline on one line at every width (D-46): its size follows the hero box (container query width).
+    In Bodoni Moda the headline is 13.3 times as wide as its font size; 14 leaves room for the fallback serifs.
+    It never grows past the spec's largest size (72px).
+  */
+  --text-display-fit: clamp(1rem, 100cqi / 14, 4.5rem);
+  --text-display-fit--line-height: 1.12;
   --text-title: 2.375rem;       /* marketing page title (38px) */
   --text-title--line-height: 1.12;
   --text-title-lg: 3rem;        /* marketing page title on wider screens (48px) */
@@ -80,6 +91,7 @@
   /* ---------- Letter spacing ---------- */
   --tracking-label: 0.02em;     /* small label above the home headline */
   --tracking-display: -0.025em; /* serif display headings (brand spec) */
+  --tracking-menu: 0.04em;      /* ☰ side panel links: medium Inter, slightly wide */
 
   /* ---------- Spacing ---------- */
   --spacing: 0.25rem;           /* base unit: p-4 = 4 × 0.25rem = 1rem */
@@ -92,6 +104,8 @@
   --container-page: 64rem;      /* widest content width */
   --container-headline: 18ch;   /* home headline wraps at about 18 letters */
   --container-hero: 46rem;      /* the centered hero column */
+  --container-menu: min(85vw, 22.5rem); /* the ☰ side panel: most of a phone, 360px on bigger screens */
+  --container-account-menu: 15rem; /* the small account menu */
 
   /* ---------- Logo (brand guide: min 96px wide, clear space 0.25 × letter height) ---------- */
   --logo-width: 7.5rem;         /* 120px in the header */
@@ -124,6 +138,17 @@
   --veil-rgb: 249 245 239;      /* Ivory */
   --veil-alpha: 0.74;
   --silk-grain: url("/textures/grain-day.svg");
+  /* Glassy hero button (D-46): Espresso glass, Bronze on hover, an Ivory rim. Opaque enough for AA text. */
+  --glass-rgb: 63 46 36;        /* Espresso */
+  --glass-alpha: 0.8;
+  --glass-hover-rgb: 107 82 67; /* Bronze */
+  --glass-hover-alpha: 0.92;
+  --glass-rim-rgb: 249 245 239; /* Ivory */
+  --glass-rim-alpha: 0.4;
+  /* ☰ side panel and account menu: Espresso glass, darker and more opaque than the page; the page behind dims. */
+  --panel-rgb: 63 46 36;        /* Espresso */
+  --panel-alpha: 0.92;
+  --scrim-alpha: 0.35;          /* the dimmed page behind the open side panel (Espresso shadow tint) */
 }
 
 /*
@@ -152,12 +177,23 @@
     --color-silk-sheen: #3a2d24;  /* Walnut */
     --color-silk-shade: #1b1715;  /* Charcoal */
     --color-emboss: #3a2d24;      /* Walnut */
+    --color-panel-ink: #efe6da;   /* Evening Ivory */
+    --color-panel-ink-soft: #cbb8a4; /* Sand */
     --shadow-tint: 27 23 21;      /* Charcoal */
     --silk-fold-rgb: 58 45 36;    /* Walnut */
     --silk-fold-alpha: 0.7;
     --veil-rgb: 58 45 36;         /* Walnut */
     --veil-alpha: 0.78;
     --silk-grain: url("/textures/grain-evening.svg");
+    --glass-rgb: 203 184 164;     /* Sand */
+    --glass-alpha: 0.82;
+    --glass-hover-rgb: 239 230 218; /* Evening Ivory */
+    --glass-hover-alpha: 0.9;
+    --glass-rim-rgb: 239 230 218; /* Evening Ivory */
+    --glass-rim-alpha: 0.35;
+    --panel-rgb: 27 23 21;        /* Charcoal */
+    --panel-alpha: 0.9;
+    --scrim-alpha: 0.55;
   }
 }
 
@@ -180,10 +216,21 @@
   --color-silk-sheen: #3a2d24;  /* Walnut */
   --color-silk-shade: #1b1715;  /* Charcoal */
   --color-emboss: #3a2d24;      /* Walnut */
+  --color-panel-ink: #efe6da;   /* Evening Ivory */
+  --color-panel-ink-soft: #cbb8a4; /* Sand */
   --shadow-tint: 27 23 21;      /* Charcoal */
   --silk-fold-rgb: 58 45 36;    /* Walnut */
   --silk-fold-alpha: 0.7;
   --veil-rgb: 58 45 36;         /* Walnut */
   --veil-alpha: 0.78;
   --silk-grain: url("/textures/grain-evening.svg");
+  --glass-rgb: 203 184 164;     /* Sand */
+  --glass-alpha: 0.82;
+  --glass-hover-rgb: 239 230 218; /* Evening Ivory */
+  --glass-hover-alpha: 0.9;
+  --glass-rim-rgb: 239 230 218; /* Evening Ivory */
+  --glass-rim-alpha: 0.35;
+  --panel-rgb: 27 23 21;        /* Charcoal */
+  --panel-alpha: 0.9;
+  --scrim-alpha: 0.55;
 }

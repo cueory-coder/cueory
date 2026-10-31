@@ -1,0 +1,93 @@
+---
+/**
+ * The account corner (top-right on every page, D-46). Signed out: a person icon that opens a small menu with
+ * "create free account" and "sign in". Until accounts exist (ROADMAP Task 2) both say "coming soon" and go to the
+ * launch-updates signup. Task 2 swaps the icon for a round avatar with the student's initials and a menu with their
+ * name, school, "see profile", "account settings" and "sign out".
+ *
+ * The menu opens and closes with the button, Escape, or a tap anywhere else; Escape returns focus to the button.
+ * Without JavaScript the button stays hidden (its space is kept, so nothing moves).
+ */
+import { accountHref } from '../config/site';
+
+interface Props {
+  /** Study screens: the same button, without the frosted circle. */
+  quiet?: boolean;
+}
+
+const { quiet = false } = Astro.props;
+const items = [
+  { label: 'create free account', href: accountHref },
+  { label: 'sign in', href: accountHref },
+];
+---
+
+<div class="relative" data-account>
+  <button
+    type="button"
+    class:list={['corner-button invisible', quiet && 'corner-button-quiet']}
+    aria-label="account"
+    aria-expanded="false"
+    aria-controls="account-menu"
+    data-account-toggle
+  >
+    <svg viewBox="0 0 24 24" class="size-6" aria-hidden="true" focusable="false">
+      <circle cx="12" cy="8.5" r="3.75" fill="none" stroke="currentColor" stroke-width="1.6"></circle>
+      <path d="M4.75 19.5c1.2-3.6 4-5.25 7.25-5.25s6.05 1.65 7.25 5.25" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
+    </svg>
+  </button>
+
+  <div id="account-menu" class="account-menu" hidden data-testid="account-menu">
+    <ul class="flex flex-col">
+      {
+        items.map((item) => (
+          <li>
+            <a href={item.href} class="account-link">
+              {item.label}
+              <span class="menu-note">coming soon</span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</div>
+
+<script>
+  import { isCloseKey } from '../scripts/menu';
+
+  const corner = document.querySelector<HTMLElement>('[data-account]');
+  const toggle = corner?.querySelector<HTMLButtonElement>('[data-account-toggle]');
+  const menu = corner?.querySelector<HTMLElement>('#account-menu');
+
+  if (corner && toggle && menu) {
+    const setOpen = (open: boolean) => {
+      menu.hidden = !open;
+      toggle.setAttribute('aria-expanded', String(open));
+    };
+
+    toggle.addEventListener('click', () => setOpen(menu.hidden !== false));
+
+    // On the whole page, because some browsers (Safari) don't focus a button when it is clicked.
+    document.addEventListener('keydown', (event) => {
+      if (isCloseKey(event.key) && !menu.hidden) {
+        event.preventDefault();
+        setOpen(false);
+        toggle.focus();
+      }
+    });
+
+    // A tap or click anywhere else, or focus moving away, closes it.
+    document.addEventListener('click', (event) => {
+      if (!menu.hidden && !corner.contains(event.target as Node)) setOpen(false);
+    });
+    corner.addEventListener('focusout', (event) => {
+      const next = event.relatedTarget as Node | null;
+      if (!menu.hidden && next && !corner.contains(next)) setOpen(false);
+    });
+
+    for (const link of menu.querySelectorAll('a')) link.addEventListener('click', () => setOpen(false));
+
+    toggle.classList.remove('invisible');
+  }
+</script>

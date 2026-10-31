@@ -1,0 +1,134 @@
+---
+/**
+ * The ☰ button (top-left on every page) and its side panel (D-46). The panel is a native modal <dialog>: it slides in
+ * from the left, dims the page, keeps keyboard focus inside, and closes with its close button, Escape or a tap on the
+ * dimmed page; focus then returns to ☰. With reduced motion it simply appears. Without JavaScript the button stays
+ * hidden (its space is kept, so nothing moves) and the footer links still work.
+ */
+import { menuLinks, menuSmallLinks } from '../config/site';
+import { currentHref } from '../scripts/menu';
+
+interface Props {
+  /** Study screens: the same button, without the frosted circle. */
+  quiet?: boolean;
+}
+
+const { quiet = false } = Astro.props;
+const current = currentHref(
+  Astro.url.pathname,
+  menuLinks.map((link) => link.href),
+);
+---
+
+<button
+  type="button"
+  class:list={['corner-button invisible', quiet && 'corner-button-quiet']}
+  aria-label="menu"
+  aria-expanded="false"
+  aria-controls="site-menu"
+  data-menu-open
+>
+  <svg viewBox="0 0 24 24" class="size-6" aria-hidden="true" focusable="false">
+    <path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
+  </svg>
+</button>
+
+<dialog id="site-menu" class="menu-panel" aria-label="menu" data-testid="site-menu">
+  <div class="menu-panel-inner">
+    <div class="flex justify-end">
+      <button type="button" class="corner-button corner-button-panel" aria-label="close menu" data-menu-close>
+        <svg viewBox="0 0 24 24" class="size-6" aria-hidden="true" focusable="false">
+          <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
+        </svg>
+      </button>
+    </div>
+
+    <nav aria-label="site" class="my-auto py-section">
+      <ul class="flex flex-col gap-7">
+        {
+          menuLinks.map((link) => (
+            <li>
+              <a
+                href={link.href}
+                class="menu-link"
+                aria-current={link.href === current ? 'page' : undefined}
+              >
+                {link.label}
+                {'note' in link && <span class="menu-note">{link.note}</span>}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+
+    <ul class="flex gap-6 text-sm">
+      {
+        menuSmallLinks.map((link) => (
+          <li>
+            <a href={link.href} class="menu-small-link">
+              {link.label}
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</dialog>
+
+<script>
+  import { isCloseKey, wrapFocus } from '../scripts/menu';
+
+  const dialog = document.querySelector<HTMLDialogElement>('#site-menu');
+  const openButton = document.querySelector<HTMLButtonElement>('[data-menu-open]');
+
+  if (dialog && openButton && typeof dialog.showModal === 'function') {
+    let returnFocus = true;
+
+    openButton.addEventListener('click', () => {
+      returnFocus = true;
+      dialog.showModal();
+      openButton.setAttribute('aria-expanded', 'true');
+    });
+
+    dialog.addEventListener('close', () => {
+      openButton.setAttribute('aria-expanded', 'false');
+      // After a link to a spot on this page, focus follows the link instead of jumping back to the top.
+      if (returnFocus) openButton.focus({ preventScroll: true });
+    });
+
+    dialog.addEventListener('keydown', (event) => {
+      // Escape: browsers close a modal dialog themselves; this also covers older ones that only fire keydown.
+      if (isCloseKey(event.key) && dialog.open) {
+        event.preventDefault();
+        dialog.close();
+        return;
+      }
+      // Tab stays inside the panel instead of leaving for the browser's own buttons.
+      if (event.key === 'Tab') {
+        const items = [...dialog.querySelectorAll<HTMLElement>('a[href], button')];
+        const target = wrapFocus(items.indexOf(document.activeElement as HTMLElement), items.length, event.shiftKey);
+        if (target !== undefined) {
+          event.preventDefault();
+          items[target]?.focus();
+        }
+      }
+    });
+
+    // The panel's inner box fills the whole dialog, so a click on the dialog itself is a click on the dimmed page.
+    dialog.addEventListener('click', (event) => {
+      if (event.target === dialog) dialog.close();
+    });
+
+    dialog.querySelector('[data-menu-close]')?.addEventListener('click', () => dialog.close());
+
+    for (const link of dialog.querySelectorAll('a')) {
+      link.addEventListener('click', () => {
+        returnFocus = false;
+        dialog.close();
+      });
+    }
+
+    openButton.classList.remove('invisible');
+  }
+</script>
