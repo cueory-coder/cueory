@@ -1,7 +1,8 @@
 /**
- * Staging auto-merge (D-39): merges a pull request into `staging` once every required check passed, the Workers
- * preview built, Codex's latest review of the head commit is clean, and nothing sensitive changed. Sensitive pull
- * requests get the "needs-christian" label instead. It never merges into `main`. Rules: scripts/automerge/decide.ts.
+ * Staging auto-merge (D-39, D-42): merges a pull request into `staging` once every required check passed, the Workers
+ * preview built, Codex's latest review of the head commit is clean, and nothing held changed. Held pull requests get
+ * the "needs-christian" label instead. It never merges into `main`. Rules: scripts/automerge/decide.ts. Which paths
+ * are held depends on automation.json ("prelaunch": true until Christian says the site is live).
  *
  * Run by .github/workflows/staging-automerge.yml. By hand:
  *   GITHUB_TOKEN=… GITHUB_REPOSITORY=owner/name node scripts/staging_automerge.ts [--pr <number>] [--dry-run]
@@ -9,9 +10,21 @@
  *
  * Exit code: 0 done (merged, labelled or nothing to do), 1 a GitHub call failed, 2 bad arguments or settings.
  */
+import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
-import { BASE_BRANCH, decide, NEEDS_CHRISTIAN_LABEL, type Decision } from './automerge/decide.ts';
+import {
+  BASE_BRANCH,
+  decide,
+  dependencyPaths,
+  NEEDS_CHRISTIAN_LABEL,
+  parseAutomation,
+  type ChangedFile,
+  type Decision,
+  type DependencyFile,
+  type Mode,
+  type PullRequest,
+} from './automerge/decide.ts';
 import { createGitHub, GitHubError, TruncatedError, type GitHub } from './automerge/github.ts';
 
 export type Done = 'merged' | 'labelled' | 'nothing' | 'would merge' | 'would label' | 'merge refused';
@@ -25,16 +38,19 @@ export interface Outcome {
 export async function runAutomerge({
   gh,
   repo,
+  mode,
   pr,
   dryRun,
   log = console.log,
 }: {
   gh: GitHub;
   repo: string;
+  mode: Mode;
   pr?: number;
   dryRun: boolean;
   log?: (line: string) => void;
 }): Promise<Outcome[]> {
+  log(`Rules: ${mode === 'prelaunch' ? 'pre-launch' : 'launched'} (automation.json)`);
   const numbers = pr === undefined ? (await gh.openPulls(BASE_BRANCH)).map((p) => p.number) : [pr];
   const outcomes: Outcome[] = [];
 
@@ -46,7 +62,8 @@ export async function runAutomerge({
       const [files, checks, comments] = relevant
         ? await Promise.all([gh.files(n), gh.checks(pull.head.sha), gh.comments(n)])
         : [[], [], []];
-      decision = decide({ repo, pr: pull, files, checks, comments });
+      const dependencies = relevant ? await readDependencies(gh, pull, files) : [];
+      decision = decide({ repo, mode, pr: pull, files, dependencies, checks, comments });
     } catch (e) {
       // Fail closed: a list too long to read in full is never judged from part of it.
       if (!(e instanceof TruncatedError)) throw e;
@@ -63,6 +80,10 @@ export async function runAutomerge({
         if (now.state !== 'open' || now.base.ref !== BASE_BRANCH || now.head.sha !== pull.head.sha) {
           done = 'merge refused';
           decision.reasons.push(`changed while it was being checked (now ${now.state}, into ${now.base.ref})`);
+        } else if (now.labels.some((l) => l.name === NEEDS_CHRISTIAN_LABEL)) {
+          // Someone stopped the bot while it was checking.
+          done = 'merge refused';
+          decision.reasons.push(`labelled ${NEEDS_CHRISTIAN_LABEL} while it was being checked`);
         } else {
           try {
             await gh.merge(n, pull.head.sha);
@@ -80,7 +101,7 @@ export async function runAutomerge({
       if (dryRun) done = 'would label';
       else {
         if (!(await gh.hasLabel(NEEDS_CHRISTIAN_LABEL))) {
-          await gh.createLabel(NEEDS_CHRISTIAN_LABEL, 'Changes a sensitive area: Christian approves and merges it');
+          await gh.createLabel(NEEDS_CHRISTIAN_LABEL, 'Waits for Christian: he approves and merges it');
         }
         await gh.addLabel(n, NEEDS_CHRISTIAN_LABEL);
         done = 'labelled';
@@ -92,6 +113,19 @@ export async function runAutomerge({
   }
   if (numbers.length === 0) log(`No open pull requests into ${BASE_BRANCH}.`);
   return outcomes;
+}
+
+/**
+ * Every package.json the pull request touches, as it is now on the base branch and in the pull request's head
+ * commit, so decide() can compare the dependency lists themselves.
+ */
+async function readDependencies(gh: GitHub, pull: PullRequest, files: readonly ChangedFile[]): Promise<DependencyFile[]> {
+  return Promise.all(
+    dependencyPaths(files).map(async (path) => {
+      const [before, after] = await Promise.all([gh.fileAt(path, pull.base.ref), gh.fileAt(path, pull.head.sha)]);
+      return { path, before, after };
+    }),
+  );
 }
 
 async function main(): Promise<number> {
@@ -113,8 +147,17 @@ async function main(): Promise<number> {
     console.error('--pr must be a pull request number.');
     return 2;
   }
+  // The default branch's copy, checked out next to this script. Missing or unreadable means the stricter rules.
+  let text: string | undefined;
   try {
-    await runAutomerge({ gh: createGitHub({ token, repo }), repo, pr, dryRun: values['dry-run'] ?? false });
+    text = readFileSync(new URL('../automation.json', import.meta.url), 'utf8');
+  } catch {
+    text = undefined;
+  }
+  const { mode, note } = parseAutomation(text);
+  if (note) console.log(note);
+  try {
+    await runAutomerge({ gh: createGitHub({ token, repo }), repo, mode, pr, dryRun: values['dry-run'] ?? false });
     return 0;
   } catch (e) {
     console.error((e as Error).message);

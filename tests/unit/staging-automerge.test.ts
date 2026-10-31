@@ -6,11 +6,16 @@ import {
   codexProblems,
   codexState,
   decide,
-  isSensitivePath,
+  dependencyHolds,
+  dependencyPaths,
+  heldPaths,
+  isHeldPath,
+  majorOf,
+  parseAutomation,
   REQUIRED_CHECKS,
-  sensitivePaths,
   type CheckRun,
   type IssueComment,
+  type Mode,
   type PullRequest,
 } from '../../scripts/automerge/decide.ts';
 import { createGitHub, type Fetch } from '../../scripts/automerge/github.ts';
@@ -24,6 +29,8 @@ function pull(over: Partial<PullRequest> = {}): PullRequest {
     number: 7,
     state: 'open',
     draft: false,
+    title: 'Cards: a thing',
+    user: { login: 'lilchristxan' },
     mergeable: true,
     base: { ref: 'staging' },
     head: { sha: HEAD, ref: 'task-4/thing', repo: { full_name: REPO } },
@@ -57,47 +64,162 @@ const clean = (sha = HEAD) => ({
 
 const input = (over: Partial<Parameters<typeof decide>[0]> = {}) => ({
   repo: REPO,
+  mode: 'launched' as Mode,
   pr: pull(),
   files: [{ filename: 'src/islands/cards.ts' }, { filename: 'docs/STATUS.md' }],
+  dependencies: [],
   checks: greenChecks(),
   comments: [codexComment(clean())],
   ...over,
 });
 
-describe('sensitive paths', () => {
-  it.each([
+describe('automation.json', () => {
+  it('turns on the pre-launch rules only for a clear "prelaunch": true', () => {
+    expect(parseAutomation('{"prelaunch": true}')).toEqual({ mode: 'prelaunch' });
+    expect(parseAutomation('{"prelaunch": false}')).toEqual({ mode: 'launched' });
+  });
+
+  it('falls back to the stricter launched rules, saying why, when the file is missing or unclear', () => {
+    for (const text of [undefined, '{prelaunch: true}', '{"prelaunch": "yes"}', '{}', 'true', 'null', '[]']) {
+      const result = parseAutomation(text);
+      expect(result.mode).toBe('launched');
+      expect(result.note).toMatch(/launched rules apply/);
+    }
+  });
+
+  it('is in pre-launch mode in this repository until Christian says the site is live (D-42)', () => {
+    const text = readFileSync(new URL('../../automation.json', import.meta.url), 'utf8');
+    expect(JSON.parse(text)).toEqual({ prelaunch: true });
+  });
+});
+
+describe('held paths', () => {
+  const always = [
     '.github/workflows/ci.yml',
-    'supabase/migrations/001.sql',
-    'public/_headers',
-    'astro.config.mjs',
-    'wrangler.jsonc',
-    'SECURITY.md',
+    '.github/dependabot.yml',
+    'automation.json',
+    'scripts/automerge/decide.ts',
+    'scripts/staging_automerge.ts',
     'CLAUDE.md',
     'AGENTS.md',
+    'SECURITY.md',
+    'content/cards/study-skills-01.json',
+    'content/README.md',
+    'supabase/migrations/001.sql',
+    'wrangler.jsonc',
+  ];
+  const launchedOnly = [
+    'public/_headers',
+    'astro.config.mjs',
     'brand-source/cueory-geometry-master-v1.0.json',
     'public/brand/cueory-square-dark.svg',
     'package.json',
     'package-lock.json',
-    'scripts/automerge/decide.ts',
-    'scripts/staging_automerge.ts',
     '.node-version',
     'src/config/site.ts',
     'tools/extra/package.json',
-  ])('%s needs Christian', (path) => {
-    expect(isSensitivePath(path)).toBe(true);
+  ];
+  const never = ['src/islands/cards.ts', 'docs/STATUS.md', 'tests/unit/x.test.ts', 'public/favicon.svg', 'scripts/check_batch.ts'];
+
+  it.each(always)('%s waits for Christian in both modes', (path) => {
+    expect(isHeldPath(path, 'prelaunch')).toBe(true);
+    expect(isHeldPath(path, 'launched')).toBe(true);
   });
 
-  it.each(['src/islands/cards.ts', 'docs/STATUS.md', 'content/cards/study-skills-01.json', 'tests/unit/x.test.ts', 'public/favicon.svg'])(
-    '%s does not',
-    (path) => {
-      expect(isSensitivePath(path)).toBe(false);
-    },
-  );
+  it.each(launchedOnly)('%s waits for Christian only once the site is live', (path) => {
+    expect(isHeldPath(path, 'prelaunch')).toBe(false);
+    expect(isHeldPath(path, 'launched')).toBe(true);
+  });
+
+  it.each(never)('%s never does', (path) => {
+    expect(isHeldPath(path, 'prelaunch')).toBe(false);
+    expect(isHeldPath(path, 'launched')).toBe(false);
+  });
 
   it('counts both sides of a rename', () => {
-    expect(sensitivePaths([{ filename: 'docs/old-headers.txt', previous_filename: 'public/_headers' }])).toEqual([
-      'public/_headers',
+    const renamed = [{ filename: 'docs/old-headers.txt', previous_filename: 'public/_headers' }];
+    expect(heldPaths(renamed, 'launched')).toEqual(['public/_headers']);
+    expect(heldPaths(renamed, 'prelaunch')).toEqual([]);
+    expect(heldPaths([{ filename: 'docs/x.json', previous_filename: 'content/x.json' }], 'prelaunch')).toEqual(['content/x.json']);
+  });
+});
+
+describe('dependency changes', () => {
+  const pkg = (deps: Record<string, string>, dev: Record<string, string> = {}) =>
+    JSON.stringify({ name: 'cueory', dependencies: deps, devDependencies: dev });
+  const change = (before: string | null | undefined, after: string | null | undefined) => [
+    { path: 'package.json', before, after },
+  ];
+
+  it('reads the breaking part of a version', () => {
+    expect(majorOf('^7.4.4')).toBe('7');
+    expect(majorOf('4.156.0')).toBe('4');
+    expect(majorOf('~26.6.5')).toBe('26');
+    expect(majorOf('^0.9.12')).toBe('0.9');
+    expect(majorOf('^1.2.3-beta.1')).toBe('1');
+  });
+
+  it("can't size a range that might allow another major version", () => {
+    for (const spec of ['latest', '>=6.0.3', '^6.0.3 || ^7.0.2', '6.x', '*', '^6', '6.0.3 - 7.0.0', 'npm:typescript@^7.0.2', 'github:x/y']) {
+      expect(majorOf(spec)).toBeNull();
+    }
+  });
+
+  it('lets minor and patch updates through', () => {
+    expect(dependencyHolds(change(pkg({ astro: '^7.4.4' }), pkg({ astro: '^7.5.0' })))).toEqual([]);
+    expect(dependencyHolds(change(pkg({}, { vitest: '^5.0.5' }), pkg({}, { vitest: '^5.0.6' })))).toEqual([]);
+    expect(dependencyHolds(change(pkg({ astro: '^7.4.4', react: '^19.3.1' }), pkg({ astro: '^7.4.4' })))).toEqual([]);
+  });
+
+  it('holds major updates, whatever the pull request is called', () => {
+    expect(dependencyHolds(change(pkg({}, { typescript: '^6.0.3' }), pkg({}, { typescript: '^7.0.2' })))).toEqual([
+      'typescript ^6.0.3 to ^7.0.2',
     ]);
+    expect(dependencyHolds(change(pkg({}, { '@types/node': '^24.19.2' }), pkg({}, { '@types/node': '^26.6.5' })))).toEqual([
+      '@types/node ^24.19.2 to ^26.6.5',
+    ]);
+    expect(dependencyHolds(change(pkg({}, { x: '^0.9.12' }), pkg({}, { x: '^0.10.0' })))).toEqual(['x ^0.9.12 to ^0.10.0']);
+    expect(dependencyHolds(change(pkg({ x: '^1.0.0' }), pkg({ x: 'latest' })))).toEqual(['x ^1.0.0 to latest']);
+  });
+
+  it('holds a range that could let in another major version', () => {
+    const before = pkg({}, { typescript: '^6.0.3' });
+    for (const spec of ['^6.0.3 || ^7.0.2', '>=6.0.3', '6.x']) {
+      expect(dependencyHolds(change(before, pkg({}, { typescript: spec })))).toEqual([`typescript ^6.0.3 to ${spec}`]);
+    }
+    expect(dependencyHolds(change(pkg({ wrangler: '4.156.0' }), pkg({ wrangler: '4.157.0' })))).toEqual([]);
+  });
+
+  it('holds any change to overrides', () => {
+    const before = JSON.stringify({ devDependencies: { typescript: '^6.0.3' } });
+    const after = JSON.stringify({ devDependencies: { typescript: '^6.0.3' }, overrides: { typescript: '7.0.2' } });
+    expect(dependencyHolds(change(before, after))).toEqual(['changes the overrides in package.json']);
+    expect(dependencyHolds(change(after, after))).toEqual([]);
+  });
+
+  it('holds new dependencies, including a new package.json', () => {
+    expect(dependencyHolds(change(pkg({ astro: '^7.4.4' }), pkg({ astro: '^7.4.4', 'some-sdk': '^1.0.0' })))).toEqual([
+      'adds some-sdk',
+    ]);
+    expect(dependencyHolds([{ path: 'tools/package.json', before: null, after: pkg({ left: '^1.0.0' }) }])).toEqual([
+      'adds left',
+    ]);
+    expect(dependencyHolds([{ path: 'tools/package.json', before: pkg({ left: '^1.0.0' }), after: null }])).toEqual([]);
+  });
+
+  it("holds a package.json it can't read", () => {
+    expect(dependencyHolds(change(undefined, pkg({})))).toEqual(["couldn't read package.json"]);
+    expect(dependencyHolds(change(pkg({}), '{not json'))).toEqual(["couldn't read the dependencies in package.json"]);
+  });
+
+  it('finds every package.json a pull request touches', () => {
+    const files = [
+      { filename: 'package.json' },
+      { filename: 'package-lock.json' },
+      { filename: 'tools/new/package.json', previous_filename: 'tools/old/package.json' },
+      { filename: 'docs/package.json.md' },
+    ];
+    expect(dependencyPaths(files)).toEqual(['package.json', 'tools/new/package.json', 'tools/old/package.json']);
   });
 });
 
@@ -180,14 +302,53 @@ describe('decide', () => {
     expect(decide(input({ pr: pull({ head: { sha: HEAD, ref: 'x', repo: null } }) })).action).toBe('skip');
   });
 
-  it('labels a sensitive pull request for Christian even when everything else is clean', () => {
+  it('labels a held pull request for Christian even when everything else is clean', () => {
     const decision = decide(input({ files: [{ filename: 'src/x.ts' }, { filename: '.github/workflows/ci.yml' }] }));
     expect(decision).toEqual({ action: 'label', reasons: ['needs Christian: changes .github/workflows/ci.yml'] });
   });
 
+  it('before launch, merges settings, brand and dependency changes that wait once the site is live', () => {
+    const files = [{ filename: 'astro.config.mjs' }, { filename: 'package.json' }, { filename: 'public/_headers' }];
+    expect(decide(input({ files, mode: 'prelaunch' })).action).toBe('merge');
+    expect(decide(input({ files, mode: 'launched' }))).toEqual({
+      action: 'label',
+      reasons: ['needs Christian: changes astro.config.mjs, package.json, public/_headers'],
+    });
+  });
+
+  it("before launch, still holds workflows, the automation and the agents' rules, content, the database and deployment", () => {
+    const always = ['.github/workflows/ci.yml', 'automation.json', 'scripts/automerge/decide.ts', 'CLAUDE.md', 'AGENTS.md', 'SECURITY.md', 'content/lessons/x.json', 'supabase/x.sql', 'wrangler.jsonc'];
+    for (const filename of always) {
+      expect(decide(input({ files: [{ filename }], mode: 'prelaunch' })).action).toBe('label');
+    }
+  });
+
+  it('holds anything labelled needs-christian, so a person can stop the bot', () => {
+    const decision = decide(input({ pr: pull({ labels: [{ name: 'needs-christian' }] }), mode: 'prelaunch' }));
+    expect(decision).toEqual({ action: 'label', reasons: ['needs Christian: labelled needs-christian'] });
+  });
+
+  it('before launch, holds a major update or a new dependency and merges a minor update', () => {
+    const files = [{ filename: 'package.json' }, { filename: 'package-lock.json' }];
+    const before = JSON.stringify({ devDependencies: { typescript: '^6.0.3', astro: '^7.4.4' } });
+    const major = [{ path: 'package.json', before, after: before.replace('^6.0.3', '^7.0.2') }];
+    const minor = [{ path: 'package.json', before, after: before.replace('^7.4.4', '^7.5.0') }];
+    // A misleading title changes nothing: the files are what count.
+    const pr = pull({ title: 'Bump the minor-and-patch group with 1 update', user: { login: 'dependabot[bot]' } });
+    expect(decide(input({ pr, files, dependencies: major, mode: 'prelaunch' }))).toEqual({
+      action: 'label',
+      reasons: ['needs Christian: dependency changes (typescript ^6.0.3 to ^7.0.2)'],
+    });
+    expect(decide(input({ pr, files, dependencies: minor, mode: 'prelaunch' })).action).toBe('merge');
+    expect(decide(input({ pr, files, dependencies: minor, mode: 'launched' })).action).toBe('label');
+  });
+
   it('labels a pull request too big for GitHub to list in full', () => {
-    const files = Array.from({ length: 3000 }, (_, i) => ({ filename: `content/f${i}.json` }));
-    expect(decide(input({ files })).action).toBe('label');
+    const files = Array.from({ length: 3000 }, (_, i) => ({ filename: `src/f${i}.ts` }));
+    expect(decide(input({ files, mode: 'prelaunch' }))).toEqual({
+      action: 'label',
+      reasons: ['needs Christian: too many files for the bot to check'],
+    });
   });
 
   it('waits for checks, Codex and a clean merge', () => {
@@ -211,6 +372,8 @@ function fakeGitHub(
     endlessComments = false,
     /** What GET /pulls/N returns from its second call on (someone changed the pull request mid-run). */
     later = undefined as Partial<PullRequest> | undefined,
+    /** File texts by "ref:path", for GET /contents. */
+    contents = {} as Record<string, string>,
   } = {},
 ) {
   const seen = new Map<number, number>();
@@ -230,6 +393,11 @@ function fakeGitHub(
     }
     if (method === 'GET' && (m = path.match(/^\/pulls\/(\d+)\/files$/))) return json(pr(m[1]!)!.files.map((filename) => ({ filename })));
     if (method === 'GET' && path.startsWith('/commits/')) return json({ total_count: 5, check_runs: greenChecks() });
+    if (method === 'GET' && (m = path.match(/^\/contents\/(.+)\?ref=(.+)$/))) {
+      const text = contents[`${decodeURIComponent(m[2]!)}:${decodeURIComponent(m[1]!)}`];
+      if (text === undefined) return json({ message: 'Not Found' }, 404);
+      return json({ type: 'file', encoding: 'base64', content: Buffer.from(text).toString('base64') });
+    }
     if (method === 'GET' && path.match(/^\/issues\/\d+\/comments$/)) {
       return json(endlessComments ? Array.from({ length: 100 }, () => codexComment(clean())) : [codexComment(clean())]);
     }
@@ -250,18 +418,19 @@ describe('the auto-merge run', () => {
   it('in a dry run, reports what it would do and changes nothing', async () => {
     const { gh, calls } = fakeGitHub(pulls());
     const lines: string[] = [];
-    const outcomes = await runAutomerge({ gh, repo: REPO, dryRun: true, log: (l) => lines.push(l) });
+    const outcomes = await runAutomerge({ gh, repo: REPO, mode: 'launched', dryRun: true, log: (l) => lines.push(l) });
     expect(outcomes.map((o) => [o.pr, o.done])).toEqual([
       [7, 'would merge'],
       [8, 'would label'],
     ]);
     expect(calls.filter((c) => c.method !== 'GET')).toEqual([]);
-    expect(lines[1]).toContain('needs Christian: changes public/_headers');
+    expect(lines[0]).toBe('Rules: launched (automation.json)');
+    expect(lines[2]).toContain('needs Christian: changes public/_headers');
   });
 
   it('merges with a merge commit pinned to the checked head, and labels the sensitive one', async () => {
     const { gh, calls } = fakeGitHub(pulls());
-    await runAutomerge({ gh, repo: REPO, dryRun: false, log: () => {} });
+    await runAutomerge({ gh, repo: REPO, mode: 'launched', dryRun: false, log: () => {} });
     expect(calls.filter((c) => c.method !== 'GET')).toEqual([
       { method: 'PUT', path: '/pulls/7/merge', body: { merge_method: 'merge', sha: HEAD } },
       { method: 'POST', path: '/labels', body: expect.objectContaining({ name: 'needs-christian' }) },
@@ -269,27 +438,49 @@ describe('the auto-merge run', () => {
     ]);
   });
 
+  it('before launch, merges the settings change too and labels nothing', async () => {
+    const { gh, calls } = fakeGitHub(pulls());
+    const outcomes = await runAutomerge({ gh, repo: REPO, mode: 'prelaunch', dryRun: false, log: () => {} });
+    expect(outcomes.map((o) => [o.pr, o.done])).toEqual([
+      [7, 'merged'],
+      [8, 'merged'],
+    ]);
+    expect(calls.filter((c) => c.method !== 'GET').map((c) => c.path)).toEqual(['/pulls/7/merge', '/pulls/8/merge']);
+  });
+
+  it('before launch, reads package.json on both sides and holds a major update', async () => {
+    const before = JSON.stringify({ devDependencies: { typescript: '^6.0.3' } });
+    const { gh, calls } = fakeGitHub(
+      { 7: { pr: pull(), files: ['package.json', 'package-lock.json'] } },
+      { contents: { 'staging:package.json': before, [`${HEAD}:package.json`]: before.replace('^6.0.3', '^7.0.2') } },
+    );
+    const outcomes = await runAutomerge({ gh, repo: REPO, mode: 'prelaunch', dryRun: false, log: () => {} });
+    expect(outcomes[0]!.done).toBe('labelled');
+    expect(outcomes[0]!.decision.reasons).toEqual(['needs Christian: dependency changes (typescript ^6.0.3 to ^7.0.2)']);
+    expect(calls.some((c) => c.method === 'PUT')).toBe(false);
+  });
+
   it("doesn't label twice or create a label that exists", async () => {
     const already = { 8: { pr: pull({ number: 8, labels: [{ name: 'needs-christian' }] }), files: ['CLAUDE.md'] } };
     const first = fakeGitHub(already);
-    await runAutomerge({ gh: first.gh, repo: REPO, dryRun: false, log: () => {} });
+    await runAutomerge({ gh: first.gh, repo: REPO, mode: 'launched', dryRun: false, log: () => {} });
     expect(first.calls.filter((c) => c.method !== 'GET')).toEqual([]);
 
     const second = fakeGitHub({ 8: { pr: pull({ number: 8 }), files: ['CLAUDE.md'] } }, { labelExists: true });
-    await runAutomerge({ gh: second.gh, repo: REPO, dryRun: false, log: () => {} });
+    await runAutomerge({ gh: second.gh, repo: REPO, mode: 'launched', dryRun: false, log: () => {} });
     expect(second.calls.filter((c) => c.method !== 'GET').map((c) => c.path)).toEqual(['/issues/8/labels']);
   });
 
   it('never merges a pull request into main, even when asked for it by number', async () => {
     const { gh, calls } = fakeGitHub({ 9: { pr: pull({ number: 9, base: { ref: 'main' } }), files: ['src/x.ts'] } });
-    const outcomes = await runAutomerge({ gh, repo: REPO, pr: 9, dryRun: false, log: () => {} });
+    const outcomes = await runAutomerge({ gh, repo: REPO, mode: 'launched', pr: 9, dryRun: false, log: () => {} });
     expect(outcomes[0]!.decision.action).toBe('skip');
     expect(calls.filter((c) => c.method !== 'GET')).toEqual([]);
   });
 
   it('waits instead of judging from part of a list that is too long to read in full', async () => {
     const { gh, calls } = fakeGitHub({ 7: { pr: pull(), files: ['src/x.ts'] } }, { endlessComments: true });
-    const outcomes = await runAutomerge({ gh, repo: REPO, dryRun: false, log: () => {} });
+    const outcomes = await runAutomerge({ gh, repo: REPO, mode: 'launched', dryRun: false, log: () => {} });
     expect(outcomes[0]!.decision.action).toBe('wait');
     expect(outcomes[0]!.decision.reasons[0]).toContain('too much to read in full');
     expect(calls.filter((c) => c.method !== 'GET')).toEqual([]);
@@ -297,15 +488,23 @@ describe('the auto-merge run', () => {
 
   it('looks again right before merging and stops if the pull request now targets main', async () => {
     const { gh, calls } = fakeGitHub({ 7: { pr: pull(), files: ['src/x.ts'] } }, { later: { base: { ref: 'main' } } });
-    const outcomes = await runAutomerge({ gh, repo: REPO, dryRun: false, log: () => {} });
+    const outcomes = await runAutomerge({ gh, repo: REPO, mode: 'launched', dryRun: false, log: () => {} });
     expect(outcomes[0]!.done).toBe('merge refused');
     expect(outcomes[0]!.decision.reasons.at(-1)).toContain('into main');
     expect(calls.filter((c) => c.method !== 'GET')).toEqual([]);
   });
 
+  it('stops if someone labelled it needs-christian while it was being checked', async () => {
+    const { gh, calls } = fakeGitHub({ 7: { pr: pull(), files: ['src/x.ts'] } }, { later: { labels: [{ name: 'needs-christian' }] } });
+    const outcomes = await runAutomerge({ gh, repo: REPO, mode: 'prelaunch', dryRun: false, log: () => {} });
+    expect(outcomes[0]!.done).toBe('merge refused');
+    expect(outcomes[0]!.decision.reasons.at(-1)).toBe('labelled needs-christian while it was being checked');
+    expect(calls.filter((c) => c.method !== 'GET')).toEqual([]);
+  });
+
   it('stops if a new commit arrived between the checks and the merge', async () => {
     const { gh, calls } = fakeGitHub({ 7: { pr: pull(), files: ['src/x.ts'] } }, { later: { head: { sha: 'ffff', ref: 'x', repo: { full_name: REPO } } } });
-    expect((await runAutomerge({ gh, repo: REPO, dryRun: false, log: () => {} }))[0]!.done).toBe('merge refused');
+    expect((await runAutomerge({ gh, repo: REPO, mode: 'launched', dryRun: false, log: () => {} }))[0]!.done).toBe('merge refused');
     expect(calls.filter((c) => c.method !== 'GET')).toEqual([]);
   });
 

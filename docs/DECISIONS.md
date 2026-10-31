@@ -78,7 +78,8 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   verdict is its own status: an item with nothing wrong except pending reviews goes to `pending.csv`, never passes,
   and the exit code is 1 (0 only when every item passed). Items are single-answer only; select-all-that-apply waits
   for Christian's content decision. Answer balance unchanged.
-- **D-32** Lesson videos (Christian's decision, 2026-10-31): hosted on Cueory's YouTube channel and embedded from
+- **D-32** (How a video starts is updated by D-40.) Lesson videos (Christian's decision, 2026-10-31): hosted on
+  Cueory's YouTube channel and embedded from
   `youtube-nocookie.com` behind a click-to-play cover (self-hosted thumbnail and play button), never stored on our
   servers. No autoplay, so after the click the student presses play in YouTube's own player. `frame-src` allows only
   that origin, video IDs live in `/content`, and `/privacy` mentions YouTube's cookies. Reason: video hosting stays
@@ -107,7 +108,7 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   plain static files; `_headers` still applies. Previews: every branch builds a preview, all locked by the Worker's
   "Protect with Cloudflare Access" switch, so the staging lock no longer depends on Pages. Wrangler is pinned in
   devDependencies so builds don't download a changing version.
-- **D-39** Staging auto-merge (Christian's plan: "a bot merges non-sensitive pull requests once Codex calls them
+- **D-39** (Which paths wait for Christian before launch: D-42.) Staging auto-merge (Christian's plan: "a bot merges non-sensitive pull requests once Codex calls them
   clean; sensitive paths need Christian's tap"). `.github/workflows/staging-automerge.yml` runs
   `scripts/staging_automerge.ts`, which merges a pull request into `staging` with a merge commit only when it targets
   `staging`, comes from this repository, isn't a draft, every required check passed (type check/build/tests, gitleaks,
@@ -126,3 +127,35 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   Merges made by the workflow don't start CI on `staging` (GitHub doesn't start workflows from its own token's
   pushes); each pull request's CI already tested it merged with `staging`. Reason: Christian keeps his hands for
   sensitive changes and releases, and clean work reaches the staging site without waiting for him.
+- **D-40** Lesson videos start on the first tap (Christian confirmed "play immediately", 2026-10-31). The cover's one
+  tap loads the `youtube-nocookie.com` player with autoplay switched on for that video only, so the student doesn't
+  press play twice. Nothing loads from YouTube before the tap, and nothing ever plays on page load. Replaces D-32's
+  "press play in YouTube's own player". Reason: the student has already chosen to watch.
+- **D-41** Marketing redesign (Christian's brief, 2026-10-31): a quiet-luxury editorial look for marketing pages only
+  (home, support, privacy, terms, disclaimer, subscribed, 404). Headlines and the italic accent line use Bodoni Moda,
+  which the brand spec already lists for marketing headings. It is self-hosted as two Latin files (about 100 KB, SIL
+  Open Font License, copied from Fontsource 5.3.0 so no new dependency is added). The fonts use `font-display: optional`
+  and are preloaded on marketing pages, so text never jumps. Background: draped silk from brand colors only (CSS
+  gradients and a 0.5 KB SVG grain per palette), a faint embossed traced wordmark behind the hero (hidden from screen
+  readers), and frosted panels with soft shadows. Folds and panels use plain `rgb()` with transparency, so every browser
+  draws them correctly. Daytime folds stay at 16% and grain at 6%, so Bronze text keeps AA contrast at the darkest point,
+  and tests check every text color on every background. This relaxes "nothing decorative" and the spec's
+  no-gradient/no-texture note for marketing pages only, at Christian's request. Study screens keep a plain background.
+  Reason: Christian's brief; the brand spec already allows Bodoni Moda for marketing headings.
+- **D-42** Pre-launch mode (Christian's decision, 2026-10-31: until the site is live for students, everything merges
+  automatically once it is safe). The switch is `automation.json` at the repository root, `{"prelaunch": true}`;
+  when Christian says the site is live, a pull request sets it to `false` and waits for him. The staging auto-merge
+  (D-39) reads the default branch's copy. Before launch it holds only what must always be Christian's: `.github/`
+  (GitHub doesn't let the automation's own token change workflow files), `automation.json` and the auto-merge's own
+  code (so a robot can't loosen its own rules), `CLAUDE.md`, `AGENTS.md` and `SECURITY.md` (the rules the AI builders
+  and reviewers follow), `content/` (real lessons and questions need his approval and never release automatically;
+  the bot can't tell them from placeholders), `supabase/` and `wrangler.jsonc` (sign-in, database policies and
+  deployment stay his under CLAUDE.md rule 3), any `package.json` change that adds a dependency, changes a major
+  version, uses a version range that could allow another major, or touches overrides (read from the files on both
+  sides, never from the title; a new package could be a paid service, and TypeScript 7 and `@types/node` above Node
+  24 are never accepted, D-01, D-02), and any pull request labelled
+  `needs-christian` (anyone can add the label to stop the bot, for example on sign-in or payment work; the bot looks
+  for it again right before merging). Once launched, the rest of the D-39 list is held too. A
+  missing or unreadable `automation.json` means the launched rules. Reason: there are no students, accounts or real
+  content yet, so speed matters more than a human checkpoint, while the automation, the agents' rules, the deploy
+  setup, the database and content still can't change without Christian.

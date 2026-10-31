@@ -41,7 +41,8 @@ Read [CLAUDE.md](CLAUDE.md) (project rules) and [SECURITY.md](SECURITY.md) first
   plain HTML form that posts to Kit; no Kit script is loaded.
 - The one third-party frame allowed is the YouTube lesson player (Christian's decision, 2026-10-31): embedded from
   `https://www.youtube-nocookie.com` behind a click-to-play cover with a self-hosted thumbnail, so nothing loads from
-  YouTube before the student clicks. No autoplay. `frame-src` lists only that origin. Video IDs live in `/content`, and
+  YouTube before the student taps. That one tap loads the player and starts the video; nothing plays on page load
+  (D-40). `frame-src` lists only that origin. Video IDs live in `/content`, and
   `/privacy` says YouTube may set cookies once a video plays. Video files are never stored on our servers.
 - Delete-my-account and export-my-data still cover any new personal data.
 - `/privacy` still describes what the code does.
@@ -61,8 +62,10 @@ Read [CLAUDE.md](CLAUDE.md) (project rules) and [SECURITY.md](SECURITY.md) first
 - Daily puzzles (Task 7) use original names, rules and look. Never the names Wordle, Connections or NYT, and never a
   copy of their design. This is a Blocker.
 - Components use design tokens from `src/styles/tokens.css`, never raw colors, fonts or spacing values.
-- Only exact brand colors from `docs/BRAND.md`; Inter for text; the logo stays lowercase "cueory", never retyped in
-  another font, never narrower than 96px.
+- Only exact brand colors from `docs/BRAND.md`; Inter for text, Bodoni Moda only for marketing headings (D-41); the
+  logo stays lowercase "cueory", never retyped in another font, never narrower than 96px.
+- Study screens stay plain: no texture, embossing or frosted panels behind lesson or question text (D-41). Text on
+  marketing backgrounds must pass the worst-case contrast tests in `tests/unit/tokens.test.ts`.
 - Content (lessons, items, cards, scripts) lives in `/content` or the database, not hard-coded in components.
 - No clinical facts written by an engineer or an AI without a source and review record.
 - Learn mode may check a card's answer in the browser, because a card's back is public study material. Questions from

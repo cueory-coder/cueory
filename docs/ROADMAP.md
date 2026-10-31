@@ -71,7 +71,8 @@ missing rationales, unknown fact IDs, broken source links). Writes `passed.csv`,
 - Every lesson video is hosted on Cueory's YouTube channel and embedded. Video files are never stored on our servers.
 - Click-to-play: the page first shows a self-hosted thumbnail and a play button. YouTube's player loads only after the
   student clicks it.
-- Embedded from `https://www.youtube-nocookie.com`. No autoplay (D-32).
+- Embedded from `https://www.youtube-nocookie.com`. One tap on the cover loads the player and starts that video
+  right away. Nothing plays on page load, and nothing loads from YouTube before the tap (D-40).
 - Under each video: a link to its captions and transcript, and a short note that playing the video loads YouTube.
 - The content security policy allows only that origin as a frame (`frame-src https://www.youtube-nocookie.com`).
 - `/privacy` says YouTube may set cookies once a video is played. It changes in the same pull request as the player.

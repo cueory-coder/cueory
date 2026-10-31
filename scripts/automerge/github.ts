@@ -98,6 +98,22 @@ export function createGitHub({
     createLabel: (name: string, description: string) =>
       call('POST', '/labels', { name, color: 'b60205', description }),
     addLabel: (n: number, name: string) => call('POST', `/issues/${n}/labels`, { labels: [name] }),
+    /**
+     * A file's text at a branch or commit: null when it doesn't exist there, undefined when GitHub doesn't send its
+     * content (files over 1 MB). https://docs.github.com/en/rest/repos/contents
+     */
+    fileAt: async (path: string, ref: string): Promise<string | null | undefined> => {
+      let file: unknown;
+      try {
+        file = await call('GET', `/contents/${path.split('/').map(encodeURIComponent).join('/')}?ref=${encodeURIComponent(ref)}`);
+      } catch (e) {
+        if (e instanceof GitHubError && e.status === 404) return null;
+        throw e;
+      }
+      const { type, encoding, content } = (file ?? {}) as { type?: string; encoding?: string; content?: string };
+      if (type !== 'file' || encoding !== 'base64' || typeof content !== 'string') return undefined;
+      return Buffer.from(content, 'base64').toString('utf8');
+    },
   };
 }
 
