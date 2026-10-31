@@ -1,0 +1,55 @@
+---
+import Layout from '../layouts/Layout.astro';
+import SignupForm from '../components/SignupForm.astro';
+import { site } from '../config/site';
+
+const modes = [
+  { name: 'Learn', text: 'Read a lesson one short sentence at a time.' },
+  { name: 'Cards', text: 'Flip through the key ideas.' },
+  { name: 'Fill-in', text: 'Recall the missing word.' },
+  { name: 'Matching', text: 'Pair terms with what they mean.' },
+  { name: 'Organizer', text: 'Sort ideas into groups by tapping, typing or dragging.' },
+  { name: 'Questions', text: 'Practice questions, each with a rationale.' },
+  { name: 'Review', text: 'Come back at the right time, paced to your exam date.' },
+];
+---
+
+<Layout title={site.name} description="Free, calm study help for nursing students in fundamentals and med-surg I.">
+  <section class="pt-12 sm:pt-20">
+    <p class="text-sm uppercase tracking-[0.14em] text-sage">For nursing students · Free</p>
+    <h1 class="mt-4 max-w-[18ch] text-3xl sm:text-[3.5rem] sm:leading-[1.05]">
+      Study nursing in short, clear sentences.
+    </h1>
+    <p class="mt-stack max-w-prose text-lg text-ink-soft">
+      {site.name} breaks fundamentals and med-surg I into small ideas you can learn, practice and review. No streaks, no
+      pressure.
+    </p>
+    <div class="mt-8">
+      <a
+        href="/learn/study-skills"
+        class="inline-block rounded-pill bg-accent px-6 py-3 text-on-accent no-underline hover:bg-accent-strong hover:text-on-accent"
+      >
+        Start the free study-skills course
+      </a>
+    </div>
+  </section>
+
+  <section class="mt-section" aria-labelledby="modes-heading">
+    <h2 id="modes-heading" class="text-xl">Ways to study</h2>
+    <ul class="mt-6 grid gap-x-10 gap-y-6 border-t border-line pt-6 sm:grid-cols-2">
+      {
+        modes.map((m) => (
+          <li>
+            <h3 class="text-lg">{m.name}</h3>
+            <p class="mt-1 text-ink-soft">{m.text}</p>
+          </li>
+        ))
+      }
+    </ul>
+    <p class="mt-8 text-sm text-ink-soft">Study modes are on the way. The first lesson is open now.</p>
+  </section>
+
+  <div class="mt-section">
+    <SignupForm />
+  </div>
+</Layout>

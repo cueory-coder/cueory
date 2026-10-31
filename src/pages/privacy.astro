@@ -1,0 +1,61 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Prose from '../components/Prose.astro';
+import { newsletter, site } from '../config/site';
+---
+
+<Layout title="Privacy" description="What Cueory stores, what it doesn't, and how to delete or export your data.">
+  <Prose>
+    <h1>Privacy, in plain language</h1>
+    <p class="text-sm text-ink-soft">Draft for review. Last updated: not yet published.</p>
+
+    <h2>The short version</h2>
+    <p>
+      We keep only what we need. We don't sell your data, we don't show ads, and we don't use trackers that follow you to
+      other websites.
+    </p>
+
+    <h2>Right now</h2>
+    <p>
+      {site.name} has no accounts yet. You can read lessons without giving us anything. Nothing you do on a lesson is
+      saved.
+    </p>
+
+    <h2>Launch-updates emails</h2>
+    <p>
+      If you sign up for launch updates, your email address is stored by {newsletter.provider}, the service that sends
+      those emails for us. You'll get a confirmation email first, and every email has an unsubscribe link. We use your
+      address only for {site.name} updates.
+    </p>
+
+    <h2>Visit statistics</h2>
+    <p>
+      We count page visits with Cloudflare Web Analytics. It doesn't use cookies, and it doesn't build a profile of you.
+    </p>
+
+    <h2>When accounts arrive</h2>
+    <p>Accounts are coming later. When they do, this page will be updated first. We plan to store only:</p>
+    <ul>
+      <li>Your email address, so you can sign in.</li>
+      <li>A display name, if you choose one.</li>
+      <li>Your answers to a few setup questions, such as your exam date.</li>
+      <li>Your study progress: what you've studied, your answers, and when to review next.</li>
+    </ul>
+    <p>
+      Your account page will have one button that deletes your account and everything linked to it, and one that
+      downloads a copy of your data.
+    </p>
+
+    <h2>Who handles data for us</h2>
+    <ul>
+      <li>Cloudflare hosts the website and counts visits.</li>
+      <li>{newsletter.provider} stores newsletter signups and sends launch-update emails.</li>
+    </ul>
+
+    <h2>Questions</h2>
+    <p>
+      Email <a href={`mailto:${site.contactEmail}`}>{site.contactEmail}</a>. You can ask what we hold about you or ask us
+      to delete it.
+    </p>
+  </Prose>
+</Layout>

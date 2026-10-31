@@ -1,0 +1,49 @@
+---
+import '../styles/global.css';
+import BuildingNotice from '../components/BuildingNotice.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+import SiteHeader from '../components/SiteHeader.astro';
+import { site } from '../config/site';
+
+interface Props {
+  title: string;
+  description?: string;
+  /** 'study' is the quieter lesson screen. */
+  variant?: 'default' | 'study';
+  /** Keep this page out of search engines. */
+  noindex?: boolean;
+}
+
+const { title, description = site.tagline, variant = 'default', noindex = false } = Astro.props;
+const fullTitle = title === site.name ? title : `${title} · ${site.name}`;
+const canonical = new URL(Astro.url.pathname, site.url).href;
+const isStudy = variant === 'study';
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="theme-color" content="#f7f3ea" />
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
+  </head>
+  <body class:list={['flex flex-col', isStudy ? 'bg-study' : 'bg-page']}>
+    <a
+      href="#main"
+      class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-10 focus:bg-surface focus:px-4 focus:py-2"
+    >
+      Skip to content
+    </a>
+    <BuildingNotice />
+    <SiteHeader quiet={isStudy} />
+    <main id="main" class="mx-auto w-full max-w-page flex-1 px-gutter">
+      <slot />
+    </main>
+    <SiteFooter />
+  </body>
+</html>

@@ -1,0 +1,54 @@
+---
+/**
+ * Launch-updates signup. A plain HTML form that posts straight to Kit, so it
+ * works without JavaScript and loads no third-party script. Kit validates the
+ * address, sends the confirmation (double opt-in) email and handles unsubscribes.
+ */
+import { newsletter } from '../config/site';
+
+const ready = newsletter.formAction.startsWith('https://');
+---
+
+<section class="rounded-md border border-line bg-surface p-6 sm:p-8" aria-labelledby="signup-heading">
+  <h2 id="signup-heading" class="text-xl">Get launch updates</h2>
+  {
+    ready ? (
+      <form
+        action={newsletter.formAction}
+        method="post"
+        class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end"
+        data-testid="signup-form"
+      >
+        <div class="flex flex-1 flex-col gap-1">
+          <label for="signup-email" class="text-sm text-ink-soft">
+            Email address
+          </label>
+          <input
+            id="signup-email"
+            name={newsletter.emailFieldName}
+            type="email"
+            required
+            maxlength="254"
+            autocomplete="email"
+            inputmode="email"
+            class="rounded-md border border-ink-soft bg-page px-4 py-3 text-ink"
+          />
+        </div>
+        <button
+          type="submit"
+          class="rounded-pill bg-accent px-6 py-3 text-on-accent hover:bg-accent-strong"
+        >
+          Sign up
+        </button>
+      </form>
+    ) : (
+      <p class="mt-3 text-ink-soft" data-testid="signup-pending">
+        Signups open soon.
+      </p>
+    )
+  }
+  <p class="mt-4 text-sm text-ink-soft">
+    A few emails about new lessons and the launch. Unsubscribe any time. Emails are sent by {newsletter.provider};
+    see our <a href="/privacy">privacy page</a>.
+  </p>
+</section>

@@ -1,0 +1,19 @@
+---
+/**
+ * A clearly marked spot where Christian's own text goes.
+ * Search the code for "CHRISTIAN-TEXT" to find every one.
+ */
+interface Props {
+  label: string;
+}
+
+const { label } = Astro.props;
+---
+
+<div
+  class="mt-stack rounded-md border-2 border-dashed border-sage bg-surface p-5"
+  data-placeholder="CHRISTIAN-TEXT"
+>
+  <p class="!mt-0 text-sm font-bold uppercase tracking-wide text-sage">Placeholder: {label}</p>
+  <div class="text-ink-soft"><slot /></div>
+</div>

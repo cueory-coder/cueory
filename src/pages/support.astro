@@ -1,0 +1,29 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Prose from '../components/Prose.astro';
+import { site } from '../config/site';
+---
+
+<Layout title="Support Cueory" description="Cueory is free. If it helps you, you can leave a tip.">
+  <Prose>
+    <h1>Support {site.name}</h1>
+    <p>{site.name} is free for every nursing student. If it helped you, a small tip keeps it running.</p>
+    {
+      site.tipPageUrl ? (
+        <p>
+          <a
+            href={site.tipPageUrl}
+            rel="noopener noreferrer"
+            target="_blank"
+            class="inline-block rounded-pill bg-accent px-6 py-3 text-on-accent no-underline hover:bg-accent-strong hover:text-on-accent"
+          >
+            Leave a tip (opens in a new tab)
+          </a>
+        </p>
+      ) : (
+        <p class="text-ink-soft">The tip page is coming soon.</p>
+      )
+    }
+    <p>Telling a classmate about {site.name} helps just as much.</p>
+  </Prose>
+</Layout>
