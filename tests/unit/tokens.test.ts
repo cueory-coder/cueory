@@ -21,7 +21,7 @@ const pairs: Array<[string, string, number]> = [
   ['ink-soft', 'page', 4.5],
   ['ink-soft', 'surface', 4.5],
   ['on-button', 'button', 4.5],
-  ['on-button', 'ink-soft', 4.5], // button hover
+  ['on-button', 'button-hover', 4.5],
   ['control', 'page', 3],
   ['control', 'surface', 3],
   ['focus', 'page', 3],

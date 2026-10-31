@@ -63,7 +63,9 @@ task-N/feature ──PR──▶ staging ──PR──▶ main
 ## Design
 
 Follow [docs/BRAND.md](docs/BRAND.md): only the exact brand colors (Daytime and Evening palettes), Inter for all text,
-and the lowercase "cueory" wordmark in Bodoni Moda Medium. Dark mode uses the Evening palette automatically.
+and the lowercase "cueory" wordmark, which is traced artwork and is never retyped in a font. Dark mode uses the
+Evening palette automatically. `brand-source/Cueory_Branding_Spec.md` is Christian's detailed handoff and wins over
+older notes.
 Minimal, editorial, generous spacing, nothing decorative. The study screen is quieter (no main navigation).
 
 ## Where things live
@@ -71,7 +73,7 @@ Minimal, editorial, generous spacing, nothing decorative. The study screen is qu
 | What | Where |
 | --- | --- |
 | Every color, font, size and spacing value | `src/styles/tokens.css` (components use token names only) |
-| Brand rules / logo files | `docs/BRAND.md` / `public/brand/` (built by `scripts/build-logo.mjs`) |
+| Brand rules / logo files | `docs/BRAND.md` / `public/brand/` (built from `brand-source/` by `scripts/build-brand.mjs` and `scripts/export-brand-png.mjs`) |
 | Site name, building notice switch, tip link, contact email, Kit form settings | `src/config/site.ts` |
 | Pages | `src/pages/` |
 | Shared layout, header, footer, signup form | `src/layouts/`, `src/components/` |

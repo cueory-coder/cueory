@@ -3,7 +3,10 @@
  */
 export const site = {
   name: 'Cueory',
-  tagline: 'By nursing students, for nursing students.',
+  /** Exact motto: always lowercase, with the comma and final period (brand spec section 2). */
+  tagline: 'by nursing students, for nursing students.',
+  /** Product description (brand spec section 2). */
+  description: 'Nursing school is hard enough. Cueory makes studying simpler.',
 
   /** The live address. */
   url: 'https://cueory.app',

@@ -1,7 +1,8 @@
 /*
   CUEORY DESIGN TOKENS — the one place to change the look of the site.
 
-  Colors and fonts come from the cueory brand guide. Use only these exact
+  Colors and fonts come from the cueory brand guide and
+  brand-source/Cueory_Branding_Spec.md (section 6). Use only these exact
   colors. Components only use the names below (for example `bg-page`,
   `text-ink`, `border-control`), so changing a value here changes it
   everywhere.
@@ -28,15 +29,16 @@
 
   /* ---------- Roles built from the palette ---------- */
   --color-line: #d3b7a1;        /* dividers (Taupe) */
-  --color-control: #8b6f5b;     /* form field borders (Mocha) */
+  --color-control: #6b5243;     /* form field borders (Bronze) */
   --color-button: #3f2e24;      /* main button background (Espresso) */
+  --color-button-hover: #6b5243; /* main button on hover (Bronze) */
   --color-on-button: #f9f5ef;   /* text on main buttons (Ivory) */
-  --color-focus: #3f2e24;       /* keyboard focus outline (Espresso) */
+  --color-focus: #6b5243;       /* keyboard focus outline (Bronze) */
 
   /* ---------- Fonts ---------- */
   --font-body: "Inter Variable", system-ui, -apple-system, "Segoe UI", sans-serif; /* headings, body, UI, buttons */
   --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
-  /* The logo is drawn from Bodoni Moda Medium as outlines (scripts/build-logo.mjs); no logo font is loaded. */
+  /* The logo is traced artwork (brand-source/, scripts/build-brand.mjs), never typed in a font. */
 
   /* ---------- Type scale (mobile first; large and readable) ---------- */
   --text-sm: 0.9375rem;
@@ -87,8 +89,9 @@
 
     --color-line: #6b5243;      /* Bronze */
     --color-control: #cbb8a4;   /* Sand */
-    --color-button: #efe6da;    /* Evening Ivory */
+    --color-button: #cbb8a4;    /* Sand */
+    --color-button-hover: #efe6da; /* Evening Ivory */
     --color-on-button: #1b1715; /* Charcoal */
-    --color-focus: #efe6da;     /* Evening Ivory */
+    --color-focus: #cbb8a4;     /* Sand */
   }
 }

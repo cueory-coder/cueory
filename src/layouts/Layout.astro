@@ -14,7 +14,7 @@ interface Props {
   noindex?: boolean;
 }
 
-const { title, description = site.tagline, variant = 'default', noindex = false } = Astro.props;
+const { title, description = site.description, variant = 'default', noindex = false } = Astro.props;
 const fullTitle = title === site.name ? title : `${title} · ${site.name}`;
 const canonical = new URL(Astro.url.pathname, site.url).href;
 const isStudy = variant === 'study';

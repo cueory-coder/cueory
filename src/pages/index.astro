@@ -14,20 +14,20 @@ const modes = [
 ];
 ---
 
-<Layout title={site.name} description="Free study help for fundamentals and med-surg I. By nursing students, for nursing students.">
+<Layout title={site.name}>
   <section class="pt-12 sm:pt-20">
-    <p class="text-sm tracking-[0.08em] text-ink-soft">{site.tagline.toLowerCase()}</p>
+    <p class="font-medium tracking-[0.02em] text-ink-soft">{site.tagline}</p>
     <h1 class="mt-4 max-w-[18ch] text-3xl sm:text-[3.5rem] sm:leading-[1.05]">
       Study nursing in short, clear sentences.
     </h1>
     <p class="mt-stack max-w-prose text-lg text-ink-soft">
-      {site.name} is free. It breaks fundamentals and med-surg I into small ideas you can learn, practice and review. No
-      streaks, no pressure.
+      {site.description} It breaks fundamentals and med-surg I into small ideas you can learn, practice and review.
+      Free, with no streaks and no pressure.
     </p>
     <div class="mt-8">
       <a
         href="/learn/study-skills"
-        class="inline-block rounded-pill bg-button px-6 py-3 text-on-button no-underline hover:bg-ink-soft hover:text-on-button"
+        class="inline-block rounded-pill bg-button px-6 py-3 text-on-button no-underline hover:bg-button-hover hover:text-on-button"
       >
         Start the free study-skills course
       </a>
