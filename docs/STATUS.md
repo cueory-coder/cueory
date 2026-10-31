@@ -48,12 +48,12 @@ Last updated: 2026-10-31
     above 24.
 - Dependabot closed [#9](https://github.com/lilchristxan/Cueory/pull/9) (`@types/node` 26) and
   [#10](https://github.com/lilchristxan/Cueory/pull/10) (TypeScript 7) itself once the ignore rules reached `main`.
-- In `staging`, waiting for the next release: [Matching](https://github.com/lilchristxan/Cueory/pull/18) (D-44), the
-  first pull request the pre-launch auto-merge took on its own.
+- In `staging`, waiting for the next release: [Matching](https://github.com/lilchristxan/Cueory/pull/18) (D-44) and
+  [select-all-that-apply in the batch checker](https://github.com/lilchristxan/Cueory/pull/19) (D-45), the first pull
+  requests the pre-launch auto-merge took on its own.
 
 ## In review
-- [Select-all-that-apply in the batch checker](https://github.com/lilchristxan/Cueory/pull/19) (D-45) and the
-  [rollback guide](https://github.com/lilchristxan/Cueory/pull/22): the auto-merge takes these once they are clean.
+- [Rollback guide](https://github.com/lilchristxan/Cueory/pull/22): the auto-merge takes it once it is clean.
 - [Learn mode](https://github.com/lilchristxan/Cueory/pull/17) (D-43): it changes one placeholder card in `content/`,
   so pre-launch mode holds it for Christian's merge.
 
@@ -87,6 +87,6 @@ Follow [docs/SETUP.md](SETUP.md):
   the key and marks pass; unfinished reviews are pending, not failed), and the answer-balance warning (10 points off an even share, batches of 20+).
 - [x] Select-all-that-apply questions: yes, scored all-or-nothing for now, with each option's rationale shown
   afterward ([answer on issue #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6545756502)). The batch
-  checker handles them once [#19](https://github.com/lilchristxan/Cueory/pull/19) (D-45) is in.
+  checker handles them ([#19](https://github.com/lilchristxan/Cueory/pull/19), D-45).
 - [x] Videos: one tap on the cover loads YouTube's player and starts that video (Christian confirmed "play
   immediately", [issue #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6546595207); D-40).
