@@ -56,7 +56,9 @@ Follow [docs/SETUP.md](SETUP.md):
 - [ ] I. Create the Kit account and form; decide on the mailing address shown in emails
 - [ ] J. Decide whether hello@cueory.app should forward to your Gmail (needs email DNS records)
 - [ ] Provide disclaimer and terms text
-- [ ] Decide whether question batches will include select-all-that-apply questions (the batch checker handles
-  single-answer questions only for now)
-- [ ] Decide how lesson videos start: today's plan (D-32) is that a click loads YouTube's player and the student presses
-  play there, so nothing ever plays by itself. The other choice is that one click loads and starts the video.
+- [x] Select-all-that-apply questions: yes, scored all-or-nothing for now, with each option's rationale shown
+  afterward ([answer on issue #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6545756502)). The batch
+  checker still handles single-answer questions only (D-30) until that change is built.
+- [ ] Confirm the video answer on [issue #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6545756502):
+  one tap on the cover loads YouTube's player and starts that video. It replaces the "no autoplay" wording in D-32,
+  so it needs Christian's own yes.
