@@ -41,7 +41,8 @@ Read [CLAUDE.md](CLAUDE.md) (project rules) and [SECURITY.md](SECURITY.md) first
   plain HTML form that posts to Kit; no Kit script is loaded.
 - The one third-party frame allowed is the YouTube lesson player (Christian's decision, 2026-10-31): embedded from
   `https://www.youtube-nocookie.com` behind a click-to-play cover with a self-hosted thumbnail, so nothing loads from
-  YouTube before the student clicks. No autoplay. `frame-src` lists only that origin. Video IDs live in `/content`, and
+  YouTube before the student taps. That one tap loads the player and starts the video; nothing plays on page load
+  (D-40). `frame-src` lists only that origin. Video IDs live in `/content`, and
   `/privacy` says YouTube may set cookies once a video plays. Video files are never stored on our servers.
 - Delete-my-account and export-my-data still cover any new personal data.
 - `/privacy` still describes what the code does.

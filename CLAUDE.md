@@ -96,8 +96,9 @@ Minimal, editorial, generous spacing, nothing decorative. The study screen is qu
 - No inline `<script>` or `style=""` that the CSP would block. No third-party scripts, fonts or CDNs; self-host.
 - Lesson videos (Christian's decision, 2026-10-31) are the one exception: they live on Cueory's YouTube channel and
   are embedded from `youtube-nocookie.com` behind a click-to-play cover with a self-hosted thumbnail, so YouTube loads
-  only after a student clicks. No autoplay, `frame-src` allows only that origin, video IDs live in `/content`, and video
-  files are never stored on our servers. Details: docs/ROADMAP.md, Task 4d.
+  only after a student taps. That one tap loads the player and starts the video; nothing plays on page load (D-40).
+  `frame-src` allows only that origin, video IDs live in `/content`, and video files are never stored on our servers.
+  Details: docs/ROADMAP.md, Task 4d.
 - From Task 2, every lesson, card, question, puzzle and page has the "Flag or comment" button, and no real content goes
   public before it works.
 - Every page uses `Layout.astro` so it gets the building notice, header, footer and skip link.
