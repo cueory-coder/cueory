@@ -7,7 +7,7 @@
  * files, too few reviewers, duplicate ids) and no item can pass.
  * --check-links also asks each source's website whether the page exists. It needs the internet, so CI never uses it.
  */
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -24,6 +24,22 @@ import { CsvError, parseCsv, type CsvRow } from './check-batch/csv.ts';
 import { failedCsv, passedCsv, reportMd } from './check-batch/report.ts';
 
 const LINK_TIMEOUT_MS = 10_000;
+
+/**
+ * A batch that can't be read must never keep the results of an earlier run: remove the old passed.csv and
+ * failed.csv and replace report.md with one that says nothing was checked.
+ */
+function writeNotChecked(out: string, batchName: string, problem: string): void {
+  mkdirSync(out, { recursive: true });
+  rmSync(join(out, 'passed.csv'), { force: true });
+  rmSync(join(out, 'failed.csv'), { force: true });
+  writeFileSync(
+    join(out, 'report.md'),
+    `# Batch ${batchName}: not checked\n\n` +
+      `The batch could not be read, so no item has passed: ${problem}\n\n` +
+      'Fix the file and run the check again.\n',
+  );
+}
 
 function read(dir: string, file: string, columns: readonly string[]): CsvRow[] {
   const path = join(dir, file);
@@ -87,6 +103,7 @@ async function main(): Promise<number> {
   } catch (e) {
     if (!(e instanceof CsvError)) throw e;
     console.error(`Could not check the batch: ${e.message}`);
+    writeNotChecked(out, basename(dir), e.message);
     return 2;
   }
 

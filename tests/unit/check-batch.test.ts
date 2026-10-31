@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -279,9 +279,9 @@ describe('check_batch command', () => {
     return dir;
   }
 
-  function run(folder: string): { code: number; out: string } {
+  function run(folder: string, ...args: string[]): { code: number; out: string } {
     try {
-      const out = execFileSync(process.execPath, ['scripts/check_batch.ts', folder], { encoding: 'utf8' });
+      const out = execFileSync(process.execPath, ['scripts/check_batch.ts', folder, ...args], { encoding: 'utf8' });
       return { code: 0, out };
     } catch (e) {
       const err = e as { status: number; stdout: string; stderr: string };
@@ -312,4 +312,24 @@ describe('check_batch command', () => {
     writeFileSync(join(folder, 'key.csv'), 'item_id\nq1\n');
     expect(run(folder)).toEqual({ code: 2, out: expect.stringContaining('key.csv: missing column(s): answer') });
   });
+
+  it.each([[[] as string[]], [['--out', 'results']]])(
+    'removes earlier results when a later run cannot read the batch (%j)',
+    (args) => {
+      const folder = write(batch());
+      const outArgs = args.map((a) => (a === 'results' ? join(folder, 'results') : a));
+      const out = outArgs.length > 0 ? outArgs[1]! : folder;
+      expect(run(folder, ...outArgs).code).toBe(0);
+      expect(readFileSync(join(out, 'report.md'), 'utf8')).toContain('4 of 4 items passed');
+
+      writeFileSync(join(folder, 'reviewers', 'gpt1.csv'), 'item_id,answer\nq1,A\n');
+      expect(run(folder, ...outArgs).code).toBe(2);
+      expect(existsSync(join(out, 'passed.csv'))).toBe(false);
+      expect(existsSync(join(out, 'failed.csv'))).toBe(false);
+      const report = readFileSync(join(out, 'report.md'), 'utf8');
+      expect(report).toContain('not checked');
+      expect(report).toContain('reviewers/gpt1.csv');
+      expect(report).not.toContain('items passed');
+    },
+  );
 });

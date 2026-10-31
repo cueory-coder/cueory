@@ -30,6 +30,9 @@ The command prints a one-line summary and finishes with:
 | 1 | Some items failed. `failed.csv` and `report.md` say why. |
 | 2 | The batch itself has a problem (a missing or malformed file, too few reviewers, a repeated id), so no item can pass. |
 
+If a file is missing or can't be read, the checker deletes any `passed.csv` and `failed.csv` from an earlier run and
+writes a `report.md` that says the batch was not checked, so an old approval can never be mistaken for the current one.
+
 ## Files in a batch folder
 
 All files are CSV with a header row, saved as UTF-8 (the default "CSV UTF-8" export in Excel, Numbers or Google
