@@ -57,6 +57,7 @@ describe('flashcard rounds', () => {
     expect(current(s)).toBe(0);
     expect(s.flipped).toBe(false);
     expect(s.roundNumber).toBe(1);
+    expect(s.touched).toBe(false);
     expect(counts(s)).toEqual({ know: 0, learning: 0, left: 3 });
     expect(isRoundOver(s)).toBe(false);
   });
@@ -109,6 +110,7 @@ describe('flashcard rounds', () => {
     s = nextRound(s, false);
     expect(s.round).toEqual([0, 2]);
     expect(s.roundNumber).toBe(2);
+    expect(s.touched).toBe(false);
     expect(counts(s)).toEqual({ know: 0, learning: 0, left: 2 });
     s = knowIt(knowIt(s));
     expect(isRoundOver(s)).toBe(true);
@@ -167,10 +169,23 @@ describe('shuffle', () => {
     expect(current(s)).toBe(3);
   });
 
-  it('at the very start of a round, reorders the whole round', () => {
+  it('before any card is flipped or sorted, reorders the whole round', () => {
     const all = [0, 1, 2, 3, 4, 5, 6, 7];
     expect(reorderRest(start(all), true, seeded(5)).round).toEqual(order(all, true, seeded(5)));
     expect(reorderRest(start([3, 1, 2, 0]), false).round).toEqual([0, 1, 2, 3]);
+  });
+
+  it('keeps the card on screen after "Show question" or "Back" returns to the first card', () => {
+    const all = [0, 1, 2, 3, 4, 5, 6, 7];
+    const flippedBack = flip(flip(start(all)));
+    expect(flippedBack.flipped).toBe(false);
+    expect(reorderRest(flippedBack, true, seeded(5)).round[0]).toBe(0);
+
+    const wentBack = back(knowIt(start(all)));
+    expect(wentBack.pos).toBe(0);
+    const reordered = reorderRest(wentBack, true, seeded(5));
+    expect(reordered.round[0]).toBe(0);
+    expect([...reordered.round.slice(1)].sort()).toEqual([1, 2, 3, 4, 5, 6, 7]);
   });
 
   it('leaves a finished round alone', () => {

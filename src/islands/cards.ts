@@ -21,6 +21,8 @@ export interface CardsState {
   marks: Pile[];
   /** 1 for the first round, then 2, 3, … */
   roundNumber: number;
+  /** True once the student has flipped or sorted any card this round, even if they went back afterwards. */
+  touched: boolean;
 }
 
 /** A random number from 0 (included) to 1 (excluded), like Math.random. Tests pass a seeded one. */
@@ -39,7 +41,7 @@ export function order(indexes: readonly number[], shuffle: boolean, random: Rand
 
 /** A first round with these cards, in the order given. */
 export function start(round: readonly number[]): CardsState {
-  return { round: [...round], pos: 0, flipped: false, marks: [], roundNumber: 1 };
+  return { round: [...round], pos: 0, flipped: false, marks: [], roundNumber: 1, touched: false };
 }
 
 /** The deck index of the card on screen, or undefined when the round is over. */
@@ -52,12 +54,12 @@ export function isRoundOver(state: CardsState): boolean {
 }
 
 export function flip(state: CardsState): CardsState {
-  return isRoundOver(state) ? state : { ...state, flipped: !state.flipped };
+  return isRoundOver(state) ? state : { ...state, flipped: !state.flipped, touched: true };
 }
 
 function sortInto(state: CardsState, pile: Pile): CardsState {
   if (isRoundOver(state)) return state;
-  return { ...state, pos: state.pos + 1, flipped: false, marks: [...state.marks, pile] };
+  return { ...state, pos: state.pos + 1, flipped: false, marks: [...state.marks, pile], touched: true };
 }
 
 /** Sort the card on screen into "Know it" and move on. */
@@ -101,18 +103,18 @@ export function nextRound(state: CardsState, shuffle: boolean, random: Random = 
     flipped: false,
     marks: [],
     roundNumber: state.roundNumber + 1,
+    touched: false,
   };
 }
 
 /**
- * Turning shuffle on or off reorders the cards still to come. Cards already sorted stay where they are. Once the
- * student has sorted a card or flipped the one on screen, that card stays too, so nothing they're working on jumps;
- * at the very start of a round, the whole round is reordered.
+ * Turning shuffle on or off reorders the cards still to come. Before any card in the round is flipped or sorted, the
+ * whole round is reordered. After that, the card on screen and the cards before it stay put (even after "Back" or
+ * "Show question"), so nothing the student is working on jumps.
  */
 export function reorderRest(state: CardsState, shuffle: boolean, random: Random = Math.random): CardsState {
   if (isRoundOver(state)) return state;
-  const fresh = state.pos === 0 && !state.flipped;
-  const keep = state.round.slice(0, fresh ? 0 : state.pos + 1);
+  const keep = state.round.slice(0, state.touched ? state.pos + 1 : 0);
   const rest = order(state.round.slice(keep.length), shuffle, random);
   return { ...state, round: [...keep, ...rest] };
 }

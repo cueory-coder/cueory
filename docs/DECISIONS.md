@@ -66,8 +66,9 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   with guest progress later in Task 4.
 - **D-37** Flashcards (Task 4): "Know it" and "Still learning" replace "Got it" and "See again". A round shows each
   card once; when every card is sorted, the next round is only the "Still learning" pile. "Back" undoes the last sort.
-  Shuffle (Fisher–Yates) reorders the cards still to come: at the very start of a round it reorders the whole round,
-  but once a card is flipped or sorted it stays put, so nothing the student is working on jumps. Stars are saved per
+  Shuffle (Fisher–Yates) reorders the cards still to come: before any card in a round is flipped or sorted it
+  reorders the whole round; after that the card on screen stays put, even after "Back" or "Show question", so nothing
+  the student is working on jumps. Stars are saved per
   deck in the browser's local storage (`cueory-stars-<deck>`, a list of card ids) and never sent to us; "Only starred
   cards" studies just those. Reason: it follows the flashcard plan in ROADMAP Task 4, with short rounds a student can
   count.
