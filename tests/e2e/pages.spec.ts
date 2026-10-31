@@ -514,11 +514,87 @@ test.describe('"ways to study" carousel (D-50)', () => {
     await expect(live).toHaveAttribute('aria-live', 'polite');
     await expect(live).toHaveText('review, 8 of 8');
 
+    // Nothing fades a card: from each card's words up to the page there is no mask, no filter and full opacity, so the
+    // text keeps the frosted-panel contrast checked in tests/unit/tokens.test.ts.
+    const faded = await page.locator('[data-mode-card] h3, [data-mode-card] p, [data-mode-card] a').evaluateAll((texts) =>
+      texts.flatMap((text) => {
+        const found: string[] = [];
+        for (let el: Element | null = text; el; el = el.parentElement) {
+          const style = getComputedStyle(el);
+          const mask = style.maskImage || style.getPropertyValue('-webkit-mask-image');
+          if (style.opacity !== '1' || style.filter !== 'none' || (mask && mask !== 'none')) {
+            found.push(`${el.tagName.toLowerCase()}.${[...el.classList].join('.')}`);
+          }
+        }
+        return found;
+      }),
+    );
+    expect(faded).toEqual([]);
+
     const axe = await new AxeBuilder({ page })
       .include('#ways-to-study')
       .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'])
       .analyze();
     expect(axe.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+  });
+
+  /** Every text the live region is given from now on. */
+  const listen = (page: Page) =>
+    page.locator('#ways-to-study [data-modes-live]').evaluate((live) => {
+      const heard: string[] = [];
+      (window as unknown as { heard: string[] }).heard = heard;
+      new MutationObserver(() => heard.push(live.textContent ?? '')).observe(live, {
+        childList: true,
+        characterData: true,
+        subtree: true,
+      });
+    });
+  const heard = (page: Page) => page.evaluate(() => (window as unknown as { heard: string[] }).heard);
+
+  test('a swipe across several cards announces only the card where the row comes to rest', async ({ page }) => {
+    await page.goto('/');
+    const row = page.getByRole('group', { name: 'study mode cards' });
+    await row.scrollIntoViewIfNeeded();
+    await listen(page);
+    const box = (await row.boundingBox())!;
+    const step = await row.evaluate((el) => {
+      const cards = el.querySelectorAll<HTMLElement>('[data-mode-card]');
+      return cards[1]!.offsetLeft - cards[0]!.offsetLeft;
+    });
+    // A real sideways scroll gesture (Chromium's own), four cards long, passing cards, learn and fill-in on the way.
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Input.synthesizeScrollGesture', {
+      x: Math.round(box.x + box.width / 2),
+      y: Math.round(box.y + box.height / 2),
+      xDistance: -Math.round(step * 4),
+      yDistance: 0,
+      speed: 1200,
+      preventFling: true,
+      gestureSourceType: 'mouse',
+    });
+    await expect(chip(page, 'matching')).toHaveAttribute('aria-current', 'true');
+    await expect(page.locator('#ways-to-study [data-modes-live]')).toHaveText('matching, 5 of 8');
+    await page.waitForTimeout(500);
+    expect(await heard(page)).toEqual(['matching, 5 of 8']);
+  });
+
+  test('a glide the visitor interrupts announces where the row stops, not where it was going', async ({ page }) => {
+    await page.goto('/');
+    const section = page.locator('#ways-to-study');
+    await section.scrollIntoViewIfNeeded();
+    await listen(page);
+    // The visitor picks review, then grabs the row on its way and leaves it on fill-in.
+    await section.locator('[data-modes-track]').evaluate(async (row) => {
+      row.closest('[data-modes]')!.querySelector<HTMLAnchorElement>('[data-mode-chip][href="#mode-review"]')!.click();
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      row.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'touch' }));
+      const card = row.querySelector<HTMLElement>('#mode-fill-in')!;
+      row.scrollTo({ left: card.offsetLeft + card.offsetWidth / 2 - row.clientWidth / 2, behavior: 'instant' });
+    });
+    await expect(chip(page, 'fill-in')).toHaveAttribute('aria-current', 'true');
+    await expect(section.locator('[data-modes-live]')).toHaveText('fill-in, 4 of 8');
+    await page.waitForTimeout(500);
+    expect(await heard(page)).toEqual(['fill-in, 4 of 8']);
   });
 
   test('each card links to its mode when it is open, and says "coming soon" otherwise', async ({ page }) => {

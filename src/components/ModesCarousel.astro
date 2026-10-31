@@ -1,7 +1,8 @@
 ---
 /**
  * "ways to study" on the home page (D-50): a small label, a centered heading, one chip per study mode, and a row of
- * cards that scrolls sideways and snaps each card to the middle, with previous, pause and next buttons below.
+ * cards that scrolls sideways and snaps each card to the middle, with previous, pause and next buttons below. The row
+ * runs the full width of the window; the words around it keep the page's width.
  *
  * Without JavaScript it still works: the row scrolls by swiping or the keyboard, and each chip is a link to its card.
  * The script adds the coverflow look, chip and arrow navigation, arrow keys, and a gentle auto-advance that stops for
@@ -23,12 +24,12 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
   aria-roledescription="carousel"
   data-modes
 >
-  <div class="text-center">
+  <div class="mx-auto max-w-page px-gutter text-center">
     <p class="text-sm font-medium tracking-label text-ink-soft">study modes</p>
     <h2 id="modes-heading" class="display mt-3 text-title sm:text-title-lg">ways to study</h2>
   </div>
 
-  <div class="mt-8 flex flex-wrap justify-center gap-2" role="group" aria-label="pick a study mode">
+  <div class="mx-auto mt-8 flex max-w-page flex-wrap justify-center gap-2 px-gutter" role="group" aria-label="pick a study mode">
     {
       studyModes.map((mode, index) => (
         <a
@@ -103,13 +104,22 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
 
   <p class="sr-only" aria-live="off" aria-atomic="true" data-modes-live></p>
 
-  <p class="mt-8 text-center text-sm text-ink-soft">
+  <p class="mx-auto mt-8 max-w-page px-gutter text-center text-sm text-ink-soft">
     {openList} are open now, with placeholder cards. the rest are on the way.
   </p>
 </section>
 
 <script>
-  import { AUTO_ADVANCE_MS, canAutoAdvance, distance, keyTarget, nearestIndex, slideAnnouncement, wrap } from '../scripts/carousel';
+  import {
+    AUTO_ADVANCE_MS,
+    SETTLE_MS,
+    canAutoAdvance,
+    distance,
+    keyTarget,
+    nearestIndex,
+    slideAnnouncement,
+    wrap,
+  } from '../scripts/carousel';
 
   const root = document.querySelector<HTMLElement>('[data-modes]');
   const track = root?.querySelector<HTMLElement>('[data-modes-track]');
@@ -130,8 +140,8 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
       onScreen: false,
     };
     let active = 0;
-    /** Where an arrow, chip or key is taking the row: only that card is announced, not every card passed on the way. */
-    let heading: number | undefined;
+    /** The card last written to the live region (none yet). */
+    let announced = -1;
 
     const centers = () => cards.map((card) => card.offsetLeft + card.offsetWidth / 2);
     const middle = () => track.scrollLeft + track.clientWidth / 2;
@@ -144,7 +154,6 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
       cards.forEach((card, index) => card.style.setProperty('--mode-distance', distance(all[index]!, mid, step).toFixed(3)));
       const nearest = nearestIndex(all, mid);
       if (nearest !== active || !cards[nearest]!.hasAttribute('data-active')) setActive(nearest);
-      if (nearest === heading) heading = undefined;
     };
 
     const setActive = (index: number) => {
@@ -154,17 +163,28 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
         if (i === index) chip.setAttribute('aria-current', 'true');
         else chip.removeAttribute('aria-current');
       });
-      if (live && (heading === undefined || heading === index)) {
-        live.textContent = slideAnnouncement(cards[index]!.dataset.name ?? '', index, cards.length);
-      }
     };
 
+    /**
+     * Only the card where the row comes to rest is announced: a swipe, a long glide to a far chip, or a glide the
+     * visitor interrupts reads out where it lands, never every card it passes. The cards themselves update at once.
+     */
+    let settle = 0;
+    const announce = () => {
+      window.clearTimeout(settle);
+      update();
+      if (!live || announced === active) return;
+      announced = active;
+      live.textContent = slideAnnouncement(cards[active]!.dataset.name ?? '', active, cards.length);
+    };
+    // Browsers with a scrollend event say when scrolling, snapping and any glide are over; for the others a short pause
+    // in scrolling counts as resting.
+    const hasScrollEnd = 'onscrollend' in window;
+    if (hasScrollEnd) track.addEventListener('scrollend', announce);
+
     const goTo = (index: number) => {
-      heading = wrap(index, cards.length);
-      const card = cards[heading]!;
+      const card = cards[wrap(index, cards.length)]!;
       const left = card.offsetLeft + card.offsetWidth / 2 - track.clientWidth / 2;
-      // Already there: nothing will scroll, so nothing is on its way.
-      if (Math.abs(track.scrollLeft - left) < 1) heading = undefined;
       track.scrollTo({ left, behavior: state.reducedMotion ? 'auto' : 'smooth' });
     };
 
@@ -183,6 +203,10 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
           frame = 0;
           update();
         });
+        if (!hasScrollEnd) {
+          window.clearTimeout(settle);
+          settle = window.setTimeout(announce, SETTLE_MS);
+        }
       },
       { passive: true },
     );

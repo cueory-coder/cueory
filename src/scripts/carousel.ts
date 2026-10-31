@@ -10,6 +10,9 @@
 /** Time each card stays in the middle before the next one comes in, when nobody is using the carousel. */
 export const AUTO_ADVANCE_MS = 6000;
 
+/** Where a browser has no scrollend event, the row counts as resting once it has not moved for this long. */
+export const SETTLE_MS = 200;
+
 /** How far, in cards, the coverflow look keeps shrinking and lowering a neighbour. */
 export const MAX_DISTANCE = 2;
 

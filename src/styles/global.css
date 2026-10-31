@@ -406,8 +406,9 @@ html:has(dialog.menu-panel[open]) {
 /*
   "ways to study" carousel on the home page (D-50). A row of cards that scrolls sideways and snaps each card to the
   middle, so swiping, the keyboard and pages without JavaScript all work. The script sets --mode-distance on each card
-  (0 in the middle, up to 2), which draws the coverflow look: neighbours smaller and a little lower. The row's edges
-  fade out. Text stays fully opaque on every card, so its contrast never drops.
+  (0 in the middle, up to 2), which draws the coverflow look: neighbours smaller and a little lower. The row runs the
+  full width of the window, so the neighbours are simply cut off by the window's edge. Nothing masks, fades or blurs a
+  card: its text keeps the frosted-panel contrast checked in tests/unit/tokens.test.ts.
 */
 @layer components {
   .modes-track {
@@ -418,12 +419,8 @@ html:has(dialog.menu-panel[open]) {
     overscroll-behavior-x: contain;
     scroll-snap-type: x mandatory;
     scrollbar-width: none;
-    /* Edge to edge on phones: the row reaches past the page's side padding, so the neighbours peek in. */
-    margin-inline: calc(-1 * var(--spacing-gutter));
     padding-block: calc(var(--spacing) * 6) calc(var(--spacing) * 10);
     padding-inline: calc((100% - var(--container-mode-card)) / 2);
-    -webkit-mask-image: linear-gradient(to right, transparent, currentColor 10%, currentColor 90%, transparent);
-    mask-image: linear-gradient(to right, transparent, currentColor 10%, currentColor 90%, transparent);
   }
 
   .modes-track::-webkit-scrollbar {
