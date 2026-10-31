@@ -38,20 +38,21 @@ Last updated: 2026-10-31
   loads YouTube's player and starts that video; nothing plays on page load.
 - Release 31 Oct ([#20](https://github.com/lilchristxan/Cueory/pull/20)): Cards and flashcards for lesson 1, the batch
   checker, the roadmap additions and the staging auto-merge are on `main`.
-- In `staging`, approved by Christian on 31 Oct, waiting for the next release to `main`:
+- Second release 31 Oct ([#21](https://github.com/lilchristxan/Cueory/pull/21)), approved by Christian; live on `main`:
   - [Marketing redesign](https://github.com/lilchristxan/Cueory/pull/14) (D-41): quiet-luxury home hero and frosted
     panels on the support, legal and 404 pages; study screens unchanged.
   - [Pre-launch mode for the auto-merge](https://github.com/lilchristxan/Cueory/pull/15) (D-42): `automation.json`
     says `"prelaunch": true`, so until launch only workflows, the automation, the rules files, content, the database,
-    deployment, new or major-version dependencies and anything labelled `needs-christian` wait for Christian. The
-    auto-merge runs the rules on `main`, so this takes effect with the next release.
+    deployment, new or major-version dependencies and anything labelled `needs-christian` wait for Christian.
   - [Dependabot ignore rules](https://github.com/lilchristxan/Cueory/pull/16): no more TypeScript 7 or `@types/node`
-    above 24. Dependabot reads its settings from `main`, so this also takes effect with the next release.
+    above 24.
 
 ## In review
-- [Learn mode](https://github.com/lilchristxan/Cueory/pull/17) (D-43), [Matching](https://github.com/lilchristxan/Cueory/pull/18)
-  (D-44) and [select-all-that-apply in the batch checker](https://github.com/lilchristxan/Cueory/pull/19) (D-45): the
-  auto-merge takes these once they are clean.
+- [Matching](https://github.com/lilchristxan/Cueory/pull/18) (D-44) and
+  [select-all-that-apply in the batch checker](https://github.com/lilchristxan/Cueory/pull/19) (D-45): the auto-merge
+  takes these once they are clean.
+- [Learn mode](https://github.com/lilchristxan/Cueory/pull/17) (D-43): it changes one placeholder card in `content/`,
+  so pre-launch mode holds it for Christian's merge.
 - Dependabot [#9](https://github.com/lilchristxan/Cueory/pull/9) (`@types/node` 26) and
   [#10](https://github.com/lilchristxan/Cueory/pull/10) (TypeScript 7): don't merge. We run Node 24 (D-01), and
   Astro's type checker accepts TypeScript only up to 6 (D-02).
