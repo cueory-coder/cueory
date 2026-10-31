@@ -48,19 +48,18 @@ Last updated: 2026-10-31
     above 24.
 - Dependabot closed [#9](https://github.com/lilchristxan/Cueory/pull/9) (`@types/node` 26) and
   [#10](https://github.com/lilchristxan/Cueory/pull/10) (TypeScript 7) itself once the ignore rules reached `main`.
-- In `staging`, waiting for the next release: [Matching](https://github.com/lilchristxan/Cueory/pull/18) (D-44) and
-  [select-all-that-apply in the batch checker](https://github.com/lilchristxan/Cueory/pull/19) (D-45), the first pull
-  requests the pre-launch auto-merge took on its own.
-
-- [Rollback guide](https://github.com/lilchristxan/Cueory/pull/22) is in `staging` (merged by the auto-merge).
+- Third release 31 Oct ([#23](https://github.com/lilchristxan/Cueory/pull/23)), merged by Christian; live on `main`:
+  - [Learn mode](https://github.com/lilchristxan/Cueory/pull/17) (D-43), merged into `staging` by Christian because it
+    changes a placeholder card in `content/`.
+  - [Matching](https://github.com/lilchristxan/Cueory/pull/18) (D-44) and
+    [select-all-that-apply in the batch checker](https://github.com/lilchristxan/Cueory/pull/19) (D-45), the first
+    pull requests the pre-launch auto-merge took on its own.
+  - [Rollback guide](https://github.com/lilchristxan/Cueory/pull/22) in `docs/SETUP.md`.
+- In `staging`, waiting for the next release: [home hero, ☰ side panel and account corner](https://github.com/lilchristxan/Cueory/pull/24)
+  in the all-lowercase voice (D-46, D-47), with phone, tablet and desktop browser tests (D-48).
 
 ## In review
-- Home hero, ☰ side panel and account corner, in the all-lowercase voice (D-46, D-47), with phone, tablet and
-  desktop browser tests (D-48). The auto-merge takes it once CI, the preview build and Codex are clean.
-- [Learn mode](https://github.com/lilchristxan/Cueory/pull/17) (D-43): it changes one placeholder card in `content/`,
-  so pre-launch mode holds it for Christian's merge.
-- [Release #23](https://github.com/lilchristxan/Cueory/pull/23): Matching and select-all-that-apply, waiting for
-  Christian's merge.
+- Nothing open right now.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. Search in the ☰ panel (Pagefind, a new package, so it waits for Christian's merge).
