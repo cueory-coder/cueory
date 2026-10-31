@@ -78,7 +78,8 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   verdict is its own status: an item with nothing wrong except pending reviews goes to `pending.csv`, never passes,
   and the exit code is 1 (0 only when every item passed). Items are single-answer only; select-all-that-apply waits
   for Christian's content decision. Answer balance unchanged.
-- **D-32** Lesson videos (Christian's decision, 2026-10-31): hosted on Cueory's YouTube channel and embedded from
+- **D-32** (How a video starts is updated by D-40.) Lesson videos (Christian's decision, 2026-10-31): hosted on
+  Cueory's YouTube channel and embedded from
   `youtube-nocookie.com` behind a click-to-play cover (self-hosted thumbnail and play button), never stored on our
   servers. No autoplay, so after the click the student presses play in YouTube's own player. `frame-src` allows only
   that origin, video IDs live in `/content`, and `/privacy` mentions YouTube's cookies. Reason: video hosting stays
@@ -126,6 +127,10 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   Merges made by the workflow don't start CI on `staging` (GitHub doesn't start workflows from its own token's
   pushes); each pull request's CI already tested it merged with `staging`. Reason: Christian keeps his hands for
   sensitive changes and releases, and clean work reaches the staging site without waiting for him.
+- **D-40** Lesson videos start on the first tap (Christian confirmed "play immediately", 2026-10-31). The cover's one
+  tap loads the `youtube-nocookie.com` player with autoplay switched on for that video only, so the student doesn't
+  press play twice. Nothing loads from YouTube before the tap, and nothing ever plays on page load. Replaces D-32's
+  "press play in YouTube's own player". Reason: the student has already chosen to watch.
 - **D-43** Learn mode for card decks (ROADMAP Task 4). Each card climbs three steps: see it (its answer one tap
   away), choose its answer from up to four in the deck (only answers that read differently), then recall it: fill in
   its blank when the deck names one (a card's optional `blank`: words that appear in its back exactly as written,
