@@ -2,6 +2,31 @@
 @import "./tokens.css";
 @import "@fontsource-variable/inter";
 
+/*
+  Bodoni Moda (SIL Open Font License, public/fonts/bodoni-moda-OFL.txt) for marketing headings only (D-41).
+  Latin subset, self-hosted. font-display: optional never swaps fonts after the page is drawn, so nothing jumps;
+  marketing pages preload these files so the serif is normally ready in time.
+*/
+@font-face {
+  font-family: "Bodoni Moda";
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: optional;
+  src: url("/fonts/bodoni-moda-latin-opsz-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Bodoni Moda";
+  font-style: italic;
+  font-weight: 400 900;
+  font-display: optional;
+  src: url("/fonts/bodoni-moda-latin-opsz-italic.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 @layer base {
   :root {
     color-scheme: light dark;
@@ -69,4 +94,69 @@
       scroll-behavior: auto !important;
     }
   }
+}
+
+/*
+  Marketing pages only (D-41, Christian's redesign brief): quiet-luxury editorial look. Study screens never use these.
+  Every color is a brand color from tokens.css, some mixed toward transparent; tests/unit/tokens.test.ts checks text
+  contrast on the darkest and lightest points of each background.
+*/
+@layer components {
+  /* Draped silk: diagonal folds of light and shade, a soft sheen, and a faint grain. */
+  .silk {
+    --silk-fold-mix: rgb(var(--silk-fold-rgb) / var(--silk-fold-alpha));
+    background-color: var(--color-silk-base);
+    background-image:
+      var(--silk-grain),
+      radial-gradient(120% 75% at 22% 0%, var(--color-silk-sheen), transparent 62%),
+      linear-gradient(
+        112deg,
+        transparent 6%,
+        var(--silk-fold-mix) 19%,
+        transparent 31%,
+        var(--silk-fold-mix) 47%,
+        transparent 58%,
+        var(--silk-fold-mix) 74%,
+        transparent 88%
+      ),
+      linear-gradient(
+        68deg,
+        transparent 40%,
+        rgb(var(--silk-fold-rgb) / calc(var(--silk-fold-alpha) / 2)) 63%,
+        transparent 82%
+      ),
+      linear-gradient(180deg, var(--color-silk-base), var(--color-silk-shade));
+    background-size: 220px 220px, auto, auto, auto, auto;
+  }
+
+  /* The same cloth without folds, for whole pages behind text. */
+  .silk-quiet {
+    background-color: var(--color-silk-base);
+    background-image: var(--silk-grain), linear-gradient(180deg, var(--color-silk-base), var(--color-silk-shade));
+    background-size: 220px 220px, auto;
+  }
+
+  /* Frosted panel: brand surface color, partly see-through, blurred, with a soft shadow. */
+  .veil {
+    background-color: rgb(var(--veil-rgb) / var(--veil-alpha));
+    border: 1px solid color-mix(in srgb, var(--color-line) 55%, transparent);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-soft);
+    -webkit-backdrop-filter: blur(var(--blur-veil));
+    backdrop-filter: blur(var(--blur-veil));
+  }
+
+  /* Tone-on-tone logo pressed into the cloth: a light edge above, a faint shadow below. */
+  .emboss {
+    color: var(--color-emboss);
+    filter: drop-shadow(0 -1px 0 color-mix(in srgb, var(--color-silk-sheen) 85%, transparent))
+      drop-shadow(0 2px 2px rgb(var(--shadow-tint) / 0.08));
+  }
+}
+
+/* Serif display headings (Bodoni Moda Medium, brand spec: tracking -0.025em). A utility, so variants work on it. */
+@utility display {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: var(--tracking-display);
 }

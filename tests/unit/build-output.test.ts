@@ -31,6 +31,23 @@ const requiredPages = [
 describe.skipIf(!existsSync(dist))('built site', () => {
   const pages = htmlFiles(dist);
 
+  it('marketing pages preload the self-hosted serif (D-41), and every preloaded file exists', () => {
+    const preloads = (html: string) =>
+      [...html.matchAll(/<link\b[^>]*rel="preload"[^>]*>/g)].map((m) => /href="([^"]+)"/.exec(m[0])![1]!);
+    for (const page of ['index.html', 'privacy.html', 'support.html', '404.html']) {
+      const hrefs = preloads(readFileSync(join(dist, page), 'utf8'));
+      expect(hrefs, page).toContain('/fonts/bodoni-moda-latin-opsz-normal.woff2');
+      for (const href of hrefs) expect(existsSync(join(dist, href)), href).toBe(true);
+    }
+    expect(preloads(readFileSync(join(dist, 'index.html'), 'utf8'))).toContain('/fonts/bodoni-moda-latin-opsz-italic.woff2');
+    // Study screens stay quiet: no display font, nothing extra to download.
+    expect(preloads(readFileSync(join(dist, 'learn/study-skills.html'), 'utf8'))).toEqual([]);
+  });
+
+  it('ships the font license with the fonts', () => {
+    expect(readFileSync(join(dist, 'fonts/bodoni-moda-OFL.txt'), 'utf8')).toContain('SIL Open Font License');
+  });
+
   it.each(requiredPages)('has %s', (page) => {
     expect(existsSync(join(dist, page))).toBe(true);
   });

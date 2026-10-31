@@ -26,8 +26,9 @@ You can edit any of these files right on GitHub: open the file, click the pencil
 2. Automated checks run: the site builds, tests pass, accessibility checks pass, no secrets are leaked.
 3. Codex reviews the change. You approve anything touching sign-in, the database, payments, deployment or secrets.
 4. The change is merged into **`staging`**: automatically once the checks and Codex are clean, or by you when it
-   touches a sensitive area (those get a `needs-christian` label). Cloudflare publishes `staging` to a locked preview
-   address that only you can open.
+   touches a sensitive area (those get a `needs-christian` label). Until the site is live for students
+   (`automation.json`, D-42), fewer areas wait for you: the automation, the rules files, content, the database and
+   deployment settings. Cloudflare publishes `staging` to a locked preview address that only you can open.
 5. You check it there. If it's good, you merge `staging` into **`main`**, and Cloudflare publishes it to
    **cueory.app**.
 
