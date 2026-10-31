@@ -150,10 +150,20 @@ test('Matching pairs terms with meanings by keyboard, counting misses', async ({
   await expect(page.getByText('Not a match. Try again.')).toBeVisible();
   await expect(page.getByText('Matched 0 of 3 · Misses: 1')).toBeVisible();
 
-  // Right pairs, starting from either side.
-  await terms.getByRole('button', { name: 'Placeholder card 1, front.' }).click();
-  await meanings.getByRole('button', { name: /^Placeholder card 1, back\./ }).click();
+  // A right pair by keyboard: the button just used keeps focus once it is matched.
+  await terms.getByRole('button', { name: 'Placeholder card 1, front.' }).focus();
+  await page.keyboard.press('Enter');
+  const meaningOne = meanings.getByRole('button', { name: /^Placeholder card 1, back\./ });
+  await meaningOne.focus();
+  await page.keyboard.press('Enter');
   await expect(page.getByText('Matched: Placeholder card 1, front.')).toBeVisible();
+  await expect(meaningOne).toBeFocused();
+  await expect(meaningOne).toHaveAttribute('aria-disabled', 'true');
+  // Pressing a matched item again changes nothing.
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('Matched 1 of 3 · Misses: 1')).toBeVisible();
+
+  // Right pairs by tap, starting from either side.
   await meanings.getByRole('button', { name: 'Placeholder card 2, back.' }).click();
   await terms.getByRole('button', { name: 'Placeholder card 2, front.' }).click();
   await terms.getByRole('button', { name: 'Placeholder card 3, front.' }).click();
@@ -161,6 +171,8 @@ test('Matching pairs terms with meanings by keyboard, counting misses', async ({
 
   await expect(page.getByText('All 3 matched.')).toBeVisible();
   await expect(page.getByText('Matched 3 of 3 · Misses: 1')).toBeVisible();
+  const finished = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+  expect(finished.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
   await expect(terms.getByRole('button', { name: /Matched$/ })).toHaveCount(3);
   await expect(terms.getByRole('button', { disabled: true })).toHaveCount(3);
 

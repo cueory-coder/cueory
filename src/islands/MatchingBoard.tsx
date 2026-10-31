@@ -31,8 +31,8 @@ function TickIcon() {
 /**
  * Matching (D-44): pick a term, then the meaning that goes with it (or the other way round). Every item is a real
  * button, so it works by tapping, clicking or keyboard; there is no dragging and no timer. Picked and matched items
- * say so in words as well as looks. Rendered only in the browser (client:only); without JavaScript the page shows
- * its <noscript> note instead.
+ * say so in words as well as looks, and focus stays on the button just used. Rendered only in the browser
+ * (client:only); without JavaScript the page shows its <noscript> note instead.
  */
 export default function MatchingBoard({ cards }: Props) {
   const [state, setState] = useState<MatchState>(() => startMatching(cards));
@@ -68,10 +68,12 @@ export default function MatchingBoard({ cards }: Props) {
       <li key={`${side}-${index}`}>
         <button
           type="button"
-          onClick={() => setState((s) => pick(s, cards, side, index))}
-          disabled={matched}
+          onClick={() => setState((s) => pick(s, side, index))}
+          // aria-disabled rather than disabled: a matched button keeps keyboard focus, so the focus ring never
+          // vanishes after a match. pick() ignores matched items.
+          aria-disabled={matched || undefined}
           aria-pressed={matched ? undefined : picked}
-          className={`w-full rounded-md border px-4 py-3 text-left text-ink disabled:cursor-default disabled:text-ink-soft ${
+          className={`w-full rounded-md border px-4 py-3 text-left text-ink aria-disabled:cursor-default aria-disabled:text-ink-soft ${
             picked ? 'border-ink bg-surface' : 'border-control'
           }`}
         >

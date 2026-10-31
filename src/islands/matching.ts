@@ -2,10 +2,11 @@
  * Pure logic for Matching (ROADMAP Task 4, D-44), kept separate so it can be unit tested.
  *
  * A round lays out up to six cards as two lists: their fronts (terms) and their backs (meanings), each in random
- * order. The student picks one item from each list, in either order. If they belong together, both are marked
- * matched; if not, the pick is cleared and it counts as a miss. The round is over when every term is matched, and the
- * next round takes the next cards in the deck. Nothing moves or disappears on its own. Cards are referred to by their
- * index in the deck.
+ * order. No two cards in a round read the same on either side, so every term has exactly one meaning on screen and a
+ * pair is right only when both come from the same card; a card that repeats another's front or back waits for a later
+ * round. The student picks one item from each list, in either order. A right pair is marked matched; a wrong one is
+ * cleared and counts as a miss. The round is over when every term is matched. Nothing moves or disappears on its own.
+ * Cards are referred to by their index in the deck.
  */
 
 import { order, type Random } from './cards';
@@ -20,10 +21,9 @@ export interface MatchCard {
 }
 
 export interface MatchState {
-  /** Every deck index, in the order rounds take them. */
-  sequence: number[];
-  /** Where this round starts in `sequence`. */
-  start: number;
+  /** Every round, planned at the start (see planRounds). */
+  rounds: number[][];
+  /** 1 for the first round, then 2, 3, … */
   roundNumber: number;
   /** The round's cards shown as terms (their fronts), in the order shown. */
   terms: number[];
@@ -40,34 +40,47 @@ export interface MatchState {
   misses: number;
 }
 
-/** Accents, case, punctuation and extra spaces don't count when two cards are compared. */
-function readsTheSame(a: string, b: string): boolean {
-  const plain = (text: string) =>
-    text
-      .normalize('NFKD')
-      .replace(/\p{M}/gu, '')
-      .toLowerCase()
-      .replace(/[^\p{L}\p{N}]+/gu, ' ')
-      .trim();
-  return plain(a) === plain(b);
+/** Text as it is compared: accents, case, punctuation and extra spaces don't count. */
+function plain(text: string): string {
+  return text
+    .normalize('NFKD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim();
 }
 
 /**
- * True when the term (a card's front) and the meaning (a card's back) belong together: the same card, or two cards
- * that read the same on that side, so a deck with a repeated answer can't make a right pair count as wrong.
+ * Splits the cards into rounds of up to six, in the order given. A card whose front or back reads the same as one
+ * already in the round goes to a later round, so within a round every term and every meaning is unique.
  */
-export function belongTogether(cards: readonly MatchCard[], term: number, meaning: number): boolean {
-  if (term === meaning) return true;
-  const a = cards[term]!;
-  const b = cards[meaning]!;
-  return readsTheSame(a.back, b.back) || readsTheSame(a.front, b.front);
+export function planRounds(cards: readonly MatchCard[], sequence: readonly number[] = cards.map((_, i) => i)): number[][] {
+  const rounds: number[][] = [];
+  let left = [...sequence];
+  while (left.length > 0) {
+    const round: number[] = [];
+    const fronts = new Set<string>();
+    const backs = new Set<string>();
+    const later: number[] = [];
+    for (const i of left) {
+      const front = plain(cards[i]!.front);
+      const back = plain(cards[i]!.back);
+      if (round.length < PAIRS_PER_ROUND && !fronts.has(front) && !backs.has(back)) {
+        round.push(i);
+        fronts.add(front);
+        backs.add(back);
+      } else later.push(i);
+    }
+    rounds.push(round);
+    left = later;
+  }
+  return rounds;
 }
 
-function roundAt(sequence: readonly number[], start: number, roundNumber: number, random: Random): MatchState {
-  const round = sequence.slice(start, start + PAIRS_PER_ROUND);
+function roundAt(rounds: readonly number[][], roundNumber: number, random: Random): MatchState {
+  const round = rounds[roundNumber - 1] ?? [];
   return {
-    sequence: [...sequence],
-    start,
+    rounds: rounds.map((r) => [...r]),
     roundNumber,
     terms: order(round, true, random),
     meanings: order(round, true, random),
@@ -85,7 +98,7 @@ export function startMatching(
   random: Random = Math.random,
   sequence: readonly number[] = cards.map((_, i) => i),
 ): MatchState {
-  return roundAt(sequence, 0, 1, random);
+  return roundAt(planRounds(cards, sequence), 1, random);
 }
 
 function isMatched(state: MatchState, side: Side, index: number): boolean {
@@ -100,7 +113,7 @@ function isShown(state: MatchState, side: Side, index: number): boolean {
  * Pick a term or a meaning. Picking a second item from the same list moves the pick; picking the same item again
  * lets go of it. Picking one from the other list tries the pair.
  */
-export function pick(state: MatchState, cards: readonly MatchCard[], side: Side, index: number): MatchState {
+export function pick(state: MatchState, side: Side, index: number): MatchState {
   if (!isShown(state, side, index) || isMatched(state, side, index)) return state;
   const held = state.picked;
   if (!held || held.side === side) {
@@ -109,7 +122,8 @@ export function pick(state: MatchState, cards: readonly MatchCard[], side: Side,
   }
   const term = side === 'term' ? index : held.index;
   const meaning = side === 'meaning' ? index : held.index;
-  const correct = belongTogether(cards, term, meaning);
+  // Within a round every term and meaning is unique, so a pair is right only when both come from the same card.
+  const correct = term === meaning;
   return {
     ...state,
     matchedTerms: correct ? [...state.matchedTerms, term] : state.matchedTerms,
@@ -133,16 +147,16 @@ export function isRoundOver(state: MatchState): boolean {
 }
 
 export function hasNextRound(state: MatchState): boolean {
-  return state.start + PAIRS_PER_ROUND < state.sequence.length;
+  return state.roundNumber < state.rounds.length;
 }
 
-/** The next cards in the deck, once this round is over. */
+/** The next round, once this one is over. */
 export function nextRound(state: MatchState, random: Random = Math.random): MatchState {
   if (!isRoundOver(state) || !hasNextRound(state)) return state;
-  return roundAt(state.sequence, state.start + PAIRS_PER_ROUND, state.roundNumber + 1, random);
+  return roundAt(state.rounds, state.roundNumber + 1, random);
 }
 
 /** How many rounds the whole deck takes. */
 export function roundCount(state: MatchState): number {
-  return Math.max(1, Math.ceil(state.sequence.length / PAIRS_PER_ROUND));
+  return Math.max(1, state.rounds.length);
 }

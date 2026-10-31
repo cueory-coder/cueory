@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  belongTogether,
   hasNextRound,
   isPicked,
   isRoundOver,
@@ -8,6 +7,7 @@ import {
   nextRound,
   PAIRS_PER_ROUND,
   pick,
+  planRounds,
   roundCount,
   startMatching,
   type MatchCard,
@@ -40,70 +40,76 @@ describe('a Matching round', () => {
 
   it('matches a term and its meaning, picked in either order', () => {
     let s = startMatching(deck, seeded(1));
-    s = pick(s, deck, 'term', 1);
+    s = pick(s, 'term', 1);
     expect(isPicked(s, 'term', 1)).toBe(true);
-    s = pick(s, deck, 'meaning', 1);
+    s = pick(s, 'meaning', 1);
     expect(s.matchedTerms).toEqual([1]);
     expect(s.matchedMeanings).toEqual([1]);
     expect(s.last).toEqual({ term: 1, meaning: 1, correct: true });
     expect(s.picked).toBeNull();
 
-    s = pick(pick(s, deck, 'meaning', 2), deck, 'term', 2);
+    s = pick(pick(s, 'meaning', 2), 'term', 2);
     expect(matchedCount(s)).toBe(2);
     expect(s.misses).toBe(0);
   });
 
   it('counts a wrong pair as a miss and keeps both items in play', () => {
     let s = startMatching(deck, seeded(1));
-    s = pick(pick(s, deck, 'term', 0), deck, 'meaning', 2);
+    s = pick(pick(s, 'term', 0), 'meaning', 2);
     expect(s.last).toEqual({ term: 0, meaning: 2, correct: false });
     expect(s.misses).toBe(1);
     expect(matchedCount(s)).toBe(0);
-    s = pick(pick(s, deck, 'term', 0), deck, 'meaning', 0);
+    s = pick(pick(s, 'term', 0), 'meaning', 0);
     expect(matchedCount(s)).toBe(1);
   });
 
   it('moves the pick within a list, and lets go when the same item is picked again', () => {
     let s = startMatching(deck, seeded(1));
-    s = pick(s, deck, 'term', 0);
-    s = pick(s, deck, 'term', 2);
+    s = pick(s, 'term', 0);
+    s = pick(s, 'term', 2);
     expect(isPicked(s, 'term', 2)).toBe(true);
     expect(isPicked(s, 'term', 0)).toBe(false);
-    s = pick(s, deck, 'term', 2);
+    s = pick(s, 'term', 2);
     expect(s.picked).toBeNull();
   });
 
   it('ignores items already matched or not in the round', () => {
     let s = startMatching(deck, seeded(1));
-    s = pick(pick(s, deck, 'term', 0), deck, 'meaning', 0);
-    expect(pick(s, deck, 'term', 0)).toEqual(s);
-    expect(pick(s, deck, 'meaning', 0)).toEqual(s);
-    expect(pick(s, deck, 'term', 7)).toEqual(s);
+    s = pick(pick(s, 'term', 0), 'meaning', 0);
+    expect(pick(s, 'term', 0)).toEqual(s);
+    expect(pick(s, 'meaning', 0)).toEqual(s);
+    expect(pick(s, 'term', 7)).toEqual(s);
   });
 
   it('is over once every term is matched, and a small deck has no next round', () => {
     let s = startMatching(deck, seeded(1));
-    for (const i of [2, 0, 1]) s = pick(pick(s, deck, 'term', i), deck, 'meaning', i);
+    for (const i of [2, 0, 1]) s = pick(pick(s, 'term', i), 'meaning', i);
     expect(isRoundOver(s)).toBe(true);
     expect(hasNextRound(s)).toBe(false);
     expect(nextRound(s)).toEqual(s);
     expect(roundCount(s)).toBe(1);
   });
 
-  it('accepts a pair from two cards with the same answer', () => {
+  it('puts cards that read the same on either side into different rounds, so every round can be finished', () => {
+    // (A, X), (A, Y), (B, Y): any two of them share a term or a meaning.
     const twins: MatchCard[] = [
-      { front: 'A', back: 'Same answer.' },
-      { front: 'B', back: 'same answer' },
-      { front: 'C', back: 'Other' },
+      { front: 'A', back: 'X' },
+      { front: 'a.', back: 'Y' },
+      { front: 'B', back: 'y' },
     ];
-    expect(belongTogether(twins, 0, 1)).toBe(true);
-    expect(belongTogether(twins, 0, 2)).toBe(false);
+    expect(planRounds(twins)).toEqual([[0, 2], [1]]);
     let s = startMatching(twins, seeded(2));
-    s = pick(pick(s, twins, 'term', 0), twins, 'meaning', 1);
-    s = pick(pick(s, twins, 'term', 1), twins, 'meaning', 0);
-    s = pick(pick(s, twins, 'term', 2), twins, 'meaning', 2);
+    expect([...s.terms].sort()).toEqual([0, 2]);
+    s = pick(pick(s, 'term', 0), 'meaning', 2);
+    expect(s.last?.correct).toBe(false);
+    s = pick(pick(s, 'term', 0), 'meaning', 0);
+    s = pick(pick(s, 'term', 2), 'meaning', 2);
     expect(isRoundOver(s)).toBe(true);
-    expect(s.misses).toBe(0);
+    s = nextRound(s, seeded(3));
+    expect(s.terms).toEqual([1]);
+    s = pick(pick(s, 'meaning', 1), 'term', 1);
+    expect(isRoundOver(s)).toBe(true);
+    expect(hasNextRound(s)).toBe(false);
   });
 });
 
@@ -117,7 +123,7 @@ describe('a big deck', () => {
     expect(nextRound(s)).toEqual(s);
 
     const finish = () => {
-      for (const i of [...s.terms]) s = pick(pick(s, big, 'term', i), big, 'meaning', i);
+      for (const i of [...s.terms]) s = pick(pick(s, 'term', i), 'meaning', i);
     };
     finish();
     expect(hasNextRound(s)).toBe(true);
