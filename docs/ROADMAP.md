@@ -42,7 +42,7 @@ missing rationales, unknown fact IDs, broken source links). Writes `passed.csv`,
 - **Learn mode:** one session that mixes cards, multiple choice, typed answers and fill-in, and keeps bringing back
   anything the student misses until it's mastered. It starts with the card decks: the answer is the card's back, which
   students can already see by flipping. Questions from the reviewed question bank join once `check_answer` exists
-  (Task 2), so their answer keys never reach the browser (D-33).
+  (Task 2), so their answer keys never reach the browser (D-33). The card-deck version is built (D-43).
 - Other study modes: Matching (built for card decks, D-44), Organizer (tap and keyboard alternatives to dragging),
   Questions with rationales, Review.
 - Guest progress saved in the browser; creating an account imports it.

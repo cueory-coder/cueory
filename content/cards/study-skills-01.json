@@ -5,7 +5,7 @@
   "status": "placeholder",
   "cards": [
     { "id": "ss01-c01", "front": "Placeholder card 1, front.", "back": "Placeholder card 1, back. Christian's reviewed card text replaces this." },
-    { "id": "ss01-c02", "front": "Placeholder card 2, front.", "back": "Placeholder card 2, back." },
+    { "id": "ss01-c02", "front": "Placeholder card 2, front.", "back": "Placeholder card 2, back.", "blank": "card 2" },
     { "id": "ss01-c03", "front": "Placeholder card 3, front.", "back": "Placeholder card 3, back." }
   ]
 }

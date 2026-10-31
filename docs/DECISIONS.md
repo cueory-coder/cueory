@@ -159,6 +159,18 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   missing or unreadable `automation.json` means the launched rules. Reason: there are no students, accounts or real
   content yet, so speed matters more than a human checkpoint, while the automation, the agents' rules, the deploy
   setup, the database and content still can't change without Christian.
+- **D-43** Learn mode for card decks (ROADMAP Task 4). Each card climbs three steps: see it (its answer one tap
+  away), choose its answer from up to four in the deck (only answers that read differently), then recall it: fill in
+  its blank when the deck names one (a card's optional `blank`: words that appear in its back exactly as written,
+  checked when the site builds), otherwise type the whole answer. A right choice moves the card up and a right recall
+  masters it; a wrong choice stays on that step and a wrong recall goes back to choosing. Anything not mastered comes
+  back after two other cards. Typed answers ignore case, accents, punctuation and extra spaces, and "I was right"
+  counts a near miss once the student has seen the answer. A deck with only one answer skips the choice step.
+  Nothing is saved yet (guest progress is its own Task 4 item); without JavaScript the page points to the cards page.
+  The home page's sentence-by-sentence reader is now called "Lesson", so "Learn" only ever means Learn mode
+  (Christian's answer on issue #4, 2026-10-31). Reason: Christian's plan for Learn mode, "mixing cards, multiple
+  choice, typed answers and fill-in until mastered", starting with card decks, whose answers students can already see
+  (D-33).
 - **D-44** Matching for card decks (ROADMAP Task 4). A round lays out up to six cards as two lists, terms (fronts) and
   meanings (backs), each in random order; the student picks one from each list in either order. A right pair is
   marked "Matched" in words and with a tick and stays on screen (nothing disappears or moves by itself), and the
