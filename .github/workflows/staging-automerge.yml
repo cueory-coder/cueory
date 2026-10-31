@@ -42,8 +42,9 @@ jobs:
   automerge:
     name: Merge clean pull requests into staging
     # Only start a runner when the event could complete a pull request's checks (saves free Actions minutes).
+    # By hand, only the default branch's own copy of this workflow may run (never a feature branch's).
     if: >-
-      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_dispatch' && github.ref_name == github.event.repository.default_branch) ||
       (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request' &&
        github.event.workflow_run.conclusion == 'success') ||
       (github.event_name == 'check_run' && github.event.check_run.name == 'Workers Builds: cueory' &&
@@ -60,9 +61,10 @@ jobs:
       issues: write # create the needs-christian label the first time
       checks: read # read check results
     steps:
-      # The default branch's own copy of the rules, never the pull request's.
+      # Always the default branch's reviewed copy of the rules, never a pull request's or another branch's.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0

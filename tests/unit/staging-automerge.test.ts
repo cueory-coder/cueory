@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   checkProblems,
@@ -202,7 +203,17 @@ describe('decide', () => {
 });
 
 /** A pretend GitHub that records every call, so nothing touches the network. */
-function fakeGitHub(pulls: Record<number, { pr: PullRequest; files: string[] }>, { labelExists = false } = {}) {
+function fakeGitHub(
+  pulls: Record<number, { pr: PullRequest; files: string[] }>,
+  {
+    labelExists = false,
+    /** Every comment page comes back full, as if there were endless comments. */
+    endlessComments = false,
+    /** What GET /pulls/N returns from its second call on (someone changed the pull request mid-run). */
+    later = undefined as Partial<PullRequest> | undefined,
+  } = {},
+) {
+  const seen = new Map<number, number>();
   const calls: { method: string; path: string; body?: unknown }[] = [];
   const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status });
   const fetch: Fetch = async (url, init) => {
@@ -212,10 +223,16 @@ function fakeGitHub(pulls: Record<number, { pr: PullRequest; files: string[] }>,
     const pr = (n: string) => pulls[Number(n)];
     let m: RegExpMatchArray | null;
     if (method === 'GET' && path === '/pulls?state=open&base=staging') return json(Object.values(pulls).map((p) => ({ number: p.pr.number })));
-    if (method === 'GET' && (m = path.match(/^\/pulls\/(\d+)$/))) return json(pr(m[1]!)!.pr);
+    if (method === 'GET' && (m = path.match(/^\/pulls\/(\d+)$/))) {
+      const n = Number(m[1]);
+      seen.set(n, (seen.get(n) ?? 0) + 1);
+      return json(seen.get(n)! > 1 && later ? { ...pr(m[1]!)!.pr, ...later } : pr(m[1]!)!.pr);
+    }
     if (method === 'GET' && (m = path.match(/^\/pulls\/(\d+)\/files$/))) return json(pr(m[1]!)!.files.map((filename) => ({ filename })));
     if (method === 'GET' && path.startsWith('/commits/')) return json({ total_count: 5, check_runs: greenChecks() });
-    if (method === 'GET' && path.match(/^\/issues\/\d+\/comments$/)) return json([codexComment(clean())]);
+    if (method === 'GET' && path.match(/^\/issues\/\d+\/comments$/)) {
+      return json(endlessComments ? Array.from({ length: 100 }, () => codexComment(clean())) : [codexComment(clean())]);
+    }
     if (method === 'GET' && path.startsWith('/labels/')) return labelExists ? json({ name: 'needs-christian' }) : json({ message: 'Not Found' }, 404);
     if (method === 'PUT' && path.match(/^\/pulls\/\d+\/merge$/)) return json({ merged: true });
     if (method === 'POST') return json({}, 201);
@@ -270,6 +287,28 @@ describe('the auto-merge run', () => {
     expect(calls.filter((c) => c.method !== 'GET')).toEqual([]);
   });
 
+  it('waits instead of judging from part of a list that is too long to read in full', async () => {
+    const { gh, calls } = fakeGitHub({ 7: { pr: pull(), files: ['src/x.ts'] } }, { endlessComments: true });
+    const outcomes = await runAutomerge({ gh, repo: REPO, dryRun: false, log: () => {} });
+    expect(outcomes[0]!.decision.action).toBe('wait');
+    expect(outcomes[0]!.decision.reasons[0]).toContain('too much to read in full');
+    expect(calls.filter((c) => c.method !== 'GET')).toEqual([]);
+  });
+
+  it('looks again right before merging and stops if the pull request now targets main', async () => {
+    const { gh, calls } = fakeGitHub({ 7: { pr: pull(), files: ['src/x.ts'] } }, { later: { base: { ref: 'main' } } });
+    const outcomes = await runAutomerge({ gh, repo: REPO, dryRun: false, log: () => {} });
+    expect(outcomes[0]!.done).toBe('merge refused');
+    expect(outcomes[0]!.decision.reasons.at(-1)).toContain('into main');
+    expect(calls.filter((c) => c.method !== 'GET')).toEqual([]);
+  });
+
+  it('stops if a new commit arrived between the checks and the merge', async () => {
+    const { gh, calls } = fakeGitHub({ 7: { pr: pull(), files: ['src/x.ts'] } }, { later: { head: { sha: 'ffff', ref: 'x', repo: { full_name: REPO } } } });
+    expect((await runAutomerge({ gh, repo: REPO, dryRun: false, log: () => {} }))[0]!.done).toBe('merge refused');
+    expect(calls.filter((c) => c.method !== 'GET')).toEqual([]);
+  });
+
   it('stops with exit code 2 when the token or repository is missing', () => {
     let status = 0;
     try {
@@ -281,5 +320,36 @@ describe('the auto-merge run', () => {
       status = (e as { status: number }).status;
     }
     expect(status).toBe(2);
+  });
+});
+
+describe('the workflow file', () => {
+  const yml = readFileSync(new URL('../../.github/workflows/staging-automerge.yml', import.meta.url), 'utf8');
+
+  it("always runs the default branch's copy of the rules", () => {
+    expect(yml).toContain('ref: ${{ github.event.repository.default_branch }}');
+    expect(yml).toContain("github.event_name == 'workflow_dispatch' && github.ref_name == github.event.repository.default_branch");
+    expect(yml).toContain('persist-credentials: false');
+  });
+
+  it('starts with no permissions and gives the job only what merging and labelling need', () => {
+    expect(yml).toMatch(/^permissions: \{\}$/m);
+    const job = yml.slice(yml.indexOf('    permissions:'), yml.indexOf('    steps:'));
+    expect(job.match(/^ {6}[a-z-]+:/gm)).toEqual([
+      '      contents:',
+      '      pull-requests:',
+      '      issues:',
+      '      checks:',
+    ]);
+  });
+
+  it('pins every action to a full commit SHA and never puts event text inside a shell command', () => {
+    for (const use of yml.match(/uses: \S+/g) ?? []) expect(use).toMatch(/@[0-9a-f]{40}$/);
+    const run = yml.slice(yml.indexOf('        run: |'));
+    expect(run).not.toContain('${{');
+  });
+
+  it('dry-runs manual runs unless unticked', () => {
+    expect(yml).toMatch(/dry_run:[\s\S]*?default: true/);
   });
 });

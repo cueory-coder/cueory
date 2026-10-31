@@ -112,12 +112,16 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   `scripts/staging_automerge.ts`, which merges a pull request into `staging` with a merge commit only when it targets
   `staging`, comes from this repository, isn't a draft, every required check passed (type check/build/tests, gitleaks,
   Semgrep, Workers Builds) and no other check failed, Codex's latest review summary is for the exact head commit and
-  reports no findings, and GitHub says it merges cleanly. The merge is pinned to the checked head commit. It never
-  merges into `main`. Pull requests that change `.github/`, `supabase/`, `public/_headers`, `astro.config.mjs`,
+  reports no findings, and GitHub says it merges cleanly. The merge is pinned to the checked head commit, and the pull
+  request is fetched again right before merging so a new commit or a new base (such as `main`) stops it; lists too
+  long to read in full make it wait rather than judge from part of them. It never merges into `main`; because GitHub's
+  merge call can't pin the base, the server-side guarantee is a `main` rule that only Christian can update (Codex
+  review of PR #12). Pull requests that change `.github/`, `supabase/`, `public/_headers`, `astro.config.mjs`,
   `wrangler.jsonc`, `SECURITY.md`, `CLAUDE.md`, `AGENTS.md`, `brand-source/`, `public/brand/`, any `package.json` or
   `package-lock.json`, the auto-merge rules themselves, `.node-version` or `src/config/site.ts` (newsletter form
   settings) get the "needs-christian" label instead. The workflow reads pull requests through the API only and never
-  runs their code. It starts on CI completion, Cloudflare's preview check, Codex's review summary, or by hand (dry run
+  runs their code; it always checks out the default branch's copy of the rules, and manual runs work only from the
+  default branch. It starts on CI completion, Cloudflare's preview check, Codex's review summary, or by hand (dry run
   by default), and because GitHub runs those events only from the default branch, it works once it reaches `main`.
   Merges made by the workflow don't start CI on `staging` (GitHub doesn't start workflows from its own token's
   pushes); each pull request's CI already tested it merged with `staging`. Reason: Christian keeps his hands for

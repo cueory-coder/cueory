@@ -12,7 +12,7 @@
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { BASE_BRANCH, decide, NEEDS_CHRISTIAN_LABEL, type Decision } from './automerge/decide.ts';
-import { createGitHub, GitHubError, type GitHub } from './automerge/github.ts';
+import { createGitHub, GitHubError, TruncatedError, type GitHub } from './automerge/github.ts';
 
 export type Done = 'merged' | 'labelled' | 'nothing' | 'would merge' | 'would label' | 'merge refused';
 
@@ -41,25 +41,39 @@ export async function runAutomerge({
   for (const n of numbers) {
     const pull = await gh.pull(n);
     const relevant = pull.state === 'open' && pull.base.ref === BASE_BRANCH;
-    const [files, checks, comments] = relevant
-      ? await Promise.all([gh.files(n), gh.checks(pull.head.sha), gh.comments(n)])
-      : [[], [], []];
-    const decision = decide({ repo, pr: pull, files, checks, comments });
+    let decision: Decision;
+    try {
+      const [files, checks, comments] = relevant
+        ? await Promise.all([gh.files(n), gh.checks(pull.head.sha), gh.comments(n)])
+        : [[], [], []];
+      decision = decide({ repo, pr: pull, files, checks, comments });
+    } catch (e) {
+      // Fail closed: a list too long to read in full is never judged from part of it.
+      if (!(e instanceof TruncatedError)) throw e;
+      decision = { action: 'wait', reasons: [`too much to read in full (${e.message})`] };
+    }
 
     let done: Done = 'nothing';
     if (decision.action === 'merge') {
       if (dryRun) done = 'would merge';
       else {
-        if (pull.base.ref !== BASE_BRANCH) throw new Error(`Refusing to merge #${n} into ${pull.base.ref}.`);
-        try {
-          await gh.merge(n, pull.head.sha);
-          done = 'merged';
-        } catch (e) {
-          // 405: not mergeable after all; 409: a new commit arrived since the checks. Both wait for the next event.
-          if (e instanceof GitHubError && (e.status === 405 || e.status === 409)) {
-            done = 'merge refused';
-            decision.reasons.push(e.message);
-          } else throw e;
+        // Look again right before merging: the merge call goes to whatever base the pull request has now, and only
+        // the head commit can be pinned in it. Anything that moved since the checks means: wait for the next event.
+        const now = await gh.pull(n);
+        if (now.state !== 'open' || now.base.ref !== BASE_BRANCH || now.head.sha !== pull.head.sha) {
+          done = 'merge refused';
+          decision.reasons.push(`changed while it was being checked (now ${now.state}, into ${now.base.ref})`);
+        } else {
+          try {
+            await gh.merge(n, pull.head.sha);
+            done = 'merged';
+          } catch (e) {
+            // 405: not mergeable after all; 409: a new commit arrived since the checks. Both wait for the next event.
+            if (e instanceof GitHubError && (e.status === 405 || e.status === 409)) {
+              done = 'merge refused';
+              decision.reasons.push(e.message);
+            } else throw e;
+          }
         }
       }
     } else if (decision.action === 'label' && !pull.labels.some((l) => l.name === NEEDS_CHRISTIAN_LABEL)) {

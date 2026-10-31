@@ -58,6 +58,8 @@ Follow [docs/SETUP.md](SETUP.md):
 - [ ] I. Create the Kit account and form; decide on the mailing address shown in emails
 - [ ] J. Decide whether hello@cueory.app should forward to your Gmail (needs email DNS records)
 - [ ] Provide disclaimer and terms text
+- [ ] Before the staging auto-merge (D-39) reaches `main`: in Settings → Rules, make the `main` ruleset "Restrict
+  updates" with only the repository admin (you) on its bypass list, so no robot can ever change `main`
 - [ ] Confirm or change the Task 3 batch defaults (docs/BATCHES.md, D-26) before real batches use them: the CSV
   columns, which reviewers count (at least five files, names from the Task 2 roster), the pass rule (every reviewer matches
   the key and marks pass; unfinished reviews are pending, not failed), and the answer-balance warning (10 points off an even share, batches of 20+).

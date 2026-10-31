@@ -15,9 +15,14 @@ export class GitHubError extends Error {
   }
 }
 
+/** A list was longer than the bot reads, so it can't be judged in full. Callers treat this as "wait". */
+export class TruncatedError extends Error {}
+
 const PAGE_SIZE = 100;
-/** GitHub lists at most 3,000 files for a pull request (30 pages of 100). */
-const MAX_PAGES = 30;
+/** GitHub lists at most 3,000 files for a pull request (30 pages of 100); decide() labels a list that long. */
+const FILE_PAGES = 30;
+/** Comments and checks: far more than any real pull request has. Past this the bot stops and waits (fails closed). */
+const LONG_LIST_PAGES = 100;
 
 export function createGitHub({
   token,
@@ -49,14 +54,23 @@ export function createGitHub({
     return res.status === 204 ? null : res.json();
   }
 
-  async function all<T>(path: string, pick: (page: unknown) => T[]): Promise<T[]> {
+  /**
+   * Every page of a list. When the last page allowed is still full there may be more, so with `failIfLonger` the
+   * call throws TruncatedError instead of returning part of the list as if it were all of it.
+   */
+  async function all<T>(
+    path: string,
+    pick: (page: unknown) => T[],
+    { maxPages = LONG_LIST_PAGES, failIfLonger = true } = {},
+  ): Promise<T[]> {
     const out: T[] = [];
     const sep = path.includes('?') ? '&' : '?';
-    for (let page = 1; page <= MAX_PAGES; page++) {
+    for (let page = 1; page <= maxPages; page++) {
       const items = pick(await call('GET', `${path}${sep}per_page=${PAGE_SIZE}&page=${page}`));
       out.push(...items);
-      if (items.length < PAGE_SIZE) break;
+      if (items.length < PAGE_SIZE) return out;
     }
+    if (failIfLonger) throw new TruncatedError(`${path} has more than ${maxPages * PAGE_SIZE} entries`);
     return out;
   }
 
@@ -65,7 +79,8 @@ export function createGitHub({
     openPulls: (base: string) =>
       all<{ number: number }>(`/pulls?state=open&base=${encodeURIComponent(base)}`, (p) => p as { number: number }[]),
     pull: async (n: number) => (await call('GET', `/pulls/${n}`)) as PullRequest,
-    files: (n: number) => all<ChangedFile>(`/pulls/${n}/files`, (p) => p as ChangedFile[]),
+    files: (n: number) =>
+      all<ChangedFile>(`/pulls/${n}/files`, (p) => p as ChangedFile[], { maxPages: FILE_PAGES, failIfLonger: false }),
     checks: (sha: string) =>
       all<CheckRun>(`/commits/${sha}/check-runs`, (p) => (p as { check_runs: CheckRun[] }).check_runs),
     comments: (n: number) => all<IssueComment>(`/issues/${n}/comments`, (p) => p as IssueComment[]),
