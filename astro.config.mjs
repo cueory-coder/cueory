@@ -44,7 +44,9 @@ export default defineConfig({
         `form-action 'self'${formOrigin}`,
       ],
       scriptDirective: {
-        resources: ["'self'", 'https://static.cloudflareinsights.com'],
+        // 'wasm-unsafe-eval' lets site search (Pagefind) compile its WebAssembly. It allows WebAssembly only, never
+        // JavaScript eval, and scripts still come only from this site (D-49).
+        resources: ["'self'", "'wasm-unsafe-eval'", 'https://static.cloudflareinsights.com'],
         hashes: [themeHeadScriptHash],
       },
     },
