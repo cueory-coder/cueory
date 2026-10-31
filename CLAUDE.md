@@ -34,8 +34,7 @@ steps, one action per step, and say exactly what he should see. Never ask him to
 ## Money
 
 Monthly cost must stay $0 apart from the domain. No paid service, add-on or subscription without Christian's written
-approval. Free-tier limits to remember: Cloudflare Pages 500 builds a month (that's why only `main` and `staging`
-deploy); Cloudflare Access free up to 50 users; Kit free up to 10,000 subscribers; Supabase free projects pause after
+approval. Free-tier limits to remember: Cloudflare Workers Builds has a monthly build-minutes allowance (keep builds fast); Cloudflare Access free up to 50 users; Kit free up to 10,000 subscribers; Supabase free projects pause after
 7 days without activity and have no automatic backups; Resend free sends 100 emails a day.
 
 ## Branches and deploys
@@ -43,7 +42,7 @@ deploy); Cloudflare Access free up to 50 users; Kit free up to 10,000 subscriber
 ```
 task-N/feature ──PR──▶ staging ──PR──▶ main
    tests + Codex       locked test site     live site (cueory.app)
-   (no deploy)         staging.cueory.pages.dev
+   (locked preview)    locked preview address
 ```
 
 - Feature branches get CI and Codex review, never a deploy.
@@ -53,8 +52,8 @@ task-N/feature ──PR──▶ staging ──PR──▶ main
 ## Stack
 
 - Astro (static output) with React islands, TypeScript (strict) and Tailwind CSS v4.
-- Cloudflare Pages: production branch `main`, preview branch control limited to `staging`, previews locked with
-  Cloudflare Access. (Cloudflare suggests Workers for new projects; see docs/DECISIONS.md D-05 for why we use Pages.)
+- Cloudflare Workers with static assets (`wrangler.jsonc`): production branch `main`; every other branch gets a
+  preview locked with Cloudflare Access (docs/DECISIONS.md D-29).
 - Kit for launch-update emails (plain HTML form, no Kit script on our pages).
 - Cloudflare Web Analytics now; PostHog later for study events.
 - From Task 2: Supabase (`cueory-staging`, `cueory-prod`), Google sign-in first and email magic links as backup,
