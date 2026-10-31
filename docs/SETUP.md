@@ -38,7 +38,7 @@ If any of this asks you to pay, stop and tell Claude.
 
 ## Part C — Connect the repository to Cloudflare Workers (10 minutes)
 
-Cloudflare's "Create application" now sets up a **Worker** (DECISIONS.md, D-29). The repository's `wrangler.jsonc`
+Cloudflare's "Create application" now sets up a **Worker** (DECISIONS.md, D-38). The repository's `wrangler.jsonc`
 tells it to serve the built site as static files.
 
 ### Set up Zero Trust first (one time, for the staging lock)

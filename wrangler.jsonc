@@ -1,4 +1,4 @@
-// Cloudflare Workers settings (DECISIONS.md, D-29).
+// Cloudflare Workers settings (DECISIONS.md, D-38).
 // The site is plain static files from `npm run build` (the dist folder); no server code runs.
 {
   "$schema": "./node_modules/wrangler/config-schema.json",

@@ -7,7 +7,7 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
 - **D-03** Tailwind v4 with `@theme` in `src/styles/tokens.css`. The default palette is removed so only tokens can
   be used.
 - **D-04** (Replaced by D-19.) Starter fonts were Newsreader and Atkinson Hyperlegible Next.
-- **D-05** (Replaced by D-29.) Cloudflare **Pages**, not Workers. Cloudflare's docs tell new projects to start on Workers, but Workers
+- **D-05** (Replaced by D-38.) Cloudflare **Pages**, not Workers. Cloudflare's docs tell new projects to start on Workers, but Workers
   builds can only be switched on or off for *all* non-production branches. Pages documents exactly what the brief asks
   for: "Preview branch control → Custom branches = `staging`" (feature branches never use the 500 free builds) and a
   one-click "Enable access policy" lock for previews. The site is plain static files, so moving to Workers later is a
@@ -60,7 +60,24 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   the full lesson list, with no duplicate first sentence and no dead buttons. Codex review of PR #1.
 - **D-28** Components may not use Tailwind "arbitrary values" (`text-[3.5rem]` and the like); every size, spacing and
   letter-spacing value is a named token. A unit test scans `src/` for them. Codex review of PR #1.
-- **D-29** Hosting moves to Cloudflare **Workers** with static assets (`wrangler.jsonc`). Cloudflare's dashboard now
+- **D-32** Lesson videos (Christian's decision, 2026-10-31): hosted on Cueory's YouTube channel and embedded from
+  `youtube-nocookie.com` behind a click-to-play cover (self-hosted thumbnail and play button), never stored on our
+  servers. No autoplay, so after the click the student presses play in YouTube's own player. `frame-src` allows only
+  that origin, video IDs live in `/content`, and `/privacy` mentions YouTube's cookies. Reason: video hosting stays
+  free, and nothing loads from YouTube until a student asks for it.
+- **D-33** Learn mode starts with the card decks and checks those answers in the browser, because a card's back is
+  public study material that anyone can flip to. Questions from the reviewed question bank are only ever checked by
+  `check_answer` (Task 2). Reason: Learn mode can ship before accounts without putting a protected answer key in the
+  browser.
+- **D-34** The "Flag or comment" button (Christian's decision, 2026-10-31) is built with Task 2, because it needs a
+  database table with row-level security, server-side rate limits and the `/admin` inbox. No real content goes public
+  before it works.
+- **D-35** When a task waits on Christian (today: Task 2 waits for the Supabase projects), the next task that doesn't
+  wait goes first. Reason: work keeps moving without skipping any of his approvals.
+- **D-36** Adaptive quizzes and level tests (Task 4b) are rule-based and never predict an exam score (Christian's
+  decision, 2026-10-31). Reason: a rule can be explained to a student, and we have no data that could back a
+  prediction.
+- **D-38** Hosting moves to Cloudflare **Workers** with static assets (`wrangler.jsonc`). Cloudflare's dashboard now
   only offers Workers when creating an application, so the Pages setup in D-05 couldn't be followed. The site stays
   plain static files; `_headers` still applies. Previews: every branch builds a preview, all locked by the Worker's
   "Protect with Cloudflare Access" switch, so the staging lock no longer depends on Pages. Wrangler is pinned in
