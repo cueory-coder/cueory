@@ -36,3 +36,5 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
 - **D-15** The staging site lives at `staging.cueory.pages.dev` (Cloudflare's branch address), which the one-click
   preview lock covers. No `staging.cueory.app` address, so there's no second lock to manage.
 - **D-16** Supabase keep-alive and backup jobs moved to Task 2, together with the Supabase projects they serve.
+- **D-17** Dependabot security alerts on; Dependabot automatic security-fix pull requests off, because GitHub opens
+  them against the default branch (`main`) and they would skip staging. Weekly version updates target `staging`.

@@ -10,13 +10,14 @@ Last updated: 2026-10-31
   (Ko-fi link), `/subscribed` (after signup), 404. "We're still building" notice on every page.
 - Security headers and a hash-based content security policy.
 - CI on every pull request (type check, build, unit tests, browser + accessibility tests, gitleaks secret scan),
-  CodeQL, Dependabot (targets `staging`).
+  CodeQL, Dependabot version updates (target `staging`) and Dependabot security alerts. Dependabot's automatic
+  security-fix pull requests are off, because they always target `main` and would skip staging.
 - Rules and docs: CLAUDE.md, AGENTS.md, SECURITY.md, README, ROADMAP (Tasks 2–7), DECISIONS, SETUP.
 - Repository branches: `main` (live) and `staging` (test), both starting from one empty commit.
 
 ## In review
-- Task 1 pull request into `staging` (link in the chat). Needs Codex review and Christian's approval, because it adds
-  workflows and deployment settings.
+- [Task 1 pull request into `staging`](https://github.com/lilchristxan/Cueory/pull/1). Needs Codex review and
+  Christian's approval, because it adds workflows and deployment settings.
 
 ## Blocked
 - **CodeQL, GitHub secret scanning and branch protection** don't run on a private personal repository without a paid
