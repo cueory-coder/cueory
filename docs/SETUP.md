@@ -172,7 +172,10 @@ version back first and fix the problem afterwards. A rollback changes only what 
 stays as it is.
 
 1. In Cloudflare, open **Workers & Pages** → **cueory** → **Deployments**.
-2. Under **Version History**, find the newest version from before you merged the release (check the dates).
+2. Under **Version History**, find the version that was live before the release: the newest version built from
+   `main` that is older than the release. A preview of `staging` or any other branch never counts, even if it is newer:
+   it may hold the very change that broke the site. If you can't tell which version came from `main`, stop and comment
+   on the "Daily report" issue with what the list shows. Claude will help you pick it. Don't guess from the dates.
 3. Click the three dots at the right of that version, then **Rollback**.
    You should see that version become the **Active Deployment**. Cloudflare switches the live site to it right away.
 4. Open the live site in a private window. You should see it as it was before the release.
