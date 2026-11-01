@@ -1,4 +1,4 @@
-import { useEffect, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { advance, next, parseSteps, pause, play, previous, startSteps, stepInWords, type DiagramStep } from './steps';
 
 interface Props {
@@ -13,12 +13,16 @@ function Board({ title, steps, children }: Props) {
   const [state, setState] = useState(startSteps);
   // Hide playback until the browser preference is known; manual controls are always safe.
   const [reducedMotion, setReducedMotion] = useState(true);
+  const figure = useRef<HTMLElement>(null);
+  const playControl = useRef<HTMLButtonElement>(null);
   const words = stepInWords(steps, state);
   const step = steps[state.index]!;
 
   useEffect(() => {
     const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
     const followPreference = (matches: boolean) => {
+      // The playback control is about to disappear. Keep keyboard focus in the player on its arrow-key surface.
+      if (matches && document.activeElement === playControl.current) figure.current?.focus({ preventScroll: true });
       setReducedMotion(matches);
       if (matches) setState(pause);
     };
@@ -48,7 +52,7 @@ function Board({ title, steps, children }: Props) {
   };
 
   return (
-    <figure aria-label={title} tabIndex={0} onKeyDown={key} className="min-w-0 max-w-full text-ink">
+    <figure ref={figure} aria-label={title} tabIndex={0} onKeyDown={key} className="min-w-0 max-w-full text-ink">
       <h2 className="text-lg font-medium">{title}</h2>
       <div
         data-step={step.id}
@@ -70,6 +74,7 @@ function Board({ title, steps, children }: Props) {
           previous
         </button>
         {!reducedMotion && <button
+          ref={playControl}
           type="button"
           className={control}
           onClick={() => setState((current) => current.playing ? pause(current) : play(current, steps))}
