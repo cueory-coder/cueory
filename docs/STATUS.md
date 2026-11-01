@@ -113,6 +113,10 @@ Last updated: 2026-11-01
   suture listed as coming soon; a link in the ☰ panel and a section on the home page after "ways to study". It adds
   sample puzzles under `content/`, so it waits for Christian's merge. How real puzzles reach the browser one day at a
   time is proposed in D-61 for Christian.
+- [Review scheduler](https://github.com/lilchristxan/Cueory/pull/64) (a Codex helper's, Task 8 on #11): a card the
+  student knows comes back in 3, then 7, then 14 days; a miss brings it back the next day. When an exam is coming, a
+  review that would land too late moves to the day before it. It counts whole calendar days, so time zones and clock
+  changes can't move a review. Not on a page yet: the review mode comes next.
 - Daily games, second game (D-63, stacked on the first part): triage on `/play`. Sort ten terms into three named
   groups, with one that fits none ("none of these"); a wrong place is a slip, and three slips end the round. Buttons
   only (tap, click or keyboard, no dragging), every result said in words and shown by ✓, and a plain-words share line.
