@@ -11,6 +11,18 @@ type ViewerState = 'cover' | 'loading' | 'ready' | 'error';
 
 const LAYER_LABELS: Record<Layer, string> = { skin: 'Skin', muscle: 'Muscle', bone: 'Bone' };
 
+// Token hex values for Three.js scene backgrounds (mirrors tokens.css; must stay in sync).
+const BG_LIGHT = 0xf9f5ef; // --color-page daytime  (Ivory)
+const BG_DARK  = 0x1c1917; // --color-page evening  (Charcoal)
+
+function prefersDark(): boolean {
+  return typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
+function prefersReducedMotion(): boolean {
+  return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
 /**
  * Lazy 3D body viewer (D-83). Nothing loads from three.js before the student taps "open the 3D view".
  * On tap, three.js is dynamically imported and a placeholder model (simple shapes built in code,
@@ -24,6 +36,9 @@ export default function BodyViewer({ creditText }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const groupsRef = useRef<Record<Layer, { visible: boolean }>>({ skin: { visible: true }, muscle: { visible: true }, bone: { visible: true } });
   const cleanupRef = useRef<(() => void) | null>(null);
+  const requestRenderRef = useRef<(() => void) | null>(null);
+  const coverBtnRef = useRef<HTMLButtonElement>(null);
+  const canvasWrapRef = useRef<HTMLDivElement>(null);
 
   const open = useCallback(async () => {
     setState('loading');
@@ -38,13 +53,22 @@ export default function BodyViewer({ creditText }: Props) {
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
       const scene = new THREE.Scene();
-      scene.background = new THREE.Color(0xf9f5ef);
+
+      // Dark-mode aware background: read theme at open time; re-read on color-scheme change.
+      const applyBg = () => {
+        const dark = document.documentElement.dataset['theme'] === 'dark' ||
+          (document.documentElement.dataset['theme'] !== 'light' && prefersDark());
+        scene.background = new THREE.Color(dark ? BG_DARK : BG_LIGHT);
+        needsRender = true;
+      };
+      applyBg();
 
       const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
       camera.position.set(0, 1.2, 3.5);
 
       const controls = new OrbitControls(camera, canvas);
-      controls.enableDamping = true;
+      // Damping smooths mouse input but plays poorly under reduced-motion.
+      controls.enableDamping = !prefersReducedMotion();
       controls.dampingFactor = 0.1;
       controls.minDistance = 1;
       controls.maxDistance = 8;
@@ -64,24 +88,25 @@ export default function BodyViewer({ creditText }: Props) {
         skin: new THREE.Group(),
       };
 
-      const boneMat = new THREE.MeshLambertMaterial({ color: 0xf0e6c8 });
-      const muscleMat = new THREE.MeshLambertMaterial({ color: 0xd08070 });
-      const skinMat = new THREE.MeshLambertMaterial({ color: 0xf5c8a0, transparent: true, opacity: 0.55 });
+      // Brand-token colours for the placeholder (not anatomy colours — these are design-system tokens).
+      const boneMat   = new THREE.MeshLambertMaterial({ color: 0xeadccf }); // Linen  (--color-surface)
+      const muscleMat = new THREE.MeshLambertMaterial({ color: 0xd3b7a1 }); // Taupe  (--color-soft)
+      const skinMat   = new THREE.MeshLambertMaterial({ color: 0xcbb8a4, transparent: true, opacity: 0.55 }); // Sand
 
-      // Bone: torso spine, skull, arms, legs (cylinders + boxes).
+      // Bone: spine, skull, arms, legs.
       const addBone = (geo: THREE.BufferGeometry, x: number, y: number, z: number) => {
         const m = new THREE.Mesh(geo, boneMat);
         m.position.set(x, y, z);
         groupObjects.bone.add(m);
       };
-      addBone(new THREE.CylinderGeometry(0.08, 0.1, 1.6, 8), 0, 0.8, 0);   // spine
-      addBone(new THREE.SphereGeometry(0.22, 12, 8), 0, 1.85, 0);           // skull
-      addBone(new THREE.CylinderGeometry(0.06, 0.06, 0.9, 8), -0.42, 0.95, 0); // left humerus
-      addBone(new THREE.CylinderGeometry(0.06, 0.06, 0.9, 8),  0.42, 0.95, 0); // right humerus
-      addBone(new THREE.CylinderGeometry(0.07, 0.09, 1.1, 8), -0.2, -0.25, 0); // left femur
-      addBone(new THREE.CylinderGeometry(0.07, 0.09, 1.1, 8),  0.2, -0.25, 0); // right femur
+      addBone(new THREE.CylinderGeometry(0.08, 0.1, 1.6, 8), 0, 0.8, 0);
+      addBone(new THREE.SphereGeometry(0.22, 12, 8), 0, 1.85, 0);
+      addBone(new THREE.CylinderGeometry(0.06, 0.06, 0.9, 8), -0.42, 0.95, 0);
+      addBone(new THREE.CylinderGeometry(0.06, 0.06, 0.9, 8),  0.42, 0.95, 0);
+      addBone(new THREE.CylinderGeometry(0.07, 0.09, 1.1, 8), -0.2, -0.25, 0);
+      addBone(new THREE.CylinderGeometry(0.07, 0.09, 1.1, 8),  0.2, -0.25, 0);
 
-      // Muscle: slightly larger cylinders around the spine and limbs.
+      // Muscle.
       const addMuscle = (geo: THREE.BufferGeometry, x: number, y: number, z: number) => {
         const m = new THREE.Mesh(geo, muscleMat);
         m.position.set(x, y, z);
@@ -93,14 +118,14 @@ export default function BodyViewer({ creditText }: Props) {
       addMuscle(new THREE.CylinderGeometry(0.13, 0.15, 1.0, 10), -0.2, -0.25, 0);
       addMuscle(new THREE.CylinderGeometry(0.13, 0.15, 1.0, 10),  0.2, -0.25, 0);
 
-      // Skin: outer shell boxes.
+      // Skin.
       const addSkin = (geo: THREE.BufferGeometry, x: number, y: number, z: number) => {
         const m = new THREE.Mesh(geo, skinMat);
         m.position.set(x, y, z);
         groupObjects.skin.add(m);
       };
-      addSkin(new THREE.CylinderGeometry(0.32, 0.30, 1.55, 16), 0, 0.8, 0);  // torso
-      addSkin(new THREE.SphereGeometry(0.28, 14, 10), 0, 1.85, 0);            // head
+      addSkin(new THREE.CylinderGeometry(0.32, 0.30, 1.55, 16), 0, 0.8, 0);
+      addSkin(new THREE.SphereGeometry(0.28, 14, 10), 0, 1.85, 0);
       addSkin(new THREE.CylinderGeometry(0.13, 0.12, 0.9, 12), -0.48, 0.95, 0);
       addSkin(new THREE.CylinderGeometry(0.13, 0.12, 0.9, 12),  0.48, 0.95, 0);
       addSkin(new THREE.CylinderGeometry(0.16, 0.18, 1.1, 12), -0.22, -0.25, 0);
@@ -113,13 +138,13 @@ export default function BodyViewer({ creditText }: Props) {
         groupsRef.current[layer] = groupObjects[layer];
       }
 
-      // Verify budget: the placeholder is always within limits; this demonstrates the check.
+      // Triangle budget (placeholder is always within limit; this confirms the check runs).
       let totalTriangles = 0;
       scene.traverse((obj) => {
         if (obj instanceof THREE.Mesh) {
           totalTriangles += (obj.geometry.index
             ? obj.geometry.index.count / 3
-            : obj.geometry.attributes.position.count / 3);
+            : obj.geometry.attributes['position']!.count / 3);
         }
       });
       const budgetError = checkModelBudget(0, Math.round(totalTriangles));
@@ -131,40 +156,87 @@ export default function BodyViewer({ creditText }: Props) {
         renderer.setSize(w, h, false);
         camera.aspect = w / h;
         camera.updateProjectionMatrix();
+        needsRender = true;
       };
       resize();
       const ro = new ResizeObserver(resize);
       ro.observe(canvas);
 
+      // ── On-demand render loop ───────────────────────────────────────────────
+      // Render only when the scene has changed (controls moved, layer toggled, resize, theme change).
+      // This avoids draining the battery at 60 fps while the viewer is idle.
+
+      let needsRender = true;
       let raf = 0;
-      const animate = () => {
-        raf = requestAnimationFrame(animate);
-        controls.update();
+
+      const requestRender = () => { needsRender = true; };
+      requestRenderRef.current = requestRender;
+
+      controls.addEventListener('change', requestRender);
+
+      const tick = () => {
+        raf = requestAnimationFrame(tick);
+        if (!needsRender) return;
+        needsRender = false;
+        if (controls.enableDamping) controls.update();
         renderer.render(scene, camera);
       };
-      animate();
+      tick();
+
+      // Keyboard controls (arrow keys to orbit, +/- to zoom).
+      const onKey = (e: KeyboardEvent) => {
+        const STEP = Math.PI / 36; // 5°
+        const ZOOM = 0.3;
+        const dir = camera.position.clone().sub(controls.target);
+        switch (e.key) {
+          case 'ArrowLeft':  dir.applyAxisAngle(new THREE.Vector3(0, 1, 0),  STEP); break;
+          case 'ArrowRight': dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), -STEP); break;
+          case 'ArrowUp':    dir.applyAxisAngle(dir.clone().cross(new THREE.Vector3(0, 1, 0)).normalize(), -STEP); break;
+          case 'ArrowDown':  dir.applyAxisAngle(dir.clone().cross(new THREE.Vector3(0, 1, 0)).normalize(),  STEP); break;
+          case '+': case '=': dir.multiplyScalar(1 - ZOOM / dir.length()); break;
+          case '-': case '_': dir.multiplyScalar(1 + ZOOM / dir.length()); break;
+          default: return;
+        }
+        e.preventDefault();
+        camera.position.copy(controls.target.clone().add(dir));
+        controls.update();
+        requestRender();
+      };
+      canvas.addEventListener('keydown', onKey);
+
+      // Color-scheme changes while the viewer is open.
+      const mq = window.matchMedia('(prefers-color-scheme: dark)');
+      mq.addEventListener('change', applyBg);
 
       cleanupRef.current = () => {
         cancelAnimationFrame(raf);
         ro.disconnect();
+        controls.removeEventListener('change', requestRender);
+        canvas.removeEventListener('keydown', onKey);
+        mq.removeEventListener('change', applyBg);
         controls.dispose();
         renderer.dispose();
+        requestRenderRef.current = null;
       };
 
       setState('ready');
+
+      // Return focus to the canvas so keyboard controls are immediately usable.
+      requestAnimationFrame(() => canvas.focus());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load the 3D viewer.');
       setState('error');
     }
   }, []);
 
-  // Apply layer visibility whenever the visible set changes.
+  // Apply layer visibility whenever the visible set changes; request a redraw.
   useEffect(() => {
     if (state !== 'ready') return;
     for (const layer of LAYERS) {
       const group = groupsRef.current[layer] as unknown as { visible: boolean } | undefined;
       if (group) group.visible = visible.has(layer);
     }
+    requestRenderRef.current?.();
   }, [visible, state]);
 
   useEffect(() => () => { cleanupRef.current?.(); }, []);
@@ -173,10 +245,11 @@ export default function BodyViewer({ creditText }: Props) {
     return (
       <div className="space-y-4">
         <button
+          ref={coverBtnRef}
           type="button"
           onClick={open}
           className="flex min-h-14 w-full items-center justify-center gap-3 rounded-lg border border-line bg-soft px-5 py-3 text-ink hover:bg-button-hover hover:text-on-button focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-button"
-          aria-label="Open the 3D body viewer"
+          aria-label="open the 3D view"
         >
           {/* Simple cube icon representing a 3D model */}
           <svg viewBox="0 0 24 24" className="size-6 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -186,11 +259,7 @@ export default function BodyViewer({ creditText }: Props) {
           open the 3D view
         </button>
         <p className="text-sm text-ink-soft">
-          Loads a 3D model from{' '}
-          <a href="https://lifesciencedb.jp/bp3d/" className="underline">
-            BodyParts3D
-          </a>{' '}
-          when Christian adds it.{' '}
+          Loads a placeholder 3D model.{' '}
           <a href="/privacy" className="underline">Privacy.</a>
         </p>
       </div>
@@ -208,14 +277,16 @@ export default function BodyViewer({ creditText }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="relative">
+      <div ref={canvasWrapRef} className="relative">
         <canvas
           ref={canvasRef}
-          aria-label="Interactive 3D body viewer. Use mouse or touch to rotate and zoom."
+          // tabIndex makes the canvas keyboard-focusable for arrow / zoom keys.
+          tabIndex={0}
+          aria-label="open the 3D view — interactive 3D body viewer"
           role="img"
           aria-describedby="body-viewer-desc"
-          className="w-full rounded-lg bg-page"
-          style={{ aspectRatio: '4/3', touchAction: 'none' }}
+          className="w-full rounded-lg bg-page focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-button"
+          style={{ aspectRatio: '4/3', touchAction: 'none', minHeight: '200px' }}
         />
         {state === 'loading' && (
           <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-soft">
@@ -223,8 +294,9 @@ export default function BodyViewer({ creditText }: Props) {
           </div>
         )}
         <p id="body-viewer-desc" className="sr-only">
-          A placeholder 3D model made of simple geometric shapes representing a human body. Rotate by
-          dragging; zoom by scrolling or pinching. Layer buttons below show or hide skin, muscle and bone.
+          A placeholder 3D model made of simple geometric shapes. Rotate by dragging or using the
+          arrow keys; zoom by scrolling, pinching, or pressing + and −. Layer buttons below show or
+          hide skin, muscle and bone.
         </p>
       </div>
 
