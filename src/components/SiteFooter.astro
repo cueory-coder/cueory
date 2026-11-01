@@ -9,6 +9,7 @@ const year = new Date().getFullYear();
 <footer class="mt-section border-t border-line">
   <div class="mx-auto flex w-full max-w-page flex-col gap-4 px-gutter py-8 text-sm text-ink-soft sm:flex-row sm:items-center sm:justify-between">
     <div class="flex flex-col gap-1">
+      <p class="font-medium text-ink">{site.tagline}</p>
       <p>© {year} {site.wordmarkName}. study help, not medical advice.</p>
       {site.contactEmail && <p><a href={`mailto:${site.contactEmail}`} class="text-ink-soft hover:text-ink">{site.contactEmail}</a></p>}
       <SocialLinks />
