@@ -1,33 +1,42 @@
 import { expect, test } from '@playwright/test';
 
 // LessonVideo island (D-82): lazy YouTube Nocookie embed. Nothing loads from YouTube before tap.
-// The study-skills lesson page renders a published sample video (content/videos/study-skills-01.json).
 
-const LESSON_URL = '/learn/study-skills';
+// The lesson's own video is a draft until Christian publishes it, so the island is tested on a sample page.
+const LESSON_URL = '/learn/video-sample';
+const LOCAL_HOSTS = ['localhost', '127.0.0.1'];
 
 test.beforeEach(async ({ page }) => {
+  // Keep the tests offline: any request to the player is answered locally.
+  await page.route('https://www.youtube-nocookie.com/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<p>player</p>' }));
   // Suppress the promo panel so it doesn't interfere.
   await page.addInitScript(() => {
     try { localStorage.setItem('cueory-promo-seen', String(Date.now())); } catch { /* blocked */ }
   });
 });
 
-test('no request leaves localhost before the play button is tapped', async ({ page }) => {
-  const externalRequests: string[] = [];
+test('no request leaves localhost before the tap; after it only youtube-nocookie.com is added', async ({ page }) => {
+  const hosts = new Set<string>();
   page.on('request', (req) => {
-    const hostname = new URL(req.url()).hostname;
-    if (hostname !== 'localhost' && hostname !== '127.0.0.1' && !hostname.endsWith('.localhost')) {
-      externalRequests.push(req.url());
-    }
+    if (!/^https?:$/.test(new URL(req.url()).protocol)) return;
+    hosts.add(new URL(req.url()).hostname);
   });
 
   await page.goto(LESSON_URL);
-  // Wait for the cover to mount.
   await expect(page.getByRole('button', { name: /play video/i })).toBeVisible();
-  // Wait for network to settle so any lazy loads would have fired by now.
   await page.waitForLoadState('networkidle');
+  expect([...hosts].filter((h) => !LOCAL_HOSTS.includes(h))).toEqual([]);
 
-  expect(externalRequests).toEqual([]);
+  await page.getByRole('button', { name: /play video/i }).click();
+  await expect(page.locator('iframe')).toBeVisible();
+  await expect.poll(() => [...hosts].filter((h) => !LOCAL_HOSTS.includes(h))).toEqual(['www.youtube-nocookie.com']);
+});
+
+test('a draft video does not appear on its lesson page', async ({ page }) => {
+  await page.goto('/learn/study-skills');
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  await expect(page.getByRole('button', { name: /play video/i })).toHaveCount(0);
+  await expect(page.locator('iframe')).toHaveCount(0);
 });
 
 test('tapping play shows only the YouTube Nocookie player and the privacy note', async ({ page }) => {
@@ -60,8 +69,10 @@ test('the keyboard alone can reach the play button and activate it', async ({ pa
   await expect(cover).toBeFocused();
   await page.keyboard.press('Enter');
 
-  // Player appeared.
-  await expect(page.locator('iframe[src*="youtube-nocookie.com"]')).toBeVisible();
+  // Player appeared and keyboard focus moved into it (not left on the page body).
+  const iframe = page.locator('iframe[src*="youtube-nocookie.com"]');
+  await expect(iframe).toBeVisible();
+  await expect(iframe).toBeFocused();
 });
 
 test('with reduced motion the cover has no CSS animation or transition', async ({ page }) => {
@@ -94,11 +105,15 @@ test('privacy note and transcript links are visible before the tap', async ({ pa
   await expect(page.getByRole('button', { name: /play video/i })).toBeVisible();
   // Note about YouTube loading must appear before the student taps (ROADMAP 4d).
   await expect(page.getByText(/loads youtube/i)).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Transcript' })).toBeVisible();
 });
 
-test('player is at least 200 px tall after tap', async ({ page }) => {
+test('cover and player are at least 200 px tall, even at 320 px wide', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 });
   await page.goto(LESSON_URL);
-  await page.getByRole('button', { name: /play video/i }).click();
+  const cover = page.getByRole('button', { name: /play video/i });
+  expect((await cover.boundingBox())?.height).toBeGreaterThanOrEqual(200);
+  await cover.click();
   const iframe = page.locator('iframe[src*="youtube-nocookie.com"]');
   await expect(iframe).toBeVisible();
   const box = await iframe.boundingBox();

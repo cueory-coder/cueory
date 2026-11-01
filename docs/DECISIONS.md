@@ -811,19 +811,16 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
 
   Reason: a drawing can't show more than the approved source says, and a test proves it.
 
-- **D-82** Lesson video island (Task C3, `src/islands/LessonVideo.tsx`). A click-to-play cover hides
-  the YouTube Nocookie player until the student taps it; the iframe is never in the DOM before that.
-  The privacy note ("tapping play loads YouTube and its cookies") is shown **before and after** the tap
-  so the student knows what will happen before they act. If captions or a transcript URL exist they are
-  also shown before the tap. On tap the cover is removed, the iframe container enters the DOM and focus
-  moves to it (`tabIndex={-1}` + `useEffect`), so keyboard and screen-reader controls work immediately.
-  The iframe container uses `aspect-ratio: 16/9` with `min-height: 200px` so the player is never too
-  short on a narrow viewport. A video appears on the lesson page only when its `status` is `"published"`
-  in `content/videos/`; drafts and placeholders are silently skipped. The `videoId` field is validated
-  as exactly 11 URL-safe characters (`/^[A-Za-z0-9_-]{11}$/`); caption and transcript URLs must start
-  with `https://`; an optional `thumbnailUrl` field is available for future use. Reason: D-32 and D-40
-  committed to click-to-play with nothing from YouTube before the tap; the pre-tap privacy note gives
-  the student informed consent before anything external loads.
+- **D-82** Lesson videos (Task C3, `src/islands/LessonVideo.tsx`). Single-tap rule (follows D-32, D-40): nothing loads
+  from YouTube before the student taps the cover; ONE tap creates the `youtube-nocookie.com` player with autoplay and
+  starts the video, and focus moves to the player. The cover is a self-hosted `thumbnail` image from the video's file,
+  or a drawn placeholder; the "tapping play loads YouTube and its cookies" note and any captions/transcript links show
+  before the tap (ROADMAP Task 4d). The player is at least 200 px tall at every width (YouTube's minimum). Only
+  `published` videos show on a page; drafts and placeholders never render (the study-skills entry stays a draft until
+  Christian supplies a real video). Video files (`content/videos/`, rules in `src/videos/schema.ts`): `videoId` is
+  exactly 11 characters (`[A-Za-z0-9_-]`), caption and transcript links are https or site paths only, `thumbnail` is a
+  site path only. CSP gains `frame-src https://www.youtube-nocookie.com`; `/privacy` lists YouTube. To check on a real
+  iPhone before launch: Safari may drop the tap permission that autoplay needs. Reason: D-32 and D-40.
 
 - **D-89** Overnight merges into `staging` on Christian's behalf (Christian, 2026-11-01, about 1:00 am Phoenix: "whatever
   can be merged ... merge it on my behalf to avoid bottlenecks", choosing "everything but rules").
