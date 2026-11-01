@@ -82,6 +82,9 @@ Last updated: 2026-11-01
 - In `staging` (auto-merged): the [home page polish](https://github.com/lilchristxan/Cueory/pull/42) (D-62): 16 px
   panels with a hairline and one soft shadow, a crisper glassy button, sections that fade in once, and a shorter
   launch-updates panel.
+- In `staging` (auto-merged): the [once-only promo panel](https://github.com/lilchristxan/Cueory/pull/34) (D-59). On
+  marketing pages a small dark panel slides down from the top after 5 seconds or halfway down the page, with "join the
+  launch list", "support us while we build" and the social marks; once shown, it stays away for 30 days.
 
 ## Done (lead, 2026-10-31 evening)
 - Daily games show plain names for now (D-66): pulse, crossword, sort and word path. Christian picks final names
@@ -90,9 +93,8 @@ Last updated: 2026-11-01
 ## In review
 - Game-name guard (D-67): a unit test fails if a page or game shows an internal id (`cueword`, `triage`, `suture`) as
   words, or types a name into a share line, so the next rename stays a one-line change.
-- [Once-only promo panel](https://github.com/lilchristxan/Cueory/pull/34) (D-59): on marketing pages a small dark panel
-  slides down from the top after 5 seconds or halfway down the page, with "join the launch list", "support us while we
-  build" and the social marks; once shown, it stays away for 30 days. Now on brand v1.0's colors.
+- Promo panel fix: it waits until the ☰ panel or a study-mode preview has finished closing, so their own focus
+  handling never takes focus away from it (a browser test failed 2 of 12 runs because of this).
 - Daily games, first part (D-61): `/play` with pulse, playable with labeled sample puzzles, and cueword, triage and
   suture listed as coming soon; a link in the ☰ panel and a section on the home page after "ways to study". It adds
   sample puzzles under `content/`, so it waits for Christian's merge. How real puzzles reach the browser one day at a
@@ -102,17 +104,25 @@ Last updated: 2026-11-01
   only (tap, click or keyboard, no dragging), every result said in words and shown by ✓, and a plain-words share line.
   Seven labeled everyday samples under `content/games/triage/`, so it also waits for Christian's merge.
 
+- [Crossword engine and board](https://github.com/lilchristxan/Cueory/pull/51) (a Codex helper's, Task 3 on #11):
+  numbering, typing that skips gaps, checking a word or the whole grid, three cues that lock their letters, and a
+  plain-words share line, on a keyboard- and tap-friendly board. It isn't on a page yet: wiring it into `/play` with
+  labeled samples comes next, after the interim names (#48), and then the check on the locked staging site.
+
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
 2. Auto-release (`staging` into `main` in pre-launch mode), after the change requests.
 3. Christian's 31 Oct evening requests ([the lead's note on issue #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6551841155)),
    now first: brand v1.0 (the lead's branch), then the home page polish pass, then the rest of daily games (the home
-   page section and triage are in review; cueword and suture are next).
+   page section and triage are in `staging`; the crossword and word path engines are in review).
 
 ## Visuals kit (Task 6, D-56)
 Targets: first visuals by about 14 November, the full kit by about 12 December ([plan](VISUALS.md)).
 - Done: the plan, and license checks on every source. Open RN *Nursing Fundamentals 2e* is the cited source (CC BY
   4.0). OpenStax waits for Christian (D-57).
+- In review: [video frames for teaching diagrams](https://github.com/lilchristxan/Cueory/pull/47) (a Codex helper's,
+  finished by the lead): `node scripts/export-frames.ts --url … --selector … --out …` saves numbered PNG frames at
+  1080 × 1920 and 1920 × 1080 for shorts, with the diagram stretched to fill each frame.
 - Next: the visual source-file check and draft-only rendering, then the first batch (fluid compartments, osmosis and
   fluid shifts, the sodium-potassium pump) with its review sheet. The 3D viewer adds three.js, so it waits for
   Christian's merge; its models wait for the atlas choice.
