@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-11-01 (Task C10)
+Last updated: 2026-11-01 (Task C10 P1/P2/P3 repairs)
 
 ## Done
 - Static site: Astro + React islands + TypeScript + Tailwind, static output, tested at phone and desktop sizes.
@@ -205,12 +205,17 @@ Christian's behalf (D-89), each with the lead's review:
 - Review-clip exporter repairs (#111, Task C10, D-81): esbuild bundle loader for TSX drawings, Playwright SVG-height
   measurement for correct per-step crop bands, non-zero exit on ffmpeg failure, brand tokens in frame HTML, and
   single-quote escaping in the ffmpeg concat list. For Christian's internal review only; nothing is published.
+  P1/P2/P3 fixes (commit `1dfa300`): extensionless import `.ts` extensions (Node 24 ERR_MODULE_NOT_FOUND), band
+  geometry using measured SVG height instead of hardcoded 1920 px, and Inter Variable font loaded via rewritten
+  absolute `file://` URLs. 66 unit tests pass. Awaiting independent peer review.
 
 ## In review
 - Open pull requests add their own lines here. Waiting now: study modes on pages (#77, held for Christian's choice
-  below), delete-account checks (#105, Task 25), database step 5, flags and `submit_flag` (#110), the review-clip
-  exporter (#111, Task C7), visuals on lesson pages (#129, Task C9), the review-sheet script (Task 43) and Release
-  browser tests (#55).
+  below), delete-account checks (#105, Task 25), database step 5, flags and `submit_flag` (#110, all 8 CI checks
+  green, peer-approved, awaiting Christian + lead SQL re-review), the review-clip exporter (#111, Task C7/C10,
+  P1/P2/P3 fixed at `1dfa300`, awaiting CI + independent peer review), visuals on lesson pages (#129, Task C9),
+  the review-sheet script (Task 43), and Release browser tests (#55).
+  Release #132 (daily games, private stats, onboarding) is open and mergeable — CI running, awaits Christian.
 - Task 43: `node scripts/visuals-sheet.ts --out <folder>` writes draft review sheets outside the repository and refuses existing output; in review.
 - Task 44 (#105): delete-account summaries include saved progress and email; cleanup includes legacy stars. Pure logic, in review.
 
