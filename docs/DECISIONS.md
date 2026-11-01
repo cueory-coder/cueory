@@ -222,7 +222,9 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   engine (WebKit) and Firefox join on Release pull requests through a CI change, which waits for Christian because it
   edits `.github/`; the same pull request adds the rule to CLAUDE.md. Reason: running three engines on every pull
   request would use up GitHub's free Actions minutes; the release check still covers every engine before anything
-  reaches the live site.
+  reaches the live site. **Done (1 Nov):** a CI job "Browser tests in WebKit and Firefox" runs only on pull requests
+  into `main`, with WebKit at phone and desktop sizes and Firefox at desktop size (Firefox cannot emulate a phone), and
+  the rule is in CLAUDE.md.
 - **D-49** Site search in the ☰ panel (Christian's change request, 2026-10-31). Pagefind 1.5.2 (MIT, pinned) runs
   after `astro build` (`pagefind --site dist`) and writes a static index to `dist/pagefind/`; nothing is sent to anyone
   else. It indexes only each page's `<main>`, never the menus, notice or footer, and leaves out pages kept out of search

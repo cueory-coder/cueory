@@ -43,6 +43,38 @@ jobs:
           path: test-results/
           retention-days: 7
 
+  engines:
+    # Release pull requests (into main) also run the browser tests in Safari's engine and Firefox (D-48). Every other
+    # pull request skips this job to save the free Actions minutes.
+    name: Browser tests in WebKit and Firefox
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps webkit firefox
+      - run: npm run test:e2e -- --project=webkit-phone --project=webkit-desktop --project=firefox-desktop
+        env:
+          ALL_ENGINES: '1'
+
+      - name: Keep the test report if browser tests fail
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report-engines
+          path: test-results/
+          retention-days: 7
+
   secrets:
     name: Scan for leaked secrets
     runs-on: ubuntu-latest

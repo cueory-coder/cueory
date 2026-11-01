@@ -108,6 +108,10 @@ screens stay plain: nothing decorative, no texture behind lesson text, and no ma
   public before it works.
 - Every page uses `Layout.astro` so it gets the building notice, header, footer and skip link.
 - Astro dev server: `npx astro dev --background` (stop with `astro dev stop`).
+- Same features on every device (D-48): everything must work by touch, keyboard and mouse at phone (390 × 844),
+  tablet (820 × 1180) and desktop (1440 × 900) sizes, in Light and Evening, and no page may scroll sideways. Corner
+  buttons are at least 44 × 44 px. Browser tests run in Chromium on every pull request and also in WebKit (Safari's
+  engine) and Firefox on pull requests into `main`. Never skip or loosen a test to make an engine pass.
 - Update `docs/STATUS.md` and, when a decision is made, `docs/DECISIONS.md` in the same pull request.
 - Daily puzzles (Task 7) use original names, rules and visual design. Never the names Wordle, Connections or NYT,
   and never a copy of their look or rules.

@@ -106,7 +106,8 @@ Last updated: 2026-11-01
   labeled samples comes next, after the interim names (#48), and then the check on the locked staging site.
 
 ## Queued (Christian's change requests on issue #4, in his order)
-1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
+1. ~~CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48)~~ in review (waits for
+   Christian: it edits `.github/` and CLAUDE.md).
 2. Auto-release (`staging` into `main` in pre-launch mode), after the change requests.
 3. Christian's 31 Oct evening requests ([the lead's note on issue #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6551841155)),
    now first: brand v1.0 (the lead's branch), then the home page polish pass, then the rest of daily games (the home
