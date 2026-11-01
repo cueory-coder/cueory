@@ -21,9 +21,10 @@ export type SupabaseSettings = SupabaseEnabled | SupabaseDisabled;
 
 /**
  * A valid project address is exactly `https://<project-ref>.supabase.co` with:
- * - https protocol (not http)
- * - a single subdomain under supabase.co (no extra path, query string or fragment)
- * - a non-empty project ref that is a valid subdomain label
+ * - https protocol (not http), or http only for localhost / 127.0.0.1
+ * - no embedded credentials (username or password)
+ * - a single subdomain under supabase.co with a 20-char lowercase alphanum ref
+ * - no path, query string or fragment
  */
 function validateUrl(raw: string | undefined): string | null {
   if (!raw || raw.trim() === '') return null;
@@ -34,18 +35,27 @@ function validateUrl(raw: string | undefined): string | null {
   } catch {
     return null;
   }
+  // Credentials are never valid in a project URL.
+  if (parsed.username !== '' || parsed.password !== '') return null;
+  // Allow http only for local Supabase (localhost / 127.0.0.1).
+  const isLocal = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+  if (isLocal) {
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+    return parsed.origin;
+  }
   if (parsed.protocol !== 'https:') return null;
   if (!parsed.hostname.endsWith('.supabase.co')) return null;
   // Must be exactly <ref>.supabase.co — no deeper nesting.
   const parts = parsed.hostname.split('.');
   if (parts.length !== 3) return null;
   const ref = parts[0]!;
-  if (ref === '') return null;
+  // Supabase project refs are exactly 20 lowercase alphanumeric characters.
+  if (!/^[a-z0-9]{20}$/.test(ref)) return null;
   // No path, query or hash beyond the root slash.
   if (parsed.pathname !== '/' && parsed.pathname !== '') return null;
   if (parsed.search !== '') return null;
   if (parsed.hash !== '') return null;
-  return value.endsWith('/') ? value.slice(0, -1) : value;
+  return parsed.origin;
 }
 
 /**
@@ -86,25 +96,30 @@ export function supabaseSettings(env: {
 
   const url = validateUrl(rawUrl);
   if (url === null) {
+    let p: URL | undefined;
+    try { p = new URL(rawUrl.trim()); } catch { /* fall through to generic error */ }
+    if (p && (p.username !== '' || p.password !== '')) {
+      return {
+        enabled: false,
+        reason: 'accounts are misconfigured: the project address must not include credentials',
+      };
+    }
+    if (p && (p.hostname === 'localhost' || p.hostname === '127.0.0.1')) {
+      return {
+        enabled: false,
+        reason: 'accounts are misconfigured: local Supabase must use http://localhost or http://127.0.0.1',
+      };
+    }
     if (rawUrl.trim().startsWith('http:')) {
       return {
         enabled: false,
         reason: 'accounts are misconfigured: the project address must use https, not http',
       };
     }
-    const hasPath = (() => {
-      try {
-        const p = new URL(rawUrl.trim());
-        return p.pathname !== '/' && p.pathname !== '';
-      } catch {
-        return false;
-      }
-    })();
-    if (hasPath) {
+    if (p && p.pathname !== '/' && p.pathname !== '') {
       return {
         enabled: false,
-        reason:
-          'accounts are misconfigured: the project address must be https://<ref>.supabase.co with no path',
+        reason: 'accounts are misconfigured: the project address must be https://<ref>.supabase.co with no path',
       };
     }
     return {
@@ -118,7 +133,7 @@ export function supabaseSettings(env: {
     return { enabled: false, reason: 'accounts are off in this build: no publishable key' };
   }
 
-  if (!rawKey.trim().startsWith('sb_publishable_')) {
+  if (!/^sb_publishable_[A-Za-z0-9_-]{16,}$/.test(rawKey.trim())) {
     return {
       enabled: false,
       reason: 'accounts are misconfigured: the key does not look like a publishable key (expected sb_publishable_…)',

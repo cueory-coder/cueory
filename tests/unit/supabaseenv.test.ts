@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { supabaseSettings, type SupabaseSettings } from '../../src/islands/supabaseenv';
 
-const VALID_URL = 'https://abcdefghijklmnop.supabase.co';
+const VALID_URL = 'https://abcdefghijklmnopqrst.supabase.co';
 const VALID_KEY = 'sb_publishable_abcdefghijklmnopqrstuvwxyz0123456789';
 
 function enabled(result: SupabaseSettings) {
@@ -75,9 +75,9 @@ describe('missing fields', () => {
 // ── Malformed URL ─────────────────────────────────────────────────────────────
 
 describe('malformed url', () => {
-  it('refuses http instead of https', () => {
+  it('refuses http instead of https for supabase.co', () => {
     const r = disabled(supabaseSettings({
-      PUBLIC_SUPABASE_URL: 'http://abcdefghijklmnop.supabase.co',
+      PUBLIC_SUPABASE_URL: 'http://abcdefghijklmnopqrst.supabase.co',
       PUBLIC_SUPABASE_PUBLISHABLE_KEY: VALID_KEY,
     }));
     expect(r.reason).toContain('https');
@@ -114,6 +114,46 @@ describe('malformed url', () => {
       PUBLIC_SUPABASE_PUBLISHABLE_KEY: VALID_KEY,
     }));
     expect(r.reason).toContain('misconfigured');
+  });
+
+  it('refuses a ref shorter than 20 characters', () => {
+    const r = disabled(supabaseSettings({
+      PUBLIC_SUPABASE_URL: 'https://abcdefghijklmnop.supabase.co',
+      PUBLIC_SUPABASE_PUBLISHABLE_KEY: VALID_KEY,
+    }));
+    expect(r.reason).toContain('misconfigured');
+  });
+
+  it('refuses a ref longer than 20 characters', () => {
+    const r = disabled(supabaseSettings({
+      PUBLIC_SUPABASE_URL: 'https://abcdefghijklmnopqrstu.supabase.co',
+      PUBLIC_SUPABASE_PUBLISHABLE_KEY: VALID_KEY,
+    }));
+    expect(r.reason).toContain('misconfigured');
+  });
+
+  it('refuses a url with embedded credentials', () => {
+    const r = disabled(supabaseSettings({
+      PUBLIC_SUPABASE_URL: 'https://user:pw@abcdefghijklmnopqrst.supabase.co',
+      PUBLIC_SUPABASE_PUBLISHABLE_KEY: VALID_KEY,
+    }));
+    expect(r.reason).toContain('credentials');
+  });
+
+  it('accepts http://localhost with a port for local Supabase', () => {
+    const result = enabled(supabaseSettings({
+      PUBLIC_SUPABASE_URL: 'http://localhost:54321',
+      PUBLIC_SUPABASE_PUBLISHABLE_KEY: VALID_KEY,
+    }));
+    expect(result.url).toBe('http://localhost:54321');
+  });
+
+  it('accepts http://127.0.0.1 with a port for local Supabase', () => {
+    const result = enabled(supabaseSettings({
+      PUBLIC_SUPABASE_URL: 'http://127.0.0.1:54321',
+      PUBLIC_SUPABASE_PUBLISHABLE_KEY: VALID_KEY,
+    }));
+    expect(result.url).toBe('http://127.0.0.1:54321');
   });
 
   it('refuses a non-url string', () => {
@@ -168,5 +208,29 @@ describe('malformed publishable key', () => {
     expect(r.reason).toContain('publishable key');
     // Must not echo the value
     expect(r.reason).not.toContain('some_random_key_value');
+  });
+
+  it('refuses a bare sb_publishable_ with no suffix', () => {
+    const r = disabled(supabaseSettings({
+      PUBLIC_SUPABASE_URL: VALID_URL,
+      PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_',
+    }));
+    expect(r.reason).toContain('publishable key');
+  });
+
+  it('refuses a key with fewer than 16 suffix characters', () => {
+    const r = disabled(supabaseSettings({
+      PUBLIC_SUPABASE_URL: VALID_URL,
+      PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_tooshort',
+    }));
+    expect(r.reason).toContain('publishable key');
+  });
+
+  it('refuses a key containing spaces or newlines in the suffix', () => {
+    const r = disabled(supabaseSettings({
+      PUBLIC_SUPABASE_URL: VALID_URL,
+      PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_valid_suffix_here with space',
+    }));
+    expect(r.reason).toContain('publishable key');
   });
 });
