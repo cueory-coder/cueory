@@ -103,3 +103,12 @@ export const promo = {
   /** Goes to the tip page (`site.tipPageUrl`, Ko-fi); hidden when that is empty. */
   supportLabel: 'support us while we build',
 } as const;
+
+/**
+ * Offline copies of pages (ROADMAP Task 5, docs/OFFLINE.md). Set `enabled` to false and deploy to switch it off for
+ * everyone: pages stop registering the service worker, and /sw.js becomes a worker that deletes the saved copies and
+ * removes itself the next time a visitor's browser checks for an update.
+ */
+export const offline = {
+  enabled: true,
+};

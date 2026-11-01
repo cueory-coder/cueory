@@ -224,6 +224,11 @@ Merged into `staging`; the database one by the director on Christian's behalf (D
 - Open pull requests add their own lines here. Waiting now: study modes on pages (#77, held for Christian's choice
   below), the review-clip exporter (#111, Tasks C7 and C10), the offline service worker (#135, Task C12, held for the
   lead's fix), Release browser tests (#55) and the release into `main` (#132, for Christian).
+- Task C12 ([#135](https://github.com/lilchristxan/Cueory/pull/135)): the offline service worker. `/sw.js` and an external
+  `/register-sw.js` are written at build time (no new package, no change to the security headers). A lesson or the home
+  page you have opened, even only once, opens again with no connection; `/play`, `/admin`, sign-in and progress pages,
+  data files and anything with a query string are never kept. `docs/OFFLINE.md` says how to switch it off. It needs the
+  lead's review.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
