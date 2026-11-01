@@ -1,6 +1,7 @@
 import { defineCollection } from 'astro:content';
 import { glob } from 'astro/loaders';
 import { z } from 'astro/zod';
+import { visualProblems } from './visuals/sources';
 
 /**
  * Lessons are content, not code: they live as JSON files in /content/lessons.
@@ -95,4 +96,42 @@ const triage = defineCollection({
     ),
 });
 
-export const collections = { lessons, cards, pulse, triage };
+/**
+ * The visuals kit (Task 6, D-56, docs/VISUALS.md): one source file per visual in /content/visuals. Every label and
+ * every depiction points to a source that gives the book's exact words, its section and the page address, and only
+ * allowed books can be quoted (src/visuals/sources.ts). The build stops with a plain message when a file breaks a rule.
+ * Only a visual whose file says "approved" can appear on a page.
+ */
+const visualId = z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'an id is lowercase letters, digits and dashes');
+const visuals = defineCollection({
+  // One file per visual, directly in content/visuals (no subfolders), so the unit tests check exactly these files.
+  loader: glob({ base: './content/visuals', pattern: '*.json' }),
+  schema: z
+    .object({
+      id: visualId,
+      title: z.string().min(1).max(120),
+      kind: z.enum(['diagram', 'model', 'overlay']),
+      lessonIds: z.array(z.string().regex(/^U\d{2}-T\d{2}-L\d{2}$/, 'a lesson id looks like U01-T01-L01')).min(1),
+      status: z.enum(['draft', 'approved']),
+      labels: z.array(z.object({ id: visualId, text: z.string().min(1).max(80), source: visualId })),
+      depictions: z.array(z.object({ id: visualId, what: z.string().min(1).max(300), source: visualId })),
+      sources: z
+        .array(
+          z.object({
+            id: visualId,
+            quote: z.string().min(1).max(1000),
+            book: z.string().min(1),
+            section: z.string().min(1).max(200),
+            url: z.string().regex(/^https:\/\/\S+$/, 'a page address starts with https://'),
+            license: z.string().min(1),
+            retrieved: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'retrieved is the day the words were copied, YYYY-MM-DD'),
+          }),
+        )
+        .min(1),
+    })
+    .superRefine((visual, context) => {
+      for (const { field, message } of visualProblems(visual)) context.addIssue({ code: 'custom', path: [field], message });
+    }),
+});
+
+export const collections = { lessons, cards, pulse, triage, visuals };
