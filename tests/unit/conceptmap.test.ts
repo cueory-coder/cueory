@@ -39,10 +39,14 @@ describe('concept map input', () => {
     { field: 'description', value: 'a SCORE target' },
     { field: 'concept', value: 'Chance of passing' },
     { field: 'description', value: '90% complete' },
+    { field: 'concept', value: 'a passing percentage' },
+    { field: 'description', value: 'a passing PERCENTAGE' },
+    { field: 'concept', value: 'a prediction about tomorrow' },
+    { field: 'description', value: 'PREDICTED outcome' },
   ])('rejects predictive supplied text in $field: $value', ({ field, value }) => {
-    expect(() => parseItems([{ ...items[0], [field]: value }])).toThrow('use plain study-status text without predictions.');
+    expect(() => parseItems([{ ...items[0], [field]: value }])).toThrow('use plain study-status text.');
     try { parseItems([{ ...items[0], [field]: value }]); }
-    catch (error) { expect((error as Error).message).not.toMatch(/%|score|chance/i); }
+    catch (error) { expect((error as Error).message).not.toMatch(/%|score|chance|percent|predict/i); }
   });
 });
 
@@ -63,6 +67,6 @@ describe('concept counts and filters', () => {
     expect(filterItems([items[0]!], 'learning')).toEqual([]);
   });
   it('outputs only plain status counts and never predictive metrics', () => {
-    for (const list of [items, [items[0]!], []]) expect(countsInWords(list)).not.toMatch(/%|score|chance/i);
+    for (const list of [items, [items[0]!], []]) expect(countsInWords(list)).not.toMatch(/%|score|chance|percent|predict/i);
   });
 });
