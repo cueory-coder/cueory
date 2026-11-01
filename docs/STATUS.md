@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-11-01 (PR #110 merged, Task C10 repairs in review)
+Last updated: 2026-11-01 (Task C10 b57d16e: per-drawing band table + font-path encoding fix)
 
 ## Done
 - Static site: Astro + React islands + TypeScript + Tailwind, static output, tested at phone and desktop sizes.
@@ -207,7 +207,10 @@ Christian's behalf (D-89), each with the lead's review:
   single-quote escaping in the ffmpeg concat list. For Christian's internal review only; nothing is published.
   P1/P2/P3 fixes (commit `1dfa300`): extensionless import `.ts` extensions (Node 24 ERR_MODULE_NOT_FOUND), band
   geometry using measured SVG height instead of hardcoded 1920 px, and Inter Variable font loaded via rewritten
-  absolute `file://` URLs. 66 unit tests pass. Awaiting independent peer review.
+  absolute `file://` URLs. 66 unit tests pass.
+  `8bbbeae`: `.drawing-clip { flex: none }` so inline `bandHeight` style is not overridden by flex algorithm.
+  `b57d16e`: per-drawing step-band table (`DRAWING_STEP_BANDS_SVG`) mapping each step to its natural SVG section
+  boundaries (C7 spec); font-path encoding with spaces via `encodeURIComponent`. 73 unit tests pass.
 
 ## Done (director, 2026-11-01, ~14:45Z)
 Merged into `staging` by the director on Christian's behalf (D-89), with the lead's review:
@@ -217,7 +220,7 @@ Merged into `staging` by the director on Christian's behalf (D-89), with the lea
 ## In review
 - Open pull requests add their own lines here. Waiting now: study modes on pages (#77, held for Christian's choice
   below), delete-account checks (#105, Task 25), the review-clip exporter (#111, Task C7/C10,
-  P1/P2/P3 fixed at `1dfa300`, awaiting CI + independent peer review), visuals on lesson pages (#129, Task C9),
+  latest `b57d16e`, awaiting CI + independent peer review), visuals on lesson pages (#129, Task C9),
   the review-sheet script (Task 43), and Release browser tests (#55).
   Release #132 (daily games, private stats, onboarding) is open and mergeable — CI running, awaits Christian.
 - Task 43: `node scripts/visuals-sheet.ts --out <folder>` writes draft review sheets outside the repository and refuses existing output; in review.
