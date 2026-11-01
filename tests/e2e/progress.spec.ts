@@ -183,6 +183,30 @@ test('the progress page picks up what another tab saves, and the download includ
   expect(content.decks['study-skills-01'].know).toEqual(['ss01-c01']);
 });
 
+test('an open card deck does not bring back stars or piles forgotten in another tab (Codex on #74)', async ({ page, context }) => {
+  await page.goto('/learn/study-skills/cards');
+  await page.getByRole('button', { name: 'Star', exact: true }).click();
+  await page.getByRole('button', { name: 'Show answer' }).click();
+  await page.getByRole('button', { name: 'Know it' }).click();
+  expect((await saved(page)).decks['study-skills-01'].starred).toEqual(['ss01-c01']);
+
+  const other = await context.newPage();
+  await other.goto('/progress');
+  await other.getByRole('button', { name: 'forget my progress on this device' }).click();
+  await other.getByRole('button', { name: 'yes, forget it' }).click();
+  await expect(other.getByText('done. your progress is no longer saved on this device.')).toBeVisible();
+  await other.close();
+
+  // Back must not restore the forgotten pile, and a new star must not bring the old one back.
+  await page.getByRole('button', { name: 'Back' }).click();
+  await page.getByRole('button', { name: 'Show answer' }).click();
+  await page.getByRole('button', { name: 'Still learning' }).click();
+  await page.getByRole('button', { name: 'Star', exact: true }).click();
+  const after = (await saved(page)).decks['study-skills-01'];
+  expect(after.starred).toEqual(['ss01-c02']);
+  expect(after.know).toEqual([]);
+});
+
 test('the pages fit a 320 px screen without sideways scrolling', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 });
   for (const path of ['/start', '/progress']) {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { migrateLegacyStars, saveSort, type Pile } from '../scripts/progress';
+import { migrateLegacyStars, PROGRESS_STORAGE_KEY, saveSort, type Pile } from '../scripts/progress';
 import { browserStorage } from '../scripts/storage';
 import {
   back,
@@ -80,6 +80,21 @@ export default function CardDeck({ deckId, cards }: Props) {
   // Each "Know it" or "Still learning" is saved on this device (D-69). "Back" puts the card's previous pile back, so
   // this list holds the sorts made in the current round, newest last.
   const sorts = useRef<{ cardId: string; previous: Pile | null }[]>([]);
+
+  // "Forget my progress" in another tab removes the record. An open deck must not write its old stars or undo history
+  // back, so on that deletion it drops both (Codex on #74).
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.storageArea !== window.localStorage) return;
+      const wiped = event.key === null || (event.key === PROGRESS_STORAGE_KEY && event.newValue === null);
+      if (!wiped) return;
+      sorts.current = [];
+      setStarred(new Set());
+      setStarredOnly(false);
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
 
   const act = (next: (s: CardsState) => CardsState) => {
     setState(next);
