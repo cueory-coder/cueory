@@ -234,8 +234,8 @@ Merged into `staging`; the database one by the director on Christian's behalf (D
 
 ## In review
 - Task 48: SQL/browser RPC contracts include the real version-aware answer adapter, with no remaining TODO; in review.
-- Open pull requests add their own lines here. Waiting now: the review-clip exporter (#111, Tasks C7 and C10) and
-  Release browser tests (#55).
+- Open pull requests add their own lines here. Waiting now: the review-clip exporter (#111, Tasks C7 and C10), the
+  `check_answer` contract test (#142, Task 48), the glove-note logic (Tasks 50 to 53) and Release browser tests (#55).
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
@@ -278,9 +278,13 @@ Targets: first visuals by about 14 November, the full kit by about 12 December (
 
 ## Needs Christian's hands
 - [x] Release #132 merged into the live site by Christian on 2026-11-01, about 8:30 am Phoenix.
-- [ ] Lesson videos (#97, now live): on a real iPhone, open `/learn/video-sample` on the live or staging site and tap
-  the cover once. The video should start playing right away. Safari can drop the tap's permission to play, which
-  automated tests can't see. Reply "video ok" or describe what happened.
+- [ ] Lesson videos (#97, live but unlinked): the iPhone check needs a real video. When your first lesson video is on
+  Cueory's YouTube channel, send its link; then on a real iPhone, tap its cover once on the staging site and the video
+  should start right away. Until then `/learn/video-sample` only shows the cover and the player loading.
+- [ ] Glove-note pop-ups ([your request on #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6560268260)
+  and its addenda): five photos of your own gloved hand (palm toward the camera, blank palm, the five angles and
+  colors listed there, plain background, no jewelry, cropped at the wrist) and two short recordings, a glove snap and a
+  stretch. Nothing visible changes until they arrive; the logic is being built now (Tasks 50 to 53).
 - [x] Study modes on pages (#77): merged by Christian with "Ok" on 2026-11-01, read as allowing labeled everyday
   samples with their answers in the browser (D-92). If that reading is wrong, say so and the questions page comes off.
 - [ ] Real questions need a free account (D-86): `check_answer` reveals the key after one try, so signed-out visitors
