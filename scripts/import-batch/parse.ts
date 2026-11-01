@@ -8,6 +8,7 @@ export interface ImportItem {
   conceptId: string;
   type: ItemType;
   stem: string;
+  rationale: string;
   choices: { id: ChoiceId; text: string }[];
   key: ChoiceId[];
   rationales: Partial<Record<ChoiceId, string>>;
@@ -58,14 +59,13 @@ function itemFromRows(item: CsvRow, key: CsvRow, itemRow: number, keyRow: number
   const answer = answerLetters(key.answer ?? '', offered);
   if ('problem' in answer) keyProblem('the key must name at least one offered choice, separated by semicolons, with no repeats or empty places.');
   else if (type === 'single' && answer.letters.length !== 1) keyProblem('a single-answer question needs exactly one choice in its key.');
-  const sourceIds = (item.source_ids ?? '').split(';').map(value => value.trim());
-  if (!sourceIds.length || sourceIds.some(value => !ID.test(value))) itemProblem('give at least one source id, separated by semicolons, with no empty places.');
-  else if (new Set(sourceIds).size !== sourceIds.length) itemProblem('name each source id only once.');
-  const factIds = (item.fact_ids ?? '').split(';').map(value => value.trim());
-  if (!factIds.length || factIds.some(value => !ID.test(value))) itemProblem('give at least one fact id, separated by semicolons, with no empty places.');
+  const sourceIds = (item.source_ids ?? '').split(';').map(value => value.trim()).filter(Boolean);
+  if (!sourceIds.length || sourceIds.some(value => !ID.test(value))) itemProblem('give at least one valid source id, separated by semicolons.');
+  const factIds = (item.fact_ids ?? '').split(';').map(value => value.trim()).filter(Boolean);
+  if (!factIds.length || factIds.some(value => !ID.test(value))) itemProblem('give at least one valid fact id, separated by semicolons.');
   if (problems.length !== before || type === null || 'problem' in answer) return;
   return {
-    id: item.item_id, conceptId: item.concept_id, type, stem: item.stem, choices,
+    id: item.item_id, conceptId: item.concept_id, type, stem: item.stem, rationale: item.rationale, choices,
     key: answer.letters.map(letter => letter.toLowerCase() as ChoiceId), rationales, sourceIds, version: 1,
   };
 }

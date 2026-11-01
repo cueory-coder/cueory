@@ -29,7 +29,7 @@ describe('passed batch parsing', () => {
     expect(checked.passed).toHaveLength(1);
     expect(passedCsv(checked).split('\n')[0]).toBe('item_id,concept_id');
     expect(parsePassed(passedCsv(checked), files())).toEqual({ items: [{
-      id: 'sample-1', conceptId: 'sample-concept', type: 'single', stem: 'sample: choose a shape',
+      id: 'sample-1', conceptId: 'sample-concept', type: 'single', stem: 'sample: choose a shape', rationale: 'sample: main explanation',
       choices: [
         { id: 'a', text: 'sample: circle' }, { id: 'b', text: 'sample: square' },
         { id: 'c', text: 'sample: triangle' }, { id: 'd', text: 'sample: star' },
@@ -58,13 +58,14 @@ describe('passed batch parsing', () => {
   it('preserves quoted commas, quotes, Unicode and line breaks inside sample cells', () => {
     const item = {
       ...sample, stem: 'sample: first line, "quoted"\nsecond line 王',
-      choice_a: 'sample: circle, "round"', rationale_a: 'sample: one\r\ntwo, "three"',
+      choice_a: 'sample: circle, "round"', rationale_a: 'sample: one\r\ntwo, "three"', rationale: 'sample: main, "explanation"\nsecond line',
     };
     const result = parse(item);
     expect(result.problems).toEqual([]);
     expect(result.items[0].stem).toBe(item.stem);
     expect(result.items[0].choices[0].text).toBe(item.choice_a);
     expect(result.items[0].rationales.a).toBe(item.rationale_a);
+    expect(result.items[0].rationale).toBe(item.rationale);
   });
 
   it('imports only the allowlisted rows, in allowlist order', () => {
@@ -167,8 +168,18 @@ describe('row refusals and problem locations', () => {
     expect(result.problems.every(problem => problem.file === 'items.csv' || problem.file === 'key.csv')).toBe(true);
   });
 
-  it.each(['sample-source;', 'sample-source;sample-source', 'sample source'])('refuses bad or duplicate source ids %s', source_ids => {
+  it.each(['sample source', ';;'])('refuses unusable source ids %s', source_ids => {
     expect(parse({ ...sample, source_ids }).items).toEqual([]);
+  });
+
+  it.each([
+    ['sample-source;', ['sample-source']],
+    ['; sample-source ;;', ['sample-source']],
+    ['sample-source;sample-source', ['sample-source', 'sample-source']],
+  ] as const)('matches the checker’s source-list handling for %s', (source_ids, expected) => {
+    const result = parse({ ...sample, source_ids, fact_ids: '; sample-fact ;;' });
+    expect(result.problems).toEqual([]);
+    expect(result.items[0].sourceIds).toEqual(expected);
   });
 
   it('refuses an unknown question type', () => {
