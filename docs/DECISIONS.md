@@ -574,6 +574,17 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
 
   Reason: free CI at full speed, with nothing private in the repository.
 
+- **D-72** The visuals kit's first batch is reviewed in two steps, words first and drawings second. Its three source
+  files (body fluid compartments; osmosis and fluid shifts; the sodium-potassium pump) list every label and everything
+  each drawing may show, each with the exact words of Open RN *Nursing Fundamentals 2e*, section 15.2, and the page
+  address. The drawings are made from these files once Christian approves the words, so nothing is drawn that he
+  hasn't checked. The fetch tool shortens long quotes, so each quote was copied in short overlapping pieces and
+  checked twice; Christian still compares each with the page. The page gives no ion counts for the pump and doesn't
+  mention ATP, so the drawing shows neither. Reason: words are quicker to check than drawings are to redo, and no
+  drawing may show what its source doesn't state.
+  - **Christian's answer on the public repository (2026-11-01, option 1 on #72):** these draft files stay in the
+    repository and merge once he approves the words. They quote only a public CC BY 4.0 book and hold no questions,
+    answers or rationales, and `"status": "draft"` keeps them off every page (CLAUDE.md rule 7, D-75).
 
 - **D-77** Task 2's first database change, following D-73 and the lead's three notes on it (#66).
   - **Locked by default:** the first migration revokes the default grants on new tables, sequences and functions in

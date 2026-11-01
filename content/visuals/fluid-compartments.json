@@ -1,0 +1,146 @@
+{
+  "id": "fluid-compartments",
+  "title": "body fluid compartments",
+  "kind": "diagram",
+  "lessonIds": ["U01-T01-L01"],
+  "status": "draft",
+  "labels": [
+    { "id": "icf", "text": "intracellular fluid (ICF)", "source": "orn-15-2-icf" },
+    { "id": "ecf", "text": "extracellular fluid (ECF)", "source": "orn-15-2-ecf" },
+    { "id": "intravascular", "text": "intravascular fluid", "source": "orn-15-2-intravascular" },
+    { "id": "interstitial", "text": "interstitial fluid", "source": "orn-15-2-interstitial" },
+    { "id": "transcellular", "text": "transcellular fluid", "source": "orn-15-2-transcellular" },
+    { "id": "icf-share", "text": "60% of the volume of body fluids", "source": "orn-15-2-icf-share" },
+    { "id": "icf-electrolyte", "text": "most abundant electrolyte: potassium", "source": "orn-15-2-icf-potassium" },
+    { "id": "ecf-electrolyte", "text": "most abundant electrolyte: sodium", "source": "orn-15-2-ecf-sodium" }
+  ],
+  "depictions": [
+    {
+      "id": "two-compartments",
+      "what": "body fluid drawn in two compartments: inside the cells (ICF) and outside the cells (ECF)",
+      "source": "orn-15-2-two-compartments"
+    },
+    {
+      "id": "icf-larger",
+      "what": "the ICF compartment drawn as 60% of all body fluid, so it is the larger of the two",
+      "source": "orn-15-2-icf-share"
+    },
+    {
+      "id": "icf-contents",
+      "what": "the inside of a cell holding protein, water, electrolytes and solutes",
+      "source": "orn-15-2-icf"
+    },
+    {
+      "id": "ecf-types",
+      "what": "the ECF split into types, each labeled: intravascular, interstitial and transcellular",
+      "source": "orn-15-2-ecf-types"
+    },
+    {
+      "id": "intravascular-blood",
+      "what": "intravascular fluid drawn inside a blood vessel as whole blood: red blood cells, white blood cells, plasma and platelets",
+      "source": "orn-15-2-intravascular"
+    },
+    {
+      "id": "interstitial-place",
+      "what": "interstitial fluid drawn outside the blood vessel, between the cells",
+      "source": "orn-15-2-interstitial"
+    },
+    {
+      "id": "transcellular-places",
+      "what": "transcellular fluid shown apart, named for its areas: cerebrospinal, synovial, intrapleural and the gastrointestinal system",
+      "source": "orn-15-2-transcellular"
+    }
+  ],
+  "sources": [
+    {
+      "id": "orn-15-2-two-compartments",
+      "quote": "Body fluids are found in two main areas of the body called intracellular and extracellular compartments.",
+      "book": "Open RN Nursing Fundamentals 2e",
+      "section": "15.2 Basic Fluid and Electrolyte Concepts, Body Fluids",
+      "url": "https://wtcs.pressbooks.pub/nursingfundamentals/chapter/15-2-basic-fluid-and-electrolyte-concepts/",
+      "license": "CC BY 4.0",
+      "retrieved": "2026-11-01"
+    },
+    {
+      "id": "orn-15-2-icf",
+      "quote": "Intracellular fluids (ICF) are found inside cells and are made up of protein, water, electrolytes, and solutes.",
+      "book": "Open RN Nursing Fundamentals 2e",
+      "section": "15.2 Basic Fluid and Electrolyte Concepts, Body Fluids",
+      "url": "https://wtcs.pressbooks.pub/nursingfundamentals/chapter/15-2-basic-fluid-and-electrolyte-concepts/",
+      "license": "CC BY 4.0",
+      "retrieved": "2026-11-01"
+    },
+    {
+      "id": "orn-15-2-icf-potassium",
+      "quote": "The most abundant electrolyte in intracellular fluid is potassium.",
+      "book": "Open RN Nursing Fundamentals 2e",
+      "section": "15.2 Basic Fluid and Electrolyte Concepts, Body Fluids",
+      "url": "https://wtcs.pressbooks.pub/nursingfundamentals/chapter/15-2-basic-fluid-and-electrolyte-concepts/",
+      "license": "CC BY 4.0",
+      "retrieved": "2026-11-01"
+    },
+    {
+      "id": "orn-15-2-icf-share",
+      "quote": "In fact, intracellular fluid accounts for 60% of the volume of body fluids and 40% of a person’s total body weight!",
+      "book": "Open RN Nursing Fundamentals 2e",
+      "section": "15.2 Basic Fluid and Electrolyte Concepts, Body Fluids",
+      "url": "https://wtcs.pressbooks.pub/nursingfundamentals/chapter/15-2-basic-fluid-and-electrolyte-concepts/",
+      "license": "CC BY 4.0",
+      "retrieved": "2026-11-01"
+    },
+    {
+      "id": "orn-15-2-ecf",
+      "quote": "Extracellular fluids (ECF) are fluids found outside of cells.",
+      "book": "Open RN Nursing Fundamentals 2e",
+      "section": "15.2 Basic Fluid and Electrolyte Concepts, Body Fluids",
+      "url": "https://wtcs.pressbooks.pub/nursingfundamentals/chapter/15-2-basic-fluid-and-electrolyte-concepts/",
+      "license": "CC BY 4.0",
+      "retrieved": "2026-11-01"
+    },
+    {
+      "id": "orn-15-2-ecf-sodium",
+      "quote": "The most abundant electrolyte in extracellular fluid is sodium.",
+      "book": "Open RN Nursing Fundamentals 2e",
+      "section": "15.2 Basic Fluid and Electrolyte Concepts, Body Fluids",
+      "url": "https://wtcs.pressbooks.pub/nursingfundamentals/chapter/15-2-basic-fluid-and-electrolyte-concepts/",
+      "license": "CC BY 4.0",
+      "retrieved": "2026-11-01"
+    },
+    {
+      "id": "orn-15-2-ecf-types",
+      "quote": "Extracellular fluids can be further broken down into various types.",
+      "book": "Open RN Nursing Fundamentals 2e",
+      "section": "15.2 Basic Fluid and Electrolyte Concepts, Body Fluids",
+      "url": "https://wtcs.pressbooks.pub/nursingfundamentals/chapter/15-2-basic-fluid-and-electrolyte-concepts/",
+      "license": "CC BY 4.0",
+      "retrieved": "2026-11-01"
+    },
+    {
+      "id": "orn-15-2-intravascular",
+      "quote": "Intravascular fluid is whole blood volume and includes red blood cells, white blood cells, plasma, and platelets.",
+      "book": "Open RN Nursing Fundamentals 2e",
+      "section": "15.2 Basic Fluid and Electrolyte Concepts, Body Fluids",
+      "url": "https://wtcs.pressbooks.pub/nursingfundamentals/chapter/15-2-basic-fluid-and-electrolyte-concepts/",
+      "license": "CC BY 4.0",
+      "retrieved": "2026-11-01"
+    },
+    {
+      "id": "orn-15-2-interstitial",
+      "quote": "Interstitial fluid refers to fluid outside of blood vessels and between the cells.",
+      "book": "Open RN Nursing Fundamentals 2e",
+      "section": "15.2 Basic Fluid and Electrolyte Concepts, Body Fluids",
+      "url": "https://wtcs.pressbooks.pub/nursingfundamentals/chapter/15-2-basic-fluid-and-electrolyte-concepts/",
+      "license": "CC BY 4.0",
+      "retrieved": "2026-11-01"
+    },
+    {
+      "id": "orn-15-2-transcellular",
+      "quote": "The remaining extracellular fluid, also called transcellular fluid, refers to fluid in areas such as cerebrospinal, synovial, intrapleural, and the gastrointestinal system.",
+      "book": "Open RN Nursing Fundamentals 2e",
+      "section": "15.2 Basic Fluid and Electrolyte Concepts, Body Fluids",
+      "url": "https://wtcs.pressbooks.pub/nursingfundamentals/chapter/15-2-basic-fluid-and-electrolyte-concepts/",
+      "license": "CC BY 4.0",
+      "retrieved": "2026-11-01"
+    }
+  ]
+}
