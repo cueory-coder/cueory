@@ -464,6 +464,31 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   only approved visuals can appear on a page (`approvedOnly`), each visual shows the credit WisTech Open's terms ask
   for (`creditsFor`), and every overlay says "simplified for learning" (`notesFor`). Reason: no picture can ship with
   a word its cited source doesn't state.
+- **D-70** The crossword on `/play` (internal id `cueword`; shown as "crossword", D-66). A Codex helper built the engine
+  and board (#51): the usual numbering, typing that skips gaps, checking a word or the whole grid with a symbol and
+  words for each mark, up to three cues that each fill in one letter and lock it, and a plain-words share line ("cueory
+  crossword, sun 1 nov: solved in 2:41 with 1 cue."). The page hands every sample to a small wrapper that picks today's
+  from the visitor's own date, like pulse and sort. Samples use everyday words (`content/games/cueword/`, six
+  four-by-five grids), and the build runs each one through the game's own `parsePuzzle`, so a clue that doesn't match a
+  word stops the build with the file's name. The board checks answers in the browser, so every sample (answers
+  included) is in the page: fine for samples, but a real puzzle must never reach the browser before its day, or anyone
+  could read ahead (the director's review of #51; word path is the same). Real puzzles therefore come one day at a time,
+  as D-61 proposes. Typing on a cued letter moves on to the next open cell instead of dropping the letter (also from
+  that review). The grid is labeled "crossword grid", because "crossword crossword" read badly once the game took its
+  plain name. Reason: Christian's request for four daily games, with the third one playable.
+- **D-71** Word path on `/play` (internal id `suture`; shown as "word path", D-66), the fourth daily game. A Codex helper
+  built the engine and board (#52): a small grid of capital letters hides three to six everyday words, each with its
+  own cue and length. A word runs through touching cells, up, down, left or right, never diagonally, never reusing a
+  cell, and no two words share one; some letters are fillers. Tap touching letters and press **stitch**: the exact path,
+  in either direction, finds the word; anything else is a "loose stitch", counted and said in words. There is no game
+  over, and the share line is plain words ("cueory word path, sun 1 nov: stitched 3 of 3 words with 0 loose
+  stitches."). Its own rules on purpose: orthogonal paths, a cue for every word and filler letters, unlike other
+  letter-grid games. Five everyday samples (`content/games/suture/`) are checked by the game's own `parsePuzzle` at build
+  time, and a unit test makes sure each word can be spelled along exactly one path, so a right trace is never refused
+  for taking another route. Today's sample is picked from the visitor's own date, like the other games, and as with the
+  crossword (D-70) a real puzzle never reaches the browser before its day (D-61). With all four games playable, the
+  "coming soon" list on `/play` shows only while a game is still on its way. Reason: Christian's request for four daily
+  games.
 - **D-73** Task 2 plan: accounts and the database (the lead's request on issue #4, 2026-10-31, 10:45 pm, while
   Christian creates `cueory-staging` and `cueory-prod`, SETUP Part K). Checked against Supabase's and Cloudflare's
   docs on 1 Nov 2026. Each step is its own small pull request; `supabase/` and `.github/` always wait for Christian.
@@ -557,3 +582,48 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   checked twice; Christian still compares each with the page. The page gives no ion counts for the pump and doesn't
   mention ATP, so the drawing shows neither. Reason: words are quicker to check than drawings are to redo, and no
   drawing may show what its source doesn't state.
+  - **Christian's answer on the public repository (2026-11-01, option 1 on #72):** these draft files stay in the
+    repository and merge once he approves the words. They quote only a public CC BY 4.0 book and hold no questions,
+    answers or rationales, and `"status": "draft"` keeps them off every page (CLAUDE.md rule 7, D-75).
+
+- **D-77** Task 2's first database change, following D-73 and the lead's three notes on it (#66).
+  - **Locked by default:** the first migration revokes the default grants on new tables, sequences and functions in
+    `public` from `anon`, `authenticated` and `service_role`. Every table and function after it grants what it needs in
+    its own migration. Postgres lets every role run a new function and a per-schema rule can't stop that, so each
+    function also revokes `execute` from `public`.
+  - **`profiles`:** one row per account, made by a trigger when the account is created, as Supabase's "User
+    Management" docs show. It holds only a display name: empty until the student picks one, 1 to 50 characters, no
+    control characters. The email stays in Supabase's `auth.users`, and onboarding answers come with the onboarding
+    pages. A student reads their own row and can change only `display_name`; signed-out visitors get nothing; deleting
+    an account deletes its profile. The trigger writes only the id, so bad sign-up data can't block a sign-up.
+  - **Tests:** 25 pgTAP tests in `supabase/tests/database/`. They check that every table has row-level security, that
+    anon can do nothing to any table, view or sequence (effective privileges, so grants through `PUBLIC` count too, and
+    every table privilege Postgres 17 has, `MAINTAIN` included), that no function in `public` can be called from the
+    website unless it's on the allowed list (empty for now), that new tables and sequences start with no privileges for
+    `anon`, `authenticated` or `service_role`, and every profile rule above. Each check also has a probe that proves it
+    catches a table, a `MAINTAIN` grant or a function reachable only through `PUBLIC`. They passed locally on a
+    stand-in database set up with Supabase's old grant-everything defaults (the worst case), and they fail when a table
+    lacks row-level security or a function keeps `execute` for `public`.
+  - **CI:** `.github/workflows/database.yml` runs the pinned Supabase CLI (2.122.0, from npm) to start a throwaway
+    local database, apply every migration and run the tests. It needs no secrets and runs only when `supabase/` or the
+    workflow itself changes, and never on drafts (lead's note 2, D-74).
+  - **`supabase/config.toml`:** the CLI's own file, for that local database only. Seeding is off, because content
+    comes from reviewed batches.
+  - **Lead's notes 1 and 3, for later pull requests:** signed-out visitors still see "Flag or comment", and its form
+    says a free account is needed to send a report and offers hello@cueory.app instead. The keep-alive is one tiny
+    scheduled read a day per project.
+
+  Reason: D-73's plan, applied in the smallest first step, with tests that keep it locked.
+
+- **D-78** The staging auto-merge no longer misses a ready pull request (the lead, 2026-11-01).
+  - **What went wrong:** every comment on an issue or pull request starts a run of the auto-merge workflow, and
+    GitHub keeps only one run waiting in line. With the one-at-a-time rule on the whole workflow, an ordinary
+    comment's run, about to be skipped, could take that place and cancel a waiting run from a finished check (seen
+    twice on 2026-11-01, at 06:24 and 06:25 UTC). The pull request then waited for some later event.
+  - **Fix:** the rule moves onto the job, so a skipped run never waits in line, and an hourly sweep re-checks every
+    open pull request into `staging` in case an event is still missed. The merge rules in `scripts/automerge/` don't
+    change.
+  - **Cost:** free while the repository is public (D-75). If it ever goes private again, drop the sweep (about 720
+    billed minutes a month).
+
+  Reason: a ready pull request merges within the hour even when its last event is lost.
