@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-11-01
+Last updated: 2026-11-01 (Task 42)
 
 ## Done
 - Static site: Astro + React islands + TypeScript + Tailwind, static output, tested at phone and desktop sizes.
@@ -159,24 +159,55 @@ Merged into `staging` overnight; the database and content ones by the director o
 - Helpers' logic, not on a page yet: account initials and menu (#91, Task 18), and the `/admin` review-table model
   (#96, Task 20).
 
+## Done (director, 2026-11-01, 2–4 am Phoenix)
+Merged into `staging`; the database ones by the director on Christian's behalf (D-89), each with the lead's review:
+- Task 2, database step 4 (#104, D-87): `review_state` and `exam_plans`. Each student reads and writes only their own
+  spaced-review progress and exam dates. Steps 1 to 4 are in `staging`; nothing reaches `cueory-staging` or
+  `cueory-prod` until Christian applies migrations himself.
+- Helpers' logic, not on a page yet:
+  - the batch importer's parser (#100, Task 21): reads a passed batch with its item and key files, never guessing a
+    missing field;
+  - the "flag or comment" arguments for `submit_flag` (#107, Task 26);
+  - the disease-overlay frame (#102, Task 24), which always shows "simplified for learning";
+  - exam-date wording (#106, Task 27), calm and counted in calendar days;
+  - concept status from attempts (#109, Task 29), on the existing adaptive rules;
+  - what the offline cache may keep (#112, Task 32);
+  - study events with nothing personal in them (#114, Task 33), with no analytics script yet.
+
+## Done (director, 2026-11-01, 4–5 am Phoenix)
+Merged into `staging` (#115 by the director on Christian's behalf, D-89, with the lead's review). Helpers' logic, not on
+a page yet:
+- the batch importer refuses an item whose hash is missing or doesn't match, and needs every choice's rationale (#115,
+  Task 28); the checker is being brought in line with it (Task C8);
+- the flag-name fix for item versions (#117, Task 26);
+- guest progress turned into review rows for when an account is created (#113, Task 31);
+- the review queue from database rows (#118, Task 34);
+- the flag inbox model for `/admin` (#120, Task 35);
+- the curriculum lesson map read in build order (#119, Task 36);
+- display-name checks in the browser that match the database (#121, Task 37);
+- plain words for the database's refusals (#122, Task 38);
+- which visuals a lesson may show: approved ones with a drawing, never drafts (#123, Task 39).
+
+## Done (director, 2026-11-01, 5–6 am Phoenix)
+Merged into `staging`; the ones touching the content security policy, accounts or a package by the director on
+Christian's behalf (D-89), each with the lead's review:
+- Lesson videos (#97, Task C3, D-82): a click-to-play cover; nothing loads from YouTube before the tap, one tap loads
+  the player and starts the video, and only `published` videos show (the placeholder stays a draft). `/privacy` names
+  YouTube. Needs Christian's check on a real iPhone (below).
+- The 3D body viewer shell (#98, Task C4, D-83): `three` loads only after a tap; a placeholder model in bone, muscle and
+  skin layers, keyboard controls, and a test that keeps model files under 3 MB. The real model will be BodyParts3D.
+- Export-my-data (#95, Task 19, D-91) covers everything stored about a student, including attempts, exam dates and
+  review rows, as JSON and CSV. Not on a page yet.
+- The Supabase settings reader (#101, Task 22), the daily puzzle checker (#108, Task 30), and the batch checker matching
+  the importer (#125, Task C8, D-90).
+- Visuals kit helpers, not on a page yet: the review sheet for Christian (#126, Task 40), "no rights record, no image"
+  (#128, Task 41) and credits for a lesson page (#127, Task 42).
+
 ## In review
-- Task 2, database step 4 (Task C6, D-87): `review_state` and `exam_plans`, with 47 database tests. Each student reads and
-  writes only their own spaced-review progress and exam dates; the database refuses impossible values. It edits
-  `supabase/`, so it waits for Christian. **Steps 1 to 3 are in `staging`** (#90, #92 and #94): concepts, sources and
-  rights records (D-84); items, versions and the hidden answer key (D-85); and attempts with `check_answer` (D-86), 140
-  database tests in all. `check_answer` is signed-in only, which still needs Christian's confirmation (D-86). Step 5,
-  flags and `submit_flag`, comes next.
-- [Concept map](https://github.com/lilchristxan/Cueory/pull/68) (Task 14): every concept in a unit with its status in
-  words and a shape (an empty circle, a quarter, a half or a check), never color alone, with a filter by status. No
-  scores or predictions.
-- Visuals kit, the first batch's drawings (Task C5, D-81): body fluid compartments, osmosis and fluid shifts, and
-  the sodium-potassium pump, drawn only from their approved source files and checked by tests. Drafts, so nothing shows
-  on a page until Christian approves them; his review sheet is linked from the pull request.
-- Open pull requests add their own lines here: study modes on pages (#77), guest progress (#74), game stats on
-  `/play` (#79), the Safari preview fix (#88) and Release browser tests (#55).
-- Open pull requests add their own lines here: study modes on pages (#77), export-my-data (#95, Task 19), lesson
-  videos (#97, Task C3), the 3D viewer shell (#98, Task C4), the batch importer's parser (#100, Task 21), the
-  disease-overlay frame (#102, Task 24) and Release browser tests (#55).
+- Open pull requests add their own lines here. Waiting now: study modes on pages (#77, held for Christian's choice
+  below), delete-account checks (#105, Task 25), database step 5, flags and `submit_flag` (#110), the review-clip
+  exporter (#111, Task C7), visuals on lesson pages (#129, Task C9), the review-sheet script (Task 43) and Release
+  browser tests (#55).
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
@@ -201,8 +232,12 @@ Targets: first visuals by about 14 November, the full kit by about 12 December (
 - In `staging`: the first batch's words (D-72), approved by Christian: the source files for body fluid compartments,
   osmosis and fluid shifts, and the sodium-potassium pump, every label quoted from Open RN *Nursing Fundamentals 2e*
   15.2.
-- Next: the three drawings (Task C5), made only from those files. The 3D viewer adds three.js, so it waits for
-  Christian's merge; its models come from BodyParts3D (D-80).
+- In `staging` ([#98](https://github.com/lilchristxan/Cueory/pull/98)): 3D body viewer shell (D-83). Lazy-loads
+  `three` on tap, renders a placeholder model grouped into bone / muscle / skin layers with OrbitControls. On-demand
+  rendering (battery), keyboard controls (arrow keys / +−), dark-mode background tokens, reduced-motion support.
+  Preview page has `noindex`. Real model will be BodyParts3D (D-80). `three` 0.187; a unit test caps model files
+  under `public/` at 3 MB.
+- Next: the three drawings (Task C5), made only from those files.
 
 ## Planning
 - [Med-surg lesson map](curriculum/README.md) ([#31](https://github.com/lilchristxan/Cueory/pull/31)): the master
@@ -214,6 +249,14 @@ Targets: first visuals by about 14 November, the full kit by about 12 December (
 - **Signup form** shows "signups open soon" until the Kit form exists (SETUP.md, Part I).
 
 ## Needs Christian's hands
+- [ ] Lesson videos (#97, now in `staging`): on a real iPhone, open `/learn/video-sample` on the staging site and tap
+  the cover once. The video should start playing right away. Safari can drop the tap's permission to play, which
+  automated tests can't see. Reply "video ok" or describe what happened.
+- [ ] Study modes on pages (#77): its questions page sends the sample answers to the browser before a student answers,
+  and organizer and fill-in carry their answers in the page, like cards. Choose one: (1) split it, publishing what
+  has no answer before an attempt, with questions waiting for `check_answer` and accounts (recommended); (2) keep all
+  four pages on the locked staging site only, left out of live builds; or (3) allow labeled everyday samples with
+  answers in the browser.
 - [ ] Real questions need a free account (D-86): `check_answer` reveals the key after one try, so signed-out visitors
   can't use it (a limit needs an identity, and a CAPTCHA would load a third-party script). Guests keep the sample modes.
   Reply "ok" to keep it this way, or ask for a CAPTCHA exception.
