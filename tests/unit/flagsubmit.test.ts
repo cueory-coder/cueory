@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkReport } from '../../src/islands/flag';
+import { checkReport, REASONS } from '../../src/islands/flag';
 import { flagArguments, type FlagContext } from '../../src/islands/flagsubmit';
 
 const VALID_PAGE = '/learn/anatomy';
@@ -73,8 +73,8 @@ describe('valid flagArguments', () => {
     expect(result.args.page).toBe('/');
   });
 
-  it('accepts exactly 300-character page path', () => {
-    const longPath = '/' + 'a'.repeat(299);
+  it('accepts exactly 200-character page path', () => {
+    const longPath = '/' + 'a'.repeat(199);
     const result = flagArguments(validReport(), ctx(longPath));
     expect(result.ok).toBe(true);
   });
@@ -108,6 +108,28 @@ describe('rejected report', () => {
   });
 });
 
+// ── Hand-built report re-validation ──────────────────────────────────────────
+
+describe('re-validation on hand-built ok:true reports', () => {
+  it('rejects a hand-built report with an invalid reason', () => {
+    const fakeReport = {
+      ok: true as const,
+      report: { page: VALID_PAGE, reason: 'hacked' as typeof REASONS[number], comment: 'fine' },
+    };
+    const result = flagArguments(fakeReport, ctx(VALID_PAGE));
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects a hand-built report with a >1000 character comment', () => {
+    const fakeReport = {
+      ok: true as const,
+      report: { page: VALID_PAGE, reason: 'typo' as const, comment: 'x'.repeat(1001) },
+    };
+    const result = flagArguments(fakeReport, ctx(VALID_PAGE));
+    expect(result.ok).toBe(false);
+  });
+});
+
 // ── Invalid page ──────────────────────────────────────────────────────────────
 
 describe('invalid page in context', () => {
@@ -131,9 +153,19 @@ describe('invalid page in context', () => {
     expect(result.ok).toBe(false);
   });
 
-  it('rejects a page path longer than 300 characters', () => {
-    const tooLong = '/' + 'a'.repeat(300);
+  it('rejects a page path longer than 200 characters', () => {
+    const tooLong = '/' + 'a'.repeat(200);
     const result = flagArguments(validReport(), ctx(tooLong));
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects a path containing spaces', () => {
+    const result = flagArguments(validReport(), ctx('/learn/a b'));
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects a path containing ..', () => {
+    const result = flagArguments(validReport(), ctx('/learn/../admin'));
     expect(result.ok).toBe(false);
   });
 });
