@@ -34,6 +34,8 @@ const pages = [
   '/support',
   '/subscribed',
   '/play',
+  '/start',
+  '/progress',
 ];
 
 for (const path of pages) {
@@ -118,7 +120,8 @@ test('starred cards are remembered in this browser and can be studied on their o
   await page.keyboard.press('Space'); // star card 2
   await expect(star).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('checkbox', { name: 'Only starred cards (1)' })).toBeEnabled();
-  expect(await page.evaluate(() => localStorage.getItem('cueory-stars-study-skills-01'))).toBe('["ss01-c02"]');
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('cueory-progress') ?? '{}'));
+  expect(saved.decks['study-skills-01'].starred).toEqual(['ss01-c02']);
 
   const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
   expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);

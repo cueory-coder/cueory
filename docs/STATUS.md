@@ -236,9 +236,16 @@ Merged into `staging` tonight (pulse and sort were already live; the rest reache
   from [#52](https://github.com/lilchristxan/Cueory/pull/52) (a Codex helper's, now in `staging`). Five everyday
   samples under `content/games/suture/`, checked by the game's own rules at build time, so it waits for Christian's
   merge. With it, all four daily games are playable on samples.
+- Task 2, database step 1 (Task C6, D-84): `concepts`, `sources` and `rights_records`, with 34 database tests. Visitors
+  and students read only published concepts and sources; nobody on the website can write; rights records are closed
+  to every website role. It edits `supabase/`, so it waits for Christian. Steps 2 to 5 stack on it: items, then
+  `check_answer`, then attempts and exam plans, then flags.
 - [Concept map](https://github.com/lilchristxan/Cueory/pull/68) (Task 14): every concept in a unit with its status in
   words and a shape (an empty circle, a quarter, a half or a check), never color alone, with a filter by status. No
   scores or predictions.
+- Visuals kit, the first batch's drawings (Task C5, D-81): body fluid compartments, osmosis and fluid shifts, and
+  the sodium-potassium pump, drawn only from their approved source files and checked by tests. Drafts, so nothing shows
+  on a page until Christian approves them; his review sheet is linked from the pull request.
 - Open pull requests add their own lines here: study modes on pages (#77), guest progress (#74), game stats on
   `/play` (#79), the Safari preview fix (#88) and Release browser tests (#55).
 

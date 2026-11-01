@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { migrateLegacyStars, PROGRESS_STORAGE_KEY, saveSort, type Pile } from '../scripts/progress';
 import { browserStorage } from '../scripts/storage';
 import {
   back,
@@ -59,7 +60,11 @@ function StarIcon({ filled }: { filled: boolean }) {
  */
 export default function CardDeck({ deckId, cards }: Props) {
   const allCards = cards.map((_, i) => i);
-  const [storage] = useState(browserStorage);
+  const [storage] = useState(() => {
+    const found = browserStorage();
+    migrateLegacyStars(found); // stars saved before D-69 move into the record (D-69)
+    return found;
+  });
   const [starred, setStarred] = useState(() => loadStars(storage, deckId, cards.map((c) => c.id)));
   const [shuffle, setShuffle] = useState(false);
   const [starredOnly, setStarredOnly] = useState(false);
@@ -72,15 +77,53 @@ export default function CardDeck({ deckId, cards }: Props) {
     if (focusRequest > 0) faceRef.current?.focus();
   }, [focusRequest]);
 
+  // Each "Know it" or "Still learning" is saved on this device (D-69). "Back" puts the card's previous pile back, so
+  // this list holds the sorts made in the current round, newest last.
+  const sorts = useRef<{ cardId: string; previous: Pile | null }[]>([]);
+
+  // "Forget my progress" in another tab removes the record. An open deck must not write its old stars or undo history
+  // back, so on that deletion it drops both (Codex on #74).
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.storageArea !== window.localStorage) return;
+      const wiped = event.key === null || (event.key === PROGRESS_STORAGE_KEY && event.newValue === null);
+      if (!wiped) return;
+      sorts.current = [];
+      setStarred(new Set());
+      setStarredOnly(false);
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
   const act = (next: (s: CardsState) => CardsState) => {
     setState(next);
     setFocusRequest((n) => n + 1);
   };
 
+  const sort = (pile: Pile) => {
+    const index = current(state);
+    if (index === undefined) return;
+    const cardId = cards[index]!.id;
+    sorts.current.push({ cardId, previous: saveSort(storage, deckId, cardId, pile) });
+    act(pile === 'know' ? knowIt : stillLearning);
+  };
+
+  const goBack = () => {
+    const undone = state.pos > 0 ? sorts.current.pop() : undefined;
+    if (undone) saveSort(storage, deckId, undone.cardId, undone.previous);
+    act(back);
+  };
+
+  const newRound = (next: (s: CardsState) => CardsState) => {
+    sorts.current = [];
+    act(next);
+  };
+
   const cardsToStudy = (onlyStarred: boolean) =>
     order(onlyStarred && starred.size > 0 ? starredIndexes(cards, starred) : allCards, shuffle);
 
-  const startOver = () => act(() => start(cardsToStudy(starredOnly)));
+  const startOver = () => newRound(() => start(cardsToStudy(starredOnly)));
 
   const changeShuffle = (on: boolean) => {
     setShuffle(on);
@@ -89,6 +132,7 @@ export default function CardDeck({ deckId, cards }: Props) {
 
   const changeStarredOnly = (on: boolean) => {
     setStarredOnly(on);
+    sorts.current = [];
     setState(start(cardsToStudy(on)));
   };
 
@@ -138,7 +182,7 @@ export default function CardDeck({ deckId, cards }: Props) {
         </div>
         <div className="mt-stack flex flex-wrap gap-3">
           {!allKnown && (
-            <button type="button" onClick={() => act((s) => nextRound(s, shuffle))} className={primaryButton}>
+            <button type="button" onClick={() => newRound((s) => nextRound(s, shuffle))} className={primaryButton}>
               Study the {tally.learning} still learning
             </button>
           )}
@@ -188,10 +232,10 @@ export default function CardDeck({ deckId, cards }: Props) {
       <div className="mt-stack flex flex-wrap gap-3">
         {state.flipped ? (
           <>
-            <button type="button" onClick={() => act(knowIt)} className={primaryButton}>
+            <button type="button" onClick={() => sort('know')} className={primaryButton}>
               Know it
             </button>
-            <button type="button" onClick={() => act(stillLearning)} className={secondaryButton}>
+            <button type="button" onClick={() => sort('learning')} className={secondaryButton}>
               Still learning
             </button>
             <button type="button" onClick={() => act(flip)} className="rounded-pill px-3 py-2.5 text-ink-soft underline">
@@ -203,14 +247,16 @@ export default function CardDeck({ deckId, cards }: Props) {
             <button type="button" onClick={() => act(flip)} className={primaryButton}>
               Show answer
             </button>
-            <button type="button" onClick={() => act(back)} disabled={state.pos === 0} className={secondaryButton}>
+            <button type="button" onClick={goBack} disabled={state.pos === 0} className={secondaryButton}>
               Back
             </button>
           </>
         )}
       </div>
 
-      <p className="mt-section text-sm text-ink-soft">Your stars are saved in this browser only.</p>
+      <p className="mt-section text-sm text-ink-soft">
+        Your piles and stars are saved in this browser only. <a href="/progress">See or clear them</a>.
+      </p>
     </div>
   );
 }

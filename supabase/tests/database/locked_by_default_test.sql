@@ -4,7 +4,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 -- Migrations run as postgres, so the probes below are made as postgres too.
 set local role postgres;
-select plan(8);
+select plan(9);
 
 -- Every table privilege this Postgres has. PostgreSQL 17 added MAINTAIN, and the local database is PostgreSQL 17
 -- (supabase/config.toml); the check also runs on older versions, without it (security review of #76).
@@ -51,14 +51,28 @@ select is_empty(
   'every table in public has row-level security'
 );
 
+-- The only things signed-out visitors may do: read the published rows of the public-content tables. Each table here is
+-- row-level secured by a policy that shows published rows only (their own test files check that). A later migration
+-- that makes another table readable adds one line to this list, and a reviewer has to see it.
+create temporary table anon_may_read (relation text primary key);
+insert into anon_may_read values ('public.concepts'), ('public.sources');
+
 select is_empty(
-  $$ select relation || ': ' || privilege from anon_reach $$,
-  'signed-out visitors (anon) can do nothing to any table, view or sequence in public'
+  $$ select relation || ': ' || privilege from anon_reach
+     where not (privilege = 'SELECT' and relation in (select relation from anon_may_read)) $$,
+  'signed-out visitors (anon) can do nothing to any table, view or sequence in public, except read the listed public-content tables'
 );
 
 select is_empty(
   $$ select function from website_functions $$,
   'no function in public can be run from the website unless it is on the allowed list'
+);
+
+select is_empty(
+  $$ select r.relation || ': ' || a.privilege
+     from anon_may_read r join anon_reach a on a.relation = r.relation
+     where a.privilege <> 'SELECT' $$,
+  'the public-content tables give signed-out visitors nothing but SELECT'
 );
 
 -- The two checks above catch access that comes only through PUBLIC.
