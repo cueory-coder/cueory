@@ -20,7 +20,6 @@ function Session({ questions, check }: Props) {
   const request = useRef(0);
   const inFlight = useRef(false);
   const stem = useRef<HTMLLegendElement>(null);
-  const result = useRef<HTMLDivElement>(null);
   const end = useRef<HTMLDivElement>(null);
   const id = useId();
   const question = currentQuestion(state);
@@ -35,7 +34,8 @@ function Session({ questions, check }: Props) {
     setError('');
     return () => { request.current++; };
   }, [check]);
-  useEffect(() => { if (answer) result.current?.focus(); }, [answer]);
+  // Start reading above the choice marks and rationales; the live region announces the verdict.
+  useEffect(() => { if (answer) stem.current?.focus(); }, [answer]);
   useEffect(() => {
     if (state.finished) end.current?.focus();
     else if (focusStep > 0) stem.current?.focus();
@@ -94,7 +94,7 @@ function Session({ questions, check }: Props) {
           </fieldset>
           {!answer && <button type="button" className={`${button} mt-6`} disabled={waiting || !canCheck(state)} onClick={() => void submit()}>{waiting ? 'checking…' : 'check'}</button>}
           {answer && (
-            <div ref={result} tabIndex={-1} className="mt-6">
+            <div className="mt-6">
               <p className="text-lg font-medium">{answer.correct ? 'right.' : 'not quite.'}</p>
               <button type="button" className={`${button} mt-4`} onClick={advance}>next question</button>
             </div>
