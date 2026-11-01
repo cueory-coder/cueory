@@ -204,6 +204,8 @@ a page yet:
   when they open.
 - Task 40: `reviewSheet(visual)` prepares source and credit tables with an unticked visual-review checklist; pure logic, in review.
 - Task 41: `rightsProblems` checks recorded image rights; `usableAssets` keeps only exact assets with a valid verified record; pure logic, in review.
+- Task C9: `LessonVisuals.astro` on the study-skills lesson shows approved visuals (with one credit line) and
+  renders nothing while every visual is a draft, so the page looks exactly as before. A browser test checks that.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
