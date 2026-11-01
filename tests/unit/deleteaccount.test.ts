@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { deletionSummary, confirmState, afterDeletion, type ExportData } from '../../src/islands/deleteaccount';
+import { deletionSummary, confirmState, afterDeletion } from '../../src/islands/deleteaccount';
+import type { ExportData } from '../../src/islands/exportdata';
 import {
   emptyProgress, forgetProgress, legacyStarsKey, loadDeckStars, migrateLegacyStars, PROGRESS_STORAGE_KEY,
   saveProgress, withOnboarding, withPile, withStars,
@@ -256,6 +257,32 @@ describe('the current export contract in the deletion summary', () => {
     expect(deletionSummary({ attempts: [...data.attempts!, ...data.attempts!], examPlans: [...data.examPlans!, ...data.examPlans!], reviewRows: [...data.reviewRows!, ...data.reviewRows!] }))
       .toEqual(['2 question attempts', '2 exam dates', '2 account review schedules']);
     expect(deletionSummary({ attempts: [], examPlans: [], reviewRows: [] })).toEqual([]);
+  });
+});
+
+describe('reports in the deletion summary', () => {
+  const report: NonNullable<ExportData['reports']>[number] = Object.freeze({
+    id: '00000000-0000-4000-8000-000000000001',
+    page: '/learn/sample', itemId: null, itemVersionId: null, reason: 'typo',
+    comment: 'sample: report text stays out of the confirmation', createdAt: '2026-11-01T00:00:00Z',
+  });
+
+  it('counts one report without echoing its contents or changing the export snapshot', () => {
+    const data: ExportData = Object.freeze({ reports: Object.freeze([report]) });
+    expect(deletionSummary(data)).toEqual(['1 report']);
+    expect(data.reports).toEqual([report]);
+  });
+
+  it('counts multiple reports alongside the other sections in plain words', () => {
+    const data: ExportData = {
+      profile: { email: 'sample@example.invalid' },
+      reports: [report, { ...report, id: '00000000-0000-4000-8000-000000000002' }],
+    };
+    expect(deletionSummary(data)).toEqual(['your email address', '2 reports']);
+  });
+
+  it.each([{}, { reports: [] }] satisfies ExportData[])('omits reports when absent or empty: %j', data => {
+    expect(deletionSummary(data)).toEqual([]);
   });
 });
 

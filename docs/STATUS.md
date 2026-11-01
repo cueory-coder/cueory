@@ -204,6 +204,8 @@ Christian's behalf (D-89), each with the lead's review:
   (#128, Task 41) and credits for a lesson page (#127, Task 42).
 
 ## In review
+- Task 46: browser tests cover onboarding persistence, keyboard focus, accessibility and clearing answers on /start; in review.
+- Task 45: delete-account confirmation counts the student's reports from the canonical export data; in review.
 - Task 2, database step 5, the last (Task C6, D-88): `flags`, `submit_flag` and `my_flags`, with 52 database tests
   ([#110](https://github.com/lilchristxan/Cueory/pull/110)). A signed-in student can send a "Flag or comment" report
   (5 an hour, 20 a day); the reports table is closed to every website role and is read only in the locked `/admin`
