@@ -203,21 +203,25 @@ Christian's behalf (D-89), each with the lead's review:
 - Visuals kit helpers, not on a page yet: the review sheet for Christian (#126, Task 40), "no rights record, no image"
   (#128, Task 41) and credits for a lesson page (#127, Task 42).
 
+## Done (director, 2026-11-01, 6–8 am Phoenix)
+Merged into `staging`; the database one by the director on Christian's behalf (D-89), with the lead's review:
+- Task 2, database step 5, the last (#110, Task C6 and C11, D-88): `flags`, `submit_flag` and `my_flags`, with 52
+  database tests. A signed-in student can send a "Flag or comment" report (5 an hour, 20 a day); the reports table is
+  closed to every website role and read only in the locked `/admin` inbox (not built yet); a student reads only their
+  own reports through `my_flags()`, and export-my-data includes them. Steps 1 to 5 are all in `staging`; nothing
+  reaches `cueory-staging` or `cueory-prod` until Christian applies migrations himself.
+- Delete-account checks (#105, Tasks 25 and 44): what will be deleted, in plain words, including saved progress, an
+  email-only account and old starred cards; and the reports count (#134, Task 45). Pure logic, not on a page yet.
+- Visuals on lesson pages (#129, Task C9): approved drawings with each book's credit once; none show while every
+  drawing is a draft.
+- The review-sheet script (#131, Task 43) writes Christian's draft review sheets outside the repository, with a test
+  fix for macOS (#133).
+- Browser tests for `/start` (#136, Task 46): answers saved and restored, keyboard, focus, accessibility, clearing.
+
 ## In review
-- Task 46: browser tests cover onboarding persistence, keyboard focus, accessibility and clearing answers on /start; in review.
-- Task 45: delete-account confirmation counts the student's reports from the canonical export data; in review.
-- Task 2, database step 5, the last (Task C6, D-88): `flags`, `submit_flag` and `my_flags`, with 52 database tests
-  ([#110](https://github.com/lilchristxan/Cueory/pull/110)). A signed-in student can send a "Flag or comment" report
-  (5 an hour, 20 a day); the reports table is closed to every website role and is read only in the locked `/admin`
-  inbox (not built yet); a student reads their own through `my_flags()`, and export-my-data now includes them (C11).
-  It is signed-in only, which needs Christian's confirmation (D-88). Steps 1 to 4 are in
-  `staging` (#90, #92, #94, #104).
 - Open pull requests add their own lines here. Waiting now: study modes on pages (#77, held for Christian's choice
-  below), delete-account checks (#105, Task 25), database step 5, flags and `submit_flag` (#110), the review-clip
-  exporter (#111, Task C7), visuals on lesson pages (#129, Task C9), the review-sheet script (Task 43) and Release
-  browser tests (#55).
-- Task 43: `node scripts/visuals-sheet.ts --out <folder>` writes draft review sheets outside the repository and refuses existing output; in review.
-- Task 44 (#105): delete-account summaries include saved progress and email; cleanup includes legacy stars. Pure logic, in review.
+  below), the review-clip exporter (#111, Tasks C7 and C10), the offline service worker (#135, Task C12, held for the
+  lead's fix), Release browser tests (#55) and the release into `main` (#132, for Christian).
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
@@ -259,6 +263,8 @@ Targets: first visuals by about 14 November, the full kit by about 12 December (
 - **Signup form** shows "signups open soon" until the Kit form exists (SETUP.md, Part I).
 
 ## Needs Christian's hands
+- [ ] Merge the release into the live site ([#132](https://github.com/lilchristxan/Cueory/pull/132)) once its checks
+  are green on its latest version. Its description lists what changes for students and what needs your approval.
 - [ ] Lesson videos (#97, now in `staging`): on a real iPhone, open `/learn/video-sample` on the staging site and tap
   the cover once. The video should start playing right away. Safari can drop the tap's permission to play, which
   automated tests can't see. Reply "video ok" or describe what happened.
@@ -269,7 +275,8 @@ Targets: first visuals by about 14 November, the full kit by about 12 December (
   answers in the browser.
 - [ ] Real questions need a free account (D-86): `check_answer` reveals the key after one try, so signed-out visitors
   can't use it (a limit needs an identity, and a CAPTCHA would load a third-party script). Guests keep the sample modes.
-  Reply "ok" to keep it this way, or ask for a CAPTCHA exception.
+  Reply "ok" to keep it this way, or ask for a CAPTCHA exception. The same goes for "Flag or comment" reports (D-88):
+  signed-in only, so the limits have someone to apply to.
 - [x] Daily report (#4) and task list (#11) locked so only collaborators can comment (D-79), done by Christian on
   2026-11-01.
 - [x] Private vulnerability reporting turned on (D-79), done by Christian on 2026-11-01.
