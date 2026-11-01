@@ -189,73 +189,11 @@ a page yet:
 - which visuals a lesson may show: approved ones with a drawing, never drafts (#123, Task 39).
 
 ## In review
-- Task 26 (D-34, D-73): `flagArguments(report, context)` — the pure adapter that converts a validated `FlagReport`
-  into the exact args for the database's `submit_flag` function. Validates page (same-site, strips query and hash),
-  maps camelCase to snake_case, and sets absent fields to null. Sending waits for the RPC and integration step.
-  [PR #107](https://github.com/lilchristxan/Cueory/pull/107).
-- Task 2, database step 3 (Task C6, D-86, stacked on #92): `attempts` and `check_answer`, with 43 database tests. A
-  signed-in student sends their picks and, only after the attempt is recorded, gets right or wrong, the key and the
-  rationales. 200 checks an hour per person. It is signed-in only, which needs Christian's confirmation (D-86). It
-  edits `supabase/`, so it waits for him.
-- Task 2, database step 2 (Task C6, D-85, stacked on #90): `items`, `item_versions`, `item_choices` and `item_answers`,
-  with 49 database tests. Students read a published version's stem and choices; the key and rationales are closed to
-  every website role. A version can be published only when complete and never changes after. It edits `supabase/`,
-  so it waits for Christian.
-- Task 2, database step 1 (Task C6, D-84): `concepts`, `sources` and `rights_records`, with 34 database tests. Visitors
-  and students read only published concepts and sources; nobody on the website can write; rights records are closed
-  to every website role. It edits `supabase/`, so it waits for Christian. Steps 2 to 5 stack on it: items, then
-  `check_answer`, then attempts and exam plans, then flags.
-- Task 2, database step 4 (Task C6, D-87): `review_state` and `exam_plans`, with 47 database tests. Each student reads and
-  writes only their own spaced-review progress and exam dates; the database refuses impossible values. It edits
-  `supabase/`, so it waits for Christian. **Steps 1 to 3 are in `staging`** (#90, #92 and #94): concepts, sources and
-  rights records (D-84); items, versions and the hidden answer key (D-85); and attempts with `check_answer` (D-86), 140
-  database tests in all. `check_answer` is signed-in only, which still needs Christian's confirmation (D-86). Step 5,
-  flags and `submit_flag`, comes next.
-- [Concept map](https://github.com/lilchristxan/Cueory/pull/68) (Task 14): every concept in a unit with its status in
-  words and a shape (an empty circle, a quarter, a half or a check), never color alone, with a filter by status. No
-  scores or predictions.
-- Visuals kit, the first batch's drawings (Task C5, D-81): body fluid compartments, osmosis and fluid shifts, and
-  the sodium-potassium pump, drawn only from their approved source files and checked by tests. Drafts, so nothing shows
-  on a page until Christian approves them; his review sheet is linked from the pull request.
-- Open pull requests add their own lines here: study modes on pages (#77), guest progress (#74), game stats on
-  `/play` (#79), the Safari preview fix (#88) and Release browser tests (#55).
-- Open pull requests add their own lines here: study modes on pages (#77), export-my-data (#95, Task 19), lesson
-  videos (#97, Task C3), the 3D viewer shell (#98, Task C4), the batch importer's parser (#100, Task 21), the
-  disease-overlay frame (#102, Task 24) and Release browser tests (#55).
-- Open pull requests add their own lines here. Waiting now: study modes on pages (#77), export-my-data (#95, Task 19),
-  lesson videos (#97, Task C3), the 3D viewer shell (#98, Task C4), the Supabase settings reader (#101, Task 22),
-  delete-account checks (#105, Task 25), the daily puzzle checker (#108), database step 5, flags and `submit_flag`
-  (#110), the review-clip exporter (#111, Task C7), guest progress into an account (#113, Task 31) and Release browser
-  tests (#55).
-- Task 2, database step 5, the last (Task C6, D-88): `flags` and `submit_flag`, with 44 database
-  tests. A signed-in student can send a "Flag or comment" report (5 an hour, 20 a day); the reports table is closed to
-  every website role and is read only in the locked `/admin` inbox (not built yet). It is signed-in only, which needs
-  Christian's confirmation (D-88). It edits `supabase/`, so it waits for him. **Steps 1 to 4 are in `staging`** (#90, #92, #94, #104).
-- Task 28: `itemHash(itemRow, keyRow)` and fail-closed hash verification in `parsePassed()` — the importer
-  rejects items whose `hash` is absent (fail-closed) or does not match the canonical SHA-256 of the item JSON.
-  Per-choice rationales are required for all items. `passed.csv` gains a `hash` column; the checker's
-  `passedCsv()` will emit it in a follow-up task. [PR #115](https://github.com/lilchristxan/Cueory/pull/115).
-- Task 31 ([#113](https://github.com/lilchristxan/Cueory/pull/113), D-69, D-87): `importRows(progress, idMap, today)` —
-  converts guest localStorage progress into rows for `review_state`. `idMap` is a nested
-  `Map<deckId, Map<cardId, uuid>>` so deck-local card ids are never confused across decks. "Know it" cards start at
-  level 1 (next review in 3 days via `nextReview`); "still learning" and starred-only cards start at level 0 (due
-  today). Stars returned separately in `starred[]`; `today` validated; 28 unit tests. Exam plans deferred (D-87
-  follow-up). Account-import integration (wiring to sign-up flow) not yet built.
-- Task 35: `inbox(flags, filter)`, `groupByItem(flags)`, and `markHandled(flag, when)` — the flag-inbox model for
-  `/admin` (ROADMAP Task 2, D-34). Uses the fallback row shape since PR #110 had not merged when this was written.
-  Pure logic: no page, no network, no database. 22 unit tests.
-  [In review](https://github.com/lilchristxan/Cueory/pull/120).
-- Task 37: `checkDisplayName(input)` — mirrors both database constraints from the profiles migration (1–50 code
-  points, no control characters). Trims leading/trailing spaces before validating; counts code points correctly for
-  emoji and accented letters. 17 unit tests.
-  [In review](https://github.com/lilchristxan/Cueory/pull/121).
-- Task 38: `studentMessage(fn, error)` — maps all 14 RPC error messages (`check_answer` and `submit_flag`) to calm
-  student-facing sentences. Never echoes SQL, table names, or SQLSTATE codes. 19 unit tests.
-  [In review](https://github.com/lilchristxan/Cueory/pull/122).
-- Task 39: `visualsForLesson(visuals, lessonId)` and `missingDrawings(visuals)` — returns approved visuals for a
-  lesson that have a drawing in the registry; drafts are never returned. Live batch-1 import test confirms all
-  current content files are drafts. 15 unit tests.
-  [In review](https://github.com/lilchristxan/Cueory/pull/123).
+- Task 2, database step 5, the last (Task C6, D-88): `flags` and `submit_flag`, with 44 database tests
+  ([#110](https://github.com/lilchristxan/Cueory/pull/110)). A signed-in student can send a "Flag or comment" report
+  (5 an hour, 20 a day); the reports table is closed to every website role and is read only in the locked `/admin`
+  inbox (not built yet). It is signed-in only, which needs Christian's confirmation (D-88). Steps 1 to 4 are in
+  `staging` (#90, #92, #94, #104).
 - Open pull requests add their own lines here. Waiting now: study modes on pages (#77), export-my-data (#95, Task 19),
   lesson videos (#97, Task C3), the 3D viewer shell (#98, Task C4), the Supabase settings reader (#101, Task 22),
   delete-account checks (#105, Task 25), the daily puzzle checker (#108), database step 5, flags and `submit_flag`
