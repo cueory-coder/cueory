@@ -189,3 +189,93 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   key letters, an unknown type, a repeated letter or one outside the choices fails the question. Answer balance counts
   single-answer questions only, and the report gives the number of `sata` questions. Batches without the new columns
   check exactly as before. Reason: nursing exams use select-all-that-apply heavily, and Christian approved them.
+- **D-46** Home hero, ☰ menu and account corner (Christian's change request, 2026-10-31). The hero drops the "Short,
+  clear lessons…" line; "cueory makes studying simpler." stays as the line under the headline. The headline stays on
+  one line at every width: its size follows the hero box (`--text-display-fit`, a container-query size, 13.3 × the
+  font size is the headline's width in Bodoni Moda, so 14 leaves room for fallback serifs; 72 px at most), and in the
+  rare case a much wider fallback font is drawn it wraps rather than being cut off. The pill button is glassy
+  (translucent Espresso or Sand, blur, light rim; solid where blur isn't supported; tests check AA text on every
+  background) and reads "create your free account", with "save your progress and pick up where you left off." under
+  it; until accounts exist (Task 2) it goes to the launch-updates signup (`/#signup`), and a quiet link keeps the free
+  study-skills course on the page. Every page gets two 44 px corner buttons: ☰ top-left and account top-right
+  (frosted on marketing pages, plain on study screens, which still have no visible navigation bar). ☰ opens a native
+  modal `<dialog>`: it slides in from the left (no slide with reduced motion), dims the page, moves focus to its close
+  button, keeps Tab inside, and closes with the close button, Escape, a tap on the dimmed page or any link; focus then
+  returns to ☰, except after a link to a spot on the same page. Links: home, ways to study, lessons, my progress
+  ("free account, coming soon" until Task 2), support cueory; privacy and terms small at the bottom. The current page
+  gets `aria-current="page"`, bolder text and a short line beside it. "about" waits until there is an about page, and
+  search (Pagefind) comes in its own pull request because it adds a package. The account button opens a small menu,
+  "create free account" and "sign in", both "coming soon" and linked to the signup until Task 2; it closes with
+  Escape (focus back on the button), a tap elsewhere or focus leaving it. Without JavaScript both buttons stay hidden
+  but keep their space (no layout shift), and the footer and hero links still work. Reason: Christian's brief, built
+  from native browser parts (dialog, buttons, links) so it works the same with keyboard, touch and screen readers.
+- **D-47** All-lowercase brand voice (Christian's decision, 2026-10-31). Headlines, taglines, labels, buttons,
+  navigation, menus, footer links and browser-tab titles ("privacy · cueory") are written in lowercase in the source;
+  nursing content, acronyms, proper nouns, legal body text and careful instructions keep normal capitals, and CSS
+  `text-transform` is never used (docs/BRAND.md). `site.wordmarkName` ("cueory") is the name in lowercase UI; prose
+  keeps "Cueory". This pull request switches the hero, corners, side panel, footer, theme switch, skip link, tab
+  titles and marketing page headings; the "ways to study" section and the signup panel switch when their redesigns
+  land (carousel, silk sections). Reason: Christian's brand voice; writing it in the source keeps NCLEX or COPD exact.
+- **D-48** Same features on every device (Christian's requirement, 2026-10-31). Browser tests now run in Chromium at
+  phone (390 × 844, Light and Evening), tablet (820 × 1180, touch) and desktop (1440 × 900) sizes on every pull request,
+  and every page fails the build if anything scrolls sideways. Corner buttons are tested at 44 × 44 px or more. Safari's
+  engine (WebKit) and Firefox join on Release pull requests through a CI change, which waits for Christian because it
+  edits `.github/`; the same pull request adds the rule to CLAUDE.md. Reason: running three engines on every pull
+  request would use up GitHub's free Actions minutes; the release check still covers every engine before anything
+  reaches the live site.
+- **D-49** Site search in the ☰ panel (Christian's change request, 2026-10-31). Pagefind 1.5.2 (MIT, pinned) runs
+  after `astro build` (`pagefind --site dist`) and writes a static index to `dist/pagefind/`; nothing is sent to anyone
+  else. It indexes only each page's `<main>`, never the menus, notice or footer, and leaves out pages kept out of search
+  engines (404, the signup thank-you page). Results take each page's own title ("home" for the home page). The index
+  loads the first time the field is used, never with the page, and runs on the page itself (`noWorker`), so no `blob:`
+  worker is needed. Results are built as text: the matched words are bold, and no HTML from the index reaches the
+  page. Arrow keys move between the field and the results, and an empty search says "no results" plainly. Pagefind
+  searches with WebAssembly, so `script-src` gains `'wasm-unsafe-eval'`: it allows compiling WebAssembly, never
+  running JavaScript strings, and scripts still come only from this site (a build test checks there is no other
+  `unsafe-eval`). Reason: Christian asked for real search with Pagefind; a static, self-hosted index keeps the site
+  free and private, and without `'wasm-unsafe-eval'` the search fails in every browser.
+- **D-50** "ways to study" carousel on the home page (Christian's change request, 2026-10-31). A small label, a centered
+  heading, one chip per study mode in his order (lesson, cards, learn, fill-in, matching, organizer, questions, review),
+  and a row of frosted cards that scrolls sideways and snaps each card to the middle, so swiping, the keyboard and pages
+  without JavaScript all work (without it, each chip is a link to its card). The script adds the coverflow look
+  (neighbours smaller and a little lower; the row runs the full width of the window, so the window's edge cuts off the
+  neighbours and nothing masks or fades a card), previous and next buttons, Left/Right/Home/End keys, and a 6-second
+  auto-advance that pauses on hover or focus, waits while the carousel is off screen, stops for good once the visitor
+  uses it, and never runs with reduced motion. Each card has an original inline-SVG illustration of what the mode does,
+  in brand colors only, which loops only on the card in the middle; a pause button stops both the auto-advance and the
+  loops (WCAG 2.2.2). Card text stays fully opaque, so its contrast never drops (a unit test fails if the carousel
+  styles ever mask, fade or blur a card). Once the visitor is using the carousel, only the card where the row comes to
+  rest is announced, never the cards a swipe or glide passes. The modes and their links live in `src/config/modes.ts`;
+  open modes link to their page and the rest say "coming soon". The hover zoom, grow-into-preview and preview panel
+  follow in their own pull request. Reason: Christian's request; a scroll-snap row keeps every feature working on every
+  device (D-48) without a carousel library.
+- **D-51** Study-mode preview and hover zoom on the "ways to study" carousel (Christian's change request, 2026-10-31).
+  Tapping or clicking a card grows it from its place into a larger preview: a native modal `<dialog>` over the darkened,
+  softly frosted page, with the mode's illustration playing, its name, two plain lines on what you do and why it helps
+  (`more` in `src/config/modes.ts`), "try it" (or "coming soon") and "create your free account to save progress". It
+  closes with the X, Escape, a tap on the darkened page or a swipe down on touch screens, and shrinks back into its
+  card; previous and next inside move through the modes in the carousel's order, and the row behind follows. Focus moves
+  in, stays in and returns to the card; the page behind is inert and keeps its place. The grow and shrink are FLIP
+  animations (measure the card and the panel, then animate a transform between them) in every browser, rather than the
+  View Transitions API with a FLIP fallback: one code path looks the same in Safari, Chrome, Edge and Firefox and is
+  tested once. With reduced motion the preview opens and closes at once. The panel is opaque, in the frosted cards'
+  color, so its text keeps the plain page-color contrast; a pause button in it shares the row's setting (WCAG 2.2.2).
+  With a mouse, the card under the pointer or keyboard focus grows to 1.04 with a deeper shadow; touch screens and
+  reduced motion skip it. Reason: Christian's request.
+- **D-53** Silk scenes down the home page (Christian's change requests, 2026-10-31, 1:15 pm and 1:22 pm). The hero,
+  "ways to study" and the launch-updates panel are three scenes cut from the same silk: the hero's folds, sheen and
+  grain, with the folds at another angle, the light from another side and the tint moving from Ivory to Linen and back
+  (Evening: Charcoal, Walnut, Charcoal). Each scene is a layer of its own behind its section, drawn in CSS (no new
+  files, so the textures stay under 30 KB); it reaches up into the empty space at the bottom of the section before it
+  and fades in there, so the page reads as one fabric with no hard edges, and the last scene fades into the footer. A
+  browser test checks that no words ever sit in a fade. Every scene has the hero's folds (one set at full strength
+  crossed by one at half) on Ivory or the tint, and the tint is Linen (Evening: Walnut), the colors of the worst points
+  the contrast tests already check, so a unit test keeps scenes to changing only their angles, light, base and fades.
+  The academic touches, used sparingly: numbered section labels ("01 — study modes", "02 — stay in touch"), a fine rule
+  above the second, a figure-style caption under the carousel ("fig. 1 — …") and one thin rhythm line between the hero
+  and the first section, the page's only medical cue (decorative, hidden from screen readers). The launch-updates panel
+  is now its own scene: a centered frosted card with the serif heading, in the lowercase voice; it still says signups
+  open soon until Kit is connected. The optional slow parallax was left out: the page stays calmer and cheaper on phones
+  without it. With the taller sections, the carousel's auto-advance now pauses only while a mouse rests on the cards or
+  their buttons (or keyboard focus is inside), not anywhere over the section, which on a computer would have stopped it
+  for good. Study screens are unchanged. Reason: Christian's request.

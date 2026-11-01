@@ -10,8 +10,9 @@ interface Props {
   title: string;
   description?: string;
   /**
-   * 'study' is the quieter lesson screen (plain background, no decoration). 'home' is the home page: a full-screen
-   * hero with its own logo instead of the header. Every other page gets the marketing look (D-41).
+   * 'study' is the quieter lesson screen (plain background, no decoration, quiet corner buttons). 'home' is the home
+   * page: a full-screen hero with its own logo, so the header there is just the ☰ and account corners laid over it
+   * (D-46). Every other page gets the marketing look (D-41).
    */
   variant?: 'default' | 'study' | 'home';
   /** Keep this page out of search engines. */
@@ -19,10 +20,13 @@ interface Props {
 }
 
 const { title, description = site.description, variant = 'default', noindex = false } = Astro.props;
-const fullTitle = title === site.name ? title : `${title} · ${site.name}`;
+// Browser-tab titles use the lowercase brand voice: "privacy · cueory" (D-47).
+const fullTitle = title === site.name || title === site.wordmarkName ? site.wordmarkName : `${title} · ${site.wordmarkName}`;
 const canonical = new URL(Astro.url.pathname, site.url).href;
 const isStudy = variant === 'study';
 const isHome = variant === 'home';
+// The title a page has in site search results (D-49): its own title, and "home" for the home page.
+const searchTitle = isHome ? 'home' : title;
 ---
 
 <!doctype html>
@@ -52,11 +56,28 @@ const isHome = variant === 'home';
       href="#main"
       class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-10 focus:bg-surface focus:px-4 focus:py-2"
     >
-      Skip to content
+      skip to content
     </a>
     <BuildingNotice />
-    {!isHome && <SiteHeader quiet={isStudy} />}
-    <main id="main" class:list={['w-full flex-1', !isHome && 'mx-auto max-w-page px-gutter']}>
+    {
+      isHome ? (
+        <div class="relative z-20 h-0">
+          <SiteHeader overlay />
+        </div>
+      ) : (
+        <SiteHeader quiet={isStudy} />
+      )
+    }
+    <!--
+      Site search (D-49) indexes only this main area of each page, never the menus, notice or footer, and leaves out
+      pages kept out of search engines (404, the signup thank-you page). Results are titled by the page's own title.
+    -->
+    <main
+      id="main"
+      class:list={['w-full flex-1', !isHome && 'mx-auto max-w-page px-gutter']}
+      data-pagefind-body={noindex ? undefined : ''}
+      data-pagefind-meta={noindex ? undefined : `title:${searchTitle}`}
+    >
       <slot />
     </main>
     <SiteFooter />

@@ -60,7 +60,27 @@ describe.skipIf(!existsSync(dist))('built site', () => {
     expect(csp).toContain("default-src 'self'");
     expect(csp).toContain("object-src 'none'");
     expect(csp).not.toContain('unsafe-inline');
-    expect(csp).not.toContain('unsafe-eval');
+    // Never 'unsafe-eval'. The one exception is 'wasm-unsafe-eval', which allows WebAssembly only, for site search
+    // (D-49), and only in script-src.
+    expect(csp!.split(/[\s;]+/)).not.toContain("'unsafe-eval'");
+    expect(csp!.replaceAll("'wasm-unsafe-eval'", '')).not.toContain('unsafe-eval');
+    const scriptSrc = /script-src ([^;]+)/.exec(csp!)![1]!;
+    expect(csp!.replace(scriptSrc, '')).not.toContain('wasm-unsafe-eval');
+  });
+
+  it('builds the site search index next to the pages (D-49)', () => {
+    expect(existsSync(join(dist, 'pagefind', 'pagefind.js'))).toBe(true);
+    expect(htmlFiles(join(dist, 'pagefind'))).toEqual([]);
+  });
+
+  it.each(pages.map((p) => [p.replace(dist, '')]))('%s: site search indexes it only if search engines may (D-49)', (page) => {
+    const html = readFileSync(join(dist, page), 'utf8');
+    const noindex = html.includes('<meta name="robots" content="noindex');
+    const body = /<main[^>]*\sdata-pagefind-body(?:="")?[\s>]/.test(html);
+    expect(body, noindex ? 'a noindex page must stay out of site search' : 'this page should be searchable').toBe(
+      !noindex,
+    );
+    if (body) expect(html).toMatch(/<main[^>]*\sdata-pagefind-meta="title:[^"]+"/);
   });
 
   it.each(pages.map((p) => [p.replace(dist, '')]))('%s: the CSP allows every inline script by hash', (page) => {
@@ -83,11 +103,16 @@ describe.skipIf(!existsSync(dist))('built site', () => {
     },
   );
 
-  it('home page calls the sentence-by-sentence reader "Lesson", so "Learn" only means Learn mode (D-43)', () => {
+  it('home page: "lesson" is the sentence-by-sentence reader and "learn" is Learn mode (D-43, D-50)', () => {
     const html = readFileSync(join(dist, 'index.html'), 'utf8');
-    const modes = [...html.matchAll(/<h3[^>]*>([^<]+)<\/h3>/g)].map((m) => m[1]!.trim());
-    expect(modes).toContain('Lesson');
-    expect(modes).not.toContain('Learn');
+    const card = (id: string) => {
+      const match = new RegExp(`<div[^>]*id="mode-${id}"[\\s\\S]*?<h3[^>]*>([^<]+)</h3>[\\s\\S]*?(?:href="([^"]+)"|coming soon)`).exec(html);
+      expect(match, `card ${id}`).not.toBeNull();
+      return { name: match![1]!.trim(), href: match![2] };
+    };
+    expect(card('lesson')).toEqual({ name: 'lesson', href: '/learn/study-skills' });
+    expect(card('learn')).toEqual({ name: 'learn', href: '/learn/study-skills/learn-mode' });
+    expect(card('fill-in')).toEqual({ name: 'fill-in', href: undefined });
   });
 
   it('keeps the signup thank-you page out of search engines', () => {
@@ -104,7 +129,7 @@ describe.skipIf(!existsSync(dist))('built site', () => {
       expect(html).toContain(`name="${newsletter.emailFieldName}"`);
       expect(formAction).toBe(`'self' ${new URL(newsletter.formAction).origin}`);
     } else {
-      expect(html).toContain('Signups open soon.');
+      expect(html).toContain('signups open soon.');
       expect(html).not.toContain('<form');
       expect(formAction).toBe("'self'");
     }

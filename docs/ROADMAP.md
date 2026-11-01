@@ -7,6 +7,11 @@ workflows, deployment or secrets.
 Tasks go in this order. When a task waits on Christian (an account, a decision or an approval), the next task that
 doesn't wait goes first, and the waiting task is listed in STATUS.md (D-35).
 
+The order of the lessons themselves comes from the med-surg lesson map in [docs/curriculum/](curriculum/README.md):
+19 units and 351 lessons, each with a stable `lesson_id`. Units 00 (foundations: how nurses think) and 01 (fluids,
+electrolytes, acid-base) come first, then the systems in the order shown. The map is an outline of topics only: every
+lesson still goes through the content pipeline, and each visual names the `lesson_id` it serves.
+
 ## Task 1 — Static site foundation (see STATUS.md)
 Repo, design tokens, `main` and `staging` deploy branches, placeholder pages, launch-updates signup (Kit), security
 headers and CSP, CodeQL, Dependabot, secret scanning, CI, rules docs, Cloudflare setup steps.
@@ -17,6 +22,12 @@ headers and CSP, CodeQL, Dependabot, secret scanning, CI, rules docs, Cloudflare
   `exam_plans`, `profiles`. Row-level security policies on every table.
 - `check_answer(item_id, choice)` RPC: returns right/wrong and the rationale, never sending the key first.
 - Google sign-in (main), email magic links via Resend (backup, because the free plan sends 100 a day). Rate limited.
+- **Account corner and ☰ panel (built in D-46, ready for accounts):** signed out, the top-right person icon opens
+  "create free account" and "sign in". Signed in, it becomes a round avatar with the student's initials (no photo
+  uploads) and opens their name, school (an optional onboarding answer), "see profile", "account settings" and
+  "sign out". The hero's "create your free account" button and the panel's "my progress" link switch from the
+  launch-updates signup to sign-up and the progress page. Showing the Google profile photo instead of initials is a
+  later decision for Christian, because it would load images from Google.
 - Locked `/admin`: tables for questions, lessons, cards and video scripts with inline editing. One column per
   reviewer (gpt1, gpt2, gpt3, gemini, claude_sonnet, codex, claude_final, christian) showing pass, fail or pending, plus
   version, risk level and public label. Editing an item creates a new version and resets its checks. Two-factor

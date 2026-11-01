@@ -1,24 +1,18 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import ModesCarousel from '../components/ModesCarousel.astro';
 import SignupForm from '../components/SignupForm.astro';
 import Wordmark from '../components/Wordmark.astro';
-import { site } from '../config/site';
-
-const modes = [
-  { name: 'Lesson', text: 'Read a lesson one short sentence at a time.' },
-  { name: 'Cards', text: 'Flip through the key ideas.' },
-  { name: 'Fill-in', text: 'Recall the missing word.' },
-  { name: 'Matching', text: 'Pair terms with what they mean.' },
-  { name: 'Organizer', text: 'Sort ideas into groups by tapping, typing or dragging.' },
-  { name: 'Questions', text: 'Practice questions, each with a rationale.' },
-  { name: 'Review', text: 'Come back at the right time, paced to your exam date.' },
-];
+import { accountHref, site } from '../config/site';
 ---
 
 <Layout title={site.name} variant="home">
-  <!-- Full-screen hero (D-41): the logo, a serif headline, one line of copy and one button, on draped silk. -->
+  <!--
+    Full-screen hero (D-41, D-46): the logo, a serif headline on one line, the accent line, and one glassy button, on
+    draped silk, the first of the page's silk scenes (D-53). Lowercase brand voice (D-47).
+  -->
   <section
-    class="silk relative isolate flex min-h-svh items-center justify-center overflow-hidden px-gutter py-section text-center"
+    class="scene scene-hero flex min-h-svh items-center justify-center overflow-hidden px-gutter py-section text-center"
     aria-labelledby="hero-heading"
   >
     <!-- The logo pressed faintly into the cloth. Decorative: Wordmark is hidden from screen readers. -->
@@ -26,43 +20,21 @@ const modes = [
       <Wordmark class="emboss w-(--logo-emboss) max-w-none shrink-0" />
     </div>
 
-    <div class="flex max-w-hero flex-col items-center">
+    <!-- A size container: the headline's size follows this box's width, so it stays on one line on every screen. -->
+    <div class="@container flex w-full flex-col items-center">
       <Wordmark class="w-(--logo-hero)" />
       <p class="mt-4 text-sm font-medium tracking-label text-ink-soft">{site.tagline}</p>
-      <h1 id="hero-heading" class="display mt-section max-w-headline text-display sm:text-display-lg">
-        Nursing school is hard enough.
-      </h1>
-      <p class="display mt-4 text-accent italic sm:text-accent-lg">Cueory makes studying simpler.</p>
-      <p class="mt-stack max-w-prose text-lg text-ink-soft">
-        Short, clear lessons for fundamentals and med-surg I. Free, with no streaks and no pressure.
+      <h1 id="hero-heading" class="display mt-section text-display-fit">nursing school is hard enough.</h1>
+      <p class="display mt-4 text-accent italic sm:text-accent-lg">cueory makes studying simpler.</p>
+      <a href={accountHref} class="glass-button mt-10">create your free account</a>
+      <p class="mt-3 text-sm text-ink-soft">save your progress and pick up where you left off.</p>
+      <p class="mt-stack text-sm">
+        <a href="/learn/study-skills" class="text-ink-soft hover:text-ink">or start the free study-skills course</a>
       </p>
-      <a
-        href="/learn/study-skills"
-        class="mt-10 inline-block rounded-pill bg-button px-8 py-3.5 text-on-button no-underline shadow-soft hover:bg-button-hover hover:text-on-button"
-      >
-        Start the free study-skills course
-      </a>
     </div>
   </section>
 
-  <div class="mx-auto w-full max-w-page px-gutter">
-    <section class="veil mt-section p-6 sm:p-10" aria-labelledby="modes-heading">
-      <h2 id="modes-heading" class="display text-title">Ways to study</h2>
-      <ul class="mt-6 grid gap-x-10 gap-y-6 border-t border-line pt-6 sm:grid-cols-2">
-        {
-          modes.map((m) => (
-            <li>
-              <h3 class="text-lg">{m.name}</h3>
-              <p class="mt-1 text-ink-soft">{m.text}</p>
-            </li>
-          ))
-        }
-      </ul>
-      <p class="mt-8 text-sm text-ink-soft">More study modes are on the way. The first lesson and its cards are open now.</p>
-    </section>
+  <ModesCarousel />
 
-    <div class="mt-section">
-      <SignupForm />
-    </div>
-  </div>
+  <SignupForm />
 </Layout>

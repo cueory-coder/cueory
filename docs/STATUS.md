@@ -48,20 +48,41 @@ Last updated: 2026-10-31
     above 24.
 - Dependabot closed [#9](https://github.com/lilchristxan/Cueory/pull/9) (`@types/node` 26) and
   [#10](https://github.com/lilchristxan/Cueory/pull/10) (TypeScript 7) itself once the ignore rules reached `main`.
-- In `staging`, waiting for the next release: [Matching](https://github.com/lilchristxan/Cueory/pull/18) (D-44) and
-  [select-all-that-apply in the batch checker](https://github.com/lilchristxan/Cueory/pull/19) (D-45), the first pull
-  requests the pre-launch auto-merge took on its own.
+- Third release 31 Oct ([#23](https://github.com/lilchristxan/Cueory/pull/23)), merged by Christian; live on `main`:
+  - [Learn mode](https://github.com/lilchristxan/Cueory/pull/17) (D-43), merged into `staging` by Christian because it
+    changes a placeholder card in `content/`.
+  - [Matching](https://github.com/lilchristxan/Cueory/pull/18) (D-44) and
+    [select-all-that-apply in the batch checker](https://github.com/lilchristxan/Cueory/pull/19) (D-45), the first
+    pull requests the pre-launch auto-merge took on its own.
+  - [Rollback guide](https://github.com/lilchristxan/Cueory/pull/22) in `docs/SETUP.md`.
+- In `staging`, waiting for the next release ([#26](https://github.com/lilchristxan/Cueory/pull/26), open for Christian):
+  [home hero, ☰ side panel and account corner](https://github.com/lilchristxan/Cueory/pull/24) in the all-lowercase
+  voice (D-46, D-47), with phone, tablet and desktop browser tests (D-48), [search in the ☰ panel](https://github.com/lilchristxan/Cueory/pull/27)
+  (D-49) and the ["ways to study" carousel](https://github.com/lilchristxan/Cueory/pull/28) (D-50).
 
 ## In review
-- [Rollback guide](https://github.com/lilchristxan/Cueory/pull/22): the auto-merge takes it once it is clean.
-- [Learn mode](https://github.com/lilchristxan/Cueory/pull/17) (D-43): it changes one placeholder card in `content/`,
-  so pre-launch mode holds it for Christian's merge.
+- [Study-mode preview and hover zoom](https://github.com/lilchristxan/Cueory/pull/29) (D-51): a card grows into a
+  preview with its moving illustration, two plain lines, "try it" and the free-account link; X, Escape, the darkened
+  page or a swipe down closes it. The auto-merge takes it once it is clean.
+- Silk scenes down the home page (D-53): the hero, "ways to study" and the launch-updates panel are three scenes of one
+  silk, with numbered sections, a figure caption and one thin rhythm line. The auto-merge takes it once it is clean.
+
+## Queued (Christian's change requests on issue #4, in his order)
+1. Social links (Simple Icons), then the once-only promo panel.
+2. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
+3. Auto-release (`staging` into `main` in pre-launch mode), after the change requests.
+
+## Planning
+- [Med-surg lesson map](curriculum/README.md) ([#31](https://github.com/lilchristxan/Cueory/pull/31)): the master
+  list of 351 lessons in 19 units, in build order, each with a stable `lesson_id`; ROADMAP points to it. It is an
+  outline of topics only, with no clinical facts: lessons still come through the content pipeline (source brief,
+  reviewers, approval), and higher-risk topics wait for a qualified reviewer.
 
 ## Blocked
 - **Task 2 (accounts and database)** waits for Christian to create the two Supabase projects, and its sign-in and
   database-policy parts need his approval. The "Flag or comment" button is built with it (D-34). Task 4 parts that
   don't need accounts go first (D-35).
-- **Signup form** shows "Signups open soon" until the Kit form exists (SETUP.md, Part I).
+- **Signup form** shows "signups open soon" until the Kit form exists (SETUP.md, Part I).
 
 ## Needs Christian's hands
 Follow [docs/SETUP.md](SETUP.md):
@@ -82,6 +103,9 @@ Follow [docs/SETUP.md](SETUP.md):
 - [ ] Auto-release (`staging` into `main` with no person in the loop): Christian's yes reached the repo through
   another Claude session on issue #4. The safety check of the session that builds it needs that yes from Christian
   himself, in the Claude chat that runs these updates, before it builds anything that changes the live site on its own.
+- [ ] An "about" page for the ☰ panel: the text is Christian's (D-46 leaves the link out until it exists).
+- [ ] Later decision: show a student's Google profile photo in the account corner instead of initials (it would load
+  images from Google; ROADMAP Task 2).
 - [ ] Confirm or change the Task 3 batch defaults (docs/BATCHES.md, D-26) before real batches use them: the CSV
   columns, which reviewers count (at least five files, names from the Task 2 roster), the pass rule (every reviewer matches
   the key and marks pass; unfinished reviews are pending, not failed), and the answer-balance warning (10 points off an even share, batches of 20+).

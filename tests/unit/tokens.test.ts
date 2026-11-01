@@ -147,4 +147,144 @@ describe('marketing background (D-41)', () => {
     expect(contrastRatio(colors['ink-soft']!, background)).toBeGreaterThanOrEqual(4.5);
     expect(contrastRatio(colors.button!, background)).toBeGreaterThanOrEqual(3);
   });
+
+  /*
+    "ways to study" carousel (D-50): its cards are the frosted panels checked above, so their text is covered as long
+    as nothing fades a card. The row scrolls, scales and lowers the cards, but never masks, fades or blurs them, the row
+    or the chips. (The illustrations inside the cards are decoration and may use opacity.)
+  */
+  it('never masks, fades or blurs the carousel row, its cards or its chips', () => {
+    const globalCss = readFileSync(new URL('../../src/styles/global.css', import.meta.url), 'utf8');
+    const rules = [...globalCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+      .map(([, selector, body]) => [selector!.replace(/\/\*[\s\S]*?\*\//g, '').trim(), body!] as const)
+      .filter(([selector]) => /\.(modes-track|mode-card|mode-chip)\b/.test(selector) && !/\.ill[\w-]*\s*$/.test(selector));
+    expect(rules.length).toBeGreaterThanOrEqual(4);
+    for (const [selector, body] of rules) {
+      expect(body, selector).not.toMatch(/(^|[\s;{])(-webkit-)?(mask[\w-]*|opacity|filter)\s*:/);
+    }
+  });
+
+  /*
+    Silk scenes down the home page (D-53): each is the hero's cloth with the folds at another angle and the light from
+    another side, on Ivory or the tint (Linen; Evening: Walnut). The tint is a color the checks above already use for
+    the worst points (Linen in the darkest Daytime point, Walnut in the lightest Evening one), and a scene can only
+    change angles, light and base, so every scene stays within the contrast checked above.
+  */
+  it('tints the silk scenes only with colors the worst-case checks already cover', () => {
+    expect([daytime['silk-base'], daytime['silk-shade']]).toContain(daytime['silk-tint']);
+    expect([evening['silk-base'], evening['silk-sheen']]).toContain(evening['silk-tint']);
+    expect(readColorTokens(eveningPickedCss)['silk-tint']).toBe(evening['silk-tint']);
+  });
+
+  it('lets a silk scene change only its angles, light, base and fades', () => {
+    const globalCss = readFileSync(new URL('../../src/styles/global.css', import.meta.url), 'utf8');
+    const scenes = [...globalCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+      .map(([, selector, body]) => [selector!.replace(/\/\*[\s\S]*?\*\//g, '').trim(), body!] as const)
+      .filter(([selector]) => /^\.scene-(?!rule)[\w-]+$/.test(selector));
+    expect(scenes.length).toBeGreaterThanOrEqual(3);
+    for (const [selector, body] of scenes) {
+      const declarations = body.split(';').map((d) => d.trim()).filter(Boolean);
+      for (const declaration of declarations) {
+        expect(declaration, selector).toMatch(/^--scene-(light|angle|cross|fade-top|fade-bottom|base):/);
+        if (declaration.startsWith('--scene-base')) expect(declaration, selector).toMatch(/var\(--color-silk-(base|tint)\)$/);
+      }
+    }
+  });
+
+  // The study-mode preview (D-51) is drawn in the frosted panels' color but fully opaque, over a darkened page.
+  it.each([
+    ['Daytime', daytime, day.veil],
+    ['Evening', evening, eve.veil],
+  ] as const)('%s study-mode preview panel keeps its text readable', (_name, colors, panel) => {
+    expect(contrastRatio(colors.ink!, panel)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(colors['ink-soft']!, panel)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(colors.control!, panel)).toBeGreaterThanOrEqual(3);
+    expect(contrastRatio(colors.button!, panel)).toBeGreaterThanOrEqual(3);
+  });
+
+  it.each([
+    ['Daytime', daytime, darkestDay],
+    ['Evening', evening, lightestEvening],
+  ] as const)('%s carousel chips stay readable on the silk, with a visible outline', (_name, colors, silk) => {
+    expect(contrastRatio(colors.ink!, silk)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(colors.control!, silk)).toBeGreaterThanOrEqual(3);
+    expect(contrastRatio(colors['on-button']!, colors.button!)).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+/*
+  ☰ side panel, account menu and the glassy hero button (D-46). They are see-through glass, so text is checked on the
+  glass mixed over the worst page color behind it: the lightest point for light text, the darkest for dark text.
+*/
+describe('glass button and side panel (D-46)', () => {
+  const toHex = (rgb: number[]) => `#${rgb.map((c) => Math.round(c).toString(16).padStart(2, '0')).join('')}`;
+  const mix = (top: string, alpha: number, bottom: string) => {
+    const [t, b] = [parseHex(top), parseHex(bottom)];
+    return toHex(t.map((c, i) => alpha * c + (1 - alpha) * b[i]!));
+  };
+  const number = (chunk: string, name: string) => Number(new RegExp(`--${name}:\\s*([\\d.]+)`).exec(chunk)![1]);
+  const rgb = (chunk: string, name: string) =>
+    toHex(new RegExp(`--${name}:\\s*(\\d+) (\\d+) (\\d+)`).exec(chunk)!.slice(1).map(Number));
+  const glass = (chunk: string) => ({
+    fill: rgb(chunk, 'glass-rgb'),
+    alpha: number(chunk, 'glass-alpha'),
+    hover: rgb(chunk, 'glass-hover-rgb'),
+    hoverAlpha: number(chunk, 'glass-hover-alpha'),
+    rim: rgb(chunk, 'glass-rim-rgb'),
+    panel: rgb(chunk, 'panel-rgb'),
+    panelAlpha: number(chunk, 'panel-alpha'),
+  });
+  const day = glass(daytimeCss);
+  const eve = glass(eveningDeviceCss);
+
+  it('uses only brand colors, the same in both Evening copies', () => {
+    for (const hex of [day.fill, day.hover, day.rim, day.panel]) expect(brand.daytime).toContain(hex);
+    for (const hex of [eve.fill, eve.hover, eve.rim, eve.panel]) expect(brand.evening).toContain(hex);
+    expect(glass(eveningPickedCss)).toEqual(eve);
+  });
+
+  // Every page color the glass can sit on: plain pages, silk, frosted panels.
+  const dayBackgrounds = [daytime.page!, daytime['silk-base']!, daytime['silk-shade']!, daytime.surface!];
+  const eveBackgrounds = [evening.page!, evening['silk-base']!, evening['silk-sheen']!, evening.surface!];
+  const cases: Array<[string, Record<string, string>, ReturnType<typeof glass>, string[]]> = [
+    ['Daytime', daytime, day, dayBackgrounds],
+    ['Evening', evening, eve, eveBackgrounds],
+  ];
+
+  it.each(cases)('%s glass button text is readable (AA) on every background, also on hover', (_n, colors, g, bgs) => {
+    for (const bg of bgs) {
+      expect(contrastRatio(colors['on-button']!, mix(g.fill, g.alpha, bg))).toBeGreaterThanOrEqual(4.5);
+      expect(contrastRatio(colors['on-button']!, mix(g.hover, g.hoverAlpha, bg))).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it.each(cases)('%s side panel text, notes and focus outline are readable on every background', (_n, colors, g, bgs) => {
+    for (const bg of bgs) {
+      const panel = mix(g.panel, g.panelAlpha, bg);
+      expect(contrastRatio(colors['panel-ink']!, panel)).toBeGreaterThanOrEqual(4.5);
+      expect(contrastRatio(colors['panel-ink-soft']!, panel)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it('rows in the dark panels never lighten on hover, so their notes keep the contrast checked above', () => {
+    // Codex review of #24: a light hover layer dropped the Taupe "coming soon" note below AA.
+    const styles = readFileSync(new URL('../../src/styles/global.css', import.meta.url), 'utf8');
+    for (const selector of ['.account-link:hover', '.menu-link:hover', '.menu-small-link:hover']) {
+      const rule = new RegExp(`${selector.replace(/[.:]/g, '\\$&')}\\s*\\{([^}]*)\\}`).exec(styles);
+      expect(rule, `${selector} rule`).not.toBeNull();
+      expect(rule![1]).not.toMatch(/background/);
+    }
+  });
+
+  it('corner buttons keep their icon visible (3:1) on the frosted circle', () => {
+    for (const [colors, chunk, bgs] of [
+      [daytime, daytimeCss, dayBackgrounds],
+      [evening, eveningDeviceCss, eveBackgrounds],
+    ] as const) {
+      for (const bg of bgs) {
+        const circle = mix(rgb(chunk, 'veil-rgb'), number(chunk, 'veil-alpha'), bg);
+        expect(contrastRatio(colors.ink!, circle)).toBeGreaterThanOrEqual(3);
+      }
+    }
+  });
 });
