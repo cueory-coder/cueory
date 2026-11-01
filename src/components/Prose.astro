@@ -1,10 +1,68 @@
 ---
 /**
- * Readable text column used by policy and info pages: a frosted panel on the marketing background, with a serif title
- * (D-41). Body text stays Inter.
+ * Comfortable long-form reading for information and marketing pages (D-41).
+ * The same narrow measure, quiet heading rhythm, and legible body line height work in both brand palettes.
+ * Mark an important term with <strong class="key-term">...</strong>; no new color is introduced.
  */
 ---
 
-<article class="veil mx-auto mt-6 max-w-prose p-6 sm:mt-10 sm:p-10 [&_h1]:display [&_h1]:text-title [&_h1]:sm:text-title-lg [&_h2]:mt-10 [&_h2]:text-xl [&_p]:mt-stack [&_ul]:mt-stack [&_ul]:list-disc [&_ul]:pl-6 [&_li]:mt-2">
+<article class="veil reading-copy mx-auto mt-6 max-w-prose p-6 sm:mt-10 sm:p-10 [&_h1]:display [&_h1]:text-title [&_h1]:sm:text-title-lg [&_h2]:text-xl [&_h3]:text-lg">
   <slot />
 </article>
+
+<style>
+  .reading-copy {
+    line-height: var(--text-base--line-height);
+  }
+
+  .reading-copy > :global(h1) {
+    margin-block-end: var(--spacing-stack);
+  }
+
+  .reading-copy > :global(h2) {
+    margin-block-start: var(--spacing-section);
+    margin-block-end: calc(var(--spacing-stack) / 2);
+  }
+
+  .reading-copy > :global(h3) {
+    margin-block-start: calc(var(--spacing-section) / 2);
+    margin-block-end: calc(var(--spacing-stack) / 2);
+  }
+
+  .reading-copy > :global(p),
+  .reading-copy > :global(ul),
+  .reading-copy > :global(ol) {
+    margin-block-start: var(--spacing-stack);
+  }
+
+  .reading-copy :global(p),
+  .reading-copy :global(li) {
+    line-height: var(--text-base--line-height);
+  }
+
+  .reading-copy :global(ul),
+  .reading-copy :global(ol) {
+    padding-inline-start: calc(var(--spacing) * 6);
+  }
+
+  .reading-copy :global(ul) {
+    list-style-type: disc;
+  }
+
+  .reading-copy :global(ol) {
+    list-style-type: decimal;
+  }
+
+  .reading-copy :global(li + li) {
+    margin-block-start: calc(var(--spacing-stack) / 2);
+  }
+
+  .reading-copy :global(.key-term) {
+    padding-inline: var(--spacing);
+    border-radius: var(--radius-sm);
+    background-color: var(--color-surface);
+    color: var(--color-ink);
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
+</style>

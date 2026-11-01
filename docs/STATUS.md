@@ -246,6 +246,11 @@ Merged into `staging`:
 
 ## In review
 - Open pull requests add their own lines here. Waiting now: Release browser tests (#55).
+- Task 56, account screens (#164): revised signup, sign-in and password-reset screens are in review, with live auth and profile integration awaiting Tasks 55 and 57.
+- Task 95, modern sample questions page (#174): passed full CI and Codex review, merged into `staging` and awaiting the next production release.
+- Task 73, break-idea sharing proposal (#177): private submissions, moderation, reporting, export and account-deletion safeguards proposed for Christian's decisions.
+- Glove photos and the Kalam font (#163): Christian's nine glove colors cut out as WebP files, and the handwriting he
+  picked. Files only; the glove note (Task 70) uses them and stays off until he checks it.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
@@ -291,10 +296,9 @@ Targets: first visuals by about 14 November, the full kit by about 12 December (
 - [ ] Lesson videos (#97, live but unlinked): the iPhone check needs a real video. When your first lesson video is on
   Cueory's YouTube channel, send its link; then on a real iPhone, tap its cover once on the staging site and the video
   should start right away. Until then `/learn/video-sample` only shows the cover and the player loading.
-- [ ] Glove-note pop-ups ([your request on #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6560268260)
-  and its addenda): five photos of your own gloved hand (palm toward the camera, blank palm, the five angles and
-  colors listed there, plain background, no jewelry, cropped at the wrist) and two short recordings, a glove snap and a
-  stretch. Nothing visible changes until they arrive; the logic is being built now (Tasks 50 to 53).
+- [x] Glove-note pop-ups: Christian sent his glove image (made with an AI image tool) on 2026-11-01 and chose nine
+  colors, Kalam handwriting and all text inside the palm (#163, Task 70). Still to come: two short sounds, a glove snap
+  and a stretch, if he wants sound.
 - [x] Study modes on pages (#77): merged by Christian with "Ok" on 2026-11-01, read as allowing labeled everyday
   samples with their answers in the browser (D-92). If that reading is wrong, say so and the questions page comes off.
 - [ ] Real questions need a free account (D-86): `check_answer` reveals the key after one try, so signed-out visitors

@@ -1,9 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
+import { site } from '../../src/config/site';
 
-// "Tip" became "supporting our mission" (Christian, D-94). His two mission lines appear exactly, and no visible text
-// on the page calls it a tip any more.
-
+// D-94: preserve Christian's approved wording, including punctuation, in the new page layout.
 const missionLines = [
   'to make studying for nursing school simpler.',
   'to give nursing students the materials they need to succeed and become great nurses at an affordable price.',
@@ -21,12 +20,23 @@ test.describe('supporting our mission (/support)', () => {
     await expect(lines).toHaveText(missionLines);
 
     const button = page.getByRole('link', { name: 'support our mission (opens in a new tab)' });
-    await expect(button).toHaveAttribute('href', 'https://ko-fi.com/cueory');
+    await expect(button).toHaveAttribute('href', site.tipPageUrl);
     await expect(button).toHaveAttribute('target', '_blank');
     await expect(button).toHaveAttribute('rel', 'noopener noreferrer');
 
     const words = await page.locator('main').innerText();
     expect(words).not.toMatch(/\btips?\b/i);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+
+  test('explains the purpose of support without invented amounts, and thanks visitors', async ({ page }) => {
+    await page.goto('/support');
+
+    await expect(page.getByRole('heading', { level: 2, name: 'how your support helps' })).toBeVisible();
+    const main = page.locator('main');
+    await expect(main.getByText(/maintain the domain,\s*keep the website available, and build more lessons/)).toBeVisible();
+    await expect(main.getByText('thank you for helping us make nursing study simpler.')).toBeVisible();
+    await expect(page.locator('[data-mission] h2')).toHaveCount(2);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 
