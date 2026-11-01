@@ -100,17 +100,25 @@ Last updated: 2026-11-01
   only (tap, click or keyboard, no dragging), every result said in words and shown by ✓, and a plain-words share line.
   Seven labeled everyday samples under `content/games/triage/`, so it also waits for Christian's merge.
 
+- [Crossword engine and board](https://github.com/lilchristxan/Cueory/pull/51) (a Codex helper's, Task 3 on #11):
+  numbering, typing that skips gaps, checking a word or the whole grid, three cues that lock their letters, and a
+  plain-words share line, on a keyboard- and tap-friendly board. It isn't on a page yet: wiring it into `/play` with
+  labeled samples comes next, after the interim names (#48), and then the check on the locked staging site.
+
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
 2. Auto-release (`staging` into `main` in pre-launch mode), after the change requests.
 3. Christian's 31 Oct evening requests ([the lead's note on issue #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6551841155)),
    now first: brand v1.0 (the lead's branch), then the home page polish pass, then the rest of daily games (the home
-   page section and triage are in review; cueword and suture are next).
+   page section and triage are in `staging`; the crossword and word path engines are in review).
 
 ## Visuals kit (Task 6, D-56)
 Targets: first visuals by about 14 November, the full kit by about 12 December ([plan](VISUALS.md)).
 - Done: the plan, and license checks on every source. Open RN *Nursing Fundamentals 2e* is the cited source (CC BY
   4.0). OpenStax waits for Christian (D-57).
+- In review: [video frames for teaching diagrams](https://github.com/lilchristxan/Cueory/pull/47) (a Codex helper's,
+  finished by the lead): `node scripts/export-frames.ts --url … --selector … --out …` saves numbered PNG frames at
+  1080 × 1920 and 1920 × 1080 for shorts, with the diagram stretched to fill each frame.
 - Next: the visual source-file check and draft-only rendering, then the first batch (fluid compartments, osmosis and
   fluid shifts, the sodium-potassium pump) with its review sheet. The 3D viewer adds three.js, so it waits for
   Christian's merge; its models wait for the atlas choice.
