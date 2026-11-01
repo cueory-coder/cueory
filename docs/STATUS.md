@@ -250,6 +250,7 @@ Merged into `staging`:
 - Task 73, break-idea sharing proposal (#177): private submissions, moderation, reporting, export and account-deletion safeguards proposed for Christian's decisions.
 - Glove photos and the Kalam font (#163): Christian's nine glove colors cut out as WebP files, and the handwriting he
   picked. Files only; the glove note (Task 70) uses them and stays off until he checks it.
+- Task 99, Lato body font (#172): Lato for body and interface text, line spacing at least 1.5, plain accent line under the home headline. Waits for Christian (it edits CLAUDE.md).
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
