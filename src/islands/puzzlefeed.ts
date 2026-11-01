@@ -82,7 +82,7 @@ export function acceptPuzzle(payload: unknown, today: string): AcceptResult {
   const { game, date, puzzle } = payload;
 
   if (typeof game !== 'string' || !(GAME_IDS as readonly string[]).includes(game)) {
-    return { ok: false, message: 'game must be one of: pulse, cueword, triage, suture.' };
+    return { ok: false, message: `game must be one of: ${GAME_IDS.join(', ')}.` };
   }
 
   if (typeof date !== 'string' || date !== today) {
