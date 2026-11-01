@@ -26,9 +26,11 @@ interface Props {
   promo?: boolean;
   /** Optional item context forwarded to the flag form (added by Task 64; pages pass this once their item IDs exist). */
   flagItem?: { itemId: string; itemVersionId: string };
+  /** Hide the flag-or-comment button (D-96): set true during sharpening rounds and timed reviews. */
+  hideFlag?: boolean;
 }
 
-const { title, description = site.description, variant = 'default', noindex = false, promo = true, flagItem } = Astro.props;
+const { title, description = site.description, variant = 'default', noindex = false, promo = true, flagItem, hideFlag = false } = Astro.props;
 // Browser-tab titles use the lowercase brand voice: "privacy · cueory" (D-47).
 const fullTitle = title === site.name || title === site.wordmarkName ? site.wordmarkName : `${title} · ${site.wordmarkName}`;
 const canonical = new URL(Astro.url.pathname, site.url).href;
@@ -92,7 +94,7 @@ const searchTitle = isHome ? 'home' : title;
       data-pagefind-meta={noindex ? undefined : `title:${searchTitle}`}
     >
       <slot />
-      <FlagCorner page={Astro.url.pathname} flagItem={flagItem} />
+      {!hideFlag && <FlagCorner page={Astro.url.pathname} flagItem={flagItem} />}
     </main>
     <SiteFooter />
     {showPromo && <PromoPanel />}

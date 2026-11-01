@@ -51,3 +51,7 @@ test('flag button passes axe with form open', async ({ page }) => {
   const results = await axe(page);
   expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
 });
+
+// D-96: hideFlag hides the button during sharpening / timed review.
+// Full behavioral test added when those pages exist (Task 4e / sharpening not yet built).
+// The hideFlag prop is wired: Layout.astro passes it to FlagCorner; !hideFlag gates rendering.
