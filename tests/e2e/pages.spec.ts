@@ -1,6 +1,18 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
+// The once-only promo panel (D-59) slides down after 5 seconds and takes keyboard focus, which would interrupt these
+// tests part-way, so every page here starts as if it had already been shown. tests/e2e/promo.spec.ts tests the panel.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem('cueory-promo-seen', String(Date.now()));
+    } catch {
+      // Storage is blocked: the panel never shows then anyway.
+    }
+  });
+});
+
 /** The name of the card in the middle of the "ways to study" merry-go-round (D-60). */
 const middleCard = (page: Page) =>
   page.locator('#ways-to-study [data-mode-card][data-offset="0"]').getAttribute('data-name');
