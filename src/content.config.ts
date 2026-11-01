@@ -184,9 +184,10 @@ const videos = defineCollection({
     lesson: z.string().regex(/^[a-z0-9-]+$/),
     title: z.string().min(1).max(120),
     status: z.enum(['placeholder', 'draft', 'in_review', 'published']),
-    videoId: z.string().min(1),
-    captionsUrl: z.string().url().or(z.literal('')),
-    transcriptUrl: z.string().url().or(z.literal('')),
+    videoId: z.string().regex(/^[A-Za-z0-9_-]{11}$/, 'a YouTube video id is exactly 11 URL-safe characters'),
+    captionsUrl: z.string().regex(/^https:\/\//, 'must be an https URL').url().or(z.literal('')),
+    transcriptUrl: z.string().regex(/^https:\/\//, 'must be an https URL').url().or(z.literal('')),
+    thumbnailUrl: z.string().regex(/^https:\/\//, 'must be an https URL').url().optional(),
   }),
 });
 

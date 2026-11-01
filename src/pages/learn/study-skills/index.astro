@@ -28,11 +28,8 @@ const video = await getEntry('videos', 'study-skills-01');
       </noscript>
     </div>
 
-    {video && (
+    {video && video.data.status === 'published' && (
       <div class="mt-section">
-        {video.data.status === 'placeholder' && (
-          <p class="mb-3 text-sm text-ink-soft">This video is a placeholder.</p>
-        )}
         <LessonVideo
           client:only="react"
           videoId={video.data.videoId}

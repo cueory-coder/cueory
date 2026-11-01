@@ -151,6 +151,10 @@ Merged into `staging` tonight (pulse and sort were already live; the rest reache
 - Visuals kit, the first batch's drawings (Task C5, D-81): body fluid compartments, osmosis and fluid shifts, and
   the sodium-potassium pump, drawn only from their approved source files and checked by tests. Drafts, so nothing shows
   on a page until Christian approves them; his review sheet is linked from the pull request.
+- [Lesson video island](https://github.com/lilchristxan/Cueory/pull/97) (Task C3, D-82):
+  `LessonVideo.tsx` — click-to-play cover, privacy note before and after tap, focus moves to the
+  player on tap, `min-height: 200px`, `published`-only filter on the lesson page, strict 11-char
+  `videoId` schema, https-only caption/transcript URLs, and 7 e2e tests.
 - Open pull requests add their own lines here: study modes on pages (#77), guest progress (#74), game stats on
   `/play` (#79), the Safari preview fix (#88) and Release browser tests (#55).
 

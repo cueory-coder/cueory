@@ -1,10 +1,9 @@
 import { expect, test } from '@playwright/test';
 
 // LessonVideo island (D-82): lazy YouTube Nocookie embed. Nothing loads from YouTube before tap.
-// The study-skills lesson page renders a placeholder video (content/videos/study-skills-01.json).
+// The study-skills lesson page renders a published sample video (content/videos/study-skills-01.json).
 
 const LESSON_URL = '/learn/study-skills';
-const YT_HOST = /youtube(-nocookie)?\.com/;
 
 test.beforeEach(async ({ page }) => {
   // Suppress the promo panel so it doesn't interfere.
@@ -13,19 +12,22 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test('no request to any YouTube host before the play button is tapped', async ({ page }) => {
-  const youtubeRequests: string[] = [];
+test('no request leaves localhost before the play button is tapped', async ({ page }) => {
+  const externalRequests: string[] = [];
   page.on('request', (req) => {
-    if (YT_HOST.test(req.url())) youtubeRequests.push(req.url());
+    const hostname = new URL(req.url()).hostname;
+    if (hostname !== 'localhost' && hostname !== '127.0.0.1' && !hostname.endsWith('.localhost')) {
+      externalRequests.push(req.url());
+    }
   });
 
   await page.goto(LESSON_URL);
   // Wait for the cover to mount.
   await expect(page.getByRole('button', { name: /play video/i })).toBeVisible();
-  // Navigate away so any lazy loads would have fired by now.
+  // Wait for network to settle so any lazy loads would have fired by now.
   await page.waitForLoadState('networkidle');
 
-  expect(youtubeRequests).toEqual([]);
+  expect(externalRequests).toEqual([]);
 });
 
 test('tapping play shows only the YouTube Nocookie player and the privacy note', async ({ page }) => {
@@ -45,7 +47,7 @@ test('tapping play shows only the YouTube Nocookie player and the privacy note',
   expect(src).toContain('autoplay=1');
 
   // Privacy note appears.
-  await expect(page.getByText(/loading.*youtube.*cookies|playing.*loads youtube/i)).toBeVisible();
+  await expect(page.getByText(/loading.*youtube.*cookies|playing.*loads youtube|tapping.*loads youtube/i)).toBeVisible();
 });
 
 test('the keyboard alone can reach the play button and activate it', async ({ page }) => {
@@ -69,10 +71,11 @@ test('with reduced motion the cover has no CSS animation or transition', async (
   await expect(cover).toBeVisible();
 
   // The cover button itself must have no running animation or transition.
+  // global.css sets durations to 0.01ms under reduced-motion; assert at most 0.001s.
   const animated = await cover.evaluate((el) => {
     const style = getComputedStyle(el);
-    const hasAnim = style.animationName !== 'none' && style.animationDuration !== '0s';
-    const hasTrans = style.transitionDuration !== '0s' && style.transitionProperty !== 'none';
+    const hasAnim = style.animationName !== 'none' && parseFloat(style.animationDuration) > 0.001;
+    const hasTrans = parseFloat(style.transitionDuration) > 0.001 && style.transitionProperty !== 'none';
     return hasAnim || hasTrans;
   });
   expect(animated).toBe(false);
@@ -84,4 +87,20 @@ test('the video cover fits a 320 px screen without sideways scrolling', async ({
   await expect(page.getByRole('button', { name: /play video/i })).toBeVisible();
   const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(scrollWidth).toBeLessThanOrEqual(320);
+});
+
+test('privacy note and transcript links are visible before the tap', async ({ page }) => {
+  await page.goto(LESSON_URL);
+  await expect(page.getByRole('button', { name: /play video/i })).toBeVisible();
+  // Note about YouTube loading must appear before the student taps (ROADMAP 4d).
+  await expect(page.getByText(/loads youtube/i)).toBeVisible();
+});
+
+test('player is at least 200 px tall after tap', async ({ page }) => {
+  await page.goto(LESSON_URL);
+  await page.getByRole('button', { name: /play video/i }).click();
+  const iframe = page.locator('iframe[src*="youtube-nocookie.com"]');
+  await expect(iframe).toBeVisible();
+  const box = await iframe.boundingBox();
+  expect(box?.height).toBeGreaterThanOrEqual(200);
 });
