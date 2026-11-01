@@ -208,6 +208,7 @@ Christian's behalf (D-89), each with the lead's review:
   below), delete-account checks (#105, Task 25), database step 5, flags and `submit_flag` (#110), the review-clip
   exporter (#111, Task C7), visuals on lesson pages (#129, Task C9), the review-sheet script (Task 43) and Release
   browser tests (#55).
+- Task 44 (#105): delete-account summaries include saved progress and email; cleanup includes legacy stars. Pure logic, in review.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).

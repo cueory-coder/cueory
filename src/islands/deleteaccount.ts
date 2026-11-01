@@ -3,20 +3,22 @@
  * The actual deletion is handled by the server; this module describes what will go and validates the
  * typed confirmation before the caller fires the request.
  */
-import { PROGRESS_STORAGE_KEY } from '../scripts/progress';
+import { legacyStarsKey, PROGRESS_STORAGE_KEY, type Progress } from '../scripts/progress';
 import { PROMO_STORAGE_KEY } from '../scripts/promo';
 import { THEME_STORAGE_KEY } from '../scripts/theme';
+import type { KeyValueStorage } from '../scripts/storage';
 import { STATS_STORAGE_KEY } from './gameresults';
-import type { GameStats } from './gamestats';
+import type { ExportData } from './exportdata';
 
-// ── Data shape (matches Task 19 ExportData from src/islands/exportdata.ts) ────
+// Keep the download and confirmation contracts together, including the actual saved Progress record.
+export type { ExportData } from './exportdata';
 
-export interface ExportData {
-  profile?: { displayName?: string | null; createdAt?: string | null };
-  onboarding?: { course?: string | null; examDate?: string | null; done?: boolean; school?: string | null };
-  progress?: readonly { id: string; result: string | boolean; date: string }[];
-  reviewState?: readonly { id: string; nextDueDate: string; interval: number }[];
-  gameStats?: GameStats;
+function isGuestProgress(progress: ExportData['progress']): progress is Progress {
+  return !!progress && !Array.isArray(progress);
+}
+
+function hasSetup(setup: ExportData['onboarding']): boolean {
+  return !!(setup?.course || setup?.examDate || setup?.school || setup?.done);
 }
 
 // ── Deletion summary ──────────────────────────────────────────────────────────
@@ -28,19 +30,21 @@ export interface ExportData {
 export function deletionSummary(data: ExportData): string[] {
   const lines: string[] = [];
 
-  if (data.profile?.displayName) {
-    lines.push('your display name');
-  }
+  const profile = data.profile;
+  if (profile?.displayName && profile.email) lines.push('your display name and email address');
+  else if (profile?.email) lines.push('your email address');
+  else if (profile?.displayName) lines.push('your display name');
+  else if (profile?.createdAt) lines.push('your account details');
 
-  if (data.onboarding) {
-    const { course, examDate, done, school } = data.onboarding;
-    if (course != null || examDate != null || done != null || school != null) {
-      lines.push('your study setup');
-    }
-  }
+  const guest = isGuestProgress(data.progress) ? data.progress : undefined;
+  if (hasSetup(data.onboarding) || hasSetup(guest?.onboarding)) lines.push('your study setup');
 
-  if (Array.isArray(data.progress) && data.progress.length > 0) {
-    const n = data.progress.length;
+  // Stars can overlap a pile. Count each card once within its deck; the same local id in another deck is another card.
+  const cards = guest
+    ? Object.values(guest.decks).reduce((count, deck) => count + new Set([...deck.know, ...deck.learning, ...deck.starred]).size, 0)
+    : Array.isArray(data.progress) ? data.progress.length : 0;
+  if (cards > 0) {
+    const n = cards;
     lines.push(`${n} card${n === 1 ? "'s" : "s'"} progress`);
   }
 
@@ -53,6 +57,10 @@ export function deletionSummary(data: ExportData): string[] {
     const n = data.gameStats.length;
     lines.push(`${n} game result${n === 1 ? '' : 's'}`);
   }
+
+  if (data.attempts?.length) lines.push(`${data.attempts.length} question attempt${data.attempts.length === 1 ? '' : 's'}`);
+  if (data.examPlans?.length) lines.push(`${data.examPlans.length} exam date${data.examPlans.length === 1 ? '' : 's'}`);
+  if (data.reviewRows?.length) lines.push(`${data.reviewRows.length} account review schedule${data.reviewRows.length === 1 ? '' : 's'}`);
 
   return lines;
 }
@@ -73,14 +81,25 @@ export function confirmState(typed: string): string | null {
 // ── Browser-storage keys to clear ────────────────────────────────────────────
 
 /**
- * The browser-storage keys this app writes. Read from their canonical exports — never retyped.
- * The delete flow clears all of these after the server confirms deletion.
+ * Snapshot the keys to clear, including every legacy stars key, even for retired decks.
+ * The caller supplies browser storage and removes these keys after the server confirms deletion.
+ * This function reads key names only; it never changes storage. Unlistable storage is an error, not a complete list.
  */
-export function afterDeletion(): string[] {
-  return [
+export function afterDeletion(storage: KeyValueStorage | undefined): string[] {
+  if (!storage || typeof storage.length !== 'number' || !Number.isSafeInteger(storage.length) || storage.length < 0 || typeof storage.key !== 'function') {
+    throw new Error('browser storage must support listing its keys before cleanup.');
+  }
+  const keys = new Set([
     PROGRESS_STORAGE_KEY,
     PROMO_STORAGE_KEY,
     THEME_STORAGE_KEY,
     STATS_STORAGE_KEY,
-  ];
+  ]);
+  const prefix = legacyStarsKey('');
+  const length = storage.length;
+  for (let index = 0; index < length; index++) {
+    const key = storage.key(index);
+    if (key?.startsWith(prefix)) keys.add(key);
+  }
+  return [...keys];
 }

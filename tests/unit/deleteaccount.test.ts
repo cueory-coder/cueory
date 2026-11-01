@@ -1,9 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { deletionSummary, confirmState, afterDeletion, type ExportData } from '../../src/islands/deleteaccount';
-import { PROGRESS_STORAGE_KEY } from '../../src/scripts/progress';
+import {
+  emptyProgress, forgetProgress, legacyStarsKey, loadDeckStars, migrateLegacyStars, PROGRESS_STORAGE_KEY,
+  saveProgress, withOnboarding, withPile, withStars,
+} from '../../src/scripts/progress';
 import { PROMO_STORAGE_KEY } from '../../src/scripts/promo';
 import { THEME_STORAGE_KEY } from '../../src/scripts/theme';
 import { STATS_STORAGE_KEY } from '../../src/islands/gameresults';
+import type { KeyValueStorage } from '../../src/scripts/storage';
+
+class MemoryStorage implements KeyValueStorage {
+  values = new Map<string, string>();
+  get length() { return this.values.size; }
+  key(index: number) { return [...this.values.keys()][index] ?? null; }
+  getItem(key: string) { return this.values.get(key) ?? null; }
+  setItem(key: string, value: string) { this.values.set(key, value); }
+  removeItem(key: string) { this.values.delete(key); }
+}
 
 // ── deletionSummary ───────────────────────────────────────────────────────────
 
@@ -165,29 +178,130 @@ describe('confirmState', () => {
 
 describe('afterDeletion', () => {
   it('returns an array of strings', () => {
-    const keys = afterDeletion();
+    const keys = afterDeletion(new MemoryStorage());
     expect(Array.isArray(keys)).toBe(true);
     expect(keys.every((k) => typeof k === 'string' && k.length > 0)).toBe(true);
   });
 
   it('includes the progress storage key', () => {
-    expect(afterDeletion()).toContain(PROGRESS_STORAGE_KEY);
+    expect(afterDeletion(new MemoryStorage())).toContain(PROGRESS_STORAGE_KEY);
   });
 
   it('includes the promo storage key', () => {
-    expect(afterDeletion()).toContain(PROMO_STORAGE_KEY);
+    expect(afterDeletion(new MemoryStorage())).toContain(PROMO_STORAGE_KEY);
   });
 
   it('includes the theme storage key', () => {
-    expect(afterDeletion()).toContain(THEME_STORAGE_KEY);
+    expect(afterDeletion(new MemoryStorage())).toContain(THEME_STORAGE_KEY);
   });
 
   it('includes the game stats storage key', () => {
-    expect(afterDeletion()).toContain(STATS_STORAGE_KEY);
+    expect(afterDeletion(new MemoryStorage())).toContain(STATS_STORAGE_KEY);
   });
 
   it('has no duplicates', () => {
-    const keys = afterDeletion();
+    const keys = afterDeletion(new MemoryStorage());
     expect(new Set(keys).size).toBe(keys.length);
+  });
+});
+
+describe('the current export contract in the deletion summary', () => {
+  it('describes an email-only account and never echoes the address', () => {
+    const email = 'sample@example.invalid';
+    const result = deletionSummary({ profile: { displayName: null, email } });
+    expect(result).toEqual(['your email address']);
+    expect(result.join(' ')).not.toContain(email);
+  });
+
+  it('keeps profile data on one line, including a creation-date-only profile', () => {
+    expect(deletionSummary({ profile: { displayName: 'sample', email: 'sample@example.invalid' } }))
+      .toEqual(['your display name and email address']);
+    expect(deletionSummary({ profile: { createdAt: '2026-11-01T00:00:00Z' } })).toEqual(['your account details']);
+  });
+
+  it('accepts the real withPile/withStars record and counts overlapping stars once per deck', () => {
+    let progress = withPile(emptyProgress(), 'sample-deck', 'sample-card', 'know');
+    progress = withPile(progress, 'sample-deck', 'sample-learning', 'learning');
+    progress = withStars(progress, 'sample-deck', ['sample-card', 'sample-star-only']);
+    const before = JSON.stringify(progress);
+    expect(deletionSummary({ progress })).toEqual(["3 cards' progress"]);
+    expect(JSON.stringify(progress)).toBe(before);
+  });
+
+  it('counts the same local card id in different decks separately, including retired decks', () => {
+    let progress = withPile(emptyProgress(), 'sample-live', 'sample-card', 'know');
+    progress = withStars(progress, 'sample-retired', ['sample-card']);
+    expect(deletionSummary({ progress })).toEqual(["2 cards' progress"]);
+  });
+
+  it('includes starred-only progress even when the card is in no pile', () => {
+    expect(deletionSummary({ progress: withStars(emptyProgress(), 'sample-deck', ['sample-card']) }))
+      .toEqual(["1 card's progress"]);
+  });
+
+  it('omits an empty saved record and includes its completed onboarding without a separate top-level copy', () => {
+    expect(deletionSummary({ progress: emptyProgress() })).toEqual([]);
+    const progress = withOnboarding(emptyProgress(), { course: 'fundamentals', examDate: '2027-01-01' });
+    expect(deletionSummary({ progress })).toEqual(['your study setup']);
+    expect(deletionSummary({ progress, onboarding: { course: 'fundamentals' } })).toEqual(['your study setup']);
+  });
+
+  it('covers the three account study sections now in ExportData', () => {
+    const data: ExportData = {
+      attempts: [{ itemVersionId: '00000000-0000-4000-8000-000000000001', picked: ['a'], correct: false, createdAt: '2026-11-01T00:00:00Z' }],
+      examPlans: [{ course: 'fundamentals', examDate: '2027-01-01', createdAt: '2026-11-01T00:00:00Z' }],
+      reviewRows: [{ itemId: '00000000-0000-4000-8000-000000000002', level: 0, lastReviewed: '2026-11-01', nextReview: '2026-11-02' }],
+    };
+    expect(deletionSummary(data)).toEqual(['1 question attempt', '1 exam date', '1 account review schedule']);
+    expect(deletionSummary({ attempts: [...data.attempts!, ...data.attempts!], examPlans: [...data.examPlans!, ...data.examPlans!], reviewRows: [...data.reviewRows!, ...data.reviewRows!] }))
+      .toEqual(['2 question attempts', '2 exam dates', '2 account review schedules']);
+    expect(deletionSummary({ attempts: [], examPlans: [], reviewRows: [] })).toEqual([]);
+  });
+});
+
+describe('legacy browser data in the cleanup plan', () => {
+  it('clears current and retired stars so loadDeckStars and migration cannot restore deleted progress', () => {
+    const storage = new MemoryStorage();
+    storage.setItem(legacyStarsKey('sample-live'), JSON.stringify(['sample-card']));
+    storage.setItem(legacyStarsKey('sample-retired'), JSON.stringify(['sample-retired-card']));
+    storage.setItem(legacyStarsKey('retired.deck'), 'sample: unreadable legacy value');
+    saveProgress(storage, withPile(emptyProgress(), 'sample-live', 'sample-card', 'know'));
+    for (const key of [PROMO_STORAGE_KEY, THEME_STORAGE_KEY, STATS_STORAGE_KEY]) storage.setItem(key, 'sample');
+    storage.setItem('sample-other-app', 'sample: keep');
+    const before = [...storage.values];
+
+    const keys = afterDeletion(storage);
+    expect([...storage.values]).toEqual(before); // planning never performs the deletion
+    for (const deck of ['sample-live', 'sample-retired', 'retired.deck']) expect(keys).toContain(legacyStarsKey(deck));
+    for (const key of keys) storage.removeItem(key);
+    expect([...storage.values]).toEqual([['sample-other-app', 'sample: keep']]);
+    expect([...loadDeckStars(storage, 'sample-live', ['sample-card'])]).toEqual([]);
+    expect([...loadDeckStars(storage, 'sample-retired', ['sample-retired-card'])]).toEqual([]);
+    expect(migrateLegacyStars(storage)).toEqual(emptyProgress());
+  });
+
+  it('discovers the same legacy namespace as forgetProgress without deleting unrelated names', () => {
+    const storage = new MemoryStorage();
+    const forgotten = new MemoryStorage();
+    const legacy = ['sample-live', 'sample-retired', 'retired.deck'].map(legacyStarsKey);
+    for (const key of [...legacy, 'sample-cueory-stars-unrelated']) {
+      storage.setItem(key, '[]'); forgotten.setItem(key, '[]');
+    }
+    expect(forgetProgress(forgotten, [])).toBe(true);
+    expect(afterDeletion(storage).filter(key => legacy.includes(key))).toEqual(legacy);
+    for (const key of legacy) expect(forgotten.getItem(key)).toBeNull();
+    expect(afterDeletion(storage)).not.toContain('sample-cueory-stars-unrelated');
+    expect(forgotten.getItem('sample-cueory-stars-unrelated')).toBe('[]');
+  });
+
+  it('requires an inventory rather than silently returning an incomplete cleanup plan', () => {
+    expect(() => afterDeletion(undefined)).toThrow('listing its keys');
+    const unlistable: KeyValueStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
+    expect(() => afterDeletion(unlistable)).toThrow('listing its keys');
+    const blocked = new MemoryStorage();
+    blocked.key = () => { throw new Error('sample: storage blocked'); };
+    blocked.setItem(legacyStarsKey('sample-retired'), '[]');
+    expect(() => afterDeletion(blocked)).toThrow('storage blocked');
+    expect(blocked.getItem(legacyStarsKey('sample-retired'))).toBe('[]');
   });
 });
