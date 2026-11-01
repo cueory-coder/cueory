@@ -15,8 +15,9 @@ to reply within 7 days.
 3. **No secrets in code, commits or chat.** Secrets live only in GitHub Actions secrets, Cloudflare settings and
    Supabase settings. The browser only ever gets public keys (for example Supabase's *publishable* key). CI scans every
    commit with gitleaks.
-4. **Strict headers.** Every page has a content security policy (hash-based, no `unsafe-inline`/`unsafe-eval`, forms
-   may post only to our own site and our newsletter provider), `frame-ancestors 'none'`, HSTS, `nosniff`, a strict
+4. **Strict headers.** Every page has a content security policy (hash-based, no `unsafe-inline`/`unsafe-eval`; the one
+   allowance is `'wasm-unsafe-eval'`, which lets site search compile WebAssembly only (D-49); forms may post only to our
+   own site and our newsletter provider), `frame-ancestors 'none'`, HSTS, `nosniff`, a strict
    referrer policy and a locked-down permissions policy. See `public/_headers` and `astro.config.mjs`.
 5. **Validate input everywhere**, on the server as well as in the browser.
 6. **Rate limits** on sign-in, sign-up and every form. The newsletter form relies on Kit's own abuse protection and

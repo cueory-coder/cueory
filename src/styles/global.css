@@ -102,15 +102,38 @@
   contrast on the darkest and lightest points of each background.
 */
 @layer components {
-  /* Draped silk: diagonal folds of light and shade, a soft sheen, and a faint grain. */
-  .silk {
+  /*
+    Draped silk scenes (D-41, D-53): diagonal folds of light and shade, a soft sheen and a faint grain. The home page
+    is a series of them, one per section: the same cloth with the folds at another angle, the light from another side
+    and the tint moving between Ivory and Linen (Evening: Charcoal and Walnut). Each scene is its own layer behind its
+    section. It reaches up into the empty space at the bottom of the section before it and fades in there, so one
+    scene dissolves into the next with no hard edge, and no mask or fade ever touches text. Every scene has the same folds (one set at full strength crossed by one at half
+    strength) on Ivory or Linen, so the worst-case contrast checks in tests/unit/tokens.test.ts cover them all.
+  */
+  .scene {
+    --scene-base: var(--color-silk-base);
+    --scene-light: 22% 0%;
+    --scene-angle: 112deg;
+    --scene-cross: 68deg;
+    --scene-fade-top: var(--spacing-section);
+    --scene-fade-bottom: 0px;
+    position: relative;
+    isolation: isolate;
+  }
+
+  .scene::before {
     --silk-fold-mix: rgb(var(--silk-fold-rgb) / var(--silk-fold-alpha));
-    background-color: var(--color-silk-base);
+    content: "";
+    position: absolute;
+    inset: calc(-1 * var(--scene-fade-top)) 0 0;
+    z-index: -20;
+    pointer-events: none;
+    background-color: var(--scene-base);
     background-image:
       var(--silk-grain),
-      radial-gradient(120% 75% at 22% 0%, var(--color-silk-sheen), transparent 62%),
+      radial-gradient(120% 75% at var(--scene-light), var(--color-silk-sheen), transparent 62%),
       linear-gradient(
-        112deg,
+        var(--scene-angle),
         transparent 6%,
         var(--silk-fold-mix) 19%,
         transparent 31%,
@@ -120,13 +143,71 @@
         transparent 88%
       ),
       linear-gradient(
-        68deg,
+        var(--scene-cross),
         transparent 40%,
         rgb(var(--silk-fold-rgb) / calc(var(--silk-fold-alpha) / 2)) 63%,
         transparent 82%
       ),
-      linear-gradient(180deg, var(--color-silk-base), var(--color-silk-shade));
+      linear-gradient(180deg, var(--scene-base), var(--color-silk-shade));
     background-size: 220px 220px, auto, auto, auto, auto;
+    -webkit-mask-image: linear-gradient(
+      180deg,
+      transparent,
+      currentColor var(--scene-fade-top),
+      currentColor calc(100% - var(--scene-fade-bottom)),
+      transparent
+    );
+    mask-image: linear-gradient(
+      180deg,
+      transparent,
+      currentColor var(--scene-fade-top),
+      currentColor calc(100% - var(--scene-fade-bottom)),
+      transparent
+    );
+  }
+
+  /* The hero: Ivory, light from the upper left. It starts at the top of the page, so nothing fades in above it. */
+  .scene-hero {
+    --scene-fade-top: 0px;
+  }
+
+  /* "ways to study": Linen (Evening: Walnut), the folds falling the other way, light from the upper right. */
+  .scene-tint {
+    --scene-base: var(--color-silk-tint);
+    --scene-light: 82% 8%;
+    --scene-angle: 248deg;
+    --scene-cross: 292deg;
+  }
+
+  /* Launch updates: Ivory again, gentler folds, light from below on the left. The last scene fades into the footer. */
+  .scene-low {
+    --scene-light: 24% 100%;
+    --scene-angle: 152deg;
+    --scene-cross: 28deg;
+    --scene-fade-bottom: var(--spacing-section);
+  }
+
+  /* "02 — stay in touch": a small numbered label under a fine rule, like a heading in a lab notebook. */
+  .scene-rule {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: calc(var(--spacing) * 3);
+  }
+
+  .scene-rule::before {
+    content: "";
+    inline-size: calc(var(--spacing) * 12);
+    border-block-start: 1px solid var(--color-line);
+  }
+
+  /* The one medical cue on the page: a thin rhythm line between the hero and the first section. Decoration only. */
+  .rhythm {
+    display: block;
+    inline-size: min(15rem, 60%);
+    block-size: auto;
+    margin-inline: auto;
+    color: var(--color-highlight);
   }
 
   /* The same cloth without folds, for whole pages behind text. */
@@ -332,6 +413,99 @@
     color: var(--color-panel-ink);
   }
 
+  /*
+    Site search at the top of the ☰ panel (D-49): an outlined field with a magnifier on the right, results under it.
+    Everything sits straight on the panel color and uses the panel's two inks, the pair the contrast tests check.
+  */
+  .menu-search {
+    position: relative;
+  }
+
+  .menu-search-input {
+    inline-size: 100%;
+    min-block-size: calc(var(--spacing) * 11);
+    padding-block: calc(var(--spacing) * 2.5);
+    padding-inline: calc(var(--spacing) * 4) calc(var(--spacing) * 11);
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--color-panel-ink-soft);
+    color: var(--color-panel-ink);
+    background-color: transparent;
+    letter-spacing: var(--tracking-menu);
+    appearance: none;
+  }
+
+  .menu-search-input::placeholder {
+    color: var(--color-panel-ink-soft);
+    opacity: 1;
+  }
+
+  /* The magnifier is the field's only icon, so browsers' own clear button stays out of its way. */
+  .menu-search-input::-webkit-search-cancel-button,
+  .menu-search-input::-webkit-search-decoration {
+    appearance: none;
+  }
+
+  .menu-search-icon {
+    position: absolute;
+    inset-inline-end: calc(var(--spacing) * 4);
+    inset-block-start: 50%;
+    inline-size: calc(var(--spacing) * 5);
+    block-size: calc(var(--spacing) * 5);
+    translate: 0 -50%;
+    color: var(--color-panel-ink-soft);
+    pointer-events: none;
+  }
+
+  .menu-search-status {
+    margin-block-start: calc(var(--spacing) * 2);
+    color: var(--color-panel-ink-soft);
+    font-size: var(--text-sm);
+    line-height: var(--text-sm--line-height);
+  }
+
+  .menu-search-status:empty {
+    display: none;
+  }
+
+  .menu-search-results {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--spacing) * 1);
+    margin-block-start: calc(var(--spacing) * 2);
+  }
+
+  /* A result: the page title, then a short excerpt with the matched words in bold (not by color alone). */
+  .menu-result {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-block-size: calc(var(--spacing) * 11);
+    padding-block: calc(var(--spacing) * 2);
+    color: var(--color-panel-ink);
+    text-decoration: none;
+  }
+
+  .menu-result:hover .menu-result-title {
+    text-decoration: underline;
+  }
+
+  .menu-result-title {
+    font-weight: 500;
+    letter-spacing: var(--tracking-menu);
+  }
+
+  .menu-result-excerpt {
+    color: var(--color-panel-ink-soft);
+    font-size: var(--text-sm);
+    line-height: var(--text-sm--line-height);
+  }
+
+  .menu-result mark {
+    color: var(--color-panel-ink);
+    background-color: transparent;
+    font-weight: 650;
+  }
+
   /* The small account menu below the account button. */
   .account-menu {
     position: absolute;
@@ -419,7 +593,9 @@ html:has(dialog.menu-panel[open]) {
     overscroll-behavior-x: contain;
     scroll-snap-type: x mandatory;
     scrollbar-width: none;
-    padding-block: calc(var(--spacing) * 6) calc(var(--spacing) * 10);
+    /* Room below for a hovered card's deeper shadow (D-51); the negative margin keeps the buttons where they were. */
+    padding-block: calc(var(--spacing) * 6) calc(var(--spacing) * 20);
+    margin-block-end: calc(var(--spacing) * -10);
     padding-inline: calc((100% - var(--container-mode-card)) / 2);
   }
 
@@ -428,6 +604,7 @@ html:has(dialog.menu-panel[open]) {
   }
 
   .mode-card {
+    position: relative;
     display: flex;
     flex: 0 0 var(--container-mode-card);
     flex-direction: column;
@@ -436,6 +613,25 @@ html:has(dialog.menu-panel[open]) {
     transform: translateY(calc(var(--mode-distance, 0) * var(--drop-mode-card)))
       scale(calc(1 - var(--mode-distance, 0) * 0.08));
     transform-origin: 50% 0;
+  }
+
+  /*
+    The card's preview button (D-51) covers the whole card, so a tap anywhere on it opens the preview; its focus ring
+    outlines the card. The card's own link sits above it and still goes straight to the mode.
+  */
+  .mode-open {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border: 0;
+    border-radius: inherit;
+    background-color: transparent;
+    cursor: pointer;
+  }
+
+  .mode-card a {
+    position: relative;
+    z-index: 2;
   }
 
   .mode-art {
@@ -576,11 +772,11 @@ html:has(dialog.menu-panel[open]) {
 }
 
 /*
-  The illustration loops play only on the card in the middle, only once the script has checked the visitor's motion
-  setting (data-motion), and stop with the pause button (data-paused). Without them every illustration is still and
+  The illustration loops play only on the card in the middle and in the open preview, only once the script has checked
+  the visitor's motion setting (data-motion), and stop with either pause button (data-paused). Without them every illustration is still and
   complete. Each loop is 6 s, the same as the auto-advance.
 */
-.modes[data-motion]:not([data-paused]) .mode-card[data-active] {
+.modes[data-motion]:not([data-paused]) :is(.mode-card[data-active], .mode-preview) {
   & .ill-lesson-1,
   & .ill-lesson-2,
   & .ill-lesson-3,
@@ -629,6 +825,100 @@ html:has(dialog.menu-panel[open]) {
   .modes-track {
     scroll-behavior: auto;
   }
+}
+
+/*
+  Hover zoom (D-51): with a mouse, the card under the pointer or keyboard focus grows a little and lifts. Polish only:
+  touch screens and reduced motion skip it, and nothing depends on it. `scale` adds to the coverflow transform.
+*/
+@media (hover: hover) and (pointer: fine) {
+  .modes[data-motion] .mode-card {
+    transition:
+      scale 200ms ease,
+      box-shadow 200ms ease;
+  }
+
+  .modes[data-motion] .mode-card:is(:hover, :has(.mode-open:focus-visible)) {
+    scale: var(--zoom-mode-card);
+    box-shadow: var(--shadow-lift);
+  }
+}
+
+/*
+  The study-mode preview (D-51): a native modal <dialog> that fills the window. Behind the panel, the page is darkened
+  and softly frosted (the scrim); the panel itself is opaque, in the frosted cards' own color (Ivory, Evening: Walnut),
+  so its text has the plain page-color contrast the token tests check. The grow and shrink are drawn by the script.
+*/
+@layer components {
+  .mode-preview {
+    position: fixed;
+    inset: 0;
+    margin: 0;
+    inline-size: 100%;
+    max-inline-size: none;
+    block-size: 100dvh;
+    max-block-size: none;
+    padding: max(var(--spacing-gutter), env(safe-area-inset-top)) var(--spacing-gutter)
+      max(var(--spacing-gutter), env(safe-area-inset-bottom));
+    border: 0;
+    color: var(--color-ink);
+    background-color: transparent;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .mode-preview[open] {
+    display: grid;
+    place-items: center;
+  }
+
+  .mode-preview::backdrop {
+    background-color: transparent;
+  }
+
+  .mode-preview-scrim {
+    position: fixed;
+    inset: 0;
+    background-color: rgb(var(--shadow-tint) / var(--scrim-alpha));
+    -webkit-backdrop-filter: blur(var(--blur-scrim));
+    backdrop-filter: blur(var(--blur-scrim));
+  }
+
+  .mode-preview-panel {
+    position: relative;
+    inline-size: 100%;
+    max-inline-size: var(--container-mode-preview);
+    padding: calc(var(--spacing) * 5) calc(var(--spacing) * 6) calc(var(--spacing) * 7);
+    border: 1px solid color-mix(in srgb, var(--color-line) 55%, transparent);
+    border-radius: var(--radius-xl);
+    background-color: rgb(var(--veil-rgb));
+    box-shadow: var(--shadow-lift);
+  }
+
+  /* "coming soon" in the button's place: an outline, not a button, since there is nothing to press yet. */
+  .mode-soon {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: calc(var(--spacing) * 11);
+    padding-inline: calc(var(--spacing) * 5);
+    border: 1px dashed var(--color-control);
+    border-radius: var(--radius-pill);
+    color: var(--color-ink-soft);
+  }
+
+  .mode-soon[hidden] {
+    display: none;
+  }
+}
+
+/*
+  While the preview is open the page behind stays put. Where scrollbars take up room, that room is kept so nothing
+  shifts, and tinted like the darkened page.
+*/
+html:has(dialog.mode-preview[open]) {
+  overflow: hidden;
+  scrollbar-gutter: stable;
+  background-color: color-mix(in srgb, rgb(var(--shadow-tint)) calc(var(--scrim-alpha) * 100%), var(--color-page));
 }
 
 @keyframes ill-lesson-line {

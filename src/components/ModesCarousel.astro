@@ -6,10 +6,17 @@
  *
  * Without JavaScript it still works: the row scrolls by swiping or the keyboard, and each chip is a link to its card.
  * The script adds the coverflow look, chip and arrow navigation, arrow keys, and a gentle auto-advance that stops for
- * good once the visitor uses the carousel, pauses on hover or focus, and never runs with reduced motion. The pause
- * button stops the auto-advance and the illustration loops (WCAG 2.2.2).
+ * good once the visitor uses the carousel, pauses while a mouse rests on the cards or keyboard focus is inside, and
+ * never runs with reduced motion. The pause button stops the auto-advance and the illustration loops (WCAG 2.2.2).
+ *
+ * The preview (D-51): tapping or clicking a card grows it from its place into a larger preview, a native modal
+ * <dialog> over the darkened, softly frosted page, with the mode's illustration playing, two plain lines, "try it"
+ * (or "coming soon") and the free-account link. Close it with the X, Escape, a tap on the darkened page or a swipe
+ * down; it shrinks back into its card and focus returns there. Previous and next inside move through the modes in
+ * the carousel's order. With a mouse, a card grows a little under the pointer or keyboard focus.
  */
 import { studyModes } from '../config/modes';
+import { accountHref } from '../config/site';
 import ModeIllustration from './ModeIllustration.astro';
 
 const count = studyModes.length;
@@ -19,13 +26,25 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
 
 <section
   id="ways-to-study"
-  class="modes mt-section scroll-mt-section"
+  class="modes scene scene-tint py-section scroll-mt-section"
   aria-labelledby="modes-heading"
   aria-roledescription="carousel"
   data-modes
 >
-  <div class="mx-auto max-w-page px-gutter text-center">
-    <p class="text-sm font-medium tracking-label text-ink-soft">study modes</p>
+  <!-- The page's one medical cue (D-53): a thin rhythm line between the hero and this first section. -->
+  <svg class="rhythm" viewBox="0 0 240 28" aria-hidden="true" focusable="false" data-rhythm>
+    <path
+      d="M0 16H84c4 0 6-5 10-5s6 5 10 5h10l4 4 6-17 7 22 4-9h13c6 0 9-7 16-7s10 7 16 7h60"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.25"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    ></path>
+  </svg>
+
+  <div class="mx-auto mt-10 max-w-page px-gutter text-center">
+    <p class="text-sm font-medium tracking-label text-ink-soft" data-section-label>01 — study modes</p>
     <h2 id="modes-heading" class="display mt-3 text-title sm:text-title-lg">ways to study</h2>
   </div>
 
@@ -63,7 +82,18 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
           aria-label={`${index + 1} of ${count}`}
           data-mode-card
           data-name={mode.name}
+          data-more={mode.more}
+          data-href={mode.link?.href}
         >
+          <button
+            type="button"
+            class="mode-open"
+            aria-label={`preview ${mode.name}`}
+            aria-haspopup="dialog"
+            aria-controls="mode-preview"
+            hidden
+            data-mode-open
+          />
           <div class="mode-art">
             <ModeIllustration mode={mode.id} />
           </div>
@@ -81,7 +111,7 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
     }
   </div>
 
-  <div class="invisible flex justify-center gap-3" data-modes-controls>
+  <div class="invisible relative flex justify-center gap-3" data-modes-controls>
     <button type="button" class="corner-button" aria-label="previous study mode" data-modes-prev>
       <svg viewBox="0 0 24 24" class="size-6" aria-hidden="true" focusable="false">
         <path d="M14.5 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
@@ -105,21 +135,69 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
   <p class="sr-only" aria-live="off" aria-atomic="true" data-modes-live></p>
 
   <p class="mx-auto mt-8 max-w-page px-gutter text-center text-sm text-ink-soft">
-    {openList} are open now, with placeholder cards. the rest are on the way.
+    fig. 1 — {openList} are open now, with placeholder cards. the rest are on the way.
   </p>
+
+  <dialog id="mode-preview" class="mode-preview" aria-labelledby="mode-preview-title" data-mode-preview>
+    <div class="mode-preview-scrim" data-mode-preview-scrim></div>
+    <div class="mode-preview-panel" data-mode-preview-panel>
+      <div class="flex justify-end">
+        <button type="button" class="corner-button" aria-label="close preview" data-mode-preview-close>
+          <svg viewBox="0 0 24 24" class="size-6" aria-hidden="true" focusable="false">
+            <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
+          </svg>
+        </button>
+      </div>
+      <div class="mode-art mt-2" data-mode-preview-art></div>
+      <h2 id="mode-preview-title" class="mt-6 text-2xl font-medium" data-mode-preview-title></h2>
+      <p class="mt-3 text-ink-soft" data-mode-preview-more></p>
+      <div class="mt-7 flex flex-col items-start gap-4">
+        <a href="/" class="glass-button" data-mode-preview-try>try it</a>
+        <p class="mode-soon" data-mode-preview-soon>coming soon</p>
+        <a href={accountHref} class="text-sm text-ink-soft hover:text-ink">create your free account to save progress</a>
+      </div>
+      <div class="mt-7 flex justify-center gap-3">
+        <button type="button" class="corner-button" aria-label="previous study mode" data-mode-preview-prev>
+          <svg viewBox="0 0 24 24" class="size-6" aria-hidden="true" focusable="false">
+            <path d="M14.5 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
+          </svg>
+        </button>
+        <button type="button" class="corner-button" aria-label="pause the animation" data-mode-preview-pause>
+          <svg viewBox="0 0 24 24" class="size-6" aria-hidden="true" focusable="false" data-icon-pause>
+            <path d="M9 7v10M15 7v10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+          </svg>
+          <svg viewBox="0 0 24 24" class="hidden size-6" aria-hidden="true" focusable="false" data-icon-play>
+            <path d="M9 6.5l8.5 5.5L9 17.5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"></path>
+          </svg>
+        </button>
+        <button type="button" class="corner-button" aria-label="next study mode" data-mode-preview-next>
+          <svg viewBox="0 0 24 24" class="size-6" aria-hidden="true" focusable="false">
+            <path d="M9.5 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
+          </svg>
+        </button>
+      </div>
+      <p class="sr-only" aria-live="polite" aria-atomic="true" data-mode-preview-live></p>
+    </div>
+  </dialog>
 </section>
 
 <script>
   import {
     AUTO_ADVANCE_MS,
+    PREVIEW_EASING,
+    PREVIEW_MS,
     SETTLE_MS,
+    STEP_MS,
     canAutoAdvance,
     distance,
+    flipFrom,
+    isSwipeDown,
     keyTarget,
     nearestIndex,
     slideAnnouncement,
     wrap,
   } from '../scripts/carousel';
+  import { isCloseKey, wrapFocus } from '../scripts/menu';
 
   const root = document.querySelector<HTMLElement>('[data-modes]');
   const track = root?.querySelector<HTMLElement>('[data-modes-track]');
@@ -129,6 +207,7 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
     const chips = [...root.querySelectorAll<HTMLAnchorElement>('[data-mode-chip]')];
     const live = root.querySelector<HTMLElement>('[data-modes-live]');
     const pauseButton = root.querySelector<HTMLButtonElement>('[data-modes-pause]');
+    const previewPause = root.querySelector<HTMLButtonElement>('[data-mode-preview-pause]');
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
     const state = {
@@ -142,6 +221,8 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
     let active = 0;
     /** The card last written to the live region (none yet). */
     let announced = -1;
+    /** While the preview is open it speaks for itself, so the row behind it stays quiet. */
+    let quiet = false;
 
     const centers = () => cards.map((card) => card.offsetLeft + card.offsetWidth / 2);
     const middle = () => track.scrollLeft + track.clientWidth / 2;
@@ -168,19 +249,22 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
     /**
      * Only the card where the row comes to rest is announced: a swipe, a long glide to a far chip, or a glide the
      * visitor interrupts reads out where it lands, never every card it passes. The cards themselves update at once.
+     * At rest means a card sits exactly in the middle, which is where scroll snapping always leaves the row.
      */
     let settle = 0;
     const announce = () => {
       window.clearTimeout(settle);
       update();
       if (!live || announced === active) return;
+      if (Math.abs(centers()[active]! - middle()) > 2) return;
       announced = active;
+      if (quiet) return;
       live.textContent = slideAnnouncement(cards[active]!.dataset.name ?? '', active, cards.length);
     };
-    // Browsers with a scrollend event say when scrolling, snapping and any glide are over; for the others a short pause
-    // in scrolling counts as resting.
-    const hasScrollEnd = 'onscrollend' in window;
-    if (hasScrollEnd) track.addEventListener('scrollend', announce);
+    // scrollend says at once when scrolling, snapping and any glide are over. Not every scroll gets one (in Chrome, a
+    // scroll that starts just as another ends can finish without its own), and some browsers have none, so a short
+    // pause in scrolling counts too.
+    track.addEventListener('scrollend', announce);
 
     const goTo = (index: number) => {
       const card = cards[wrap(index, cards.length)]!;
@@ -198,15 +282,13 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
     track.addEventListener(
       'scroll',
       () => {
+        window.clearTimeout(settle);
+        settle = window.setTimeout(announce, SETTLE_MS);
         if (frame) return;
         frame = requestAnimationFrame(() => {
           frame = 0;
           update();
         });
-        if (!hasScrollEnd) {
-          window.clearTimeout(settle);
-          settle = window.setTimeout(announce, SETTLE_MS);
-        }
       },
       { passive: true },
     );
@@ -248,12 +330,19 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
       { passive: true },
     );
 
-    root.addEventListener('pointerenter', (event) => {
-      if (event.pointerType === 'mouse') state.hovering = true;
-    });
-    root.addEventListener('pointerleave', () => {
-      state.hovering = false;
-    });
+    // A mouse resting on the cards or their buttons pauses the auto-advance. The words around them don't: the section
+    // is taller than many windows, so pausing for the whole of it would stop the auto-advance for good on a computer.
+    const hovered = new Set<HTMLElement>();
+    for (const area of [track, root.querySelector<HTMLElement>('[data-modes-controls]')]) {
+      area?.addEventListener('pointerenter', (event) => {
+        if (event.pointerType === 'mouse') hovered.add(area);
+        state.hovering = hovered.size > 0;
+      });
+      area?.addEventListener('pointerleave', () => {
+        hovered.delete(area);
+        state.hovering = hovered.size > 0;
+      });
+    }
     root.addEventListener('focusin', () => {
       state.focusInside = true;
     });
@@ -261,11 +350,18 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
       if (!root.contains(event.relatedTarget as Node | null)) state.focusInside = false;
     });
 
+    /** The row's pause button and the preview's share one setting: either one stops every loop. */
+    const pauseButtons: Array<[HTMLButtonElement | null, string]> = [
+      [pauseButton, 'slideshow'],
+      [previewPause, 'animation'],
+    ];
     const showPaused = () => {
       root.toggleAttribute('data-paused', state.paused);
-      pauseButton?.setAttribute('aria-label', state.paused ? 'play the slideshow' : 'pause the slideshow');
-      pauseButton?.querySelector('[data-icon-pause]')?.classList.toggle('hidden', state.paused);
-      pauseButton?.querySelector('[data-icon-play]')?.classList.toggle('hidden', !state.paused);
+      for (const [button, what] of pauseButtons) {
+        button?.setAttribute('aria-label', `${state.paused ? 'play' : 'pause'} the ${what}`);
+        button?.querySelector('[data-icon-pause]')?.classList.toggle('hidden', state.paused);
+        button?.querySelector('[data-icon-play]')?.classList.toggle('hidden', !state.paused);
+      }
       live?.setAttribute('aria-live', state.paused || state.tookOver ? 'polite' : 'off');
     };
     pauseButton?.addEventListener('click', () => {
@@ -274,12 +370,18 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
       if (!state.paused) state.tookOver = false;
       showPaused();
     });
+    previewPause?.addEventListener('click', () => {
+      // Inside the preview the visitor is already in charge, so playing again restarts only the loops.
+      state.paused = !state.paused;
+      showPaused();
+    });
 
     const applyMotion = () => {
       state.reducedMotion = reducedMotion.matches;
       root.toggleAttribute('data-motion', !state.reducedMotion);
-      // With reduced motion nothing moves by itself, so there is nothing to pause: the button keeps its space only.
+      // With reduced motion nothing moves by itself, so there is nothing to pause: the buttons keep their space only.
       pauseButton?.classList.toggle('invisible', state.reducedMotion);
+      previewPause?.classList.toggle('invisible', state.reducedMotion);
     };
     reducedMotion.addEventListener('change', applyMotion);
     applyMotion();
@@ -300,6 +402,205 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
     window.setInterval(() => {
       if (canAutoAdvance(state)) goTo(active + 1);
     }, AUTO_ADVANCE_MS);
+
+    /*
+      The preview (D-51). Each card's preview button opens one shared <dialog>. Opening measures the card, shows the
+      dialog, then animates the panel from the card's box to its own (FLIP: measure, then animate a transform), so it
+      looks the same in every browser. Closing runs the same animation backwards into the card now in the middle.
+    */
+    const dialog = root.querySelector<HTMLDialogElement>('[data-mode-preview]');
+    const panel = dialog?.querySelector<HTMLElement>('[data-mode-preview-panel]');
+    const scrim = dialog?.querySelector<HTMLElement>('[data-mode-preview-scrim]');
+    if (dialog && panel && scrim && typeof dialog.showModal === 'function') {
+      const openButtons = cards.map((card) => card.querySelector<HTMLButtonElement>('[data-mode-open]'));
+      const art = dialog.querySelector<HTMLElement>('[data-mode-preview-art]');
+      const title = dialog.querySelector<HTMLElement>('[data-mode-preview-title]');
+      const more = dialog.querySelector<HTMLElement>('[data-mode-preview-more]');
+      const tryLink = dialog.querySelector<HTMLAnchorElement>('[data-mode-preview-try]');
+      const soon = dialog.querySelector<HTMLElement>('[data-mode-preview-soon]');
+      const previewLive = dialog.querySelector<HTMLElement>('[data-mode-preview-live]');
+      let shown = 0;
+      let closing = false;
+      let returnFocus = true;
+      // How far a step nudges the panel sideways: the --nudge-mode-preview token, read once.
+      const nudge = getComputedStyle(panel).getPropertyValue('--nudge-mode-preview').trim() || '0px';
+
+      /** Puts a mode's illustration, name, lines and link into the panel. */
+      const fill = (index: number) => {
+        shown = index;
+        const card = cards[index]!;
+        const drawing = card.querySelector('.ill');
+        art?.replaceChildren(...(drawing ? [drawing.cloneNode(true)] : []));
+        if (title) title.textContent = card.dataset.name ?? '';
+        if (more) more.textContent = card.dataset.more ?? '';
+        const href = card.dataset.href;
+        if (tryLink) {
+          tryLink.hidden = !href;
+          if (href) tryLink.href = href;
+        }
+        if (soon) soon.hidden = !!href;
+      };
+
+      const animations = () => [...panel.getAnimations(), ...scrim.getAnimations()];
+
+      /**
+       * Stops whatever the panel is doing (a grow, a shrink or a nudge) where it is now, so the next animation starts
+       * from what the visitor sees and measures the panel's own box, not a box still mid-move. Returns where it was.
+       */
+      const stopPanel = () => {
+        const transform = getComputedStyle(panel).transform;
+        for (const animation of panel.getAnimations()) animation.cancel();
+        return transform === 'none' ? 'none' : transform;
+      };
+
+      const open = (index: number) => {
+        if (dialog.open) return;
+        takeOver();
+        const card = cards[index]!.getBoundingClientRect();
+        fill(index);
+        if (previewLive) previewLive.textContent = '';
+        returnFocus = true;
+        quiet = true;
+        dialog.showModal();
+        if (state.reducedMotion) return;
+        const box = panel.getBoundingClientRect();
+        panel.animate([{ transform: flipFrom(card, box) }, { transform: 'none' }], {
+          duration: PREVIEW_MS,
+          easing: PREVIEW_EASING,
+        });
+        scrim.animate([{ opacity: 0 }, { opacity: 1 }], { duration: PREVIEW_MS, easing: 'ease' });
+      };
+
+      /** Shrinks the panel back into the card it shows, then closes the dialog. */
+      const close = async () => {
+        if (!dialog.open || closing) return;
+        if (state.reducedMotion) {
+          dialog.close();
+          return;
+        }
+        closing = true;
+        const card = cards[shown]!.getBoundingClientRect();
+        // Closing in the middle of the grow or a nudge shrinks from where the panel is now.
+        const from = stopPanel();
+        const shade = getComputedStyle(scrim).opacity;
+        for (const animation of scrim.getAnimations()) animation.cancel();
+        const box = panel.getBoundingClientRect();
+        const timing = { duration: PREVIEW_MS, easing: PREVIEW_EASING, fill: 'forwards' as const };
+        const shrink = panel.animate([{ transform: from }, { transform: flipFrom(card, box) }], timing);
+        scrim.animate([{ opacity: shade }, { opacity: 0 }], { ...timing, easing: 'ease' });
+        try {
+          await shrink.finished;
+        } catch {
+          // Cancelled because the dialog was closed some other way: nothing left to do.
+        }
+        if (dialog.open) dialog.close();
+      };
+
+      /** Previous and next inside the preview: the next mode in the carousel's order, and the row behind follows. */
+      const step = (delta: number) => {
+        if (closing) return;
+        const next = wrap(shown + delta, cards.length);
+        // "try it" disappears for a mode that isn't open yet; if it had focus, focus moves to the arrow going that way.
+        const tryHadFocus = !!tryLink && document.activeElement === tryLink;
+        fill(next);
+        if (tryHadFocus && tryLink?.hidden) {
+          dialog.querySelector<HTMLElement>(delta > 0 ? '[data-mode-preview-next]' : '[data-mode-preview-prev]')?.focus();
+        }
+        goTo(next);
+        if (previewLive) previewLive.textContent = slideAnnouncement(cards[next]!.dataset.name ?? '', next, cards.length);
+        if (!state.reducedMotion) {
+          // A step during the grow finishes the grow from where it is, instead of jumping back to its start later.
+          const from = stopPanel();
+          panel.animate([{ transform: from === 'none' ? `translateX(calc(${delta} * ${nudge}))` : from }, { transform: 'none' }], {
+            duration: STEP_MS,
+            easing: PREVIEW_EASING,
+          });
+        }
+      };
+
+      openButtons.forEach((button, index) => {
+        button?.addEventListener('click', () => open(index));
+        if (button) button.hidden = false;
+      });
+      dialog.querySelector('[data-mode-preview-close]')?.addEventListener('click', () => void close());
+      dialog.querySelector('[data-mode-preview-prev]')?.addEventListener('click', () => step(-1));
+      dialog.querySelector('[data-mode-preview-next]')?.addEventListener('click', () => step(1));
+
+      // The darkened page around the panel closes it.
+      scrim.addEventListener('click', () => void close());
+      dialog.addEventListener('click', (event) => {
+        if (event.target === dialog) void close();
+      });
+
+      // Escape: shrink back instead of vanishing. Browsers close a modal dialog themselves on Escape; this catches it.
+      dialog.addEventListener('cancel', (event) => {
+        event.preventDefault();
+        void close();
+      });
+
+      dialog.addEventListener('keydown', (event) => {
+        if (isCloseKey(event.key)) {
+          event.preventDefault();
+          void close();
+          return;
+        }
+        if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+          event.preventDefault();
+          step(event.key === 'ArrowRight' ? 1 : -1);
+          return;
+        }
+        // Tab stays inside the preview instead of leaving for the browser's own buttons.
+        if (event.key === 'Tab') {
+          const items = [...dialog.querySelectorAll<HTMLElement>('a[href]:not([hidden]), button:not([hidden])')].filter(
+            (item) => !item.classList.contains('invisible'),
+          );
+          const target = wrapFocus(items.indexOf(document.activeElement as HTMLElement), items.length, event.shiftKey);
+          if (target !== undefined) {
+            event.preventDefault();
+            items[target]?.focus();
+          }
+        }
+      });
+
+      // On phones, a swipe down from the top of the preview closes it (never a swipe that scrolls a tall preview).
+      let touchStart: { x: number; y: number; top: number } | undefined;
+      panel.addEventListener(
+        'touchstart',
+        (event) => {
+          const touch = event.touches[0];
+          touchStart = event.touches.length === 1 && touch ? { x: touch.clientX, y: touch.clientY, top: dialog.scrollTop } : undefined;
+        },
+        { passive: true },
+      );
+      panel.addEventListener(
+        'touchend',
+        (event) => {
+          const touch = event.changedTouches[0];
+          const start = touchStart;
+          touchStart = undefined;
+          if (!start || !touch || start.top > 0 || dialog.scrollTop > 0) return;
+          if (isSwipeDown(touch.clientX - start.x, touch.clientY - start.y)) void close();
+        },
+        { passive: true },
+      );
+
+      // A link inside goes somewhere else: close at once, and let focus follow the link.
+      for (const link of dialog.querySelectorAll('a')) {
+        link.addEventListener('click', () => {
+          returnFocus = false;
+          dialog.close();
+        });
+      }
+
+      dialog.addEventListener('close', () => {
+        closing = false;
+        quiet = false;
+        announced = active;
+        for (const animation of animations()) animation.cancel();
+        art?.replaceChildren();
+        if (returnFocus) openButtons[shown]?.focus({ preventScroll: true });
+      });
+    }
 
     showPaused();
     update();

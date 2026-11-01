@@ -10,7 +10,7 @@
 /** Time each card stays in the middle before the next one comes in, when nobody is using the carousel. */
 export const AUTO_ADVANCE_MS = 6000;
 
-/** Where a browser has no scrollend event, the row counts as resting once it has not moved for this long. */
+/** The row counts as resting once it has not moved for this long, even if no scrollend event comes. */
 export const SETTLE_MS = 200;
 
 /** How far, in cards, the coverflow look keeps shrinking and lowering a neighbour. */
@@ -80,3 +80,43 @@ export function canAutoAdvance(state: MotionState): boolean {
     state.onScreen
   );
 }
+
+/** A box on screen, as getBoundingClientRect gives it. */
+export interface Box {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * The grow-into-preview animation (D-51) moves the preview panel so it starts exactly over the card it came from:
+ * this is the move and the stretch that put the panel's box (`to`) onto the card's box (`from`). Animating from it to
+ * no transform makes the panel grow out of the card; the reverse shrinks it back in.
+ */
+export function flipFrom(from: Box, to: Box): string {
+  if (to.width <= 0 || to.height <= 0) return 'none';
+  const dx = from.left + from.width / 2 - (to.left + to.width / 2);
+  const dy = from.top + from.height / 2 - (to.top + to.height / 2);
+  const sx = from.width / to.width;
+  const sy = from.height / to.height;
+  const round = (n: number) => Math.round(n * 1000) / 1000;
+  return `translate(${round(dx)}px, ${round(dy)}px) scale(${round(sx)}, ${round(sy)})`;
+}
+
+/** How far a finger must pull the preview panel down before letting go closes it. */
+export const SWIPE_CLOSE_PX = 80;
+
+/** A finger moved mostly downward, far enough: on phones, that closes the preview. */
+export function isSwipeDown(dx: number, dy: number): boolean {
+  return dy >= SWIPE_CLOSE_PX && Math.abs(dx) < dy;
+}
+
+/** How long the preview takes to grow out of its card, or to shrink back into it. */
+export const PREVIEW_MS = 320;
+
+/** Fast at first, then settling gently: the grow and shrink of the preview. */
+export const PREVIEW_EASING = 'cubic-bezier(0.2, 0.8, 0.2, 1)';
+
+/** The small sideways nudge when previous or next changes the mode inside the preview. */
+export const STEP_MS = 200;

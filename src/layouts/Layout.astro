@@ -25,6 +25,8 @@ const fullTitle = title === site.name || title === site.wordmarkName ? site.word
 const canonical = new URL(Astro.url.pathname, site.url).href;
 const isStudy = variant === 'study';
 const isHome = variant === 'home';
+// The title a page has in site search results (D-49): its own title, and "home" for the home page.
+const searchTitle = isHome ? 'home' : title;
 ---
 
 <!doctype html>
@@ -66,7 +68,16 @@ const isHome = variant === 'home';
         <SiteHeader quiet={isStudy} />
       )
     }
-    <main id="main" class:list={['w-full flex-1', !isHome && 'mx-auto max-w-page px-gutter']}>
+    <!--
+      Site search (D-49) indexes only this main area of each page, never the menus, notice or footer, and leaves out
+      pages kept out of search engines (404, the signup thank-you page). Results are titled by the page's own title.
+    -->
+    <main
+      id="main"
+      class:list={['w-full flex-1', !isHome && 'mx-auto max-w-page px-gutter']}
+      data-pagefind-body={noindex ? undefined : ''}
+      data-pagefind-meta={noindex ? undefined : `title:${searchTitle}`}
+    >
       <slot />
     </main>
     <SiteFooter />
