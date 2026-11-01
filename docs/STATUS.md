@@ -181,6 +181,9 @@ Merged into `staging`; the database ones by the director on Christian's behalf (
   level 1 (next review in 3 days via `nextReview`); "still learning" and starred-only cards start at level 0 (due
   today). Stars returned separately in `starred[]`; `today` validated; 28 unit tests. Exam plans deferred (D-87
   follow-up). Account-import integration (wiring to sign-up flow) not yet built.
+- Task 37: `checkDisplayName(input)` — mirrors the database's 1–50 code-point and no-control-character rules
+  (D-77, `profiles_display_name_length` and `profiles_display_name_printable`). Trims spaces first. 17 unit tests.
+  [In review](https://github.com/lilchristxan/Cueory/pull/121).
 - Open pull requests add their own lines here. Waiting now: study modes on pages (#77), export-my-data (#95, Task 19),
   lesson videos (#97, Task C3), the 3D viewer shell (#98, Task C4), the Supabase settings reader (#101, Task 22),
   delete-account checks (#105, Task 25), the daily puzzle checker (#108), database step 5, flags and `submit_flag`
