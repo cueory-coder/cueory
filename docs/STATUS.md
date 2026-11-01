@@ -58,15 +58,17 @@ Last updated: 2026-10-31
 - In `staging`, waiting for the next release ([#26](https://github.com/lilchristxan/Cueory/pull/26), open for Christian):
   [home hero, ☰ side panel and account corner](https://github.com/lilchristxan/Cueory/pull/24) in the all-lowercase
   voice (D-46, D-47), with phone, tablet and desktop browser tests (D-48), [search in the ☰ panel](https://github.com/lilchristxan/Cueory/pull/27)
-  (D-49) and the ["ways to study" carousel](https://github.com/lilchristxan/Cueory/pull/28) (D-50).
+  (D-49), the ["ways to study" carousel](https://github.com/lilchristxan/Cueory/pull/28) (D-50) and its
+  [preview and hover zoom](https://github.com/lilchristxan/Cueory/pull/29) (D-51).
 
 ## In review
-- [Study-mode preview and hover zoom](https://github.com/lilchristxan/Cueory/pull/29) (D-51): a card grows into a
-  preview with its moving illustration, two plain lines, "try it" and the free-account link; X, Escape, the darkened
-  page or a swipe down closes it. The auto-merge takes it once it is clean.
+- [Silk scenes down the home page](https://github.com/lilchristxan/Cueory/pull/32) (D-53): the hero, "ways to study"
+  and the launch-updates panel as three scenes of one silk. The auto-merge takes it once it is clean.
+- Social links (D-54): Instagram, TikTok and YouTube marks in the footer and the ☰ panel. It adds a package
+  (`simple-icons`), so it waits for Christian's merge.
 
 ## Queued (Christian's change requests on issue #4, in his order)
-1. Silk scenes down the whole page, social links (Simple Icons), then the once-only promo panel.
+1. The once-only promo panel.
 2. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
 3. Auto-release (`staging` into `main` in pre-launch mode), after the change requests.
 

@@ -1,4 +1,5 @@
 ---
+import SocialLinks from './SocialLinks.astro';
 import ThemePicker from './ThemePicker.astro';
 import { footerLinks, site } from '../config/site';
 
@@ -10,6 +11,7 @@ const year = new Date().getFullYear();
     <div class="flex flex-col gap-1">
       <p>© {year} {site.wordmarkName}. study help, not medical advice.</p>
       {site.contactEmail && <p><a href={`mailto:${site.contactEmail}`} class="text-ink-soft hover:text-ink">{site.contactEmail}</a></p>}
+      <SocialLinks />
       <ThemePicker />
     </div>
     <nav aria-label="footer">

@@ -262,3 +262,12 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   color, so its text keeps the plain page-color contrast; a pause button in it shares the row's setting (WCAG 2.2.2).
   With a mouse, the card under the pointer or keyboard focus grows to 1.04 with a deeper shadow; touch screens and
   reduced motion skip it. Reason: Christian's request.
+- **D-54** Social links (Christian's change request, 2026-10-31, 1:15 pm). The footer and the bottom of the ☰ panel link
+  to Cueory's profiles, each as its platform's official one-color mark, opening in a new tab with `rel="noopener
+  noreferrer"` and named for screen readers ("cueory on Instagram (opens in a new tab)"). The addresses live in
+  `src/config/site.ts` (`socials`), and only filled-in ones show: Instagram, TikTok and YouTube (the defaults Christian
+  is confirming); X and Facebook stay empty until he confirms them. The marks come from Simple Icons (CC0;
+  `simple-icons`, pinned, a build-time package), so each is drawn inline from our own page and nothing loads from the
+  platforms until someone clicks; the platforms' own brand guidelines allow one-color marks that link to a profile. Each
+  link is a 44 px target, in the text color (the ☰ panel's light ink there). The promo panel gets the same links in its
+  own pull request. Reason: Christian's request.
