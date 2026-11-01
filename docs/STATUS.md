@@ -96,6 +96,12 @@ Last updated: 2026-11-01
   only (tap, click or keyboard, no dragging), every result said in words and shown by ✓, and a plain-words share line.
   Seven labeled everyday samples under `content/games/triage/`, so it also waits for Christian's merge.
 
+- [Questions player, with rationales](https://github.com/lilchristxan/Cueory/pull/53) (a Codex helper's, Task 6 on
+  #11): single-answer and select-all-that-apply questions, scored all-or-nothing (D-45), with each choice marked by a
+  symbol and words and its rationale shown after the check. It never holds an answer key: it asks a checker it is
+  given (D-33), and the sample checker refuses anything that isn't a labeled sample. Not on a page yet: that comes
+  with the study-mode pages (Task C1 on #11).
+
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
 2. Auto-release (`staging` into `main` in pre-launch mode), after the change requests.
