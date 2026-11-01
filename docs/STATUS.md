@@ -218,11 +218,34 @@ Merged into `staging`; the database one by the director on Christian's behalf (D
   fix for macOS (#133).
 - Browser tests for `/start` (#136, Task 46): answers saved and restored, keyboard, focus, accessibility, clearing.
 
+## Done (2026-11-01, 8–9 am Phoenix)
+- **Live site:** Christian merged release [#132](https://github.com/lilchristxan/Cueory/pull/132) into `main` at about
+  8:30 am: all four daily games on `/play`, private game stats, onboarding and progress saved on the device, the study
+  modes on pages, and `/privacy` naming YouTube. Its checks and the production build passed.
+- Study modes on pages (#77, Task C1), merged by Christian with "Ok" just before the release: fill-in, organizer, label
+  it and questions for the study-skills lesson, on labeled everyday samples whose answers are in the browser (D-92).
+- Offline copies of pages (#135, Task C12, D-93), merged by the director on Christian's behalf (D-89) with the lead's
+  review: an opened lesson opens again with no connection; `/play`, `/admin`, `/progress`, `/start`, data files and
+  query strings are never kept. Off switch: `offline.enabled` in `src/config/site.ts` (docs/OFFLINE.md).
+- Helpers' logic: the `/admin` flag inbox uses the real `flags` rows (#138, Task 47), and tests check that the browser
+  helpers and the database functions agree on arguments, error messages and the export's report fields (#139, Task 48).
+  The `check_answer` request (#140, Task 49) checks the item, version and letters before sending anything, through a
+  transport the page will supply once accounts are on.
+
+## Done (director, 2026-11-01, 9–11 am Phoenix)
+Merged into `staging`:
+- "Tip" becomes **supporting our mission** (#147, Task C13, D-94): `/support` shows Christian's two mission lines
+  exactly, with a "support our mission" button; the promo panel's link says "supporting our mission".
+- The glove-note logic (D-94), with nothing visible until Christian's photos and recordings arrive:
+  - when a note may appear (#148, Task 50);
+  - checked and shuffled break ideas of up to 60 characters (#144, Task 51);
+  - level writing fitted inside the palm (#145, Task 52);
+  - when a glove sound may play, and its remembered on/off switch (#146, Task 53).
+- The review-clip exporter for Christian's private review of the drawings (#111, Tasks C7 and C10), and the
+  `check_answer` contract test against the real request helper (#142, Task 48).
+
 ## In review
-- Task 47: flag inbox uses the real flags UUID columns and paired handling status/date; in review.
-- Open pull requests add their own lines here. Waiting now: study modes on pages (#77, held for Christian's choice
-  below), the review-clip exporter (#111, Tasks C7 and C10), the offline service worker (#135, Task C12, held for the
-  lead's fix), Release browser tests (#55) and the release into `main` (#132, for Christian).
+- Open pull requests add their own lines here. Waiting now: Release browser tests (#55).
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
@@ -264,16 +287,16 @@ Targets: first visuals by about 14 November, the full kit by about 12 December (
 - **Signup form** shows "signups open soon" until the Kit form exists (SETUP.md, Part I).
 
 ## Needs Christian's hands
-- [ ] Merge the release into the live site ([#132](https://github.com/lilchristxan/Cueory/pull/132)) once its checks
-  are green on its latest version. Its description lists what changes for students and what needs your approval.
-- [ ] Lesson videos (#97, now in `staging`): on a real iPhone, open `/learn/video-sample` on the staging site and tap
-  the cover once. The video should start playing right away. Safari can drop the tap's permission to play, which
-  automated tests can't see. Reply "video ok" or describe what happened.
-- [ ] Study modes on pages (#77): its questions page sends the sample answers to the browser before a student answers,
-  and organizer and fill-in carry their answers in the page, like cards. Choose one: (1) split it, publishing what
-  has no answer before an attempt, with questions waiting for `check_answer` and accounts (recommended); (2) keep all
-  four pages on the locked staging site only, left out of live builds; or (3) allow labeled everyday samples with
-  answers in the browser.
+- [x] Release #132 merged into the live site by Christian on 2026-11-01, about 8:30 am Phoenix.
+- [ ] Lesson videos (#97, live but unlinked): the iPhone check needs a real video. When your first lesson video is on
+  Cueory's YouTube channel, send its link; then on a real iPhone, tap its cover once on the staging site and the video
+  should start right away. Until then `/learn/video-sample` only shows the cover and the player loading.
+- [ ] Glove-note pop-ups ([your request on #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6560268260)
+  and its addenda): five photos of your own gloved hand (palm toward the camera, blank palm, the five angles and
+  colors listed there, plain background, no jewelry, cropped at the wrist) and two short recordings, a glove snap and a
+  stretch. Nothing visible changes until they arrive; the logic is being built now (Tasks 50 to 53).
+- [x] Study modes on pages (#77): merged by Christian with "Ok" on 2026-11-01, read as allowing labeled everyday
+  samples with their answers in the browser (D-92). If that reading is wrong, say so and the questions page comes off.
 - [ ] Real questions need a free account (D-86): `check_answer` reveals the key after one try, so signed-out visitors
   can't use it (a limit needs an identity, and a CAPTCHA would load a third-party script). Guests keep the sample modes.
   Reply "ok" to keep it this way, or ask for a CAPTCHA exception. The same goes for "Flag or comment" reports (D-88):

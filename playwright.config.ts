@@ -10,6 +10,9 @@ export default defineConfig({
   use: {
     baseURL: `http://localhost:${port}`,
     trace: 'retain-on-failure',
+    // The offline service worker (tests/e2e/offline.spec.ts turns it back on) would answer requests before a test's
+    // page.route() sees them, so every other test runs without one.
+    serviceWorkers: 'block',
   },
   // Phone 390 × 844, tablet 820 × 1180 and desktop 1440 × 900 in Chromium on every pull request (D-48). Safari's
   // engine (WebKit) and Firefox join on Release pull requests once that CI change is approved.
