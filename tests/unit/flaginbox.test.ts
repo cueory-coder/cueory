@@ -56,6 +56,18 @@ describe('inbox', () => {
     expect(inbox([open1, open2], { reason: 'confusing' })).toEqual([]);
   });
 
+  it('sorts correctly when timestamps have mixed fractional-second precision', () => {
+    const earlier = make({ id: 'e', created_at: '2026-11-01T10:00:00Z' });
+    const later = make({ id: 'l', created_at: '2026-11-01T10:00:00.100Z' });
+    expect(inbox([earlier, later]).map((f) => f.id)).toEqual(['l', 'e']);
+  });
+
+  it('sorts correctly when timestamps use offset notation vs Z', () => {
+    const a = make({ id: 'a', created_at: '2026-11-01T10:00:00+00:00' });
+    const b = make({ id: 'b', created_at: '2026-11-01T10:00:01Z' });
+    expect(inbox([a, b]).map((f) => f.id)).toEqual(['b', 'a']);
+  });
+
   it('does not mutate the input array', () => {
     const arr = [open1, handled1, open2];
     inbox(arr, { handled: false });

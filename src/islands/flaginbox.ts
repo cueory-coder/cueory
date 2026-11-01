@@ -49,7 +49,7 @@ export function inbox(flags: FlagRow[], filter?: InboxFilter): FlagRow[] {
     const want = filter.page;
     result = result.filter((f) => f.page === want);
   }
-  return result.slice().sort((a, b) => b.created_at.localeCompare(a.created_at));
+  return result.slice().sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
 }
 
 /** Flags grouped under one item and version, with a plain-language summary. */
