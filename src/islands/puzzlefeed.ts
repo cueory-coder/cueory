@@ -2,8 +2,8 @@
  * puzzlefeed — checks a day's puzzle payload before any game sees it (D-61).
  * Pure logic: no file I/O, no network, no database.
  *
- * Only today's puzzle is accepted. Yesterday's and tomorrow's are refused, so a student
- * can never reach a future answer by replaying an old payload.
+ * Only today's puzzle is accepted. This is a safety net against a wrong file being served;
+ * the real protection is the server or CDN never sending tomorrow's answer before its day (D-61).
  */
 import { parsePuzzle as parseCueword, type CuewordPuzzle } from './cueword';
 import { parsePuzzle as parseSuture, type SuturePuzzle } from './suture';
@@ -56,6 +56,14 @@ function checkTriage(puzzle: unknown): TriagePuzzle | string {
     }
   }
   if (typeof oddOne !== 'string' || !oddOne.trim()) return 'oddOne must be a non-empty string.';
+  // Duplicate-term check: every term (including oddOne) must be unique after normalization.
+  const allTerms = [...(groups as Array<{ terms: string[] }>).flatMap(g => g.terms), oddOne as string];
+  const seen = new Set<string>();
+  for (const term of allTerms) {
+    const key = term.trim().toLowerCase();
+    if (seen.has(key)) return 'each term must appear only once.';
+    seen.add(key);
+  }
   return {
     groups: groups.map((g: Record<string, unknown>) => ({
       name: g.name as string,
@@ -77,6 +85,7 @@ function checkTriage(puzzle: unknown): TriagePuzzle | string {
  * own cleaned shape. Error messages never reveal a puzzle's answer.
  */
 export function acceptPuzzle(payload: unknown, today: string): AcceptResult {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(today)) return { ok: false, message: 'today must be a YYYY-MM-DD date.' };
   if (!isRecord(payload)) return { ok: false, message: 'the payload must be an object.' };
 
   const { game, date, puzzle } = payload;
