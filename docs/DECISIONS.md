@@ -512,3 +512,28 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
 
   Reason: the lead's request; it follows Supabase's 2026 grants change and keeps every key and answer out of the
   browser.
+- **D-75** Task 2's first database change, following D-73 and the lead's three notes on it (#66).
+  - **Locked by default:** the first migration revokes the default grants on new tables, sequences and functions in
+    `public` from `anon`, `authenticated` and `service_role`. Every table and function after it grants what it needs in
+    its own migration. Postgres lets every role run a new function and a per-schema rule can't stop that, so each
+    function also revokes `execute` from `public`.
+  - **`profiles`:** one row per account, made by a trigger when the account is created, as Supabase's "User
+    Management" docs show. It holds only a display name: empty until the student picks one, 1 to 50 characters, no
+    control characters. The email stays in Supabase's `auth.users`, and onboarding answers come with the onboarding
+    pages. A student reads their own row and can change only `display_name`; signed-out visitors get nothing; deleting
+    an account deletes its profile. The trigger writes only the id, so bad sign-up data can't block a sign-up.
+  - **Tests:** 22 pgTAP tests in `supabase/tests/database/`. They check that every table has row-level security, that
+    anon has no table privileges, that no function in `public` can be called from the website unless it's on the
+    allowed list (empty for now), that new tables start with no grants, and every profile rule above. They passed
+    locally on a stand-in database set up with Supabase's old grant-everything defaults (the worst case), and they
+    fail when a table lacks row-level security or a function keeps `execute` for `public`.
+  - **CI:** `.github/workflows/database.yml` runs the pinned Supabase CLI (2.122.0, from npm) to start a throwaway
+    local database, apply every migration and run the tests. It needs no secrets and runs only when `supabase/` or the
+    workflow itself changes, and never on drafts (lead's note 2, D-74).
+  - **`supabase/config.toml`:** the CLI's own file, for that local database only. Seeding is off, because content
+    comes from reviewed batches.
+  - **Lead's notes 1 and 3, for later pull requests:** signed-out visitors still see "Flag or comment", and its form
+    says a free account is needed to send a report and offers hello@cueory.app instead. The keep-alive is one tiny
+    scheduled read a day per project.
+
+  Reason: D-73's plan, applied in the smallest first step, with tests that keep it locked.

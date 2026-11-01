@@ -90,9 +90,18 @@ Last updated: 2026-11-01
 - Daily games show plain names for now (D-66): pulse, crossword, sort and word path. Christian picks final names
   later.
 
+## Done (director, 2026-10-31 night)
+- Christian set up Supabase (SETUP Part K): the account on his business Gmail with two-factor on, and both projects,
+  `cueory-staging` and `cueory-prod`. Task 2 is unblocked.
+- In `staging`: the [game-name guard](https://github.com/lilchristxan/Cueory/pull/54) (D-67), a unit test that fails
+  if a page or game shows an internal id as words or types a name into a share line; and the
+  [Task 2 plan](https://github.com/lilchristxan/Cueory/pull/66) (D-73), approved by the lead with three notes (D-75).
+
 ## In review
-- Game-name guard (D-67): a unit test fails if a page or game shows an internal id (`cueword`, `triage`, `suture`) as
-  words, or types a name into a share line, so the next rename stays a one-line change.
+- Task 2, the first database change (D-75), waiting for Christian because it changes the database and CI: the
+  database starts locked (nothing new is reachable from the website until a change grants it), then `profiles`, one row
+  per account with only a display name that each student reads and changes for themselves. A new CI job applies every
+  change to a throwaway local database and runs 22 database tests, only when `supabase/` changes.
 - Promo panel fix: it waits until the ☰ panel or a study-mode preview has finished closing, so their own focus
   handling never takes focus away from it (a browser test failed 2 of 12 runs because of this).
 - Daily games, first part (D-61): `/play` with pulse, playable with labeled sample puzzles, and cueword, triage and
@@ -139,14 +148,11 @@ Targets: first visuals by about 14 November, the full kit by about 12 December (
   reviewers, approval), and higher-risk topics wait for a qualified reviewer.
 
 ## Blocked
-- **Task 2 (accounts and database)** is starting: Christian is creating the two Supabase projects (SETUP Part K),
-  and the plan is D-73 (grants, row-level security and policies in one migration; `check_answer`; Flag or comment for
-  signed-in students; keys per environment; migrations tested in CI with no real keys). Its migrations, sign-in and
-  database-policy parts need his approval. The "Flag or comment" button is built with it (D-34).
 - **Signup form** shows "signups open soon" until the Kit form exists (SETUP.md, Part I).
 
 ## Needs Christian's hands
-- Supabase account and the two projects (docs/SETUP.md, Part K): in progress tonight (2026-10-31).
+- Task 2's first database change (D-75): read its summary and merge it. It changes the database and CI, so it
+  never merges on its own. No keys are needed yet.
 Follow [docs/SETUP.md](SETUP.md):
 - [ ] A. Two-factor login on Google, GitHub, Cloudflare
 - [x] B. Turn on Codex reviews
