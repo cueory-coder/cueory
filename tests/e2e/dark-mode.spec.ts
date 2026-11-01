@@ -168,6 +168,24 @@ test.describe('Task 94: full-site Evening palette audit', () => {
         ).toBeVisible();
       }
 
+      // The label-it board also loads JSON after React mounts. Wait for the
+      // actual covers AND the image, never just its loading/error placeholder.
+      if (route === '/learn/study-skills/label-it') {
+        const board = page.getByTestId('labelit');
+        await expect(
+          board.getByTestId('labelit-status'),
+          'the label-it diagram must finish loading before the Evening audit',
+        ).toBeVisible({ timeout: 15000 });
+        await expect(
+          board.locator('[data-testid^="cover-"]').first(),
+          'the diagram must show at least one cover before the Evening audit',
+        ).toBeVisible();
+        await expect.poll(
+          () => board.locator('img').evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0),
+          { timeout: 15000, message: 'the diagram image must load before the Evening audit' },
+        ).toBe(true);
+      }
+
       findings.push(...await checkEveningColors(page));
 
       // WCAG AA includes axe's color-contrast rule. Do not turn it off.
