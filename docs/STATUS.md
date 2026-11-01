@@ -71,7 +71,8 @@ Last updated: 2026-11-01
   `packageManager`, and lockfile changes that add a package, an install script or a download from outside the npm
   registry; version bumps of existing packages still merge themselves.
 - In `staging`, also merged by Christian: [social links](https://github.com/lilchristxan/Cueory/pull/33) (D-54),
-  Instagram, TikTok and YouTube marks in the footer and the ☰ panel.
+  marks in the footer and the ☰ panel. Christian confirmed the addresses on 1 Nov (D-65): Instagram @cueory.app,
+  TikTok, YouTube and X @cueory, Pinterest cueoryapp and the Facebook page.
 - In `staging` (auto-merged): the [visuals kit plan](https://github.com/lilchristxan/Cueory/pull/35) (D-56 to D-58),
   docs only.
 - In `staging`: [brand v1.0](https://github.com/lilchristxan/Cueory/pull/38) (D-55, the lead's) and the

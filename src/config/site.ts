@@ -40,16 +40,17 @@ export const newsletter = {
 } as const;
 
 /**
- * Cueory's social profiles (D-54). Each shows as its platform's one-color mark, linking to the profile in a new tab,
- * in the footer and at the bottom of the ☰ panel. Only profiles with an address show. Instagram, TikTok and YouTube
- * are the defaults Christian is confirming; X and Facebook stay empty until he confirms them.
+ * Cueory's social profiles (D-54; addresses confirmed by Christian on 1 Nov 2026, D-65). Each shows as its platform's
+ * one-color mark, linking to the profile in a new tab, in the footer, the ☰ panel and the promo panel. Only profiles
+ * with an address show. Leave an address empty to hide that platform.
  */
 export const socials = [
-  { id: 'instagram', name: 'Instagram', href: 'https://instagram.com/cueory' },
-  { id: 'tiktok', name: 'TikTok', href: 'https://tiktok.com/@cueory' },
-  { id: 'youtube', name: 'YouTube', href: 'https://youtube.com/@cueory' },
-  { id: 'x', name: 'X', href: '' },
-  { id: 'facebook', name: 'Facebook', href: '' },
+  { id: 'instagram', name: 'Instagram', href: 'https://www.instagram.com/cueory.app/' },
+  { id: 'tiktok', name: 'TikTok', href: 'https://www.tiktok.com/@cueory' },
+  { id: 'youtube', name: 'YouTube', href: 'https://www.youtube.com/@cueory' },
+  { id: 'x', name: 'X', href: 'https://x.com/cueory' },
+  { id: 'facebook', name: 'Facebook', href: 'https://www.facebook.com/people/Cueory/61596065312423/' },
+  { id: 'pinterest', name: 'Pinterest', href: 'https://www.pinterest.com/cueoryapp/' },
 ] as const;
 
 export const footerLinks = [
