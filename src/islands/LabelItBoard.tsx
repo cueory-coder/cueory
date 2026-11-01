@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   coverAll,
   coverWords,
@@ -7,6 +7,7 @@ import {
   isRoundOver,
   mark,
   nextRound,
+  parseSet,
   readingOrder,
   reveal,
   revealAll,
@@ -37,32 +38,41 @@ function TickIcon() {
 }
 
 /**
- * Where a cover sits, in percentages of the image. The button is centred on its box and never smaller than 44 px,
- * so a tiny label is still easy to tap. Set through React's style property, which the browser applies directly and
- * the content security policy allows; that's why this island must be rendered with client:only.
+ * Where a cover sits, as CSS for one axis. The button is centred on its box and never smaller than 44 px, so a tiny
+ * label is still easy to tap, but it is kept inside the image: a small box at an edge gets a target that starts or
+ * ends at that edge instead of hanging over it (and scrolling a 320 px page sideways).
  */
-function coverPlace(label: Label) {
-  return {
-    left: `${label.x + label.w / 2}%`,
-    top: `${label.y + label.h / 2}%`,
-    width: `max(2.75rem, ${label.w}%)`,
-    height: `max(2.75rem, ${label.h}%)`,
-  };
+export function coverAxis(start: number, length: number): { offset: string; size: string } {
+  const size = `max(2.75rem, ${length}%)`;
+  return { offset: `clamp(0px, calc(${start + length / 2}% - ${size} / 2), calc(100% - ${size}))`, size };
 }
 
 /**
- * Label it (ROADMAP Task 4c): the labels on a diagram are covered. Uncover them one at a time by tapping a numbered
- * cover (or with the keyboard), or all at once, then mark each one "know it" or "still learning". The next round
- * covers only the "still learning" ones. A covered label's text is never in the page, not even for screen readers.
- * Rendered only in the browser (client:only).
+ * The cover's position, set through React's style property. The browser applies it through the CSSOM, which our
+ * content security policy allows; a server-rendered style="" attribute would be blocked, so the board is only ever
+ * rendered in the browser.
  */
-export default function LabelItBoard({ set }: Props) {
+function coverPlace(label: Label) {
+  const x = coverAxis(label.x, label.w);
+  const y = coverAxis(label.y, label.h);
+  return { left: x.offset, top: y.offset, width: x.size, height: y.size };
+}
+
+function Board({ set }: Props) {
   const ordered = readingOrder(set.labels);
   const numberOf = new Map(ordered.map((l, i) => [l.id, i + 1]));
   const [state, setState] = useState<LabelItState>(() => start(set));
   const [said, setSaid] = useState('');
   const [focusRequest, setFocusRequest] = useState(0);
   const statusRef = useRef<HTMLDivElement>(null);
+  const knowButtons = useRef(new Map<string, HTMLButtonElement>());
+  // After "uncover" in the list, that button is gone, so focus moves to the label's "know it" button.
+  const focusKnow = useRef<string | undefined>(undefined);
+
+  useLayoutEffect(() => {
+    if (focusKnow.current) knowButtons.current.get(focusKnow.current)?.focus();
+    focusKnow.current = undefined;
+  });
 
   // A new round moves keyboard focus to the top of the board; uncovering and marking leave focus where it is.
   useEffect(() => {
@@ -135,7 +145,7 @@ export default function LabelItBoard({ set }: Props) {
                       data-testid={`cover-${number}`}
                       // Uncovered: a dashed frame with a page-colored ring around it, so it shows on light and dark
                       // diagrams alike, and the number moves outside the frame so it never hides the label.
-                      className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-sm text-sm ${
+                      className={`absolute rounded-sm text-sm ${
                         open
                           ? 'border-2 border-dashed border-ink bg-transparent ring-2 ring-page'
                           : 'flex items-center justify-center border border-control bg-surface font-medium text-ink'
@@ -182,7 +192,10 @@ export default function LabelItBoard({ set }: Props) {
                   {!open && (
                     <button
                       type="button"
-                      onClick={() => doReveal(label)}
+                      onClick={() => {
+                        focusKnow.current = label.id;
+                        doReveal(label);
+                      }}
                       aria-label={`uncover label ${number}`}
                       className={`${secondaryButton} mt-2`}
                     >
@@ -194,6 +207,11 @@ export default function LabelItBoard({ set }: Props) {
                       {(['know', 'learning'] as const).map((value) => (
                         <button
                           key={value}
+                          ref={(element) => {
+                            if (value !== 'know') return;
+                            if (element) knowButtons.current.set(label.id, element);
+                            else knowButtons.current.delete(label.id);
+                          }}
                           type="button"
                           aria-pressed={current === value}
                           onClick={() => doMark(label, value)}
@@ -265,4 +283,62 @@ export default function LabelItBoard({ set }: Props) {
       </p>
     </div>
   );
+}
+
+/** A key that changes whenever the set's content changes, so a new set starts on a fresh board. */
+const setKey = (set: LabelSet) => JSON.stringify(set);
+
+/**
+ * Label it (ROADMAP Task 4c): the labels on a diagram are covered. Uncover them one at a time by tapping a numbered
+ * cover (or with the keyboard), or all at once, then mark each one "know it" or "still learning". The next round
+ * covers only the "still learning" ones. A covered label's text is never in the page, not even for screen readers.
+ *
+ * A different set remounts the board (via `key`) before it renders, so a new set always starts fully covered.
+ * Pages should use LabelItFromUrl below rather than passing `set` as an Astro prop: Astro writes island props into the
+ * page's HTML, and `set` holds every label's text.
+ */
+export default function LabelItBoard({ set }: Props) {
+  let parsed: LabelSet;
+  try {
+    parsed = parseSet(set);
+  } catch {
+    return <p role="alert">this diagram could not be loaded. please try again later.</p>;
+  }
+  return <Board key={setKey(parsed)} set={parsed} />;
+}
+
+/** Only our own site's paths, so a page can't point the board at another site. */
+const isOwnPath = (src: string) => /^\/(?!\/)[\w\-./]+\.json$/.test(src);
+
+/**
+ * The way pages mount label it: the page passes only the address of the set's JSON file, so no label text is in the
+ * page's HTML or the island's props. The file is fetched from our own site after the page loads (the CSP's
+ * connect-src 'self' allows it), checked with parseSet, then shown fully covered. Wire with client:only="react".
+ */
+export function LabelItFromUrl({ src }: { src: string }) {
+  const [loaded, setLoaded] = useState<{ src: string; set: LabelSet } | 'failed' | undefined>(undefined);
+
+  useEffect(() => {
+    if (!isOwnPath(src)) {
+      setLoaded('failed');
+      return;
+    }
+    let cancelled = false;
+    setLoaded(undefined);
+    fetch(src, { credentials: 'same-origin' })
+      .then((response) => (response.ok ? response.json() : Promise.reject(new Error(String(response.status)))))
+      .then((data: unknown) => {
+        if (!cancelled) setLoaded({ src, set: parseSet(data) });
+      })
+      .catch(() => {
+        if (!cancelled) setLoaded('failed');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [src]);
+
+  if (loaded === 'failed') return <p role="alert">this diagram could not be loaded. please try again later.</p>;
+  if (!loaded || loaded.src !== src) return <p className="text-sm text-ink-soft">loading the diagram…</p>;
+  return <LabelItBoard set={loaded.set} />;
 }

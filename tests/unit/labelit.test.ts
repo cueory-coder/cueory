@@ -1,4 +1,7 @@
+import { createElement } from 'react';
+import { renderToString } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
+import LabelItBoard, { coverAxis, LabelItFromUrl } from '../../src/islands/LabelItBoard';
 import {
   coverAll,
   coverWords,
@@ -175,5 +178,36 @@ describe('rounds', () => {
     expect(summary(state)).toEqual({ know: 0, learning: 1, unmarked: 2, covered: 2, total: 3, knownBefore: 0 });
     const next = nextRound(markAll({ roof: 'know', window: 'know', door: 'learning' }));
     expect(summary(next)).toEqual({ know: 0, learning: 0, unmarked: 1, covered: 1, total: 1, knownBefore: 2 });
+  });
+});
+
+describe('board markup', () => {
+  // The words a covered label would give away. The image's alt text is allowed to describe the picture.
+  const secrets = /\b(roof|window|door)\b/;
+
+  it('a fully covered board has no label text anywhere in its HTML', () => {
+    const html = renderToString(createElement(LabelItBoard, { set: house() }));
+    expect(html).toContain('label 1, covered');
+    expect(html.replace('a drawing of a house', '')).not.toMatch(secrets);
+  });
+
+  it('the loader starts with only the file address: no label text, no board yet', () => {
+    const html = renderToString(createElement(LabelItFromUrl, { src: '/learn/study-skills/label-it/house.json' }));
+    expect(html).toContain('loading the diagram');
+    expect(html).not.toMatch(secrets);
+  });
+
+  it('an unreadable set shows a plain message instead of a board', () => {
+    const html = renderToString(createElement(LabelItBoard, { set: { id: 'x' } as unknown as LabelSet }));
+    expect(html).toContain('this diagram could not be loaded');
+  });
+});
+
+describe('cover placement', () => {
+  it('centres the target on its box but keeps it inside the image', () => {
+    const left = coverAxis(0, 1);
+    expect(left.size).toBe('max(2.75rem, 1%)');
+    expect(left.offset).toBe('clamp(0px, calc(0.5% - max(2.75rem, 1%) / 2), calc(100% - max(2.75rem, 1%)))');
+    expect(coverAxis(99, 1).offset).toBe('clamp(0px, calc(99.5% - max(2.75rem, 1%) / 2), calc(100% - max(2.75rem, 1%)))');
   });
 });
