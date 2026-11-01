@@ -122,7 +122,9 @@ Targets: first visuals by about 14 November, the full kit by about 12 December (
   4.0). OpenStax waits for Christian (D-57).
 - In `staging`: [video frames for teaching diagrams](https://github.com/lilchristxan/Cueory/pull/47) (a Codex
   helper's, finished by the lead): `node scripts/export-frames.ts --url … --selector … --out …` saves numbered PNG
-  frames at 1080 × 1920 and 1920 × 1080 for shorts, with the diagram stretched to fill each frame.
+  frames at 1080 × 1920 and 1920 × 1080 for shorts, with the diagram stretched to fill each frame. In review
+  ([#57](https://github.com/lilchristxan/Cueory/pull/57)): only the selected diagram's own animations set a clip's
+  length, so a spinner elsewhere on the page can't make it "endless".
 - In review: the [source-file check](https://github.com/lilchristxan/Cueory/pull/49) (`src/visuals/sources.ts`,
   D-68). The build refuses a visual whose labels or depictions have no source, that quotes a book not on the allowed
   list, or whose source has the wrong license or no page address. Only approved visuals can appear on a page, and
