@@ -140,6 +140,14 @@ describe('malformed url', () => {
     expect(r.reason).toContain('credentials');
   });
 
+  it('refuses a hosted url with a port', () => {
+    const r = disabled(supabaseSettings({
+      PUBLIC_SUPABASE_URL: 'https://abcdefghijklmnopqrst.supabase.co:8443',
+      PUBLIC_SUPABASE_PUBLISHABLE_KEY: VALID_KEY,
+    }));
+    expect(r.reason).toContain('misconfigured');
+  });
+
   it('accepts http://localhost with a port for local Supabase', () => {
     const result = enabled(supabaseSettings({
       PUBLIC_SUPABASE_URL: 'http://localhost:54321',

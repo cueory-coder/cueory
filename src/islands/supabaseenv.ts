@@ -23,6 +23,7 @@ export type SupabaseSettings = SupabaseEnabled | SupabaseDisabled;
  * A valid project address is exactly `https://<project-ref>.supabase.co` with:
  * - https protocol (not http), or http only for localhost / 127.0.0.1
  * - no embedded credentials (username or password)
+ * - no port (only a local address keeps its port)
  * - a single subdomain under supabase.co with a 20-char lowercase alphanum ref
  * - no path, query string or fragment
  */
@@ -44,6 +45,8 @@ function validateUrl(raw: string | undefined): string | null {
     return parsed.origin;
   }
   if (parsed.protocol !== 'https:') return null;
+  // A hosted project address never has a port (local ones above keep theirs).
+  if (parsed.port !== '') return null;
   if (!parsed.hostname.endsWith('.supabase.co')) return null;
   // Must be exactly <ref>.supabase.co — no deeper nesting.
   const parts = parsed.hostname.split('.');
