@@ -92,6 +92,7 @@
   --tracking-label: 0.02em;     /* small label above the home headline */
   --tracking-display: -0.025em; /* serif display headings (brand spec) */
   --tracking-menu: 0.04em;      /* ☰ side panel links: medium Inter, slightly wide */
+  --tracking-guess: 0.2em;      /* letters typed into pulse's guess field, spaced like its letters (D-61) */
 
   /* ---------- Spacing ---------- */
   --spacing: 0.25rem;           /* base unit: p-4 = 4 × 0.25rem = 1rem */

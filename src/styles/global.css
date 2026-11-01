@@ -1013,7 +1013,7 @@ html:has(dialog.menu-panel[open]) {
   .pulse-field {
     inline-size: 11ch;
     font-size: var(--text-lg);
-    letter-spacing: 0.2em;
+    letter-spacing: var(--tracking-guess);
   }
 
   .pulse-cue-button {
