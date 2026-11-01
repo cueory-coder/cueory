@@ -91,6 +91,8 @@ Last updated: 2026-11-01
   later.
 
 ## In review
+- Game-name guard (D-67): a unit test fails if a page or game shows an internal id (`cueword`, `triage`, `suture`) as
+  words, or types a name into a share line, so the next rename stays a one-line change.
 - Promo panel fix: it waits until the ☰ panel or a study-mode preview has finished closing, so their own focus
   handling never takes focus away from it (a browser test failed 2 of 12 runs because of this).
 - Daily games, first part (D-61): `/play` with pulse, playable with labeled sample puzzles, and cueword, triage and
@@ -120,7 +122,9 @@ Targets: first visuals by about 14 November, the full kit by about 12 December (
   4.0). OpenStax waits for Christian (D-57).
 - In `staging`: [video frames for teaching diagrams](https://github.com/lilchristxan/Cueory/pull/47) (a Codex
   helper's, finished by the lead): `node scripts/export-frames.ts --url … --selector … --out …` saves numbered PNG
-  frames at 1080 × 1920 and 1920 × 1080 for shorts, with the diagram stretched to fill each frame.
+  frames at 1080 × 1920 and 1920 × 1080 for shorts, with the diagram stretched to fill each frame. In review
+  ([#57](https://github.com/lilchristxan/Cueory/pull/57)): only the selected diagram's own animations set a clip's
+  length, so a spinner elsewhere on the page can't make it "endless".
 - In review: the [source-file check](https://github.com/lilchristxan/Cueory/pull/49) (`src/visuals/sources.ts`,
   D-68). The build refuses a visual whose labels or depictions have no source, that quotes a book not on the allowed
   list, or whose source has the wrong license or no page address. Only approved visuals can appear on a page, and
@@ -135,9 +139,10 @@ Targets: first visuals by about 14 November, the full kit by about 12 December (
   reviewers, approval), and higher-risk topics wait for a qualified reviewer.
 
 ## Blocked
-- **Task 2 (accounts and database)** waits for Christian to create the two Supabase projects, and its sign-in and
-  database-policy parts need his approval. The "Flag or comment" button is built with it (D-34). Task 4 parts that
-  don't need accounts go first (D-35).
+- **Task 2 (accounts and database)** is starting: Christian is creating the two Supabase projects (SETUP Part K),
+  and the plan is D-73 (grants, row-level security and policies in one migration; `check_answer`; Flag or comment for
+  signed-in students; keys per environment; migrations tested in CI with no real keys). Its migrations, sign-in and
+  database-policy parts need his approval. The "Flag or comment" button is built with it (D-34).
 - **Signup form** shows "signups open soon" until the Kit form exists (SETUP.md, Part I).
 
 ## Needs Christian's hands
