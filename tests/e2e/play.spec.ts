@@ -233,7 +233,18 @@ test.describe('daily games: triage (D-63)', () => {
     ]);
     await expect(result).toContainText('cueory triage, sun 1 nov: not sorted this time.');
     await expect(page.getByRole('list', { name: 'terms to sort' })).toHaveCount(0);
+    await expect(page.getByTestId('triage-status')).toHaveCount(0);
     await expect(place(page, 'fruits')).toBeDisabled();
+  });
+
+  test('the odd one out fits none of the groups, and putting a group term there is a slip', async ({ page }) => {
+    await term(page, 'pear').click();
+    await place(page, 'none of these').click();
+    await expect(triageLive(page)).toHaveText('slip: pear belongs in one of the groups. 2 slips left.');
+    await term(page, 'violin').click();
+    await place(page, 'none of these').click();
+    await expect(triageLive(page)).toHaveText('violin fits none of the groups. 9 terms left.');
+    await expect(page.getByRole('list', { name: 'in none of these' })).toHaveText('✓ violin');
   });
 
   test('the keyboard alone sorts the whole round, and the result shares as plain words', async ({ page }) => {

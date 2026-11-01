@@ -85,21 +85,22 @@ export default function TriageGame({ puzzles }: Props) {
     }
     const next = placeTerm(state, puzzle, picked, place);
     setState(next);
-    const where = placeName(puzzle, place);
     if (next.slips > state.slips) {
       // A slip: the term stays picked, so it can go somewhere else.
-      setSaid(
-        next.status === 'out'
-          ? `slip: ${picked} isn't in ${where}. out of slips.`
-          : `slip: ${picked} isn't in ${where}. ${slipsLeftInWords(next)}.`,
-      );
+      const slip =
+        place === 'none'
+          ? `slip: ${picked} belongs in one of the groups.`
+          : `slip: ${picked} isn't in ${placeName(puzzle, place)}.`;
+      setSaid(`${slip} ${next.status === 'out' ? 'out of slips' : slipsLeftInWords(next)}.`);
       return;
     }
+    const right =
+      place === 'none' ? `${picked} fits none of the groups.` : `${picked} goes in ${placeName(puzzle, place)}.`;
     const stillLeft = termsLeft(next).length;
     setSaid(
       next.status === 'sorted'
-        ? `${picked} goes in ${where}. all sorted.`
-        : `${picked} goes in ${where}. ${stillLeft} ${stillLeft === 1 ? 'term' : 'terms'} left.`,
+        ? `${right} all sorted.`
+        : `${right} ${stillLeft} ${stillLeft === 1 ? 'term' : 'terms'} left.`,
     );
     setPicked(undefined);
     if (next.status === 'playing' && fromKeyboard(event)) focusTray.current = true;
@@ -117,12 +118,11 @@ export default function TriageGame({ puzzles }: Props) {
 
   return (
     <div className="triage" data-testid="triage">
-      <p className="text-sm text-ink-soft" data-testid="triage-status">
-        {left.length} {left.length === 1 ? 'term' : 'terms'} to sort · {slipsLeftInWords(state)}
-      </p>
-
       {playing && (
         <>
+          <p className="text-sm text-ink-soft" data-testid="triage-status">
+            {left.length} {left.length === 1 ? 'term' : 'terms'} to sort · {slipsLeftInWords(state)}
+          </p>
           <p className="mt-4" data-testid="triage-picked">
             {picked ? (
               <>
