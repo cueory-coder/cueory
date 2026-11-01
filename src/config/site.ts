@@ -16,7 +16,7 @@ export const site = {
   /** The live address. */
   url: 'https://cueory.app',
 
-  /** Shows "We're still building. More coming soon." on every page. Set to false to remove it. */
+  /** Shows "we're still building. more coming soon." on every page. Set to false to remove it. */
   showBuildingNotice: true,
 
   /** Christian's tip page. Leave empty to hide the button on /support. */
@@ -39,6 +39,20 @@ export const newsletter = {
   emailFieldName: 'email_address',
 } as const;
 
+/**
+ * Cueory's social profiles (D-54; addresses confirmed by Christian on 1 Nov 2026, D-65). Each shows as its platform's
+ * one-color mark, linking to the profile in a new tab, in the footer, the ☰ panel and the promo panel. Only profiles
+ * with an address show. Leave an address empty to hide that platform.
+ */
+export const socials = [
+  { id: 'instagram', name: 'Instagram', href: 'https://www.instagram.com/cueory.app/' },
+  { id: 'tiktok', name: 'TikTok', href: 'https://www.tiktok.com/@cueory' },
+  { id: 'youtube', name: 'YouTube', href: 'https://www.youtube.com/@cueory' },
+  { id: 'x', name: 'X', href: 'https://x.com/cueory' },
+  { id: 'facebook', name: 'Facebook', href: 'https://www.facebook.com/people/Cueory/61596065312423/' },
+  { id: 'pinterest', name: 'Pinterest', href: 'https://www.pinterest.com/cueoryapp/' },
+] as const;
+
 export const footerLinks = [
   { href: '/privacy', label: 'privacy' },
   { href: '/terms', label: 'terms' },
@@ -60,6 +74,7 @@ export const menuLinks = [
   { href: '/', label: 'home' },
   { href: '/#ways-to-study', label: 'ways to study' },
   { href: '/learn/study-skills', label: 'lessons' },
+  { href: '/play', label: 'daily games' },
   { href: accountHref, label: 'my progress', note: 'free account, coming soon' },
   { href: '/support', label: 'support cueory' },
 ] as const;
@@ -69,3 +84,22 @@ export const menuSmallLinks = [
   { href: '/privacy', label: 'privacy' },
   { href: '/terms', label: 'terms' },
 ] as const;
+
+/**
+ * The once-only promo panel (D-59), on marketing pages only, never on study screens. It slides down from the top after
+ * `delaySeconds`, or as soon as the visitor has scrolled halfway down the page, whichever comes first. Once it has
+ * been shown it stays away for `rememberDays`, whether the visitor closed it, clicked it or ignored it. Lowercase brand
+ * voice (D-47). When accounts exist (ROADMAP Task 2), the button becomes "create your free account" and goes to
+ * sign-up; until then it goes to the launch-updates signup (`accountHref`).
+ */
+export const promo = {
+  /** Set to false to turn the panel off on every page. */
+  show: true,
+  delaySeconds: 5,
+  rememberDays: 30,
+  heading: 'welcome to cueory.',
+  text: "we're still building. get a few emails about new lessons and the launch.",
+  joinLabel: 'join the launch list',
+  /** Goes to the tip page (`site.tipPageUrl`, Ko-fi); hidden when that is empty. */
+  supportLabel: 'support us while we build',
+} as const;

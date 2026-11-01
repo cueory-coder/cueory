@@ -55,4 +55,44 @@ const cards = defineCollection({
   }),
 });
 
-export const collections = { lessons, cards };
+/**
+ * Daily games (D-61): sample puzzles for pulse, one JSON file each in /content/games/pulse. Samples use everyday words
+ * and say so on the page. Real puzzles are nursing content whose answers are answer keys, so they never go in this
+ * repository: they come from the reviewed database with Task 2, one day at a time (D-61).
+ */
+const pulse = defineCollection({
+  loader: glob({ base: './content/games/pulse', pattern: '**/*.json' }),
+  schema: z.object({
+    status: z.literal('sample'),
+    word: z.string().regex(/^[a-z]{5,7}$/, 'a pulse word is five to seven lowercase letters'),
+    cue: z.string().min(1).max(120),
+  }),
+});
+
+/**
+ * triage (D-63): sample sorting puzzles, one JSON file each in /content/games/triage. Three named groups of three terms
+ * and one odd one out that belongs to none; every term appears once. Everyday words, labeled as samples on the page.
+ */
+const term = z.string().regex(/^[a-z][a-z -]{0,23}$/, 'a triage term is lowercase letters, up to 24 characters');
+const triage = defineCollection({
+  loader: glob({ base: './content/games/triage', pattern: '**/*.json' }),
+  schema: z
+    .object({
+      status: z.literal('sample'),
+      groups: z
+        .array(
+          z.object({
+            name: z.string().regex(/^[a-z][a-z -]{0,31}$/, 'a group name is lowercase letters, up to 32 characters'),
+            terms: z.array(term).length(3),
+          }),
+        )
+        .length(3),
+      oddOne: term,
+    })
+    .refine(
+      ({ groups, oddOne }) => new Set([...groups.flatMap((group) => group.terms), oddOne]).size === 10,
+      'every triage term appears once: nine in the groups and the odd one out',
+    ),
+});
+
+export const collections = { lessons, cards, pulse, triage };

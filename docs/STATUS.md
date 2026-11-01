@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-10-31
+Last updated: 2026-11-01
 
 ## Done
 - Static site: Astro + React islands + TypeScript + Tailwind, static output, tested at phone and desktop sizes.
@@ -9,10 +9,14 @@ Last updated: 2026-10-31
   `/content/lessons`), `/privacy` (draft), `/terms` and `/disclaimer` (marked spots for Christian's text), `/support`
   (Ko-fi link), `/subscribed` (after signup), 404. "We're still building" notice on every page.
 - Light / Dark / Follow-device theme switch in every page footer (brand spec section 9).
-- Brand applied (docs/BRAND.md, brand-source/Cueory_Branding_Spec.md): Daytime and Evening palettes with automatic
-  dark mode, Inter, exact lowercase motto and product description, traced vector logo built into wordmark, square and
-  3:1 banner files (light and dark, SVG and PNG) with a checksum manifest. Logo approved by Christian and frozen as
-  master v1.0.
+- Brand v1.0 applied (docs/BRAND.md, brand-source/v1.0/Cueory_Brand_Guide.md, D-55):
+  - Christian's new PNG logo, with light and dark web copies built by `scripts/build-brand-v1.mjs` and checked by
+    tests;
+  - the guide's exact colors (Espresso `#3E2C23`, Charcoal `#1C1917`, Ivory lettering in dark mode);
+  - new favicons;
+  - a calmer hero: no embossed logo, and the motto moved to the footer.
+
+  It replaces the earlier traced logo (now in `brand-source/legacy/`).
 - Security headers and a hash-based content security policy.
 - Repository stays private: Semgrep (code scanning) and gitleaks (secret scanning) run free in CI in place of
   GitHub's paid CodeQL and secret scanning.
@@ -55,22 +59,69 @@ Last updated: 2026-10-31
     [select-all-that-apply in the batch checker](https://github.com/lilchristxan/Cueory/pull/19) (D-45), the first
     pull requests the pre-launch auto-merge took on its own.
   - [Rollback guide](https://github.com/lilchristxan/Cueory/pull/22) in `docs/SETUP.md`.
-- In `staging`, waiting for the next release ([#26](https://github.com/lilchristxan/Cueory/pull/26), open for Christian):
+- Fourth release 31 Oct ([#26](https://github.com/lilchristxan/Cueory/pull/26)), merged by Christian; live on `main`:
   [home hero, ☰ side panel and account corner](https://github.com/lilchristxan/Cueory/pull/24) in the all-lowercase
   voice (D-46, D-47), with phone, tablet and desktop browser tests (D-48), [search in the ☰ panel](https://github.com/lilchristxan/Cueory/pull/27)
-  (D-49) and the ["ways to study" carousel](https://github.com/lilchristxan/Cueory/pull/28) (D-50).
+  (D-49), the ["ways to study" carousel](https://github.com/lilchristxan/Cueory/pull/28) (D-50), its
+  [preview and hover zoom](https://github.com/lilchristxan/Cueory/pull/29) (D-51), the
+  [silk scenes](https://github.com/lilchristxan/Cueory/pull/32) (D-53) and the
+  [med-surg lesson map](https://github.com/lilchristxan/Cueory/pull/31) (docs only).
+- In `staging`, waiting for the next release: [auto-merge hardening](https://github.com/lilchristxan/Cueory/pull/30)
+  (D-52), merged by Christian. Before launch the bot now also holds changes to package.json `scripts`, `engines` and
+  `packageManager`, and lockfile changes that add a package, an install script or a download from outside the npm
+  registry; version bumps of existing packages still merge themselves.
+- In `staging`, also merged by Christian: [social links](https://github.com/lilchristxan/Cueory/pull/33) (D-54),
+  marks in the footer and the ☰ panel. Christian confirmed the addresses on 1 Nov (D-65): Instagram @cueory.app,
+  TikTok, YouTube and X @cueory, Pinterest cueoryapp and the Facebook page.
+- In `staging` (auto-merged): the [visuals kit plan](https://github.com/lilchristxan/Cueory/pull/35) (D-56 to D-58),
+  docs only.
+- In `staging`: [brand v1.0](https://github.com/lilchristxan/Cueory/pull/38) (D-55, the lead's) and the
+  ["ways to study" merry-go-round and a calmer home page](https://github.com/lilchristxan/Cueory/pull/40) (D-60).
+  [Release #37](https://github.com/lilchristxan/Cueory/pull/37) carries everything in `staging` to `main` when
+  Christian merges it.
+- In `staging` (auto-merged): the [home page polish](https://github.com/lilchristxan/Cueory/pull/42) (D-62): 16 px
+  panels with a hairline and one soft shadow, a crisper glassy button, sections that fade in once, and a shorter
+  launch-updates panel.
+
+## Done (lead, 2026-10-31 evening)
+- Daily games show plain names for now (D-66): pulse, crossword, sort and word path. Christian picks final names
+  later.
 
 ## In review
-- [Study-mode preview and hover zoom](https://github.com/lilchristxan/Cueory/pull/29) (D-51): a card grows into a
-  preview with its moving illustration, two plain lines, "try it" and the free-account link; X, Escape, the darkened
-  page or a swipe down closes it. The auto-merge takes it once it is clean.
-- Silk scenes down the home page (D-53): the hero, "ways to study" and the launch-updates panel are three scenes of one
-  silk, with numbered sections, a figure caption and one thin rhythm line. The auto-merge takes it once it is clean.
+- [Once-only promo panel](https://github.com/lilchristxan/Cueory/pull/34) (D-59): on marketing pages a small dark panel
+  slides down from the top after 5 seconds or halfway down the page, with "join the launch list", "support us while we
+  build" and the social marks; once shown, it stays away for 30 days. Now on brand v1.0's colors.
+- Daily games, first part (D-61): `/play` with pulse, playable with labeled sample puzzles, and cueword, triage and
+  suture listed as coming soon; a link in the ☰ panel and a section on the home page after "ways to study". It adds
+  sample puzzles under `content/`, so it waits for Christian's merge. How real puzzles reach the browser one day at a
+  time is proposed in D-61 for Christian.
+- Daily games, second game (D-63, stacked on the first part): triage on `/play`. Sort ten terms into three named
+  groups, with one that fits none ("none of these"); a wrong place is a slip, and three slips end the round. Buttons
+  only (tap, click or keyboard, no dragging), every result said in words and shown by ✓, and a plain-words share line.
+  Seven labeled everyday samples under `content/games/triage/`, so it also waits for Christian's merge.
+
+- [Crossword engine and board](https://github.com/lilchristxan/Cueory/pull/51) (a Codex helper's, Task 3 on #11):
+  numbering, typing that skips gaps, checking a word or the whole grid, three cues that lock their letters, and a
+  plain-words share line, on a keyboard- and tap-friendly board. It isn't on a page yet: wiring it into `/play` with
+  labeled samples comes next, after the interim names (#48), and then the check on the locked staging site.
 
 ## Queued (Christian's change requests on issue #4, in his order)
-1. Social links (Simple Icons), then the once-only promo panel.
-2. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
-3. Auto-release (`staging` into `main` in pre-launch mode), after the change requests.
+1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
+2. Auto-release (`staging` into `main` in pre-launch mode), after the change requests.
+3. Christian's 31 Oct evening requests ([the lead's note on issue #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6551841155)),
+   now first: brand v1.0 (the lead's branch), then the home page polish pass, then the rest of daily games (the home
+   page section and triage are in `staging`; the crossword and word path engines are in review).
+
+## Visuals kit (Task 6, D-56)
+Targets: first visuals by about 14 November, the full kit by about 12 December ([plan](VISUALS.md)).
+- Done: the plan, and license checks on every source. Open RN *Nursing Fundamentals 2e* is the cited source (CC BY
+  4.0). OpenStax waits for Christian (D-57).
+- In review: [video frames for teaching diagrams](https://github.com/lilchristxan/Cueory/pull/47) (a Codex helper's,
+  finished by the lead): `node scripts/export-frames.ts --url … --selector … --out …` saves numbered PNG frames at
+  1080 × 1920 and 1920 × 1080 for shorts, with the diagram stretched to fill each frame.
+- Next: the visual source-file check and draft-only rendering, then the first batch (fluid compartments, osmosis and
+  fluid shifts, the sodium-potassium pump) with its review sheet. The 3D viewer adds three.js, so it waits for
+  Christian's merge; its models wait for the atlas choice.
 
 ## Planning
 - [Med-surg lesson map](curriculum/README.md) ([#31](https://github.com/lilchristxan/Cueory/pull/31)): the master
@@ -103,6 +154,10 @@ Follow [docs/SETUP.md](SETUP.md):
 - [ ] Auto-release (`staging` into `main` with no person in the loop): Christian's yes reached the repo through
   another Claude session on issue #4. The safety check of the session that builds it needs that yes from Christian
   himself, in the Claude chat that runs these updates, before it builds anything that changes the live site on its own.
+- [ ] Visuals kit, OpenStax (D-57): its books are CC BY-NC-SA, not CC BY, and its pages ask that they not be fed to
+  AI tools without permission. Keep it out (recommended), or ask OpenStax for permission.
+- [ ] Visuals kit, 3D atlas (D-57): BodyParts3D (CC BY 4.0: credit only; recommended) or Z-Anatomy (CC BY-SA 4.0: our
+  models and the videos that show them must use the same license).
 - [ ] An "about" page for the ☰ panel: the text is Christian's (D-46 leaves the link out until it exists).
 - [ ] Later decision: show a student's Google profile photo in the account corner instead of initials (it would load
   images from Google; ROADMAP Task 2).

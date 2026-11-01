@@ -116,7 +116,7 @@ export async function runAutomerge({
 }
 
 /**
- * Every package.json the pull request touches, as it is now on the base branch and in the pull request's head
+ * Every package.json and package-lock.json the pull request touches, as it is now on the base branch and in the pull request's head
  * commit, so decide() can compare the dependency lists themselves.
  */
 async function readDependencies(gh: GitHub, pull: PullRequest, files: readonly ChangedFile[]): Promise<DependencyFile[]> {

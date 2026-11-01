@@ -1,9 +1,10 @@
 ---
 /**
- * One small original illustration per study mode for the "ways to study" carousel (D-50): what the mode does, drawn
- * in brand colors only (classes in global.css, no colors here). Each is still and complete by default; the card in
- * the middle of the carousel plays a short loop (keyframes in global.css), never with reduced motion or after the
- * pause button. Decorative: hidden from screen readers, because the card's name and line say the same in words.
+ * One small original illustration per study mode for the "ways to study" merry-go-round (D-50, D-60): what the mode
+ * does, drawn in brand colors only (classes in global.css, no colors here), from plain shapes: no anatomy, no medical
+ * clip art. Each is still and complete by default; the card in the middle plays a short loop (keyframes in
+ * global.css), never with reduced motion or after the pause button. Decorative: hidden from screen readers, because
+ * the card's name and line say the same in words.
  */
 import type { StudyMode } from '../config/modes';
 
@@ -16,13 +17,17 @@ const { mode } = Astro.props;
 
 <svg viewBox="0 0 200 140" class="ill" aria-hidden="true" focusable="false">
   {
-    mode === 'lesson' && (
+    mode === 'video' && (
       <g>
-        <rect class="ill-paper" x="30" y="14" width="140" height="112" rx="10" />
-        <rect class="ill-line ill-anim ill-lesson-1" x="46" y="34" width="108" height="9" rx="4.5" />
-        <rect class="ill-line ill-anim ill-lesson-2" x="46" y="55" width="92" height="9" rx="4.5" />
-        <rect class="ill-accent ill-anim ill-lesson-3" x="46" y="76" width="100" height="9" rx="4.5" />
-        <rect class="ill-line ill-anim ill-lesson-4" x="46" y="97" width="66" height="9" rx="4.5" />
+        <rect class="ill-paper" x="24" y="12" width="152" height="94" rx="10" />
+        <rect class="ill-surface-card" x="34" y="22" width="132" height="74" rx="6" />
+        <rect class="ill-line" x="44" y="80" width="58" height="7" rx="3.5" />
+        <g class="ill-anim ill-video-press">
+          <circle class="ill-ink" cx="100" cy="54" r="17" />
+          <path class="ill-play" d="M95 45.5v17l13.5-8.5z" />
+        </g>
+        <rect class="ill-line" x="24" y="118" width="152" height="5" rx="2.5" />
+        <rect class="ill-accent ill-anim ill-from-left ill-video-progress" x="24" y="118" width="64" height="5" rx="2.5" />
       </g>
     )
   }
@@ -132,6 +137,69 @@ const { mode } = Astro.props;
           <path class="ill-pole" d="M152 114V92" />
           <path class="ill-accent" d="M152 92h16l-5 5 5 5h-16z" />
         </g>
+      </g>
+    )
+  }
+  {
+    mode === 'label-it' && (
+      <g>
+        <rect class="ill-paper" x="18" y="14" width="164" height="112" rx="10" />
+        <circle class="ill-surface-card" cx="72" cy="70" r="36" />
+        <circle class="ill-group" cx="60" cy="58" r="11" />
+        <rect class="ill-group" x="70" y="74" width="24" height="15" rx="5" />
+        <path class="ill-link" d="M71 58H124" />
+        <path class="ill-link" d="M94 81H124" />
+        <path class="ill-link" d="M84 102H124" />
+        <rect class="ill-line" x="128" y="52" width="40" height="12" rx="6" />
+        <rect class="ill-accent" x="128" y="75" width="40" height="12" rx="6" />
+        <rect class="ill-accent" x="128" y="96" width="34" height="12" rx="6" />
+        <rect class="ill-ink ill-anim ill-label-cover-1" x="127" y="74" width="42" height="14" rx="7" />
+        <rect class="ill-ink ill-anim ill-label-cover-2" x="127" y="95" width="36" height="14" rx="7" />
+      </g>
+    )
+  }
+  {
+    mode === 'adaptive-quiz' && (
+      <g>
+        <rect class="ill-paper" x="18" y="22" width="96" height="96" rx="10" />
+        <circle class="ill-option" cx="36" cy="46" r="6" />
+        <rect class="ill-line" x="48" y="42" width="52" height="8" rx="4" />
+        <circle class="ill-option ill-anim ill-q-pick" cx="36" cy="70" r="6" />
+        <rect class="ill-line" x="48" y="66" width="44" height="8" rx="4" />
+        <circle class="ill-option" cx="36" cy="94" r="6" />
+        <rect class="ill-line" x="48" y="90" width="48" height="8" rx="4" />
+        <rect class="ill-group" x="128" y="96" width="14" height="22" rx="3" />
+        <rect class="ill-group" x="146" y="80" width="14" height="38" rx="3" />
+        <rect class="ill-group" x="164" y="64" width="14" height="54" rx="3" />
+        <circle class="ill-accent ill-anim ill-climb" cx="135" cy="87" r="5" />
+      </g>
+    )
+  }
+  {
+    mode === 'level-test' && (
+      <g>
+        <rect class="ill-paper" x="26" y="14" width="148" height="112" rx="10" />
+        <rect class="ill-surface-card" x="26" y="14" width="148" height="22" rx="10" />
+        {[50, 74, 98].map((y, row) => (
+          <g>
+            <rect class="ill-line" x="40" y={y} width="50" height="8" rx="4" />
+            {[0, 1, 2].map((col) => (
+              <rect class="ill-day" x={104 + col * 20} y={y - 2} width="16" height="12" rx="3" />
+            ))}
+            {[0, 1, 2]
+              .filter((col) => col < 3 - row)
+              .map((col) => (
+                <rect
+                  class={`ill-ink ill-anim ill-level-${row * 3 + col + 1}`}
+                  x={106 + col * 20}
+                  y={y}
+                  width="12"
+                  height="8"
+                  rx="2"
+                />
+              ))}
+          </g>
+        ))}
       </g>
     )
   }

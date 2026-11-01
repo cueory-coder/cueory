@@ -1,59 +1,113 @@
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
 import { site } from '../../src/config/site';
 
+/*
+  Brand v1.0 (brand-source/v1.0/Cueory_Brand_Guide.md; D-55). The logo is Christian's PNG artwork. The web copies in
+  public/brand/v1/ are built from it by scripts/build-brand-v1.mjs, which records every file in
+  brand-source/v1.0/manifest.json. These tests fail if a file changes without rebuilding, or if anything drifts from
+  the guide's exact colors.
+*/
+
 const root = new URL('../../', import.meta.url);
-const read = (p: string) => readFileSync(new URL(p, root), 'utf8');
-const sha = (s: string | Buffer) => createHash('sha256').update(s).digest('hex');
-const paths = (svg: string) => [...svg.matchAll(/ d="([^"]+)"/g)].map((m) => m[1]);
-const fills = (svg: string) => [...svg.matchAll(/fill="(#[0-9A-Fa-f]{6})"/g)].map((m) => m[1].toUpperCase());
+const file = (p: string) => readFileSync(new URL(p, root));
+const sha = (b: Buffer) => createHash('sha256').update(b).digest('hex');
 
-const manifest = JSON.parse(read('public/brand/cueory-brand-manifest.json'));
+interface Export {
+  mode?: 'light' | 'dark';
+  color?: string;
+  background?: string;
+  width: number;
+  height: number;
+  sha256: string;
+}
+interface Manifest {
+  revision: string;
+  colors: Record<'ivory' | 'espresso' | 'charcoal', string>;
+  sources: Record<string, { role: string; sha256: string }>;
+  families: Record<string, { sources: { light: string; dark: string }; overlap: number; files: Record<string, Export> }>;
+  icons: Record<string, Export>;
+}
 
-describe('brand assets (Cueory_Branding_Spec.md)', () => {
+const manifest = JSON.parse(file('brand-source/v1.0/manifest.json').toString()) as Manifest;
+const exports = Object.entries(manifest.families).flatMap(([, family]) => Object.entries(family.files));
+const hex = (rgb: ArrayLike<number>) =>
+  `#${Array.from(rgb.length > 3 ? Array.from(rgb).slice(0, 3) : rgb, (c) => c.toString(16).padStart(2, '0')).join('')}`.toUpperCase();
+
+describe('brand v1.0', () => {
   it('motto is exact and lowercase', () => {
     expect(site.tagline).toBe('by nursing students, for nursing students.');
   });
 
-  it('uses the approved, frozen geometry master v1.0 (changing it needs Christian\'s approval)', () => {
-    expect(manifest.master.file).toBe('brand-source/cueory-geometry-master-v1.0.json');
-    expect(sha(readFileSync(new URL(manifest.master.file, root)))).toBe(
-      '4982f24f4bae805840320267d522d2046c4332069349338dfcdf1dd3703adea6',
-    );
+  it('uses the guide\'s exact logo colors (§4.1)', () => {
+    expect(manifest.revision).toBe('v1.0');
+    expect(manifest.colors).toEqual({ ivory: '#F9F5EF', espresso: '#3E2C23', charcoal: '#1C1917' });
   });
 
-  it('were built from the recorded geometry master and reference banner', () => {
-    expect(sha(readFileSync(new URL(manifest.master.file, root)))).toBe(manifest.master.sha256);
-    expect(sha(readFileSync(new URL('brand-source/cueory-banner-reference-light.png', root)))).toBe(
-      '056266ef0b4687918de8e3b1b952562c13f415ad03d3327d17b0beec01a962e0',
-    );
-    for (const [file, hash] of Object.entries(manifest.files)) {
-      expect(sha(read(file)), `${file} changed without rebuilding`).toBe(hash);
+  it('keeps every file Christian supplied, unchanged', () => {
+    const supplied = readdirSync(new URL('brand-source/v1.0/', root)).filter((name) => name !== 'manifest.json');
+    expect(supplied.sort()).toEqual(Object.keys(manifest.sources).sort());
+    for (const [name, source] of Object.entries(manifest.sources)) {
+      expect(sha(file(`brand-source/v1.0/${name}`)), `${name} changed`).toBe(source.sha256);
     }
   });
 
-  it.each(['wordmark', 'square', 'banner'])('%s: light and dark use identical geometry', (kind) => {
-    const light = read(`public/brand/cueory-${kind}-light.svg`);
-    const dark = read(`public/brand/cueory-${kind}-dark.svg`);
-    expect(paths(light)).toEqual(paths(dark));
-    expect(light.replace(/fill="#[0-9A-Fa-f]{6}"/g, '')).toBe(dark.replace(/fill="#[0-9A-Fa-f]{6}"/g, ''));
-  });
-
-  it('uses only the spec colors', () => {
-    expect(fills(read('public/brand/cueory-banner-light.svg'))).toEqual(['#F9F5EF', '#3F2E24', '#6B5243', '#6B5243', '#6B5243']);
-    expect(fills(read('public/brand/cueory-banner-dark.svg'))).toEqual(['#1B1715', '#EFE6DA', '#CBB8A4', '#CBB8A4', '#CBB8A4']);
-  });
-
-  it('logo files are outlines with an accessible name, no fonts or scripts', () => {
-    for (const file of Object.keys(manifest.files)) {
-      const svg = read(file);
-      expect(svg).toMatch(/aria-label="cueory/);
-      expect(svg).not.toMatch(/<text|<script|<image|font-family|href=/);
+  it('has a light and a dark copy of each export, the same size, that are the same drawing', () => {
+    for (const [name, family] of Object.entries(manifest.families)) {
+      expect(family.overlap, name).toBeGreaterThanOrEqual(0.85);
+      const light = Object.values(family.files).filter((f) => f.mode === 'light');
+      const dark = Object.values(family.files).filter((f) => f.mode === 'dark');
+      expect(light.length, name).toBeGreaterThan(0);
+      expect(dark.map((f) => [f.width, f.height])).toEqual(light.map((f) => [f.width, f.height]));
     }
   });
 
-  it('banner is 3:1', () => {
-    expect(read('public/brand/cueory-banner-light.svg')).toContain('viewBox="0 0 2172 724"');
+  it('serves exactly the files in the manifest', () => {
+    const served = readdirSync(new URL('public/brand/v1/', root)).sort();
+    expect(served).toEqual([...exports.map(([name]) => name), ...Object.keys(manifest.icons)].sort());
+    expect(existsSync(new URL('public/brand/cueory-brand-manifest.json', root))).toBe(false);
+    expect(existsSync(new URL('public/favicon.svg', root))).toBe(false);
+  });
+
+  it.each(exports)('%s matches its manifest entry and is one exact brand color', async (name, entry) => {
+    const png = file(`public/brand/v1/${name}`);
+    expect(sha(png), `${name} changed without rebuilding`).toBe(entry.sha256);
+    const { data, info } = await sharp(png).raw().toBuffer({ resolveWithObject: true });
+    expect([info.width, info.height]).toEqual([entry.width, entry.height]);
+    expect(info.channels).toBe(4);
+    expect(entry.color).toBe(entry.mode === 'light' ? manifest.colors.espresso : manifest.colors.ivory);
+    const colors = new Set<string>();
+    let transparent = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i + 3] === 0) transparent += 1;
+      else colors.add(hex(data.subarray(i, i + 3)));
+    }
+    // One color, no box: the artwork sits on any background (silk included) and the cruet's top half stays empty.
+    expect([...colors]).toEqual([entry.color]);
+    expect(transparent).toBeGreaterThan(0);
+  });
+
+  it.each(Object.entries(manifest.icons))('%s is the Daytime emblem on Ivory', async (name, entry) => {
+    const png = file(`public/brand/v1/${name}`);
+    expect(sha(png), `${name} changed without rebuilding`).toBe(entry.sha256);
+    const { data, info } = await sharp(png).raw().toBuffer({ resolveWithObject: true });
+    expect(info.width).toBe(info.height);
+    expect(info.width).toBe(entry.width);
+    // Corners are the background; the emblem's middle reaches full Espresso.
+    expect(hex(data.subarray(0, 3))).toBe(manifest.colors.ivory);
+    let darkest = 255 * 3;
+    for (let i = 0; i < data.length; i += info.channels) darkest = Math.min(darkest, data[i]! + data[i + 1]! + data[i + 2]!);
+    expect(darkest).toBe(62 + 44 + 35);
+  });
+
+  it('the logo component uses only files from the manifest', () => {
+    const component = file('src/components/Wordmark.astro').toString();
+    const named = [...component.matchAll(/name: '([\w-]+)', widths: \[([\d, ]+)\]/g)].flatMap(([, family, widths]) =>
+      widths!.split(',').flatMap((w) => ['light', 'dark'].map((mode) => `${family}-${mode}-${w.trim()}.png`)),
+    );
+    expect(named.length).toBeGreaterThan(0);
+    for (const name of named) expect(exports.map(([n]) => n), name).toContain(name);
   });
 });

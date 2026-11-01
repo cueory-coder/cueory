@@ -219,7 +219,111 @@ describe('dependency changes', () => {
       { filename: 'tools/new/package.json', previous_filename: 'tools/old/package.json' },
       { filename: 'docs/package.json.md' },
     ];
-    expect(dependencyPaths(files)).toEqual(['package.json', 'tools/new/package.json', 'tools/old/package.json']);
+    expect(dependencyPaths(files)).toEqual([
+      'package-lock.json',
+      'package.json',
+      'tools/new/package.json',
+      'tools/old/package.json',
+    ]);
+  });
+
+  describe('package.json fields that run code', () => {
+    const withFields = (fields: Record<string, unknown>) => JSON.stringify({ name: 'cueory', dependencies: {}, ...fields });
+    const base = withFields({ scripts: { build: 'astro build' }, engines: { node: '>=24' }, packageManager: 'npm@11.0.0' });
+
+    it('holds a changed, added or removed scripts field', () => {
+      expect(dependencyHolds(change(base, base.replace('astro build', 'astro build && curl x')))).toEqual([
+        'changes the scripts in package.json',
+      ]);
+      expect(dependencyHolds(change(withFields({}), withFields({ scripts: { postinstall: 'node x.js' } })))).toEqual([
+        'changes the scripts in package.json',
+      ]);
+      expect(dependencyHolds(change(base, withFields({ engines: { node: '>=24' }, packageManager: 'npm@11.0.0' })))).toEqual([
+        'changes the scripts in package.json',
+      ]);
+    });
+
+    it('holds a changed engines or packageManager, naming the field', () => {
+      expect(dependencyHolds(change(base, base.replace('>=24', '>=26')))).toEqual(['changes the engines in package.json']);
+      expect(dependencyHolds(change(base, base.replace('npm@11.0.0', 'npm@12.0.0')))).toEqual([
+        'changes the packageManager in package.json',
+      ]);
+    });
+
+    it('lets an unchanged set of fields through', () => {
+      expect(dependencyHolds(change(base, base))).toEqual([]);
+    });
+  });
+
+  describe('package-lock.json', () => {
+    const lock = (packages: Record<string, Record<string, unknown>>) =>
+      JSON.stringify({ lockfileVersion: 3, packages: { '': { name: 'cueory' }, ...packages } });
+    const npm = (name: string, version: string, more: Record<string, unknown> = {}) => ({
+      version,
+      resolved: `https://registry.npmjs.org/${name}/-/${name}-${version}.tgz`,
+      ...more,
+    });
+    const files = (before: string | null | undefined, after: string | null | undefined) => [
+      { path: 'package-lock.json', before, after },
+    ];
+    const base = lock({ 'node_modules/astro': npm('astro', '7.4.4'), 'node_modules/astro/node_modules/zod': npm('zod', '3.0.0') });
+
+    it('lets a version bump of existing packages through, even a new copy of a known name', () => {
+      const bumped = lock({
+        'node_modules/astro': npm('astro', '7.5.0'),
+        'node_modules/astro/node_modules/zod': npm('zod', '3.1.0'),
+        'node_modules/zod': npm('zod', '3.1.0'),
+      });
+      expect(dependencyHolds(files(base, bumped))).toEqual([]);
+      expect(dependencyHolds(files(base, base))).toEqual([]);
+    });
+
+    it('holds a package name the base lockfile lacks', () => {
+      const added = lock({ 'node_modules/astro': npm('astro', '7.4.4'), 'node_modules/evil': npm('evil', '1.0.0') });
+      expect(dependencyHolds(files(base, added))).toEqual(['package-lock.json adds the package evil']);
+    });
+
+    it('holds a download from outside the npm registry', () => {
+      const elsewhere = lock({
+        'node_modules/astro': { version: '7.5.0', resolved: 'https://example.com/astro-7.5.0.tgz' },
+        'node_modules/astro/node_modules/zod': npm('zod', '3.0.0'),
+      });
+      expect(dependencyHolds(files(base, elsewhere))).toEqual([
+        'package-lock.json: astro comes from outside the npm registry',
+      ]);
+      const git = lock({
+        'node_modules/astro': { version: '7.5.0', resolved: 'git+ssh://git@github.com/x/astro.git#abc' },
+        'node_modules/astro/node_modules/zod': npm('zod', '3.0.0'),
+      });
+      expect(dependencyHolds(files(base, git))).toHaveLength(1);
+    });
+
+    it('holds a package that gains an install script', () => {
+      const scripted = lock({
+        'node_modules/astro': npm('astro', '7.5.0', { hasInstallScript: true }),
+        'node_modules/astro/node_modules/zod': npm('zod', '3.0.0'),
+      });
+      expect(dependencyHolds(files(base, scripted))).toEqual(['package-lock.json: astro gains an install script']);
+      // One that already had it before does not count again.
+      const had = lock({ 'node_modules/esbuild': npm('esbuild', '0.25.0', { hasInstallScript: true }) });
+      const hadBumped = lock({ 'node_modules/esbuild': npm('esbuild', '0.25.1', { hasInstallScript: true }) });
+      expect(dependencyHolds(files(had, hadBumped))).toEqual([]);
+    });
+
+    it("holds a lockfile it can't read on either side", () => {
+      expect(dependencyHolds(files(undefined, base))).toEqual(["couldn't read package-lock.json"]);
+      expect(dependencyHolds(files(base, undefined))).toEqual(["couldn't read package-lock.json"]);
+      expect(dependencyHolds(files(base, '{not json'))).toEqual(["couldn't read the packages in package-lock.json"]);
+      expect(dependencyHolds(files('{not json', base))).toEqual(["couldn't read the packages in package-lock.json"]);
+      expect(dependencyHolds(files(base, JSON.stringify({ lockfileVersion: 1, dependencies: {} })))).toEqual([
+        "couldn't read the packages in package-lock.json",
+      ]);
+    });
+
+    it('holds a lockfile that appears or disappears', () => {
+      expect(dependencyHolds(files(null, base))).toEqual(['adds package-lock.json']);
+      expect(dependencyHolds(files(base, null))).toEqual(['removes package-lock.json']);
+    });
   });
 });
 

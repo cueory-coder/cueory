@@ -1,0 +1,71 @@
+---
+/**
+ * Daily games (D-61, D-63, D-66): one page for the four games, in the lowercase brand voice. pulse and sort are playable
+ * now with sample puzzles (everyday words, labeled as samples); the other two say coming soon. The names live in
+ * src/config/games.ts, so a rename is one line.
+ */
+import { getCollection } from 'astro:content';
+import Layout from '../layouts/Layout.astro';
+import PulseGame from '../islands/PulseGame';
+import TriageGame from '../islands/TriageGame';
+import { dailyGames } from '../config/games';
+
+const samples = (await getCollection('pulse'))
+  .sort((a, b) => a.id.localeCompare(b.id))
+  .map(({ data }) => ({ word: data.word, cue: data.cue }));
+const triageSamples = (await getCollection('triage'))
+  .sort((a, b) => a.id.localeCompare(b.id))
+  .map(({ data }) => ({ groups: data.groups, oddOne: data.oddOne }));
+const pulse = dailyGames.find((game) => game.id === 'pulse')!;
+const triage = dailyGames.find((game) => game.id === 'triage')!;
+const later = dailyGames.filter((game) => !game.ready);
+---
+
+<Layout title="daily games" description="new puzzles every day: a word to guess and terms to sort. sample puzzles for now.">
+  <article class="veil mx-auto mt-6 max-w-prose p-6 sm:mt-10 sm:p-10">
+    <h1 class="display text-title sm:text-title-lg">daily games</h1>
+    <p class="mt-3 text-ink-soft">
+      a new puzzle every day. for now these are sample puzzles with everyday words, while the real ones are written and
+      reviewed.
+    </p>
+
+    <section class="mt-12" aria-labelledby="pulse-heading">
+      <h2 id="pulse-heading" class="text-2xl font-medium">{pulse.name}</h2>
+      <p class="mt-2 text-ink-soft">{pulse.line}</p>
+      <p class="mt-1 text-sm text-ink-soft" data-testid="sample-note">today's word is a sample.</p>
+      <div class="mt-6">
+        {/* client:only: nothing is pre-rendered, so without JavaScript only the note below shows. */}
+        <PulseGame client:only="react" puzzles={samples} />
+        <noscript>
+          <p>{pulse.name} needs JavaScript.</p>
+        </noscript>
+      </div>
+    </section>
+
+    <section class="mt-16" aria-labelledby="triage-heading">
+      <h2 id="triage-heading" class="text-2xl font-medium">{triage.name}</h2>
+      <p class="mt-2 text-ink-soft">{triage.line}</p>
+      <p class="mt-1 text-sm text-ink-soft" data-testid="triage-sample-note">today's terms are a sample.</p>
+      <div class="mt-6">
+        <TriageGame client:only="react" puzzles={triageSamples} />
+        <noscript>
+          <p>{triage.name} needs JavaScript.</p>
+        </noscript>
+      </div>
+    </section>
+
+    <section class="mt-16" aria-labelledby="later-heading">
+      <h2 id="later-heading" class="text-2xl font-medium">coming soon</h2>
+      <ul class="mt-4 flex flex-col gap-3">
+        {
+          later.map((game) => (
+            <li>
+              <span class="font-medium">{game.name}</span>
+              <span class="text-ink-soft">: {game.line}</span>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+  </article>
+</Layout>

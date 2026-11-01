@@ -1,0 +1,30 @@
+{
+  "status": "sample",
+  "groups": [
+    {
+      "name": "breakfast foods",
+      "terms": [
+        "toast",
+        "cereal",
+        "pancake"
+      ]
+    },
+    {
+      "name": "vehicles",
+      "terms": [
+        "bus",
+        "truck",
+        "bicycle"
+      ]
+    },
+    {
+      "name": "flowers",
+      "terms": [
+        "rose",
+        "tulip",
+        "daisy"
+      ]
+    }
+  ],
+  "oddOne": "pencil"
+}

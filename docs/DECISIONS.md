@@ -262,6 +262,15 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   color, so its text keeps the plain page-color contrast; a pause button in it shares the row's setting (WCAG 2.2.2).
   With a mouse, the card under the pointer or keyboard focus grows to 1.04 with a deeper shadow; touch screens and
   reduced motion skip it. Reason: Christian's request.
+- **D-52** Auto-merge holds package.json scripts and risky lockfile changes before launch (found in a repo review,
+  2026-10-31). The pre-launch auto-merge (D-42) now also waits for Christian when a pull request changes, adds or
+  removes `scripts`, `engines` or `packageManager` in a package.json (a changed `build` or a `postinstall` would run in
+  the staging build the moment the bot merged it), or when its `package-lock.json` adds a package name the base
+  lockfile lacks, gives a package an install script, or downloads anything from outside `https://registry.npmjs.org/`.
+  A lockfile that only moves existing packages to other versions still merges itself, so minor bumps keep working
+  (D-42). A lockfile that can't be read on either side waits. Once the site is live every lockfile change is held, as
+  before. Reason: before this, only package.json's dependency lists were compared, so a lockfile alone could pull in
+  new code. This pull request edits `scripts/automerge/`, so it waits for Christian like any change to the auto-merge.
 - **D-53** Silk scenes down the home page (Christian's change requests, 2026-10-31, 1:15 pm and 1:22 pm). The hero,
   "ways to study" and the launch-updates panel are three scenes cut from the same silk: the hero's folds, sheen and
   grain, with the folds at another angle, the light from another side and the tint moving from Ivory to Linen and back
@@ -279,3 +288,164 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   without it. With the taller sections, the carousel's auto-advance now pauses only while a mouse rests on the cards or
   their buttons (or keyboard focus is inside), not anywhere over the section, which on a computer would have stopped it
   for good. Study screens are unchanged. Reason: Christian's request.
+- **D-54** (Addresses updated by D-65.) Social links (Christian's change request, 2026-10-31, 1:15 pm). The footer and the bottom of the ☰ panel link
+  to Cueory's profiles, each as its platform's official one-color mark, opening in a new tab with `rel="noopener
+  noreferrer"` and named for screen readers ("cueory on Instagram (opens in a new tab)"). The addresses live in
+  `src/config/site.ts` (`socials`), and only filled-in ones show: Instagram, TikTok and YouTube (the defaults Christian
+  is confirming); X and Facebook stay empty until he confirms them. The marks come from Simple Icons (CC0;
+  `simple-icons`, pinned, a build-time package), so each is drawn inline from our own page and nothing loads from the
+  platforms until someone clicks; the platforms' own brand guidelines allow one-color marks that link to a profile. Each
+  link is a 44 px target, in the text color (the ☰ panel's light ink there). The promo panel gets the same links in its
+  own pull request. Reason: Christian's request.
+- **D-55** Brand v1.0 (Christian's new logo and guide, 2026-10-31, 6:22 pm). His guide
+  `brand-source/v1.0/Cueory_Brand_Guide.md` replaces the earlier spec, which moves to `brand-source/legacy/` with the
+  traced banner and geometry master (history only). Changes:
+  - **The logo is his PNG artwork** (wordmark with a water-drop c and a half-filled cruet), never traced into an SVG,
+    retyped, redrawn, embossed, shadowed or recolored (guide §2.4, §3.6).
+  - **Sources:** every file he supplied is kept unchanged in `brand-source/v1.0/`, with checksums in `manifest.json`.
+  - **Web copies:** `scripts/build-brand-v1.mjs` makes them in `public/brand/v1/`: the full logo and the emblem, in
+    Espresso and in Ivory, on transparent backgrounds, cropped to the artwork, at three widths each, plus four icons
+    (the emblem on Ivory). The script reads how much ink covers each pixel and writes it in one exact color, so
+    nothing is redrawn, the logo sits on the silk without a box, and the cruet's empty half stays empty (§4.1).
+  - **One drawing for both palettes:** the light files' drawings (guide §4.5: same geometry, only colors change). The
+    dark files are the same drawings (the script checks the overlap: 96% for the full logo, 89% for the small dark
+    emblem), but the full logo's dark file has stair-stepped edges and the emblem's dark file is only 348px wide.
+  - **The cruet alone isn't exported yet:** its files draw it only about 135px wide, and the site doesn't use it yet.
+  - **Colors move to the guide's exact values:** Espresso `#3E2C23`, Charcoal `#1C1917`, and Ivory `#F9F5EF` for
+    dark-mode text and logo. The older `#3F2E24`, `#1B1715` and `#EFE6DA` are retired (§4.3), and a test fails if they
+    return.
+  - **Logo sizes follow §3.5:** the full logo 240px wide in the header and 240–320px in the hero. Study screens get
+    the compact emblem (§6.1), and so does the header on phones, where 240px plus the two corner buttons would be
+    wider than the screen. The favicons and home-screen icon become the emblem on Ivory.
+  - **The hero calms down** (Christian: "this part of the homepage looks cluttered"):
+    - the giant embossed logo behind the headline goes, because §3.6 forbids embossing the logo;
+    - the motto moves from under the logo to the footer;
+    - the "or start the free study-skills course" link goes (the ☰ panel and the carousel's "try it" links reach the
+      course).
+  - **What's left:** the logo, the headline, the accent line, one button and one short line under it (§7.2: one
+    primary call to action).
+
+  Reason: Christian's new brand, and his request for a cleaner hero.
+- **D-56** Med-surg I visuals kit is Task 6 and runs now, ahead of the remaining roadmap tasks (Christian's decision,
+  2026-10-31): Cueory's own 3D body, animated 2D diagrams and "simplified for learning" disease overlays, first visuals
+  by about 14 November and the full kit by about 12 December. Each visual has one source file,
+  `content/visuals/<visual-id>.json`, giving the exact source words, book, section and page address for every label
+  and depiction, and the `lesson_id` it serves. The build will check those files. Labeled visuals are content: they
+  wait for Christian in batches with a one-page review sheet, and only a visual marked `"status": "approved"` can
+  appear on a page, so drafts never reach the live site. Plan: docs/VISUALS.md. Reason: Christian's plan, and the
+  same review rules as every other piece of content.
+- **D-57** Sources for the visuals kit. The cited text source is Open RN *Nursing Fundamentals 2e* (CC BY 4.0), with
+  the credit the book asks for; its figures have their own licenses, so we cite its words and never copy its pictures.
+  OpenStax *Anatomy and Physiology 2e* is on hold: OpenStax's help page says its books are CC BY-NC-SA, not CC BY as
+  the plan assumed, and the book's pages say it may not be ingested into AI tools without OpenStax's written
+  permission. Nothing licensed NonCommercial is used anywhere in the kit, because Cueory takes tips and plans videos.
+  The 3D atlas (Z-Anatomy, CC BY-SA 4.0 with two NonCommercial parts left out, or BodyParts3D, CC BY 4.0) is
+  Christian's call. Reason: checked the licenses before using them (CLAUDE.md rule 5).
+- **D-58** 3D models are glTF compressed with meshopt (gltfpack, keeping each named structure separate) and decoded
+  with three.js's `MeshoptDecoder` on the page's own thread. Its WebAssembly needs only the `'wasm-unsafe-eval'` the
+  CSP already allows (D-49). Draco was not chosen: three.js's Draco loader always decodes in workers made from `blob:`
+  addresses, which would need a looser CSP. Reason: smaller files with no security-policy change.
+- **D-59** Once-only promo panel (Christian's change request, 2026-10-31, 1:15 pm). On marketing pages only (never on
+  study screens, and not on the signup thank-you page, whose visitor has just joined), a small panel slides down from
+  the top after 5 seconds, or as soon as the visitor has scrolled halfway down the page, whichever comes first. It is
+  the account menu's dark glass (solid where blur isn't supported) and floats over the page, so nothing moves. It holds
+  "welcome to cueory.", one line about the launch emails, "join the launch list" (the launch-updates signup until
+  accounts exist; it becomes "create your free account" with Task 2), "support us while we build" (the Ko-fi page, in a
+  new tab) and the social marks (D-54). Once shown, it stays away for 30 days
+  whether the visitor closed it, clicked it or ignored it: one date in local storage (`cueory-promo-seen`), never sent
+  to us, so it never comes back on a refresh or later in the visit; a browser that can't remember never sees it. It
+  waits while the ☰ panel, a study-mode preview or the account menu is open, while the visitor is typing in a field,
+  and while the tab is in the background (the 5 seconds count only on screen). Focus moves to its close button without
+  scrolling, so screen readers announce its heading and text, and goes back where it was after the close button or
+  Escape; it doesn't trap focus or block the page. Leaving the page closes it at once, so Back never brings it back
+  from the browser's back/forward cache (Codex review of #34). With reduced motion it appears without the slide; without
+  JavaScript it never appears. Copy and timings live in `promo` in `src/config/site.ts`, and `/privacy` says what is
+  remembered. Reason: Christian's request for a promo that is "not annoying": once, small, easy to close.
+- **D-60** "ways to study" becomes an endless merry-go-round, and the home page loses its clutter (Christian's feedback,
+  2026-10-31, 6:40 pm, relayed by the lead on issue #4). The card in the middle is in front, and its neighbours stay
+  visible on both sides (one on phones and tablets, two from 64rem wide), stepping back: 0.88 and then 0.76 of its
+  size, turned 10° away round the ring, and quieter (no shadow, the heading in the second ink, a softer drawing; their
+  words keep the frosted-panel contrast, since nothing masks, fades or blurs a card). Next after the last card is the
+  first and previous before the first is the last. A tap on a side card brings it to the middle, and a tap on the card
+  in the middle opens its preview (D-51). The arrows, the arrow keys (Home and End too), a sideways swipe or a
+  sideways trackpad swipe turn it by one card; a turn takes 240 ms, easing out (brand guide §7.3), and a card going
+  round the back, or a jump of several cards, switches at once instead of sweeping across. With reduced motion there is
+  no glide and no turn. The auto-advance, its pause button and its rules are unchanged (D-50). Only the card in the
+  middle is in the Tab order, and screen readers hear only the card where the ring comes to rest ("matching, 5 of 11").
+  Without JavaScript the cards are still a row that scrolls sideways. Eleven cards: video (replacing "lesson": the
+  sentence reader stays inside lessons as the read-along text), cards, learn, fill-in, matching, organizer, questions,
+  review, then three from the roadmap marked coming soon: label it (Task 4c), adaptive quiz and level test (Task 4b).
+  The video card's drawing is its click-to-play cover (D-40); no video exists yet, so it is coming soon. Removed: the
+  mode chips, the numbered section labels and their rule, the figure caption and the rhythm line (the brand guide
+  forbids ECG lines); the building notice is now lowercase. The ring reuses the card tokens; its step-back, turn and
+  timing numbers live in `src/scripts/carousel.ts` (unit tested) because `tokens.css` is held for brand v1.0 until the
+  lead's pull request merges, and `--drop-mode-card` (no longer used) goes then too. Reason: Christian's request for
+  an endless merry-go-round that is never empty, and a calmer, less templated page.
+- **D-61** Daily games start with pulse on `/play` (Christian's request, 2026-10-31, 6:40 pm, item 4 of the lead's note
+  on issue #4). `/play` lists the four games under working names kept in `src/config/games.ts` (pulse, cueword, triage,
+  suture), so a rename is one line; the ☰ panel links to it, and the home page has a calm section of its own right after
+  "ways to study" (a silk scene, `scene-play`: the heading, one line and "play today's pulse"). pulse is playable now
+  with ten labeled sample puzzles of everyday words (`content/games/pulse/`, checked by the content config). Its own
+  rules: the word runs five to seven letters; there are seven beats; a guess spends one, and the day's cue spends one
+  (never the last); each letter is marked in place (filled, ●), elsewhere in the word (ringed, ○) or not in it (plain,
+  ·), in words for screen readers too, never by color alone, as round letters in a row, never a tile grid. Typing in a
+  labeled field and tapping the on-screen letters both work. The result shares as one plain line ("cueory pulse, sun 1
+  nov: solved in 3 of 7 beats, with the cue."): no squares, no streak, and no stats kept yet. A day's sample is picked
+  from the visitor's own date, going round the list. **Proposed, waiting for Christian: only today's puzzle reaches the
+  browser.** Real puzzles are nursing content whose answers are answer keys, so they never go in this repository
+  (content/README.md). The smallest $0 way: reviewed puzzles live in the Task 2 database (Supabase, free) with a publish
+  date, and a database function returns only today's puzzle (and past ones), with row-level security that blocks future
+  rows; `/play` fetches it when it loads. That needs Task 2's database and Christian's approval of its policies; until
+  then pulse plays samples only. Without the database, a small Cloudflare Worker route could hold the puzzles and answer
+  only today's, but that changes `wrangler.jsonc` (deployment), so it is also Christian's call. Reason: Christian's
+  request for daily games as a major feature, built so that no future puzzle can reach a browser.
+- **D-62** Home page polish: "expensive, not a template" (Christian's feedback, 2026-10-31, 6:40 pm, item 3 of the lead's
+  note on issue #4). Frosted panels and cards get a 16 px radius (`--radius-xl`), a 1 px hairline at lower opacity and
+  one soft shadow (`--shadow-soft`, one layer); drawings inside cards get a smaller radius than the card. The glassy
+  button gets a crisper rim (`--glass-rim-alpha` up) and a smaller, softer shadow of its own (`--shadow-button`). The
+  "ways to study" section and the launch-updates panel fade in with a 10 px rise the first time they come into view,
+  once (`--rise-reveal`, 600 ms, easing out). Only sections still below the window when the script runs wait, so
+  nothing is hidden without JavaScript or once on screen, and with reduced motion nothing waits or moves. Until Kit is
+  connected the launch-updates panel says only "signups open soon."; the line about the emails comes with the form, so
+  small grey lines never stack. The space between sections was already about 144 px on desktops, inside the 96 to
+  160 px asked for, so it stays. Reason: Christian's request for a calmer page that looks expensive.
+- **D-63** triage, the second daily game on `/play` (Christian's request for four medically themed games with original
+  names, rules and look, 2026-10-31, item 4 of the lead's note on issue #4). Its own rules: the three groups are named
+  and shown from the start, so nothing is hidden but where each term goes. Ten terms: three for each group and one odd
+  one out that belongs to none, which goes to "none of these". Pick a term, then its group, with buttons only (tap,
+  click or keyboard; no dragging and no timer). A right place locks the term into its group with ✓; a wrong one is a
+  slip, said in words, and the term stays picked so it can go elsewhere; three slips end the round and show where each
+  term goes. The terms are dealt in an order seeded by the day, so everyone sees the same order on a day and the groups
+  never come pre-sorted. The look is a loose row of rounded pills and four quiet panels, never a grid of tiles or
+  colored rows, and the share is one plain line ("cueory triage, sun 1 nov: sorted with 1 slip."). Samples use
+  everyday words (`content/games/triage/`, checked by `src/content.config.ts`: three groups of three, every term once)
+  and say so on the page; real puzzles follow pulse's path in D-61. The home page section now says "play today's
+  games". Reason: Christian's request for daily games as a major feature, with rules and a look of our own.
+- **D-64** The daily game names are final (Christian's decision, 2026-10-31, 8:52 pm Phoenix, relayed by the lead on
+  issue #4): **pulse** (guess the word), **cueword** (a mini crossword), **triage** (sort terms into groups) and
+  **suture** (trace hidden words through a letter grid). They stay in `src/config/games.ts`, and the "working name"
+  wording is gone from the code and docs. Rules, look and content stay as briefed: each game has its own rules, never
+  another word game's names, colors, tile grids or square shares, and real puzzles are Christian-reviewed content.
+  Reason: Christian's decision.
+- **D-65** Social profiles confirmed by Christian (2026-11-01): Instagram @cueory.app (not @cueory, so the earlier
+  instagram.com/cueory link was wrong and is fixed before release #37 goes live), TikTok @cueory, YouTube @cueory, X
+  @cueory, Pinterest cueoryapp and the Facebook page he linked. All six now show, each as its platform's one-color mark
+  from the pinned Simple Icons (Pinterest added; no new package). Only profile addresses are kept in
+  `src/config/site.ts`; account emails and passwords never go in the repository (a unit test checks the settings for
+  them). Reason: Christian's confirmation on the chat, 2026-11-01.
+- **D-66** Plain game names for now (Christian's decision, 2026-10-31, 9:45 pm; replaces the names in D-64).
+  - **Why:** a trademark screen found live US filings for three of the four names:
+    - CUEWORD: a pending application for children's English-learning software, by the company behind Cuemath;
+    - SUTURE: a pending application for medicine and science education;
+    - TRIAGE: a registered board game, live since 2012.
+  - **What visitors see:** the four games show as **pulse**, **crossword**, **sort** and **word path**, together as
+    cueory games. pulse stays, because the other uses found were an adventure game and casino games, not education.
+  - **What stays the same:** the ids in the code and the content folders (`pulse`, `cueword`, `triage`, `suture`)
+    are never shown, so they stay.
+  - **One place for names:** every visible name, heading and share line comes from `src/config/games.ts`, so the
+    final names will be a one-line change.
+  - **Not "cue-" names:** Cuemath already holds several "cue" filings in education, and more "cue-" game names would
+    crowd them and weaken Cueory's own name.
+  - **Next:** Christian picks final names later, after a screen.
+
+  Reason: avoid launching under names others have filed for related goods.

@@ -1,9 +1,10 @@
 ---
 import '../styles/global.css';
 import BuildingNotice from '../components/BuildingNotice.astro';
+import PromoPanel from '../components/PromoPanel.astro';
 import SiteFooter from '../components/SiteFooter.astro';
 import SiteHeader from '../components/SiteHeader.astro';
-import { site } from '../config/site';
+import { promo as promoSettings, site } from '../config/site';
 import { themeHeadScript } from '../scripts/theme';
 
 interface Props {
@@ -17,14 +18,20 @@ interface Props {
   variant?: 'default' | 'study' | 'home';
   /** Keep this page out of search engines. */
   noindex?: boolean;
+  /**
+   * The once-only promo panel (D-59). Marketing pages show it unless they turn it off (the signup thank-you page does,
+   * because its visitor has just joined); study screens never do.
+   */
+  promo?: boolean;
 }
 
-const { title, description = site.description, variant = 'default', noindex = false } = Astro.props;
+const { title, description = site.description, variant = 'default', noindex = false, promo = true } = Astro.props;
 // Browser-tab titles use the lowercase brand voice: "privacy · cueory" (D-47).
 const fullTitle = title === site.name || title === site.wordmarkName ? site.wordmarkName : `${title} · ${site.wordmarkName}`;
 const canonical = new URL(Astro.url.pathname, site.url).href;
 const isStudy = variant === 'study';
 const isHome = variant === 'home';
+const showPromo = promoSettings.show && promo && !isStudy;
 // The title a page has in site search results (D-49): its own title, and "home" for the home page.
 const searchTitle = isHome ? 'home' : title;
 ---
@@ -37,9 +44,12 @@ const searchTitle = isHome ? 'home' : title;
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Brand v1.0 icons (D-55): the emblem on Ivory, built by scripts/build-brand-v1.mjs. -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/brand/v1/icon-32.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/brand/v1/icon-192.png" />
+    <link rel="apple-touch-icon" href="/brand/v1/icon-180.png" />
     <meta name="theme-color" content="#f9f5ef" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#1b1715" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#1c1917" media="(prefers-color-scheme: dark)" />
     {noindex && <meta name="robots" content="noindex, nofollow" />}
     <!-- Applies a saved Light or Dark pick before the page paints (ThemePicker.astro, src/scripts/theme.ts). -->
     <script is:inline set:html={themeHeadScript} />
@@ -81,5 +91,6 @@ const searchTitle = isHome ? 'home' : title;
       <slot />
     </main>
     <SiteFooter />
+    {showPromo && <PromoPanel />}
   </body>
 </html>

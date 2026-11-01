@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 220 220">
-  <!-- Faint grain for the Evening palette (D-41): noise tinted Evening Ivory #EFE6DA at a few percent. -->
+  <!-- Faint grain for the Evening palette (D-41): noise tinted Ivory #F9F5EF at a few percent. -->
   <filter id="grain" x="0" y="0" width="100%" height="100%">
     <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" stitchTiles="stitch"/>
-    <feColorMatrix type="matrix" values="0 0 0 0 0.937  0 0 0 0 0.902  0 0 0 0 0.855  0 0 0 0.06 0"/>
+    <feColorMatrix type="matrix" values="0 0 0 0 0.976  0 0 0 0 0.961  0 0 0 0 0.937  0 0 0 0.06 0"/>
   </filter>
   <rect width="220" height="220" filter="url(#grain)"/>
 </svg>

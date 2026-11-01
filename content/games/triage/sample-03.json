@@ -1,0 +1,30 @@
+{
+  "status": "sample",
+  "groups": [
+    {
+      "name": "musical instruments",
+      "terms": [
+        "drum",
+        "flute",
+        "harp"
+      ]
+    },
+    {
+      "name": "shapes",
+      "terms": [
+        "circle",
+        "square",
+        "oval"
+      ]
+    },
+    {
+      "name": "tools",
+      "terms": [
+        "hammer",
+        "saw",
+        "wrench"
+      ]
+    }
+  ],
+  "oddOne": "pillow"
+}

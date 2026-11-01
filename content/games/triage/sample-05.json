@@ -1,0 +1,30 @@
+{
+  "status": "sample",
+  "groups": [
+    {
+      "name": "kitchen tools",
+      "terms": [
+        "spoon",
+        "kettle",
+        "whisk"
+      ]
+    },
+    {
+      "name": "sea animals",
+      "terms": [
+        "crab",
+        "whale",
+        "octopus"
+      ]
+    },
+    {
+      "name": "clothes",
+      "terms": [
+        "scarf",
+        "jacket",
+        "sock"
+      ]
+    }
+  ],
+  "oddOne": "cloud"
+}
