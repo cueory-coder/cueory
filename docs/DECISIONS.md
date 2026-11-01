@@ -345,6 +345,22 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   with three.js's `MeshoptDecoder` on the page's own thread. Its WebAssembly needs only the `'wasm-unsafe-eval'` the
   CSP already allows (D-49). Draco was not chosen: three.js's Draco loader always decodes in workers made from `blob:`
   addresses, which would need a looser CSP. Reason: smaller files with no security-policy change.
+- **D-59** Once-only promo panel (Christian's change request, 2026-10-31, 1:15 pm). On marketing pages only (never on
+  study screens, and not on the signup thank-you page, whose visitor has just joined), a small panel slides down from
+  the top after 5 seconds, or as soon as the visitor has scrolled halfway down the page, whichever comes first. It is
+  the account menu's dark glass (solid where blur isn't supported) and floats over the page, so nothing moves. It holds
+  "welcome to cueory.", one line about the launch emails, "join the launch list" (the launch-updates signup until
+  accounts exist; it becomes "create your free account" with Task 2), "support us while we build" (the Ko-fi page, in a
+  new tab) and the social marks (D-54). Once shown, it stays away for 30 days
+  whether the visitor closed it, clicked it or ignored it: one date in local storage (`cueory-promo-seen`), never sent
+  to us, so it never comes back on a refresh or later in the visit; a browser that can't remember never sees it. It
+  waits while the ☰ panel, a study-mode preview or the account menu is open, while the visitor is typing in a field,
+  and while the tab is in the background (the 5 seconds count only on screen). Focus moves to its close button without
+  scrolling, so screen readers announce its heading and text, and goes back where it was after the close button or
+  Escape; it doesn't trap focus or block the page. Leaving the page closes it at once, so Back never brings it back
+  from the browser's back/forward cache (Codex review of #34). With reduced motion it appears without the slide; without
+  JavaScript it never appears. Copy and timings live in `promo` in `src/config/site.ts`, and `/privacy` says what is
+  remembered. Reason: Christian's request for a promo that is "not annoying": once, small, easy to close.
 - **D-60** "ways to study" becomes an endless merry-go-round, and the home page loses its clutter (Christian's feedback,
   2026-10-31, 6:40 pm, relayed by the lead on issue #4). The card in the middle is in front, and its neighbours stay
   visible on both sides (one on phones and tablets, two from 64rem wide), stepping back: 0.88 and then 0.76 of its

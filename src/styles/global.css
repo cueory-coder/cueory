@@ -594,6 +594,74 @@
     text-decoration: none;
   }
 
+  /*
+    The once-only promo panel (D-59): the account menu's dark glass in a small card that slides down from the top of
+    marketing pages. It floats over the page (fixed), so nothing moves when it appears. Its text uses the panel's two
+    inks, checked on the panel over the lightest color anything behind it can have (tests/unit/tokens.test.ts).
+  */
+  .promo {
+    position: fixed;
+    inset-block-start: calc(env(safe-area-inset-top, 0px) + var(--spacing) * 3);
+    inset-inline-start: max(var(--spacing-gutter), env(safe-area-inset-left, 0px));
+    inset-inline-end: max(var(--spacing-gutter), env(safe-area-inset-right, 0px));
+    z-index: 40;
+    margin-inline: auto;
+    max-inline-size: var(--container-promo);
+    max-block-size: calc(100dvh - env(safe-area-inset-top, 0px) - var(--spacing) * 6);
+    overflow-y: auto;
+    padding: calc(var(--spacing) * 4) calc(var(--spacing) * 4) calc(var(--spacing) * 6) calc(var(--spacing) * 6);
+    border-radius: var(--radius-xl);
+    border: 1px solid rgb(var(--glass-rim-rgb) / 0.18);
+    color: var(--color-panel-ink);
+    background-color: rgb(var(--panel-rgb) / var(--panel-alpha));
+    box-shadow: var(--shadow-lift);
+    -webkit-backdrop-filter: blur(var(--blur-veil));
+    backdrop-filter: blur(var(--blur-veil));
+    /* Inside the dark panel, focus outlines use the panel's light ink. */
+    --color-focus: var(--color-panel-ink);
+    /* Starts above the window and slides down into place (D-59). */
+    transform: translateY(calc(-100% - var(--spacing) * 6));
+    opacity: 0;
+    transition:
+      transform 320ms ease,
+      opacity 200ms ease;
+  }
+
+  .promo[data-open] {
+    transform: none;
+    opacity: 1;
+  }
+
+  /* The main action: a light pill on the dark glass. Hover darkens it to the panel's second ink, text unchanged. */
+  .promo-button {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: calc(var(--spacing) * 11);
+    padding-inline: calc(var(--spacing) * 6);
+    border-radius: var(--radius-pill);
+    color: var(--color-on-panel-button);
+    background-color: var(--color-panel-ink);
+    font-weight: 500;
+    text-decoration: none;
+  }
+
+  .promo-button:hover {
+    color: var(--color-on-panel-button);
+    background-color: var(--color-panel-ink-soft);
+  }
+
+  .promo-link {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(var(--spacing) * 1);
+    min-block-size: calc(var(--spacing) * 11);
+    color: var(--color-panel-ink);
+  }
+
+  .promo-link:hover {
+    color: var(--color-panel-ink);
+  }
+
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
     .corner-button:not(.corner-button-quiet, .corner-button-panel) {
       background-color: rgb(var(--veil-rgb));
@@ -608,8 +676,16 @@
     }
 
     .menu-panel,
-    .account-menu {
+    .account-menu,
+    .promo {
       background-color: rgb(var(--panel-rgb));
+    }
+  }
+
+  /* Reduced motion: the promo panel appears in place, with no slide (D-59). */
+  @media (prefers-reduced-motion: reduce) {
+    .promo {
+      transition: none;
     }
   }
 }

@@ -1,7 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Prose from '../components/Prose.astro';
-import { newsletter, site } from '../config/site';
+import { newsletter, promo, site } from '../config/site';
 ---
 
 <Layout title="privacy" description="What Cueory stores, what it doesn't, and how to delete or export your data.">
@@ -23,6 +23,11 @@ import { newsletter, site } from '../config/site';
     <p>
       If you pick Light or Dark at the bottom of a page, or star a card, your browser remembers that on your device. It
       never reaches us.
+    </p>
+    <p>
+      On your first visit, a small panel about the launch list may slide down from the top of the page. Your browser
+      remembers on your device that it showed you the panel, so it stays away for {promo.rememberDays} days. That isn't a
+      cookie, and it never reaches us.
     </p>
 
     <h2>Launch-updates emails</h2>
