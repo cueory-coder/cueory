@@ -652,3 +652,29 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
     Christian merges it. The pre-launch auto-merge into `staging` (D-42) is unchanged.
 
   Reason: Christian's calls on the three open questions (D-57 and the auto-release question on issue #4).
+
+- **D-84** Task 2's third database change: concepts, sources and rights records (Task C6, step 1; follows D-73 and
+  D-77, copying #76's pattern). The Supabase docs read first: "Row Level Security" (always name the role in a policy
+  with `to`; wrap `auth.uid()` in a select) and "Testing Your Database" (`set local role`, JWT claims, `begin` and
+  `rollback`).
+  - **`concepts` and `sources`:** public once published. Visitors and students may only read rows marked `published`
+    (a policy with `to anon, authenticated`); nobody on the website can add, change or delete. Only the service role
+    writes, as the admin tools and import jobs will. A source is a credit line, so a published one is public.
+  - **`rights_records`:** Christian's private record of why an image may be used (ROADMAP Task 4c). It is admin data
+    (CLAUDE.md rule 1), so `anon` and `authenticated` get no grant at all, not even to read. A record names its source,
+    the holder, the licence and where the licence was checked; "verified" always comes with a date (never in the
+    future). A source with a record can't be deleted.
+  - **Shapes:** slugs are lowercase words with dashes, up to 80 characters (`public.slug`, one rule for every table
+    that needs one); titles 1 to 200 characters with no control characters; every address is a plain `https://` link
+    with no spaces, so a source can't carry a script or a `data:` address. No data is in the migration: the repository
+    is public (D-75).
+  - **Tests:** `supabase/tests/database/concepts_sources_rights_test.sql`, 34 checks: the exact grants, what a visitor,
+    a student and the service role can really read and write, every shape rule, and the foreign keys. The lockdown
+    test now lists the two tables a visitor may read, SELECT only, and fails if the list gets longer without a
+    reviewer seeing it. Each check was seen failing when a grant, a policy or row-level security was weakened.
+  - **Run locally without Docker:** the Mac has no Docker, so these ran on PGlite (Postgres 17 in WebAssembly) with a
+    small pgTAP look-alike for the few functions the tests use, with Supabase's old grant-everything defaults as the
+    worst case. That stands in for, and doesn't replace, the Database check, which runs the real pgTAP on Supabase's
+    Postgres.
+
+  Reason: the director's request on #11 (Task C6), following D-73's schema order.
