@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { checkBatch, ITEM_COLUMNS, KEY_COLUMNS, REVIEWER_ROSTER } from '../../scripts/check-batch/check';
 import { passedCsv } from '../../scripts/check-batch/report';
 import { toCsv, type CsvRow } from '../../scripts/check-batch/csv';
-import { parsePassed, type BatchFiles } from '../../scripts/import-batch/parse';
+import { parsePassed, itemHash, type BatchFiles } from '../../scripts/import-batch/parse';
 
 const columns = [...ITEM_COLUMNS, 'type', 'choice_e', 'rationale_a', 'rationale_b', 'rationale_c', 'rationale_d', 'rationale_e'];
 const sample: CsvRow = {
@@ -19,7 +19,7 @@ const files = (items: CsvRow[] = [sample], key: CsvRow[] = [sampleKey]): BatchFi
 const parse = (item: CsvRow = sample, key: CsvRow = sampleKey) => parsePassed(allow([item]), files([item], [key]));
 
 describe('passed batch parsing', () => {
-  it('joins the real checker’s ID-only report to its original item and key files', () => {
+  it("joins the real checker's ID-only report to its original item and key files", () => {
     const checked = checkBatch({
       items: [sample], key: [sampleKey],
       facts: [{ fact_id: 'sample-fact', source_id: 'sample-source' }],
@@ -149,15 +149,15 @@ describe('row refusals and problem locations', () => {
     expect(result.problems.some(problem => problem.message.includes('different text'))).toBe(true);
   });
 
-  it.each(['rationale_a', 'rationale_b', 'rationale_c', 'rationale_d'])('never replaces missing %s with the main rationale', field => {
-    const result = parse({ ...sample, [field]: '' });
+  it.each(['rationale_a', 'rationale_b', 'rationale_c', 'rationale_d'])('requires per-choice rationale %s for sata, refuses missing with main', field => {
+    const result = parse({ ...sample, type: 'sata', [field]: '' }, { ...sampleKey, answer: 'A;B;C;D' });
     expect(result.items).toEqual([]);
     expect(result.problems[0]).toMatchObject({ file: 'items.csv', row: 2 });
     expect(result.problems[0].message).toContain(`choice ${field.slice(-1)}`);
   });
 
-  it('requires a rationale for an optional fifth choice too', () => {
-    const result = parse({ ...sample, type: 'sata', choice_e: 'sample: oval' });
+  it('requires a rationale for an optional fifth choice on sata too', () => {
+    const result = parse({ ...sample, type: 'sata', choice_e: 'sample: oval' }, { ...sampleKey, answer: 'A;B;C;D;E' });
     expect(result.items).toEqual([]);
     expect(result.problems[0].message).toContain('choice e');
   });
@@ -176,7 +176,7 @@ describe('row refusals and problem locations', () => {
     ['sample-source;', ['sample-source']],
     ['; sample-source ;;', ['sample-source']],
     ['sample-source;sample-source', ['sample-source', 'sample-source']],
-  ] as const)('matches the checker’s source-list handling for %s', (source_ids, expected) => {
+  ] as const)("matches the checker's source-list handling for %s", (source_ids, expected) => {
     const result = parse({ ...sample, source_ids, fact_ids: '; sample-fact ;;' });
     expect(result.problems).toEqual([]);
     expect(result.items[0].sourceIds).toEqual(expected);
@@ -186,15 +186,15 @@ describe('row refusals and problem locations', () => {
     expect(parse({ ...sample, type: 'sample: invented' }).problems[0].message).toBe('choose single or sata for the question type.');
   });
 
-  it('reports the original file’s record number, not the allowlist position', () => {
-    const invalid = { ...sample, item_id: 'sample-2', rationale_c: '' };
-    const result = parsePassed(allow([invalid]), files([sample, invalid], [{ item_id: 'sample-2', answer: 'A' }]));
+  it("reports the original file's record number, not the allowlist position", () => {
+    const invalid = { ...sample, item_id: 'sample-2', type: 'sata', rationale_c: '' };
+    const result = parsePassed(allow([invalid]), files([sample, invalid], [{ item_id: 'sample-2', answer: 'A;B;C;D' }]));
     expect(result.problems).toEqual([{ file: 'items.csv', row: 3, message: 'fill in the rationale for choice c; the main rationale cannot replace it.' }]);
   });
 
   it('keeps a valid passed row while refusing another, without mutating any input', () => {
-    const invalid = { ...sample, item_id: 'sample-2', rationale_c: '' };
-    const batch = Object.freeze(files([sample, invalid], [sampleKey, { item_id: 'sample-2', answer: 'A' }]));
+    const invalid = { ...sample, item_id: 'sample-2', type: 'sata', rationale_c: '' };
+    const batch = Object.freeze(files([sample, invalid], [sampleKey, { item_id: 'sample-2', answer: 'A;B;C;D' }]));
     const original = { ...batch };
     const result = parsePassed(allow([invalid, sample]), batch);
     expect(result.items.map(item => item.id)).toEqual(['sample-1']);
@@ -214,6 +214,45 @@ describe('row refusals and problem locations', () => {
     expect(result.items).toEqual([]);
     expect(result.problems[0]).toMatchObject({ file, row: 2 });
     expect(result.problems[0].message).toContain('never closed');
+  });
+
+  it('accepts a single-answer item with no per-choice rationales (Gap 2 fix)', () => {
+    const noRationales = { ...sample, rationale_a: '', rationale_b: '', rationale_c: '', rationale_d: '' };
+    const result = parse(noRationales);
+    expect(result.problems).toEqual([]);
+    expect(result.items[0].rationales).toEqual({});
+  });
+
+  it('accepts a single-answer item with some per-choice rationales and omits the rest', () => {
+    const partial = { ...sample, rationale_b: '', rationale_d: '' };
+    const result = parse(partial);
+    expect(result.problems).toEqual([]);
+    expect(result.items[0].rationales).toEqual({ a: sample.rationale_a, c: sample.rationale_c });
+  });
+
+  it('refuses an item whose hash does not match (Gap 1 fix)', () => {
+    const correctHash = itemHash(sample, sampleKey);
+    const brokenHash = correctHash.replace(/.$/, correctHash.at(-1) === 'f' ? '0' : 'f');
+    const passedWithHash = toCsv(['item_id', 'concept_id', 'hash'], [{ ...sample, hash: brokenHash }]);
+    const result = parsePassed(passedWithHash, files());
+    expect(result.items).toEqual([]);
+    expect(result.problems).toEqual([{
+      file: 'passed.csv', row: 2, message: 'the item hash does not match; the question may have changed since it passed review.',
+    }]);
+  });
+
+  it('accepts an item whose hash matches and imports it normally', () => {
+    const correctHash = itemHash(sample, sampleKey);
+    const passedWithHash = toCsv(['item_id', 'concept_id', 'hash'], [{ ...sample, hash: correctHash }]);
+    const result = parsePassed(passedWithHash, files());
+    expect(result.problems).toEqual([]);
+    expect(result.items[0].id).toBe('sample-1');
+  });
+
+  it('skips hash verification when the hash column is absent (backward compatibility)', () => {
+    const result = parsePassed(allow(), files());
+    expect(result.problems).toEqual([]);
+    expect(result.items[0].id).toBe('sample-1');
   });
 
   it('refuses missing headers and partial CSV records before importing anything', () => {

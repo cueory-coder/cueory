@@ -50,7 +50,7 @@ with `;`.
 | `choice_e` | Optional column. Fill it only on questions with a fifth choice. |
 | `type` | Optional column. Blank or `single`: one right answer. `sata`: select all that apply (D-45). |
 | `rationale` | Why the right answer is right. |
-| `rationale_a` … `rationale_e` | Optional columns: why each choice is right or wrong, shown after the student answers. Required for every choice on `sata` questions. |
+| `rationale_a` … `rationale_e` | Optional columns: why each choice is right or wrong, shown after the student answers. Required for every choice on `sata` questions; optional for `single`-answer questions. |
 | `fact_ids` | The facts the question relies on (`f-001;f-014`). At least one. |
 | `source_ids` | The sources the question cites (`s-01`). At least one. |
 
@@ -111,7 +111,9 @@ Warnings appear in the report but don't fail any question:
 
 ## Result files
 
-- `passed.csv`: `item_id`, `concept_id` of every question that passed. The importer (Task 2) will read this.
+- `passed.csv`: `item_id`, `concept_id`, `hash` of every question that passed. The importer reads this. The `hash`
+  column holds the SHA-256 of the canonical item JSON (all item columns plus the answer key in a fixed order); the
+  importer rejects any item whose content has changed since the checker wrote this file.
 - `failed.csv`: `item_id`, `concept_id` and `reasons`, all reasons in one cell separated by `;`.
 - `pending.csv`: `item_id`, `concept_id` and `waiting_for` (which reviewers haven't finished), separated by `;`.
 - `report.md`: a plain-language summary with the balance table and each reviewer's agreement with the key.
