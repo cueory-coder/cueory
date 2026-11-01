@@ -1,0 +1,13 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import AuthCallback from '../../islands/AuthCallback';
+---
+
+<!-- No tokens or codes are placed in the HTML. The PKCE exchange happens only on the student's device. -->
+<Layout title="finish signing in" variant="study" noindex promo={false}>
+  <div class="mx-auto max-w-prose pt-8">
+    <h1 class="text-2xl">signing you in…</h1>
+    <AuthCallback client:only="react" />
+    <noscript><p class="mt-4">turn on javascript to finish signing in. <a href="/signin">back to sign in</a></p></noscript>
+  </div>
+</Layout>
