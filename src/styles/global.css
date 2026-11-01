@@ -102,15 +102,38 @@
   contrast on the darkest and lightest points of each background.
 */
 @layer components {
-  /* Draped silk: diagonal folds of light and shade, a soft sheen, and a faint grain. */
-  .silk {
+  /*
+    Draped silk scenes (D-41, D-53): diagonal folds of light and shade, a soft sheen and a faint grain. The home page
+    is a series of them, one per section: the same cloth with the folds at another angle, the light from another side
+    and the tint moving between Ivory and Linen (Evening: Charcoal and Walnut). Each scene is its own layer behind its
+    section. It reaches up into the empty space at the bottom of the section before it and fades in there, so one
+    scene dissolves into the next with no hard edge, and no mask or fade ever touches text. Every scene has the same folds (one set at full strength crossed by one at half
+    strength) on Ivory or Linen, so the worst-case contrast checks in tests/unit/tokens.test.ts cover them all.
+  */
+  .scene {
+    --scene-base: var(--color-silk-base);
+    --scene-light: 22% 0%;
+    --scene-angle: 112deg;
+    --scene-cross: 68deg;
+    --scene-fade-top: var(--spacing-section);
+    --scene-fade-bottom: 0px;
+    position: relative;
+    isolation: isolate;
+  }
+
+  .scene::before {
     --silk-fold-mix: rgb(var(--silk-fold-rgb) / var(--silk-fold-alpha));
-    background-color: var(--color-silk-base);
+    content: "";
+    position: absolute;
+    inset: calc(-1 * var(--scene-fade-top)) 0 0;
+    z-index: -20;
+    pointer-events: none;
+    background-color: var(--scene-base);
     background-image:
       var(--silk-grain),
-      radial-gradient(120% 75% at 22% 0%, var(--color-silk-sheen), transparent 62%),
+      radial-gradient(120% 75% at var(--scene-light), var(--color-silk-sheen), transparent 62%),
       linear-gradient(
-        112deg,
+        var(--scene-angle),
         transparent 6%,
         var(--silk-fold-mix) 19%,
         transparent 31%,
@@ -120,13 +143,71 @@
         transparent 88%
       ),
       linear-gradient(
-        68deg,
+        var(--scene-cross),
         transparent 40%,
         rgb(var(--silk-fold-rgb) / calc(var(--silk-fold-alpha) / 2)) 63%,
         transparent 82%
       ),
-      linear-gradient(180deg, var(--color-silk-base), var(--color-silk-shade));
+      linear-gradient(180deg, var(--scene-base), var(--color-silk-shade));
     background-size: 220px 220px, auto, auto, auto, auto;
+    -webkit-mask-image: linear-gradient(
+      180deg,
+      transparent,
+      currentColor var(--scene-fade-top),
+      currentColor calc(100% - var(--scene-fade-bottom)),
+      transparent
+    );
+    mask-image: linear-gradient(
+      180deg,
+      transparent,
+      currentColor var(--scene-fade-top),
+      currentColor calc(100% - var(--scene-fade-bottom)),
+      transparent
+    );
+  }
+
+  /* The hero: Ivory, light from the upper left. It starts at the top of the page, so nothing fades in above it. */
+  .scene-hero {
+    --scene-fade-top: 0px;
+  }
+
+  /* "ways to study": Linen (Evening: Walnut), the folds falling the other way, light from the upper right. */
+  .scene-tint {
+    --scene-base: var(--color-silk-tint);
+    --scene-light: 82% 8%;
+    --scene-angle: 248deg;
+    --scene-cross: 292deg;
+  }
+
+  /* Launch updates: Ivory again, gentler folds, light from below on the left. The last scene fades into the footer. */
+  .scene-low {
+    --scene-light: 24% 100%;
+    --scene-angle: 152deg;
+    --scene-cross: 28deg;
+    --scene-fade-bottom: var(--spacing-section);
+  }
+
+  /* "02 — stay in touch": a small numbered label under a fine rule, like a heading in a lab notebook. */
+  .scene-rule {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: calc(var(--spacing) * 3);
+  }
+
+  .scene-rule::before {
+    content: "";
+    inline-size: calc(var(--spacing) * 12);
+    border-block-start: 1px solid var(--color-line);
+  }
+
+  /* The one medical cue on the page: a thin rhythm line between the hero and the first section. Decoration only. */
+  .rhythm {
+    display: block;
+    inline-size: min(15rem, 60%);
+    block-size: auto;
+    margin-inline: auto;
+    color: var(--color-highlight);
   }
 
   /* The same cloth without folds, for whole pages behind text. */

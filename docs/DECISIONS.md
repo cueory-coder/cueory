@@ -262,3 +262,20 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   color, so its text keeps the plain page-color contrast; a pause button in it shares the row's setting (WCAG 2.2.2).
   With a mouse, the card under the pointer or keyboard focus grows to 1.04 with a deeper shadow; touch screens and
   reduced motion skip it. Reason: Christian's request.
+- **D-53** Silk scenes down the home page (Christian's change requests, 2026-10-31, 1:15 pm and 1:22 pm). The hero,
+  "ways to study" and the launch-updates panel are three scenes cut from the same silk: the hero's folds, sheen and
+  grain, with the folds at another angle, the light from another side and the tint moving from Ivory to Linen and back
+  (Evening: Charcoal, Walnut, Charcoal). Each scene is a layer of its own behind its section, drawn in CSS (no new
+  files, so the textures stay under 30 KB); it reaches up into the empty space at the bottom of the section before it
+  and fades in there, so the page reads as one fabric with no hard edges, and the last scene fades into the footer. A
+  browser test checks that no words ever sit in a fade. Every scene has the hero's folds (one set at full strength
+  crossed by one at half) on Ivory or the tint, and the tint is Linen (Evening: Walnut), the colors of the worst points
+  the contrast tests already check, so a unit test keeps scenes to changing only their angles, light, base and fades.
+  The academic touches, used sparingly: numbered section labels ("01 — study modes", "02 — stay in touch"), a fine rule
+  above the second, a figure-style caption under the carousel ("fig. 1 — …") and one thin rhythm line between the hero
+  and the first section, the page's only medical cue (decorative, hidden from screen readers). The launch-updates panel
+  is now its own scene: a centered frosted card with the serif heading, in the lowercase voice; it still says signups
+  open soon until Kit is connected. The optional slow parallax was left out: the page stays calmer and cheaper on phones
+  without it. With the taller sections, the carousel's auto-advance now pauses only while a mouse rests on the cards or
+  their buttons (or keyboard focus is inside), not anywhere over the section, which on a computer would have stopped it
+  for good. Study screens are unchanged. Reason: Christian's request.
