@@ -159,11 +159,22 @@ Merged into `staging` overnight; the database and content ones by the director o
 - Helpers' logic, not on a page yet: account initials and menu (#91, Task 18), and the `/admin` review-table model
   (#96, Task 20).
 
+## Done (director, 2026-11-01, 2–4 am Phoenix)
+Merged into `staging`; the database ones by the director on Christian's behalf (D-89), each with the lead's review:
+- Task 2, database step 4 (#104, D-87): `review_state` and `exam_plans`. Each student reads and writes only their own
+  spaced-review progress and exam dates. Steps 1 to 4 are in `staging`; nothing reaches `cueory-staging` or
+  `cueory-prod` until Christian applies migrations himself.
+- Helpers' logic, not on a page yet:
+  - the batch importer's parser (#100, Task 21): reads a passed batch with its item and key files, never guessing a
+    missing field;
+  - the "flag or comment" arguments for `submit_flag` (#107, Task 26);
+  - the disease-overlay frame (#102, Task 24), which always shows "simplified for learning";
+  - exam-date wording (#106, Task 27), calm and counted in calendar days;
+  - concept status from attempts (#109, Task 29), on the existing adaptive rules;
+  - what the offline cache may keep (#112, Task 32);
+  - study events with nothing personal in them (#114, Task 33), with no analytics script yet.
+
 ## In review
-- Task 2, database step 5, the last (Task C6, D-88): `flags` and `submit_flag`, with 44 database
-  tests. A signed-in student can send a "Flag or comment" report (5 an hour, 20 a day); the reports table is closed to
-  every website role and is read only in the locked `/admin` inbox (not built yet). It is signed-in only, which needs
-  Christian's confirmation (D-88). It edits `supabase/`, so it waits for him. **Steps 1 to 4 are in `staging`** (#90, #92, #94, #104).
 - Task 26 (D-34, D-73): `flagArguments(report, context)` — the pure adapter that converts a validated `FlagReport`
   into the exact args for the database's `submit_flag` function. Validates page (same-site, strips query and hash),
   maps camelCase to snake_case, and sets absent fields to null. Sending waits for the RPC and integration step.
@@ -197,6 +208,15 @@ Merged into `staging` overnight; the database and content ones by the director o
 - Open pull requests add their own lines here: study modes on pages (#77), export-my-data (#95, Task 19), lesson
   videos (#97, Task C3), the 3D viewer shell (#98, Task C4), the batch importer's parser (#100, Task 21), the
   disease-overlay frame (#102, Task 24) and Release browser tests (#55).
+- Open pull requests add their own lines here. Waiting now: study modes on pages (#77), export-my-data (#95, Task 19),
+  lesson videos (#97, Task C3), the 3D viewer shell (#98, Task C4), the Supabase settings reader (#101, Task 22),
+  delete-account checks (#105, Task 25), the daily puzzle checker (#108), database step 5, flags and `submit_flag`
+  (#110), the review-clip exporter (#111, Task C7), guest progress into an account (#113, Task 31) and Release browser
+  tests (#55).
+- Task 2, database step 5, the last (Task C6, D-88): `flags` and `submit_flag`, with 44 database
+  tests. A signed-in student can send a "Flag or comment" report (5 an hour, 20 a day); the reports table is closed to
+  every website role and is read only in the locked `/admin` inbox (not built yet). It is signed-in only, which needs
+  Christian's confirmation (D-88). It edits `supabase/`, so it waits for him. **Steps 1 to 4 are in `staging`** (#90, #92, #94, #104).
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
