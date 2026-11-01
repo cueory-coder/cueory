@@ -29,48 +29,62 @@ function literals(code: string): string[] {
   );
 }
 
+/** A piece of text from a source file, and whether it sits in markup (text between tags, or a visible attribute). */
+interface Piece {
+  text: string;
+  markup: boolean;
+}
+
+/** Attributes whose words a visitor sees or a screen reader reads out. */
+const VISIBLE_ATTRIBUTES = /\b(aria-label|aria-description|aria-roledescription|aria-valuetext|title|alt|placeholder)=(["'])((?:(?!\2)[^\n])*)\2/g;
+
 /**
- * The text in a source file that a visitor could see: string literals, and the text between tags in .tsx and .astro
- * markup. Comments, code, and anything inside `{…}` in markup are left out.
+ * The text in a source file that a visitor could see: string literals, and in .tsx and .astro files the text between
+ * tags and the values of visible attributes (aria-label, title, alt, placeholder…). Comments, code, and anything inside
+ * `{…}` in markup are left out.
  */
-function visibleText(path: string, source: string): string[] {
+function visibleText(path: string, source: string): Piece[] {
   let code = source
     .replace(/\/\*[\s\S]*?\*\//g, ' ')
     .replace(/<!--[\s\S]*?-->/g, ' ')
     .replace(/(^|[\s;{}(),])\/\/.*$/gm, '$1');
-  const pieces: string[] = [];
+  const pieces: Piece[] = [];
+  const fromCode = (texts: string[]) => texts.map((text) => ({ text, markup: false }));
   if (path.endsWith('.astro') && code.startsWith('---')) {
     // The frontmatter is code: only its string literals count.
     const end = code.indexOf('---', 3);
     if (end > 0) {
-      pieces.push(...literals(code.slice(0, end)));
+      pieces.push(...fromCode(literals(code.slice(0, end))));
       code = code.slice(end + 3);
     }
   }
-  pieces.push(...literals(code));
+  pieces.push(...fromCode(literals(code)));
   if (/\.(tsx|astro)$/.test(path)) {
+    for (const match of code.matchAll(VISIBLE_ATTRIBUTES)) pieces.push({ text: match[3]!, markup: true });
     for (const [, text] of code.matchAll(/>([^<>]*)</g)) {
       // Only markup text: code between a `>` and a `<` (comparisons, generics) has `=` or `;` in it.
       const words = text!.replace(/\{[^{}]*\}/g, ' ');
-      if (!/[=;]/.test(words)) pieces.push(words);
+      if (!/[=;]/.test(words)) pieces.push({ text: words, markup: true });
     }
   }
   return pieces;
 }
 
 /**
- * What a piece of visible text gets wrong: an internal id used as a word ("triage needs JavaScript."), not as an id
- * ('triage', triage-term, ./triage), or a share line with a game's name typed in ("cueory sort, …").
+ * What a piece of visible text gets wrong: an internal id used as a word ("triage needs JavaScript.", or `triage`
+ * alone between tags), not as an id in code ('triage', triage-term, ./triage), or a share line with a game's name
+ * typed in ("cueory sort, …").
  */
-function problems(pieces: string[]): string[] {
+function problems(pieces: Piece[]): string[] {
   const found = new Set<string>();
   const shareLine = new RegExp(`\\bcueory (${[...ids, ...names].join('|')})\\b`);
-  for (const piece of pieces) {
-    const typed = shareLine.exec(piece);
+  for (const { text, markup } of pieces) {
+    const typed = shareLine.exec(text);
     if (typed) found.add(`a share line typed with "${typed[1]}"`);
-    if (ids.includes(piece)) continue; // a bare id, like getCollection('triage')
+    // A bare id in code is an id, like getCollection('triage'); in markup it is a word on the page.
+    if (!markup && ids.includes(text)) continue;
     for (const id of ids) {
-      if (new RegExp(`(^|[\\s(])${id}(?=$|[\\s,.:;!?)])`).test(piece)) found.add(`the id "${id}" as words`);
+      if (new RegExp(`(^|[\\s(])${id}(?=$|[\\s,.:;!?)])`).test(text)) found.add(`the id "${id}" as words`);
     }
   }
   return [...found];
@@ -103,6 +117,11 @@ describe('game names come only from src/config/games.ts (D-66, D-67)', () => {
 
   it('spots an internal id shown as words, and a share line with a name typed in', () => {
     expect(check('Island.tsx', '<p>triage needs JavaScript.</p>')).toEqual(['the id "triage" as words']);
+    // A bare id is a word on the page when it stands alone in markup or in a visible attribute (Codex on #54).
+    expect(check('Island.tsx', '<h2>triage</h2>')).toEqual(['the id "triage" as words']);
+    expect(check('Island.tsx', '<button type="button">\n  suture\n</button>')).toEqual(['the id "suture" as words']);
+    expect(check('page.astro', '---\n---\n<section aria-label="cueword">')).toEqual(['the id "cueword" as words']);
+    expect(check('Island.tsx', '<div data-testid="triage" className="triage">')).toEqual([]);
     expect(check('page.astro', '---\n---\n<noscript>suture needs it</noscript>')).toEqual(['the id "suture" as words']);
     expect(check('game.ts', "setSaid('cueword (a sample) is ready');")).toEqual(['the id "cueword" as words']);
     expect(check('game.ts', 'return `cueory sort, ${day}: sorted.`;')).toEqual(['a share line typed with "sort"']);
