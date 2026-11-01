@@ -28,6 +28,24 @@ const requiredPages = [
   'subscribed.html',
 ];
 
+/**
+ * A built page's markup without the contents of its script elements, found by plain text search in a lowercase copy.
+ * Used only to inspect our own build output (Astro's scripts can contain everyday words such as "window").
+ */
+function markupOutsideScripts(html: string): string {
+  const lower = html.toLowerCase();
+  let markup = '';
+  let at = 0;
+  for (;;) {
+    const open = lower.indexOf('<script', at);
+    if (open === -1) return markup + html.slice(at);
+    markup += html.slice(at, open);
+    const close = lower.indexOf('</script', open);
+    if (close === -1) return markup;
+    at = close + '</script'.length;
+  }
+}
+
 describe.skipIf(!existsSync(dist))('built site', () => {
   const pages = htmlFiles(dist);
 
@@ -107,7 +125,7 @@ describe.skipIf(!existsSync(dist))('built site', () => {
     const source = JSON.parse(readFileSync(new URL('../../content/label-it/study-skills-01.json', import.meta.url), 'utf8'));
     const html = readFileSync(join(dist, 'learn/study-skills/label-it.html'), 'utf8');
     // Astro's own scripts can contain everyday words like "window"; what matters is the page's markup and props.
-    const markup = html.replace(/<script[\s\S]*?<\/script>/g, '');
+    const markup = markupOutsideScripts(html);
     for (const label of source.labels as { text: string }[]) {
       expect(markup, label.text).not.toMatch(new RegExp(`\\b${label.text}\\b`, 'i'));
     }
@@ -121,7 +139,7 @@ describe.skipIf(!existsSync(dist))('built site', () => {
   it('questions: the page holds no keys or rationales; only sample items are served (D-33)', () => {
     const source = JSON.parse(readFileSync(new URL('../../content/questions/study-skills-01.json', import.meta.url), 'utf8'));
     const html = readFileSync(join(dist, 'learn/study-skills/questions.html'), 'utf8');
-    const markup = html.replace(/<script[\s\S]*?<\/script>/g, '');
+    const markup = markupOutsideScripts(html);
     for (const item of source.items as { stem: string; rationales: Record<string, string> }[]) {
       expect(markup).not.toContain(item.stem);
       for (const rationale of Object.values(item.rationales)) expect(markup).not.toContain(rationale);
