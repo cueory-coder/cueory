@@ -118,7 +118,11 @@ export default function Onboarding() {
         <button type="submit" className={primaryButton}>save my answers</button>
         <button
           type="button"
-          onClick={() => finish({ course: saved.course ?? '', examDate: saved.examDate ?? '' }, 'skipped')}
+          onClick={() => {
+            // Re-read storage at click time so a cross-tab forget is not undone by stale mount-time answers.
+            const fresh = readProgress(storage).onboarding;
+            finish({ course: fresh.course ?? '', examDate: fresh.examDate ?? '' }, 'skipped');
+          }}
           className={quietButton}
         >
           skip for now

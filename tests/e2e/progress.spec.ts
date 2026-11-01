@@ -63,6 +63,26 @@ test('onboarding can be skipped, and skipping keeps earlier answers', async ({ p
   expect((await saved(page)).onboarding.course).toBe('fundamentals');
 });
 
+test('skipping after another tab forgets does not restore the stale answers (Codex on #74)', async ({ page, context }) => {
+  // Set up: save a course in this tab, then come back to the form.
+  await page.goto('/start');
+  await page.getByRole('radio', { name: 'fundamentals' }).check();
+  await page.getByRole('button', { name: 'save my answers' }).click();
+  await page.goto('/start');
+
+  // Another tab forgets all progress.
+  const other = await context.newPage();
+  await other.goto('/progress');
+  await other.getByRole('button', { name: 'forget my progress on this device' }).click();
+  await other.getByRole('button', { name: 'yes, forget it' }).click();
+  await expect(other.getByText('done. your progress is no longer saved on this device.')).toBeVisible();
+  await other.close();
+
+  // Skip in this tab must not bring back the forgotten course.
+  await page.getByRole('button', { name: 'skip for now' }).click();
+  expect((await saved(page)).onboarding).toEqual({ course: null, examDate: null, done: true });
+});
+
 test('"clear the date" empties the date and puts focus back on it (Codex on #74)', async ({ page }) => {
   await page.goto('/start');
   const date = page.getByLabel('when is your exam?');
