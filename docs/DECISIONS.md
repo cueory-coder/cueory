@@ -465,6 +465,17 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   only approved visuals can appear on a page (`approvedOnly`), each visual shows the credit WisTech Open's terms ask
   for (`creditsFor`), and every overlay says "simplified for learning" (`notesFor`). Reason: no picture can ship with
   a word its cited source doesn't state.
+- **D-69** Guest progress and onboarding (Task C2, ROADMAP Task 4). One versioned record in the browser's local storage
+  (`cueory-progress`, `src/scripts/progress.ts`) holds only the two optional setup answers (course, exam date) and, per
+  card deck, the "know it" / "still learning" piles and the stars (CLAUDE.md rule 2). Reading drops anything unknown or
+  invalid field by field and never throws; blocked storage just means nothing is remembered. Stars saved before this
+  under `cueory-stars-<deck>`, for any deck (including ones no longer on the site), move into the record when a card
+  deck or `/progress` opens, and "forget" removes any that remain. `/start` asks the
+  two questions (each optional, "skip for now" keeps earlier answers); `/progress` shows everything kept, downloads it
+  as a JSON file and forgets it after a confirm step (the theme pick and promo date aren't progress and stay). The ☰
+  "my progress" link now opens `/progress`. Nothing leaves the device until accounts exist (Task 2), which will
+  import this record. The review scheduler (Task 8) reads it through `readProgress` and `deckProgress` only.
+  `/privacy` says exactly what is kept. Reason: ROADMAP Task 4 and the coordinator's Task C2 brief.
 - **D-70** The crossword on `/play` (internal id `cueword`; shown as "crossword", D-66). A Codex helper built the engine
   and board (#51): the usual numbering, typing that skips gaps, checking a word or the whole grid with a symbol and
   words for each mark, up to three cues that each fill in one letter and lock it, and a plain-words share line ("cueory

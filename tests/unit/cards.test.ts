@@ -18,6 +18,7 @@ import {
   stillLearningCards,
   toggleStar,
 } from '../../src/islands/cards';
+import { PROGRESS_STORAGE_KEY } from '../../src/scripts/progress';
 import type { KeyValueStorage } from '../../src/scripts/storage';
 
 /** Same numbers every run, so shuffled orders can be checked exactly. */
@@ -218,13 +219,22 @@ describe('stars', () => {
     expect(starredIndexes(cards, new Set())).toEqual([]);
   });
 
-  it('saves stars for one deck as a sorted list of card ids, and removes the entry when none are left', () => {
+  it('saves stars in the guest-progress record (D-69), and removes the record when nothing is left', () => {
     const storage = memoryStorage();
     saveStars(storage, 'deck-a', new Set(['c3', 'c1']));
-    expect(storage.data[starsStorageKey('deck-a')]).toBe('["c1","c3"]');
-    expect(starsStorageKey('deck-a')).toBe('cueory-stars-deck-a');
+    expect(JSON.parse(storage.data[PROGRESS_STORAGE_KEY]!).decks['deck-a'].starred).toEqual(['c1', 'c3']);
+    expect([...loadStars(storage, 'deck-a', ['c1', 'c2', 'c3'])]).toEqual(['c1', 'c3']);
     saveStars(storage, 'deck-a', new Set());
     expect(storage.data).toEqual({});
+  });
+
+  it('moves stars saved before D-69 into the record the next time they change', () => {
+    expect(starsStorageKey('deck-a')).toBe('cueory-stars-deck-a');
+    const storage = memoryStorage({ [starsStorageKey('deck-a')]: '["c1"]' });
+    const stars = loadStars(storage, 'deck-a', ['c1', 'c2']);
+    saveStars(storage, 'deck-a', toggleStar(stars, 'c2'));
+    expect(storage.data[starsStorageKey('deck-a')]).toBeUndefined();
+    expect([...loadStars(storage, 'deck-a', ['c1', 'c2'])]).toEqual(['c1', 'c2']);
   });
 
   it('reads saved stars back, keeping only cards that are still in the deck', () => {
