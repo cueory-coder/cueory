@@ -1,14 +1,16 @@
 ---
 /**
- * Public course catalog: only unit and topic titles from the reviewed curriculum outline.
- * This page is generated at build time. It never exposes the CSV's planning notes or statuses,
- * and no draft med-surg lesson is linked as if it were published.
+ * The course library publishes only the source-checked curriculum unit and topic titles.
+ * Planning notes, internal statuses and unreleased nursing lessons remain private.
+ * All counts on the page come from actual content, never the approved design's sample numbers.
  */
+import { getEntry } from 'astro:content';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import Layout from '../../layouts/Layout.astro';
 import UnitCard from '../../components/UnitCard.astro';
 import { parseLessonMap } from '../../islands/lessonmap';
+import { studyModes } from '../../config/modes';
 
 const csvText = readFileSync(resolve('docs/curriculum/medsurg-lesson-map.csv'), 'utf8');
 const { units, problems } = parseLessonMap(csvText);
@@ -18,50 +20,68 @@ if (problems.length) {
 }
 const lessonCount = units.reduce((sum, unit) =>
   sum + unit.topics.reduce((count, topic) => count + topic.lessons.length, 0), 0);
+const sampleDeck = await getEntry('cards', 'study-skills-01');
+if (!sampleDeck) throw new Error('the sample study-skills card deck is missing');
+const cardCount = sampleDeck.data.cards.length;
+const cardIds = sampleDeck.data.cards.map((card) => card.id).join(',');
+const openModeCount = studyModes.filter((mode) => mode.link).length;
 ---
 
 <Layout
-  title="learn"
-  description="start with a free study-skills lesson, and explore the nursing topics cueory plans to add."
+  title="course library"
+  description="start with a free study-skills sample and explore cueory's planned nursing lessons."
   variant="study"
 >
   <div class="mx-auto max-w-page pb-section pt-8 sm:pt-12">
-    <header class="mx-auto max-w-prose">
-      <p class="text-sm font-medium text-ink-soft">cueory courses</p>
-      <h1 class="mt-3 text-2xl">learn</h1>
-      <p class="mt-3 text-ink-soft">
-        one free study-skills lesson is ready. explore the planned nursing course outline below.
-        topics marked coming soon are not available lessons.
-      </p>
-    </header>
-
-    <section class="mt-section" aria-labelledby="start-here-title">
-      <h2 id="start-here-title" class="text-xl">start here</h2>
-      <a href="/learn/study-skills"
-        class="featured-lesson lift mt-5 block rounded-xl border border-line bg-surface p-6 sm:p-8"
-      >
-        <span class="text-sm font-medium text-ink-soft">available now · free</span>
-        <h3 class="mt-3 text-xl">how to study for nursing school</h3>
-        <p class="mt-3 max-w-prose text-ink-soft">
-          start with a short lesson, then try the study modes already on the site.
+    <div class="mx-auto max-w-prose">
+      <header>
+        <p class="text-sm font-medium text-ink-soft">course library</p>
+        <h1 class="mt-2 font-display text-title sm:text-title-lg">med-surg i</h1>
+        <p class="mt-2 text-ink-soft" data-testid="curriculum-summary">
+          {units.length} planned units · {lessonCount} lessons in the outline. lessons open as they are reviewed.
         </p>
-        <span class="mt-5 inline-block font-medium underline underline-offset-4">start the lesson</span>
-      </a>
-    </section>
+      </header>
 
-    <section class="mt-section" aria-labelledby="course-roadmap-title">
-      <h2 id="course-roadmap-title" class="text-xl">course roadmap</h2>
-      <p class="mt-3 text-ink-soft" data-testid="curriculum-summary">
-        {units.length} planned units · {lessonCount} lessons in the outline. these are not yet available to study.
-      </p>
-      <ol class="mt-7 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3" data-testid="unit-grid" aria-label="planned nursing units">
-        {units.map((unit, index) => (
-          <li class="min-w-0">
-            <UnitCard unit={unit} position={index + 1} />
-          </li>
-        ))}
-      </ol>
-    </section>
+      <section class="mt-6" aria-labelledby="available-lesson-title">
+        <a href="/learn/study-skills" class="featured-lesson lift block rounded-xl border border-line bg-surface p-5 sm:p-6">
+          <span class="inline-block rounded-full border border-control px-3 py-1 text-sm font-medium">open now · sample</span>
+          <h2 id="available-lesson-title" class="mt-3 text-lg font-semibold">how to study for nursing school</h2>
+          <p class="mt-2 text-sm text-ink-soft">
+            {openModeCount} ways to study · {cardCount} {sampleDeck.data.status === 'placeholder' ? 'sample ' : ''}{cardCount === 1 ? 'card' : 'cards'}
+          </p>
+          <div class="mt-4">
+            <label for="library-progress" class="sr-only">cards studied on this device</label>
+            <progress
+              id="library-progress"
+              class="library-progress block w-full"
+              data-testid="library-progress-bar"
+              data-card-ids={cardIds}
+              value="0"
+              max={cardCount || 1}
+            ></progress>
+            <output class="mt-2 block text-sm text-ink-soft" for="library-progress" data-testid="library-progress-text">
+              0 of {cardCount} cards studied on this device
+            </output>
+          </div>
+          <span class="mt-4 inline-block font-medium underline underline-offset-4">start the lesson</span>
+        </a>
+      </section>
+
+      <section class="mt-8" aria-labelledby="planned-units-title">
+        <h2 id="planned-units-title" class="mb-4 text-lg font-semibold">planned units</h2>
+        <p class="mb-4 text-sm text-ink-soft">
+          these are topics we're planning, not published nursing lessons. open a unit to see its topics.
+        </p>
+        <ol class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
+          data-testid="unit-grid" aria-label="planned nursing units">
+          {units.map((unit, index) => (
+            <li class="min-w-0">
+              <UnitCard unit={unit} position={index + 1} />
+            </li>
+          ))}
+        </ol>
+      </section>
+    </div>
   </div>
 </Layout>
 
@@ -69,9 +89,57 @@ const lessonCount = units.reduce((sum, unit) =>
   .featured-lesson {
     box-shadow: var(--shadow-card, var(--shadow-soft));
   }
-
   .featured-lesson:hover,
   .featured-lesson:focus-visible {
     box-shadow: var(--shadow-card-hover, var(--shadow-soft));
   }
+  .library-progress {
+    appearance: none;
+    height: var(--spacing-2);
+    border-radius: var(--radius-pill);
+    overflow: hidden;
+    background-color: var(--color-soft);
+    accent-color: var(--color-ink-soft);
+  }
+  .library-progress::-webkit-progress-bar {
+    background-color: var(--color-soft);
+    border-radius: var(--radius-pill);
+  }
+  .library-progress::-webkit-progress-value {
+    background-color: var(--color-ink-soft);
+    border-radius: var(--radius-pill);
+  }
+  .library-progress::-moz-progress-bar {
+    background-color: var(--color-ink-soft);
+    border-radius: var(--radius-pill);
+  }
 </style>
+
+<script>
+  import { deckProgress, PROGRESS_STORAGE_KEY, readProgress } from '../../scripts/progress';
+
+  const progressBar = document.querySelector<HTMLProgressElement>('[data-library-progress-bar]');
+  const progressLabel = document.querySelector<HTMLOutputElement>('[data-library-progress-text]');
+
+  function refreshLibraryProgress(): void {
+    if (!progressBar || !progressLabel) return;
+    const cardIds = (progressBar.dataset.cardIds ?? '').split(',').filter(Boolean);
+    let studied = 0;
+    try {
+      const saved = deckProgress(readProgress(window.localStorage), 'study-skills-01');
+      const recorded = new Set([...saved.know, ...saved.learning]);
+      studied = cardIds.filter((id) => recorded.has(id)).length;
+    } catch {
+      // Blocked storage: the published card count still shows, without exposing private data.
+    }
+    progressBar.max = cardIds.length || 1;
+    progressBar.value = studied;
+    progressLabel.textContent = studied + ' of ' + cardIds.length + ' cards studied on this device';
+  }
+
+  refreshLibraryProgress();
+  window.addEventListener('pageshow', refreshLibraryProgress);
+  window.addEventListener('storage', (event) => {
+    if (event.key === null || event.key === PROGRESS_STORAGE_KEY) refreshLibraryProgress();
+  });
+</script>
