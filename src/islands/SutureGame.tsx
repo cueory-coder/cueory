@@ -6,14 +6,6 @@ import { cellLabel, clearTrace, foundWord, isDone, parsePuzzle, pathBetween, sha
 interface Props { puzzle: SuturePuzzle; name: string }
 const button = 'min-h-11 min-w-11 rounded-md border border-control bg-page px-4 py-2 text-ink disabled:opacity-50';
 
-// Injected once: shake animation for wrong picks, used before Task 77's global.css lands on staging.
-const SUTURE_CSS_ID = 'cueory-suture-motion';
-const SUTURE_CSS = [
-  '@keyframes suture-shake{0%,100%{translate:0 0}25%{translate:-4px 0}75%{translate:4px 0}}',
-  '.suture-shake{animation:suture-shake 300ms ease-in-out}',
-  '@media(prefers-reduced-motion:reduce){.suture-shake{animation:none}}',
-].join('\n');
-
 function Board({ puzzle, name }: Props) {
   const [state, setState] = useState(() => startSuture(puzzle));
   const [focused, setFocused] = useState(0);
@@ -28,15 +20,6 @@ function Board({ puzzle, name }: Props) {
   const width = puzzle.grid[0]!.length;
   const shared = shareLine(state, dayLabel(today), name);
   const foundCount = state.found.length;
-
-  useEffect(() => {
-    if (!document.getElementById(SUTURE_CSS_ID)) {
-      const el = document.createElement('style');
-      el.id = SUTURE_CSS_ID;
-      el.textContent = SUTURE_CSS;
-      document.head.appendChild(el);
-    }
-  }, []);
 
   useEffect(() => { if (done) result.current?.focus(); }, [done]);
 
@@ -119,42 +102,46 @@ function Board({ puzzle, name }: Props) {
           className={`w-full text-ink${shaking ? ' suture-shake' : ''}`}
           style={{ display: 'grid', gridTemplateColumns: `repeat(${width}, 1fr)`, border: '2.5px solid currentColor' }}
         >
-          {puzzle.grid.map((row, r) => row.split('').map((letter, c) => {
-            const cell: Cell = [r, c];
-            const index = r * width + c;
-            const word = foundWord(state, puzzle, cell);
-            const inActivePath = activePath?.some(([pr, pc]) => pr === r && pc === c) ?? false;
-            const isAnchor = state.anchor?.[0] === r && state.anchor?.[1] === c;
-            return (
-              <div role="gridcell" aria-colindex={c + 1} aria-rowindex={r + 1} key={index}>
-                <button
-                  ref={(el) => { if (el) buttons.current.set(index, el); else buttons.current.delete(index); }}
-                  type="button"
-                  tabIndex={index === focused ? 0 : -1}
-                  disabled={done}
-                  aria-label={cellLabel(state, puzzle, cell)}
-                  aria-pressed={isAnchor || inActivePath}
-                  aria-disabled={word !== undefined || done}
-                  data-cell={index}
-                  className={`relative w-full flex items-center justify-center font-bold text-ink${
-                    word !== undefined
-                      ? ' bg-line'
-                      : isAnchor
-                      ? ' bg-button text-on-button'
-                      : inActivePath
-                      ? ' bg-surface'
-                      : ' bg-page'
-                  }`}
-                  style={{ aspectRatio: '1 / 1' }}
-                  onFocus={() => setFocused(index)}
-                  onClick={() => tap(cell)}
-                  onKeyDown={(event) => key(event, cell)}
-                >
-                  <span aria-hidden="true" className={word !== undefined ? 'line-through opacity-50' : ''}>{letter}</span>
-                </button>
-              </div>
-            );
-          }))}
+          {puzzle.grid.map((row, r) => (
+            <div key={r} role="row" aria-rowindex={r + 1} style={{ display: 'contents' }}>
+              {row.split('').map((letter, c) => {
+                const cell: Cell = [r, c];
+                const index = r * width + c;
+                const word = foundWord(state, puzzle, cell);
+                const inActivePath = activePath?.some(([pr, pc]) => pr === r && pc === c) ?? false;
+                const isAnchor = state.anchor?.[0] === r && state.anchor?.[1] === c;
+                return (
+                  <div role="gridcell" aria-colindex={c + 1} key={c}>
+                    <button
+                      ref={(el) => { if (el) buttons.current.set(index, el); else buttons.current.delete(index); }}
+                      type="button"
+                      tabIndex={index === focused ? 0 : -1}
+                      disabled={done}
+                      aria-label={cellLabel(state, puzzle, cell)}
+                      aria-pressed={isAnchor || inActivePath}
+                      aria-disabled={word !== undefined || done}
+                      data-cell={index}
+                      className={`relative w-full flex items-center justify-center font-bold text-ink${
+                        word !== undefined
+                          ? ' bg-line'
+                          : isAnchor
+                          ? ' bg-button text-on-button'
+                          : inActivePath
+                          ? ' bg-surface'
+                          : ' bg-page'
+                      }`}
+                      style={{ aspectRatio: '1 / 1' }}
+                      onFocus={() => setFocused(index)}
+                      onClick={() => tap(cell)}
+                      onKeyDown={(event) => key(event, cell)}
+                    >
+                      <span aria-hidden="true" className={word !== undefined ? 'line-through opacity-50' : ''}>{letter}</span>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
         </div>
       </div>
       <p className="mt-3 text-sm text-ink-soft" data-testid="suture-trace">{traceInWords(state, puzzle)}</p>

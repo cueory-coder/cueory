@@ -1469,3 +1469,12 @@ html:has(dialog.mode-preview[open]) {
   55%, 92% { opacity: 1; transform: none; }
   100% { opacity: 0; transform: none; }
 }
+
+/* Word path (suture, D-71): wrong-pick shake */
+@keyframes suture-shake {
+  0%, 100% { translate: 0 0; }
+  25% { translate: -4px 0; }
+  75% { translate: 4px 0; }
+}
+.suture-shake { animation: suture-shake 300ms ease-in-out; }
+@media (prefers-reduced-motion: reduce) { .suture-shake { animation: none; } }

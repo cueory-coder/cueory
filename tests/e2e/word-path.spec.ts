@@ -57,7 +57,7 @@ test.describe('word path — themed word search', () => {
     if (!disabled) {
       await stitchBtn.click();
       const live = page.locator('[data-testid="suture-live"]');
-      await expect(live).toContainText(/not one of the words|found word/i);
+      await expect(live).toContainText(/loose stitch|found word/i);
     }
   });
 
