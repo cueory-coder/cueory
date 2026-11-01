@@ -197,7 +197,7 @@ interface Totals {
   bestStreak: number;
   usedWeeks: Set<string>;
 }
-function totals(games: readonly FinishedGame[], studies: readonly FinishedStudy[]): Totals {
+function totals(games: readonly FinishedGame[], studies: readonly FinishedStudy[], asOfDay: string | null): Totals {
   const perGameDay = new Map<string, Set<GameId>>();
   let points = 0;
   let perfect = 0;
@@ -217,11 +217,30 @@ function totals(games: readonly FinishedGame[], studies: readonly FinishedStudy[
     points += Math.min(completed * STUDY_SESSION_POINTS, DAILY_STUDY_POINT_LIMIT);
   }
   const gameRun = streaks(games);
+  const usedWeeks = new Set(gameRun.usedWeeks);
+  let currentStreak = gameRun.current;
+  const latestGame = games.map((entry) => entry.day).sort().at(-1);
+  if (latestGame && asOfDay) {
+    // A free pass preserves an active streak on a missed day, but does not add an
+    // unplayed day to the count or award a milestone. The first uncovered day
+    // breaks the current streak; bestStreak remains the historical record.
+    const latest = dayIndex(latestGame)!;
+    const asOf = dayIndex(asOfDay)!;
+    for (let missing = latest + 1; missing <= asOf; missing++) {
+      const date = new Date(missing * DAY_MS).toISOString().slice(0, 10);
+      const week = weekKey(date);
+      if (usedWeeks.has(week)) {
+        currentStreak = 0;
+        break;
+      }
+      usedWeeks.add(week);
+    }
+  }
   return {
     points, games: games.length, perfect,
     allFour: [...perGameDay.values()].some((set) => set.size === gameIds.size),
     studySessions: studies.length, studyRun: studyStreak(studies),
-    currentStreak: gameRun.current, bestStreak: gameRun.best, usedWeeks: gameRun.usedWeeks,
+    currentStreak, bestStreak: gameRun.best, usedWeeks,
   };
 }
 
@@ -282,7 +301,7 @@ function checkState(input: unknown): RewardsState {
     seenStudies.add(study.id);
     studies.push(study);
   }
-  const m = totals(games, studies);
+  const m = totals(games, studies, evaluationDay);
   if (v.points !== m.points || v.currentStreak !== m.currentStreak || v.bestStreak !== m.bestStreak) {
     throw new Error('invalid rewards state.');
   }
@@ -338,7 +357,7 @@ export function applyResult(state: unknown, event: unknown, today: string): Appl
 
   const games = [...before.games.map((entry) => ({ ...entry })), ...(game ? [game] : [])];
   const studies = [...before.studies.map((entry) => ({ ...entry })), ...(study ? [study] : [])];
-  const m = totals(games, studies);
+  const m = totals(games, studies, today);
   const previouslyEarned = new Set(before.achievements.map((entry) => entry.id));
   const achievementsEarned: Achievement[] = ACHIEVEMENTS
     .filter((def) => eligible(def.id, m) && !previouslyEarned.has(def.id))
@@ -346,8 +365,7 @@ export function applyResult(state: unknown, event: unknown, today: string): Appl
   const achievements = [...before.achievements.map((entry) => ({ ...entry })), ...achievementsEarned];
   const passLeft = m.usedWeeks.has(weekKey(today)) ? 0 : WEEKLY_FREE_PASSES;
   const oldLatest = before.games.map((entry) => entry.day).sort().at(-1);
-  const restarted = Boolean(game && oldLatest && game.day > oldLatest && before.currentStreak > 0 &&
-    m.currentStreak === 1);
+  const restarted = Boolean(game && oldLatest && game.day > oldLatest && m.currentStreak === 1);
   const next: RewardsState = {
     version: VERSION, points: m.points, games, studies, achievements,
     currentStreak: m.currentStreak, bestStreak: m.bestStreak,
