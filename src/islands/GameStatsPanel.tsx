@@ -5,18 +5,29 @@ import {
   deleteStats,
   GAME_RESULT_EVENT,
   loadStats,
+  localDay,
   saveStats,
+  STATS_STORAGE_KEY,
+  takeFinishedRounds,
   triesInWords,
   type RoundResult,
+  type SavedStats,
 } from './gameresults';
 import { forget, recordResult, summary, summaryInWords, type GameId, type GameStats } from './gamestats';
 
 const button = 'min-h-11 rounded-pill border border-control bg-page px-5 py-2.5 text-ink';
 
+/** What this browser keeps right now. Another open tab may have turned stats on or off, or added a game. */
+const latest = (): SavedStats => loadStats(browserStorage(), localDay(new Date()));
+
 /**
  * Private stats for the daily games (D-76). Off until the student turns them on; then this browser keeps each finished
  * round (the day, solved or not, and the tries) and shows a short summary per game. Nothing is ever sent to us, there
- * are no streaks, and turning stats off or "forget" deletes them. Rendered only in the browser (client:only).
+ * are no streaks, and turning stats off or "forget" deletes them. Results older than 400 days are deleted when the page
+ * opens. Rendered only in the browser (client:only).
+ *
+ * Every change starts from what storage holds at that moment, not from what this tab last showed, so turning stats off
+ * in one tab holds in every other open tab too.
  */
 interface Props {
   /** The games in the order the page shows them. */
@@ -24,14 +35,14 @@ interface Props {
 }
 
 export default function GameStatsPanel({ games: order }: Props) {
-  const [saved, setSaved] = useState(() => loadStats(browserStorage()));
+  const [saved, setSaved] = useState(latest);
   const [said, setSaid] = useState('');
   const [blocked, setBlocked] = useState(false);
   /** Rounds finished on this page while stats were off, so turning them on right after a game still counts it. */
   const unsaved = useRef<RoundResult[]>([]);
-  /** The latest saved state, for the event listener, which is set up once. */
-  const current = useRef(saved);
-  current.current = saved;
+  /** What this tab shows, for the listeners, which are set up once. */
+  const shown = useRef(saved);
+  shown.current = saved;
   const toggleButton = useRef<HTMLButtonElement>(null);
   const headings = useRef(new Map<GameId, HTMLHeadingElement>());
   /** Where focus goes after a "forget" button removes itself, so keyboard users keep their place. */
@@ -57,23 +68,44 @@ export default function GameStatsPanel({ games: order }: Props) {
   };
 
   useEffect(() => {
-    const onResult = (event: Event) => {
-      const result = (event as CustomEvent<RoundResult>).detail;
-      if (!current.current.on) {
+    // Results from before the last 400 days are deleted now, so nothing older stays in this browser.
+    const now = latest();
+    if (now.on) saveStats(browserStorage(), now.stats);
+    setSaved(now);
+
+    const onResult = (result: RoundResult) => {
+      const now = latest();
+      if (!now.on) {
+        if (shown.current.on) setSaid("stats are off now, so this game wasn't kept.");
         unsaved.current.push(result);
+        setSaved(now);
         return;
       }
       const name = dailyGames.find((game) => game.id === result?.game)?.name;
-      const next = recordResult(current.current.stats, result);
+      const next = recordResult(now.stats, result);
       // The first result of each game and day counts; a replay changes nothing.
-      if (next === current.current.stats) {
+      if (next === now.stats) {
+        setSaved(now);
         if (name) setSaid(`${name}: today's first game is already in your stats.`);
         return;
       }
       keep(next, name ? `${name} added to your stats.` : '');
     };
-    window.addEventListener(GAME_RESULT_EVENT, onResult);
-    return () => window.removeEventListener(GAME_RESULT_EVENT, onResult);
+    // Rounds finished before this panel loaded wait in a list, so they are taken here first, then as each one ends.
+    const takeRounds = () => {
+      for (const result of takeFinishedRounds()) onResult(result);
+    };
+    // Another tab turned stats on or off, forgot a game, or added one.
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === null || event.key === STATS_STORAGE_KEY) setSaved(latest());
+    };
+    takeRounds();
+    window.addEventListener(GAME_RESULT_EVENT, takeRounds);
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener(GAME_RESULT_EVENT, takeRounds);
+      window.removeEventListener('storage', onStorage);
+    };
   }, []);
 
   const toggle = () => {
@@ -87,18 +119,32 @@ export default function GameStatsPanel({ games: order }: Props) {
       setSaid('stats are off, and what was kept is forgotten.');
       return;
     }
-    const stats = unsaved.current.reduce<GameStats>((all, result) => recordResult(all, result), saved.stats);
+    const now = latest();
+    const stats = unsaved.current.reduce<GameStats>((all, result) => recordResult(all, result), now.stats);
     if (keep(stats, 'stats are on. they stay in this browser.')) unsaved.current = [];
   };
 
+  /** What storage holds now, or undefined (and the switch shows off) when stats were turned off meanwhile. */
+  const stillOn = (): GameStats | undefined => {
+    const now = latest();
+    if (now.on) return now.stats;
+    focusNext.current = 'switch';
+    setSaved(now);
+    setSaid('stats are off now, so nothing is kept.');
+    return undefined;
+  };
+
   const forgetGame = (game: GameId, name: string) => {
+    const stats = stillOn();
+    if (!stats) return;
     focusNext.current = game;
-    keep(forget(saved.stats, game), `${name} stats forgotten.`);
+    keep(forget(stats, game), `${name} stats forgotten.`);
   };
 
   const forgetAll = () => {
+    if (!stillOn()) return;
     focusNext.current = 'switch';
-    keep(forget(saved.stats), 'all your stats are forgotten. stats stay on.');
+    keep([], 'all your stats are forgotten. stats stay on.');
   };
 
   const games = order.flatMap((id) => dailyGames.filter((game) => game.id === id && game.ready));

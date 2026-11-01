@@ -478,6 +478,69 @@ test.describe('daily games: private stats (D-76)', () => {
     expect(await kept(page)).toBeNull();
   });
 
+  test('turning stats off in one tab holds in another tab that is already open', async ({ page, context }) => {
+    await toggle(page).click();
+    const other = await context.newPage();
+    await other.clock.setFixedTime(new Date('2026-11-01T15:00:00'));
+    await other.goto('/play');
+    await expect(toggle(other)).toHaveAttribute('aria-checked', 'true');
+
+    await toggle(page).click();
+    await expect(toggle(page)).toHaveAttribute('aria-checked', 'false');
+    // The other tab shows it at once, and a game finished there keeps nothing.
+    await expect(toggle(other)).toHaveAttribute('aria-checked', 'false');
+    await solvePulse(other);
+    expect(await kept(other)).toBeNull();
+    await expect(toggle(page)).toHaveAttribute('aria-checked', 'false');
+    await other.close();
+  });
+
+  test('a tab that missed the news still checks before keeping a game', async ({ page }) => {
+    await toggle(page).click();
+    // As if another tab turned stats off and this one never heard: a page doesn't hear its own storage changes.
+    await page.evaluate(() => localStorage.removeItem('cueory-game-stats'));
+    await solvePulse(page);
+    await expect(page.getByTestId('stats-live')).toHaveText("stats are off now, so this game wasn't kept.");
+    await expect(toggle(page)).toHaveAttribute('aria-checked', 'false');
+    expect(await kept(page)).toBeNull();
+  });
+
+  test('anything older than 400 days is deleted when daily games open', async ({ page }) => {
+    const recent = { game: 'triage', day: '2026-10-30', solved: true, tries: 0 };
+    await page.evaluate(
+      (results) => localStorage.setItem('cueory-game-stats', JSON.stringify({ version: 1, results })),
+      [{ game: 'pulse', day: '2025-09-27', solved: true, tries: 3 }, recent],
+    );
+    await page.reload();
+    await expect(toggle(page)).toHaveAttribute('aria-checked', 'true');
+    await expect(pulseStats(page)).toContainText('not played yet.');
+    await expect(
+      panel(page).getByRole('listitem').filter({ has: page.getByRole('heading', { name: 'sort', exact: true }) }),
+    ).toContainText('played 1 day, solved 1.');
+    // Deleted from this browser, not only hidden.
+    expect(JSON.parse((await kept(page))!).results).toEqual([recent]);
+  });
+
+  test('a round finished before the stats panel has loaded still counts when stats are turned on', async ({ page }) => {
+    let release = () => {};
+    const held = new Promise<void>((resolve) => (release = resolve));
+    await page.route(/\/_astro\/GameStatsPanel\.[^/]+\.js$/, async (route) => {
+      await held;
+      await route.continue();
+    });
+    await page.goto('/play');
+    await expect(page.getByTestId('pulse')).toBeVisible();
+    await expect(toggle(page)).toHaveCount(0);
+    await solvePulse(page);
+
+    release();
+    await toggle(page).click();
+    await expect(pulseStats(page)).toContainText('played 1 day, solved 1.');
+    expect(JSON.parse((await kept(page))!).results).toEqual([
+      { game: 'pulse', day: '2026-11-01', solved: true, tries: 1 },
+    ]);
+  });
+
   test('at 320 px the panel fits, and its buttons are at least 44 px tall', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 720 });
     await toggle(page).click();

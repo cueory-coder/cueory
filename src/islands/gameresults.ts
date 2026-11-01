@@ -1,7 +1,7 @@
 /**
- * Private daily-game stats on /play (D-76). Each game reports a finished round as a browser event; the stats panel
- * listens and keeps the results only when the student has turned stats on. The record itself (first result of each
- * game and day, kept up to 400 days, no streaks) is the helper's logic in ./gamestats.
+ * Private daily-game stats on /play (D-76). Each game reports a finished round; the stats panel keeps the results
+ * only when the student has turned stats on. The record itself (first result of each game and day, no streaks) is the
+ * helper's logic in ./gamestats, and results older than 400 days are dropped by today's date.
  *
  * Stats are off until the student turns them on: turned on means the record exists in this browser's storage, and
  * turning them off deletes it. Nothing here is ever sent anywhere.
@@ -30,10 +30,32 @@ export function localDay(date: Date): string {
   return `${pad(date.getFullYear(), 4)}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-/** Tells the page that a round has ended. Where there is no window (a build or a test), it does nothing. */
+/**
+ * Rounds finished on this page that the stats panel hasn't taken yet, in memory only. A game can finish before the
+ * panel's own code has loaded, so the round waits here instead of being lost. Every island on the page shares this
+ * module, so they share the list.
+ */
+const finished: RoundResult[] = [];
+
+/** Tells the page that a round has ended: the round waits for the stats panel, and an event tells the panel. */
 export function reportRound(result: RoundResult): void {
+  finished.push(result);
   if (typeof window === 'undefined') return;
   window.dispatchEvent(new CustomEvent<RoundResult>(GAME_RESULT_EVENT, { detail: result }));
+}
+
+/** Takes every round finished on this page since the last call, oldest first. */
+export function takeFinishedRounds(): RoundResult[] {
+  return finished.splice(0);
+}
+
+/** How many calendar days of results this browser keeps, counting today. */
+export const KEEP_DAYS = 400;
+
+/** The first day still kept on `today` (both YYYY-MM-DD): earlier results are dropped. */
+export function firstKeptDay(today: string): string {
+  const day = Date.parse(`${today}T00:00:00.000Z`);
+  return Number.isFinite(day) ? new Date(day - (KEEP_DAYS - 1) * 86_400_000).toISOString().slice(0, 10) : '0000-00-00';
 }
 
 export interface SavedStats {
@@ -42,11 +64,16 @@ export interface SavedStats {
   stats: GameStats;
 }
 
-/** What this browser keeps. Missing or blocked storage means stats are off; a record that can't be read starts empty. */
-export function loadStats(storage: KeyValueStorage | undefined): SavedStats {
+/**
+ * What this browser keeps, as of `today` in the visitor's own time zone: results from before the last 400 days are
+ * left out. Missing or blocked storage means stats are off; a record that can't be read starts empty.
+ */
+export function loadStats(storage: KeyValueStorage | undefined, today: string): SavedStats {
   try {
     const text = storage?.getItem(STATS_STORAGE_KEY) ?? null;
-    return text === null ? { on: false, stats: [] } : { on: true, stats: parseStats(text) };
+    if (text === null) return { on: false, stats: [] };
+    const first = firstKeptDay(today);
+    return { on: true, stats: parseStats(text).filter((result) => result.day >= first) };
   } catch {
     return { on: false, stats: [] };
   }

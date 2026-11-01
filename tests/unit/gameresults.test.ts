@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   deleteStats,
+  firstKeptDay,
   loadStats,
   localDay,
   reportRound,
   saveStats,
   STATS_STORAGE_KEY,
+  takeFinishedRounds,
   triesInWords,
 } from '../../src/islands/gameresults';
 import type { KeyValueStorage } from '../../src/scripts/storage';
@@ -20,6 +22,8 @@ function memoryStorage(): KeyValueStorage & { data: Map<string, string> } {
     removeItem: (key) => void data.delete(key),
   };
 }
+
+const TODAY = '2026-11-01';
 
 /** Storage that refuses everything, like a browser with site data blocked. */
 const refusing: KeyValueStorage = {
@@ -43,29 +47,29 @@ describe('private game stats on /play (D-76)', () => {
 
   it('is off until the record exists, and turning off deletes it', () => {
     const storage = memoryStorage();
-    expect(loadStats(storage)).toEqual({ on: false, stats: [] });
+    expect(loadStats(storage, TODAY)).toEqual({ on: false, stats: [] });
     expect(saveStats(storage, [])).toBe(true);
-    expect(loadStats(storage)).toEqual({ on: true, stats: [] });
+    expect(loadStats(storage, TODAY)).toEqual({ on: true, stats: [] });
 
     const result = { game: 'pulse', day: '2026-11-01', solved: true, tries: 1 } as const;
     expect(saveStats(storage, [result])).toBe(true);
     expect(JSON.parse(storage.data.get(STATS_STORAGE_KEY)!)).toEqual({ version: 1, results: [result] });
-    expect(loadStats(storage)).toEqual({ on: true, stats: [result] });
+    expect(loadStats(storage, TODAY)).toEqual({ on: true, stats: [result] });
 
     expect(deleteStats(storage)).toBe(true);
     expect(storage.data.has(STATS_STORAGE_KEY)).toBe(false);
-    expect(loadStats(storage)).toEqual({ on: false, stats: [] });
+    expect(loadStats(storage, TODAY)).toEqual({ on: false, stats: [] });
   });
 
   it('keeps stats on with an empty record when the saved one can’t be read', () => {
     const storage = memoryStorage();
     storage.setItem(STATS_STORAGE_KEY, '{not json');
-    expect(loadStats(storage)).toEqual({ on: true, stats: [] });
+    expect(loadStats(storage, TODAY)).toEqual({ on: true, stats: [] });
   });
 
   it('treats missing or blocked storage as off, and says when it can’t save or delete', () => {
-    expect(loadStats(undefined)).toEqual({ on: false, stats: [] });
-    expect(loadStats(refusing)).toEqual({ on: false, stats: [] });
+    expect(loadStats(undefined, TODAY)).toEqual({ on: false, stats: [] });
+    expect(loadStats(refusing, TODAY)).toEqual({ on: false, stats: [] });
     expect(saveStats(undefined, [])).toBe(false);
     expect(saveStats(refusing, [])).toBe(false);
     expect(deleteStats(undefined)).toBe(false);
@@ -90,7 +94,31 @@ describe('private game stats on /play (D-76)', () => {
     expect(words).not.toMatch(/streak|in a row|%|score/);
   });
 
+  it('drops results from before the last 400 days, counting today, by today’s date', () => {
+    expect(firstKeptDay('2026-11-01')).toBe('2025-09-28');
+    expect(firstKeptDay('2028-01-01')).toBe('2026-11-28');
+    const storage = memoryStorage();
+    const old = { game: 'pulse', day: '2025-09-27', solved: true, tries: 2 } as const;
+    const edge = { game: 'pulse', day: '2025-09-28', solved: false, tries: 7 } as const;
+    const recent = { game: 'triage', day: '2026-10-31', solved: true, tries: 0 } as const;
+    expect(saveStats(storage, [old, edge, recent])).toBe(true);
+    expect(loadStats(storage, '2026-11-01')).toEqual({ on: true, stats: [edge, recent] });
+    // A student who comes back after a long time finds stats still on, with nothing old left.
+    expect(loadStats(storage, '2028-01-01')).toEqual({ on: true, stats: [] });
+  });
+
+  it('keeps each finished round for the stats panel until it takes them, even before the panel has loaded', () => {
+    takeFinishedRounds();
+    const first = { game: 'pulse', day: '2026-11-01', solved: true, tries: 1 } as const;
+    const second = { game: 'triage', day: '2026-11-01', solved: false, tries: 3 } as const;
+    reportRound(first);
+    reportRound(second);
+    expect(takeFinishedRounds()).toEqual([first, second]);
+    expect(takeFinishedRounds()).toEqual([]);
+  });
+
   it('reporting a round never throws, even where there is no window (as during the build)', () => {
     expect(() => reportRound({ game: 'triage', day: '2026-11-01', solved: false, tries: 3 })).not.toThrow();
+    takeFinishedRounds();
   });
 });

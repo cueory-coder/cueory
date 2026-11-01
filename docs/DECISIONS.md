@@ -578,15 +578,17 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   stats on this device").
   - **What it keeps:** for each finished round, the puzzle's day in the visitor's own time zone, whether it was solved,
     and its tries: beats for pulse, slips for sort, cues for the crossword and loose stitches for word path. It follows
-    the helper's rules in `src/islands/gamestats.ts` (#70): the first result of each game and day counts, up to 400 days
-    per game.
+    the helper's rules in `src/islands/gamestats.ts` (#70): the first result of each game and day counts. Results older
+    than 400 days, by today's date, are deleted the next time `/play` opens.
   - **Where:** only in this browser, under one storage key (`cueory-game-stats`). Its presence is what "on" means, so
-    turning stats off deletes it. Nothing is ever sent anywhere.
+    turning stats off deletes it. Nothing is ever sent anywhere. Each change starts from what storage holds at that
+    moment, so turning stats off in one tab holds in every other open tab too.
   - **What it shows:** per game, the days played and solved, and the tries in words. No streaks, no comparisons and no
     scores. "forget" for one game, "forget all my stats" and turning the switch off delete what was kept, and keyboard
     focus stays in the panel.
   - **How the games report:** a finished round sends a browser event (`cueory:game-result`), so no game touches storage
-    itself. A round finished just before the student turns stats on still counts.
+    itself. A round finished just before the student turns stats on still counts, and so does one finished before the
+    panel's own code has loaded: it waits in memory on the page until the panel takes it.
   - `/privacy` says all of this, in its "Right now" section.
 
   Reason: Christian's daily-games request (stats that are optional and private), within the privacy rule that only

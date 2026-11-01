@@ -174,10 +174,11 @@ Last updated: 2026-11-01
   from [#52](https://github.com/lilchristxan/Cueory/pull/52) (a Codex helper's, now in `staging`). Five everyday
   samples under `content/games/suture/`, checked by the game's own rules at build time, so it waits for Christian's
   merge. With it, all four daily games are playable on samples.
-- Private stats for the daily games (D-76, stacked on word path): a "your stats" panel on `/play`, off until the
-  student turns it on. Then this browser keeps each finished round (the day, solved or not, and its tries) on the
-  helper's rules from [#70](https://github.com/lilchristxan/Cueory/pull/70), and shows days played and solved for each
-  game. No streaks; "forget" and turning it off delete it; `/privacy` says so. It waits for Christian's merge of #65.
+- [Private stats for the daily games](https://github.com/lilchristxan/Cueory/pull/79) (D-76): a "your stats" panel on
+  `/play`, off until the student turns it on. Then this browser keeps each finished round (the day, solved or not, and
+  its tries) on the helper's rules from [#70](https://github.com/lilchristxan/Cueory/pull/70), and shows days played
+  and solved for each game. No streaks; "forget" and turning it off delete it, in every open tab; anything older than
+  400 days is deleted when `/play` next opens; `/privacy` says so.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
