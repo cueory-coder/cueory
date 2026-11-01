@@ -115,6 +115,11 @@ begin
   end if;
 
   if new.status = 'published' and (tg_op = 'INSERT' or old.status <> 'published') then
+    -- Wait for any edit of this version's choices or answers that is still in progress (see item_parts_guard), then
+    -- count what is committed. The statements below take fresh snapshots, so they see the finished edit.
+    if tg_op = 'UPDATE' then
+      perform 1 from public.item_versions v where v.id = new.id for update;
+    end if;
     select i.type into kind from public.items i where i.id = new.item_id;
     select count(*) into n_choices from public.item_choices c where c.item_version_id = new.id;
     select count(*), count(*) filter (where a.is_correct)
@@ -158,8 +163,13 @@ begin
     when 'INSERT' then array[new.item_version_id]
     else array[old.item_version_id, new.item_version_id]
   end;
-  -- A deleted version (cascade) leaves no row to check; allow its parts to go with it.
-  for v_status in select v.status from public.item_versions v where v.id = any (v_ids) loop
+  -- A deleted version (cascade) leaves no row to check; allow its parts to go with it. The version rows are locked
+  -- `for share` until this transaction ends, in a fixed order, so a publication that starts meanwhile (which takes
+  -- `for update` on the same row, below) waits for this edit to commit and then sees it; and an edit that starts
+  -- during a publication waits, then finds the version published and is refused (Codex review of #92).
+  for v_status in
+    select v.status from public.item_versions v where v.id = any (v_ids) order by v.id for share
+  loop
     if v_status <> 'draft' then
       raise exception 'choices and answers can change only while the version is a draft' using errcode = '23514';
     end if;
