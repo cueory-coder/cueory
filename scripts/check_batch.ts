@@ -122,7 +122,7 @@ async function main(): Promise<number> {
   const linkWarnings = values['check-links'] ? await checkLinksOnline(input.sources) : [];
 
   mkdirSync(out, { recursive: true });
-  writeFileSync(join(out, 'passed.csv'), passedCsv(result));
+  writeFileSync(join(out, 'passed.csv'), passedCsv(result, input));
   writeFileSync(join(out, 'failed.csv'), failedCsv(result));
   writeFileSync(join(out, 'pending.csv'), pendingCsv(result));
   writeFileSync(join(out, 'report.md'), reportMd(result, basename(dir), linkWarnings));
