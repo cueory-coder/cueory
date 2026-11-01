@@ -704,6 +704,24 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
 
   Reason: a drawing can't show more than the approved source says, and a test proves it.
 
+- **D-83** 3D body viewer shell (Task C4, 2026-11-01, lead review on PR #98).
+  - **Lazy loading:** `three` loads only after the student taps "open the 3D view". Nothing from three.js is in the
+    initial bundle. The tap shows a loading state, then the viewer.
+  - **Placeholder model:** built in code from `THREE.CylinderGeometry` / `SphereGeometry` shapes grouped into three
+    layers (bone, muscle, skin). No file download, no external request. Labeled a placeholder in the UI and credit
+    line. The real model will be BodyParts3D (D-80), CC BY 4.0, added when Christian merges the dependency.
+  - **On-demand rendering:** `needsRender` flag; the render loop skips frames unless controls moved, a layer was
+    toggled, the canvas was resized, or the color scheme changed. Avoids battery drain at idle.
+  - **Keyboard and accessibility:** `tabIndex={0}` on the canvas; arrow keys orbit, +/- zoom; canvas receives focus
+    after open. Layer buttons use `aria-pressed`. Reduced-motion turns off OrbitControls damping.
+  - **Dark mode:** background color reads both `data-theme` and `matchMedia`; mirrors `--color-page` tokens
+    (Ivory `#f9f5ef` light / Charcoal `#1c1917` dark). Color-scheme changes while the viewer is open are handled.
+  - **Preview page:** `noindex` meta tag (not linked from the main nav; excluded from Pagefind).
+  - **Credit:** "Placeholder model (geometric shapes). Real model: BodyParts3D, © The Database Center for Life
+    Science licensed under CC Attribution 4.0 International."
+
+  Reason: meets CLAUDE.md rule 6 (keyboard), brand tokens, battery discipline, and BodyParts3D licence from D-80.
+
 - **D-89** Overnight merges into `staging` on Christian's behalf (Christian, 2026-11-01, about 1:00 am Phoenix: "whatever
   can be merged ... merge it on my behalf to avoid bottlenecks", choosing "everything but rules").
   - **What:** during the director's 18-minute check-ins, the director merges held pull requests into `staging`:

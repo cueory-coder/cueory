@@ -177,8 +177,11 @@ Targets: first visuals by about 14 November, the full kit by about 12 December (
 - In `staging`: the first batch's words (D-72), approved by Christian: the source files for body fluid compartments,
   osmosis and fluid shifts, and the sodium-potassium pump, every label quoted from Open RN *Nursing Fundamentals 2e*
   15.2.
-- Next: the three drawings (Task C5), made only from those files. The 3D viewer adds three.js, so it waits for
-  Christian's merge; its models come from BodyParts3D (D-80).
+- In review ([#98](https://github.com/lilchristxan/Cueory/pull/98)): 3D body viewer shell (D-83). Lazy-loads
+  `three` on tap, renders a placeholder model grouped into bone / muscle / skin layers with OrbitControls. On-demand
+  rendering (battery), keyboard controls (arrow keys / +−), dark-mode background tokens, reduced-motion support.
+  Preview page has `noindex`. Real model will be BodyParts3D (D-80).
+- Next: the three drawings (Task C5), made only from those files.
 
 ## Planning
 - [Med-surg lesson map](curriculum/README.md) ([#31](https://github.com/lilchristxan/Cueory/pull/31)): the master
