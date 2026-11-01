@@ -47,7 +47,7 @@ describe('glove note idea checks', () => {
     'try example.invalid today', 'https://x', '//example.invalid', '192.0.2.1',
     'localhost:8080', '[sample](https://example.invalid)', '<https://example.invalid>',
     '例子.测试', 'ｅｘａｍｐｌｅ．ｉｎｖａｌｉｄ', 'example。invalid', 'data:text/html,sample',
-    'sample.xn--p1ai', '[sample](/breaks)', '<a href="/breaks">sample</a>',
+    'sample.xn--p1ai', '☕.ws', '[sample](/breaks)', '<a href="/breaks">sample</a>',
   ])('refuses links and addresses in glove note text: %s', text => {
     expect(checkSharedIdea(text)).toEqual({
       ok: false, message: 'leave out links, web addresses and email addresses.',
