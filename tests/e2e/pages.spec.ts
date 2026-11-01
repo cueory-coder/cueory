@@ -634,21 +634,254 @@ test.describe('"ways to study" carousel (D-50)', () => {
     );
   });
 
-  test('auto-advance moves on after about six seconds, and stops once the visitor takes over', async ({
+  test('auto-advance moves on after about six seconds, pauses on the cards, and stops once the visitor takes over', async ({
     page,
   }, testInfo) => {
     test.skip(testInfo.project.name !== 'desktop', 'one size is enough for a timing test');
     test.slow();
     await page.goto('/');
     await page.locator('#ways-to-study').scrollIntoViewIfNeeded();
+    // The mouse over the section's words, not its cards: that doesn't pause it.
     await page.mouse.move(0, 0);
     await expect(chip(page, 'cards')).toHaveAttribute('aria-current', 'true', { timeout: 9000 });
 
+    // Resting on the cards pauses it; moving off lets it go on.
+    await page.getByRole('group', { name: 'study mode cards' }).hover();
+    await page.waitForTimeout(7000);
+    await expect(chip(page, 'cards')).toHaveAttribute('aria-current', 'true');
+    await page.mouse.move(0, 0);
+    await expect(chip(page, 'learn')).toHaveAttribute('aria-current', 'true', { timeout: 9000 });
+
     await page.locator('#ways-to-study').getByRole('button', { name: 'next study mode' }).click();
-    await expect(chip(page, 'learn')).toHaveAttribute('aria-current', 'true');
+    await expect(chip(page, 'fill-in')).toHaveAttribute('aria-current', 'true');
     await page.mouse.move(0, 0);
     await page.waitForTimeout(7000);
-    await expect(chip(page, 'learn')).toHaveAttribute('aria-current', 'true');
+    await expect(chip(page, 'fill-in')).toHaveAttribute('aria-current', 'true');
+  });
+});
+
+test.describe('silk scenes down the home page (D-53)', () => {
+  test('three scenes in order, each its own layer behind its section, with numbered sections and one rhythm line', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    const scenes = await page.locator('.scene').evaluateAll((sections) =>
+      sections.map((section) => {
+        const layer = getComputedStyle(section, '::before');
+        return {
+          kind: [...section.classList].find((name) => name.startsWith('scene-')),
+          drawn: layer.backgroundImage !== 'none',
+          behind: layer.zIndex,
+          fades: (layer.maskImage || layer.getPropertyValue('-webkit-mask-image')).includes('linear-gradient'),
+        };
+      }),
+    );
+    expect(scenes.map((scene) => scene.kind)).toEqual(['scene-hero', 'scene-tint', 'scene-low']);
+    for (const scene of scenes) expect(scene).toMatchObject({ drawn: true, behind: '-20', fades: true });
+
+    await expect(page.locator('[data-section-label]')).toHaveText(['01 — study modes', '02 — stay in touch']);
+    const rhythm = page.locator('[data-rhythm]');
+    await expect(rhythm).toHaveCount(1);
+    await expect(rhythm).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  test('every fade between scenes lies in empty space, never over words', async ({ page }) => {
+    await page.goto('/');
+    const covered = await page.evaluate(() => {
+      // Each scene fades in over the space above it and the last one fades out at its bottom: measure those bands.
+      const length = (section: Element, name: string) => {
+        const probe = document.createElement('div');
+        probe.style.blockSize = `var(${name})`;
+        section.append(probe);
+        const size = probe.getBoundingClientRect().height;
+        probe.remove();
+        return size;
+      };
+      const bands: Array<[number, number]> = [];
+      for (const section of document.querySelectorAll('.scene')) {
+        const box = section.getBoundingClientRect();
+        const top = length(section, '--scene-fade-top');
+        const bottom = length(section, '--scene-fade-bottom');
+        if (top > 0) bands.push([box.top - top, box.top]);
+        if (bottom > 0) bands.push([box.bottom - bottom, box.bottom]);
+      }
+      const hits: string[] = [];
+      const walker = document.createTreeWalker(document.querySelector('main')!, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        if (!node.textContent?.trim()) continue;
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        for (const rect of range.getClientRects()) {
+          if (rect.width === 0 || rect.height === 0) continue;
+          if (bands.some(([from, to]) => rect.bottom > from && rect.top < to)) hits.push(node.textContent.trim());
+        }
+      }
+      return { bands: bands.length, hits };
+    });
+    expect(covered.bands).toBe(3);
+    expect(covered.hits).toEqual([]);
+  });
+});
+
+test.describe('study-mode preview (D-51)', () => {
+  const dialog = (page: Page) => page.locator('#mode-preview');
+  const openPreview = async (page: Page, name: string) => {
+    await page.goto('/');
+    await page.locator('#ways-to-study').scrollIntoViewIfNeeded();
+    await page.getByRole('button', { name: `preview ${name}` }).click();
+    await expect(page.getByRole('dialog', { name })).toBeVisible();
+  };
+
+  test('a card grows into its preview, which passes axe; Escape shrinks it back and focus returns', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('#ways-to-study').scrollIntoViewIfNeeded();
+    // The grow starts with the panel exactly over the card it came from. (A click without moving the mouse there, so
+    // the hover zoom doesn't change the card while it is measured.)
+    const start = await page.evaluate(() => {
+      const card = document.querySelector('#mode-lesson')!.getBoundingClientRect();
+      document.querySelector<HTMLButtonElement>('#mode-lesson [data-mode-open]')!.click();
+      const panel = document.querySelector<HTMLElement>('[data-mode-preview-panel]')!;
+      const [grow] = panel.getAnimations();
+      if (!grow) return undefined;
+      grow.pause();
+      grow.currentTime = 0;
+      const box = panel.getBoundingClientRect();
+      grow.play();
+      return [box.left - card.left, box.top - card.top, box.width - card.width, box.height - card.height];
+    });
+    expect(start).toBeDefined();
+    for (const gap of start!) expect(Math.abs(gap)).toBeLessThan(2);
+
+    const preview = page.getByRole('dialog', { name: 'lesson' });
+    await expect(preview).toBeVisible();
+    await expect(preview.getByRole('heading', { level: 2, name: 'lesson' })).toBeVisible();
+    await expect(preview.getByText('you read one short sentence at a time')).toBeVisible();
+    await expect(preview.getByRole('link', { name: 'try it' })).toHaveAttribute('href', '/learn/study-skills');
+    await expect(preview.getByRole('link', { name: 'create your free account to save progress' })).toHaveAttribute(
+      'href',
+      '/#signup',
+    );
+    await expect(preview.getByRole('button', { name: 'close preview' })).toBeFocused();
+    // Its illustration plays in the preview too.
+    await expect
+      .poll(() => preview.locator('.ill-lesson-1').evaluate((el) => getComputedStyle(el).animationName))
+      .toBe('ill-lesson-line');
+    await expect.poll(() => page.evaluate(() => document.querySelector('[data-mode-preview-panel]')!.getAnimations().length)).toBe(0);
+
+    const axe = await new AxeBuilder({ page })
+      .include('#mode-preview')
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'])
+      .analyze();
+    expect(axe.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+
+    await page.keyboard.press('Escape');
+    await expect(dialog(page)).toBeHidden();
+    await expect(page.getByRole('button', { name: 'preview lesson' })).toBeFocused();
+  });
+
+  test('previous and next move through the modes with the row behind; the X and the darkened page close it', async ({
+    page,
+  }) => {
+    await openPreview(page, 'lesson');
+    const preview = dialog(page);
+    await preview.getByRole('button', { name: 'next study mode' }).click();
+    await expect(page.getByRole('dialog', { name: 'cards' })).toBeVisible();
+    await expect(preview.getByRole('link', { name: 'try it' })).toHaveAttribute('href', '/learn/study-skills/cards');
+    await expect(preview.locator('[data-mode-preview-live]')).toHaveText('cards, 2 of 8');
+
+    await preview.getByRole('button', { name: 'previous study mode' }).click();
+    await preview.getByRole('button', { name: 'previous study mode' }).click();
+    await expect(page.getByRole('dialog', { name: 'review' })).toBeVisible();
+    await expect(preview.getByText('coming soon')).toBeVisible();
+    await expect(preview.getByRole('link', { name: 'try it' })).toBeHidden();
+    await expect(preview.locator('[data-mode-preview-live]')).toHaveText('review, 8 of 8');
+    // The row behind follows, so closing shrinks the preview into the review card.
+    await expect(page.locator('#mode-review')).toHaveAttribute('data-active', '');
+
+    await preview.getByRole('button', { name: 'close preview' }).click();
+    await expect(preview).toBeHidden();
+    await expect(page.getByRole('button', { name: 'preview review' })).toBeFocused();
+
+    await page.getByRole('button', { name: 'preview review' }).click();
+    await expect(page.getByRole('dialog', { name: 'review' })).toBeVisible();
+    await page.mouse.click(4, 4);
+    await expect(preview).toBeHidden();
+  });
+
+  test('moving to a mode that is not open yet keeps focus in the preview when "try it" had it', async ({ page }) => {
+    await openPreview(page, 'lesson');
+    const preview = dialog(page);
+    await preview.getByRole('link', { name: 'try it' }).focus();
+    await page.keyboard.press('ArrowLeft');
+    await expect(page.getByRole('dialog', { name: 'review' })).toBeVisible();
+    await expect(preview.getByRole('button', { name: 'previous study mode' })).toBeFocused();
+    // The arrow keys still work from there.
+    await page.keyboard.press('ArrowLeft');
+    await expect(page.getByRole('dialog', { name: 'questions' })).toBeVisible();
+  });
+
+  test('closing in the middle of the grow still shrinks the preview exactly back into its card', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('#ways-to-study').scrollIntoViewIfNeeded();
+    const gaps = await page.evaluate(async () => {
+      document.querySelector<HTMLButtonElement>('#mode-lesson [data-mode-open]')!.click();
+      // Escape a tenth of a second into the 320 ms grow.
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      const card = document.querySelector('#mode-lesson')!.getBoundingClientRect();
+      document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      const panel = document.querySelector<HTMLElement>('[data-mode-preview-panel]')!;
+      const [shrink] = panel.getAnimations();
+      if (!shrink) return undefined;
+      shrink.pause();
+      shrink.currentTime = Number(shrink.effect!.getComputedTiming().endTime);
+      const box = panel.getBoundingClientRect();
+      return [box.left - card.left, box.top - card.top, box.width - card.width, box.height - card.height];
+    });
+    expect(gaps).toBeDefined();
+    for (const gap of gaps!) expect(Math.abs(gap)).toBeLessThan(2);
+  });
+
+  test('keyboard focus stays inside the open preview', async ({ page }) => {
+    await openPreview(page, 'lesson');
+    for (let i = 0; i < 9; i++) {
+      await page.keyboard.press(i % 3 === 2 ? 'Shift+Tab' : 'Tab');
+      expect(await page.evaluate(() => !!document.activeElement?.closest('#mode-preview'))).toBe(true);
+    }
+  });
+
+  test('with reduced motion it opens and closes at once', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await openPreview(page, 'lesson');
+    expect(await page.evaluate(() => document.querySelector('[data-mode-preview-panel]')!.getAnimations().length)).toBe(0);
+    await page.keyboard.press('Escape');
+    expect(await dialog(page).evaluate((el) => (el as HTMLDialogElement).open)).toBe(false);
+  });
+
+  test('a swipe down closes it on touch screens, a short one does not', async ({ page }, testInfo) => {
+    test.skip(!testInfo.project.use.hasTouch, 'a touch-screen gesture');
+    await openPreview(page, 'lesson');
+    const swipe = (distance: number) =>
+      page.locator('[data-mode-preview-panel]').evaluate((panel, down) => {
+        const touch = (y: number) => new Touch({ identifier: 1, target: panel, clientX: 200, clientY: y });
+        panel.dispatchEvent(new TouchEvent('touchstart', { touches: [touch(300)], changedTouches: [touch(300)], bubbles: true }));
+        panel.dispatchEvent(new TouchEvent('touchend', { touches: [], changedTouches: [touch(300 + down)], bubbles: true }));
+      }, distance);
+    await swipe(40);
+    await page.waitForTimeout(500);
+    await expect(dialog(page)).toBeVisible();
+    await swipe(120);
+    await expect(dialog(page)).toBeHidden();
+    await expect(page.getByRole('button', { name: 'preview lesson' })).toBeFocused();
+  });
+
+  test('with a mouse, the card under the pointer grows a little and lifts', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop', 'hover needs a mouse');
+    await page.goto('/');
+    await page.locator('#ways-to-study').scrollIntoViewIfNeeded();
+    const card = page.locator('#mode-cards');
+    expect(await card.evaluate((el) => getComputedStyle(el).scale)).toBe('none');
+    await card.hover();
+    await expect.poll(() => card.evaluate((el) => getComputedStyle(el).scale)).toBe('1.04');
   });
 });
 

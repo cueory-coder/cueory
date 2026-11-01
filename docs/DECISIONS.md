@@ -249,6 +249,19 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   open modes link to their page and the rest say "coming soon". The hover zoom, grow-into-preview and preview panel
   follow in their own pull request. Reason: Christian's request; a scroll-snap row keeps every feature working on every
   device (D-48) without a carousel library.
+- **D-51** Study-mode preview and hover zoom on the "ways to study" carousel (Christian's change request, 2026-10-31).
+  Tapping or clicking a card grows it from its place into a larger preview: a native modal `<dialog>` over the darkened,
+  softly frosted page, with the mode's illustration playing, its name, two plain lines on what you do and why it helps
+  (`more` in `src/config/modes.ts`), "try it" (or "coming soon") and "create your free account to save progress". It
+  closes with the X, Escape, a tap on the darkened page or a swipe down on touch screens, and shrinks back into its
+  card; previous and next inside move through the modes in the carousel's order, and the row behind follows. Focus moves
+  in, stays in and returns to the card; the page behind is inert and keeps its place. The grow and shrink are FLIP
+  animations (measure the card and the panel, then animate a transform between them) in every browser, rather than the
+  View Transitions API with a FLIP fallback: one code path looks the same in Safari, Chrome, Edge and Firefox and is
+  tested once. With reduced motion the preview opens and closes at once. The panel is opaque, in the frosted cards'
+  color, so its text keeps the plain page-color contrast; a pause button in it shares the row's setting (WCAG 2.2.2).
+  With a mouse, the card under the pointer or keyboard focus grows to 1.04 with a deeper shadow; touch screens and
+  reduced motion skip it. Reason: Christian's request.
 - **D-52** Auto-merge holds package.json scripts and risky lockfile changes before launch (found in a repo review,
   2026-10-31). The pre-launch auto-merge (D-42) now also waits for Christian when a pull request changes, adds or
   removes `scripts`, `engines` or `packageManager` in a package.json (a changed `build` or a `postinstall` would run in
@@ -258,3 +271,20 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   (D-42). A lockfile that can't be read on either side waits. Once the site is live every lockfile change is held, as
   before. Reason: before this, only package.json's dependency lists were compared, so a lockfile alone could pull in
   new code. This pull request edits `scripts/automerge/`, so it waits for Christian like any change to the auto-merge.
+- **D-53** Silk scenes down the home page (Christian's change requests, 2026-10-31, 1:15 pm and 1:22 pm). The hero,
+  "ways to study" and the launch-updates panel are three scenes cut from the same silk: the hero's folds, sheen and
+  grain, with the folds at another angle, the light from another side and the tint moving from Ivory to Linen and back
+  (Evening: Charcoal, Walnut, Charcoal). Each scene is a layer of its own behind its section, drawn in CSS (no new
+  files, so the textures stay under 30 KB); it reaches up into the empty space at the bottom of the section before it
+  and fades in there, so the page reads as one fabric with no hard edges, and the last scene fades into the footer. A
+  browser test checks that no words ever sit in a fade. Every scene has the hero's folds (one set at full strength
+  crossed by one at half) on Ivory or the tint, and the tint is Linen (Evening: Walnut), the colors of the worst points
+  the contrast tests already check, so a unit test keeps scenes to changing only their angles, light, base and fades.
+  The academic touches, used sparingly: numbered section labels ("01 — study modes", "02 — stay in touch"), a fine rule
+  above the second, a figure-style caption under the carousel ("fig. 1 — …") and one thin rhythm line between the hero
+  and the first section, the page's only medical cue (decorative, hidden from screen readers). The launch-updates panel
+  is now its own scene: a centered frosted card with the serif heading, in the lowercase voice; it still says signups
+  open soon until Kit is connected. The optional slow parallax was left out: the page stays calmer and cheaper on phones
+  without it. With the taller sections, the carousel's auto-advance now pauses only while a mouse rests on the cards or
+  their buttons (or keyboard focus is inside), not anywhere over the section, which on a computer would have stopped it
+  for good. Study screens are unchanged. Reason: Christian's request.

@@ -9,10 +9,10 @@ import { accountHref, site } from '../config/site';
 <Layout title={site.name} variant="home">
   <!--
     Full-screen hero (D-41, D-46): the logo, a serif headline on one line, the accent line, and one glassy button, on
-    draped silk. Lowercase brand voice (D-47).
+    draped silk, the first of the page's silk scenes (D-53). Lowercase brand voice (D-47).
   -->
   <section
-    class="silk relative isolate flex min-h-svh items-center justify-center overflow-hidden px-gutter py-section text-center"
+    class="scene scene-hero flex min-h-svh items-center justify-center overflow-hidden px-gutter py-section text-center"
     aria-labelledby="hero-heading"
   >
     <!-- The logo pressed faintly into the cloth. Decorative: Wordmark is hidden from screen readers. -->
@@ -36,7 +36,5 @@ import { accountHref, site } from '../config/site';
 
   <ModesCarousel />
 
-  <div class="mx-auto mt-section w-full max-w-page px-gutter">
-    <SignupForm />
-  </div>
+  <SignupForm />
 </Layout>
