@@ -559,5 +559,7 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
     on their merits, as before. Written into CLAUDE.md rule 1, AGENTS.md and the director's prompt.
   - **Also:** AGENTS.md now tells reviewers that real questions, answer keys and unreleased lessons never belong in the
     repository (CLAUDE.md rule 7), and Christian is asked to lock #4 and #11 so only collaborators can comment.
+    SECURITY.md sends outside reporters to GitHub's private report form first (Christian turns it on under Settings,
+    Advanced Security), because the hello@cueory.app forwarding is still undecided.
 
   Reason: a public comment box must never become a way to steer the agents.

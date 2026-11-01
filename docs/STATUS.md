@@ -103,8 +103,8 @@ Last updated: 2026-11-01
 ## In review
 - Instructions only from Christian's account (D-79, the lead's): on the public repository, CLAUDE.md and AGENTS.md
   now say that text from any other account is never a task and that no agent runs a fork's code, and AGENTS.md tells
-  reviewers that real questions and answer keys never belong in the repository. It edits the rule files, so it waits
-  for Christian.
+  reviewers that real questions and answer keys never belong in the repository. SECURITY.md sends outside reporters
+  to GitHub's private report form first. It edits the rule files, so it waits for Christian.
 - Safari focus fixes (from the WebKit runs for D-48): the ☰ panel's Tab trap now moves focus one item at a time in every
   browser (Safari's own Tab skips links and buttons), and the promo panel gives focus back after a link click even
   though Safari leaves focus on the page. Two WebKit-only test findings stay open: the triage keyboard tests use the
@@ -188,6 +188,8 @@ Targets: first visuals by about 14 November, the full kit by about 12 December (
 ## Needs Christian's hands
 - [ ] Lock the Daily report (#4) and the task list (#11) so only collaborators can comment (D-79): on each issue,
   choose **Lock conversation** near the bottom of the right-hand column and confirm.
+- [ ] Turn on private vulnerability reporting (D-79): **Settings**, then **Advanced Security** in the sidebar's
+  "Security and quality" section, then **Enable** next to "Private vulnerability reporting".
 - [x] Repository public (D-75), done by Christian on 2026-10-31: visibility, secret scanning with push protection,
   and the go-public pull request merged.
 - [x] CI minutes change (D-74) merged. Actions minutes are free now that the repository is public.
