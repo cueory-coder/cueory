@@ -89,12 +89,17 @@ describe('callback privacy and feedback', () => {
     const html = renderToStaticMarkup(createElement(CallbackFeedback, { state: { kind: 'error', message } }));
     expect(html).toContain('&lt;img');
     expect(html).not.toContain('<img');
-    expect(html).toContain('back to sign in');
+    expect(html).toContain('back to home');
   });
 
-  it('shows an accounts-off result and a usable sign-in link', () => {
+  it('shows an accounts-off result and an existing home link', () => {
     const html = renderToStaticMarkup(createElement(CallbackFeedback, { state: { kind: 'unavailable' } }));
     expect(html).toContain('accounts open soon');
+    expect(html).toContain('href="/#signup"');
+  });
+  it('links to /signin only when the sign-in route is explicitly ready', () => {
+    const html = renderToStaticMarkup(createElement(CallbackFeedback, { state: { kind: 'error', message: 'try again' }, signinReady: true }));
     expect(html).toContain('href="/signin"');
+    expect(html).toContain('back to sign in');
   });
 });
