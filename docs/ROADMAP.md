@@ -7,6 +7,8 @@ workflows, deployment or secrets.
 Tasks go in this order. When a task waits on Christian (an account, a decision or an approval), the next task that
 doesn't wait goes first, and the waiting task is listed in STATUS.md (D-35).
 
+Task 6, the med-surg I visuals kit, runs now, ahead of the remaining tasks (Christian's decision, 2026-10-31).
+
 The order of the lessons themselves comes from the med-surg lesson map in [docs/curriculum/](curriculum/README.md):
 19 units and 351 lessons, each with a stable `lesson_id`. Units 00 (foundations: how nurses think) and 01 (fluids,
 electrolytes, acid-base) come first, then the systems in the order shown. The map is an outline of topics only: every
@@ -94,9 +96,18 @@ missing rationales, unknown fact IDs, broken source links). Writes `passed.csv`,
 - PostHog study events (1 million free events a month). The privacy page is updated first.
 - Installable PWA and offline lesson cache.
 
-## Task 6 — 3D anatomy (December)
-Export only the needed Z-Anatomy structures (CC BY-SA 4.0) to compressed glTF and show them with three.js in lessons,
-with visible credit and a phone performance budget. Don't embed the Unity build.
+## Task 6 — Med-surg I visuals kit (now, ahead of the remaining tasks)
+Christian's decision, 2026-10-31: Cueory's own visuals for lessons and videos, so we never use other people's
+pictures. The first visuals by about 14 November, the full kit by about 12 December. The plan, sources, file formats
+and review steps are in [docs/VISUALS.md](VISUALS.md) (D-56).
+- A 3D body from a free atlas, exported only for the structures lessons need, as compressed glTF in a three.js viewer:
+  brand colors, layer peeling, a system filter, one system at a time and a phone budget. Visible credit; don't embed
+  the Unity build.
+- Animated 2D diagrams we draw ourselves: SVG in brand colors, reduced-motion versions, exportable as portrait and
+  landscape video frames for shorts.
+- Disease overlays on the healthy versions, each labeled "simplified for learning".
+- Every label and depiction cites an open source in its file under `content/visuals/`. Labeled visuals go to Christian
+  in batches, each with a one-page review sheet, and never release on their own.
 
 ## Task 7 — Daily medical puzzles (major feature)
 One fresh set of medical-themed puzzles a day for everyone. Starting games: a five-letter medical word guess and a mini

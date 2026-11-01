@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-10-31
+Last updated: 2026-11-01
 
 ## Done
 - Static site: Astro + React islands + TypeScript + Tailwind, static output, tested at phone and desktop sizes.
@@ -55,26 +55,38 @@ Last updated: 2026-10-31
     [select-all-that-apply in the batch checker](https://github.com/lilchristxan/Cueory/pull/19) (D-45), the first
     pull requests the pre-launch auto-merge took on its own.
   - [Rollback guide](https://github.com/lilchristxan/Cueory/pull/22) in `docs/SETUP.md`.
-- In `staging`, waiting for the next release ([#26](https://github.com/lilchristxan/Cueory/pull/26), open for Christian):
+- Fourth release 31 Oct ([#26](https://github.com/lilchristxan/Cueory/pull/26)), merged by Christian; live on `main`:
   [home hero, ☰ side panel and account corner](https://github.com/lilchristxan/Cueory/pull/24) in the all-lowercase
   voice (D-46, D-47), with phone, tablet and desktop browser tests (D-48), [search in the ☰ panel](https://github.com/lilchristxan/Cueory/pull/27)
-  (D-49) and the ["ways to study" carousel](https://github.com/lilchristxan/Cueory/pull/28) (D-50).
+  (D-49), the ["ways to study" carousel](https://github.com/lilchristxan/Cueory/pull/28) (D-50), its
+  [preview and hover zoom](https://github.com/lilchristxan/Cueory/pull/29) (D-51), the
+  [silk scenes](https://github.com/lilchristxan/Cueory/pull/32) (D-53) and the
+  [med-surg lesson map](https://github.com/lilchristxan/Cueory/pull/31) (docs only).
+- In `staging`, waiting for the next release: [auto-merge hardening](https://github.com/lilchristxan/Cueory/pull/30)
+  (D-52), merged by Christian. Before launch the bot now also holds changes to package.json `scripts`, `engines` and
+  `packageManager`, and lockfile changes that add a package, an install script or a download from outside the npm
+  registry; version bumps of existing packages still merge themselves.
 
 ## In review
-- Auto-merge hardening (D-52): before launch the bot now also holds changes to package.json `scripts`, `engines` and
-  `packageManager`, and lockfile changes that add a package, an install script or a download from outside the npm
-  registry. Version bumps of existing packages still merge themselves. Edits `scripts/automerge/`, so Christian
-  approves and merges it.
-- [Study-mode preview and hover zoom](https://github.com/lilchristxan/Cueory/pull/29) (D-51): a card grows into a
-  preview with its moving illustration, two plain lines, "try it" and the free-account link; X, Escape, the darkened
-  page or a swipe down closes it. The auto-merge takes it once it is clean.
-- Silk scenes down the home page (D-53): the hero, "ways to study" and the launch-updates panel are three scenes of one
-  silk, with numbered sections, a figure caption and one thin rhythm line. The auto-merge takes it once it is clean.
+- [Social links](https://github.com/lilchristxan/Cueory/pull/33) (D-54): Instagram, TikTok and YouTube marks in the
+  footer and the ☰ panel. It adds a package (`simple-icons`), so it waits for Christian's merge.
+- [Once-only promo panel](https://github.com/lilchristxan/Cueory/pull/34) (D-55): on marketing pages a small dark panel
+  slides down from the top after 5 seconds or halfway down the page; once shown, it stays away for 30 days.
+- [Visuals kit plan](https://github.com/lilchristxan/Cueory/pull/35) (D-56 to D-58): docs/VISUALS.md, the roadmap's
+  Task 6 and the license checks behind it. Docs only.
 
 ## Queued (Christian's change requests on issue #4, in his order)
-1. Social links (Simple Icons), then the once-only promo panel.
+1. The social marks in the promo panel, once [#33](https://github.com/lilchristxan/Cueory/pull/33) is in.
 2. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
 3. Auto-release (`staging` into `main` in pre-launch mode), after the change requests.
+
+## Visuals kit (Task 6, D-56)
+Targets: first visuals by about 14 November, the full kit by about 12 December ([plan](VISUALS.md)).
+- Done: the plan, and license checks on every source. Open RN *Nursing Fundamentals 2e* is the cited source (CC BY
+  4.0). OpenStax waits for Christian (D-57).
+- Next: the visual source-file check and draft-only rendering, then the first batch (fluid compartments, osmosis and
+  fluid shifts, the sodium-potassium pump) with its review sheet. The 3D viewer adds three.js, so it waits for
+  Christian's merge; its models wait for the atlas choice.
 
 ## Planning
 - [Med-surg lesson map](curriculum/README.md) ([#31](https://github.com/lilchristxan/Cueory/pull/31)): the master
@@ -107,6 +119,10 @@ Follow [docs/SETUP.md](SETUP.md):
 - [ ] Auto-release (`staging` into `main` with no person in the loop): Christian's yes reached the repo through
   another Claude session on issue #4. The safety check of the session that builds it needs that yes from Christian
   himself, in the Claude chat that runs these updates, before it builds anything that changes the live site on its own.
+- [ ] Visuals kit, OpenStax (D-57): its books are CC BY-NC-SA, not CC BY, and its pages ask that they not be fed to
+  AI tools without permission. Keep it out (recommended), or ask OpenStax for permission.
+- [ ] Visuals kit, 3D atlas (D-57): BodyParts3D (CC BY 4.0: credit only; recommended) or Z-Anatomy (CC BY-SA 4.0: our
+  models and the videos that show them must use the same license).
 - [ ] An "about" page for the ☰ panel: the text is Christian's (D-46 leaves the link out until it exists).
 - [ ] Later decision: show a student's Google profile photo in the account corner instead of initials (it would load
   images from Google; ROADMAP Task 2).
