@@ -9,6 +9,7 @@ import {
   isDone,
   isRoundOver,
   mark,
+  markOf,
   nextRound,
   parseSet,
   readingOrder,
@@ -206,8 +207,32 @@ describe('board markup', () => {
 describe('cover placement', () => {
   it('centres the target on its box but keeps it inside the image', () => {
     const left = coverAxis(0, 1);
-    expect(left.size).toBe('max(2.75rem, 1%)');
-    expect(left.offset).toBe('clamp(0px, calc(0.5% - max(2.75rem, 1%) / 2), calc(100% - max(2.75rem, 1%)))');
-    expect(coverAxis(99, 1).offset).toBe('clamp(0px, calc(99.5% - max(2.75rem, 1%) / 2), calc(100% - max(2.75rem, 1%)))');
+    expect(left.size).toBe('max(calc(var(--spacing) * 11), 1%)');
+    expect(left.offset).toBe('clamp(0px, calc(0.5% - max(calc(var(--spacing) * 11), 1%) / 2), calc(100% - max(calc(var(--spacing) * 11), 1%)))');
+    expect(coverAxis(99, 1).offset).toBe('clamp(0px, calc(99.5% - max(calc(var(--spacing) * 11), 1%) / 2), calc(100% - max(calc(var(--spacing) * 11), 1%)))');
+  });
+});
+
+describe('label ids that match built-in object names', () => {
+  const tricky = () =>
+    parseSet(withLabels([{ ...box, id: 'constructor' }, { ...box, id: 'toString', x: 50 }, { ...box, id: '__proto__', y: 50 }]));
+
+  it('start uncovered, unmarked, and the round is not over', () => {
+    const state = start(tricky());
+    expect(markOf(state, 'constructor')).toBeUndefined();
+    expect(isRoundOver(state)).toBe(false);
+    expect(isDone(state)).toBe(false);
+    expect(summary(state)).toMatchObject({ unmarked: 3, covered: 3, total: 3 });
+  });
+
+  it('are marked and carried into the next round like any other id', () => {
+    let state = revealAll(start(tricky()));
+    state = mark(mark(mark(state, 'constructor', 'learning'), 'toString', 'know'), '__proto__', 'learning');
+    expect(markOf(state, '__proto__')).toBe('learning');
+    expect(isRoundOver(state)).toBe(true);
+    const next = nextRound(state);
+    expect(next.round).toEqual(['constructor', '__proto__']);
+    expect(next.known).toEqual(['toString']);
+    expect(isRoundOver(next)).toBe(false);
   });
 });

@@ -132,6 +132,14 @@ export function isCovered(state: LabelItState, id: string): boolean {
   return state.round.includes(id) && !state.revealed.includes(id);
 }
 
+/**
+ * A label's mark this round, or undefined. Only the marks object's own entries count, so a label id such as
+ * "constructor" or "toString" never picks up a built-in property of plain objects.
+ */
+export function markOf(state: LabelItState, id: string): Mark | undefined {
+  return Object.hasOwn(state.marks, id) ? state.marks[id] : undefined;
+}
+
 /** Uncover one label. Ignores labels that aren't covered. */
 export function reveal(state: LabelItState, id: string): LabelItState {
   if (!isCovered(state, id)) return state;
@@ -156,18 +164,18 @@ export function mark(state: LabelItState, id: string, value: Mark): LabelItState
 
 /** True once every label in the round has a mark. */
 export function isRoundOver(state: LabelItState): boolean {
-  return state.round.every((id) => state.marks[id] !== undefined);
+  return state.round.every((id) => markOf(state, id) !== undefined);
 }
 
 /** True when the round is over and nothing is left to learn. */
 export function isDone(state: LabelItState): boolean {
-  return isRoundOver(state) && state.round.every((id) => state.marks[id] === 'know');
+  return isRoundOver(state) && state.round.every((id) => markOf(state, id) === 'know');
 }
 
 /** The next round: only the "still learning" labels, covered again, in reading order. */
 export function nextRound(state: LabelItState): LabelItState {
-  const learning = state.round.filter((id) => state.marks[id] === 'learning');
-  const knownNow = state.round.filter((id) => state.marks[id] === 'know');
+  const learning = state.round.filter((id) => markOf(state, id) === 'learning');
+  const knownNow = state.round.filter((id) => markOf(state, id) === 'know');
   return {
     round: learning,
     revealed: [],
@@ -193,7 +201,7 @@ export interface Summary {
 }
 
 export function summary(state: LabelItState): Summary {
-  const marks = state.round.map((id) => state.marks[id]);
+  const marks = state.round.map((id) => markOf(state, id));
   const know = marks.filter((m) => m === 'know').length;
   const learning = marks.filter((m) => m === 'learning').length;
   return {

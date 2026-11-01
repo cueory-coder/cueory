@@ -6,6 +6,7 @@ import {
   isDone,
   isRoundOver,
   mark,
+  markOf,
   nextRound,
   parseSet,
   readingOrder,
@@ -42,8 +43,11 @@ function TickIcon() {
  * label is still easy to tap, but it is kept inside the image: a small box at an edge gets a target that starts or
  * ends at that edge instead of hanging over it (and scrolling a 320 px page sideways).
  */
+/** The smallest tap target, 44 px: eleven steps of the spacing token, the same size as Tailwind's min-h-11. */
+const MIN_TARGET = 'calc(var(--spacing) * 11)';
+
 export function coverAxis(start: number, length: number): { offset: string; size: string } {
-  const size = `max(2.75rem, ${length}%)`;
+  const size = `max(${MIN_TARGET}, ${length}%)`;
   return { offset: `clamp(0px, calc(${start + length / 2}% - ${size} / 2), calc(100% - ${size}))`, size };
 }
 
@@ -176,7 +180,7 @@ function Board({ set }: Props) {
             {ordered.map((label) => {
               const number = numberOf.get(label.id)!;
               const open = uncovered(label.id);
-              const current = state.marks[label.id];
+              const current = markOf(state, label.id);
               const knownBefore = state.known.includes(label.id);
               return (
                 <li key={label.id} className="rounded-md border border-line px-4 py-3">
