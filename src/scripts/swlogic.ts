@@ -27,13 +27,16 @@ export interface ResponseLike {
  * service worker). Only GET, only what `cacheable()` allows, and no query string at all: nothing on the allow-list of
  * query strings is needed today, so the list is empty. Hashed build files (`/_astro/`) never change, so they come from
  * the cache first; pages, fonts and brand files may change, so they ask the network first and use the cache only when
- * the network fails. `/play` is the page only: `cacheable()` refuses anything under it, so puzzle data is never kept.
+ * the network fails or is slow. `/play` is never kept: `cacheable()` still lists the page, but its puzzles are in the
+ * page itself, so the worker leaves it alone.
  */
 export function strategyFor(request: RequestLike, origin: string): Strategy | null {
   if (request.method !== 'GET') return null;
   if (!cacheable(request.url, origin)) return null;
   const url = new URL(request.url, origin);
   if (url.search) return null;
+  // The /play page carries today's puzzles inside it, so no copy of it is kept (D-61) until its shell is separate.
+  if (url.pathname === '/play' || url.pathname === '/play/') return null;
   return url.pathname.startsWith('/_astro/') ? 'cache-first' : 'network-first';
 }
 
@@ -52,4 +55,12 @@ export function staleCaches(names: readonly string[], currentVersion: string): s
   const current = cacheName(currentVersion);
   const prefix = cacheName('x').slice(0, -1);
   return names.filter((name) => name.startsWith(prefix) && name !== current);
+}
+
+/** How long a page with a saved copy waits for the network before the copy is shown instead (milliseconds). */
+export const NETWORK_WAIT_MS = 4000;
+
+/** A saved copy replaces a server error, but a missing or forbidden page is the truth and stays. */
+export function preferSaved(response: Pick<ResponseLike, 'status'>): boolean {
+  return response.status >= 500;
 }

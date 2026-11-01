@@ -4,6 +4,12 @@ const PRIVATE_PARAMETERS = new Set([
   'token', 'code', 'key', 'access_token', 'refresh_token', 'id_token', 'token_hash', 'api_key',
 ]);
 
+const STATIC_FILES: readonly (readonly [string, RegExp])[] = [
+  ['/_astro/', /\.(?:js|css|woff2?|svg|png|jpe?g|webp|avif|gif|ico)$/i],
+  ['/brand/', /\.(?:svg|png|jpe?g|webp|avif|gif|ico)$/i],
+  ['/fonts/', /\.woff2?$/i],
+];
+
 /**
  * Call only after checking that a request's method is GET. A URL cannot tell us
  * its request method. `origin` must be the site's origin, such as location.origin.
@@ -31,8 +37,13 @@ export function cacheable(url: string, origin: string): boolean {
       if (PRIVATE_PARAMETERS.has(name.toLowerCase())) return false;
     }
 
-    return path === '/' || path === '/play' || path === '/play/'
-      || ['/learn/', '/_astro/', '/brand/', '/fonts/'].some(prefix => path.startsWith(prefix));
+    // An encoded dot could spell a file extension past the checks below.
+    if (/%2e/i.test(path)) return false;
+    if (path === '/' || path === '/play' || path === '/play/') return true;
+    // Lesson pages only: a file under /learn/ (lesson data, such as a .json answer file) has a dot in its path.
+    if (path.startsWith('/learn/')) return !path.includes('.');
+    // Built and brand files only with a static extension, never data (.json), pages (.html) or source maps (.map).
+    return STATIC_FILES.some(([prefix, extensions]) => path.startsWith(prefix) && extensions.test(path));
   } catch {
     return false;
   }

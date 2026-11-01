@@ -218,10 +218,11 @@ Christian's behalf (D-89), each with the lead's review:
   browser tests (#55).
 - Task 43: `node scripts/visuals-sheet.ts --out <folder>` writes draft review sheets outside the repository and refuses existing output; in review.
 - Task 44 (#105): delete-account summaries include saved progress and email; cleanup includes legacy stars. Pure logic, in review.
-- Task C12: the offline service worker. `/sw.js` is written at build time from `offlineplan.ts`, `swlogic.ts` and `sw.ts`
-  (no new package, no change to the security headers), and a small script registers it after a page loads. A lesson,
-  `/play` page or the home page you have opened opens again with no connection; nothing with a query string, no `/admin`,
-  no sign-in or progress page and no puzzle data is ever kept. `/privacy` says so. It needs the lead's review.
+- Task C12 ([#135](https://github.com/lilchristxan/Cueory/pull/135)): the offline service worker. `/sw.js` and an external
+  `/register-sw.js` are written at build time (no new package, no change to the security headers). A lesson or the home
+  page you have opened, even only once, opens again with no connection; `/play`, `/admin`, sign-in and progress pages,
+  data files and anything with a query string are never kept. `docs/OFFLINE.md` says how to switch it off. It needs the
+  lead's review.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).

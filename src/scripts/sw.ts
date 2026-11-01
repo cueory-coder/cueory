@@ -5,7 +5,7 @@
  * Keep it free of syntax the build can't strip.
  */
 import { cacheName } from './offlineplan';
-import { staleCaches, storable, strategyFor } from './swlogic';
+import { NETWORK_WAIT_MS, preferSaved, staleCaches, storable, strategyFor } from './swlogic';
 
 interface ExtendableEventLike {
   waitUntil(work: Promise<unknown>): void;
@@ -58,15 +58,27 @@ function keep(event: FetchEventLike, response: Response): void {
   );
 }
 
+/**
+ * The network's answer, unless it is slow or fails: a page with a saved copy waits NETWORK_WAIT_MS, then shows the copy
+ * (the slow answer still replaces the copy when it arrives). A server error (5xx) also shows the copy. A page with no
+ * saved copy waits for the network as it would without a worker.
+ */
 async function networkFirst(event: FetchEventLike): Promise<Response> {
-  try {
-    const response = await fetch(event.request);
+  const saved = await (await caches.open(CURRENT)).match(event.request.url);
+  const fresh = fetch(event.request).then((response) => {
     keep(event, response);
     return response;
-  } catch (error) {
-    const cached = await (await caches.open(CURRENT)).match(event.request.url);
-    if (cached) return cached;
-    throw error;
+  });
+  if (!saved) return fresh;
+  event.waitUntil(fresh.catch(() => undefined));
+  try {
+    const response = await Promise.race([
+      fresh,
+      new Promise<never>((_, giveUp) => setTimeout(() => giveUp(new Error('slow')), NETWORK_WAIT_MS)),
+    ]);
+    return preferSaved(response) ? saved : response;
+  } catch {
+    return saved;
   }
 }
 

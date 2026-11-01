@@ -2,9 +2,9 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
 import { cacheName } from '../../src/scripts/offlineplan';
-import { registerOffline } from '../../src/scripts/offline';
-import { buildServiceWorker } from '../../src/scripts/swbuild';
-import { staleCaches, storable, strategyFor } from '../../src/scripts/swlogic';
+import { firstVisitUrls, startOffline, type OfflineEnvironment, type WorkerContainer } from '../../src/scripts/offline';
+import { buildPlainScript, buildServiceWorker } from '../../src/scripts/swbuild';
+import { NETWORK_WAIT_MS, preferSaved, staleCaches, storable, strategyFor } from '../../src/scripts/swlogic';
 
 const ORIGIN = 'https://cueory.app';
 const get = (url: string) => ({ method: 'GET', url });
@@ -15,7 +15,7 @@ const answer = (overrides: Partial<{ ok: boolean; status: number; type: string; 
 
 describe('which requests the worker answers, and how', () => {
   it.each([
-    ['/', 'network-first'], ['/play', 'network-first'], ['/learn/study-skills', 'network-first'],
+    ['/', 'network-first'], ['/learn/study-skills', 'network-first'],
     ['/learn/study-skills/cards', 'network-first'], ['/brand/v1/logo.png', 'network-first'], ['/fonts/inter.woff2', 'network-first'],
     ['/_astro/cards.abc123.js', 'cache-first'], ['https://cueory.app/_astro/x.css', 'cache-first'],
   ])('answers %s %s', (url, strategy) => {
@@ -28,14 +28,14 @@ describe('which requests the worker answers, and how', () => {
 
   it.each([
     '/admin', '/admin/questions', '/progress', '/start', '/privacy', '/subscribed', '/sw.js', '/learn',
-    '/play/data/today.json', '/play/anything', '/play.json', '/api/check',
+    '/play', '/play/', '/play/data/today.json', '/play/anything', '/play.json', '/api/check',
     'https://example.com/learn/study-skills', 'https://cueory.app.evil.example/learn/x', '//evil.example/learn/x',
   ])('leaves %s alone', (url) => {
     expect(strategyFor(get(url), ORIGIN)).toBeNull();
   });
 
   it.each([
-    '/learn/study-skills?x=1', '/play?mode=daily', '/learn/study-skills?token=abc', '/learn/x?code=1', '/learn/x?key=1', '/_astro/a.js?v=1', '/?',
+    '/learn/study-skills?x=1', '/play?mode=daily', '/learn/study-skills/questions/study-skills-01.json', '/learn/data.json', '/_astro/data.json', '/learn/study-skills?token=abc', '/learn/x?code=1', '/learn/x?key=1', '/_astro/a.js?v=1', '/?',
   ])('leaves a request with a query string alone: %s', (url) => {
     // A bare "?" is also a query string for this purpose only when it has content; "/?" has none.
     expect(strategyFor(get(url), ORIGIN)).toBe(url === '/?' ? 'network-first' : null);
@@ -100,10 +100,11 @@ describe('building /sw.js', () => {
 const basic = (body: string, init: ResponseInit = { status: 200 }) => Object.defineProperty(new Response(body, init), 'type', { value: 'basic' });
 
 /** Runs the built worker against stand-ins for the worker scope, the cache and the network. */
-function run(version: string, existing: string[] = []) {
+function run(version: string, existing: string[] = [], script?: string) {
   const stores = new Map<string, Map<string, Response>>(existing.map((name) => [name, new Map()]));
   const listeners: Record<string, ((event: unknown) => void)[]> = {};
-  const calls = { fetch: [] as string[], skipWaiting: 0, claim: 0 };
+  const calls = { fetch: [] as string[], skipWaiting: 0, claim: 0, unregister: 0 };
+  const timers: { fn: () => void; ms: number }[] = [];
   let network: (request: { url: string }) => Promise<Response> = async () => basic('page');
   const cache = (name: string) => {
     if (!stores.has(name)) stores.set(name, new Map());
@@ -113,6 +114,7 @@ function run(version: string, existing: string[] = []) {
   const scope = {
     location: { origin: ORIGIN },
     clients: { claim: async () => void (calls.claim += 1) },
+    registration: { unregister: async () => void (calls.unregister += 1) },
     skipWaiting: async () => void (calls.skipWaiting += 1),
     addEventListener: (type: string, listener: (event: unknown) => void) => (listeners[type] ??= []).push(listener),
   };
@@ -127,9 +129,10 @@ function run(version: string, existing: string[] = []) {
       calls.fetch.push(request.url);
       return network(request);
     },
-    URL, Promise, Response,
+    URL, Promise, Response, Error,
+    setTimeout: (fn: () => void, ms: number) => void timers.push({ fn, ms }),
   });
-  vm.runInContext(buildServiceWorker(sources, version), context);
+  vm.runInContext(script ?? buildServiceWorker(sources, version), context);
 
   const settle = async (work: Promise<unknown>[]) => void (await Promise.all(work));
   async function fire(type: string, request?: { method: string; url: string }) {
@@ -144,7 +147,7 @@ function run(version: string, existing: string[] = []) {
     await settle(work);
     return { handled: answered !== undefined, response };
   }
-  return { stores, calls, fire, setNetwork: (next: typeof network) => { network = next; } };
+  return { stores, calls, fire, timers, listeners, setNetwork: (next: typeof network) => { network = next; } };
 }
 
 describe('the built worker', () => {
@@ -225,31 +228,180 @@ describe('the built worker', () => {
   });
 });
 
-describe('registering the worker', () => {
-  const registrations: { url: string; options: { scope: string } }[] = [];
-  const nav = (fail = false) => ({
-    serviceWorker: {
-      register: (url: string, options: { scope: string }) => {
-        registrations.push({ url, options });
-        return fail ? Promise.reject(new Error('refused')) : Promise.resolve({});
+describe('a slow or failing network', () => {
+  const page = { method: 'GET', url: `${ORIGIN}/learn/study-skills` };
+  const settled = () => new Promise((resolve) => setImmediate(resolve));
+
+  it('shows the saved copy when the network is slower than the wait, and still saves the late answer', async () => {
+    const worker = run('v1');
+    await worker.fire('fetch', page);
+    let release: (response: Response) => void = () => undefined;
+    worker.setNetwork(() => new Promise<Response>((resolve) => { release = resolve; }));
+    const pending = worker.fire('fetch', page);
+    await settled();
+    expect(worker.timers.map((timer) => timer.ms)).toEqual([NETWORK_WAIT_MS]);
+    worker.timers[0]!.fn();
+    release(basic('late'));
+    expect(await ((await pending).response as Response).text()).toBe('page');
+    expect(await worker.stores.get(cacheName('v1'))!.get(page.url)!.text()).toBe('late');
+  });
+
+  it('shows the saved copy for a server error, but not a missing page', async () => {
+    const worker = run('v1');
+    await worker.fire('fetch', page);
+    worker.setNetwork(async () => basic('down', { status: 503 }));
+    expect(await ((await worker.fire('fetch', page)).response as Response).text()).toBe('page');
+    worker.setNetwork(async () => basic('gone', { status: 404 }));
+    const missing = (await worker.fire('fetch', page)).response as Response;
+    expect(missing.status).toBe(404);
+    expect(await worker.stores.get(cacheName('v1'))!.get(page.url)!.text()).toBe('page');
+  });
+
+  it('gives a server error as it is when nothing is saved, and does not start a wait', async () => {
+    const worker = run('v1');
+    worker.setNetwork(async () => basic('down', { status: 500 }));
+    const result = (await worker.fire('fetch', page)).response as Response;
+    expect(result.status).toBe(500);
+    expect(worker.timers).toEqual([]);
+    expect(worker.stores.get(cacheName('v1'))?.size ?? 0).toBe(0);
+  });
+
+  it('only prefers a saved copy over a 5xx', () => {
+    expect([200, 301, 304, 400, 404, 499].map((status) => preferSaved({ status }))).toEqual([false, false, false, false, false, false]);
+    expect([500, 502, 503, 599].map((status) => preferSaved({ status }))).toEqual([true, true, true, true]);
+  });
+});
+
+describe('the switched-off worker', () => {
+  const off = buildPlainScript([sources[0]!, read('src/scripts/swoff.ts')]);
+
+  it('has no fetch handler: it saves and answers nothing', () => {
+    const worker = run('x', [], off);
+    expect(worker.listeners.fetch).toBeUndefined();
+    expect(off).not.toMatch(/\bfetch\b/);
+  });
+
+  it('deletes only our saved copies on activate and removes itself', async () => {
+    const worker = run('x', [cacheName('v1'), cacheName('v2'), 'unrelated'], off);
+    await worker.fire('install');
+    expect(worker.calls.skipWaiting).toBe(1);
+    await worker.fire('activate');
+    expect([...worker.stores.keys()]).toEqual(['unrelated']);
+    expect(worker.calls.unregister).toBe(1);
+  });
+});
+
+describe('the registration script', () => {
+  it('is one plain script with no import, export or type left', () => {
+    const script = buildPlainScript([sources[0]!, read('src/scripts/swlogic.ts'), read('src/scripts/offline.ts')]);
+    expect(script).not.toMatch(/^\s*(import|export)\b/m);
+    expect(script).not.toMatch(/\binterface\b|as WorkerContainer|: Promise</);
+    expect(() => new vm.Script(script)).not.toThrow();
+    expect(script).not.toMatch(/https?:\/\//);
+  });
+});
+
+describe('what a first visit saves', () => {
+  const page = `${ORIGIN}/learn/study-skills`;
+  it('is the page, then the files it loaded that the worker would keep, each once', () => {
+    expect(
+      firstVisitUrls(`${page}#top`, [`${ORIGIN}/_astro/a.js`, `${ORIGIN}/_astro/a.js`, '/_astro/b.css', `${ORIGIN}/fonts/inter.woff2`], ORIGIN),
+    ).toEqual([page, `${ORIGIN}/_astro/a.js`, `${ORIGIN}/_astro/b.css`, `${ORIGIN}/fonts/inter.woff2`]);
+  });
+
+  it('leaves out everything the worker would not keep', () => {
+    expect(
+      firstVisitUrls(`${ORIGIN}/play`, [
+        `${ORIGIN}/_astro/data.json`, `${ORIGIN}/learn/study-skills/q.json`, `${ORIGIN}/admin`, 'https://static.cloudflareinsights.com/beacon.min.js',
+        `${ORIGIN}/learn/x?token=1`, 'not a url', `${ORIGIN}/pagefind/pagefind.js`, `${ORIGIN}/progress`,
+      ], ORIGIN),
+    ).toEqual([]);
+  });
+
+  it('stops at 60 addresses', () => {
+    const many = Array.from({ length: 100 }, (_, index) => `${ORIGIN}/_astro/f${index}.js`);
+    expect(firstVisitUrls(page, many, ORIGIN)).toHaveLength(60);
+  });
+});
+
+describe('starting the offline copies from a page', () => {
+  function environment(overrides: Partial<{ controller: boolean; failRegister: boolean; becomesController: boolean }> & Partial<OfflineEnvironment> = {}) {
+    const { controller = false, failRegister = false, becomesController = true, ...rest } = overrides;
+    const log = { registered: [] as { url: string; scope: string }[], unregistered: 0, fetched: [] as string[], waits: [] as number[] };
+    let control: unknown = controller ? {} : undefined;
+    const listeners: (() => void)[] = [];
+    const container: WorkerContainer = {
+      get controller() { return control; },
+      ready: Promise.resolve({}),
+      register: async (url, options) => {
+        log.registered.push({ url, scope: options.scope });
+        if (failRegister) throw new Error('refused');
+        return {};
       },
-    },
+      getRegistrations: async () => [{ unregister: async () => { log.unregistered += 1; return true; } }, { unregister: async () => { log.unregistered += 1; return true; } }],
+      addEventListener: (_type, listener) => void listeners.push(listener),
+    };
+    const env: OfflineEnvironment = {
+      serviceWorker: container, secure: true, enabled: true, origin: ORIGIN, pageUrl: `${ORIGIN}/learn/study-skills`,
+      resources: () => [`${ORIGIN}/_astro/a.js`],
+      fetchOne: async (url) => void log.fetched.push(url),
+      wait: async (ms) => {
+        log.waits.push(ms);
+        if (becomesController) { control = {}; for (const listener of listeners) listener(); }
+        return new Promise<void>(() => undefined);
+      },
+      ...rest,
+    };
+    return { env, log, takeControl: () => { control = {}; for (const listener of listeners) listener(); } };
+  }
+
+  it('registers /sw.js for the whole site, then saves the first visit once the worker controls the page', async () => {
+    const { env, log, takeControl } = environment({ becomesController: false });
+    const started = startOffline(env);
+    await new Promise((resolve) => setImmediate(resolve));
+    takeControl();
+    await started;
+    expect(log.registered).toEqual([{ url: '/sw.js', scope: '/' }]);
+    expect(log.fetched).toEqual([`${ORIGIN}/learn/study-skills`, `${ORIGIN}/_astro/a.js`]);
   });
 
-  it('registers /sw.js for the whole site on a secure page', async () => {
-    registrations.length = 0;
-    await registerOffline(nav(), true);
-    expect(registrations).toEqual([{ url: '/sw.js', options: { scope: '/' } }]);
+  it('does not wait forever for control, and saves nothing if it never comes', async () => {
+    const { env, log } = environment({ becomesController: false, wait: async () => undefined });
+    await startOffline(env);
+    expect(log.fetched).toEqual([]);
   });
 
-  it('does nothing on an insecure page or in a browser without service workers', () => {
-    registrations.length = 0;
-    expect(registerOffline(nav(), false)).toBeUndefined();
-    expect(registerOffline({}, true)).toBeUndefined();
-    expect(registrations).toEqual([]);
+  it('saves nothing extra on a later visit (the worker already controls the page and saves as it goes)', async () => {
+    const { env, log } = environment({ controller: true });
+    await startOffline(env);
+    expect(log.registered).toHaveLength(1);
+    expect(log.fetched).toEqual([]);
   });
 
-  it('stays quiet when registration is refused', async () => {
-    await expect(registerOffline(nav(true), true)).resolves.toBeUndefined();
+  it('does nothing on an insecure page or in a browser without service workers', async () => {
+    const insecure = environment();
+    await startOffline({ ...insecure.env, secure: false });
+    await startOffline({ ...insecure.env, serviceWorker: undefined });
+    expect(insecure.log.registered).toEqual([]);
+    expect(insecure.log.unregistered).toBe(0);
+  });
+
+  it('stays quiet when registration is refused, and saves nothing', async () => {
+    const { env, log } = environment({ failRegister: true });
+    await expect(startOffline(env)).resolves.toBeUndefined();
+    expect(log.fetched).toEqual([]);
+  });
+
+  it('keeps going when one file cannot be fetched', async () => {
+    const { env, log } = environment();
+    await startOffline({ ...env, fetchOne: async (url) => { log.fetched.push(url); throw new Error('network'); } });
+    expect(log.fetched).toHaveLength(2);
+  });
+
+  it('removes every registration, and registers nothing, when the feature is switched off', async () => {
+    const { env, log } = environment();
+    await startOffline({ ...env, enabled: false });
+    expect(log.unregistered).toBe(2);
+    expect(log.registered).toEqual([]);
   });
 });

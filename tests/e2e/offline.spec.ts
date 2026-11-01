@@ -24,21 +24,42 @@ const kept = (page: Page) =>
     return urls;
   });
 
-/** Loads the lesson until the worker controls the page and has kept it (the first load happens before it is ready). */
+/** One visit, no reload: the page saves itself and the files it loaded before the worker could (the first visit). */
 async function visitLesson(page: Page) {
   await page.goto('/learn/study-skills');
-  await page.evaluate(() => navigator.serviceWorker.ready);
-  await page.reload();
-  await expect.poll(() => kept(page)).toContain('/learn/study-skills');
+  await expect.poll(() => kept(page), { timeout: 15_000 }).toContain('/learn/study-skills');
 }
 
-test('a lesson visited once opens again with no connection', async ({ page, context }) => {
+test('the very first visit to a lesson is saved, so it opens again with no connection, styles included', async ({ page, context }) => {
   await visitLesson(page);
+  await expect.poll(async () => (await kept(page)).some((url) => url.endsWith('.css'))).toBe(true);
   await context.setOffline(true);
   await page.reload();
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   await expect(page.locator('main')).toContainText('study');
+  // The styles came back too: the page is not the browser's bare unstyled document.
+  expect(await page.evaluate(() => document.styleSheets.length)).toBeGreaterThan(0);
+  expect(await page.evaluate(() => getComputedStyle(document.body).display)).toBe('flex');
   await context.setOffline(false);
+});
+
+test('the registration is an external file, never an inline script', async ({ page }) => {
+  await page.goto('/learn/study-skills');
+  expect(await page.locator('script[src="/register-sw.js"]').count()).toBe(1);
+  expect(await page.evaluate(() => [...document.scripts].filter((script) => !script.src && /serviceWorker/.test(script.textContent ?? '')).length)).toBe(0);
+  const file = await page.request.get('/register-sw.js');
+  expect(file.headers()['content-type']).toContain('javascript');
+  expect(await file.text()).toContain('/sw.js');
+});
+
+test('the play page is never kept, because today\'s puzzles are inside it', async ({ page }) => {
+  await visitLesson(page);
+  await page.goto('/play');
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  await page.reload();
+  await page.waitForTimeout(500);
+  const urls = await kept(page);
+  expect(urls.filter((url) => url.startsWith('/play'))).toEqual([]);
 });
 
 test('it keeps only pages and built files from this site, never a query string or a private page', async ({ page }) => {
@@ -53,7 +74,9 @@ test('it keeps only pages and built files from this site, never a query string o
   expect(urls.some((url) => url.startsWith('/_astro/'))).toBe(true);
   for (const url of urls) {
     expect(url, url).not.toContain('?');
-    expect(url, url).toMatch(/^\/($|learn\/|play$|_astro\/|brand\/|fonts\/)/);
+    expect(url, url).toMatch(/^\/($|learn\/|_astro\/|brand\/|fonts\/)/);
+    if (url.startsWith('/learn/')) expect(url, url).not.toContain('.');
+    else if (url !== '/') expect(url, url).toMatch(/\.(js|css|woff2?|svg|png|jpe?g|webp|avif|gif|ico)$/);
   }
   expect(await page.evaluate(() => caches.keys())).toEqual([expect.stringMatching(/^cueory-offline-[A-Za-z0-9-]+$/)]);
 });

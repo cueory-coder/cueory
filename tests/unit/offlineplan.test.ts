@@ -25,6 +25,24 @@ describe('offline URL policy for GET requests', () => {
   });
 
   it.each([
+    '/learn/study-skills/questions/study-skills-01.json', '/learn/data.json', '/learn/study-skills.html', '/learn/a.b',
+    '/learn/study-skills/answers.csv', '/learn/study-skills.json/', '/learn/study-skills/cards.json', '/learn/x%2Ejson',
+    '/learn/x%2ejson', '/_astro/data.json', '/_astro/page.html', '/_astro/app.js.map', '/_astro/noextension',
+    '/brand/v1/data.json', '/brand/v1/logo', '/fonts/inter.json', '/fonts/inter.woff2.map', '/fonts/inter.ttf.html',
+  ])('refuses data files and pages that only look like static files: %s', url => {
+    expect(cacheable(url, ORIGIN)).toBe(false);
+  });
+
+  it.each([
+    '/learn/', '/learn/study-skills', '/learn/study-skills/', '/learn/study-skills/label-it',
+    '/_astro/app.abc123.js', '/_astro/app.abc123.css', '/_astro/inter.woff2', '/_astro/INTER.WOFF', '/_astro/a.SVG',
+    '/_astro/a.png', '/_astro/a.jpg', '/_astro/a.jpeg', '/_astro/a.webp', '/_astro/a.avif', '/_astro/a.gif', '/_astro/a.ico',
+    '/brand/v1/logo.svg', '/brand/v1/logo.PNG', '/brand/favicon.ico', '/fonts/inter.woff2', '/fonts/inter.woff',
+  ])('allows lesson pages and static files: %s', url => {
+    expect(cacheable(url, ORIGIN)).toBe(true);
+  });
+
+  it.each([
     '?token=sample', '?code=sample', '?key=sample', '?TOKEN=sample', '?Code', '?KEY=',
     '?%74oken=sample', '?%63ode=sample', '?%6bey=sample', '?view=cards&code=sample',
     '?token=one&token=two', '?access_token=sample', '?refresh_token=sample',

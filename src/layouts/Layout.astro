@@ -4,7 +4,7 @@ import BuildingNotice from '../components/BuildingNotice.astro';
 import PromoPanel from '../components/PromoPanel.astro';
 import SiteFooter from '../components/SiteFooter.astro';
 import SiteHeader from '../components/SiteHeader.astro';
-import { promo as promoSettings, site } from '../config/site';
+import { offline, promo as promoSettings, site } from '../config/site';
 import { themeHeadScript } from '../scripts/theme';
 
 interface Props {
@@ -92,9 +92,10 @@ const searchTitle = isHome ? 'home' : title;
     </main>
     <SiteFooter />
     {showPromo && <PromoPanel />}
-    <!-- Offline copies of pages (ROADMAP Task 5): registers /sw.js after the page has loaded, in a built site only. -->
-    <script>
-      import '../scripts/offline';
-    </script>
+    <!--
+      Offline copies of pages (ROADMAP Task 5): an external file (built from src/scripts/offline.ts) that registers
+      /sw.js after the page has loaded, in a built site only and while `offline.enabled` (src/config/site.ts) is true.
+    -->
+    <script is:inline src="/register-sw.js" defer data-offline={import.meta.env.PROD && offline.enabled ? 'on' : 'off'}></script>
   </body>
 </html>
