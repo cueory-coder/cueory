@@ -85,6 +85,16 @@ Last updated: 2026-11-01
 - In `staging` (auto-merged): the [once-only promo panel](https://github.com/lilchristxan/Cueory/pull/34) (D-59). On
   marketing pages a small dark panel slides down from the top after 5 seconds or halfway down the page, with "join the
   launch list", "support us while we build" and the social marks; once shown, it stays away for 30 days.
+- In `staging` (auto-merged): [Organizer](https://github.com/lilchristxan/Cueory/pull/58) (a Codex helper's, Task 5b on
+  #11): sort ideas into groups by tapping, by typing a group's number or by dragging. Nothing is marked until
+  **check**; right items lock and wrong ones go back to try again. Not on a page yet: that comes with the study-mode
+  pages (Task C1 on #11).
+- In `staging` (auto-merged): [adaptive quiz rules](https://github.com/lilchristxan/Cueory/pull/61) (a Codex helper's,
+  Task 10 on #11). The next question comes from the student's own results, by written rules: a concept they just
+  missed comes first, then the one with the fewest tries; two right in a row move a concept up a level, and a miss
+  moves it down. Each pick says why in words, and each concept's status is a word (not started, learning, getting
+  there, got it), never a score or a chance of passing. It reaches a page once reviewed questions and `check_answer`
+  exist (Task 2).
 
 ## Done (lead, 2026-10-31 evening)
 - Daily games show plain names for now (D-66): pulse, crossword, sort and word path. Christian picks final names
