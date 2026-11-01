@@ -140,7 +140,8 @@ Last updated: 2026-11-01
 - [Fill-in](https://github.com/lilchristxan/Cueory/pull/56) (a Codex helper's, Task 7 on #11): a sentence with one
   word or phrase missing, and the student types it. Capitals, extra spaces and end punctuation don't count, and a
   one-letter slip in an answer of five letters or more is "almost". Missed and hinted items come back in the next
-  round. Not on a page yet: that comes with the study-mode pages (Task C1 on #11).
+  round. Not on a page yet: that comes with the study-mode pages (Task C1 on #11). Enter no longer checks an answer
+  while a Japanese, Chinese or Korean keyboard is still composing the word; it only confirms the word.
 - Daily games, first part (D-61): `/play` with pulse, playable with labeled sample puzzles, and cueword, triage and
   suture listed as coming soon; a link in the ☰ panel and a section on the home page after "ways to study". It adds
   sample puzzles under `content/`, so it waits for Christian's merge. How real puzzles reach the browser one day at a
