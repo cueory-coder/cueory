@@ -250,8 +250,8 @@ Targets: first visuals by about 14 November, the full kit by about 12 December (
 
 ## Needs Christian's hands
 - [ ] Lesson videos (#97, now in `staging`): on a real iPhone, open `/learn/video-sample` on the staging site and tap
-  the cover once. The video should start playing right away. Safari can drop the tap's permission to play, which automated
-  tests can't see. Reply "video ok" or describe what happened.
+  the cover once. The video should start playing right away. Safari can drop the tap's permission to play, which
+  automated tests can't see. Reply "video ok" or describe what happened.
 - [ ] Study modes on pages (#77): its questions page sends the sample answers to the browser before a student answers,
   and organizer and fill-in carry their answers in the page, like cards. Choose one: (1) split it, publishing what
   has no answer before an attempt, with questions waiting for `check_answer` and accounts (recommended); (2) keep all
