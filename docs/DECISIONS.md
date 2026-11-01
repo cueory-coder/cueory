@@ -449,6 +449,16 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   - **Next:** Christian picks final names later, after a screen.
 
   Reason: avoid launching under names others have filed for related goods.
+- **D-68** The visuals kit's source-file check (Task 6, D-56). The build checks every file in `content/visuals/`
+  (`visualProblems` in `src/visuals/sources.ts`, run by `src/content.config.ts`) and stops with a plain message when:
+  a label or depiction points to no source in the file, or a source is unused; a source quotes a book that isn't
+  allowed (only Open RN *Nursing Fundamentals, 2nd Edition*, CC BY 4.0, for now: OpenStax stays out while D-57 waits,
+  and nothing NonCommercial can join); a source doesn't link to the page it quotes inside that book's site, gives the
+  wrong license or misses the day its words were copied (`retrieved`); or ids repeat. The unit tests also check each
+  file's name and its lesson ids against the lesson map. Drawings take label text only from the file (`labelText`),
+  only approved visuals can appear on a page (`approvedOnly`), each visual shows the credit WisTech Open's terms ask
+  for (`creditsFor`), and every overlay says "simplified for learning" (`notesFor`). Reason: no picture can ship with
+  a word its cited source doesn't state.
 - **D-70** The crossword on `/play` (internal id `cueword`; shown as "crossword", D-66). A Codex helper built the engine
   and board (#51): the usual numbering, typing that skips gaps, checking a word or the whole grid with a symbol and
   words for each mark, up to three cues that each fill in one letter and lock it, and a plain-words share line ("cueory
