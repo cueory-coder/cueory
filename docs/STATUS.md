@@ -145,6 +145,10 @@ Merged into `staging` tonight (pulse and sort were already live; the rest reache
 - Christian's decisions (D-80): the 3D atlas is BodyParts3D; OpenStax is link-only; releases stay manual.
 
 ## In review
+- Task 2, database step 1 (Task C6, D-84): `concepts`, `sources` and `rights_records`, with 34 database tests. Visitors
+  and students read only published concepts and sources; nobody on the website can write; rights records are closed
+  to every website role. It edits `supabase/`, so it waits for Christian. Steps 2 to 5 stack on it: items, then
+  `check_answer`, then attempts and exam plans, then flags.
 - [Concept map](https://github.com/lilchristxan/Cueory/pull/68) (Task 14): every concept in a unit with its status in
   words and a shape (an empty circle, a quarter, a half or a check), never color alone, with a filter by status. No
   scores or predictions.
