@@ -103,7 +103,7 @@ export default function OsmosisFluidShifts({ visual, shown = steps.length, idPre
           <circle cx="160" cy="200" r="9" strokeWidth="2" className="fill-surface stroke-ink" />
         </g>
         <line x1="180" y1="36" x2="180" y2="212" strokeWidth="3" strokeDasharray="12 7" className="stroke-ink" />
-        {text('membrane', 188, 234, { size: 14 })}
+        {text('membrane', 190, 232, { size: 14, max: 14 })}
         {text('larger-blocked', 8, 262, { size: 14, soft: true })}
         <path d="M70 248 L153 208" fill="none" strokeWidth="1" className="stroke-ink-soft" />
         {text('passive', 8, 290, { size: 14, strong: true })}

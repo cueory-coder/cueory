@@ -6,6 +6,8 @@ import { captionFrom, describedParts, playerSteps, wrapLines, type DrawingStep }
 import FluidCompartments, { steps as fluidSteps } from '../../src/visuals/drawings/FluidCompartments';
 import OsmosisFluidShifts, { steps as osmosisSteps } from '../../src/visuals/drawings/OsmosisFluidShifts';
 import osmosisFile from '../../content/visuals/osmosis-fluid-shifts.json';
+import pumpFile from '../../content/visuals/sodium-potassium-pump.json';
+import SodiumPotassiumPump, { steps as pumpSteps } from '../../src/visuals/drawings/SodiumPotassiumPump';
 import { labelText, visualProblems, type Visual } from '../../src/visuals/sources';
 import { parseSteps } from '../../src/visuals/steps';
 
@@ -23,6 +25,11 @@ const drawings: { visual: Visual; steps: readonly DrawingStep[]; render: (shown?
     visual: osmosisFile as Visual,
     steps: osmosisSteps,
     render: (shown) => renderToStaticMarkup(createElement(OsmosisFluidShifts, { visual: osmosisFile as Visual, shown })),
+  },
+  {
+    visual: pumpFile as Visual,
+    steps: pumpSteps,
+    render: (shown) => renderToStaticMarkup(createElement(SodiumPotassiumPump, { visual: pumpFile as Visual, shown })),
   },
 ];
 
@@ -142,6 +149,43 @@ describe('osmosis and fluid shifts', () => {
     const lesser = inside.filter(({ x }) => x < 180).length;
     const greater = inside.filter(({ x }) => x > 180).length;
     expect(greater).toBeGreaterThan(lesser);
+  });
+});
+
+describe('the sodium-potassium pump', () => {
+  const markup = renderToStaticMarkup(createElement(SodiumPotassiumPump, { visual: pumpFile as Visual, shown: 1 }));
+  const ionsAt = (kind: string) =>
+    [...markup.matchAll(new RegExp(`data-ion="${kind}"[^>]*?(?:cy|y)="([\\d.]+)"`, 'g'))].map(([, y]) => Number(y));
+  // Outside the cell is above the membrane (y < 212), inside is below it (212 < y < 416); the key sits lower down.
+  const outside = (ys: number[]) => ys.filter((y) => y < 212).length;
+  const inside = (ys: number[]) => ys.filter((y) => y > 244 && y < 416).length;
+
+  it('draws more sodium outside the cell than inside', () => {
+    const sodium = ionsAt('sodium');
+    expect(outside(sodium)).toBeGreaterThan(inside(sodium));
+  });
+
+  it('draws more potassium inside the cell than outside', () => {
+    const potassium = ionsAt('potassium');
+    expect(inside(potassium)).toBeGreaterThan(outside(potassium));
+  });
+
+  it('carries sodium outward (up) and potassium inward (down)', () => {
+    const full = renderToStaticMarkup(createElement(SodiumPotassiumPump, { visual: pumpFile as Visual }));
+    const arrows = [...full.matchAll(/<path d="M(\d+) (\d+) V(\d+)"[^>]*marker-end/g)].map(([, x, from, to]) => ({
+      x: Number(x),
+      from: Number(from),
+      to: Number(to),
+    }));
+    expect(arrows).toEqual([
+      { x: 212, from: 290, to: 150 },
+      { x: 244, from: 160, to: 300 },
+    ]);
+  });
+
+  it('shows no numbers: the book gives no ion counts', () => {
+    const words = [...markup.matchAll(/<tspan[^>]*>([^<]*)<\/tspan>/g)].map(([, line]) => line);
+    expect(words.filter((line) => /\d/.test(line!))).toEqual([]);
   });
 });
 
