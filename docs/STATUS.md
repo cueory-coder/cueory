@@ -78,14 +78,18 @@ Last updated: 2026-11-01
   ["ways to study" merry-go-round and a calmer home page](https://github.com/lilchristxan/Cueory/pull/40) (D-60).
   [Release #37](https://github.com/lilchristxan/Cueory/pull/37) carries everything in `staging` to `main` when
   Christian merges it.
+- In `staging` (auto-merged): the [home page polish](https://github.com/lilchristxan/Cueory/pull/42) (D-62): 16 px
+  panels with a hairline and one soft shadow, a crisper glassy button, sections that fade in once, and a shorter
+  launch-updates panel.
 
 ## In review
 - [Once-only promo panel](https://github.com/lilchristxan/Cueory/pull/34) (D-59): on marketing pages a small dark panel
   slides down from the top after 5 seconds or halfway down the page, with "join the launch list", "support us while we
   build" and the social marks; once shown, it stays away for 30 days. Now on brand v1.0's colors.
 - Daily games, first part (D-61): `/play` with pulse, playable with labeled sample puzzles, and cueword, triage and
-  suture listed as coming soon; a link in the ☰ panel and a section on the home page after "ways to study". It adds sample puzzles under `content/`, so it waits for
-  Christian's merge. How real puzzles reach the browser one day at a time is proposed in D-61 for Christian.
+  suture listed as coming soon; a link in the ☰ panel and a section on the home page after "ways to study". It adds
+  sample puzzles under `content/`, so it waits for Christian's merge. How real puzzles reach the browser one day at a
+  time is proposed in D-61 for Christian.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).

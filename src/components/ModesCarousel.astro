@@ -34,6 +34,8 @@ const count = studyModes.length;
   aria-roledescription="carousel"
   data-modes
 >
+  <!-- The heading, the cards and their buttons fade in together the first time they come into view (D-62). -->
+  <div data-reveal-section>
   <div class="mx-auto max-w-page px-gutter text-center">
     <h2 id="modes-heading" class="display text-title sm:text-title-lg">ways to study</h2>
   </div>
@@ -104,6 +106,7 @@ const count = studyModes.length;
         <path d="M9.5 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
       </svg>
     </button>
+  </div>
   </div>
 
   <p class="sr-only" aria-live="off" aria-atomic="true" data-modes-live></p>

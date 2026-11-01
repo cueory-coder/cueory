@@ -383,19 +383,29 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   an endless merry-go-round that is never empty, and a calmer, less templated page.
 - **D-61** Daily games start with pulse on `/play` (Christian's request, 2026-10-31, 6:40 pm, item 4 of the lead's note
   on issue #4). `/play` lists the four games under working names kept in `src/config/games.ts` (pulse, cueword, triage,
-  suture), so a rename is one line; the ☰ panel links to it, and the home page has a calm section of its own right
-  after "ways to study" (a silk scene, `scene-play`: the heading, one line and "play today's pulse"). pulse is playable now with ten labeled sample puzzles of everyday words
-  (`content/games/pulse/`, checked by the content config). Its own rules: the word runs five to seven letters; there are
-  seven beats; a guess spends one, and the day's cue spends one (never the last); each letter is marked in place
-  (filled, ●), elsewhere in the word (ringed, ○) or not in it (plain, ·), in words for screen readers too, never by color
-  alone, as round letters in a row, never a tile grid. Typing in a labeled field and tapping the on-screen letters both
-  work. The result shares as one plain line ("cueory pulse, sun 1 nov: solved in 3 of 7 beats, with the cue."): no
-  squares, no streak, and no stats kept yet. A day's sample is picked from the visitor's own date, going round the list.
-  **Proposed, waiting for Christian: only today's puzzle reaches the browser.** Real puzzles are nursing content whose
-  answers are answer keys, so they never go in this repository (content/README.md). The smallest $0 way: reviewed
-  puzzles live in the Task 2 database (Supabase, free) with a publish date, and a database function returns only
-  today's puzzle (and past ones), with row-level security that blocks future rows; `/play` fetches it when it loads.
-  That needs Task 2's database and Christian's approval of its policies; until then pulse plays samples only. Without
-  the database, a small Cloudflare Worker route could hold the puzzles and answer only today's, but that changes
-  `wrangler.jsonc` (deployment), so it is also Christian's call. Reason: Christian's request for daily games as a major
-  feature, built so that no future puzzle can reach a browser.
+  suture), so a rename is one line; the ☰ panel links to it, and the home page has a calm section of its own right after
+  "ways to study" (a silk scene, `scene-play`: the heading, one line and "play today's pulse"). pulse is playable now
+  with ten labeled sample puzzles of everyday words (`content/games/pulse/`, checked by the content config). Its own
+  rules: the word runs five to seven letters; there are seven beats; a guess spends one, and the day's cue spends one
+  (never the last); each letter is marked in place (filled, ●), elsewhere in the word (ringed, ○) or not in it (plain,
+  ·), in words for screen readers too, never by color alone, as round letters in a row, never a tile grid. Typing in a
+  labeled field and tapping the on-screen letters both work. The result shares as one plain line ("cueory pulse, sun 1
+  nov: solved in 3 of 7 beats, with the cue."): no squares, no streak, and no stats kept yet. A day's sample is picked
+  from the visitor's own date, going round the list. **Proposed, waiting for Christian: only today's puzzle reaches the
+  browser.** Real puzzles are nursing content whose answers are answer keys, so they never go in this repository
+  (content/README.md). The smallest $0 way: reviewed puzzles live in the Task 2 database (Supabase, free) with a publish
+  date, and a database function returns only today's puzzle (and past ones), with row-level security that blocks future
+  rows; `/play` fetches it when it loads. That needs Task 2's database and Christian's approval of its policies; until
+  then pulse plays samples only. Without the database, a small Cloudflare Worker route could hold the puzzles and answer
+  only today's, but that changes `wrangler.jsonc` (deployment), so it is also Christian's call. Reason: Christian's
+  request for daily games as a major feature, built so that no future puzzle can reach a browser.
+- **D-62** Home page polish: "expensive, not a template" (Christian's feedback, 2026-10-31, 6:40 pm, item 3 of the lead's
+  note on issue #4). Frosted panels and cards get a 16 px radius (`--radius-xl`), a 1 px hairline at lower opacity and
+  one soft shadow (`--shadow-soft`, one layer); drawings inside cards get a smaller radius than the card. The glassy
+  button gets a crisper rim (`--glass-rim-alpha` up) and a smaller, softer shadow of its own (`--shadow-button`). The
+  "ways to study" section and the launch-updates panel fade in with a 10 px rise the first time they come into view,
+  once (`--rise-reveal`, 600 ms, easing out). Only sections still below the window when the script runs wait, so
+  nothing is hidden without JavaScript or once on screen, and with reduced motion nothing waits or moves. Until Kit is
+  connected the launch-updates panel says only "signups open soon."; the line about the emails comes with the form, so
+  small grey lines never stack. The space between sections was already about 144 px on desktops, inside the 96 to
+  160 px asked for, so it stays. Reason: Christian's request for a calmer page that looks expensive.
