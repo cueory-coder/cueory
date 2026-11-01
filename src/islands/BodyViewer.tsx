@@ -46,11 +46,17 @@ export default function BodyViewer({ creditText }: Props) {
       const THREE = await import('three');
       const { OrbitControls } = await import('three/examples/jsm/controls/OrbitControls.js');
 
+      // Wait one animation frame so React can commit the canvas to the DOM.
+      await new Promise<void>(r => requestAnimationFrame(() => r()));
       const canvas = canvasRef.current;
-      if (!canvas) return;
+      if (!canvas) { setState('error'); setError('Canvas element not ready.'); return; }
 
       const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      // THREE's constructor calls setSize(300, 150, true) on the canvas, setting inline styles
+      // that override CSS min-height. Remove them so CSS controls the layout.
+      canvas.style.removeProperty('width');
+      canvas.style.removeProperty('height');
 
       const scene = new THREE.Scene();
 
@@ -220,9 +226,6 @@ export default function BodyViewer({ creditText }: Props) {
       };
 
       setState('ready');
-
-      // Return focus to the canvas so keyboard controls are immediately usable.
-      requestAnimationFrame(() => canvas.focus());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load the 3D viewer.');
       setState('error');
@@ -240,6 +243,11 @@ export default function BodyViewer({ creditText }: Props) {
   }, [visible, state]);
 
   useEffect(() => () => { cleanupRef.current?.(); }, []);
+
+  // Focus the canvas after the viewer transitions to ready so keyboard controls are immediately usable.
+  useEffect(() => {
+    if (state === 'ready') canvasRef.current?.focus();
+  }, [state]);
 
   if (state === 'cover') {
     return (
