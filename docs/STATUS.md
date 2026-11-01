@@ -101,6 +101,8 @@ Last updated: 2026-11-01
   later.
 
 ## In review
+- Auto-merge sweep (D-78, the lead's): an ordinary comment can no longer cancel a waiting merge check, and once an
+  hour a sweep re-checks every open pull request. It edits `.github/`, so it waits for Christian.
 - Safari focus fixes (from the WebKit runs for D-48): the ☰ panel's Tab trap now moves focus one item at a time in every
   browser (Safari's own Tab skips links and buttons), and the promo panel gives focus back after a link click even
   though Safari leaves focus on the page. Two WebKit-only test findings stay open: the triage keyboard tests use the
