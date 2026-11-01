@@ -8,14 +8,22 @@ export interface BreakIdea {
 
 export type SharedIdeaCheck = { ok: true; text: string } | { ok: false; message: string };
 
-// Keep ordinary emoji (including joiners), but refuse controls and directional overrides.
-const hiddenControls = /[\p{Cc}\p{Zl}\p{Zp}\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/u;
+// Only supported emoji sequences may use a format-character joiner.
+const hiddenControls = /[\p{Cc}\p{Zl}\p{Zp}]|(?!\u200d)\p{Cf}/u;
 const linkOrAddress = /(?:\b(?:https?|ftp|file|data|javascript|mailto|tel):|\/\/|www\.|@|(?:[\p{L}\p{N}][\p{L}\p{N}-]*\.)+(?:[\p{L}]{2,63}|xn--[\p{L}\p{N}-]{2,59})(?=$|[^\p{L}\p{N}-])|\b(?:\d{1,3}\.){3}\d{1,3}\b|\blocalhost(?::\d+|\/)|\[[^\]]*\]\s*\(|<a\b)/iu;
+
+function supportedJoiners(text: string): boolean {
+  for (let index = text.indexOf('\u200d'); index >= 0; index = text.indexOf('\u200d', index + 1)) {
+    if (!/\p{Extended_Pictographic}[\p{Emoji_Modifier}\uFE0F]*$/u.test(text.slice(0, index))
+      || !/^\p{Extended_Pictographic}/u.test(text.slice(index + 1))) return false;
+  }
+  return true;
+}
 
 /** The later signed-in share form uses these same text checks; this does not approve content. */
 export function checkSharedIdea(value: unknown): SharedIdeaCheck {
   if (typeof value !== 'string') return { ok: false, message: 'write your idea as text.' };
-  if (hiddenControls.test(value)) {
+  if (hiddenControls.test(value) || !supportedJoiners(value)) {
     return { ok: false, message: 'use plain text without control or direction-changing characters.' };
   }
   const text = value.trim();
@@ -23,8 +31,12 @@ export function checkSharedIdea(value: unknown): SharedIdeaCheck {
   if (length < 1 || length > MAX_IDEA_CHARACTERS) {
     return { ok: false, message: `keep your idea between 1 and ${MAX_IDEA_CHARACTERS} characters.` };
   }
+  if (!text.replace(/[\p{Default_Ignorable_Code_Point}\p{M}\p{Z}]/gu, '')) {
+    return { ok: false, message: 'write an idea with visible text or emoji.' };
+  }
   // Normalize only for detection; preserve the writer's accepted text and emoji.
-  const addressText = text.normalize('NFKC').replace(/[\u3002\uff0e\uff61]/gu, '.');
+  const addressText = text.normalize('NFKC')
+    .replace(/\p{Default_Ignorable_Code_Point}/gu, '').replace(/[\u3002\uff0e\uff61]/gu, '.');
   if (linkOrAddress.test(addressText)) {
     return { ok: false, message: 'leave out links, web addresses and email addresses.' };
   }

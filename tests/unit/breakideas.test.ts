@@ -20,6 +20,23 @@ describe('glove note idea checks', () => {
     });
   });
 
+  it.each(['👩🏽‍⚕️', '👨‍👩‍👧', '🏳️‍🌈'])('preserves supported joined emoji: %s', text => {
+    expect(checkSharedIdea(text)).toEqual({ ok: true, text });
+  });
+
+  it.each(['\u200b', '\u2060', '\u00ad', '\u200c', '\u200d', '\u2061', '\uFE0F', '\u034f'])
+    ('refuses invisible-only ideas and disguised addresses: %j', hidden => {
+      for (const text of [hidden, `example.${hidden}com`]) {
+        expect(checkSharedIdea(text)).toMatchObject({ ok: false });
+        expect(() => parseIdeas({ ideas: [idea('sample-one', text)] })).toThrow(/break idea 1/);
+      }
+    });
+
+  it('refuses joiners outside emoji even alongside visible words', () => {
+    expect(checkSharedIdea('sample\u200d')).toMatchObject({ ok: false });
+    expect(checkSharedIdea('a\u200db')).toMatchObject({ ok: false });
+  });
+
   it.each([null, undefined, 4, [], {}, true, '   '])('refuses missing or non-text ideas: %j', value => {
     expect(checkSharedIdea(value)).toMatchObject({ ok: false, message: expect.any(String) });
   });
