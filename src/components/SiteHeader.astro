@@ -90,13 +90,17 @@ const { quiet = false, overlay = false } = Astro.props;
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     const menuDialog = header.querySelector<HTMLDialogElement>('#site-menu');
     const menuButton = header.querySelector<HTMLButtonElement>('[data-menu-open]');
+    const accountButton = header.querySelector<HTMLButtonElement>('[data-account-toggle]');
     let previous: HeaderState = 'visible';
     let lastY = Math.max(0, window.scrollY);
 
     const refresh = () => {
       const scrollY = Math.max(0, window.scrollY);
       const focusInside = header.contains(document.activeElement);
-      const menuOpen = menuDialog?.open === true || menuButton?.getAttribute('aria-expanded') === 'true';
+      // Safari may leave a clicked account button unfocused. Its expanded state still keeps the header visible.
+      const menuOpen = menuDialog?.open === true
+        || menuButton?.getAttribute('aria-expanded') === 'true'
+        || accountButton?.getAttribute('aria-expanded') === 'true';
       previous = reducedMotion.matches
         ? 'visible'
         : nextHeaderState(previous, scrollY, lastY, focusInside, menuOpen);
@@ -112,6 +116,7 @@ const { quiet = false, overlay = false } = Astro.props;
     menuDialog?.addEventListener('toggle', refresh);
     menuDialog?.addEventListener('close', refresh);
     menuButton?.addEventListener('click', () => requestAnimationFrame(refresh));
+    accountButton?.addEventListener('click', () => requestAnimationFrame(refresh));
     reducedMotion.addEventListener('change', refresh);
     refresh();
   }

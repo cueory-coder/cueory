@@ -82,6 +82,17 @@ describe('header integration guard', () => {
     expect(component).not.toMatch(/#[0-9a-f]{3,8}\b/i);
   });
 
+  it('keeps the account menu visible when Safari does not focus its toggle', () => {
+    const corner = readFileSync(new URL('../../src/components/AccountCorner.astro', import.meta.url), 'utf8');
+    expect(corner).toContain('data-account-toggle');
+    expect(corner).toContain("toggle.setAttribute('aria-expanded', String(open))");
+    expect(component).toContain("header.querySelector<HTMLButtonElement>('[data-account-toggle]')");
+    expect(component).toContain("accountButton?.getAttribute('aria-expanded') === 'true'");
+    expect(component).toContain("accountButton?.addEventListener('click', () => requestAnimationFrame(refresh))");
+    expect(decide('hidden', 320, 300, false, true)).toBe('visible');
+    expect(decide('visible', 320, 300, false, true)).toBe('visible');
+  });
+
   it('does not tuck during keyboard focus, an open menu or reduced motion', () => {
     expect(component).toContain('header.contains(document.activeElement)');
     expect(component).toContain("menuDialog?.open === true");
