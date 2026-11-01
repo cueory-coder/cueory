@@ -675,6 +675,8 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   - **Run locally without Docker:** the Mac has no Docker, so these ran on PGlite (Postgres 17 in WebAssembly) with a
     small pgTAP look-alike for the few functions the tests use, with Supabase's old grant-everything defaults as the
     worst case. That stands in for, and doesn't replace, the Database check, which runs the real pgTAP on Supabase's
-    Postgres.
+    Postgres. The first real run found two places where the real pgTAP is stricter (`results_eq` won't compare a
+    `slug` column with text, so tests cast to `text`; a delete blocked by a foreign key reports 23503), so later steps
+    in this stack write tests that way from the start.
 
   Reason: the director's request on #11 (Task C6), following D-73's schema order.

@@ -36,11 +36,11 @@ set local "request.jwt.claims" to '{"role": "anon"}';
 set local "request.jwt.claim.sub" to '';
 
 select results_eq(
-  $$ select slug from public.concepts order by slug $$, $$ values ('sample-shown') $$,
+  $$ select slug::text from public.concepts order by slug $$, $$ values ('sample-shown') $$,
   'visitors see only published concepts'
 );
 select results_eq(
-  $$ select slug from public.sources order by slug $$, $$ values ('sample-book') $$,
+  $$ select slug::text from public.sources order by slug $$, $$ values ('sample-book') $$,
   'visitors see only published sources'
 );
 select throws_ok($$ select id from public.rights_records $$, '42501', null, 'visitors cannot read rights records');
@@ -57,11 +57,11 @@ set local "request.jwt.claims" to '{"sub": "00000000-0000-4000-8000-000000000001
 set local "request.jwt.claim.sub" to '00000000-0000-4000-8000-000000000001';
 
 select results_eq(
-  $$ select slug from public.concepts order by slug $$, $$ values ('sample-shown') $$,
+  $$ select slug::text from public.concepts order by slug $$, $$ values ('sample-shown') $$,
   'students see only published concepts'
 );
 select results_eq(
-  $$ select slug from public.sources order by slug $$, $$ values ('sample-book') $$,
+  $$ select slug::text from public.sources order by slug $$, $$ values ('sample-book') $$,
   'students see only published sources'
 );
 select throws_ok($$ select id from public.rights_records $$, '42501', null, 'students cannot read rights records');
@@ -152,7 +152,7 @@ select throws_ok(
 );
 select throws_ok(
   $$ delete from public.sources where id = '00000000-0000-4000-8000-0000000000a1' $$,
-  '23001', null, 'a source with a rights record cannot be deleted'
+  '23503', null, 'a source with a rights record cannot be deleted'
 );
 
 select * from finish();
