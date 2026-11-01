@@ -5,6 +5,7 @@ import {
   bands,
   buildFfmpegInput,
   clipFileName,
+  drawingBands,
   escHtml,
   frameFileName,
   frameHtml,
@@ -87,6 +88,48 @@ describe('bands', () => {
     for (const band of b) {
       expect(band.height).toBeGreaterThan(0);
     }
+  });
+});
+
+// ── drawingBands ──────────────────────────────────────────────────────────────
+
+describe('drawingBands', () => {
+  it('uses the per-drawing table for known drawings (not equal-height)', () => {
+    const table = drawingBands('fluid-compartments', 4, 983);
+    const equal = bands(4, 983);
+    expect(table[0]!.height).not.toBe(equal[0]!.height);
+  });
+
+  it('sodium-potassium-pump step 2 band includes the pump (SVG y=190–266)', () => {
+    // With equal-height bands the step-2 band starts at FRAME_HEIGHT/2, which is
+    // past the pump at SVG y=190–266 (≈34–47% of 560). The table band must start
+    // before the pump and extend past it.
+    const bs = drawingBands('sodium-potassium-pump', 2);
+    const scale = FRAME_HEIGHT / 560;
+    const pumpStart = 190 * scale;
+    const pumpEnd = 266 * scale;
+    expect(bs[1]!.y).toBeLessThanOrEqual(pumpStart);
+    expect(bs[1]!.y + bs[1]!.height).toBeGreaterThanOrEqual(pumpEnd);
+  });
+
+  it('falls back to equal-height bands for unknown drawing ids', () => {
+    const result = drawingBands('unknown-drawing', 3, 900);
+    const expected = bands(3, 900);
+    expect(result).toEqual(expected);
+  });
+
+  it('falls back to equal-height when step count does not match the table', () => {
+    // fluid-compartments has 4 table entries; asking for 3 steps falls back
+    const result = drawingBands('fluid-compartments', 3, 983);
+    const expected = bands(3, 983);
+    expect(result).toEqual(expected);
+  });
+
+  it('scales SVG-unit bands to pixel space via drawingHeight', () => {
+    const bs = drawingBands('osmosis-fluid-shifts', 3, 900);
+    // Step 1 SVG band: y=0, height=308. Scale = 900/900 = 1.
+    expect(bs[0]!.y).toBe(0);
+    expect(bs[0]!.height).toBe(308);
   });
 });
 
@@ -413,6 +456,18 @@ describe('rewriteFontUrls', () => {
   it('returns unchanged CSS when there are no /_astro/ font URLs', () => {
     const css = '.frame { color: red; }';
     expect(rewriteFontUrls(css, '/dist/_astro')).toBe(css);
+  });
+
+  it('percent-encodes spaces in path segments so the CSS url() value is valid', () => {
+    // An unquoted CSS url() cannot contain spaces. A repo in "/Users/chris/My Project/..."
+    // must produce url(file:///Users/chris/My%20Project/...) with encoded spaces.
+    const css = "src: url(/_astro/Inter-Bold.woff2) format('woff2');";
+    const result = rewriteFontUrls(css, '/Users/christian/My Project/dist/_astro');
+    expect(result).toContain('file:///Users/christian/My%20Project/dist/_astro/');
+    // The url() token itself must not contain a raw space (spaces are invalid in unquoted CSS urls).
+    const urlMatch = result.match(/url\([^)]+\)/);
+    expect(urlMatch).not.toBeNull();
+    expect(urlMatch![0]).not.toContain(' ');
   });
 });
 

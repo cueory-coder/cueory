@@ -44,6 +44,60 @@ export function bands(stepCount: number, drawingHeight: number = FRAME_HEIGHT): 
   }));
 }
 
+// ── Per-drawing step bands ────────────────────────────────────────────────────
+// Each drawing's SVG has natural sections that align to its steps. These bands
+// (in viewBox units) locate each step's visible area so the clip shows the part
+// the caption describes, rather than an equal slice of the full SVG height.
+//
+// viewBox heights: fluid-compartments 790, osmosis-fluid-shifts 900,
+// sodium-potassium-pump 560 (matching the HEIGHT constant in each drawing file).
+
+const DRAWING_STEP_BANDS_SVG: Record<
+  string,
+  ReadonlyArray<{ readonly y: number; readonly height: number }>
+> = {
+  'fluid-compartments': [
+    { y: 0,   height: 165 }, // step 1: ICF/ECF bar with labels (viewBox 0–165 of 790)
+    { y: 163, height: 207 }, // step 2: ICF cell box (163–370 of 790)
+    { y: 368, height:  87 }, // step 3: ECF box header (368–455 of 790)
+    { y: 430, height: 360 }, // step 4: ECF types — intravascular, interstitial, transcellular (430–790)
+  ],
+  'osmosis-fluid-shifts': [
+    { y: 0,   height: 308 }, // step 1: osmosis membrane section (0–308 of 900)
+    { y: 306, height: 237 }, // step 2: capillary section (306–543 of 900)
+    { y: 541, height: 359 }, // step 3: compartments section (541–900 of 900)
+  ],
+  'sodium-potassium-pump': [
+    { y:  8, height: 460 }, // step 1: two-sides overview — ECF, membrane, ICF, key (8–468 of 560)
+    { y: 24, height: 524 }, // step 2: pump + transport — includes pump at 190–266 (24–548 of 560)
+  ],
+};
+
+const DRAWING_VIEWBOX_HEIGHT: Record<string, number> = {
+  'fluid-compartments':   790,
+  'osmosis-fluid-shifts': 900,
+  'sodium-potassium-pump': 560,
+};
+
+/**
+ * Returns one Band per step for `drawingId`, scaled to pixel space using `drawingHeight`.
+ * When the drawing is listed in DRAWING_STEP_BANDS_SVG and stepCount matches, the bands
+ * follow the drawing's natural section boundaries rather than equal-height divisions.
+ * Falls back to bands() for unknown drawings or a mismatched step count.
+ */
+export function drawingBands(drawingId: string, stepCount: number, drawingHeight: number = FRAME_HEIGHT): Band[] {
+  const svgBands = DRAWING_STEP_BANDS_SVG[drawingId];
+  const vbHeight = DRAWING_VIEWBOX_HEIGHT[drawingId];
+  if (svgBands && vbHeight && svgBands.length === stepCount) {
+    const scale = drawingHeight / vbHeight;
+    return svgBands.map(({ y, height }) => ({
+      y: Math.round(y * scale),
+      height: Math.max(1, Math.round(height * scale)),
+    }));
+  }
+  return bands(stepCount, drawingHeight);
+}
+
 // ── Frame and clip naming ─────────────────────────────────────────────────────
 
 /**
@@ -80,7 +134,7 @@ export interface FrameSpec {
  * it defaults to FRAME_HEIGHT when not yet known.
  */
 export function frameList(drawingId: string, stepCount: number, drawingHeight: number = FRAME_HEIGHT): FrameSpec[] {
-  const bs = bands(stepCount, drawingHeight);
+  const bs = drawingBands(drawingId, stepCount, drawingHeight);
   return bs.map((band, i) => ({
     drawingId,
     stepIndex: i,
@@ -172,9 +226,13 @@ ${builtCss}
  * file, so we replace those references with absolute `file://` paths.
  *
  * Example: `url(/_astro/Inter-Bold.woff2)` → `url(file:///abs/path/dist/_astro/Inter-Bold.woff2)`
+ *
+ * Path segments are percent-encoded so directory names containing spaces remain valid
+ * in CSS url() unquoted values (spaces are invalid in unquoted url() syntax).
  */
 export function rewriteFontUrls(css: string, astroDir: string): string {
-  return css.replace(/url\(\/_astro\//g, `url(file://${astroDir}/`);
+  const safeDir = astroDir.split('/').map(encodeURIComponent).join('/');
+  return css.replace(/url\(\/_astro\//g, `url(file://${safeDir}/`);
 }
 
 // ── ffmpeg concat list ────────────────────────────────────────────────────────
