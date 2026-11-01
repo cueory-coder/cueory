@@ -495,6 +495,42 @@ test.describe('daily games: private stats (D-76)', () => {
     await other.close();
   });
 
+  test('a round held while stats are off is dropped when another tab turns stats on and off', async ({
+    page,
+    context,
+  }) => {
+    // Stats are off, so this round waits in this tab in case the student turns stats on here.
+    await solvePulse(page);
+    const other = await context.newPage();
+    await other.clock.setFixedTime(new Date('2026-11-01T15:00:00'));
+    await other.goto('/play');
+    await toggle(other).click();
+    await expect(toggle(page)).toHaveAttribute('aria-checked', 'true');
+    await toggle(other).click();
+    await expect(toggle(page)).toHaveAttribute('aria-checked', 'false');
+    await other.close();
+
+    // Turning stats on here doesn't bring back a round from before they were turned off.
+    await toggle(page).click();
+    await expect(toggle(page)).toHaveAttribute('aria-checked', 'true');
+    await expect(pulseStats(page)).toContainText('not played yet.');
+    expect(JSON.parse((await kept(page))!).results).toEqual([]);
+  });
+
+  test('a page back from the back/forward cache drops a round it was holding', async ({ page }) => {
+    await solvePulse(page);
+    // As if another tab turned stats on and off while this page was away: a page doesn't hear its own storage
+    // changes, and a cached page hears no one's.
+    await page.evaluate(() => {
+      localStorage.setItem('cueory-game-stats', JSON.stringify({ version: 1, results: [] }));
+      localStorage.removeItem('cueory-game-stats');
+      window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
+    });
+    await toggle(page).click();
+    await expect(pulseStats(page)).toContainText('not played yet.');
+    expect(JSON.parse((await kept(page))!).results).toEqual([]);
+  });
+
   test('a tab that missed the news still checks before keeping a game', async ({ page }) => {
     await toggle(page).click();
     // As if another tab turned stats off and this one never heard: a page doesn't hear its own storage changes.

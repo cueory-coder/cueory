@@ -95,16 +95,27 @@ export default function GameStatsPanel({ games: order }: Props) {
     const takeRounds = () => {
       for (const result of takeFinishedRounds()) onResult(result);
     };
-    // Another tab turned stats on or off, forgot a game, or added one.
+    // Another tab turned stats on or off, forgot a game, or added one. A round this tab was holding from before that
+    // is dropped, so turning stats off in another tab can't bring it back later (Codex on #79).
+    const changedElsewhere = () => {
+      unsaved.current = [];
+      setSaved(latest());
+    };
     const onStorage = (event: StorageEvent) => {
-      if (event.key === null || event.key === STATS_STORAGE_KEY) setSaved(latest());
+      if (event.key === null || event.key === STATS_STORAGE_KEY) changedElsewhere();
+    };
+    // A page coming back from the back/forward cache heard no storage events while it was away.
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) changedElsewhere();
     };
     takeRounds();
     window.addEventListener(GAME_RESULT_EVENT, takeRounds);
     window.addEventListener('storage', onStorage);
+    window.addEventListener('pageshow', onPageShow);
     return () => {
       window.removeEventListener(GAME_RESULT_EVENT, takeRounds);
       window.removeEventListener('storage', onStorage);
+      window.removeEventListener('pageshow', onPageShow);
     };
   }, []);
 
