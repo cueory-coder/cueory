@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { dayLabel } from './daily';
+import { localDay, reportRound } from './gameresults';
 import { cellLabel, clearTrace, foundWord, isDone, parsePuzzle, shareLine, startSuture, stitch, tapCell, traceInWords, wordsLeft, type Cell, type SuturePuzzle } from './suture';
 
 interface Props { puzzle: SuturePuzzle; name: string }
@@ -19,6 +20,14 @@ function Board({ puzzle, name }: Props) {
   const shared = shareLine(state, dayLabel(today), name);
 
   useEffect(() => { if (done) result.current?.focus(); }, [done]);
+
+  // A finished grid is reported once, for the stats panel, which keeps it only if the student turned stats on (D-76).
+  const reported = useRef(false);
+  useEffect(() => {
+    if (!done || reported.current) return;
+    reported.current = true;
+    reportRound({ game: 'suture', day: localDay(today), solved: true, tries: state.looseStitches });
+  }, [done]);
 
   const tap = (cell: Cell) => {
     const next = tapCell(state, puzzle, cell);

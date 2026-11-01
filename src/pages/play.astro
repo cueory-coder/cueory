@@ -1,13 +1,18 @@
 ---
 /**
- * Daily games (D-61, D-63, D-66): one page for the four games, in the lowercase brand voice. pulse and sort are playable
- * now with sample puzzles (everyday words, labeled as samples); the other two say coming soon. The names live in
- * src/config/games.ts, so a rename is one line.
+ * Daily games (D-61, D-63, D-66, D-70, D-71): one page for the four games, in the lowercase brand voice, all playable
+ * now with sample puzzles (everyday words, labeled as samples). A "coming soon" list shows only while a game is still on
+ * its way. The names live in src/config/games.ts, so a rename is one line.
  */
 import { getCollection } from 'astro:content';
 import Layout from '../layouts/Layout.astro';
 import PulseGame from '../islands/PulseGame';
 import TriageGame from '../islands/TriageGame';
+import CuewordToday from '../islands/CuewordToday';
+import SutureToday from '../islands/SutureToday';
+import GameStatsPanel from '../islands/GameStatsPanel';
+import { parsePuzzle } from '../islands/cueword';
+import { parsePuzzle as parseWordPath } from '../islands/suture';
 import { dailyGames } from '../config/games';
 
 const samples = (await getCollection('pulse'))
@@ -16,12 +21,33 @@ const samples = (await getCollection('pulse'))
 const triageSamples = (await getCollection('triage'))
   .sort((a, b) => a.id.localeCompare(b.id))
   .map(({ data }) => ({ groups: data.groups, oddOne: data.oddOne }));
+// Each crossword sample goes through the game's own rules here, so a broken one stops the build with a plain message.
+const crosswordSamples = (await getCollection('cueword'))
+  .sort((a, b) => a.id.localeCompare(b.id))
+  .map(({ id, data }) => {
+    try {
+      return parsePuzzle({ id, sample: true, grid: data.grid, clues: data.clues });
+    } catch (error) {
+      throw new Error(`content/games/cueword/${id}.json: ${(error as Error).message}`);
+    }
+  });
+const wordPathSamples = (await getCollection('suture'))
+  .sort((a, b) => a.id.localeCompare(b.id))
+  .map(({ id, data }) => {
+    try {
+      return parseWordPath({ id, sample: true, grid: data.grid, words: data.words });
+    } catch (error) {
+      throw new Error(`content/games/suture/${id}.json: ${(error as Error).message}`);
+    }
+  });
 const pulse = dailyGames.find((game) => game.id === 'pulse')!;
 const triage = dailyGames.find((game) => game.id === 'triage')!;
+const crossword = dailyGames.find((game) => game.id === 'cueword')!;
+const wordPath = dailyGames.find((game) => game.id === 'suture')!;
 const later = dailyGames.filter((game) => !game.ready);
 ---
 
-<Layout title="daily games" description="new puzzles every day: a word to guess and terms to sort. sample puzzles for now.">
+<Layout title="daily games" description="four short puzzles every day: a word to guess, terms to sort, a small crossword and a word path. sample puzzles for now.">
   <article class="veil mx-auto mt-6 max-w-prose p-6 sm:mt-10 sm:p-10">
     <h1 class="display text-title sm:text-title-lg">daily games</h1>
     <p class="mt-3 text-ink-soft">
@@ -54,18 +80,46 @@ const later = dailyGames.filter((game) => !game.ready);
       </div>
     </section>
 
-    <section class="mt-16" aria-labelledby="later-heading">
-      <h2 id="later-heading" class="text-2xl font-medium">coming soon</h2>
-      <ul class="mt-4 flex flex-col gap-3">
-        {
-          later.map((game) => (
-            <li>
-              <span class="font-medium">{game.name}</span>
-              <span class="text-ink-soft">: {game.line}</span>
-            </li>
-          ))
-        }
-      </ul>
+    <section class="mt-16" aria-labelledby="crossword-heading">
+      <h2 id="crossword-heading" class="text-2xl font-medium">{crossword.name}</h2>
+      <p class="mt-2 text-ink-soft">{crossword.line}</p>
+      <div class="mt-6">
+        <CuewordToday client:only="react" puzzles={crosswordSamples} name={crossword.name} />
+        <noscript>
+          <p>{crossword.name} needs JavaScript.</p>
+        </noscript>
+      </div>
     </section>
+
+    <section class="mt-16" aria-labelledby="word-path-heading">
+      <h2 id="word-path-heading" class="text-2xl font-medium">{wordPath.name}</h2>
+      <p class="mt-2 text-ink-soft">{wordPath.line}</p>
+      <div class="mt-6">
+        <SutureToday client:only="react" puzzles={wordPathSamples} name={wordPath.name} />
+        <noscript>
+          <p>{wordPath.name} needs JavaScript.</p>
+        </noscript>
+      </div>
+    </section>
+
+    {/* Private stats (D-76): off until the student turns them on, kept only in this browser. Without JavaScript there are
+    no games to count, so nothing shows. */}
+    <GameStatsPanel client:only="react" games={[pulse, triage, crossword, wordPath].map((game) => game.id)} />
+
+    {
+      later.length > 0 && (
+        <section class="mt-16" aria-labelledby="later-heading">
+          <h2 id="later-heading" class="text-2xl font-medium">coming soon</h2>
+          <ul class="mt-4 flex flex-col gap-3">
+            {later.map((game) => (
+              <li>
+                <span class="font-medium">{game.name}</span>
+                <span class="text-ink-soft">: {game.line}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
   </article>
 </Layout>

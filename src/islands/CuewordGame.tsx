@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { dayLabel } from './daily';
+import { localDay, reportRound } from './gameresults';
 import {
   checkAll, checkWord, currentWord, emptyState, erase, isSolved, move, nextWord, numbering,
   parsePuzzle, previousWord, revealCue, selectCell, shareLine, toggleDirection, type, words,
@@ -42,9 +43,17 @@ function Board({ puzzle, name }: Props) {
 
   useEffect(() => {
     if (solved) result.current?.focus();
-    else if (focusGrid.current) cells.current.get(state.cell)?.focus({ preventScroll: true });
+    else if (focusGrid.current) cells.current.get(state.cell)?.focus();
     focusGrid.current = false;
   }, [state, solved]);
+
+  // A solved grid is reported once, for the stats panel, which keeps it only if the student turned stats on (D-76).
+  const reported = useRef(false);
+  useEffect(() => {
+    if (!solved || reported.current) return;
+    reported.current = true;
+    reportRound({ game: 'cueword', day: localDay(today), solved: true, tries: state.cued.length });
+  }, [solved]);
 
   const update = (next: CuewordState, focus = true) => {
     if (!solved && isSolved(next)) setElapsed(Math.floor((Date.now() - started.current) / 1000));
@@ -109,7 +118,7 @@ function Board({ puzzle, name }: Props) {
       </p>
 
       <div className="mt-4 max-w-full overflow-x-auto">
-        <div role="grid" aria-label={`${name} crossword`} aria-describedby={help} aria-rowcount={puzzle.grid.length} aria-colcount={width} className="mx-auto flex w-max flex-col gap-1 p-1" onKeyDown={key}>
+        <div role="grid" aria-label={`${name} grid`} aria-describedby={help} aria-rowcount={puzzle.grid.length} aria-colcount={width} className="mx-auto flex w-max flex-col gap-1 p-1" onKeyDown={key}>
           {puzzle.grid.map((row, r) => (
             <div role="row" aria-rowindex={r + 1} key={r} className="flex gap-1">
               {[...row].map((answer, c) => {

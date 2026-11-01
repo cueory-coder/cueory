@@ -8,8 +8,9 @@
  * - Once it has been shown it stays away for 30 days (`promo` in src/config/site.ts), whether the visitor closed it,
  *   clicked it or ignored it, so it never comes back on a refresh or later in the same visit. The date is kept in
  *   this browser's local storage and never sent to us; a browser that can't remember never sees the panel.
- * - It waits while the ☰ panel, a study-mode preview or the account menu is open, while the visitor is typing in a
- *   field, and while the tab is in the background.
+ * - It waits while the ☰ panel, a study-mode preview or the account menu is open (and until the ☰ panel or the preview
+ *   has finished closing and put focus back), while the visitor is typing in a field, and while the tab is in the
+ *   background.
  * - Keyboard focus moves to the panel's close button without scrolling the page, so screen readers announce the
  *   panel's heading and text, and goes back where it was when the panel closes (the close button or Escape). Tab can
  *   leave the panel: it doesn't trap focus or block the page.
@@ -71,10 +72,32 @@ import { accountHref, promo, site } from '../config/site';
     let previousFocus: HTMLElement | null = null;
     let triggered = false;
 
+    /**
+     * Dialogs (the ☰ panel, a study-mode preview) that have just closed but haven't had their `close` event yet. The
+     * browser sends that event a moment after the dialog closes, and their own close handling moves focus back then,
+     * so the panel waits for it instead of opening in between and losing its focus to them.
+     */
+    const closingDialogs = new Set<EventTarget>();
+    new MutationObserver((changes) => {
+      for (const { target } of changes) {
+        if (target instanceof HTMLDialogElement && !target.open) closingDialogs.add(target);
+      }
+    }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['open'] });
+    // `close` doesn't bubble, so it is heard on its way down. Its whole dispatch, including the dialog's own focus
+    // handling, finishes before the panel's next try.
+    document.addEventListener(
+      'close',
+      (event) => {
+        if (event.target) closingDialogs.delete(event.target);
+      },
+      true,
+    );
+
     /** Something else has the visitor's attention: the panel waits instead of interrupting it. */
     const busy = () =>
       document.hidden ||
       document.querySelector('dialog[open]') !== null ||
+      closingDialogs.size > 0 ||
       document.querySelector('#account-menu:not([hidden])') !== null ||
       isTextEntry(document.activeElement as HTMLElement | null);
 
@@ -83,7 +106,10 @@ import { accountHref, promo, site } from '../config/site';
       if (panel.hidden || !('open' in panel.dataset)) return;
       remember(storage, Date.now());
       document.removeEventListener('keydown', onKeydown);
-      const hadFocus = panel.contains(document.activeElement);
+      // Safari doesn't keep focus on a clicked link, so a click inside the panel leaves focus on the page itself
+      // (`body`); that counts as the panel having focus. Focus on any other element outside it is left alone.
+      const active = document.activeElement;
+      const hadFocus = panel.contains(active) || active === document.body || active === null;
       delete panel.dataset.open;
       panel.inert = true;
       const hide = () => {

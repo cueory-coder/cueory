@@ -2,12 +2,16 @@
 import { getEntry } from 'astro:content';
 import Layout from '../../../layouts/Layout.astro';
 import SentenceStepper from '../../../islands/SentenceStepper';
+import LessonVideo from '../../../islands/LessonVideo';
+import LessonVisuals from '../../../components/LessonVisuals.astro';
+import { isShowable } from '../../../videos/schema';
 
 const lesson = await getEntry('lessons', 'study-skills-01');
 if (!lesson) {
   throw new Error('Lesson file content/lessons/study-skills-01.json is missing.');
 }
 const { title, summary, sentences, status } = lesson.data;
+const video = await getEntry('videos', 'study-skills-01');
 ---
 
 <Layout title={title} description={summary} variant="study">
@@ -26,10 +30,29 @@ const { title, summary, sentences, status } = lesson.data;
       </noscript>
     </div>
 
+    {video && isShowable(video.data.status) && (
+      <div class="mt-section">
+        <LessonVideo
+          client:only="react"
+          videoId={video.data.videoId}
+          title={video.data.title}
+          thumbnail={video.data.thumbnail}
+          captionsUrl={video.data.captionsUrl || undefined}
+          transcriptUrl={video.data.transcriptUrl || undefined}
+        />
+      </div>
+    )}
+
+    <LessonVisuals lessonId="study-skills-01" />
+
     <ul class="mt-section space-y-2 text-sm">
       <li><a href="/learn/study-skills/cards">Practice this lesson with cards</a></li>
       <li><a href="/learn/study-skills/learn-mode">Learn this lesson's cards in Learn mode</a></li>
       <li><a href="/learn/study-skills/matching">Match this lesson's terms and meanings</a></li>
+      <li><a href="/learn/study-skills/organizer">sort ideas into groups with the organizer</a></li>
+      <li><a href="/learn/study-skills/fill-in">recall the missing word with fill-in</a></li>
+      <li><a href="/learn/study-skills/label-it">uncover a diagram's labels with label it</a></li>
+      <li><a href="/learn/study-skills/questions">practice questions with rationales</a></li>
     </ul>
   </div>
 </Layout>

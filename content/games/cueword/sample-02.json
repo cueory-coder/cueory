@@ -1,0 +1,31 @@
+{
+  "status": "sample",
+  "grid": [
+    "BOAT.",
+    "I..R.",
+    "R..E.",
+    "DOVES"
+  ],
+  "clues": {
+    "across": [
+      {
+        "number": 1,
+        "text": "it floats on a lake"
+      },
+      {
+        "number": 3,
+        "text": "white birds often seen as a sign of peace"
+      }
+    ],
+    "down": [
+      {
+        "number": 1,
+        "text": "a robin or a sparrow"
+      },
+      {
+        "number": 2,
+        "text": "an oak or a pine"
+      }
+    ]
+  }
+}

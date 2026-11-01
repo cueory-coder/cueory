@@ -30,13 +30,15 @@ fluids).
 - Each visual has one source file, `content/visuals/<visual-id>.json`. For every label and every depiction (a shape,
   an arrow, a direction of movement, a number) it gives the source's exact words, the book, the section and the page
   address.
-- **Text source: Open RN *Nursing Fundamentals 2e*** (Chippewa Valley Technical College, CC BY 4.0), credited as the
-  book asks: "Ernstmeyer, K., & Christman, E. (Eds.). (2024). Open RN Nursing Fundamentals, 2e by Chippewa Valley
-  Technical College is licensed under CC BY 4.0." Its figures carry their own licenses, so we cite its text, never
-  copy its pictures.
-- **OpenStax *Anatomy and Physiology 2e* is on hold** (D-57). OpenStax's help page says its books are CC BY-NC-SA
-  (noncommercial, share-alike), not CC BY, and the book's pages say it may not be ingested into AI tools without
-  OpenStax's written permission. It is used only if Christian decides so.
+- **Text source: Open RN *Nursing Fundamentals, 2nd Edition*** (edited by Kim Ernstmeyer and Elizabeth Christman,
+  WisTech Open, CC BY 4.0). WisTech Open's page for the book says: "You must give appropriate credit to WisTech Open,
+  provide a link to the license, and indicate if changes were made." So every visual that quotes it shows "Words
+  adapted from Nursing Fundamentals, 2nd Edition, edited by Kim Ernstmeyer and Elizabeth Christman (WisTech Open), CC
+  BY 4.0.", linked to the license. Its figures carry their own licenses, so we cite its text, never copy its pictures.
+- **OpenStax *Anatomy and Physiology 2e* is link-only** (D-57, D-80). OpenStax's help page says its books are CC
+  BY-NC-SA (noncommercial, share-alike), not CC BY, and the book's pages say it may not be ingested into AI tools
+  without OpenStax's written permission. So a lesson may link to an OpenStax page as further reading, but we never
+  quote it, copy its figures or feed its pages to an AI tool.
 - Nothing licensed NonCommercial is used anywhere in the kit, because Cueory takes tips and plans videos.
 
 ## Files
@@ -44,6 +46,7 @@ fluids).
 | What | Where |
 | --- | --- |
 | A visual's labels, sources and review status | `content/visuals/<visual-id>.json` |
+| The allowed books and the checks on every source file | `src/visuals/sources.ts` |
 | A 2D diagram's drawing (SVG and its animation) | `src/visuals/` |
 | 3D models (compressed glTF) and their license | `public/models/` |
 | Review sheets, one per batch | the batch's pull request |
@@ -54,6 +57,7 @@ A visual's source file looks like this (shortened):
 {
   "id": "fluid-compartments",
   "title": "body fluid compartments",
+  "kind": "diagram",
   "lessonIds": ["U01-T01-L01"],
   "status": "draft",
   "labels": [{ "id": "icf", "text": "intracellular fluid (ICF)", "source": "orn-15-2-icf" }],
@@ -65,14 +69,25 @@ A visual's source file looks like this (shortened):
       "book": "Open RN Nursing Fundamentals 2e",
       "section": "15.2 Basic Fluid and Electrolyte Concepts",
       "url": "https://wtcs.pressbooks.pub/nursingfundamentals/chapter/15-2-basic-fluid-and-electrolyte-concepts/",
-      "license": "CC BY 4.0"
+      "license": "CC BY 4.0",
+      "retrieved": "2026-11-01"
     }
   ]
 }
 ```
 
-The build checks every source file: each label and depiction points to a source, each source has a quote, a page
-address and an allowed license, and every label the drawing uses exists in the file.
+`kind` is `diagram`, `model` (3D) or `overlay`; every overlay shows the words "simplified for learning". `retrieved`
+is the day the words were copied from the page.
+
+The build checks every source file and stops with a plain message when one breaks a rule:
+- every label and depiction points to a source in the file, and every source is used;
+- each source quotes an allowed book, links to the page it quotes inside that book's site, and gives the book's
+  license;
+- ids are unique, and every lesson id exists in the lesson map (the unit tests check this one);
+- a drawing gets its label text only from the file, so a label that isn't in the file stops the build.
+
+The only allowed book so far is Open RN *Nursing Fundamentals, 2nd Edition*. A new book joins the list in
+`src/visuals/sources.ts` only after its license is checked, and nothing NonCommercial ever joins.
 
 ## Review and release
 
@@ -95,8 +110,8 @@ address and an allowed license, and every label the drawing uses exists in the f
 
 ## 3D body
 
-- Geometry from a free 3D atlas, exported only for the structures a lesson needs. Which atlas waits for Christian
-  (STATUS):
+- Geometry from BodyParts3D (Christian's choice, D-80), exported only for the structures a lesson needs. The two
+  atlases that were compared:
   - Z-Anatomy (CC BY-SA 4.0): our changed models, and the videos that show them, must be shared under the same
     license. Its README lists two NonCommercial models among its parts (an inner ear and a kidney), which stay out.
   - BodyParts3D, the database Z-Anatomy is built on: CC BY 4.0 since its license page was updated on 27 February 2025,

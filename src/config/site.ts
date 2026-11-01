@@ -75,7 +75,7 @@ export const menuLinks = [
   { href: '/#ways-to-study', label: 'ways to study' },
   { href: '/learn/study-skills', label: 'lessons' },
   { href: '/play', label: 'daily games' },
-  { href: accountHref, label: 'my progress', note: 'free account, coming soon' },
+  { href: '/progress', label: 'my progress', note: 'saved on this device' },
   { href: '/support', label: 'support cueory' },
 ] as const;
 

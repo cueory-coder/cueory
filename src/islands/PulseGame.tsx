@@ -19,6 +19,7 @@ import {
   type PulseState,
 } from './pulse';
 import { dayLabel } from './daily';
+import { localDay, reportRound } from './gameresults';
 
 interface Puzzle {
   word: string;
@@ -49,10 +50,21 @@ export default function PulseGame({ puzzles }: Props) {
   const [copied, setCopied] = useState('');
   const field = useRef<HTMLInputElement>(null);
   const result = useRef<HTMLDivElement>(null);
+  const reported = useRef(false);
 
-  // When the game ends, focus moves to the result so it is read out, and the share button is next.
+  // When the game ends, focus moves to the result so it is read out, and the share button is next. The round is also
+  // reported once, for the stats panel, which keeps it only if the student has turned stats on (D-76).
   useEffect(() => {
-    if (state.status !== 'playing') result.current?.focus();
+    if (state.status === 'playing') return;
+    result.current?.focus();
+    if (reported.current) return;
+    reported.current = true;
+    reportRound({
+      game: 'pulse',
+      day: localDay(today),
+      solved: state.status === 'solved',
+      tries: BEATS - beatsLeft(state),
+    });
   }, [state.status]);
 
   if (!puzzle) return <p>no puzzle today.</p>;

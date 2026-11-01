@@ -20,14 +20,31 @@ import { newsletter, promo, site } from '../config/site';
       {site.name} has no accounts yet. You can read lessons without giving us anything. Nothing you do on a lesson is
       sent to us.
     </p>
+    <p>If you pick Light or Dark at the bottom of a page, your browser remembers that on your device. It never reaches us.</p>
+
+    <h2>Your progress on this device</h2>
     <p>
-      If you pick Light or Dark at the bottom of a page, or star a card, your browser remembers that on your device. It
-      never reaches us.
+      Until accounts exist, your study progress is kept by your browser, on your device only. It never reaches us. It is
+      only:
+    </p>
+    <ul>
+      <li>your answers to the two setup questions (which course, and your exam date), if you answer them;</li>
+      <li>for each card deck, which cards you sorted into "know it" or "still learning", and which you starred.</li>
+    </ul>
+    <p>
+      On <a href="/progress">your progress page</a> you can see all of it, download a copy, or forget it on this device.
+      Clearing this site's data in your browser also removes it.
     </p>
     <p>
       On your first visit, a small panel about the launch list may slide down from the top of the page. Your browser
       remembers on your device that it showed you the panel, so it stays away for {promo.rememberDays} days. That isn't a
       cookie, and it never reaches us.
+    </p>
+    <p>
+      On <a href="/play">daily games</a> you can turn on stats. They're off unless you do. When they're on, your browser
+      keeps, for each game you finish, the day, whether you solved it and how many tries it took. Anything older than 400
+      days is deleted the next time you open daily games. It stays on your device and never reaches us, and there are no
+      streaks. "Forget", or turning stats off, deletes it.
     </p>
 
     <h2>Launch-updates emails</h2>
@@ -35,6 +52,13 @@ import { newsletter, promo, site } from '../config/site';
       If you sign up for launch updates, your email address is stored by {newsletter.provider}, the service that sends
       those emails for us. You'll get a confirmation email first, and every email has an unsubscribe link. We use your
       address only for {site.name} updates.
+    </p>
+
+    <h2>Lesson videos</h2>
+    <p>
+      Some lessons include a video. The video doesn't load until you tap play. When you do, it loads from
+      <code>youtube-nocookie.com</code>, YouTube's reduced-tracking domain. YouTube may still set cookies or record
+      that the video was played. Nothing plays automatically.
     </p>
 
     <h2>Visit statistics</h2>
@@ -59,6 +83,10 @@ import { newsletter, promo, site } from '../config/site';
     <ul>
       <li>Cloudflare hosts the website and counts visits.</li>
       <li>{newsletter.provider} stores newsletter signups and sends launch-update emails.</li>
+      <li>
+        YouTube plays lesson videos. Nothing loads from YouTube until you tap play, and it may set cookies once a video
+        plays.
+      </li>
     </ul>
 
     <h2>Questions</h2>

@@ -1,0 +1,31 @@
+{
+  "status": "sample",
+  "grid": [
+    "MILK.",
+    "O..I.",
+    "O..T.",
+    "NOTES"
+  ],
+  "clues": {
+    "across": [
+      {
+        "number": 1,
+        "text": "a white drink from cows"
+      },
+      {
+        "number": 3,
+        "text": "what you write down in class"
+      }
+    ],
+    "down": [
+      {
+        "number": 1,
+        "text": "it shines in the sky at night"
+      },
+      {
+        "number": 2,
+        "text": "it flies on a long string"
+      }
+    ]
+  }
+}

@@ -189,6 +189,32 @@ test.describe('once-only promo panel (D-59)', () => {
     await expect(promoPanel(page).getByRole('button', { name: 'close' })).toBeFocused();
   });
 
+  test('waits until the ☰ panel has finished closing, so its focus never takes over', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'menu', exact: true }).click();
+    await wait(page, 7_000);
+    // The browser sends a dialog's "close" event a moment after the dialog closes, and the ☰ panel moves focus back to
+    // its button then. Hold that event back, so the moment in between lasts long enough to test.
+    await page.evaluate(() => {
+      const hold = (event: Event) => {
+        event.stopImmediatePropagation();
+        window.removeEventListener('close', hold, true);
+      };
+      window.addEventListener('close', hold, true);
+    });
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('site-menu')).toBeHidden();
+    await wait(page, 2_000);
+    await expect(promoPanel(page)).toBeHidden();
+
+    // The event arrives: focus goes back to ☰, and then the panel comes and takes it.
+    await page.getByTestId('site-menu').evaluate((menu) => menu.dispatchEvent(new Event('close')));
+    await expect(page.getByRole('button', { name: 'menu', exact: true })).toHaveAttribute('aria-expanded', 'false');
+    await wait(page, 600);
+    await expect(promoPanel(page)).toBeVisible();
+    await expect(promoPanel(page).getByRole('button', { name: 'close' })).toBeFocused();
+  });
+
   test('with reduced motion it appears in place, with no slide', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/support');

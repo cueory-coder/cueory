@@ -191,3 +191,34 @@ describe('crossword sharing', () => {
     } finally { game.name = original; }
   });
 });
+
+describe('typing past a cued letter (the director\'s review of #51)', () => {
+  const puzzle = {
+    id: 'cab',
+    sample: true,
+    grid: ['CAT', 'A.O', 'BOX'],
+    clues: {
+      across: [
+        { number: 1, text: 'a pet that purrs' },
+        { number: 3, text: 'a box' },
+      ],
+      down: [
+        { number: 1, text: 'a taxi' },
+        { number: 2, text: 'a short word for poison' },
+      ],
+    },
+  };
+
+  it('types into the next open cell instead of dropping the letter on a cued one', () => {
+    let state = revealCue(emptyState(puzzle), 1);
+    state = type(state, 'c');
+    expect(state.cell).toBe(1);
+    state = type(state, 't');
+    expect(state.entries.slice(0, 3)).toEqual(['C', 'A', 'T']);
+  });
+
+  it('changes nothing when only cued cells are left before the edge', () => {
+    let state = selectCell(revealCue(emptyState(puzzle), 2), 2, 'across');
+    expect(type(state, 'x')).toBe(state);
+  });
+});
