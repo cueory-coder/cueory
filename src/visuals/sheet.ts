@@ -1,5 +1,5 @@
 /** A source-backed review document. This never changes a visual or approves its content. */
-import { allowedBooks, labelText, visualProblems, type Visual } from './sources';
+import { allowedBooks, labelText, visualProblems, type Visual } from './sources.ts';
 
 /** Preserve literal text in Markdown, including existing backslashes before pipes. */
 function literal(text: string): string {
