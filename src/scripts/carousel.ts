@@ -1,40 +1,89 @@
 /**
- * The "ways to study" carousel on the home page (D-50). Pure helpers, kept apart from the page script so they can be
- * unit tested (tests/unit/carousel.test.ts).
+ * The "ways to study" merry-go-round on the home page (D-50, D-60). Pure helpers, kept apart from the page script so
+ * they can be unit tested (tests/unit/carousel.test.ts).
  *
- * The carousel is a row of cards that scrolls sideways and snaps each card to the middle, so it works by swiping,
- * by the keyboard and even without JavaScript. The script adds the chips, the arrow buttons, the coverflow look
- * (neighbours smaller and lower) and a gentle auto-advance.
+ * Without JavaScript the cards are a row that scrolls sideways and snaps each card to the middle. The script turns
+ * the row into an endless merry-go-round: one card in front, its neighbours on both sides stepping back (smaller,
+ * turned slightly away, quieter), and next after the last card is the first again. It adds the arrows, the arrow
+ * keys, swipes, a tap on a side card to bring it to the middle, and a gentle auto-advance.
  */
 
 /** Time each card stays in the middle before the next one comes in, when nobody is using the carousel. */
 export const AUTO_ADVANCE_MS = 6000;
 
-/** The row counts as resting once it has not moved for this long, even if no scrollend event comes. */
-export const SETTLE_MS = 200;
+/** How long one turn of the merry-go-round takes (brand guide §7.3: 180 to 280 ms, easing out). */
+export const RING_MS = 240;
 
-/** How far, in cards, the coverflow look keeps shrinking and lowering a neighbour. */
-export const MAX_DISTANCE = 2;
+/** The row counts as resting once it hasn't turned for a little longer than one turn. */
+export const REST_MS = RING_MS + 60;
 
-/** The card whose middle is nearest the middle of the row. */
-export function nearestIndex(centers: readonly number[], middle: number): number {
-  let best = 0;
-  for (let i = 1; i < centers.length; i++) {
-    if (Math.abs(centers[i]! - middle) < Math.abs(centers[best]! - middle)) best = i;
-  }
-  return best;
-}
+/** How much smaller each card is than the one in front of it: 1 in the middle, then 0.88, then 0.76. */
+export const STEP_BACK = 0.12;
 
-/** How many cards away from the middle a card is (0 in the middle), capped at MAX_DISTANCE. */
-export function distance(center: number, middle: number, step: number): number {
-  if (step <= 0) return 0;
-  return Math.min(Math.abs(center - middle) / step, MAX_DISTANCE);
-}
+/** How far each side card is turned away, in degrees. */
+export const TURN_DEG = 10;
 
 /** The next or previous card, wrapping from the last card to the first and back. */
 export function wrap(index: number, count: number): number {
   if (count <= 0) return 0;
   return ((index % count) + count) % count;
+}
+
+/**
+ * How many cards away from the middle a card is, going the short way round the merry-go-round: 0 in the middle,
+ * negative to the left, positive to the right. With 11 cards every card is between 5 to the left and 5 to the right.
+ */
+export function ringOffset(index: number, active: number, count: number): number {
+  if (count <= 0) return 0;
+  const half = Math.floor(count / 2);
+  return wrap(index - active + half, count) - half;
+}
+
+/** Where a card sits on the merry-go-round. The styles in global.css draw it from these numbers. */
+export interface RingPlace {
+  /** How many cards it is from the middle: 0 in the middle. */
+  distance: number;
+  /** -1 to the left of the middle, 1 to the right, 0 in the middle. */
+  side: -1 | 0 | 1;
+  /** Its size: 1 in the middle, then 0.88 and 0.76, stepping back. */
+  scale: number;
+  /**
+   * How far sideways its middle is from the middle of the row, in card widths. Together with `gaps` (how many of the
+   * gaps between cards lie in between), neighbours sit side by side, edge to edge with a gap, never on top of each other.
+   */
+  shift: number;
+  gaps: number;
+  /** How far it is turned away from the middle, in degrees: 0 in the middle and with reduced motion. */
+  turn: number;
+  /** Which card is drawn on top: the middle one, then its neighbours, then theirs. */
+  layer: number;
+}
+
+const round = (n: number) => Math.round(n * 1000) / 1000 + 0;
+
+export function ringPlace(offset: number, reducedMotion = false): RingPlace {
+  const distance = Math.abs(offset);
+  const side = offset === 0 ? 0 : offset < 0 ? -1 : 1;
+  // Card k is 1 - k × STEP_BACK wide; the middles of two cards next to each other are half of each one's width apart.
+  const widths = distance - (STEP_BACK / 2) * distance * distance;
+  return {
+    distance,
+    side,
+    scale: round(Math.max(0.4, 1 - STEP_BACK * distance)),
+    shift: round(side * widths),
+    gaps: side * distance,
+    turn: reducedMotion ? 0 : side * TURN_DEG,
+    layer: Math.max(0, 10 - distance),
+  };
+}
+
+/**
+ * Whether a card glides to its new place or simply appears there. A turn of one or two cards glides; a card going
+ * round the back of the merry-go-round, or a jump of several cards (Home, End), switches at once instead of sweeping
+ * across the row.
+ */
+export function glides(fromOffset: number, toOffset: number): boolean {
+  return Math.abs(toOffset - fromOffset) <= 2;
 }
 
 /** Keys that move the carousel when it has keyboard focus. Returns the card to go to, or undefined. */
@@ -46,7 +95,19 @@ export function keyTarget(key: string, index: number, count: number): number | u
   return undefined;
 }
 
-/** What the screen reader hears when the card in the middle changes: "matching, 5 of 8". */
+/** How far a finger must move sideways across the cards to turn the merry-go-round by one card. */
+export const SWIPE_TURN_PX = 40;
+
+/**
+ * A sideways swipe turns the merry-go-round one card: to the left brings the next card, to the right the previous one.
+ * A short or mostly up-and-down movement (scrolling the page) turns nothing.
+ */
+export function swipeTurn(dx: number, dy: number): -1 | 0 | 1 {
+  if (Math.abs(dx) < SWIPE_TURN_PX || Math.abs(dx) <= Math.abs(dy)) return 0;
+  return dx < 0 ? 1 : -1;
+}
+
+/** What the screen reader hears where the merry-go-round comes to rest: "matching, 5 of 11". */
 export function slideAnnouncement(name: string, index: number, count: number): string {
   return `${name}, ${index + 1} of ${count}`;
 }
@@ -56,7 +117,7 @@ export interface MotionState {
   reducedMotion: boolean;
   /** The pause button is pressed. */
   paused: boolean;
-  /** The visitor swiped, tapped a chip or an arrow, or used the keyboard on the carousel: they're in charge now. */
+  /** The visitor swiped, tapped a card or an arrow, or used the keyboard on the carousel: they're in charge now. */
   tookOver: boolean;
   /** A mouse pointer is over the carousel. */
   hovering: boolean;
@@ -100,7 +161,6 @@ export function flipFrom(from: Box, to: Box): string {
   const dy = from.top + from.height / 2 - (to.top + to.height / 2);
   const sx = from.width / to.width;
   const sy = from.height / to.height;
-  const round = (n: number) => Math.round(n * 1000) / 1000;
   return `translate(${round(dx)}px, ${round(dy)}px) scale(${round(sx)}, ${round(sy)})`;
 }
 

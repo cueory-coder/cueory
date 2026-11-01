@@ -75,10 +75,17 @@ Last updated: 2026-11-01
   build" and the social marks; once shown, it stays away for 30 days.
 - [Visuals kit plan](https://github.com/lilchristxan/Cueory/pull/35) (D-56 to D-58): docs/VISUALS.md, the roadmap's
   Task 6 and the license checks behind it. Docs only.
+- "ways to study" merry-go-round and a calmer home page (D-60): an endless ring of 11 study-mode cards with
+  neighbours on both sides (video replaces lesson; label it, adaptive quiz and level test are coming soon), and no
+  chips, section numbers, figure caption or rhythm line; the building notice is lowercase. The auto-merge takes it
+  once it is clean.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
 2. Auto-release (`staging` into `main` in pre-launch mode), after the change requests.
+3. Christian's 31 Oct evening requests ([the lead's note on issue #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6551841155)),
+   now first: brand v1.0 (the lead's branch), the merry-go-round and decluttering (in review), then the home page
+   polish pass once brand v1.0 is in, then daily games (four games, a home page section and `/play`).
 
 ## Visuals kit (Task 6, D-56)
 Targets: first visuals by about 14 November, the full kit by about 12 December ([plan](VISUALS.md)).

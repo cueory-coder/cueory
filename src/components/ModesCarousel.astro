@@ -1,27 +1,30 @@
 ---
 /**
- * "ways to study" on the home page (D-50): a small label, a centered heading, one chip per study mode, and a row of
- * cards that scrolls sideways and snaps each card to the middle, with previous, pause and next buttons below. The row
- * runs the full width of the window; the words around it keep the page's width.
+ * "ways to study" on the home page (D-50, D-60): a centered heading over an endless merry-go-round of study-mode
+ * cards, with previous, pause and next buttons below.
  *
- * Without JavaScript it still works: the row scrolls by swiping or the keyboard, and each chip is a link to its card.
- * The script adds the coverflow look, chip and arrow navigation, arrow keys, and a gentle auto-advance that stops for
- * good once the visitor uses the carousel, pauses while a mouse rests on the cards or keyboard focus is inside, and
- * never runs with reduced motion. The pause button stops the auto-advance and the illustration loops (WCAG 2.2.2).
+ * Without JavaScript it still works: the cards are a row that scrolls sideways and snaps each card to the middle.
+ * The script turns the row into the merry-go-round: the card in the middle is in front, and its neighbours stay
+ * visible on both sides (one on phones and tablets, two on wider screens), stepping back: smaller, turned slightly
+ * away and quieter. Next after the last card is the first again, and previous before the first is the last. The
+ * arrows, the arrow keys, a swipe or a tap on a side card turn it; a tap on the card in the middle opens its
+ * preview. A gentle auto-advance stops for good once the visitor uses it, pauses while a mouse rests on the cards or
+ * keyboard focus is inside, and never runs with reduced motion, which also drops the glide and the turn. The pause
+ * button stops the auto-advance and the illustration loops (WCAG 2.2.2). Screen readers hear only the card where the
+ * merry-go-round comes to rest.
  *
- * The preview (D-51): tapping or clicking a card grows it from its place into a larger preview, a native modal
- * <dialog> over the darkened, softly frosted page, with the mode's illustration playing, two plain lines, "try it"
- * (or "coming soon") and the free-account link. Close it with the X, Escape, a tap on the darkened page or a swipe
- * down; it shrinks back into its card and focus returns there. Previous and next inside move through the modes in
- * the carousel's order. With a mouse, a card grows a little under the pointer or keyboard focus.
+ * The preview (D-51): tapping or clicking the card in the middle grows it from its place into a larger preview, a
+ * native modal <dialog> over the darkened, softly frosted page, with the mode's illustration playing, two plain lines,
+ * "try it" (or "coming soon") and the free-account link. Close it with the X, Escape, a tap on the darkened page or a
+ * swipe down; it shrinks back into its card and focus returns there. Previous and next inside move through the modes
+ * in the carousel's order, and the merry-go-round behind follows. With a mouse, the card in the middle grows a little
+ * under the pointer or keyboard focus.
  */
 import { studyModes } from '../config/modes';
 import { accountHref } from '../config/site';
 import ModeIllustration from './ModeIllustration.astro';
 
 const count = studyModes.length;
-const open = studyModes.filter((mode) => mode.link).map((mode) => mode.name);
-const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
 ---
 
 <section
@@ -31,42 +34,13 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
   aria-roledescription="carousel"
   data-modes
 >
-  <!-- The page's one medical cue (D-53): a thin rhythm line between the hero and this first section. -->
-  <svg class="rhythm" viewBox="0 0 240 28" aria-hidden="true" focusable="false" data-rhythm>
-    <path
-      d="M0 16H84c4 0 6-5 10-5s6 5 10 5h10l4 4 6-17 7 22 4-9h13c6 0 9-7 16-7s10 7 16 7h60"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="1.25"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    ></path>
-  </svg>
-
-  <div class="mx-auto mt-10 max-w-page px-gutter text-center">
-    <p class="text-sm font-medium tracking-label text-ink-soft" data-section-label>01 — study modes</p>
-    <h2 id="modes-heading" class="display mt-3 text-title sm:text-title-lg">ways to study</h2>
-  </div>
-
-  <div class="mx-auto mt-8 flex max-w-page flex-wrap justify-center gap-2 px-gutter" role="group" aria-label="pick a study mode">
-    {
-      studyModes.map((mode, index) => (
-        <a
-          href={`#mode-${mode.id}`}
-          class="mode-chip"
-          aria-current={index === 0 ? 'true' : undefined}
-          aria-controls="modes-track"
-          data-mode-chip
-        >
-          {mode.name}
-        </a>
-      ))
-    }
+  <div class="mx-auto max-w-page px-gutter text-center">
+    <h2 id="modes-heading" class="display text-title sm:text-title-lg">ways to study</h2>
   </div>
 
   <div
     id="modes-track"
-    class="modes-track mt-4"
+    class="modes-track mt-10"
     role="group"
     tabindex="0"
     aria-label="study mode cards"
@@ -134,10 +108,6 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
 
   <p class="sr-only" aria-live="off" aria-atomic="true" data-modes-live></p>
 
-  <p class="mx-auto mt-8 max-w-page px-gutter text-center text-sm text-ink-soft">
-    fig. 1 — {openList} are open now, with placeholder cards. the rest are on the way.
-  </p>
-
   <dialog id="mode-preview" class="mode-preview" aria-labelledby="mode-preview-title" data-mode-preview>
     <div class="mode-preview-scrim" data-mode-preview-scrim></div>
     <div class="mode-preview-panel" data-mode-preview-panel>
@@ -186,15 +156,17 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
     AUTO_ADVANCE_MS,
     PREVIEW_EASING,
     PREVIEW_MS,
-    SETTLE_MS,
+    REST_MS,
     STEP_MS,
     canAutoAdvance,
-    distance,
     flipFrom,
+    glides,
     isSwipeDown,
     keyTarget,
-    nearestIndex,
+    ringOffset,
+    ringPlace,
     slideAnnouncement,
+    swipeTurn,
     wrap,
   } from '../scripts/carousel';
   import { isCloseKey, wrapFocus } from '../scripts/menu';
@@ -204,7 +176,7 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
 
   if (root && track) {
     const cards = [...track.querySelectorAll<HTMLElement>('[data-mode-card]')];
-    const chips = [...root.querySelectorAll<HTMLAnchorElement>('[data-mode-chip]')];
+    const openButtons = cards.map((card) => card.querySelector<HTMLButtonElement>('[data-mode-open]'));
     const live = root.querySelector<HTMLElement>('[data-modes-live]');
     const pauseButton = root.querySelector<HTMLButtonElement>('[data-modes-pause]');
     const previewPause = root.querySelector<HTMLButtonElement>('[data-mode-preview-pause]');
@@ -218,58 +190,71 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
       focusInside: false,
       onScreen: false,
     };
+    /** The card in the middle. */
     let active = 0;
     /** The card last written to the live region (none yet). */
     let announced = -1;
-    /** While the preview is open it speaks for itself, so the row behind it stays quiet. */
+    /** While the preview is open it speaks for itself, so the merry-go-round behind it stays quiet. */
     let quiet = false;
+    /** Opens the preview of the card in the middle, once the preview is ready (below). */
+    let preview: ((index: number) => void) | undefined;
+    /** Where each card was last put: how many cards from the middle (none yet). */
+    const offsets = cards.map(() => Number.NaN);
 
-    const centers = () => cards.map((card) => card.offsetLeft + card.offsetWidth / 2);
-    const middle = () => track.scrollLeft + track.clientWidth / 2;
-
-    /** Coverflow: each card's distance from the middle, and which card is in the middle. */
-    const update = () => {
-      const all = centers();
-      const step = cards.length > 1 ? all[1]! - all[0]! : 1;
-      const mid = middle();
-      cards.forEach((card, index) => card.style.setProperty('--mode-distance', distance(all[index]!, mid, step).toFixed(3)));
-      const nearest = nearestIndex(all, mid);
-      if (nearest !== active || !cards[nearest]!.hasAttribute('data-active')) setActive(nearest);
-    };
-
-    const setActive = (index: number) => {
-      active = index;
-      cards.forEach((card, i) => card.toggleAttribute('data-active', i === index));
-      chips.forEach((chip, i) => {
-        if (i === index) chip.setAttribute('aria-current', 'true');
-        else chip.removeAttribute('aria-current');
+    /**
+     * Puts every card in its place around the card in the middle. The styles draw each place from the numbers set
+     * here (global.css); a card going round the back, or the first placing, switches at once instead of gliding.
+     */
+    const place = () => {
+      cards.forEach((card, index) => {
+        const offset = ringOffset(index, active, cards.length);
+        const spot = ringPlace(offset, state.reducedMotion);
+        const before = offsets[index]!;
+        offsets[index] = offset;
+        card.toggleAttribute('data-jump', Number.isNaN(before) || !glides(before, offset));
+        card.dataset.offset = String(offset);
+        card.style.setProperty('--ring-scale', String(spot.scale));
+        card.style.setProperty('--ring-shift', String(spot.shift));
+        card.style.setProperty('--ring-gaps', String(spot.gaps));
+        card.style.setProperty('--ring-turn', String(spot.turn));
+        card.style.setProperty('--ring-layer', String(spot.layer));
+        card.toggleAttribute('data-active', offset === 0);
+        // Only the card in the middle is in the Tab order. A side card is one tap, or one arrow key, away.
+        const button = openButtons[index];
+        if (button) {
+          button.tabIndex = offset === 0 ? 0 : -1;
+          button.setAttribute('aria-label', `${offset === 0 ? 'preview' : 'show'} ${card.dataset.name ?? ''}`);
+          if (offset === 0) button.setAttribute('aria-haspopup', 'dialog');
+          else button.removeAttribute('aria-haspopup');
+        }
+        for (const link of card.querySelectorAll('a')) link.tabIndex = offset === 0 ? 0 : -1;
       });
     };
 
     /**
-     * Only the card where the row comes to rest is announced: a swipe, a long glide to a far chip, or a glide the
-     * visitor interrupts reads out where it lands, never every card it passes. The cards themselves update at once.
-     * At rest means a card sits exactly in the middle, which is where scroll snapping always leaves the row.
+     * Only the card where the merry-go-round comes to rest is announced: a run of quick presses or swipes reads out
+     * where it stops, never every card it passes. The cards themselves move at once.
      */
-    let settle = 0;
-    const announce = () => {
-      window.clearTimeout(settle);
-      update();
-      if (!live || announced === active) return;
-      if (Math.abs(centers()[active]! - middle()) > 2) return;
-      announced = active;
-      if (quiet) return;
-      live.textContent = slideAnnouncement(cards[active]!.dataset.name ?? '', active, cards.length);
+    let rest = 0;
+    const announceAtRest = () => {
+      window.clearTimeout(rest);
+      rest = window.setTimeout(() => {
+        if (!live || announced === active) return;
+        announced = active;
+        if (quiet) return;
+        live.textContent = slideAnnouncement(cards[active]!.dataset.name ?? '', active, cards.length);
+      }, REST_MS);
     };
-    // scrollend says at once when scrolling, snapping and any glide are over. Not every scroll gets one (in Chrome, a
-    // scroll that starts just as another ends can finish without its own), and some browsers have none, so a short
-    // pause in scrolling counts too.
-    track.addEventListener('scrollend', announce);
 
     const goTo = (index: number) => {
-      const card = cards[wrap(index, cards.length)]!;
-      const left = card.offsetLeft + card.offsetWidth / 2 - track.clientWidth / 2;
-      track.scrollTo({ left, behavior: state.reducedMotion ? 'auto' : 'smooth' });
+      const next = wrap(index, cards.length);
+      if (next === active) return;
+      // Keyboard focus on the card in the middle moves with it to the new card in the middle.
+      const focusInCard = cards[active]!.contains(document.activeElement);
+      active = next;
+      place();
+      announceAtRest();
+      if (focusInCard) openButtons[active]?.focus({ preventScroll: true });
     };
 
     /** Anything the visitor does on the carousel puts them in charge: auto-advance stops and changes are announced. */
@@ -278,29 +263,6 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
       live?.setAttribute('aria-live', 'polite');
     };
 
-    let frame = 0;
-    track.addEventListener(
-      'scroll',
-      () => {
-        window.clearTimeout(settle);
-        settle = window.setTimeout(announce, SETTLE_MS);
-        if (frame) return;
-        frame = requestAnimationFrame(() => {
-          frame = 0;
-          update();
-        });
-      },
-      { passive: true },
-    );
-    window.addEventListener('resize', update, { passive: true });
-
-    chips.forEach((chip, index) =>
-      chip.addEventListener('click', (event) => {
-        event.preventDefault();
-        takeOver();
-        goTo(index);
-      }),
-    );
     root.querySelector('[data-modes-prev]')?.addEventListener('click', () => {
       takeOver();
       goTo(active - 1);
@@ -311,7 +273,6 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
     });
 
     track.addEventListener('keydown', (event) => {
-      if (event.target !== track) return;
       const target = keyTarget(event.key, active, cards.length);
       if (target === undefined) return;
       event.preventDefault();
@@ -319,15 +280,79 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
       goTo(target);
     });
 
-    // A finger or a mouse wheel on the row also puts the visitor in charge.
-    track.addEventListener('pointerdown', takeOver, { passive: true });
+    // A tap on a side card brings it to the middle; a tap on the card in the middle opens its preview.
+    let swiped = false;
+    openButtons.forEach((button, index) => {
+      button?.addEventListener('click', () => {
+        if (swiped) return;
+        if (index === active) {
+          preview?.(index);
+          return;
+        }
+        takeOver();
+        goTo(index);
+      });
+      if (button) button.hidden = false;
+    });
+
+    // A finger swiping sideways across the cards turns the merry-go-round one card. Up and down still scrolls the page.
+    let swipeStart: { x: number; y: number; id: number } | undefined;
+    track.addEventListener(
+      'pointerdown',
+      (event) => {
+        swiped = false;
+        swipeStart = event.pointerType === 'mouse' ? undefined : { x: event.clientX, y: event.clientY, id: event.pointerId };
+      },
+      { passive: true },
+    );
+    track.addEventListener('pointerup', (event) => {
+      const start = swipeStart;
+      swipeStart = undefined;
+      if (!start || start.id !== event.pointerId) return;
+      const turn = swipeTurn(event.clientX - start.x, event.clientY - start.y);
+      if (!turn) return;
+      // The tap that some browsers report at the end of a swipe is not a tap on a card.
+      swiped = true;
+      window.setTimeout(() => {
+        swiped = false;
+      }, REST_MS);
+      takeOver();
+      goTo(active + turn);
+    });
+    track.addEventListener('pointercancel', () => {
+      swipeStart = undefined;
+    });
+
+    // The merry-go-round never scrolls: if anything scrolls its box to show a side card, that is undone at once.
+    track.addEventListener(
+      'scroll',
+      () => {
+        if (root.hasAttribute('data-ring') && (track.scrollLeft !== 0 || track.scrollTop !== 0)) track.scrollTo(0, 0);
+      },
+      { passive: true },
+    );
+
+    // A sideways swipe on a trackpad turns it one card per gesture; scrolling the page past it is left alone.
+    let wheelTotal = 0;
+    let wheelTurned = false;
+    let wheelQuiet = 0;
     track.addEventListener(
       'wheel',
       (event) => {
-        // Only sideways scrolling: scrolling the page past the carousel leaves the auto-advance alone.
-        if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) takeOver();
+        if (Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
+        event.preventDefault();
+        wheelTotal += event.deltaX;
+        window.clearTimeout(wheelQuiet);
+        wheelQuiet = window.setTimeout(() => {
+          wheelTotal = 0;
+          wheelTurned = false;
+        }, 200);
+        if (wheelTurned || Math.abs(wheelTotal) < 60) return;
+        wheelTurned = true;
+        takeOver();
+        goTo(active + (wheelTotal > 0 ? 1 : -1));
       },
-      { passive: true },
+      { passive: false },
     );
 
     // A mouse resting on the cards or their buttons pauses the auto-advance. The words around them don't: the section
@@ -382,9 +407,10 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
       // With reduced motion nothing moves by itself, so there is nothing to pause: the buttons keep their space only.
       pauseButton?.classList.toggle('invisible', state.reducedMotion);
       previewPause?.classList.toggle('invisible', state.reducedMotion);
+      // ...and the side cards face forward: no turn.
+      place();
     };
     reducedMotion.addEventListener('change', applyMotion);
-    applyMotion();
 
     let intersecting = false;
     const showing = () => {
@@ -404,7 +430,7 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
     }, AUTO_ADVANCE_MS);
 
     /*
-      The preview (D-51). Each card's preview button opens one shared <dialog>. Opening measures the card, shows the
+      The preview (D-51). The card in the middle opens one shared <dialog>. Opening measures the card, shows the
       dialog, then animates the panel from the card's box to its own (FLIP: measure, then animate a transform), so it
       looks the same in every browser. Closing runs the same animation backwards into the card now in the middle.
     */
@@ -412,7 +438,6 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
     const panel = dialog?.querySelector<HTMLElement>('[data-mode-preview-panel]');
     const scrim = dialog?.querySelector<HTMLElement>('[data-mode-preview-scrim]');
     if (dialog && panel && scrim && typeof dialog.showModal === 'function') {
-      const openButtons = cards.map((card) => card.querySelector<HTMLButtonElement>('[data-mode-open]'));
       const art = dialog.querySelector<HTMLElement>('[data-mode-preview-art]');
       const title = dialog.querySelector<HTMLElement>('[data-mode-preview-title]');
       const more = dialog.querySelector<HTMLElement>('[data-mode-preview-more]');
@@ -518,10 +543,7 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
         }
       };
 
-      openButtons.forEach((button, index) => {
-        button?.addEventListener('click', () => open(index));
-        if (button) button.hidden = false;
-      });
+      preview = open;
       dialog.querySelector('[data-mode-preview-close]')?.addEventListener('click', () => void close());
       dialog.querySelector('[data-mode-preview-prev]')?.addEventListener('click', () => step(-1));
       dialog.querySelector('[data-mode-preview-next]')?.addEventListener('click', () => step(1));
@@ -602,8 +624,10 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
       });
     }
 
+    // The merry-go-round takes over from the plain row.
+    root.toggleAttribute('data-ring', true);
+    applyMotion();
     showPaused();
-    update();
     root.querySelector('[data-modes-controls]')?.classList.remove('invisible');
   }
 </script>
