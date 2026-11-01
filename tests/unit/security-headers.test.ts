@@ -1,9 +1,17 @@
 /** Task 75: guard Cueory's Cloudflare headers and Astro CSP against silent relaxation. */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { BASE_CONNECT_SRC, connectSrc } from '../../src/islands/supabasecsp';
 
 const headersText = readFileSync(new URL('../../public/_headers', import.meta.url), 'utf8');
-const astroText = readFileSync(new URL('../../astro.config.mjs', import.meta.url), 'utf8');
+const rawAstroText = readFileSync(new URL('../../astro.config.mjs', import.meta.url), 'utf8');
+/**
+ * connect-src is the one computed directive (Task 55): `connectSrc(publicEnv)` adds at most one Supabase project origin
+ * when a build has valid account settings. Resolve that exact call to its no-settings value so the literal checks
+ * below still apply; the tests at the end check what the call can add.
+ */
+const CONNECT_CALL = 'connectSrc(publicEnv)';
+const astroText = rawAstroText.replace(CONNECT_CALL, JSON.stringify(BASE_CONNECT_SRC));
 
 function readHeaders(text: string): Map<string, string> {
   const rows = text.split(/\r?\n/).map((row) => row.trim()).filter((row) => row && !row.startsWith('#'));
@@ -182,5 +190,18 @@ describe('security headers (Task 75)', () => {
       "\"object-src 'none'\",",
       "\"object-src 'none'\", \"object-src 'none'\",",
     ))).toThrow('Duplicate CSP directive');
+  });
+
+  it('computes connect-src only through connectSrc(publicEnv), adding at most one valid project origin', () => {
+    expect(rawAstroText.split(CONNECT_CALL).length).toBe(2);
+    expect(rawAstroText).not.toMatch(/"connect-src[^"]*"/);
+    checkConnectSources(readCsp(connectSrc({})).get('connect-src') ?? []);
+    const withProject = connectSrc({
+      PUBLIC_SUPABASE_URL: 'https://abcdefghijklmnopqrst.supabase.co',
+      PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_example_not_a_real_key',
+    });
+    expect(() => checkConnectSources(readCsp(withProject).get('connect-src') ?? [])).not.toThrow();
+    expect(connectSrc({ PUBLIC_SUPABASE_URL: 'https://elsewhere.example', PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_example_not_a_real_key' }))
+      .toBe(BASE_CONNECT_SRC);
   });
 });

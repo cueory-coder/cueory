@@ -1005,3 +1005,5 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   are the director's.
 
   Reason: Christian's change request.
+
+- **D-pending (Task 100)** Add points, weekly free-pass game streaks, and one-time achievements for completed daily games and study sessions, with no live leaderboard yet. Reason: Christian requested streaks, accomplishments and player rankings on 2026-11-01; public rankings must be opt-in and checked on the server in a later task.
