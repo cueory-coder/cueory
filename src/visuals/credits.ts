@@ -4,7 +4,7 @@
  * A source whose book is not in allowedBooks throws — the build must not silently
  * omit a credit.
  */
-import { allowedBooks, type AllowedBook, type Visual } from './sources';
+import { allowedBooks, type AllowedBook, type Visual } from './sources.ts';
 
 /**
  * Returns each quoted book's credit entry once, in the order the visuals first

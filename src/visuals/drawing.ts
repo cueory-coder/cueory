@@ -3,8 +3,8 @@
  * (`labelText`), and every part it draws names the depiction it shows, so a test can prove the drawing shows nothing its
  * source file doesn't state. Plain functions with no browser imports, so they can be unit tested.
  */
-import { labelText, type Visual } from './sources';
-import type { DiagramStep } from './steps';
+import { labelText, type Visual } from './sources.ts';
+import type { DiagramStep } from './steps.ts';
 
 /** One step of a drawing: which label ids its caption reads, and which depictions it adds to the picture. */
 export interface DrawingStep {
