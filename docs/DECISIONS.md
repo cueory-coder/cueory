@@ -680,3 +680,30 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
     in this stack write tests that way from the start.
 
   Reason: the director's request on #11 (Task C6), following D-73's schema order.
+
+- **D-85** Task 2's fourth database change: items and their versions (Task C6, step 2, stacked on D-84). Follows D-33
+  (a real answer key never reaches the browser), D-45 (select-all-that-apply is all-or-nothing) and D-73.
+  - **Where the key lives:** the stem and choices a student sees are in `item_versions` and `item_choices`, which the
+    website can read for a published version only. Which choices are right, and each choice's rationale, are in
+    `item_answers`, which no website role can read at all: no grant, row-level security on, and a test that tries both
+    roles. `check_answer` (next step) reads it and returns it only after an attempt.
+  - **What the website may read:** `items` that have a published version; from `item_versions` only `id`, `item_id`,
+    `version`, `stem` and `status` (`status` because the policies on items and choices look at it, and a policy's
+    subquery runs with the reader's privileges; every visible row is published anyway); the choices of a published
+    version. The source and dates stay closed. Only the service role writes.
+  - **Versions:** editing an item makes a new version (ROADMAP Task 2). A version is a draft, published or retired. One
+    version of an item is published at a time (a partial unique index). A published or retired version's stem and source
+    can't change, and its choices and answers can't be added, changed or deleted; a retired version can't come back.
+  - **Publishing needs a complete version** (a trigger, so it holds whoever writes): a source, two to five choices, an
+    answer row with a rationale for each choice, and one right answer for a single question or at least one for
+    select-all. A version can't be created already published.
+  - **Left for later:** risk level and public label are in the roadmap's admin table but not defined anywhere yet, so
+    I haven't invented values for them; they come with `reviews` and the admin area. The trigger functions revoke
+    `execute` from `public`, `anon` and `authenticated`, as D-73 requires.
+  - **Tests:** `supabase/tests/database/items_test.sql`, 49 checks: the exact grants (including per column), what
+    a visitor, a student and the service role can read and write, every publishing rule, immutability and the shapes.
+    The lockdown test's list of tables a visitor may read now has the three new public ones, and still not `item_answers`.
+    Each of four weakened versions (key readable, drafts visible, answers editable after publish, publishing without
+    completeness) was seen failing.
+
+  Reason: the director's request on #11 (Task C6), following D-73's schema order.
