@@ -3,6 +3,7 @@ import { getEntry } from 'astro:content';
 import Layout from '../../../layouts/Layout.astro';
 import SentenceStepper from '../../../islands/SentenceStepper';
 import LessonVideo from '../../../islands/LessonVideo';
+import LessonVisuals from '../../../components/LessonVisuals.astro';
 import { isShowable } from '../../../videos/schema';
 
 const lesson = await getEntry('lessons', 'study-skills-01');
@@ -41,6 +42,8 @@ const video = await getEntry('videos', 'study-skills-01');
         />
       </div>
     )}
+
+    <LessonVisuals lessonId="study-skills-01" />
 
     <ul class="mt-section space-y-2 text-sm">
       <li><a href="/learn/study-skills/cards">Practice this lesson with cards</a></li>
