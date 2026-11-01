@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-11-01
+Last updated: 2026-11-01 (Task 42)
 
 ## Done
 - Static site: Astro + React islands + TypeScript + Tailwind, static output, tested at phone and desktop sizes.
@@ -186,7 +186,8 @@ a page yet:
 - the curriculum lesson map read in build order (#119, Task 36);
 - display-name checks in the browser that match the database (#121, Task 37);
 - plain words for the database's refusals (#122, Task 38);
-- which visuals a lesson may show: approved ones with a drawing, never drafts (#123, Task 39).
+- which visuals a lesson may show: approved ones with a drawing, never drafts (#123, Task 39);
+- `creditsFor` for a lesson page showing several visuals (#127, Task 42, D-56, D-81): returns each quoted book's credit once, in first-mention order, and throws if a source names a book that isn't in `allowedBooks`. 13 unit tests, including all three batch-1 real files → exactly one credit each and together.
 
 ## In review
 - Open pull requests add their own lines here. Waiting now: study modes on pages (#77), export-my-data (#95, Task 19),
