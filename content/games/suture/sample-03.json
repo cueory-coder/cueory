@@ -1,0 +1,100 @@
+{
+  "status": "sample",
+  "grid": [
+    "SPOON",
+    "FATEB",
+    "ORKIO",
+    "CHDGW",
+    "UPYML"
+  ],
+  "words": [
+    {
+      "cue": "you eat soup with it",
+      "answer": "SPOON",
+      "path": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          0,
+          3
+        ],
+        [
+          0,
+          4
+        ]
+      ]
+    },
+    {
+      "cue": "it has prongs for picking up food",
+      "answer": "FORK",
+      "path": [
+        [
+          1,
+          0
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ],
+        [
+          2,
+          2
+        ]
+      ]
+    },
+    {
+      "cue": "a round dish for cereal",
+      "answer": "BOWL",
+      "path": [
+        [
+          1,
+          4
+        ],
+        [
+          2,
+          4
+        ],
+        [
+          3,
+          4
+        ],
+        [
+          4,
+          4
+        ]
+      ]
+    },
+    {
+      "cue": "you drink tea from it",
+      "answer": "CUP",
+      "path": [
+        [
+          3,
+          0
+        ],
+        [
+          4,
+          0
+        ],
+        [
+          4,
+          1
+        ]
+      ]
+    }
+  ]
+}

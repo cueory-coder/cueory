@@ -235,6 +235,46 @@ const questions = defineCollection({
 });
 
 /**
+ * The small crossword (internal id cueword, D-70): sample puzzles, one JSON file each in /content/games/cueword. The
+ * shape is checked here; /play also runs each one through the game's own parsePuzzle at build time, so a clue that
+ * doesn't match a word stops the build with a plain message.
+ */
+const clue = z.object({ number: z.number().int().positive(), text: z.string().min(1).max(120) });
+const cueword = defineCollection({
+  loader: glob({ base: './content/games/cueword', pattern: '**/*.json' }),
+  schema: z.object({
+    status: z.literal('sample'),
+    grid: z
+      .array(z.string().regex(/^[A-Z.]{3,7}$/, 'a crossword row is 3 to 7 capital letters or dots'))
+      .min(3)
+      .max(7),
+    clues: z.object({ across: z.array(clue), down: z.array(clue) }),
+  }),
+});
+
+/**
+ * Word path (internal id suture, D-71): sample puzzles, one JSON file each in /content/games/suture. The shape is checked
+ * here; /play also runs each one through the game's own parsePuzzle at build time.
+ */
+const suture = defineCollection({
+  loader: glob({ base: './content/games/suture', pattern: '**/*.json' }),
+  schema: z.object({
+    status: z.literal('sample'),
+    grid: z.array(z.string().regex(/^[A-Z]{3,7}$/, 'a word path row is 3 to 7 capital letters')).min(3).max(7),
+    words: z
+      .array(
+        z.object({
+          cue: z.string().min(1).max(120),
+          answer: z.string().regex(/^[A-Z]{3,8}$/),
+          path: z.array(z.tuple([z.number().int().min(0), z.number().int().min(0)])),
+        }),
+      )
+      .min(3)
+      .max(6),
+  }),
+});
+
+/**
  * The visuals kit (Task 6, D-56, docs/VISUALS.md): one source file per visual in /content/visuals. Every label and
  * every depiction points to a source that gives the book's exact words, its section and the page address, and only
  * allowed books can be quoted (src/visuals/sources.ts). The build stops with a plain message when a file breaks a rule.
@@ -272,4 +312,4 @@ const visuals = defineCollection({
     }),
 });
 
-export const collections = { lessons, cards, pulse, triage, organizer, 'fill-in': fillIn, 'label-it': labelIt, questions, visuals };
+export const collections = { lessons, cards, pulse, triage, cueword, suture, organizer, 'fill-in': fillIn, 'label-it': labelIt, questions, visuals };
