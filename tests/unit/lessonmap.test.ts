@@ -74,7 +74,7 @@ describe('outline grouping and lookup', () => {
     const text = '\ufeff' + csv([{ ...sample, lesson: title }]).replaceAll('\n', '\r\n');
     const result = parseLessonMap(text);
     expect(result.problems).toEqual([]);
-    expect(lessonsFor(result.units, 'U01')[0]!.title).toBe(title.replace('\n', '\r\n'));
+    expect(lessonsFor(result.units, 'U01')[0]!.title).toBe(title.replaceAll('\n', '\r\n'));
   });
 });
 
