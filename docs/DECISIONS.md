@@ -449,6 +449,11 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   - **Next:** Christian picks final names later, after a screen.
 
   Reason: avoid launching under names others have filed for related goods.
+- **D-67** A guard for D-66: a unit test (`tests/unit/game-names.test.ts`) reads every page, component and island and
+  fails when one shows a game's internal id (`pulse`, `cueword`, `triage`, `suture`) as words, or types a game's name
+  into a share line ("cueory sort, …") instead of reading it with `gameName()`. Ids used as ids (content folders,
+  class names, test ids, imports) and comments are left alone. Reason: the names will change again, and builders work
+  in parallel, so a forgotten old name should fail CI instead of reaching a page.
 - **D-68** The visuals kit's source-file check (Task 6, D-56). The build checks every file in `content/visuals/`
   (`visualProblems` in `src/visuals/sources.ts`, run by `src/content.config.ts`) and stops with a plain message when:
   a label or depiction points to no source in the file, or a source is unused; a source quotes a book that isn't
@@ -459,6 +464,91 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   only approved visuals can appear on a page (`approvedOnly`), each visual shows the credit WisTech Open's terms ask
   for (`creditsFor`), and every overlay says "simplified for learning" (`notesFor`). Reason: no picture can ship with
   a word its cited source doesn't state.
+- **D-73** Task 2 plan: accounts and the database (the lead's request on issue #4, 2026-10-31, 10:45 pm, while
+  Christian creates `cueory-staging` and `cueory-prod`, SETUP Part K). Checked against Supabase's and Cloudflare's
+  docs on 1 Nov 2026. Each step is its own small pull request; `supabase/` and `.github/` always wait for Christian.
+  - **Grants, row-level security and policies in one migration.** Since 30 October 2026 Supabase no longer lets `anon`
+    and `authenticated` reach new tables in `public` until they are granted (Supabase changelog, "Tables not exposed
+    to Data and GraphQL API automatically"). So each migration that creates a table grants every role exactly what it
+    needs, enables row-level security and adds the policies, together. Private tables (answer keys, rationales,
+    reviewer results, flags, admin data) get no grant to `anon` or `authenticated` at all. Postgres lets any role run
+    a new function by default (Supabase docs, "Database Functions"), so the first migration revokes `execute` on
+    future functions from `public`, `anon` and `authenticated`, and each callable function is granted back by name.
+  - **Schema** (ROADMAP Task 2), in this order: `profiles` (each student reads and edits only their own row);
+    `concepts`, `sources` and `rights_records`; `items` and `item_versions` (only published stems and choices are
+    readable; keys and rationales sit where no browser role can read them); `reviews` (admin only); `attempts`,
+    `review_state` and `exam_plans` (each student's own rows only); `flags` (written only by `submit_flag`, read only
+    by the admin).
+  - **`check_answer(item_id, picked)`:** `security definer` with `set search_path = ''` and schema-qualified names, as
+    Supabase's docs require. It refuses unpublished items and bad input, records the attempt for a signed-in student,
+    and only then returns right or wrong, the key and every choice's rationale (D-33; select-all-that-apply is
+    all-or-nothing, D-45). Rate limited per person.
+  - **Flag or comment (D-34):** `submit_flag(page, item_id, item_version, reason, comment)`, also `security definer`.
+    It checks the reason against the allowed list, the comment's length (up to 1,000 characters) and the page
+    address, and accepts a few reports an hour per person, counted in the table. Sending one needs a signed-in
+    account: anonymous reports would need a CAPTCHA, and Supabase's (hCaptcha or Cloudflare Turnstile) loads a
+    third-party script, which CLAUDE.md rules out unless Christian makes an exception. Christian reads reports in
+    the locked `/admin`.
+  - **Keys per environment:** the browser only ever gets the publishable key (`sb_publishable_…`, which Supabase calls
+    safe to expose) and the project address. Secret keys stay in Supabase and GitHub settings, and the legacy
+    `anon`/`service_role` keys aren't used (Supabase retires them by the end of 2026). Both values are build
+    variables in Cloudflare Workers Builds, which keeps one set for production builds (`main`, `cueory-prod`) and one
+    for preview builds (`staging` and every other branch, `cueory-staging`). The site reads them as
+    `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_PUBLISHABLE_KEY`; without them (local builds, CI) the account
+    features stay off and say so. The content security policy's `connect-src` gains only that project's address (a
+    header change, so Christian approves it).
+  - **Testing migrations in CI with no real keys:** a CI job installs a pinned Supabase CLI, starts a local Supabase
+    database (`supabase db start`), applies every migration to an empty database and runs pgTAP tests
+    (`supabase test db`), as Supabase's GitHub Actions guide shows. The local database makes its own throwaway keys,
+    so CI needs no secrets. The tests check that every table in `public` has row-level security, that each role's
+    grants are exactly as planned, that `anon` can't read a key or a rationale, that nobody reads another student's
+    rows, and that both functions refuse bad input and enforce their limits.
+  - **Applying migrations:** `cueory-staging` first, `cueory-prod` only after Christian approves, from a GitHub
+    Actions run started by hand. Its access token and database passwords live only in GitHub environment secrets that
+    Christian adds himself (steps given when it's ready). Nothing applies automatically yet.
+  - **Then:** Google sign-in (Christian's Google Cloud steps), email magic links through Resend as the backup,
+    `/privacy` updated before sign-in goes live, delete-my-account and export-my-data, the nightly encrypted backup of
+    `cueory-prod` and the keep-alive for `cueory-staging`.
+
+  Reason: the lead's request; it follows Supabase's 2026 grants change and keeps every key and answer out of the
+  browser.
+- **D-74** CI spends fewer free Actions minutes (the lead, 2026-11-01).
+  - **Why:** on a private repository, GitHub Free includes 2,000 Actions minutes a month. Tonight's parallel
+    helpers ran CI about 80 times in six hours (about 9 billed minutes each), which would use the month's minutes in
+    a day or two. When they run out, CI stops and nothing can merge.
+  - **What changes:**
+    - drafts run no CI until marked ready for review;
+    - pushes to staging no longer run CI again (the pull request already passed, and the Release pull request runs
+      everything before main);
+    - a pull request that changes only Markdown files outside content/ and src/ passes without building or
+      testing;
+    - pull requests into staging run the browser tests at phone and desktop size, and Release pull requests into
+      main still run every device.
+  - **What stays:** the required checks and the auto-merge rules are unchanged.
+
+  Reason: keep CI inside the free minutes so the pipeline never stalls and costs stay $0.
+- **D-75** The repository goes public (Christian's decision, 2026-10-31, 11:06 pm, "Make repo go public before we
+  launch").
+  - **Why:** GitHub Actions minutes are free and unlimited on public repositories. The builders used 1,030 of
+    November's 2,000 free minutes in about six hours.
+  - **What's in it:**
+    - a LICENSE that keeps all rights (public, not open source);
+    - a README note that outside pull requests aren't accepted.
+  - **Rules updated:**
+    - CLAUDE.md rule 1 and SECURITY.md: GitHub secret scanning with push protection and CodeQL run; Semgrep and
+      gitleaks stay as a second layer.
+    - CLAUDE.md rule 7: real questions, answer keys, rationales and unreleased lessons never go in this repository.
+      They live in Christian's private content store and the database. `/content` keeps only labeled samples,
+      schemas and approved public text.
+  - **Checked before going public:** history, issues, pull requests and comments hold no tokens, keys, passwords,
+    addresses or phone numbers (gitleaks scans every commit in CI; the lead also searched every issue and comment).
+    The only personal detail is the email address on Christian's older commits, which becomes visible; he decides
+    whether that's acceptable.
+  - **Still safe from outsiders:** the staging auto-merge already skips pull requests from forks, and only Christian
+    merges into main. Cloudflare Workers Builds' 3,000 free build minutes still apply, so the push discipline stays.
+
+  Reason: free CI at full speed, with nothing private in the repository.
+
 - **D-72** The visuals kit's first batch is reviewed in two steps, words first and drawings second. Its three source
   files (body fluid compartments; osmosis and fluid shifts; the sodium-potassium pump) list every label and everything
   each drawing may show, each with the exact words of Open RN *Nursing Fundamentals 2e*, section 15.2, and the page

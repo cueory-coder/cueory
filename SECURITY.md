@@ -23,9 +23,12 @@ to reply within 7 days.
 6. **Rate limits** on sign-in, sign-up and every form. The newsletter form relies on Kit's own abuse protection and
    double opt-in; our own forms (from Task 2) get server-side limits.
 7. **Automated checks stay on:** Dependabot alerts and updates, code scanning, secret scanning, and CI on every pull
-   request. While the repository is private, code scanning is Semgrep Community Edition and secret scanning is
-   gitleaks, both run free in CI on every pull request. GitHub's CodeQL and secret scanning need a paid plan on
-   private repositories. The CodeQL workflow is kept and starts working if the repository becomes public.
+   request. The repository is public (D-75), so GitHub's CodeQL and secret scanning with push protection run for
+   free, and Semgrep Community Edition and gitleaks keep running in CI as a second layer.
+   - **Public means visible to anyone:** never commit secrets, real answer keys, unreleased content or personal data.
+     Real content lives in Christian's private content store and the database.
+   - **Outside pull requests never merge themselves:** the staging auto-merge skips pull requests from forks, and
+     only Christian merges into `main`.
 8. **Two-factor authentication** is required on the admin account and on every account that controls the business
    (GitHub, Cloudflare, Kit, Google, and from Task 2 Supabase and Resend).
 9. **Business accounts use Christian's business Gmail**, never an address on `cueory.app`, so a domain or email
