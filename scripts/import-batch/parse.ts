@@ -1,6 +1,14 @@
 /** Pure batch parsing. Reads no files, writes no database rows and never invents missing question data. */
 import { createHash } from 'node:crypto';
-import { answerLetters, ITEM_COLUMNS, itemType, KEY_COLUMNS, type ItemType } from '../check-batch/check.ts';
+import {
+  answerLetters,
+  checkBatch,
+  ITEM_COLUMNS,
+  itemType,
+  KEY_COLUMNS,
+  type BatchInput,
+  type ItemType,
+} from '../check-batch/check.ts';
 import { CsvError, parseCsv, type CsvRow } from '../check-batch/csv.ts';
 
 type ChoiceId = 'a' | 'b' | 'c' | 'd' | 'e';
@@ -23,7 +31,12 @@ export interface ImportProblem {
   message: string;
 }
 export interface ParsedBatch { items: ImportItem[]; problems: ImportProblem[] }
-export interface BatchFiles { itemsCsv: string; keyCsv: string }
+/**
+ * The rest of the batch the checker saw: the reviewer files (by reviewer name), facts.csv and sources.csv, as parsed
+ * rows. The importer needs them to run the checker again itself rather than trust that it was run (Task C8).
+ */
+export type Recheck = Pick<BatchInput, 'reviewers' | 'facts' | 'sources'>;
+export interface BatchFiles { itemsCsv: string; keyCsv: string; recheck: Recheck }
 
 const ID = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/;
 const LETTERS = ['A', 'B', 'C', 'D', 'E'] as const;
@@ -120,6 +133,10 @@ export function parsePassed(passedCsv: string, batch?: BatchFiles): ParsedBatch 
     result.problems.push({ file: 'passed.csv', row: 1, message: 'the original items.csv and key.csv texts are needed; passed.csv contains only ids.' });
     return result;
   }
+  if (!batch.recheck || typeof batch.recheck.reviewers !== 'object' || !Array.isArray(batch.recheck.facts) || !Array.isArray(batch.recheck.sources)) {
+    result.problems.push({ file: 'passed.csv', row: 1, message: 'the reviewer files, facts.csv and sources.csv are needed to check the batch again before importing; nothing was imported.' });
+    return result;
+  }
   const passed = readCsv(passedCsv, ['item_id', 'concept_id'], 'passed.csv', result.problems);
   const items = readCsv(batch.itemsCsv, ITEM_COLUMNS, 'items.csv', result.problems);
   const keys = readCsv(batch.keyCsv, KEY_COLUMNS, 'key.csv', result.problems);
@@ -160,5 +177,25 @@ export function parsePassed(passedCsv: string, batch?: BatchFiles): ParsedBatch 
     const parsed = itemFromRows(original[0].data, key[0].data, original[0].row, key[0].row, result.problems);
     if (parsed) result.items.push(parsed);
   });
+
+  // Never trust that the checker was run, or that nothing changed since: run it again on exactly these files. An item
+  // goes in only if the checker passes it now, and a batch the checker refuses as a whole imports nothing.
+  if (result.items.length > 0) {
+    const checked = checkBatch({ items, key: keys, reviewers: batch.recheck.reviewers, facts: batch.recheck.facts, sources: batch.recheck.sources });
+    if (checked.batchErrors.length > 0) {
+      result.problems.push({ file: 'passed.csv', row: 1, message: `the batch does not pass its check, so nothing was imported: ${checked.batchErrors.join('; ')}.` });
+      result.items = [];
+      return result;
+    }
+    const passedNow = new Set(checked.passed.map(entry => entry.item_id));
+    const waiting = new Map([...checked.failed, ...checked.pending].map(entry => [entry.item_id, [...entry.reasons, ...entry.waiting]]));
+    result.items = result.items.filter(item => {
+      if (passedNow.has(item.id)) return true;
+      const row = passed.findIndex(entry => entry.item_id === item.id) + 2;
+      const why = waiting.get(item.id)?.join('; ') ?? 'it is not in the checker\'s passed list';
+      result.problems.push({ file: 'passed.csv', row, message: `the batch checker does not pass this item now: ${why}.` });
+      return false;
+    });
+  }
   return result;
 }
