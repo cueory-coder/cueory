@@ -160,6 +160,20 @@ Merged into `staging` overnight; the database and content ones by the director o
   (#96, Task 20).
 
 ## In review
+- Task 2, database step 4 (Task C6, D-87): `review_state` and `exam_plans`, with 47 database tests. Each student reads and
+  writes only their own spaced-review progress and exam dates; the database refuses impossible values. It edits
+  `supabase/`, so it waits for Christian. **Steps 1 to 3 are in `staging`** (#90, #92 and #94): concepts, sources and
+  rights records (D-84); items, versions and the hidden answer key (D-85); and attempts with `check_answer` (D-86), 140
+  database tests in all. `check_answer` is signed-in only, which still needs Christian's confirmation (D-86). Step 5,
+  flags and `submit_flag`, comes next.
+- [Concept map](https://github.com/lilchristxan/Cueory/pull/68) (Task 14): every concept in a unit with its status in
+  words and a shape (an empty circle, a quarter, a half or a check), never color alone, with a filter by status. No
+  scores or predictions.
+- Visuals kit, the first batch's drawings (Task C5, D-81): body fluid compartments, osmosis and fluid shifts, and
+  the sodium-potassium pump, drawn only from their approved source files and checked by tests. Drafts, so nothing shows
+  on a page until Christian approves them; his review sheet is linked from the pull request.
+- Open pull requests add their own lines here: study modes on pages (#77), guest progress (#74), game stats on
+  `/play` (#79), the Safari preview fix (#88) and Release browser tests (#55).
 - Open pull requests add their own lines here: study modes on pages (#77), export-my-data (#95, Task 19), lesson
   videos (#97, Task C3), the 3D viewer shell (#98, Task C4), the batch importer's parser (#100, Task 21), the
   disease-overlay frame (#102, Task 24) and Release browser tests (#55).
