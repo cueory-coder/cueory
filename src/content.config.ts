@@ -174,4 +174,20 @@ const visuals = defineCollection({
     }),
 });
 
-export const collections = { lessons, cards, pulse, triage, cueword, suture, visuals };
+/**
+ * Lesson videos (D-82): one JSON file per video in /content/videos. The videoId is a YouTube video id
+ * (or a clearly labeled placeholder). A video appears on the lesson page only when its status is 'published'.
+ */
+const videos = defineCollection({
+  loader: glob({ base: './content/videos', pattern: '**/*.json' }),
+  schema: z.object({
+    lesson: z.string().regex(/^[a-z0-9-]+$/),
+    title: z.string().min(1).max(120),
+    status: z.enum(['placeholder', 'draft', 'in_review', 'published']),
+    videoId: z.string().min(1),
+    captionsUrl: z.string().url().or(z.literal('')),
+    transcriptUrl: z.string().url().or(z.literal('')),
+  }),
+});
+
+export const collections = { lessons, cards, pulse, triage, cueword, suture, visuals, videos };
