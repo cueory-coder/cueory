@@ -27,17 +27,18 @@ const parse = (item: CsvRow = sample, key: CsvRow = sampleKey) =>
 
 describe('passed batch parsing', () => {
   it("joins the real checker's ID-only report to its original item and key files", () => {
-    const checked = checkBatch({
+    const input = {
       items: [sample], key: [sampleKey],
       facts: [{ fact_id: 'sample-fact', source_id: 'sample-source' }],
       sources: [{ source_id: 'sample-source', url: 'https://example.invalid/sample' }],
       reviewers: Object.fromEntries(REVIEWER_ROSTER.slice(0, 5).map(name => [name, [{ item_id: 'sample-1', answer: 'A', verdict: 'pass' }]])),
-    });
+    };
+    const checked = checkBatch(input);
     expect(checked.passed).toHaveLength(1);
-    // The checker writes item_id,concept_id only — the hash column is added by the operator before import.
+    // Without the input arg, passedCsv omits hash (test-isolation mode).
     expect(passedCsv(checked).split('\n')[0]).toBe('item_id,concept_id');
-    // Simulate operator adding hash column before import.
-    expect(parsePassed(allow([sample], [sampleKey]), files())).toEqual({ items: [{
+    // With the input arg (as the CLI does), passedCsv includes the hash — full end-to-end pipeline works.
+    expect(parsePassed(passedCsv(checked, input), files())).toEqual({ items: [{
       id: 'sample-1', conceptId: 'sample-concept', type: 'single', stem: 'sample: choose a shape', rationale: 'sample: main explanation',
       choices: [
         { id: 'a', text: 'sample: circle' }, { id: 'b', text: 'sample: square' },
