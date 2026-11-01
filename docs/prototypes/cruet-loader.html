@@ -1,0 +1,47 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+@font-face{font-family:Lato;src:url(lato.woff2)}
+html,body{margin:0;height:100%;background:#f9f5ef;font-family:Lato;color:#3e2c23}
+.wrap{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center}
+canvas{width:min(300px,60vw);height:auto}
+.t{font-size:12px;letter-spacing:.38em;text-transform:uppercase;margin-top:18px;color:#6b5243}
+</style></head><body><div class="wrap"><canvas id="c" width="1024" height="1024"></canvas><div class="t" role="status">loading…</div></div>
+<script>
+const G={x0:1227,y0:0,w:714,h:649,S:2048};
+const imgs={};let loaded=0;['c-letter','vessel-interior','vessel-outline','interior-mask'].forEach(n=>{const i=new Image();i.onload=()=>{loaded++;if(loaded===4)ready();};i.src='../../public/brand/v1/loader/'+n+'.png';imgs[n]=i;});
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');const SC=0.72,OX=150,OY=250;const k=cv.width/G.S*SC;
+const off=document.createElement('canvas');off.width=cv.width;off.height=cv.height;const oc=off.getContext('2d');
+const PIV={x:480,y:430}, SPOUT={x:14,y:268};
+const INK='#3e2c23';
+function rot(p,th){const c=Math.cos(th),s=Math.sin(th);return{x:c*p.x-s*p.y,y:s*p.x+c*p.y};}
+function draw(theta,level,stream){ // theta radians (+ = clockwise), level: world y of liquid surface in emblem px
+ ctx.clearRect(0,0,cv.width,cv.height);
+ ctx.drawImage(imgs['c-letter'],OX,OY,G.S*k,G.S*k);
+ const px=OX+(G.x0+PIV.x)*k, py=OY+(G.y0+PIV.y)*k;
+ const place=(c,img)=>{c.save();c.translate(px,py);c.rotate(theta);c.drawImage(img,-PIV.x*k,-PIV.y*k,G.w*k,G.h*k);c.restore();};
+ place(ctx,imgs['vessel-interior']);
+ oc.clearRect(0,0,off.width,off.height);place(oc,imgs['interior-mask']);
+ oc.globalCompositeOperation='source-in';oc.fillStyle=INK;oc.fillRect(0,OY+level*k,off.width,off.height);oc.globalCompositeOperation='source-over';
+ ctx.drawImage(off,0,0);
+ place(ctx,imgs['vessel-outline']);
+ if(stream>0){const sp=rot({x:SPOUT.x-PIV.x,y:SPOUT.y-PIV.y},theta);const sx=px+sp.x*k,sy=py+sp.y*k;
+  ctx.strokeStyle=INK;ctx.lineCap='round';ctx.lineWidth=14*k*stream;ctx.beginPath();ctx.moveTo(sx,sy);ctx.quadraticCurveTo(sx-10*k,sy+120*k,sx-14*k,sy+(260*k));ctx.stroke();}
+}
+// timeline in seconds
+const UP=50*Math.PI/180, END=-38*Math.PI/180, L0=520, BOTTOM=820;
+const ease=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+function spoutY(th){const sp=rot({x:SPOUT.x-PIV.x,y:SPOUT.y-PIV.y},th);return PIV.y+sp.y;}
+function state(t){
+ let th, drain=0;
+ if(t<0.7) th=UP;
+ else if(t<3.0) th=UP+(END-UP)*ease((t-0.7)/2.3);
+ else { th=END; drain=Math.min(1,(t-3.0)/0.8); }
+ const sy=spoutY(th);
+ let L=Math.max(L0, sy);
+ if(drain>0) L=L+(BOTTOM-L)*ease(drain);
+ const pouring = sy>L0 ? Math.min(1,(sy-L0)/40)*(1-drain) : 0;
+ if(t>3.9){ const u=ease(Math.min(1,(t-3.9)/0.5)); th=END+(UP-END)*u; L=BOTTOM; }
+ return [th,L,pouring];
+}
+function ready(){window.render=t=>{const [th,L,s]=state(t);draw(th,L+G.y0,s);};
+ if(!/frames/.test(location.search)){const t0=performance.now();const loop=n=>{render(((n-t0)/1000)%4.6);requestAnimationFrame(loop)};requestAnimationFrame(loop);} window.READY=true;}
+</script></body></html>
