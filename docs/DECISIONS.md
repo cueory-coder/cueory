@@ -811,6 +811,17 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
 
   Reason: a drawing can't show more than the approved source says, and a test proves it.
 
+- **D-82** Lesson videos (Task C3, `src/islands/LessonVideo.tsx`). Single-tap rule (follows D-32, D-40): nothing loads
+  from YouTube before the student taps the cover; ONE tap creates the `youtube-nocookie.com` player with autoplay and
+  starts the video, and focus moves to the player. The cover is a self-hosted `thumbnail` image from the video's file,
+  or a drawn placeholder; the "tapping play loads YouTube and its cookies" note and any captions/transcript links show
+  before the tap (ROADMAP Task 4d). The player is at least 200 px tall at every width (YouTube's minimum). Only
+  `published` videos show on a page; drafts and placeholders never render (the study-skills entry stays a draft until
+  Christian supplies a real video). Video files (`content/videos/`, rules in `src/videos/schema.ts`): `videoId` is
+  exactly 11 characters (`[A-Za-z0-9_-]`), caption and transcript links are https or site paths only, `thumbnail` is a
+  site path only. CSP gains `frame-src https://www.youtube-nocookie.com`; `/privacy` lists YouTube. To check on a real
+  iPhone before launch: Safari may drop the tap permission that autoplay needs. Reason: D-32 and D-40.
+
 - **D-83** 3D body viewer shell (Task C4, 2026-11-01, lead review on PR #98).
   - **Lazy loading:** `three` loads only after the student taps "open the 3D view". Nothing from three.js is in the
     initial bundle. The tap shows a loading state, then the viewer.
@@ -882,3 +893,26 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
     accepted, no plan cap) each failed.
 
   Reason: the director's request on #11 (Task C6), following D-73's schema order.
+
+- **D-90** The batch checker matches the importer (Task C8, the lead's follow-up on #115, Task 3). Three changes, one
+  rule: the checker must never pass an item the importer would refuse, and the importer must never trust that the
+  checker was run.
+  - **A rationale for every choice, on every question.** The checker used to ask for per-choice rationales only on
+    select-all-that-apply questions; the importer (and the database, D-85) require them on all. A single-answer item
+    missing one now fails the check with "choice C has no rationale (rationale_c); every choice needs one".
+  - **The hash.** `passed.csv` carries the `hash` column, made by `itemHash` imported from the importer, not copied, so
+    the two can't drift. (#115 had already wired `passedCsv(result, input)` to do this; this task adds the tests that
+    hold it: a round trip, and a check that every passed row's hash matches the importer's.)
+  - **The importer re-runs `checkBatch`.** `parsePassed` now takes the reviewer files, `facts.csv` and `sources.csv`
+    (`BatchFiles.recheck`) along with the items and key texts, and runs the checker on exactly those files after its own
+    row checks. An item is imported only if the checker passes it now; an item that fails or is waiting on a reviewer is
+    refused with the checker's own reasons; a batch the checker refuses as a whole (a missing reviewer file, a duplicate
+    id) imports nothing. Without the `recheck` input the importer refuses everything, so the safe path is the only one.
+  - **Tests (`tests/unit/check-batch.test.ts`, `import-batch.test.ts`):** the round trip (checker, `passed.csv`,
+    importer, every passed item comes back with its hash accepted, select-all included); one field edited after checking
+    (the stem, a choice, a choice rationale, the main rationale, the key, the sources) is refused; a list of eleven ways
+    to make an item invalid, each seen refused by both the checker and the importer; and seven re-check cases (a reviewer
+    now failing, disagreeing or pending, a broken source link, a missing reviewer file, a duplicate question, no re-check
+    input). With the old checker the new agreement tests fail. Samples only (rule 7): no real questions.
+
+  Reason: the lead's review of #115 and the director's brief for Task C8.

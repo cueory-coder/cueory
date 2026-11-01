@@ -39,6 +39,8 @@ export default defineConfig({
         "font-src 'self'",
         // Cloudflare Web Analytics beacon.
         "connect-src 'self' https://cloudflareinsights.com",
+        // Lesson videos load from YouTube's cookie-free domain only (D-82).
+        "frame-src https://www.youtube-nocookie.com",
         "object-src 'none'",
         "base-uri 'self'",
         `form-action 'self'${formOrigin}`,

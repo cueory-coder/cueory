@@ -253,13 +253,12 @@ export function checkBatch(input: BatchInput): BatchResult {
     const type = itemType(item);
     if (type === null) reasons.push(`type "${item.type ?? ''}" must be single or sata (blank means single)`);
     const sata = type === 'sata';
-    if (sata) {
-      sataCount += 1;
-      // Select-all-that-apply shows why each choice is right or wrong once the student has answered.
-      for (const l of letters) {
-        if ((item[`rationale_${l.toLowerCase()}`] ?? '').trim() === '') {
-          reasons.push(`choice ${l} has no rationale (rationale_${l.toLowerCase()}); select-all-that-apply needs one for every choice`);
-        }
+    if (sata) sataCount += 1;
+    // Every choice on every question needs its own rationale: students see why each choice is right or not once they
+    // have answered (D-45), and the importer refuses an item without them, so the checker must never pass one.
+    for (const l of letters) {
+      if ((item[`rationale_${l.toLowerCase()}`] ?? '').trim() === '') {
+        reasons.push(`choice ${l} has no rationale (rationale_${l.toLowerCase()}); every choice needs one`);
       }
     }
 
