@@ -204,7 +204,7 @@ Christian's behalf (D-89), each with the lead's review:
   (#128, Task 41) and credits for a lesson page (#127, Task 42).
 - Review-clip exporter repairs (#111, Task C10, D-81): esbuild bundle loader for TSX drawings, Playwright SVG-height
   measurement for correct per-step crop bands, non-zero exit on ffmpeg failure, brand tokens in frame HTML, and
-  single-quote escaping in the ffmpeg concat list. 57 new tests; 1940 total pass.
+  single-quote escaping in the ffmpeg concat list. For Christian's internal review only; nothing is published.
 
 ## In review
 - Open pull requests add their own lines here. Waiting now: study modes on pages (#77, held for Christian's choice
@@ -213,10 +213,6 @@ Christian's behalf (D-89), each with the lead's review:
   browser tests (#55).
 - Task 43: `node scripts/visuals-sheet.ts --out <folder>` writes draft review sheets outside the repository and refuses existing output; in review.
 - Task 44 (#105): delete-account summaries include saved progress and email; cleanup includes legacy stars. Pure logic, in review.
-
-  exporter (#111, Task C7), and Release browser tests (#55).
-- Release PR (#132, staging → main): CI running. New for students: crossword and word path live on /play. Unlinked
-  in release: study modes, flashcard decks, lesson video shell, 3D viewer shell.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
