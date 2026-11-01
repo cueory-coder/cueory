@@ -4,6 +4,7 @@
  */
 
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 
 export class ClipError extends Error {}
@@ -227,18 +228,20 @@ ${builtCss}
  *
  * Example: `url(/_astro/Inter-Bold.woff2)` → `url("file:///abs/path/dist/_astro/Inter-Bold.woff2")`
  *
- * The url() value is wrapped in CSS double-quotes so any character valid in a
- * filesystem path — spaces, parentheses, apostrophes — is also valid inside the
- * string. Only `"` itself needs percent-encoding to prevent premature string
- * termination; all other characters are safe inside a CSS double-quoted string and
- * are valid in file: URLs (RFC 3986 sub-delimiters include `'`, `(`, `)`;
- * spaces become %20 so the URL is well-formed).
+ * Uses Node's `pathToFileURL` to build the base URL so that ALL characters
+ * requiring percent-encoding — spaces, `#`, `%`, parentheses, apostrophes —
+ * are handled correctly. The resulting URL string is then wrapped in CSS
+ * double-quotes to produce a valid CSS `url("...")` token.
  */
 export function rewriteFontUrls(css: string, astroDir: string): string {
-  const safeDir = astroDir.replace(/ /g, '%20').replace(/"/g, '%22');
-  return css.replace(/url\(\/_astro\/([^)]*)\)/g, (_, filename) =>
-    `url("file://${safeDir}/${filename}")`
-  );
+  // pathToFileURL encodes #, %, spaces, and all other special characters.
+  // Trailing slash makes astroDir a directory base for URL resolution.
+  const baseUrl = pathToFileURL(astroDir + '/').href;
+  return css.replace(/url\(\/_astro\/([^)]*)\)/g, (_, filename) => {
+    // Resolve the filename against the base; then re-encode any " in the href.
+    const fileUrl = new URL(filename, baseUrl).href.replace(/"/g, '%22');
+    return `url("${fileUrl}")`;
+  });
 }
 
 // ── ffmpeg concat list ────────────────────────────────────────────────────────

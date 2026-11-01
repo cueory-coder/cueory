@@ -476,15 +476,29 @@ describe('rewriteFontUrls', () => {
     expect(urlMatch![1]).not.toContain(' ');
   });
 
-  it('handles parentheses in the checkout path (CSS double-quoted string allows them)', () => {
-    // encodeURIComponent preserves ( and ), so without CSS quoting a path like
-    // "pr111 (font probe)" would close the url() early. CSS double-quoting fixes this.
+  it('handles parentheses in the checkout path (pathToFileURL keeps them as literals)', () => {
     const css = "src: url(/_astro/Inter-Bold.woff2) format('woff2');";
     const result = rewriteFontUrls(css, '/Users/christian/pr111 (font probe)/dist/_astro');
-    // Spaces encoded; parens kept as-is (valid in file: URLs and inside CSS strings).
     expect(result).toContain('file:///Users/christian/pr111%20(font%20probe)/dist/_astro/');
     expect(result).toContain('url("file://');
-    // The url() must be a complete well-formed token: url("...woff2").
+    expect(result).toMatch(/url\("file:\/\/[^"]+Inter-Bold\.woff2"\)/);
+  });
+
+  it('percent-encodes # in the checkout path so it is not interpreted as a URL fragment', () => {
+    // A path like "pr111 #font probe" must have # encoded as %23; otherwise the browser
+    // treats everything after # as a fragment identifier and the font file is not found.
+    const css = "src: url(/_astro/Inter-Bold.woff2) format('woff2');";
+    const result = rewriteFontUrls(css, '/Users/christian/pr111 #font probe/dist/_astro');
+    expect(result).toContain('%23');
+    expect(result).not.toMatch(/url\("[^"]*#[^"]*"\)/); // no literal # inside the url()
+    expect(result).toMatch(/url\("file:\/\/[^"]+Inter-Bold\.woff2"\)/);
+  });
+
+  it('percent-encodes % in the checkout path so it is not double-decoded', () => {
+    // A pre-existing % in a directory name must become %25; pathToFileURL handles this.
+    const css = "src: url(/_astro/Inter-Bold.woff2) format('woff2');";
+    const result = rewriteFontUrls(css, '/Users/christian/pr111 %2F test/dist/_astro');
+    expect(result).toContain('%25');
     expect(result).toMatch(/url\("file:\/\/[^"]+Inter-Bold\.woff2"\)/);
   });
 });
