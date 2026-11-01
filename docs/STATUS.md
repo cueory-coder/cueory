@@ -119,26 +119,36 @@ Last updated: 2026-11-01
   Seven labeled everyday samples under `content/games/triage/`, so it also waits for Christian's merge.
 - Engines and boards from tonight's helpers, each in its own pull request. None is on a page yet: the study-mode
   pages (Task C1 on #11), guest progress (Task C2) and the visuals kit's drawings (Task C5) bring them in.
-  - [Diagram step player](https://github.com/lilchristxan/Cueory/pull/63) (Task 11): a teaching diagram as numbered
-    steps, paused at first. The student steps through by hand or presses play, and each step's caption is read out.
-    With reduced motion there is no play button, only the steps by hand.
-  - [Break timer](https://github.com/lilchristxan/Cueory/pull/67) (Task 12): an optional study-break reminder, off
-    unless the student turns it on (by default 25 minutes of study, then a suggested 5-minute break). It makes no
-    sound, saves nothing and never blocks the page; the student can pause it, skip or put off a break, or take one
-    early.
+  - In `staging`: [diagram step player](https://github.com/lilchristxan/Cueory/pull/63) (Task 11): a teaching diagram
+    as numbered steps, paused at first. The student steps through by hand or presses play, and each step's caption is
+    read out. With reduced motion there is no play button, only the steps by hand.
+  - In `staging`: [break timer](https://github.com/lilchristxan/Cueory/pull/67) (Task 12): an optional study-break
+    reminder, off unless the student turns it on (by default 25 minutes of study, then a suggested 5-minute break). It
+    makes no sound, saves nothing and never blocks the page; the student can pause it, skip or put off a break, or
+    take one early.
   - [Concept map](https://github.com/lilchristxan/Cueory/pull/68) (Task 14): every concept in a unit with its status in
     words and a shape (an empty circle, a quarter, a half or a check), never color alone, with a filter by status. No
     scores or predictions.
-  - [Private game stats](https://github.com/lilchristxan/Cueory/pull/70) (Task 13): for each daily game, the first
-    result of the day counts and replays can't change it. Days played, games solved and how many tries, in plain
-    words, with no streaks and no comparisons; up to 400 days per game, and a student can forget one game or all of
-    them. Saving it and the on/off switch come with guest progress.
+  - In `staging`: [private game stats](https://github.com/lilchristxan/Cueory/pull/70) (Task 13): for each daily game,
+    the first result of the day counts and replays can't change it. Days played, games solved and how many tries, in
+    plain words, with no streaks and no comparisons; up to 400 days per game, and a student can forget one game or all
+    of them. The panel on `/play` that saves them, off until the student turns it on, is in review
+    ([#79](https://github.com/lilchristxan/Cueory/pull/79), D-76).
   - [Label it](https://github.com/lilchristxan/Cueory/pull/71) (Task 9), image occlusion (ROADMAP Task 4c): a
     diagram's labels are covered, and the student uncovers them one at a time or all at once and marks each "know it"
     or "still learning"; the next round covers only the "still learning" ones. No image without alt text and a
     credit, and a covered label's words are never on the page.
-- [Crossword fix](https://github.com/lilchristxan/Cueory/pull/59) (a Codex helper's): on a narrow screen, the cell
-  being typed in with the keyboard now scrolls into view.
+  - [Flag or comment form](https://github.com/lilchristxan/Cueory/pull/82) (Task 15, D-34): "what's wrong?" with five
+    choices and an optional comment, checked and cleaned before it's sent. Signed out, it says reports need an
+    account. Sending is Task 2's `submit_flag` (D-73), so nothing is sent anywhere yet.
+  - [Review session](https://github.com/lilchristxan/Cueory/pull/83) (Task 16, stacked on the review scheduler): the
+    cards due today, then up to 10 new ones, each shown once: front, "show the answer", then "know it" or "still
+    learning". A summary in words says when the next review is. No timer, no streak, no score.
+  - [Level test rules](https://github.com/lilchristxan/Cueory/pull/84) (Task 17, ROADMAP Task 4b): up to two questions
+    per concept, starting at level 2; each concept ends as "not started", "learning", "getting there" or "got it",
+    never a score or a chance of passing.
+- In `staging`: [crossword fix](https://github.com/lilchristxan/Cueory/pull/59) (a Codex helper's): on a narrow
+  screen, the cell being typed in with the keyboard now scrolls into view.
 
 - [Crossword engine and board](https://github.com/lilchristxan/Cueory/pull/51) (a Codex helper's, Task 3 on #11):
   numbering, typing that skips gaps, checking a word or the whole grid, three cues that lock their letters, and a
