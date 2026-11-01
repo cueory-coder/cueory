@@ -220,9 +220,7 @@ Merged into `staging`; the database one by the director on Christian's behalf (D
 
 ## In review
 - Task 47: flag inbox uses the real flags UUID columns and paired handling status/date; in review.
-- Open pull requests add their own lines here. Waiting now: study modes on pages (#77, held for Christian's choice
-  below), the review-clip exporter (#111, Tasks C7 and C10, latest `5329983` — pathToFileURL replaces manual encoding so # and % in checkout paths are handled correctly, awaiting CI + independent peer review), the offline service worker (#135, Task C12, held for the
-  lead's fix), Release browser tests (#55) and the release into `main` (#132, for Christian).
+- Open pull requests add their own lines here. Waiting now: Release browser tests (#55). **Ready to merge (Christian):** the review-clip exporter (#111, Tasks C7 and C10, `d276b3f` — CI ✅ Codex ✅ independent reviewer approved nine frames + Inter font + MP4s).
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
