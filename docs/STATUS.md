@@ -194,6 +194,7 @@ a page yet:
   delete-account checks (#105, Task 25), the daily puzzle checker (#108), database step 5, flags and `submit_flag`
   (#110), the review-clip exporter (#111, Task C7), Release browser tests (#55), and the new tasks 40 to 42 and C8
   when they open.
+- Export-my-data (#95, Task 19) now also covers account attempts, exam dates and review rows, in JSON and CSV (D-91).
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).

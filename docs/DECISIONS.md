@@ -858,3 +858,16 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
     accepted, no plan cap) each failed.
 
   Reason: the director's request on #11 (Task C6), following D-73's schema order.
+
+- **D-91** Export-my-data covers everything stored about a student (Task 19, #95; CLAUDE.md rule 2). `exportJson` and
+  `exportCsv` in `src/islands/exportdata.ts` stay pure: no network, no storage; the caller hands over the student's own
+  rows. Besides the profile, setup answers, guest progress, guest review and game history, they now take three sections
+  that mirror the database tables from D-86 and D-87: `attempts` (item version, letters picked, right or wrong, time),
+  `examPlans` (course, exam day, created) and `reviewRows` (the account's `review_state`: question, level 0 to 3, last
+  and next review day). Each has a strict schema: uuids lowercase and well formed, 1 to 5 distinct letters a to e,
+  a course slug of at most 80 characters, real calendar days. No user id, answer key or rationale is ever exported; if
+  one is passed it is dropped and only its name is listed. Caps: 50,000 rows for `attempts` and `reviewRows`, 10 for
+  `examPlans` (the database's cap); anything beyond is reported in `dropped` as `section[cap+]`. Each section also gets
+  a CSV file with the same formula guard and quoting.
+
+  Reason: the review of #95 found server-side study progress missing from the download.

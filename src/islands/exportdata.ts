@@ -1,4 +1,15 @@
-/** A download DTO, not a database reader. The caller supplies only their own data and the export date. */
+/**
+ * A download DTO, not a database reader. The caller supplies only their own data and the export date.
+ *
+ * Sections (JSON key and CSV file share the name): profile, onboarding, progress, reviewState and gameStats come from
+ * the account page or this browser; attempts, examPlans and reviewRows mirror the student's own rows in the database
+ * tables `attempts`, `exam_plans` and `review_state` (supabase/migrations 20261101100000 and 20261101110000).
+ * Each section has a strict schema: unknown fields are dropped and listed by NAME in `dropped` (never by value), and a
+ * bad field reports the field and its row. The database rows never carry a user id, an answer key or a rationale, and
+ * if a caller passes one it is dropped like any other unknown field. In CSV, `picked` letters are joined with ";".
+ * Row caps: attempts and reviewRows keep their first 50,000 rows, examPlans its first 10; the rest is reported in
+ * `dropped` as `<section>[<cap>+]`.
+ */
 import { dailyGames } from '../config/games';
 import { isCourse, isExamDate, PROGRESS_VERSION, type DeckProgress, type Progress } from '../scripts/progress';
 import type { GameStats } from './gamestats';
@@ -10,9 +21,15 @@ export interface ExportData {
   reviewState?: readonly { id: string; nextDueDate: string; interval: number }[];
   /** Supplied from this browser's storage, never fetched from an account or a server. */
   gameStats?: GameStats;
+  /** The student's own `attempts` rows, as the account page read them. */
+  attempts?: readonly { itemVersionId: string; picked: readonly string[]; correct: boolean; createdAt: string }[];
+  /** The student's own `exam_plans` rows (at most 10). */
+  examPlans?: readonly { course: string; examDate: string; createdAt: string }[];
+  /** The signed-in student's `review_state` rows; the guest `reviewState` section is separate. */
+  reviewRows?: readonly { itemId: string; level: number; lastReviewed: string; nextReview: string }[];
 }
 export interface CsvFile { fileName: string; text: string }
-type Cell = string | number | boolean | null;
+type Cell = string | number | boolean | null | readonly string[];
 type Row = Record<string, Cell>;
 type Schema = Record<string, (value: unknown) => boolean>;
 const text = (value: unknown) => typeof value === 'string';
@@ -44,11 +61,31 @@ const onboardingSchema: Schema = {
   course: nullableText, examDate: value => value === null || day(value), done: bool, school: nullableText,
 };
 const progressSchema: Schema = { id: value => text(value) && !!(value as string).trim(), result: value => text(value) || bool(value), date };
+const uuid = (value: unknown) =>
+  typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value);
+/** 1 to 5 distinct letters a-e, as plain array elements (no getters, no extra keys). */
+function letters(value: unknown): boolean {
+  if (!Array.isArray(value) || value.length < 1 || value.length > 5) return false;
+  if (Object.keys(value).length !== value.length) return false;
+  const seen = new Set<unknown>();
+  for (let index = 0; index < value.length; index++) {
+    const letter = own(value, String(index));
+    if (typeof letter !== 'string' || !/^[a-e]$/.test(letter) || seen.has(letter)) return false;
+    seen.add(letter);
+  }
+  return true;
+}
+const slug = (value: unknown) => typeof value === 'string' && value.length <= 80 && /^[a-z0-9]+(-[a-z0-9]+)*$/.test(value);
+const level = (value: unknown) => typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 3;
+const attemptSchema: Schema = { itemVersionId: uuid, picked: letters, correct: bool, createdAt: date };
+const examPlanSchema: Schema = { course: slug, examDate: day, createdAt: date };
+const reviewRowSchema: Schema = { itemId: uuid, level, lastReviewed: day, nextReview: day };
 const reviewSchema: Schema = { id: value => text(value) && !!(value as string).trim(), nextDueDate: day, interval: whole };
 const gameSchema: Schema = {
   game: value => dailyGames.some(game => game.id === value), day, solved: bool, tries: whole,
 };
-const sections = ['profile', 'onboarding', 'progress', 'reviewState', 'gameStats'] as const;
+const sections = ['profile', 'onboarding', 'progress', 'reviewState', 'gameStats', 'attempts', 'examPlans', 'reviewRows'] as const;
+const rowCaps: Partial<Record<Section, number>> = { attempts: 50_000, examPlans: 10, reviewRows: 50_000 };
 type Section = typeof sections[number];
 interface GuestSnapshot {
   version: typeof PROGRESS_VERSION;
@@ -61,6 +98,9 @@ interface Sections {
   progress: Row[] | GuestSnapshot;
   reviewState: Row[];
   gameStats: Row[];
+  attempts: Row[];
+  examPlans: Row[];
+  reviewRows: Row[];
 }
 const guestId = /^[a-z0-9-]{1,64}$/;
 const piles = ['know', 'learning', 'starred'] as const;
@@ -98,10 +138,12 @@ function cleanRow(value: unknown, schema: Schema, path: string, dropped: Set<str
   return row;
 }
 
-function cleanList(value: unknown, schema: Schema, path: string, dropped: Set<string>): Row[] {
+function cleanList(value: unknown, schema: Schema, path: string, dropped: Set<string>, cap = Infinity): Row[] {
   if (!Array.isArray(value)) { dropped.add(path); return []; }
   const rows: Row[] = [];
-  for (let index = 0; index < value.length; index++) {
+  const limit = Math.min(value.length, cap);
+  if (value.length > cap) dropped.add(`${path}[${cap}+]`);
+  for (let index = 0; index < limit; index++) {
     const row = cleanRow(own(value, String(index)), schema, `${path}[${index}]`, dropped, true);
     if (row) rows.push(row);
   }
@@ -154,13 +196,20 @@ function prepare(data: unknown): { data: Sections; dropped: string[] } {
   const recordSection = (key: Section, schema: Schema) => Object.hasOwn(source, key)
     ? cleanRow(own(source, key), schema, key, dropped) ?? {} : {};
   const listSection = (key: Section, schema: Schema) => Object.hasOwn(source, key)
-    ? cleanList(own(source, key), schema, key, dropped) : [];
+    ? cleanList(own(source, key), schema, key, dropped, rowCaps[key]) : [];
   const profile = recordSection('profile', profileSchema);
   if (typeof profile.createdAt === 'string') profile.createdAt = utcDate(profile.createdAt)!;
   const suppliedProgress = own(source, 'progress');
   const progress = !Object.hasOwn(source, 'progress') ? [] : Array.isArray(suppliedProgress)
     ? cleanList(suppliedProgress, progressSchema, 'progress', dropped) : cleanGuest(suppliedProgress, dropped) ?? [];
   if (Array.isArray(progress)) for (const row of progress) row.date = utcDate(row.date)!;
+  const attempts = listSection('attempts', attemptSchema);
+  for (const row of attempts) {
+    row.picked = Array.from(row.picked as readonly string[]);
+    row.createdAt = utcDate(row.createdAt)!;
+  }
+  const examPlans = listSection('examPlans', examPlanSchema);
+  for (const row of examPlans) row.createdAt = utcDate(row.createdAt)!;
   return {
     data: {
       profile,
@@ -168,6 +217,9 @@ function prepare(data: unknown): { data: Sections; dropped: string[] } {
       progress,
       reviewState: listSection('reviewState', reviewSchema),
       gameStats: listSection('gameStats', gameSchema),
+      attempts,
+      examPlans,
+      reviewRows: listSection('reviewRows', reviewRowSchema),
     },
     dropped: [...dropped].sort(),
   };
@@ -186,7 +238,7 @@ export function exportJson(data: unknown, exportDate: string): string {
 }
 
 function csvCell(value: Cell | undefined): string {
-  let cell = value === null || value === undefined ? '' : String(value);
+  let cell = value === null || value === undefined ? '' : typeof value === 'object' ? value.join(';') : String(value);
   if (/^[=+\-@\t\r\n]/.test(cell)) cell = `'${cell}`;
   return /[",\r\n]/.test(cell) ? `"${cell.replace(/"/g, '""')}"` : cell;
 }
@@ -216,6 +268,9 @@ export function exportCsv(data: unknown): CsvFile[] {
     { fileName: 'progress.csv', text: csv([...Object.keys(progressSchema), 'deckId', 'progressVersion', 'course', 'examDate', 'done'], progressRows) },
     { fileName: 'reviewState.csv', text: csv(Object.keys(reviewSchema), clean.data.reviewState) },
     { fileName: 'gameStats.csv', text: csv(Object.keys(gameSchema), clean.data.gameStats) },
+    { fileName: 'attempts.csv', text: csv(Object.keys(attemptSchema), clean.data.attempts) },
+    { fileName: 'examPlans.csv', text: csv(Object.keys(examPlanSchema), clean.data.examPlans) },
+    { fileName: 'reviewRows.csv', text: csv(Object.keys(reviewRowSchema), clean.data.reviewRows) },
     { fileName: 'dropped.csv', text: csv(['dropped'], clean.dropped.map(dropped => ({ dropped }))) },
   ];
 }

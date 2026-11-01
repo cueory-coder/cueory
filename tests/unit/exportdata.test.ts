@@ -33,7 +33,7 @@ function sampleGuest() {
 
 describe('JSON export', () => {
   it('round-trips every allowed sample section with a caller-supplied date and format', () => {
-    expect(json(sample)).toEqual({ format: 'cueory-export-1', exportDate, ...sample, dropped: [] });
+    expect(json(sample)).toEqual({ format: 'cueory-export-1', exportDate, ...sample, attempts: [], examPlans: [], reviewRows: [], dropped: [] });
     expect(exportJson(sample, exportDate)).toContain('\n  "profile": {\n    "displayName": "Sample Student",');
   });
 
@@ -144,7 +144,7 @@ describe('JSON export', () => {
       profile: { createdAt: '2026-10-01T12:00:00.000Z', email: 'sample@example.invalid', displayName: 'Sample Student' },
     };
     expect(exportJson(reordered, exportDate)).toBe(exportJson(sample, exportDate));
-    expect(Object.keys(json(sample))).toEqual(['format', 'exportDate', 'profile', 'onboarding', 'progress', 'reviewState', 'gameStats', 'dropped']);
+    expect(Object.keys(json(sample))).toEqual(['format', 'exportDate', 'profile', 'onboarding', 'progress', 'reviewState', 'gameStats', 'attempts', 'examPlans', 'reviewRows', 'dropped']);
   });
 
   it('preserves attempt and history row order, false, zero, null and Unicode', () => {
@@ -162,7 +162,7 @@ describe('JSON export', () => {
 
   it('makes empty sections explicit without inventing profile values or records', () => {
     expect(json({})).toEqual({
-      format: 'cueory-export-1', exportDate, profile: {}, onboarding: {}, progress: [], reviewState: [], gameStats: [], dropped: [],
+      format: 'cueory-export-1', exportDate, profile: {}, onboarding: {}, progress: [], reviewState: [], gameStats: [], attempts: [], examPlans: [], reviewRows: [], dropped: [],
     });
   });
 
@@ -271,7 +271,7 @@ describe('JSON export', () => {
 describe('CSV export', () => {
   it('returns section files in fixed order with RFC 4180 record endings', () => {
     const files = exportCsv(sample);
-    expect(files.map(entry => entry.fileName)).toEqual(['profile.csv', 'onboarding.csv', 'progress.csv', 'reviewState.csv', 'gameStats.csv', 'dropped.csv']);
+    expect(files.map(entry => entry.fileName)).toEqual(['profile.csv', 'onboarding.csv', 'progress.csv', 'reviewState.csv', 'gameStats.csv', 'attempts.csv', 'examPlans.csv', 'reviewRows.csv', 'dropped.csv']);
     expect(files.every(entry => entry.text.endsWith('\r\n'))).toBe(true);
     expect(parseRows(file(sample, 'progress'))).toEqual([
       ['id', 'result', 'date', 'deckId', 'progressVersion', 'course', 'examDate', 'done'],
@@ -314,9 +314,9 @@ describe('CSV export', () => {
 
   it('includes only headers for empty sections and the empty dropped report', () => {
     const files = exportCsv({});
-    expect(files).toHaveLength(6);
+    expect(files).toHaveLength(9);
     expect(files.every(entry => parseRows(entry.text).length === 1)).toBe(true);
-    expect(files[5]).toEqual({ fileName: 'dropped.csv', text: 'dropped\r\n' });
+    expect(files[8]).toEqual({ fileName: 'dropped.csv', text: 'dropped\r\n' });
   });
 
   it('returns fresh files and the same stable output for repeated exports', () => {
@@ -325,5 +325,179 @@ describe('CSV export', () => {
     expect(first).toEqual(second);
     first[0].text = 'sample: changed';
     expect(exportCsv(sample)).toEqual(second);
+  });
+});
+
+const id1 = '00000000-0000-4000-8000-000000000000';
+const id2 = '00000000-0000-4000-8000-000000000001';
+const account = {
+  attempts: [{ itemVersionId: id1, picked: ['a', 'c'], correct: false, createdAt: '2026-11-01T01:00:00-07:00' }],
+  examPlans: [{ course: 'med-surg-1', examDate: '2026-12-15', createdAt: '2026-10-31T12:00:00.5+00:00' }],
+  reviewRows: [{ itemId: id2, level: 3, lastReviewed: '2026-10-30', nextReview: '2026-11-13' }],
+};
+
+describe('account study progress sections', () => {
+  it('exports attempts, exam plans and review rows in fixed order with UTC timestamps', () => {
+    const result = json(account);
+    expect(result.attempts).toEqual([{ itemVersionId: id1, picked: ['a', 'c'], correct: false, createdAt: '2026-11-01T08:00:00.000Z' }]);
+    expect(result.examPlans).toEqual([{ course: 'med-surg-1', examDate: '2026-12-15', createdAt: '2026-10-31T12:00:00.500Z' }]);
+    expect(result.reviewRows).toEqual(account.reviewRows);
+    expect(result.dropped).toEqual([]);
+    const reordered = { reviewRows: [{ nextReview: '2026-11-13', lastReviewed: '2026-10-30', level: 3, itemId: id2 }], attempts: [{ createdAt: account.attempts[0].createdAt, correct: false, picked: ['a', 'c'], itemVersionId: id1 }], examPlans: account.examPlans };
+    expect(exportJson(reordered, exportDate)).toBe(exportJson(account, exportDate));
+  });
+
+  it('keeps the guest reviewState section separate from reviewRows', () => {
+    const result = json({ ...account, reviewState: sample.reviewState });
+    expect(result.reviewState).toEqual(sample.reviewState);
+    expect(result.reviewRows).toEqual(account.reviewRows);
+  });
+
+  it('writes a CSV file per section, joining picked letters and keeping row order', () => {
+    expect(parseRows(file(account, 'attempts'))).toEqual([
+      ['itemVersionId', 'picked', 'correct', 'createdAt'], [id1, 'a;c', 'false', '2026-11-01T08:00:00.000Z'],
+    ]);
+    expect(parseRows(file(account, 'examPlans'))).toEqual([['course', 'examDate', 'createdAt'], ['med-surg-1', '2026-12-15', '2026-10-31T12:00:00.500Z']]);
+    expect(parseRows(file(account, 'reviewRows'))).toEqual([['itemId', 'level', 'lastReviewed', 'nextReview'], [id2, '3', '2026-10-30', '2026-11-13']]);
+    expect(file(account, 'attempts').endsWith('\r\n')).toBe(true);
+  });
+
+  it.each([
+    ['uppercase', '00000000-0000-4000-8000-00000000000A'],
+    ['too short', '00000000-0000-4000-8000-00000000000'],
+    ['not hex', '0000000g-0000-4000-8000-000000000000'],
+    ['no dashes', '00000000000040008000000000000000'],
+    ['bad variant', '00000000-0000-4000-c000-000000000000'],
+    ['padded', ` ${id1}`],
+    ['formula', '=1+1'],
+  ])('rejects a %s uuid by field and row, never by value', (_name, bad) => {
+    const result = json({ attempts: [{ ...account.attempts[0], itemVersionId: bad }], reviewRows: [{ ...account.reviewRows[0], itemId: bad }] });
+    expect(result.attempts).toEqual([]);
+    expect(result.reviewRows).toEqual([]);
+    expect(result.dropped).toEqual(['attempts[0]', 'attempts[0].itemVersionId', 'reviewRows[0]', 'reviewRows[0].itemId']);
+    expect(JSON.stringify(result)).not.toContain(bad.trim() || 'x');
+  });
+
+  it.each([[[]], [['f']], [['A']], [['a', 'a']], [['a', 'b', 'c', 'd', 'e', 'a']], [['ab']], [[1]], ['a'], [null], [{ 0: 'a', length: 1 }], [[undefined]]])('rejects invalid picked %j', picked => {
+    const result = json({ attempts: [{ ...account.attempts[0], picked }, account.attempts[0]] });
+    expect(result.attempts).toHaveLength(1);
+    expect(result.dropped).toEqual(['attempts[0]', 'attempts[0].picked']);
+  });
+
+  it('accepts one to five distinct letters in the order given', () => {
+    for (const picked of [['e'], ['d', 'b'], ['a', 'b', 'c', 'd', 'e']]) {
+      expect(json({ attempts: [{ ...account.attempts[0], picked }] }).attempts[0].picked).toEqual(picked);
+    }
+  });
+
+  it('never runs a getter inside picked and refuses sparse or decorated arrays', () => {
+    const getter: string[] = [];
+    Object.defineProperty(getter, '0', { enumerable: true, get: () => { throw new Error('must not read'); } });
+    const sparse = ['a']; sparse.length = 2;
+    const decorated = Object.assign(['a'], { extra: 'b' });
+    for (const picked of [getter, sparse, decorated]) {
+      expect(json({ attempts: [{ ...account.attempts[0], picked }] }).dropped).toEqual(['attempts[0]', 'attempts[0].picked']);
+    }
+  });
+
+  it('does not share or mutate the picked array', () => {
+    const input = structuredClone(account);
+    Object.freeze(input.attempts[0].picked);
+    const result = json(input);
+    result.attempts[0].picked.push('e');
+    expect(input.attempts[0].picked).toEqual(['a', 'c']);
+  });
+
+  it.each(['correct', 'createdAt'])('rejects a bad attempts %s and reports it with its row', field => {
+    const bad = { ...account.attempts[0], [field]: field === 'correct' ? 'yes' : '2026-02-30T00:00:00Z' };
+    const result = json({ attempts: [account.attempts[0], bad] });
+    expect(result.attempts).toHaveLength(1);
+    expect(result.dropped).toEqual(['attempts[1]', `attempts[1].${field}`]);
+  });
+
+  it('reports a missing attempts field and row', () => {
+    expect(json({ attempts: [{ itemVersionId: id1 }] }).dropped).toEqual(['attempts[0]', 'attempts[0].correct', 'attempts[0].createdAt', 'attempts[0].picked']);
+  });
+
+  it.each([
+    ['uppercase', 'Med-Surg'], ['leading hyphen', '-med'], ['trailing hyphen', 'med-'], ['double hyphen', 'med--surg'],
+    ['space', 'med surg'], ['empty', ''], ['too long', 'a'.repeat(81)], ['formula', '=cmd'], ['number', 5],
+  ])('rejects a %s course', (_name, course) => {
+    const result = json({ examPlans: [{ ...account.examPlans[0], course }] });
+    expect(result.examPlans).toEqual([]);
+    expect(result.dropped).toEqual(['examPlans[0]', 'examPlans[0].course']);
+  });
+
+  it('accepts a course of exactly 80 characters and a single word', () => {
+    for (const course of ['a'.repeat(80), 'fundamentals']) expect(json({ examPlans: [{ ...account.examPlans[0], course }] }).examPlans[0].course).toBe(course);
+  });
+
+  it.each(['2026-02-30', '2026-13-01', '12/15/2026', '2026-12-15T00:00:00Z', null, 20261215])('rejects exam date %j', examDate => {
+    expect(json({ examPlans: [{ ...account.examPlans[0], examDate }] }).dropped).toEqual(['examPlans[0]', 'examPlans[0].examDate']);
+  });
+
+  it.each([-1, 4, 1.5, '2', null, NaN, Infinity])('rejects review level %j', badLevel => {
+    expect(json({ reviewRows: [{ ...account.reviewRows[0], level: badLevel }] }).dropped).toEqual(['reviewRows[0]', 'reviewRows[0].level']);
+  });
+  it.each([0, 1, 2, 3])('accepts review level %i', okLevel => {
+    expect(json({ reviewRows: [{ ...account.reviewRows[0], level: okLevel }] }).reviewRows[0].level).toBe(okLevel);
+  });
+  it('rejects bad review days by field and row', () => {
+    const result = json({ reviewRows: [{ ...account.reviewRows[0], lastReviewed: '2026-02-30', nextReview: 'soon' }] });
+    expect(result.dropped).toEqual(['reviewRows[0]', 'reviewRows[0].lastReviewed', 'reviewRows[0].nextReview']);
+  });
+
+  it('drops unknown fields such as userId, rationale and key by name only', () => {
+    const hidden = 'sample: discarded private value';
+    const input = {
+      attempts: [{ ...account.attempts[0], userId: hidden, rationale: hidden, key: hidden }],
+      examPlans: [{ ...account.examPlans[0], userId: hidden, id: hidden }],
+      reviewRows: [{ ...account.reviewRows[0], userId: hidden, updatedAt: hidden }],
+    };
+    const result = json(input);
+    expect(result.dropped).toEqual([
+      'attempts[0].key', 'attempts[0].rationale', 'attempts[0].userId', 'examPlans[0].id', 'examPlans[0].userId',
+      'reviewRows[0].updatedAt', 'reviewRows[0].userId',
+    ]);
+    expect({ ...result, dropped: [] }).toEqual({ ...json(account), dropped: [] });
+    const everything = exportJson(input, exportDate) + exportCsv(input).map(entry => entry.text).join('');
+    expect(everything).not.toContain(hidden);
+  });
+
+  it('neutralises formulas in every new CSV cell, and refuses them as values', () => {
+    // A valid course or letter can never start with a formula character, so formulas are refused at validation...
+    const formula = '=HYPERLINK("http://example.invalid")';
+    const bad = { attempts: [{ ...account.attempts[0], picked: [formula] }], examPlans: [{ ...account.examPlans[0], course: formula }] };
+    expect(file(bad, 'attempts')).toBe('itemVersionId,picked,correct,createdAt\r\n');
+    expect(file(bad, 'examPlans')).toBe('course,examDate,createdAt\r\n');
+    expect(exportCsv(bad).map(entry => entry.text).join('')).not.toContain('HYPERLINK');
+    // ...and unknown section names that start with one are neutralised in the dropped report.
+    for (const lead of ['=', '+', '-', '@', '\t', '\r', '\n']) {
+      const rows = parseRows(file({ ...account, [`${lead}cmd`]: 'x' }, 'dropped'));
+      expect(rows).toEqual([['dropped'], [`'${lead}cmd`]]);
+    }
+  });
+
+  it('caps examPlans at 10 rows and reports the rest without reading it', () => {
+    const rows = Array.from({ length: 12 }, (_, index) => ({ ...account.examPlans[0], course: `course-${index}`, userId: 'x' }));
+    const result = json({ examPlans: rows });
+    expect(result.examPlans.map((row: { course: string }) => row.course)).toEqual(rows.slice(0, 10).map(row => row.course));
+    expect(result.dropped).toContain('examPlans[10+]');
+    expect(json({ examPlans: rows.slice(0, 10) }).dropped).not.toContain('examPlans[10+]');
+  });
+
+  it.each([['attempts', account.attempts[0]], ['reviewRows', account.reviewRows[0]]])('caps %s at 50,000 rows and reports truncation', (section, row) => {
+    const exact = Array.from({ length: 50_000 }, () => row);
+    expect(json({ [section]: exact })[section]).toHaveLength(50_000);
+    expect(json({ [section]: exact }).dropped).toEqual([]);
+    const over = [...exact, row, row];
+    const result = json({ [section]: over });
+    expect(result[section]).toHaveLength(50_000);
+    expect(result.dropped).toEqual([`${section}[50000+]`]);
+    expect(parseRows(file({ [section]: over }, section))).toHaveLength(50_001);
+  });
+
+  it('refuses non-array account sections without fabricating rows', () => {
+    expect(json({ attempts: {}, examPlans: 'x', reviewRows: null }).dropped).toEqual(['attempts', 'examPlans', 'reviewRows']);
   });
 });
