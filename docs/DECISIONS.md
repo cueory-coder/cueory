@@ -459,3 +459,11 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   only approved visuals can appear on a page (`approvedOnly`), each visual shows the credit WisTech Open's terms ask
   for (`creditsFor`), and every overlay says "simplified for learning" (`notesFor`). Reason: no picture can ship with
   a word its cited source doesn't state.
+- **D-72** The visuals kit's first batch is reviewed in two steps, words first and drawings second. Its three source
+  files (body fluid compartments; osmosis and fluid shifts; the sodium-potassium pump) list every label and everything
+  each drawing may show, each with the exact words of Open RN *Nursing Fundamentals 2e*, section 15.2, and the page
+  address. The drawings are made from these files once Christian approves the words, so nothing is drawn that he
+  hasn't checked. The fetch tool shortens long quotes, so each quote was copied in short overlapping pieces and
+  checked twice; Christian still compares each with the page. The page gives no ion counts for the pump and doesn't
+  mention ATP, so the drawing shows neither. Reason: words are quicker to check than drawings are to redo, and no
+  drawing may show what its source doesn't state.

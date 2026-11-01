@@ -12,6 +12,9 @@ Content is data, not code. Edit these files to change what students see; no prog
 - `games/triage/` — sample puzzles for the triage sorting game, one JSON file each: three `groups`, each with a
   lowercase `name` and exactly three `terms`, and one `oddOne` that belongs to none of them. Every term appears once.
   Everyday words only, labeled as samples on the page (D-63).
+- `visuals/` — one JSON file per teaching picture in the visuals kit ([docs/VISUALS.md](../docs/VISUALS.md)): its
+  labels, what the drawing shows, and for each one the exact words of the cited open book with the page address. The
+  build checks every file. Only a file marked `"status": "approved"` can appear on a page.
 - `batches/` — one folder per review batch (format and checker: [docs/BATCHES.md](../docs/BATCHES.md)). Git ignores
   everything here, so batches stay on your computer.
 
