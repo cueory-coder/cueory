@@ -45,6 +45,7 @@
   /* ---------- ☰ side panel and account menu (D-46): dark glass on every page ---------- */
   --color-panel-ink: #f9f5ef;   /* Ivory    — text on the Espresso glass panel */
   --color-panel-ink-soft: #d3b7a1; /* Taupe — notes and small links on the panel */
+  --color-on-panel-button: #3e2c23; /* Espresso — text on the light pill button in a dark panel (D-59) */
 
   /* ---------- Fonts ---------- */
   --font-body: "Inter Variable", system-ui, -apple-system, "Segoe UI", sans-serif; /* headings, body, UI, buttons */
@@ -112,6 +113,7 @@
   --zoom-mode-card: 1.04;       /* a "ways to study" card under the mouse or keyboard focus grows this much (D-51) */
   --container-mode-preview: 28rem; /* the study-mode preview panel (D-51) */
   --nudge-mode-preview: 1rem;   /* how far the preview slides in when previous or next changes the mode (D-51) */
+  --container-promo: 24rem;     /* the once-only promo panel at the top of marketing pages (D-59) */
 
   /* ---------- Logo (brand guide v1.0 §3.5: the full logo about 240px wide or more; clear space 0.25 × letter height) ---------- */
   --logo-width: 15rem;          /* 240px in the header from 640px wide; phones get the emblem there (SiteHeader) */
@@ -188,6 +190,7 @@
     --color-silk-tint: #3a2d24;   /* Walnut */
     --color-panel-ink: #f9f5ef;   /* Ivory */
     --color-panel-ink-soft: #cbb8a4; /* Sand */
+    --color-on-panel-button: #1c1917; /* Charcoal */
     --shadow-tint: 28 25 23;      /* Charcoal */
     --silk-fold-rgb: 58 45 36;    /* Walnut */
     --silk-fold-alpha: 0.7;
@@ -227,6 +230,7 @@
   --color-silk-tint: #3a2d24;   /* Walnut */
   --color-panel-ink: #f9f5ef;   /* Ivory */
   --color-panel-ink-soft: #cbb8a4; /* Sand */
+  --color-on-panel-button: #1c1917; /* Charcoal */
   --shadow-tint: 28 25 23;      /* Charcoal */
   --silk-fold-rgb: 58 45 36;    /* Walnut */
   --silk-fold-alpha: 0.7;

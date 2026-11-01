@@ -47,6 +47,9 @@ const pairs: Array<[string, string, number]> = [
   ['focus', 'surface', 3],
   ['button', 'page', 3],
   ['button', 'surface', 3],
+  // The promo panel's light pill button (D-59), and its hover.
+  ['on-panel-button', 'panel-ink', 4.5],
+  ['on-panel-button', 'panel-ink-soft', 4.5],
 ];
 
 describe.each([
@@ -280,6 +283,22 @@ describe('glass button and side panel (D-46)', () => {
       expect(rule, `${selector} rule`).not.toBeNull();
       expect(rule![1]).not.toMatch(/background/);
     }
+  });
+
+  /*
+    The promo panel (D-59) floats over the whole page, so anything can be behind it, not just page colors: its text is
+    checked on the panel mixed over the lightest color of each palette (Ivory; Evening Ivory).
+  */
+  it.each([
+    ['Daytime', daytime, day, '#f9f5ef'],
+    ['Evening', evening, eve, '#f9f5ef'],
+  ] as const)('%s promo panel keeps its text, button and focus outline readable over anything', (_n, colors, g, lightest) => {
+    const panel = mix(g.panel, g.panelAlpha, lightest);
+    expect(contrastRatio(colors['panel-ink']!, panel)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(colors['panel-ink-soft']!, panel)).toBeGreaterThanOrEqual(4.5);
+    // The light pill and the focus outline (both panel ink) stand out from the panel.
+    expect(contrastRatio(colors['panel-ink']!, panel)).toBeGreaterThanOrEqual(3);
+    expect(contrastRatio(colors['on-panel-button']!, colors['panel-ink']!)).toBeGreaterThanOrEqual(4.5);
   });
 
   it('corner buttons keep their icon visible (3:1) on the frosted circle', () => {

@@ -1,0 +1,176 @@
+---
+/**
+ * The once-only promo panel (D-59, Christian's change request of 31 Oct, 1:15 pm). Marketing pages only: a small
+ * dark-glass panel slides down from the top after a few seconds, or as soon as the visitor has scrolled halfway down
+ * the page, whichever comes first. It holds the launch list, the tip page and the social marks (D-54), and floats over
+ * the page, so nothing moves.
+ *
+ * - Once it has been shown it stays away for 30 days (`promo` in src/config/site.ts), whether the visitor closed it,
+ *   clicked it or ignored it, so it never comes back on a refresh or later in the same visit. The date is kept in
+ *   this browser's local storage and never sent to us; a browser that can't remember never sees the panel.
+ * - It waits while the ☰ panel, a study-mode preview or the account menu is open, while the visitor is typing in a
+ *   field, and while the tab is in the background.
+ * - Keyboard focus moves to the panel's close button without scrolling the page, so screen readers announce the
+ *   panel's heading and text, and goes back where it was when the panel closes (the close button or Escape). Tab can
+ *   leave the panel: it doesn't trap focus or block the page.
+ * - With reduced motion it appears without the slide. Without JavaScript it never appears.
+ */
+import SocialLinks from './SocialLinks.astro';
+import { accountHref, promo, site } from '../config/site';
+---
+
+<div
+  class="promo"
+  role="dialog"
+  aria-labelledby="promo-heading"
+  aria-describedby="promo-text"
+  hidden
+  data-promo
+  data-testid="promo"
+>
+  <div class="flex items-start justify-between gap-4">
+    <h2 id="promo-heading" class="display pt-2 text-xl">{promo.heading}</h2>
+    <button type="button" class="corner-button corner-button-panel shrink-0" aria-label="close" data-promo-close>
+      <svg viewBox="0 0 24 24" class="size-6" aria-hidden="true" focusable="false">
+        <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
+      </svg>
+    </button>
+  </div>
+  <p id="promo-text" class="mt-2 text-panel-ink">{promo.text}</p>
+  <div class="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3">
+    <a href={accountHref} class="promo-button">{promo.joinLabel}</a>
+    {
+      site.tipPageUrl && (
+        <a href={site.tipPageUrl} target="_blank" rel="noopener noreferrer" class="promo-link">
+          {promo.supportLabel}
+          <span class="sr-only"> (opens in a new tab)</span>
+          <svg viewBox="0 0 24 24" class="size-4 shrink-0" aria-hidden="true" focusable="false">
+            <path d="M8 16L16 8M10 8h6v6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </a>
+      )
+    }
+  </div>
+  <div class="mt-3">
+    <SocialLinks panel />
+  </div>
+</div>
+
+<script>
+  import { promo } from '../config/site';
+  import { isCloseKey } from '../scripts/menu';
+  import { isTextEntry, mayShow, remember, SCROLL_TRIGGER, scrollProgress } from '../scripts/promo';
+  import { browserStorage } from '../scripts/storage';
+
+  const panel = document.querySelector<HTMLElement>('[data-promo]');
+  const storage = browserStorage();
+
+  if (panel && mayShow(storage, Date.now(), promo.rememberDays)) {
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const closeButton = panel.querySelector<HTMLButtonElement>('[data-promo-close]');
+    let previousFocus: HTMLElement | null = null;
+    let triggered = false;
+
+    /** Something else has the visitor's attention: the panel waits instead of interrupting it. */
+    const busy = () =>
+      document.hidden ||
+      document.querySelector('dialog[open]') !== null ||
+      document.querySelector('#account-menu:not([hidden])') !== null ||
+      isTextEntry(document.activeElement as HTMLElement | null);
+
+    /** Closes the panel. Focus goes back where it was, unless a link took the visitor somewhere else. */
+    const close = (returnFocus: boolean) => {
+      if (panel.hidden || !('open' in panel.dataset)) return;
+      remember(storage, Date.now());
+      document.removeEventListener('keydown', onKeydown);
+      const hadFocus = panel.contains(document.activeElement);
+      delete panel.dataset.open;
+      panel.inert = true;
+      const hide = () => {
+        panel.hidden = true;
+      };
+      if (reducedMotion.matches) hide();
+      else {
+        panel.addEventListener('transitionend', (event) => event.target === panel && hide());
+        window.setTimeout(hide, 400);
+      }
+      if (!returnFocus || !hadFocus) return;
+      if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
+      else (document.activeElement as HTMLElement | null)?.blur();
+    };
+
+    const onKeydown = (event: KeyboardEvent) => {
+      // The ☰ panel, the study-mode preview and the account menu handle their own Escape first.
+      if (!isCloseKey(event.key) || event.defaultPrevented || busy()) return;
+      event.preventDefault();
+      close(true);
+    };
+
+    const open = () => {
+      // Another tab may have shown it in the meantime, and a browser that can't remember it never sees it.
+      if (!mayShow(storage, Date.now(), promo.rememberDays) || !remember(storage, Date.now())) return;
+      const active = document.activeElement;
+      previousFocus = active instanceof HTMLElement && active !== document.body ? active : null;
+      panel.hidden = false;
+      // Draw it once in its starting place above the window, so it slides down from there.
+      void panel.offsetHeight;
+      panel.dataset.open = '';
+      closeButton?.focus({ preventScroll: true });
+      document.addEventListener('keydown', onKeydown);
+    };
+
+    /** Opens the panel as soon as nothing else has the visitor's attention. */
+    const trigger = () => {
+      if (triggered) return;
+      triggered = true;
+      stopWatching();
+      const attempt = () => (busy() ? window.setTimeout(attempt, 500) : open());
+      attempt();
+    };
+
+    // The timer counts only while the page is on screen, so the panel never slides down in a background tab.
+    let remaining = promo.delaySeconds * 1000;
+    let startedAt = 0;
+    let timer: number | undefined;
+    const startTimer = () => {
+      if (timer !== undefined || triggered) return;
+      startedAt = performance.now();
+      timer = window.setTimeout(trigger, remaining);
+    };
+    const pauseTimer = () => {
+      if (timer === undefined) return;
+      window.clearTimeout(timer);
+      timer = undefined;
+      remaining = Math.max(0, remaining - (performance.now() - startedAt));
+    };
+    const onVisibility = () => (document.hidden ? pauseTimer() : startTimer());
+    const onScroll = () => {
+      const root = document.documentElement;
+      if (scrollProgress(window.scrollY, window.innerHeight, root.scrollHeight) >= SCROLL_TRIGGER) trigger();
+    };
+    const stopWatching = () => {
+      pauseTimer();
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('scroll', onScroll);
+    };
+
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    if (!document.hidden) startTimer();
+
+    closeButton?.addEventListener('click', () => close(true));
+
+    // Leaving the page (a link, Back or Forward) closes the panel at once, so a page the browser keeps in its
+    // back/forward cache never comes back with the panel still open (Codex review of #34).
+    window.addEventListener('pagehide', () => {
+      if (panel.hidden) return;
+      document.removeEventListener('keydown', onKeydown);
+      delete panel.dataset.open;
+      panel.hidden = true;
+    });
+    for (const link of panel.querySelectorAll<HTMLAnchorElement>('a[href]')) {
+      // A link that opens a new tab leaves this page where it was, so focus comes back here too.
+      link.addEventListener('click', () => close(link.target === '_blank'));
+    }
+  }
+</script>

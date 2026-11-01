@@ -82,3 +82,22 @@ export const menuSmallLinks = [
   { href: '/privacy', label: 'privacy' },
   { href: '/terms', label: 'terms' },
 ] as const;
+
+/**
+ * The once-only promo panel (D-59), on marketing pages only, never on study screens. It slides down from the top after
+ * `delaySeconds`, or as soon as the visitor has scrolled halfway down the page, whichever comes first. Once it has
+ * been shown it stays away for `rememberDays`, whether the visitor closed it, clicked it or ignored it. Lowercase brand
+ * voice (D-47). When accounts exist (ROADMAP Task 2), the button becomes "create your free account" and goes to
+ * sign-up; until then it goes to the launch-updates signup (`accountHref`).
+ */
+export const promo = {
+  /** Set to false to turn the panel off on every page. */
+  show: true,
+  delaySeconds: 5,
+  rememberDays: 30,
+  heading: 'welcome to cueory.',
+  text: "we're still building. get a few emails about new lessons and the launch.",
+  joinLabel: 'join the launch list',
+  /** Goes to the tip page (`site.tipPageUrl`, Ko-fi); hidden when that is empty. */
+  supportLabel: 'support us while we build',
+} as const;

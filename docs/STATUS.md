@@ -72,17 +72,17 @@ Last updated: 2026-11-01
   registry; version bumps of existing packages still merge themselves.
 - In `staging`, also merged by Christian: [social links](https://github.com/lilchristxan/Cueory/pull/33) (D-54),
   Instagram, TikTok and YouTube marks in the footer and the ☰ panel.
+- In `staging` (auto-merged): the [visuals kit plan](https://github.com/lilchristxan/Cueory/pull/35) (D-56 to D-58),
+  docs only.
+- In `staging`: [brand v1.0](https://github.com/lilchristxan/Cueory/pull/38) (D-55, the lead's) and the
+  ["ways to study" merry-go-round and a calmer home page](https://github.com/lilchristxan/Cueory/pull/40) (D-60).
+  [Release #37](https://github.com/lilchristxan/Cueory/pull/37) carries everything in `staging` to `main` when
+  Christian merges it.
 
 ## In review
-- [Once-only promo panel](https://github.com/lilchristxan/Cueory/pull/34) (D-55): on marketing pages a small dark panel
+- [Once-only promo panel](https://github.com/lilchristxan/Cueory/pull/34) (D-59): on marketing pages a small dark panel
   slides down from the top after 5 seconds or halfway down the page, with "join the launch list", "support us while we
-  build" and the social marks; once shown, it stays away for 30 days.
-- [Visuals kit plan](https://github.com/lilchristxan/Cueory/pull/35) (D-56 to D-58): docs/VISUALS.md, the roadmap's
-  Task 6 and the license checks behind it. Docs only.
-- "ways to study" merry-go-round and a calmer home page (D-60): an endless ring of 11 study-mode cards with
-  neighbours on both sides (video replaces lesson; label it, adaptive quiz and level test are coming soon), and no
-  chips, section numbers, figure caption or rhythm line; the building notice is lowercase. The auto-merge takes it
-  once it is clean.
+  build" and the social marks; once shown, it stays away for 30 days. Now on brand v1.0's colors.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
