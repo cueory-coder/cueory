@@ -288,3 +288,18 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   without it. With the taller sections, the carousel's auto-advance now pauses only while a mouse rests on the cards or
   their buttons (or keyboard focus is inside), not anywhere over the section, which on a computer would have stopped it
   for good. Study screens are unchanged. Reason: Christian's request.
+- **D-55** Once-only promo panel (Christian's change request, 2026-10-31, 1:15 pm). On marketing pages only (never on
+  study screens, and not on the signup thank-you page, whose visitor has just joined), a small panel slides down from
+  the top after 5 seconds, or as soon as the visitor has scrolled halfway down the page, whichever comes first. It is
+  the account menu's dark glass (solid where blur isn't supported) and floats over the page, so nothing moves. It holds
+  "welcome to cueory.", one line about the launch emails, "join the launch list" (the launch-updates signup until
+  accounts exist; it becomes "create your free account" with Task 2), "support us while we build" (the Ko-fi page, in a
+  new tab) and, once the social links pull request is in, the social marks. Once shown, it stays away for 30 days
+  whether the visitor closed it, clicked it or ignored it: one date in local storage (`cueory-promo-seen`), never sent
+  to us, so it never comes back on a refresh or later in the visit; a browser that can't remember never sees it. It
+  waits while the ☰ panel, a study-mode preview or the account menu is open, while the visitor is typing in a field,
+  and while the tab is in the background (the 5 seconds count only on screen). Focus moves to its close button without
+  scrolling, so screen readers announce its heading and text, and goes back where it was after the close button or
+  Escape; it doesn't trap focus or block the page. With reduced motion it appears without the slide; without
+  JavaScript it never appears. Copy and timings live in `promo` in `src/config/site.ts`, and `/privacy` says what is
+  remembered. Reason: Christian's request for a promo that is "not annoying": once, small, easy to close.
