@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import {
-  answerCurrent, currentIndex, nextItem, normalizeAnswer, parseItems, sentenceParts, showHint, startFillIn,
-  summary, type FillInItem,
+  answerCurrent, currentIndex, isCheckKey, nextItem, normalizeAnswer, parseItems, sentenceParts, showHint,
+  startFillIn, summary, type FillInItem,
 } from './fillin';
 
 interface Props { items: FillInItem[] }
@@ -93,7 +93,8 @@ function Session({ items: suppliedItems }: Props) {
           aria-describedby={message ? `${id}-sentence ${id}-message` : `${id}-sentence`}
           onChange={(event) => setTyped(event.currentTarget.value)}
           onKeyDown={(event) => {
-            if (event.key === 'Enter') {
+            // Not while an input method is still composing the word (Codex on #56).
+            if (isCheckKey({ key: event.key, isComposing: event.nativeEvent.isComposing, keyCode: event.keyCode })) {
               event.preventDefault();
               check();
             }

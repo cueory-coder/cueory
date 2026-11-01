@@ -1,0 +1,153 @@
+{
+  "id": "osmosis-fluid-shifts",
+  "title": "osmosis and fluid shifts",
+  "kind": "diagram",
+  "lessonIds": ["U01-T01-L02"],
+  "status": "draft",
+  "labels": [
+    { "id": "osmosis", "text": "osmosis", "source": "orn-15-2-osmosis" },
+    { "id": "membrane", "text": "semipermeable membrane", "source": "orn-15-2-osmosis" },
+    { "id": "lesser", "text": "lesser solute concentration", "source": "orn-15-2-osmosis" },
+    { "id": "greater", "text": "greater solute concentration", "source": "orn-15-2-osmosis" },
+    { "id": "passive", "text": "passive transport: no energy expended", "source": "orn-15-2-passive" },
+    { "id": "capillary", "text": "capillary", "source": "orn-15-2-arterial-end" },
+    { "id": "arterial-end", "text": "arterial end", "source": "orn-15-2-arterial-end" },
+    { "id": "venous-end", "text": "venous end", "source": "orn-15-2-venous-end" },
+    { "id": "hydrostatic", "text": "hydrostatic pressure", "source": "orn-15-2-arterial-end" },
+    { "id": "oncotic", "text": "oncotic pressure", "source": "orn-15-2-oncotic" },
+    { "id": "albumin", "text": "albumin", "source": "orn-15-2-oncotic" },
+    { "id": "interstitial", "text": "interstitial compartment", "source": "orn-15-2-arterial-end" },
+    { "id": "intravascular", "text": "intravascular compartment", "source": "orn-15-2-salty-shift" },
+    { "id": "intracellular", "text": "intracellular compartment", "source": "orn-15-2-salty-shift" }
+  ],
+  "depictions": [
+    {
+      "id": "water-crosses",
+      "what": "water crossing a semipermeable membrane from the side with lesser solute concentration to the side with greater solute concentration",
+      "source": "orn-15-2-osmosis"
+    },
+    {
+      "id": "large-blocked",
+      "what": "fluid and small dissolved particles passing through the membrane while larger particles are stopped",
+      "source": "orn-15-2-membrane"
+    },
+    {
+      "id": "no-energy",
+      "what": "osmosis shown without any energy symbol, as passive transport",
+      "source": "orn-15-2-passive"
+    },
+    {
+      "id": "arterial-push",
+      "what": "at the capillary's arterial end, arrows pushing fluid and solutes out into the interstitial compartment",
+      "source": "orn-15-2-arterial-end"
+    },
+    {
+      "id": "venous-pull",
+      "what": "at the venous end, where hydrostatic pressure is reduced, arrows pulling fluids and solutes back into the capillary",
+      "source": "orn-15-2-venous-end"
+    },
+    {
+      "id": "albumin-holds",
+      "what": "albumin in the blood, holding water inside the vessel",
+      "source": "orn-15-2-oncotic"
+    },
+    {
+      "id": "between-compartments",
+      "what": "osmosis moving fluid between the intravascular, interstitial and intracellular compartments",
+      "source": "orn-15-2-compartments"
+    },
+    {
+      "id": "pulled-into-blood",
+      "what": "with a high solute concentration in the bloodstream, fluid pulled into the intravascular compartment from the interstitial and intracellular compartments",
+      "source": "orn-15-2-salty-shift"
+    },
+    {
+      "id": "cells-shrink",
+      "what": "a cell drawn smaller as fluid leaves it",
+      "source": "orn-15-2-cells-shrink"
+    }
+  ],
+  "sources": [
+    {
+      "id": "orn-15-2-osmosis",
+      "quote": "Osmosis is water movement through a semipermeable membrane, from an area of lesser solute concentration to an area of greater solute concentration, in an attempt to equalize the solute concentrations on either side of the membrane.",
+      "book": "Open RN Nursing Fundamentals 2e",
+      "section": "15.2 Basic Fluid and Electrolyte Concepts, Fluid Movement",
+      "url": "https://wtcs.pressbooks.pub/nursingfundamentals/chapter/15-2-basic-fluid-and-electrolyte-concepts/",
+      "license": "CC BY 4.0",
+      "retrieved": "2026-11-01"
+    },
+    {
+      "id": "orn-15-2-membrane",
+      "quote": "Only fluids and some particles dissolved in the fluid are able to pass through a semipermeable membrane; larger particles are blocked from getting through.",
+      "book": "Open RN Nursing Fundamentals 2e",
+      "section": "15.2 Basic Fluid and Electrolyte Concepts, Fluid Movement",
+      "url": "https://wtcs.pressbooks.pub/nursingfundamentals/chapter/15-2-basic-fluid-and-electrolyte-concepts/",
+      "license": "CC BY 4.0",
+      "retrieved": "2026-11-01"
+    },
+    {
+      "id": "orn-15-2-passive",
+      "quote": "Because osmosis causes fluid to travel due to a concentration gradient and no energy is expended during the process, it is referred to as passive transport.",
+      "book": "Open RN Nursing Fundamentals 2e",
+      "section": "15.2 Basic Fluid and Electrolyte Concepts, Fluid Movement",
+      "url": "https://wtcs.pressbooks.pub/nursingfundamentals/chapter/15-2-basic-fluid-and-electrolyte-concepts/",
+      "license": "CC BY 4.0",
+      "retrieved": "2026-11-01"
+    },
+    {
+      "id": "orn-15-2-oncotic",
+      "quote": "Protein content of the blood (in the form of albumin) causes oncotic pressure that holds water inside the vascular compartment.",
+      "book": "Open RN Nursing Fundamentals 2e",
+      "section": "15.2 Basic Fluid and Electrolyte Concepts, Fluid Movement",
+      "url": "https://wtcs.pressbooks.pub/nursingfundamentals/chapter/15-2-basic-fluid-and-electrolyte-concepts/",
+      "license": "CC BY 4.0",
+      "retrieved": "2026-11-01"
+    },
+    {
+      "id": "orn-15-2-arterial-end",
+      "quote": "Hydrostatic pressure opposes oncotic pressure at the arterial end of capillaries, where it pushes fluid and solutes out into the interstitial compartment.",
+      "book": "Open RN Nursing Fundamentals 2e",
+      "section": "15.2 Basic Fluid and Electrolyte Concepts, Fluid Movement",
+      "url": "https://wtcs.pressbooks.pub/nursingfundamentals/chapter/15-2-basic-fluid-and-electrolyte-concepts/",
+      "license": "CC BY 4.0",
+      "retrieved": "2026-11-01"
+    },
+    {
+      "id": "orn-15-2-venous-end",
+      "quote": "On the venous end of the capillary, hydrostatic pressure is reduced, which allows oncotic pressure to pull fluids and solutes back into the capillary.",
+      "book": "Open RN Nursing Fundamentals 2e",
+      "section": "15.2 Basic Fluid and Electrolyte Concepts, Fluid Movement",
+      "url": "https://wtcs.pressbooks.pub/nursingfundamentals/chapter/15-2-basic-fluid-and-electrolyte-concepts/",
+      "license": "CC BY 4.0",
+      "retrieved": "2026-11-01"
+    },
+    {
+      "id": "orn-15-2-compartments",
+      "quote": "Osmosis causes fluid movement between the intravascular, interstitial, and intracellular fluid compartments based on solute concentration.",
+      "book": "Open RN Nursing Fundamentals 2e",
+      "section": "15.2 Basic Fluid and Electrolyte Concepts, Fluid Movement",
+      "url": "https://wtcs.pressbooks.pub/nursingfundamentals/chapter/15-2-basic-fluid-and-electrolyte-concepts/",
+      "license": "CC BY 4.0",
+      "retrieved": "2026-11-01"
+    },
+    {
+      "id": "orn-15-2-salty-shift",
+      "quote": "Due to the elevated solute concentration within the bloodstream, osmosis causes fluid to be pulled into the intravascular compartment from the interstitial and intracellular compartments to try to equalize the solute concentration.",
+      "book": "Open RN Nursing Fundamentals 2e",
+      "section": "15.2 Basic Fluid and Electrolyte Concepts, Fluid Movement",
+      "url": "https://wtcs.pressbooks.pub/nursingfundamentals/chapter/15-2-basic-fluid-and-electrolyte-concepts/",
+      "license": "CC BY 4.0",
+      "retrieved": "2026-11-01"
+    },
+    {
+      "id": "orn-15-2-cells-shrink",
+      "quote": "As fluid leaves the cells, they shrink in size.",
+      "book": "Open RN Nursing Fundamentals 2e",
+      "section": "15.2 Basic Fluid and Electrolyte Concepts, Fluid Movement",
+      "url": "https://wtcs.pressbooks.pub/nursingfundamentals/chapter/15-2-basic-fluid-and-electrolyte-concepts/",
+      "license": "CC BY 4.0",
+      "retrieved": "2026-11-01"
+    }
+  ]
+}

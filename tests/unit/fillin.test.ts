@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  answerCurrent, checkAnswer, currentIndex, editDistance, nextItem, normalizeAnswer, parseItems, sentenceParts,
-  showHint, startFillIn, summary, type FillInItem,
+  answerCurrent, checkAnswer, currentIndex, editDistance, isCheckKey, nextItem, normalizeAnswer, parseItems,
+  sentenceParts, showHint, startFillIn, summary, type FillInItem,
 } from '../../src/islands/fillin';
 
 const items: FillInItem[] = [
@@ -57,6 +57,16 @@ describe('checking an answer', () => {
     expect(checkAnswer('moneyed', 'honey')).toBe('wrong');
     expect(checkAnswer('blud', 'blue')).toBe('wrong');
     expect(checkAnswer('', 'honey')).toBe('wrong');
+  });
+
+  it('checks on Enter, but not on the Enter that finishes composing a word with an input method', () => {
+    expect(isCheckKey({ key: 'Enter', isComposing: false, keyCode: 13 })).toBe(true);
+    expect(isCheckKey({ key: 'Enter', isComposing: true, keyCode: 229 })).toBe(false);
+    // The last key of a composition can arrive after it ended, with only the key code to show it.
+    expect(isCheckKey({ key: 'Enter', isComposing: false, keyCode: 229 })).toBe(false);
+    expect(isCheckKey({ key: 'Enter', isComposing: true, keyCode: 13 })).toBe(false);
+    expect(isCheckKey({ key: 'a', isComposing: false, keyCode: 65 })).toBe(false);
+    expect(isCheckKey({ key: ' ', isComposing: false, keyCode: 32 })).toBe(false);
   });
 });
 

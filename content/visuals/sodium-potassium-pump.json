@@ -1,0 +1,83 @@
+{
+  "id": "sodium-potassium-pump",
+  "title": "the sodium-potassium pump",
+  "kind": "diagram",
+  "lessonIds": ["U01-T01-L02"],
+  "status": "draft",
+  "labels": [
+    { "id": "pump", "text": "sodium-potassium pump", "source": "orn-15-2-pump" },
+    { "id": "uses-energy", "text": "uses energy", "source": "orn-15-2-pump" },
+    { "id": "active-transport", "text": "active transport", "source": "orn-15-2-active" },
+    { "id": "cell-membrane", "text": "cell membrane", "source": "orn-15-2-active" },
+    { "id": "ecf", "text": "extracellular fluid", "source": "orn-15-2-pump" },
+    { "id": "icf", "text": "intracellular fluid", "source": "orn-15-2-pump" },
+    { "id": "sodium", "text": "sodium (Na+)", "source": "orn-15-2-primary" },
+    { "id": "potassium", "text": "potassium (K+)", "source": "orn-15-2-primary" },
+    { "id": "against-gradient", "text": "against a concentration gradient", "source": "orn-15-2-energy" }
+  ],
+  "depictions": [
+    {
+      "id": "more-sodium-outside",
+      "what": "more sodium drawn in the extracellular fluid than in the intracellular fluid",
+      "source": "orn-15-2-pump"
+    },
+    {
+      "id": "more-potassium-inside",
+      "what": "more potassium drawn in the intracellular fluid than in the extracellular fluid",
+      "source": "orn-15-2-pump"
+    },
+    {
+      "id": "pump-in-membrane",
+      "what": "the pump drawn in the cell membrane, moving ions across it",
+      "source": "orn-15-2-active"
+    },
+    {
+      "id": "lower-to-higher",
+      "what": "each ion carried from the side where it is at a lower concentration to the side where it is at a higher concentration: sodium outward, potassium inward",
+      "source": "orn-15-2-active"
+    },
+    {
+      "id": "energy-needed",
+      "what": "an energy symbol on the pump, because moving against a concentration gradient needs energy",
+      "source": "orn-15-2-energy"
+    }
+  ],
+  "sources": [
+    {
+      "id": "orn-15-2-pump",
+      "quote": "An example of active transport is the sodium-potassium pump, which uses energy to maintain higher levels of sodium in the extracellular fluid and higher levels of potassium in the intracellular fluid.",
+      "book": "Open RN Nursing Fundamentals 2e",
+      "section": "15.2 Basic Fluid and Electrolyte Concepts, Solute Movement",
+      "url": "https://wtcs.pressbooks.pub/nursingfundamentals/chapter/15-2-basic-fluid-and-electrolyte-concepts/",
+      "license": "CC BY 4.0",
+      "retrieved": "2026-11-01"
+    },
+    {
+      "id": "orn-15-2-active",
+      "quote": "Active transport, unlike diffusion, involves moving solutes and ions across a cell membrane from an area of lower concentration to an area of higher concentration.",
+      "book": "Open RN Nursing Fundamentals 2e",
+      "section": "15.2 Basic Fluid and Electrolyte Concepts, Solute Movement",
+      "url": "https://wtcs.pressbooks.pub/nursingfundamentals/chapter/15-2-basic-fluid-and-electrolyte-concepts/",
+      "license": "CC BY 4.0",
+      "retrieved": "2026-11-01"
+    },
+    {
+      "id": "orn-15-2-energy",
+      "quote": "Because active transport moves solutes against a concentration gradient to prevent an overaccumulation of solutes in an area, energy is required for this process to take place.",
+      "book": "Open RN Nursing Fundamentals 2e",
+      "section": "15.2 Basic Fluid and Electrolyte Concepts, Solute Movement",
+      "url": "https://wtcs.pressbooks.pub/nursingfundamentals/chapter/15-2-basic-fluid-and-electrolyte-concepts/",
+      "license": "CC BY 4.0",
+      "retrieved": "2026-11-01"
+    },
+    {
+      "id": "orn-15-2-primary",
+      "quote": "Recall that sodium (Na+) is the primary electrolyte in the extracellular space and potassium (K+) is the primary electrolyte in the intracellular space.",
+      "book": "Open RN Nursing Fundamentals 2e",
+      "section": "15.2 Basic Fluid and Electrolyte Concepts, Solute Movement",
+      "url": "https://wtcs.pressbooks.pub/nursingfundamentals/chapter/15-2-basic-fluid-and-electrolyte-concepts/",
+      "license": "CC BY 4.0",
+      "retrieved": "2026-11-01"
+    }
+  ]
+}
