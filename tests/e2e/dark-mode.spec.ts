@@ -152,6 +152,22 @@ test.describe('Task 94: full-site Evening palette audit', () => {
       if (selected.ink !== '#f9f5ef') findings.push('Evening ink is not Ivory: ' + selected.ink);
       if (selected.scheme !== 'dark') findings.push('browser color-scheme is not dark: ' + selected.scheme);
 
+      // The questions page fetches its sample JSON after React mounts. Auditing
+      // only "loading the questions…" would miss real question/choice contrast.
+      // Wait for the rendered player and actual answer controls. If JSON fails,
+      // the readiness assertion fails rather than giving a false clean result.
+      if (route === '/learn/study-skills/questions') {
+        const player = page.getByTestId('questions');
+        await expect(
+          player.locator('fieldset legend'),
+          'question content must finish loading before the Evening audit',
+        ).toBeVisible({ timeout: 15000 });
+        await expect(
+          player.locator('fieldset input[type="radio"], fieldset input[type="checkbox"]').first(),
+          'at least one question choice must be visible before the Evening audit',
+        ).toBeVisible();
+      }
+
       findings.push(...await checkEveningColors(page));
 
       // WCAG AA includes axe's color-contrast rule. Do not turn it off.
