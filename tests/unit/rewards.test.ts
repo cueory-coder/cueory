@@ -194,6 +194,53 @@ describe('game streaks and weekly free passes', () => {
     expect(tuesday.state.passesLeftThisWeek).toBe(0); // Monday spent this week's pass.
   });
 
+  it('does not refund a weekly pass when a broken streak restarts', () => {
+    let state = earn(emptyRewards(), game('2026-11-02'));
+    state = earn(state, study('study-nov-3', '2026-11-03'));
+    expect(state.currentStreak).toBe(1);
+    expect(state.passesLeftThisWeek).toBe(0);
+
+    state = earn(state, study('study-nov-4', '2026-11-04'));
+    expect(state.currentStreak).toBe(0);
+    expect(state.bestStreak).toBe(1);
+    expect(state.passesLeftThisWeek).toBe(0);
+
+    state = earn(state, game('2026-11-05'));
+    expect(state.currentStreak).toBe(1);
+    expect(state.passesLeftThisWeek).toBe(0);
+
+    state = earn(state, game('2026-11-07'));
+    expect(state.currentStreak).toBe(1); // Nov 6 cannot use a second pass.
+    expect(state.bestStreak).toBe(1);
+    expect(state.passesLeftThisWeek).toBe(0);
+    expect(has(state, 'game-streak-3')).toBe(false);
+
+    // Validation must reconstruct the same spent pass from the saved history.
+    const restored: RewardsState = JSON.parse(JSON.stringify(state));
+    expect(applyResult(restored, study('sunday', '2026-11-08'), '2026-11-08').state.passesLeftThisWeek).toBe(0);
+    expect(() => applyResult({ ...restored, passesLeftThisWeek: 1 }, study('bad'), '2026-11-08')).toThrow(
+      /invalid rewards state/,
+    );
+  });
+
+  it('preserves two separately spent passes across the Sunday/Monday week boundary', () => {
+    let state = earn(emptyRewards(), game('2026-11-07')); // Saturday
+    state = earn(state, study('sun', '2026-11-08')); // Old week's pass.
+    expect(state.passesLeftThisWeek).toBe(0);
+    state = earn(state, study('mon', '2026-11-09')); // New week's pass.
+    expect(state.currentStreak).toBe(1);
+    expect(state.passesLeftThisWeek).toBe(0);
+    state = earn(state, study('tue', '2026-11-10')); // Pass already spent this week.
+    expect(state.currentStreak).toBe(0);
+    state = earn(state, game('2026-11-11'));
+    expect(state.currentStreak).toBe(1);
+    expect(state.passesLeftThisWeek).toBe(0);
+    state = earn(state, game('2026-11-13'));
+    expect(state.currentStreak).toBe(1);
+    expect(state.bestStreak).toBe(1);
+    expect(has(state, 'game-streak-3')).toBe(false);
+  });
+
   it('gets a fresh pass in the next week without restoring last week’s used pass', () => {
     let state = earn(emptyRewards(), game('2026-12-31'));
     state = earn(state, game('2027-01-02')); // Jan 1 covered in the prior Monday week.

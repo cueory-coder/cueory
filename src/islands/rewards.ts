@@ -138,40 +138,46 @@ function readStudy(value: unknown, event = false): FinishedStudy | null {
   return { id: v.id, day: v.day as string, mode: v.mode };
 }
 
-function streaks(games: readonly FinishedGame[]): { current: number; best: number; usedWeeks: Set<string> } {
+function streaks(
+  games: readonly FinishedGame[],
+  asOfDay: string | null,
+): { current: number; best: number; usedWeeks: Set<string> } {
   const days = [...new Set(games.map((game) => game.day))].sort();
   const usedWeeks = new Set<string>();
   let previous: number | null = null;
   let current = 0;
   let best = 0;
-  for (const day of days) {
-    const index = dayIndex(day)!;
-    if (previous === null) current = 1;
-    else {
-      const gap = index - previous;
-      if (gap === 1) current++;
-      else {
-        // Three or more missed days cannot be covered by one pass per calendar week.
-        const skippedWeeks: string[] = [];
-        if (gap > 1 && gap <= 3) {
-          for (let missing = previous + 1; missing < index; missing++) {
-            skippedWeeks.push(weekKey(new Date(missing * DAY_MS).toISOString().slice(0, 10)));
-          }
-        }
-        const distinctWeeks = new Set(skippedWeeks);
-        if (skippedWeeks.length === gap - 1 && distinctWeeks.size === skippedWeeks.length &&
-            skippedWeeks.every((week) => !usedWeeks.has(week))) {
-          skippedWeeks.forEach((week) => usedWeeks.add(week));
-          current += gap; // A covered day holds the streak, but never earns game points.
-        } else current = 1;
+
+  // A missed day spends its week's pass even if that streak subsequently breaks.
+  // Reconstructing all game days keeps the pass spent when a new streak starts.
+  const bridgeMissedDays = (nextDay: number, inclusive: boolean): number => {
+    if (previous === null || current === 0) return 0;
+    let covered = 0;
+    for (let missing = previous + 1; missing < nextDay + (inclusive ? 1 : 0); missing++) {
+      const week = weekKey(new Date(missing * DAY_MS).toISOString().slice(0, 10));
+      if (usedWeeks.has(week)) {
+        current = 0;
+        break;
       }
+      usedWeeks.add(week);
+      covered++;
     }
+    return covered;
+  };
+
+  for (const day of days) {
+    const next = dayIndex(day)!;
+    const covered = bridgeMissedDays(next, false);
+    current = current === 0 ? 1 : current + covered + 1;
     best = Math.max(best, current);
-    previous = index;
+    previous = next;
   }
+
+  // Covered days after the last game keep a streak active, but only finished
+  // games increase its count and earn points or achievements.
+  if (asOfDay !== null) bridgeMissedDays(dayIndex(asOfDay)!, true);
   return { current, best, usedWeeks };
 }
-
 function studyStreak(studies: readonly FinishedStudy[]): number {
   const days = [...new Set(studies.map((study) => study.day))].sort();
   let last: number | null = null;
@@ -216,26 +222,9 @@ function totals(games: readonly FinishedGame[], studies: readonly FinishedStudy[
   for (const completed of perStudyDay.values()) {
     points += Math.min(completed * STUDY_SESSION_POINTS, DAILY_STUDY_POINT_LIMIT);
   }
-  const gameRun = streaks(games);
-  const usedWeeks = new Set(gameRun.usedWeeks);
-  let currentStreak = gameRun.current;
-  const latestGame = games.map((entry) => entry.day).sort().at(-1);
-  if (latestGame && asOfDay) {
-    // A free pass preserves an active streak on a missed day, but does not add an
-    // unplayed day to the count or award a milestone. The first uncovered day
-    // breaks the current streak; bestStreak remains the historical record.
-    const latest = dayIndex(latestGame)!;
-    const asOf = dayIndex(asOfDay)!;
-    for (let missing = latest + 1; missing <= asOf; missing++) {
-      const date = new Date(missing * DAY_MS).toISOString().slice(0, 10);
-      const week = weekKey(date);
-      if (usedWeeks.has(week)) {
-        currentStreak = 0;
-        break;
-      }
-      usedWeeks.add(week);
-    }
-  }
+  const gameRun = streaks(games, asOfDay);
+  const currentStreak = gameRun.current;
+  const usedWeeks = gameRun.usedWeeks;
   return {
     points, games: games.length, perfect,
     allFour: [...perGameDay.values()].some((set) => set.size === gameIds.size),
