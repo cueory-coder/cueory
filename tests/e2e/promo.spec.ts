@@ -53,15 +53,15 @@ test.describe('once-only promo panel (D-55)', () => {
     await expect(support).toHaveAttribute('target', '_blank');
     await expect(support).toHaveAttribute('rel', 'noopener noreferrer');
     // The social marks (D-54): the profiles that have an address, each opening in a new tab.
-    const socials = panel.getByRole('list', { name: 'cueory elsewhere' }).getByRole('link');
-    await expect(socials).toHaveCount(3);
+    const socialLinks = panel.getByRole('list', { name: 'cueory elsewhere' }).getByRole('link');
+    await expect(socialLinks).toHaveCount(3);
     for (const { id, href } of socials.filter((social) => social.href)) {
       const link = panel.locator(`a[data-social="${id}"]`);
       await expect(link).toHaveAttribute('href', href);
       await expect(link).toHaveAttribute('target', '_blank');
       await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     }
-    for (const target of [close, join, support, ...(await socials.all())]) {
+    for (const target of [close, join, support, ...(await socialLinks.all())]) {
       const size = (await target.boundingBox())!;
       expect(size.width).toBeGreaterThanOrEqual(44);
       expect(size.height).toBeGreaterThanOrEqual(44);
