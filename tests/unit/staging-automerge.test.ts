@@ -655,4 +655,14 @@ describe('the workflow file', () => {
   it('dry-runs manual runs unless unticked', () => {
     expect(yml).toMatch(/dry_run:[\s\S]*?default: true/);
   });
+
+  it('runs one merge pass at a time without letting a skipped run cancel a waiting one (D-78)', () => {
+    expect(yml).not.toMatch(/^concurrency:/m);
+    expect(yml).toMatch(/^ {4}concurrency:\n {6}group: staging-automerge\n {6}cancel-in-progress: false$/m);
+  });
+
+  it('sweeps every open pull request once an hour in case an event was missed (D-78)', () => {
+    expect(yml).toMatch(/^ {2}schedule:\n {4}- cron: '\d{1,2} \* \* \* \*'$/m);
+    expect(yml).toContain("github.event_name == 'schedule' ||");
+  });
 });
