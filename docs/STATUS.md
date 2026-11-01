@@ -83,13 +83,15 @@ Last updated: 2026-11-01
 - [Once-only promo panel](https://github.com/lilchristxan/Cueory/pull/34) (D-59): on marketing pages a small dark panel
   slides down from the top after 5 seconds or halfway down the page, with "join the launch list", "support us while we
   build" and the social marks; once shown, it stays away for 30 days. Now on brand v1.0's colors.
+- Home page polish (D-62): 16 px panels with a hairline and one soft shadow, a crisper glassy button, sections that
+  fade in with a small rise once, and a shorter launch-updates panel. The auto-merge takes it once it is clean.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
 2. Auto-release (`staging` into `main` in pre-launch mode), after the change requests.
 3. Christian's 31 Oct evening requests ([the lead's note on issue #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6551841155)),
-   now first: brand v1.0 (the lead's branch), the merry-go-round and decluttering (in review), then the home page
-   polish pass once brand v1.0 is in, then daily games (four games, a home page section and `/play`).
+   now first: brand v1.0 (the lead's branch), then the home page polish pass, then the rest of daily games (the home
+   page section, cueword, triage and suture).
 
 ## Visuals kit (Task 6, D-56)
 Targets: first visuals by about 14 November, the full kit by about 12 December ([plan](VISUALS.md)).

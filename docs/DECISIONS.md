@@ -381,3 +381,13 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   timing numbers live in `src/scripts/carousel.ts` (unit tested) because `tokens.css` is held for brand v1.0 until the
   lead's pull request merges, and `--drop-mode-card` (no longer used) goes then too. Reason: Christian's request for
   an endless merry-go-round that is never empty, and a calmer, less templated page.
+- **D-62** Home page polish: "expensive, not a template" (Christian's feedback, 2026-10-31, 6:40 pm, item 3 of the lead's
+  note on issue #4). Frosted panels and cards get a 16 px radius (`--radius-xl`), a 1 px hairline at lower opacity and
+  one soft shadow (`--shadow-soft`, one layer); drawings inside cards get a smaller radius than the card. The glassy
+  button gets a crisper rim (`--glass-rim-alpha` up) and a smaller, softer shadow of its own (`--shadow-button`). The
+  "ways to study" section and the launch-updates panel fade in with a 10 px rise the first time they come into view,
+  once (`--rise-reveal`, 600 ms, easing out). Only sections still below the window when the script runs wait, so
+  nothing is hidden without JavaScript or once on screen, and with reduced motion nothing waits or moves. Until Kit is
+  connected the launch-updates panel says only "signups open soon."; the line about the emails comes with the form, so
+  small grey lines never stack. The space between sections was already about 144 px on desktops, inside the 96 to
+  160 px asked for, so it stays. Reason: Christian's request for a calmer page that looks expensive.

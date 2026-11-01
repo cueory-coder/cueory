@@ -309,6 +309,16 @@ test.describe('without JavaScript', () => {
     await expect(page).toHaveURL(/\/learn\/study-skills\/cards$/);
   });
 
+  test('home page sections are there at once, with nothing waiting to fade in', async ({ page }) => {
+    await page.goto('/');
+    for (const section of await page.locator('[data-reveal-section]').all()) {
+      expect(await section.evaluate((el) => [el.getAttribute('data-reveal'), getComputedStyle(el).opacity])).toEqual([
+        null,
+        '1',
+      ]);
+    }
+  });
+
   test('"ways to study" is a row of all eleven cards that scrolls sideways, and the buttons keep their space', async ({
     page,
   }) => {
@@ -516,6 +526,30 @@ test.describe('marketing look (D-41)', () => {
     expect(shift).toBeLessThan(0.02);
   });
 
+  test('sections below the first screen fade in with a small rise the first time they come into view (D-62)', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    const sections = page.locator('[data-reveal-section]');
+    await expect(sections).toHaveCount(2);
+    const look = (index: number) =>
+      sections.nth(index).evaluate((el) => [el.getAttribute('data-reveal'), getComputedStyle(el).opacity, getComputedStyle(el).translate]);
+    // Both start below the first screen, so they wait, lowered and clear.
+    expect(await look(0)).toEqual(['waiting', '0', '0px 10px']);
+    expect(await look(1)).toEqual(['waiting', '0', '0px 10px']);
+    await page.locator('#ways-to-study').scrollIntoViewIfNeeded();
+    await expect.poll(() => look(0)).toEqual(['shown', '1', 'none']);
+    // Once only: scrolling away and back changes nothing.
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.locator('#ways-to-study').scrollIntoViewIfNeeded();
+    expect(await look(0)).toEqual(['shown', '1', 'none']);
+
+    // With reduced motion nothing waits or moves.
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.reload();
+    expect(await look(1)).toEqual([null, '1', 'none']);
+  });
+
   test('study screens stay plain, with no texture behind lesson text', async ({ page }) => {
     await page.goto('/learn/study-skills');
     expect(await page.evaluate(() => getComputedStyle(document.body).backgroundImage)).toBe('none');
@@ -622,7 +656,11 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
     }
 
     // Nothing fades a card's words: from each card's words up to the page there is no mask, no filter and full
-    // opacity, so the text keeps the frosted-panel contrast checked in tests/unit/tokens.test.ts.
+    // opacity, so the text keeps the frosted-panel contrast checked in tests/unit/tokens.test.ts. (First the section's
+    // own fade-in, the first time it comes into view, has to finish: D-62.)
+    await expect
+      .poll(() => section(page).locator('[data-reveal-section]').evaluate((el) => getComputedStyle(el).opacity))
+      .toBe('1');
     const faded = await page.locator('[data-mode-card] h3, [data-mode-card] p, [data-mode-card] a').evaluateAll((texts) =>
       texts.flatMap((text) => {
         const found: string[] = [];
@@ -810,6 +848,8 @@ test.describe('silk scenes down the home page (D-53)', () => {
   });
 
   test('every fade between scenes lies in empty space, never over words', async ({ page }) => {
+    // Measured where everything has settled: with reduced motion no section waits, lowered, to fade in (D-62).
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/');
     const covered = await page.evaluate(() => {
       // Each scene fades in over the space above it and the last one fades out at its bottom: measure those bands.
