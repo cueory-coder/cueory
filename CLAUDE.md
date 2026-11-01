@@ -10,10 +10,11 @@ steps, one action per step, and say exactly what he should see. Never ask him to
 1. **Security.** Row-level security on every table. Answer keys, reserved checks and admin data never reach the
    browser except through permission-checked RPC functions. No secrets in code, commits or chat: secrets go only in
    GitHub secrets and Cloudflare/Supabase settings. Strict security headers and content security policy. Validate input
-   everywhere. Rate limits on sign-in, sign-up and forms. Dependabot, code scanning and secret scanning stay on. While
-   the repository is private (Christian's decision, 2026-10-31), code scanning is Semgrep and secret scanning is
-   gitleaks, both free in CI. CodeQL is ready and runs automatically if the repository is ever made public. Two-factor
-   is required for the admin account. Details: [SECURITY.md](SECURITY.md).
+   everywhere. Rate limits on sign-in, sign-up and forms. Dependabot, code scanning and secret scanning stay on. The
+   repository is public (Christian's decision, 2026-10-31, D-75, so CI stays free): GitHub's secret scanning with push
+   protection and CodeQL run, and Semgrep and gitleaks keep running in CI. Everything in it is visible to anyone, so
+   nothing private ever goes in it: no secrets, no real answer keys, no personal data. Two-factor is required for the
+   admin account. Details: [SECURITY.md](SECURITY.md).
 2. **Privacy.** Store only email, display name, onboarding answers and study progress. Delete-my-account and
    export-my-data must work. No cross-site trackers. Keep the plain-language privacy page (`/privacy`) true.
 3. **Small pull requests with tests.** Never merge to `main` yourself. Codex reviews every pull request (see
@@ -24,8 +25,10 @@ steps, one action per step, and say exactly what he should see. Never ask him to
    say so. This includes nursing content: never write clinical facts; content comes from Christian's reviewed batches.
 6. **Accessibility.** Keyboard and tap alternatives to dragging, visible focus, reduced-motion support, and color is
    never the only signal of right or wrong.
-7. **Content is data, not code.** Lessons, items, cards and scripts live in the database and in CSV/JSON seed files
-   under `/content`, so Christian can edit them without touching code.
+7. **Content is data, not code.** Lessons, items, cards and scripts live in the database and in CSV/JSON seed files,
+   so Christian can edit them without touching code. Because this repository is public (D-75), `/content` holds only
+   labeled samples, schemas and approved public text. Real questions, answer keys, rationales and unreleased lessons
+   stay in Christian's private content store and the database, never in this repository.
 8. **Keep [docs/STATUS.md](docs/STATUS.md) current:** done, in review, blocked, and needs Christian's hands.
 9. **Accounts that control the business** (Cloudflare, GitHub, Supabase, the domain, Kit) use Christian's business
    Gmail, never an address on `cueory.app`, so a domain or email problem can never lock him out. Never change the
