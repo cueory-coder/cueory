@@ -145,6 +145,9 @@ Merged into `staging` tonight (pulse and sort were already live; the rest reache
 - Christian's decisions (D-80): the 3D atlas is BodyParts3D; OpenStax is link-only; releases stay manual.
 
 ## In review
+- Task 2, database step 4 (Task C6, D-87, stacked on #94): `review_state` and `exam_plans`, with 47 database tests.
+  Each student reads and writes only their own spaced-review progress and exam dates; the database refuses impossible
+  values. It edits `supabase/`, so it waits for Christian. Not pushed yet: waiting for #92 and #94 to merge.
 - Task 2, database step 3 (Task C6, D-86, stacked on #92): `attempts` and `check_answer`, with 43 database tests. A
   signed-in student sends their picks and, only after the attempt is recorded, gets right or wrong, the key and the
   rationales. 200 checks an hour per person. It is signed-in only, which needs Christian's confirmation (D-86). It
