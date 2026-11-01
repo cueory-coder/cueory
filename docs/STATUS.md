@@ -64,7 +64,7 @@ Last updated: 2026-10-31
 - [Study-mode preview and hover zoom](https://github.com/lilchristxan/Cueory/pull/29) (D-51): a card grows into a
   preview with its moving illustration, two plain lines, "try it" and the free-account link; X, Escape, the darkened
   page or a swipe down closes it. The auto-merge takes it once it is clean.
-- Silk scenes down the home page (D-52): the hero, "ways to study" and the launch-updates panel are three scenes of one
+- Silk scenes down the home page (D-53): the hero, "ways to study" and the launch-updates panel are three scenes of one
   silk, with numbered sections, a figure caption and one thin rhythm line. The auto-merge takes it once it is clean.
 
 ## Queued (Christian's change requests on issue #4, in his order)

@@ -660,7 +660,7 @@ test.describe('"ways to study" carousel (D-50)', () => {
   });
 });
 
-test.describe('silk scenes down the home page (D-52)', () => {
+test.describe('silk scenes down the home page (D-53)', () => {
   test('three scenes in order, each its own layer behind its section, with numbered sections and one rhythm line', async ({
     page,
   }) => {

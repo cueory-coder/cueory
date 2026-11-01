@@ -262,7 +262,7 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   color, so its text keeps the plain page-color contrast; a pause button in it shares the row's setting (WCAG 2.2.2).
   With a mouse, the card under the pointer or keyboard focus grows to 1.04 with a deeper shadow; touch screens and
   reduced motion skip it. Reason: Christian's request.
-- **D-52** Silk scenes down the home page (Christian's change requests, 2026-10-31, 1:15 pm and 1:22 pm). The hero,
+- **D-53** Silk scenes down the home page (Christian's change requests, 2026-10-31, 1:15 pm and 1:22 pm). The hero,
   "ways to study" and the launch-updates panel are three scenes cut from the same silk: the hero's folds, sheen and
   grain, with the folds at another angle, the light from another side and the tint moving from Ivory to Linen and back
   (Evening: Charcoal, Walnut, Charcoal). Each scene is a layer of its own behind its section, drawn in CSS (no new

@@ -165,7 +165,7 @@ describe('marketing background (D-41)', () => {
   });
 
   /*
-    Silk scenes down the home page (D-52): each is the hero's cloth with the folds at another angle and the light from
+    Silk scenes down the home page (D-53): each is the hero's cloth with the folds at another angle and the light from
     another side, on Ivory or the tint (Linen; Evening: Walnut). The tint is a color the checks above already use for
     the worst points (Linen in the darkest Daytime point, Walnut in the lightest Evening one), and a scene can only
     change angles, light and base, so every scene stays within the contrast checked above.
