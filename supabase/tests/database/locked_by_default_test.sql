@@ -55,7 +55,8 @@ select is_empty(
 -- row-level secured by a policy that shows published rows only (their own test files check that). A later migration
 -- that makes another table readable adds one line to this list, and a reviewer has to see it.
 create temporary table anon_may_read (relation text primary key);
-insert into anon_may_read values ('public.concepts'), ('public.sources');
+insert into anon_may_read values
+  ('public.concepts'), ('public.sources'), ('public.items'), ('public.item_versions'), ('public.item_choices');
 
 select is_empty(
   $$ select relation || ': ' || privilege from anon_reach
