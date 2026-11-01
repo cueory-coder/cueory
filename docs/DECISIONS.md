@@ -811,6 +811,17 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
 
   Reason: a drawing can't show more than the approved source says, and a test proves it.
 
+- **D-82** Lesson videos (Task C3, `src/islands/LessonVideo.tsx`). Single-tap rule (follows D-32, D-40): nothing loads
+  from YouTube before the student taps the cover; ONE tap creates the `youtube-nocookie.com` player with autoplay and
+  starts the video, and focus moves to the player. The cover is a self-hosted `thumbnail` image from the video's file,
+  or a drawn placeholder; the "tapping play loads YouTube and its cookies" note and any captions/transcript links show
+  before the tap (ROADMAP Task 4d). The player is at least 200 px tall at every width (YouTube's minimum). Only
+  `published` videos show on a page; drafts and placeholders never render (the study-skills entry stays a draft until
+  Christian supplies a real video). Video files (`content/videos/`, rules in `src/videos/schema.ts`): `videoId` is
+  exactly 11 characters (`[A-Za-z0-9_-]`), caption and transcript links are https or site paths only, `thumbnail` is a
+  site path only. CSP gains `frame-src https://www.youtube-nocookie.com`; `/privacy` lists YouTube. To check on a real
+  iPhone before launch: Safari may drop the tap permission that autoplay needs. Reason: D-32 and D-40.
+
 - **D-89** Overnight merges into `staging` on Christian's behalf (Christian, 2026-11-01, about 1:00 am Phoenix: "whatever
   can be merged ... merge it on my behalf to avoid bottlenecks", choosing "everything but rules").
   - **What:** during the director's 18-minute check-ins, the director merges held pull requests into `staging`:
