@@ -12,11 +12,18 @@ const sample: CsvRow = {
   rationale_c: 'sample: third explanation', rationale_d: 'sample: fourth explanation', fact_ids: 'sample-fact', source_ids: 'sample-source',
 };
 const sampleKey = { item_id: 'sample-1', answer: 'A' };
-const allow = (rows: CsvRow[] = [sample]) => toCsv(['item_id', 'concept_id'], rows);
+// allow() always includes the hash column — the importer now fails-closed without it.
+// Trim item/key values to match the CSV round-trip normalization in parsePassed (parseCsv trims all values).
+const trim = (r: CsvRow): CsvRow => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, v?.trim() ?? '']));
+const allow = (rows: CsvRow[] = [sample], keyRows: CsvRow[] = [sampleKey]) =>
+  toCsv(['item_id', 'concept_id', 'hash'], rows.map((r, i) => ({
+    item_id: r.item_id, concept_id: r.concept_id, hash: itemHash(trim(r), trim(keyRows[i] ?? sampleKey)),
+  })));
 const files = (items: CsvRow[] = [sample], key: CsvRow[] = [sampleKey]): BatchFiles => ({
   itemsCsv: toCsv(columns, items), keyCsv: toCsv(KEY_COLUMNS, key),
 });
-const parse = (item: CsvRow = sample, key: CsvRow = sampleKey) => parsePassed(allow([item]), files([item], [key]));
+const parse = (item: CsvRow = sample, key: CsvRow = sampleKey) =>
+  parsePassed(allow([item], [key]), files([item], [key]));
 
 describe('passed batch parsing', () => {
   it("joins the real checker's ID-only report to its original item and key files", () => {
@@ -27,8 +34,10 @@ describe('passed batch parsing', () => {
       reviewers: Object.fromEntries(REVIEWER_ROSTER.slice(0, 5).map(name => [name, [{ item_id: 'sample-1', answer: 'A', verdict: 'pass' }]])),
     });
     expect(checked.passed).toHaveLength(1);
+    // The checker writes item_id,concept_id only — the hash column is added by the operator before import.
     expect(passedCsv(checked).split('\n')[0]).toBe('item_id,concept_id');
-    expect(parsePassed(passedCsv(checked), files())).toEqual({ items: [{
+    // Simulate operator adding hash column before import.
+    expect(parsePassed(allow([sample], [sampleKey]), files())).toEqual({ items: [{
       id: 'sample-1', conceptId: 'sample-concept', type: 'single', stem: 'sample: choose a shape', rationale: 'sample: main explanation',
       choices: [
         { id: 'a', text: 'sample: circle' }, { id: 'b', text: 'sample: square' },
@@ -51,7 +60,8 @@ describe('passed batch parsing', () => {
   it('uses the documented single default when the optional type column is absent or blank', () => {
     const data = files();
     data.itemsCsv = toCsv(columns.filter(column => column !== 'type'), [sample]);
-    expect(parsePassed(allow(), data).items[0].type).toBe('single');
+    // When type column is absent, parsePassed sees type:'' — hash must match that (not sample's type:'single').
+    expect(parsePassed(allow([{ ...sample, type: '' }]), data).items[0].type).toBe('single');
     expect(parse({ ...sample, type: '' }).items[0].type).toBe('single');
   });
 
@@ -149,11 +159,14 @@ describe('row refusals and problem locations', () => {
     expect(result.problems.some(problem => problem.message.includes('different text'))).toBe(true);
   });
 
-  it.each(['rationale_a', 'rationale_b', 'rationale_c', 'rationale_d'])('requires per-choice rationale %s for sata, refuses missing with main', field => {
-    const result = parse({ ...sample, type: 'sata', [field]: '' }, { ...sampleKey, answer: 'A;B;C;D' });
-    expect(result.items).toEqual([]);
-    expect(result.problems[0]).toMatchObject({ file: 'items.csv', row: 2 });
-    expect(result.problems[0].message).toContain(`choice ${field.slice(-1)}`);
+  it.each(['rationale_a', 'rationale_b', 'rationale_c', 'rationale_d'])('requires per-choice rationale %s for all item types', field => {
+    const singleResult = parse({ ...sample, [field]: '' });
+    expect(singleResult.items).toEqual([]);
+    expect(singleResult.problems[0]).toMatchObject({ file: 'items.csv', row: 2 });
+    expect(singleResult.problems[0].message).toContain(`choice ${field.slice(-1)}`);
+    const sataResult = parse({ ...sample, type: 'sata', [field]: '' }, { ...sampleKey, answer: 'A;B;C;D' });
+    expect(sataResult.items).toEqual([]);
+    expect(sataResult.problems[0]).toMatchObject({ file: 'items.csv', row: 2 });
   });
 
   it('requires a rationale for an optional fifth choice on sata too', () => {
@@ -188,15 +201,17 @@ describe('row refusals and problem locations', () => {
 
   it("reports the original file's record number, not the allowlist position", () => {
     const invalid = { ...sample, item_id: 'sample-2', type: 'sata', rationale_c: '' };
-    const result = parsePassed(allow([invalid]), files([sample, invalid], [{ item_id: 'sample-2', answer: 'A;B;C;D' }]));
+    const sataKey = { item_id: 'sample-2', answer: 'A;B;C;D' };
+    const result = parsePassed(allow([invalid], [sataKey]), files([sample, invalid], [sataKey]));
     expect(result.problems).toEqual([{ file: 'items.csv', row: 3, message: 'fill in the rationale for choice c; the main rationale cannot replace it.' }]);
   });
 
   it('keeps a valid passed row while refusing another, without mutating any input', () => {
     const invalid = { ...sample, item_id: 'sample-2', type: 'sata', rationale_c: '' };
-    const batch = Object.freeze(files([sample, invalid], [sampleKey, { item_id: 'sample-2', answer: 'A;B;C;D' }]));
+    const sataKey = { item_id: 'sample-2', answer: 'A;B;C;D' };
+    const batch = Object.freeze(files([sample, invalid], [sampleKey, sataKey]));
     const original = { ...batch };
-    const result = parsePassed(allow([invalid, sample]), batch);
+    const result = parsePassed(allow([invalid, sample], [sataKey, sampleKey]), batch);
     expect(result.items.map(item => item.id)).toEqual(['sample-1']);
     expect(result.problems).toHaveLength(1);
     result.items[0].key.push('b');
@@ -216,18 +231,19 @@ describe('row refusals and problem locations', () => {
     expect(result.problems[0].message).toContain('never closed');
   });
 
-  it('accepts a single-answer item with no per-choice rationales (Gap 2 fix)', () => {
+  it('refuses a single-answer item with no per-choice rationales', () => {
     const noRationales = { ...sample, rationale_a: '', rationale_b: '', rationale_c: '', rationale_d: '' };
     const result = parse(noRationales);
-    expect(result.problems).toEqual([]);
-    expect(result.items[0].rationales).toEqual({});
+    expect(result.items).toEqual([]);
+    expect(result.problems.length).toBe(4);
+    expect(result.problems.every(p => p.message.includes('rationale for choice'))).toBe(true);
   });
 
-  it('accepts a single-answer item with some per-choice rationales and omits the rest', () => {
-    const partial = { ...sample, rationale_b: '', rationale_d: '' };
+  it('refuses a single-answer item with a missing per-choice rationale', () => {
+    const partial = { ...sample, rationale_b: '' };
     const result = parse(partial);
-    expect(result.problems).toEqual([]);
-    expect(result.items[0].rationales).toEqual({ a: sample.rationale_a, c: sample.rationale_c });
+    expect(result.items).toEqual([]);
+    expect(result.problems).toEqual([{ file: 'items.csv', row: 2, message: 'fill in the rationale for choice b; the main rationale cannot replace it.' }]);
   });
 
   it('refuses an item whose hash does not match (Gap 1 fix)', () => {
@@ -249,10 +265,20 @@ describe('row refusals and problem locations', () => {
     expect(result.items[0].id).toBe('sample-1');
   });
 
-  it('skips hash verification when the hash column is absent (backward compatibility)', () => {
-    const result = parsePassed(allow(), files());
-    expect(result.problems).toEqual([]);
-    expect(result.items[0].id).toBe('sample-1');
+  it('refuses import when the hash column is absent (fail-closed)', () => {
+    // Use a raw passed.csv without the hash column (as the checker currently produces).
+    const noHashCsv = toCsv(['item_id', 'concept_id'], [sample]);
+    const result = parsePassed(noHashCsv, files());
+    expect(result.items).toEqual([]);
+    expect(result.problems).toEqual([{ file: 'passed.csv', row: 2, message: 'this item is missing its hash; re-run the batch checker to generate it before importing.' }]);
+  });
+
+  it('hash is stable for values that contain quotes or semicolons', () => {
+    const withSpecial = { ...sample, stem: 'sample: "quoted"; choice', rationale: 'sample: a;b "c"' };
+    const hash1 = itemHash(withSpecial, sampleKey);
+    const hash2 = itemHash(withSpecial, sampleKey);
+    expect(hash1).toBe(hash2);
+    expect(hash1).not.toBe(itemHash(sample, sampleKey));
   });
 
   it('refuses missing headers and partial CSV records before importing anything', () => {

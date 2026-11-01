@@ -71,9 +71,9 @@ function itemFromRows(item: CsvRow, key: CsvRow, itemRow: number, keyRow: number
     if (seen.has(normalized)) itemProblem('give each choice different text, including when capitals or spacing change.');
     seen.add(normalized);
     const rationale = item[`rationale_${id}`];
-    if (!rationale && type !== 'single') {
+    if (!rationale) {
       itemProblem(`fill in the rationale for choice ${id}; the main rationale cannot replace it.`);
-    } else if (rationale) {
+    } else {
       rationales[id] = rationale;
     }
     choices.push({ id, text });
@@ -148,12 +148,14 @@ export function parsePassed(passedCsv: string, batch?: BatchFiles): ParsedBatch 
       problem(`the concept id must match items.csv row ${original[0].row}.`);
       return;
     }
-    if (entry.hash) {
-      const expected = itemHash(original[0].data, key[0].data);
-      if (expected !== entry.hash) {
-        problem('the item hash does not match; the question may have changed since it passed review.');
-        return;
-      }
+    if (!entry.hash) {
+      problem('this item is missing its hash; re-run the batch checker to generate it before importing.');
+      return;
+    }
+    const expected = itemHash(original[0].data, key[0].data);
+    if (expected !== entry.hash) {
+      problem('the item hash does not match; the question may have changed since it passed review.');
+      return;
     }
     const parsed = itemFromRows(original[0].data, key[0].data, original[0].row, key[0].row, result.problems);
     if (parsed) result.items.push(parsed);
