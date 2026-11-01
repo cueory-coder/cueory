@@ -24,6 +24,7 @@ const pages = [
   '/learn/study-skills/cards',
   '/learn/study-skills/learn-mode',
   '/learn/study-skills/matching',
+  '/learn/study-skills/organizer',
   '/privacy',
   '/terms',
   '/disclaimer',
@@ -739,6 +740,7 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
       cards: ['try the cards', '/learn/study-skills/cards'],
       learn: ['try learn mode', '/learn/study-skills/learn-mode'],
       matching: ['try matching', '/learn/study-skills/matching'],
+      organizer: ['try the organizer', '/learn/study-skills/organizer'],
     };
     const modes = [
       ['video', 'video'],
@@ -1306,5 +1308,80 @@ test.describe('without JavaScript, the corners', () => {
     await expect(page.getByRole('button', { name: 'menu', exact: true })).toBeHidden();
     await expect(page.getByRole('button', { name: 'account', exact: true })).toBeHidden();
     await expect(page.getByRole('navigation', { name: 'footer' }).getByRole('link', { name: 'support cueory' })).toBeVisible();
+  });
+});
+
+test.describe('organizer at 320 px', () => {
+  test.use({ viewport: { width: 320, height: 720 } });
+
+  test('sorts by keyboard, number keys and tap; check returns wrong items to the tray', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('console', (msg) => msg.type() === 'error' && errors.push(msg.text()));
+    // The lesson page links here; the test then opens the page itself, because the lesson's reader grows while it
+    // loads and a tap during that shift can land beside the link.
+    await page.goto('/learn/study-skills');
+    await expect(page.getByRole('link', { name: 'sort ideas into groups with the organizer' })).toHaveAttribute(
+      'href',
+      '/learn/study-skills/organizer',
+    );
+    await page.goto('/learn/study-skills/organizer');
+    await expect(page.getByTestId('organizer-sample-note')).toBeVisible();
+
+    const board = page.getByTestId('organizer');
+    const live = page.getByTestId('organizer-live');
+    const item = (name: string) => board.getByRole('button', { name: new RegExp(`^${name}`) });
+    const group = (name: string) => board.getByRole('button', { name });
+    const axe = async () => {
+      const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+      expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    };
+    await axe();
+    await expect(board.getByRole('button', { name: 'check' })).toBeDisabled();
+
+    // Keyboard: pick with Enter, which moves focus to the first group, then place with Enter.
+    await item('apple').focus();
+    await page.keyboard.press('Enter');
+    await expect(group('1. fruit')).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(live).toHaveText('apple moved to fruit.');
+    await expect(board.getByRole('list', { name: 'fruit' }).getByRole('button', { name: /^apple/ })).toBeFocused();
+
+    // Number keys on an item: 2 is the second group. A wrong one on purpose: plum is fruit, not vegetable.
+    await item('carrot').focus();
+    await page.keyboard.press('2');
+    await expect(live).toHaveText('carrot moved to vegetable.');
+    await item('plum').focus();
+    await page.keyboard.press('2');
+    await expect(live).toHaveText('plum moved to vegetable.');
+
+    // Tap: the item, then its group.
+    await item('rice').click();
+    await group('3. grain').click();
+    await expect(live).toHaveText('rice moved to grain.');
+
+    // Nothing is marked until check; the wrong one goes back to the tray, in words.
+    await board.getByRole('button', { name: 'check' }).click();
+    await expect(live).toHaveText('3 right, 1 back in the tray to try again.');
+    await expect(board.getByRole('list', { name: 'tray' }).getByRole('button', { name: /^plum/ })).toContainText(
+      'back in the tray to try again',
+    );
+    await expect(item('apple')).toContainText('✓ right');
+    await expect(item('apple')).toHaveAttribute('aria-disabled', 'true');
+    await axe();
+
+    // Sort the rest by number keys, then check: the summary takes focus.
+    for (const [name, key] of [['plum', '1'], ['pear', '1'], ['spinach', '2'], ['onion', '2'], ['oats', '3']] as const) {
+      await item(name).focus();
+      await page.keyboard.press(key);
+    }
+    await board.getByRole('button', { name: 'check' }).click();
+    await expect(page.getByTestId('organizer-result')).toBeFocused();
+    await expect(page.getByTestId('organizer-result')).toContainText('all 8 sorted in 2 tries.');
+    await axe();
+
+    await board.getByRole('button', { name: 'sort again' }).click();
+    await expect(board.getByRole('list', { name: 'tray' }).getByRole('button')).toHaveCount(8);
+    expect(errors).toEqual([]);
   });
 });

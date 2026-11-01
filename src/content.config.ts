@@ -97,6 +97,39 @@ const triage = defineCollection({
 });
 
 /**
+ * Organizer sets (ROADMAP Task 4): one JSON file per lesson in /content/organizer, sorted with OrganizerBoard. The rules
+ * match parseSet in src/islands/organizer.ts: 2 to 4 groups, 4 to 12 items, unique ids, every item in a real group.
+ * Until reviewed batches exist (Task 2 and 3), a set is an everyday "sample" and the page says so; no clinical facts.
+ */
+const organizerId = z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'an id is lowercase letters, digits and dashes');
+const organizer = defineCollection({
+  loader: glob({ base: './content/organizer', pattern: '*.json' }),
+  schema: z
+    .object({
+      lesson: z.string().regex(/^[a-z0-9-]+$/),
+      status: z.literal('sample'),
+      title: z.string().min(1).max(200),
+      groups: z
+        .array(z.object({ id: organizerId.refine((id) => id !== 'tray', 'tray is reserved for unsorted items'), name: z.string().min(1).max(200) }))
+        .min(2)
+        .max(4),
+      items: z.array(z.object({ id: organizerId, text: z.string().min(1).max(1000), group: organizerId })).min(4).max(12),
+    })
+    .superRefine(({ groups, items }, context) => {
+      const groupIds = new Set(groups.map((group) => group.id));
+      if (groupIds.size !== groups.length) context.addIssue({ code: 'custom', path: ['groups'], message: 'a group id is repeated' });
+      if (new Set(items.map((item) => item.id)).size !== items.length) {
+        context.addIssue({ code: 'custom', path: ['items'], message: 'an item id is repeated' });
+      }
+      for (const item of items) {
+        if (!groupIds.has(item.group)) {
+          context.addIssue({ code: 'custom', path: ['items'], message: `item "${item.id}" names a group that does not exist` });
+        }
+      }
+    }),
+});
+
+/**
  * The visuals kit (Task 6, D-56, docs/VISUALS.md): one source file per visual in /content/visuals. Every label and
  * every depiction points to a source that gives the book's exact words, its section and the page address, and only
  * allowed books can be quoted (src/visuals/sources.ts). The build stops with a plain message when a file breaks a rule.
@@ -134,4 +167,4 @@ const visuals = defineCollection({
     }),
 });
 
-export const collections = { lessons, cards, pulse, triage, visuals };
+export const collections = { lessons, cards, pulse, triage, organizer, visuals };

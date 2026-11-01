@@ -91,6 +91,10 @@ Last updated: 2026-11-01
   later.
 
 ## In review
+- Organizer on a page (Task C1 on #11): `/learn/study-skills/organizer`, opened from the lesson page and the home
+  page's organizer card. Sort eight everyday foods into fruit, vegetable and grain by tapping, number keys or
+  dragging; nothing is marked until **check**. The set is a labeled sample in `content/organizer/`, so it waits for
+  Christian's merge. Fill-in, questions and label it get their pages the same way as their engines merge.
 - Promo panel fix: it waits until the ☰ panel or a study-mode preview has finished closing, so their own focus
   handling never takes focus away from it (a browser test failed 2 of 12 runs because of this).
 - Daily games, first part (D-61): `/play` with pulse, playable with labeled sample puzzles, and cueword, triage and

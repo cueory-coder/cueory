@@ -6,6 +6,9 @@ Content is data, not code. Edit these files to change what students see; no prog
   The build checks every file and stops with a clear message if something is missing.
 - `cards/` — one JSON file per lesson's card deck. `lesson` is the lesson's file name without `.json`; each card has a
   `front` and a `back`. Checked the same way.
+- `organizer/` — one JSON file per lesson's organizer set: 2 to 4 `groups` and 4 to 12 `items`, each item naming
+  the group it belongs to. Checked by the build and again by the page. For now each set is an everyday `sample`, and
+  the page says so; no clinical facts.
 - `games/pulse/` — sample puzzles for the pulse word game on `/play`, one JSON file each: an everyday `word` (five to
   seven lowercase letters) and its one-line `cue`. They are labeled samples on the page. Real puzzles are nursing
   content whose answers are answer keys, so they never go here (D-61).

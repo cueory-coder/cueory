@@ -67,6 +67,7 @@ export const studyModes: readonly StudyMode[] = [
     name: 'organizer',
     text: 'sort ideas into groups by tapping, typing or dragging.',
     more: 'you sort ideas into the groups they belong to. putting them side by side shows how they relate to each other.',
+    link: { href: '/learn/study-skills/organizer', label: 'try the organizer' },
   },
   {
     id: 'questions',
