@@ -236,6 +236,14 @@ Merged into `staging` tonight (pulse and sort were already live; the rest reache
   from [#52](https://github.com/lilchristxan/Cueory/pull/52) (a Codex helper's, now in `staging`). Five everyday
   samples under `content/games/suture/`, checked by the game's own rules at build time, so it waits for Christian's
   merge. With it, all four daily games are playable on samples.
+- Task 2, database step 3 (Task C6, D-86, stacked on #92): `attempts` and `check_answer`, with 43 database tests. A
+  signed-in student sends their picks and, only after the attempt is recorded, gets right or wrong, the key and the
+  rationales. 200 checks an hour per person. It is signed-in only, which needs Christian's confirmation (D-86). It
+  edits `supabase/`, so it waits for him.
+- Task 2, database step 2 (Task C6, D-85, stacked on #90): `items`, `item_versions`, `item_choices` and `item_answers`,
+  with 49 database tests. Students read a published version's stem and choices; the key and rationales are closed to
+  every website role. A version can be published only when complete and never changes after. It edits `supabase/`,
+  so it waits for Christian.
 - Task 2, database step 1 (Task C6, D-84): `concepts`, `sources` and `rights_records`, with 34 database tests. Visitors
   and students read only published concepts and sources; nobody on the website can write; rights records are closed
   to every website role. It edits `supabase/`, so it waits for Christian. Steps 2 to 5 stack on it: items, then
