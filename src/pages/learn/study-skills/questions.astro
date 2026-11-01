@@ -75,7 +75,7 @@ if (!lesson) {
   </div>
 </Layout>
 
-<style>
+<style is:global>
   /* Task 77 owns the shared shadow token. Until it lands, use the existing soft shadow rather than a raw value. */
   .question-surface {
     box-shadow: var(--shadow-card, var(--shadow-soft));
