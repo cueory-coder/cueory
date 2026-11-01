@@ -988,3 +988,20 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   kept on the device. The content security policy needs no change: workers fall back to `script-src 'self'`.
 
   Reason: Task 5 asks for an offline lesson cache, and Task 32's policy says what may be kept.
+
+- **D-94** Glove notes replace the promo panel and the break timer's prompts (Christian, 2026-11-01, 8:51 to 9:35 am
+  Phoenix, relayed by the lead on issue #4; changes D-59 and #67's prompts when built). One pop-up style, centered,
+  with a very light scrim: a real photo of Christian's gloved hand rises into the middle of the screen with the message
+  written level inside the palm in a print-style handwriting font (Patrick Hand until Christian picks), as Sharpie
+  ink on nitrile. Five photos, five colors and angles, never the same twice in a row. At most one welcome note per
+  visit on marketing pages, rotating between the launch list, "supporting our mission" and a break idea; one break
+  note after 25 minutes of active study, at a pause, linking to a new `/breaks` page. Quiet glove sounds, on by
+  default, with a toggle remembered in this browser, only after a touch, never during a video or with reduced
+  motion. "Tip" becomes "supporting our mission" with Christian's two mission lines. Brand exceptions by his order: a
+  gloved hand (a photo, only as the pop-up) and the handwriting font (only on the palm). **No drawn or SVG hand ever
+  ships;** until his photos and recordings arrive, nothing visible changes and the promo panel stays as it is. Break
+  ideas are 1 to 60 characters, plain and non-medical, and Christian approves their wording. Sharing ideas comes after
+  sign-in, with his moderation before anything shows. The logic is Tasks 50 to 53; the component and shared files
+  are the director's.
+
+  Reason: Christian's change request.
