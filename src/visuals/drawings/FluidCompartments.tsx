@@ -83,17 +83,17 @@ export default function FluidCompartments({ visual, shown = steps.length, idPref
       <defs>
         <pattern id={lines} width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
           <rect width="8" height="8" className="fill-surface" />
-          <line x1="0" y1="0" x2="0" y2="8" strokeWidth="2" className="stroke-soft" />
+          <line x1="0" y1="0" x2="0" y2="8" strokeWidth="2" className="stroke-highlight" />
         </pattern>
         <pattern id={dots} width="10" height="10" patternUnits="userSpaceOnUse">
           <rect width="10" height="10" className="fill-page" />
-          <circle cx="5" cy="5" r="1.6" className="fill-soft" />
+          <circle cx="5" cy="5" r="1.6" className="fill-highlight" />
         </pattern>
       </defs>
 
       {/* Step 1: all body fluid as one bar, 60% ICF and the rest ECF. */}
       <g data-depiction="two-compartments icf-larger">
-        {text('icf-share', barX, 18, { size: 13, max: 26, soft: true })}
+        {text('icf-share', barX, 18, { size: 13, max: 18, soft: true })}
         <path
           d={`M${barX} 50 V43 H${barX + icfWidth} V50`}
           fill="none"
