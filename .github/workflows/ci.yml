@@ -1,10 +1,18 @@
-# Build and test every pull request and every push to main and staging.
+# Build and test every pull request that is ready for review, and every push to main (D-74).
+# Free Actions minutes are limited on a private repository (2,000 a month on GitHub Free), so:
+# - draft pull requests don't run CI until they are marked ready for review;
+# - pushes to staging don't run it again: every change reached staging through a pull request that already passed,
+#   and the Release pull request runs everything again before main;
+# - a pull request that only changes Markdown files (outside content/ and src/) skips the build and tests;
+# - pull requests into staging run the browser tests at phone and desktop size, and Release pull requests into main
+#   run every device.
 name: CI
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
-    branches: [main, staging]
+    branches: [main]
 
 permissions:
   contents: read
@@ -16,24 +24,58 @@ concurrency:
 jobs:
   verify:
     name: Type check, build and test
+    # Drafts wait until they are marked ready for review.
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # On a pull request this is GitHub's test merge commit; two levels give its first parent, the base branch.
+          fetch-depth: 2
+
+      - name: Decide what to test
+        id: scope
+        run: |
+          # Only on a pull request's merge commit: its first parent is the base branch, so this lists exactly the
+          # files the pull request changes. Anything else (a push, an unexpected checkout) tests everything.
+          files=""
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ] && git rev-parse -q --verify HEAD^2 >/dev/null; then
+            files=$(git diff --name-only HEAD^1 HEAD)
+          fi
+          if [ -n "$files" ] && ! printf '%s\n' "$files" | grep -qvE '\.md$' && ! printf '%s\n' "$files" | grep -qE '^(content|src)/'; then
+            echo "docs_only=true" >> "$GITHUB_OUTPUT"
+            echo "Only Markdown files changed, so the build and tests are skipped:"
+            printf '%s\n' "$files"
+          else
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: steps.scope.outputs.docs_only != 'true'
         with:
           node-version-file: .node-version
           cache: npm
 
-      - run: npm ci
-      - run: npm run check
-      - run: npm run build
-      - run: npm test
-      - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e
+      - if: steps.scope.outputs.docs_only != 'true'
+        run: npm ci
+      - if: steps.scope.outputs.docs_only != 'true'
+        run: npm run check
+      - if: steps.scope.outputs.docs_only != 'true'
+        run: npm run build
+      - if: steps.scope.outputs.docs_only != 'true'
+        run: npm test
+      - if: steps.scope.outputs.docs_only != 'true'
+        run: npx playwright install --with-deps chromium
+      - name: Browser tests
+        if: steps.scope.outputs.docs_only != 'true'
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ] && [ "$GITHUB_BASE_REF" = "staging" ]; then
+            npm run test:e2e -- --project=phone --project=desktop
+          else
+            npm run test:e2e
+          fi
 
       - name: Keep the test report if browser tests fail
         if: failure()
@@ -77,6 +119,7 @@ jobs:
 
   secrets:
     name: Scan for leaked secrets
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
@@ -101,6 +144,7 @@ jobs:
   code-scan:
     # Free stand-in for CodeQL while the repository is private (DECISIONS.md, D-18).
     name: Scan code for security issues (Semgrep)
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
