@@ -112,3 +112,15 @@ comment on table public.rights_records is
 grant select, insert, update, delete on table public.rights_records to service_role;
 
 alter table public.rights_records enable row level security;
+
+-- Nothing is granted to the website's roles above, so they are already refused. This policy says so out loud as well
+-- (AGENTS.md: every table gets row-level security and explicit policies), so the rule survives a later grant by mistake:
+-- a restrictive policy has to pass in addition to every other policy, and this one never passes. The service role
+-- bypasses row-level security, so admin tools are not affected.
+create policy "no website role reads or writes rights records"
+  on public.rights_records
+  as restrictive
+  for all
+  to anon, authenticated
+  using (false)
+  with check (false);
