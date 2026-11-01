@@ -84,6 +84,38 @@ test.describe('daily games: pulse (D-61)', () => {
   });
 });
 
+test.describe('daily games on a narrow phone', () => {
+  test('at 320 px nothing scrolls sideways, and every letter button and guessed letter stays on screen', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 320, height: 700 });
+    // 3 November: the third sample, "blanket", the longest word (7 letters).
+    await page.clock.setFixedTime(new Date('2026-11-03T15:00:00'));
+    await page.goto('/play');
+    // Two wrong 7-letter guesses: the game goes on, so the letter buttons stay on screen too.
+    for (const word of ['pillows', 'cabinet']) {
+      await field(page).fill(word);
+      await page.keyboard.press('Enter');
+    }
+    await expect(page.getByRole('listitem', { name: /^guess 2: cabinet\./ })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    const outside = await page.evaluate(() =>
+      [...document.querySelectorAll('.pulse-key, .pulse-letter')]
+        .map((el) => el.getBoundingClientRect())
+        .filter((box) => box.left < 0 || box.right > window.innerWidth).length,
+    );
+    expect(outside).toBe(0);
+    // Each letter button keeps a 44 px height, and their middles stay at least 24 px apart (WCAG 2.5.8).
+    const keys = await page.locator('.pulse-key-row').first().locator('.pulse-key').evaluateAll((els) =>
+      els.map((el) => el.getBoundingClientRect()),
+    );
+    for (const key of keys) expect(key.height).toBeGreaterThanOrEqual(44);
+    for (let i = 1; i < keys.length; i++) {
+      expect(keys[i]!.left + keys[i]!.width / 2 - (keys[i - 1]!.left + keys[i - 1]!.width / 2)).toBeGreaterThanOrEqual(24);
+    }
+  });
+});
+
 test.describe('daily games without JavaScript', () => {
   test.use({ javaScriptEnabled: false });
 
