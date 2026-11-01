@@ -2,7 +2,8 @@
 /**
  * The once-only promo panel (D-55, Christian's change request of 31 Oct, 1:15 pm). Marketing pages only: a small
  * dark-glass panel slides down from the top after a few seconds, or as soon as the visitor has scrolled halfway down
- * the page, whichever comes first. It floats over the page, so nothing moves.
+ * the page, whichever comes first. It holds the launch list, the tip page and the social marks (D-54), and floats over
+ * the page, so nothing moves.
  *
  * - Once it has been shown it stays away for 30 days (`promo` in src/config/site.ts), whether the visitor closed it,
  *   clicked it or ignored it, so it never comes back on a refresh or later in the same visit. The date is kept in
@@ -14,6 +15,7 @@
  *   leave the panel: it doesn't trap focus or block the page.
  * - With reduced motion it appears without the slide. Without JavaScript it never appears.
  */
+import SocialLinks from './SocialLinks.astro';
 import { accountHref, promo, site } from '../config/site';
 ---
 
@@ -36,10 +38,10 @@ import { accountHref, promo, site } from '../config/site';
   </div>
   <p id="promo-text" class="mt-2 text-panel-ink">{promo.text}</p>
   <div class="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3">
-    <a href={accountHref} class="promo-button" data-promo-link>{promo.joinLabel}</a>
+    <a href={accountHref} class="promo-button">{promo.joinLabel}</a>
     {
       site.tipPageUrl && (
-        <a href={site.tipPageUrl} target="_blank" rel="noopener noreferrer" class="promo-link" data-promo-link>
+        <a href={site.tipPageUrl} target="_blank" rel="noopener noreferrer" class="promo-link">
           {promo.supportLabel}
           <span class="sr-only"> (opens in a new tab)</span>
           <svg viewBox="0 0 24 24" class="size-4 shrink-0" aria-hidden="true" focusable="false">
@@ -48,6 +50,9 @@ import { accountHref, promo, site } from '../config/site';
         </a>
       )
     }
+  </div>
+  <div class="mt-3">
+    <SocialLinks panel />
   </div>
 </div>
 
@@ -154,7 +159,7 @@ import { accountHref, promo, site } from '../config/site';
     if (!document.hidden) startTimer();
 
     closeButton?.addEventListener('click', () => close(true));
-    for (const link of panel.querySelectorAll<HTMLAnchorElement>('[data-promo-link]')) {
+    for (const link of panel.querySelectorAll<HTMLAnchorElement>('a[href]')) {
       // A link that opens a new tab leaves this page where it was, so focus comes back here too.
       link.addEventListener('click', () => close(link.target === '_blank'));
     }

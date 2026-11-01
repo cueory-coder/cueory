@@ -39,6 +39,19 @@ export const newsletter = {
   emailFieldName: 'email_address',
 } as const;
 
+/**
+ * Cueory's social profiles (D-54). Each shows as its platform's one-color mark, linking to the profile in a new tab,
+ * in the footer and at the bottom of the ☰ panel. Only profiles with an address show. Instagram, TikTok and YouTube
+ * are the defaults Christian is confirming; X and Facebook stay empty until he confirms them.
+ */
+export const socials = [
+  { id: 'instagram', name: 'Instagram', href: 'https://instagram.com/cueory' },
+  { id: 'tiktok', name: 'TikTok', href: 'https://tiktok.com/@cueory' },
+  { id: 'youtube', name: 'YouTube', href: 'https://youtube.com/@cueory' },
+  { id: 'x', name: 'X', href: '' },
+  { id: 'facebook', name: 'Facebook', href: '' },
+] as const;
+
 export const footerLinks = [
   { href: '/privacy', label: 'privacy' },
   { href: '/terms', label: 'terms' },

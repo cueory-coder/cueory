@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import { socials } from '../../src/config/site';
 
 /**
  * The once-only promo panel (D-55). The page's clock is faked, so "5 seconds later" takes no real time. The other
@@ -51,7 +52,16 @@ test.describe('once-only promo panel (D-55)', () => {
     await expect(support).toHaveAttribute('href', 'https://ko-fi.com/cueory');
     await expect(support).toHaveAttribute('target', '_blank');
     await expect(support).toHaveAttribute('rel', 'noopener noreferrer');
-    for (const target of [close, join, support]) {
+    // The social marks (D-54): the profiles that have an address, each opening in a new tab.
+    const socials = panel.getByRole('list', { name: 'cueory elsewhere' }).getByRole('link');
+    await expect(socials).toHaveCount(3);
+    for (const { id, href } of socials.filter((social) => social.href)) {
+      const link = panel.locator(`a[data-social="${id}"]`);
+      await expect(link).toHaveAttribute('href', href);
+      await expect(link).toHaveAttribute('target', '_blank');
+      await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    }
+    for (const target of [close, join, support, ...(await socials.all())]) {
       const size = (await target.boundingBox())!;
       expect(size.width).toBeGreaterThanOrEqual(44);
       expect(size.height).toBeGreaterThanOrEqual(44);
@@ -134,6 +144,21 @@ test.describe('once-only promo panel (D-55)', () => {
     await expect(page).toHaveURL(/\/#signup$/);
     await expect(promoPanel(page)).toBeHidden();
     await expect(page.locator('#signup')).toBeInViewport();
+  });
+
+  test('a link that opens a new tab closes the panel, and focus comes back where it was', async ({ page }) => {
+    // Nothing leaves the test machine: the tip page's address is answered with an error.
+    await page.context().route(/ko-fi\.com/, (route) => route.abort());
+    await page.goto('/');
+    const hero = page.getByRole('link', { name: 'create your free account' });
+    await hero.focus();
+    await wait(page, 5_500);
+    const popup = page.waitForEvent('popup');
+    await promoPanel(page).getByRole('link', { name: /support us while we build/ }).click();
+    await (await popup).close();
+    await wait(page, 500);
+    await expect(promoPanel(page)).toBeHidden();
+    await expect(hero).toBeFocused();
   });
 
   test('waits while the ☰ panel is open, then appears once it closes', async ({ page }) => {

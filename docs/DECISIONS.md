@@ -288,13 +288,22 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   without it. With the taller sections, the carousel's auto-advance now pauses only while a mouse rests on the cards or
   their buttons (or keyboard focus is inside), not anywhere over the section, which on a computer would have stopped it
   for good. Study screens are unchanged. Reason: Christian's request.
+- **D-54** Social links (Christian's change request, 2026-10-31, 1:15 pm). The footer and the bottom of the ☰ panel link
+  to Cueory's profiles, each as its platform's official one-color mark, opening in a new tab with `rel="noopener
+  noreferrer"` and named for screen readers ("cueory on Instagram (opens in a new tab)"). The addresses live in
+  `src/config/site.ts` (`socials`), and only filled-in ones show: Instagram, TikTok and YouTube (the defaults Christian
+  is confirming); X and Facebook stay empty until he confirms them. The marks come from Simple Icons (CC0;
+  `simple-icons`, pinned, a build-time package), so each is drawn inline from our own page and nothing loads from the
+  platforms until someone clicks; the platforms' own brand guidelines allow one-color marks that link to a profile. Each
+  link is a 44 px target, in the text color (the ☰ panel's light ink there). The promo panel gets the same links in its
+  own pull request. Reason: Christian's request.
 - **D-55** Once-only promo panel (Christian's change request, 2026-10-31, 1:15 pm). On marketing pages only (never on
   study screens, and not on the signup thank-you page, whose visitor has just joined), a small panel slides down from
   the top after 5 seconds, or as soon as the visitor has scrolled halfway down the page, whichever comes first. It is
   the account menu's dark glass (solid where blur isn't supported) and floats over the page, so nothing moves. It holds
   "welcome to cueory.", one line about the launch emails, "join the launch list" (the launch-updates signup until
   accounts exist; it becomes "create your free account" with Task 2), "support us while we build" (the Ko-fi page, in a
-  new tab) and, once the social links pull request is in, the social marks. Once shown, it stays away for 30 days
+  new tab) and the social marks (D-54). Once shown, it stays away for 30 days
   whether the visitor closed it, clicked it or ignored it: one date in local storage (`cueory-promo-seen`), never sent
   to us, so it never comes back on a refresh or later in the visit; a browser that can't remember never sees it. It
   waits while the ☰ panel, a study-mode preview or the account menu is open, while the visitor is typing in a field,

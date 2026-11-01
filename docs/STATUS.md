@@ -66,19 +66,17 @@ Last updated: 2026-11-01
   (D-52), merged by Christian. Before launch the bot now also holds changes to package.json `scripts`, `engines` and
   `packageManager`, and lockfile changes that add a package, an install script or a download from outside the npm
   registry; version bumps of existing packages still merge themselves.
+- In `staging`, also merged by Christian: [social links](https://github.com/lilchristxan/Cueory/pull/33) (D-54),
+  Instagram, TikTok and YouTube marks in the footer and the ☰ panel.
 
 ## In review
-- [Social links](https://github.com/lilchristxan/Cueory/pull/33) (D-54): Instagram, TikTok and YouTube marks in the
-  footer and the ☰ panel. It adds a package (`simple-icons`), so it waits for Christian's merge.
 - [Once-only promo panel](https://github.com/lilchristxan/Cueory/pull/34) (D-55): on marketing pages a small dark panel
-  slides down from the top after 5 seconds or halfway down the page, with "join the launch list" and "support us while
-  we build"; once shown, it stays away for 30 days. The auto-merge takes it once it is clean. The social marks join it
-  after #33.
+  slides down from the top after 5 seconds or halfway down the page, with "join the launch list", "support us while we
+  build" and the social marks; once shown, it stays away for 30 days. The auto-merge takes it once it is clean.
 
 ## Queued (Christian's change requests on issue #4, in his order)
-1. The social marks in the promo panel, once [#33](https://github.com/lilchristxan/Cueory/pull/33) is in.
-2. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
-3. Auto-release (`staging` into `main` in pre-launch mode), after the change requests.
+1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
+2. Auto-release (`staging` into `main` in pre-launch mode), after the change requests.
 
 ## Planning
 - [Med-surg lesson map](curriculum/README.md) ([#31](https://github.com/lilchristxan/Cueory/pull/31)): the master

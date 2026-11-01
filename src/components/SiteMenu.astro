@@ -6,6 +6,7 @@
  * hidden (its space is kept, so nothing moves) and the footer links still work.
  */
 import { menuLinks, menuSmallLinks } from '../config/site';
+import SocialLinks from './SocialLinks.astro';
 import { currentHref } from '../scripts/menu';
 
 interface Props {
@@ -87,6 +88,10 @@ const current = currentHref(
         }
       </ul>
     </nav>
+
+    <div class="mb-4">
+      <SocialLinks panel />
+    </div>
 
     <ul class="flex gap-6 text-sm">
       {
