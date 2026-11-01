@@ -19,8 +19,21 @@ const allow = (rows: CsvRow[] = [sample], keyRows: CsvRow[] = [sampleKey]) =>
   toCsv(['item_id', 'concept_id', 'hash'], rows.map((r, i) => ({
     item_id: r.item_id, concept_id: r.concept_id, hash: itemHash(trim(r), trim(keyRows[i] ?? sampleKey)),
   })));
+// The importer runs the checker again, so it needs the rest of the batch. This builds one that agrees with whatever
+// items and key a test supplies: five reviewers who pass every item with the key's answer, and a fact and a source for
+// everything the items cite. A test that wants the re-check to fail changes the result of this, not the helper.
+const recheckFor = (items: CsvRow[], key: CsvRow[]): BatchFiles['recheck'] => {
+  const ids = (column: string) => [...new Set(items.flatMap(item => (item[column] ?? '').split(';').map(v => v.trim()).filter(Boolean)))];
+  return {
+    reviewers: Object.fromEntries(REVIEWER_ROSTER.slice(0, 5).map(name => [name, items.map(item => ({
+      item_id: item.item_id, answer: key.find(row => row.item_id === item.item_id)?.answer ?? '', verdict: 'pass',
+    }))])),
+    facts: ids('fact_ids').map(fact_id => ({ fact_id, source_id: ids('source_ids')[0] ?? 'sample-source' })),
+    sources: ids('source_ids').map(source_id => ({ source_id, url: `https://example.invalid/${source_id}` })),
+  };
+};
 const files = (items: CsvRow[] = [sample], key: CsvRow[] = [sampleKey]): BatchFiles => ({
-  itemsCsv: toCsv(columns, items), keyCsv: toCsv(KEY_COLUMNS, key),
+  itemsCsv: toCsv(columns, items), keyCsv: toCsv(KEY_COLUMNS, key), recheck: recheckFor(items, key),
 });
 const parse = (item: CsvRow = sample, key: CsvRow = sampleKey) =>
   parsePassed(allow([item], [key]), files([item], [key]));
@@ -208,7 +221,8 @@ describe('row refusals and problem locations', () => {
   });
 
   it('keeps a valid passed row while refusing another, without mutating any input', () => {
-    const invalid = { ...sample, item_id: 'sample-2', type: 'sata', rationale_c: '' };
+    // A different stem: the batch check treats two items with one stem as duplicates, and that would fail both.
+    const invalid = { ...sample, item_id: 'sample-2', stem: 'sample: another question', type: 'sata', rationale_c: '' };
     const sataKey = { item_id: 'sample-2', answer: 'A;B;C;D' };
     const batch = Object.freeze(files([sample, invalid], [sampleKey, sataKey]));
     const original = { ...batch };
@@ -290,5 +304,77 @@ describe('row refusals and problem locations', () => {
     expect(partial.items).toEqual([]);
     expect(partial.problems[0]).toMatchObject({ file: 'passed.csv', row: 2 });
     expect(parsePassed('', files()).problems[0].message).toContain('header');
+  });
+});
+
+describe('the importer checks the batch again before importing (Task C8)', () => {
+  const second = { ...sample, item_id: 'sample-2', stem: 'sample: second question' };
+  const secondKey = { item_id: 'sample-2', answer: 'B' };
+  const both = () => files([sample, second], [sampleKey, secondKey]);
+  const bothAllowed = () => allow([sample, second], [sampleKey, secondKey]);
+
+  it('imports when the checker passes every item', () => {
+    const result = parsePassed(bothAllowed(), both());
+    expect(result.problems).toEqual([]);
+    expect(result.items.map(item => item.id)).toEqual(['sample-1', 'sample-2']);
+  });
+
+  it('refuses everything when the reviewer, facts and sources files are not supplied', () => {
+    const data = both() as unknown as Record<string, unknown>;
+    delete data.recheck;
+    const result = parsePassed(bothAllowed(), data as unknown as BatchFiles);
+    expect(result.items).toEqual([]);
+    expect(result.problems).toHaveLength(1);
+    expect(result.problems[0].message).toContain('needed to check the batch again');
+  });
+
+  it('refuses an item a reviewer now fails, and still imports the others', () => {
+    const data = both();
+    data.recheck.reviewers.codex = [
+      { item_id: 'sample-1', answer: 'A', verdict: 'pass' },
+      { item_id: 'sample-2', answer: 'B', verdict: 'fail' },
+    ];
+    const result = parsePassed(bothAllowed(), data);
+    expect(result.items.map(item => item.id)).toEqual(['sample-1']);
+    expect(result.problems).toEqual([{
+      file: 'passed.csv', row: 3, message: 'the batch checker does not pass this item now: codex: marked it fail.',
+    }]);
+  });
+
+  it('refuses an item a reviewer disagrees with, or has not finished with', () => {
+    const disagree = both();
+    disagree.recheck.reviewers.codex = [{ item_id: 'sample-1', answer: 'C', verdict: 'pass' }, { item_id: 'sample-2', answer: 'B', verdict: 'pass' }];
+    expect(parsePassed(bothAllowed(), disagree).problems[0].message).toContain('codex: answered C, key says A');
+    const pending = both();
+    pending.recheck.reviewers.codex = [{ item_id: 'sample-1', answer: 'A', verdict: 'pending' }, { item_id: 'sample-2', answer: 'B', verdict: 'pass' }];
+    const result = parsePassed(bothAllowed(), pending);
+    expect(result.items.map(item => item.id)).toEqual(['sample-2']);
+    expect(result.problems[0].message).toContain('codex: review still pending');
+  });
+
+  it('refuses an item whose source link is now broken', () => {
+    const data = both();
+    data.recheck.sources = data.recheck.sources.map(source => ({ ...source, url: 'http://example.invalid/not-secure' }));
+    const result = parsePassed(bothAllowed(), data);
+    expect(result.items).toEqual([]);
+    expect(result.problems.map(problem => problem.message).join(' ')).toContain('must start with https://');
+  });
+
+  it('imports nothing when the batch fails as a whole', () => {
+    const data = both();
+    delete data.recheck.reviewers.gemini;
+    const result = parsePassed(bothAllowed(), data);
+    expect(result.items).toEqual([]);
+    expect(result.problems).toHaveLength(1);
+    expect(result.problems[0]).toMatchObject({ file: 'passed.csv', row: 1 });
+    expect(result.problems[0].message).toContain('nothing was imported');
+    expect(result.problems[0].message).toContain('at least 5 are required');
+  });
+
+  it('refuses an item that now has a twin with the same question', () => {
+    const twin = { ...second, stem: sample.stem };
+    const result = parsePassed(allow([sample], [sampleKey]), files([sample, twin], [sampleKey, secondKey]));
+    expect(result.items).toEqual([]);
+    expect(result.problems[0].message).toContain('same question as sample-2');
   });
 });
