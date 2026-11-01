@@ -247,6 +247,7 @@ Merged into `staging`:
 ## In review
 - Open pull requests add their own lines here. Waiting now: Release browser tests (#55).
 - Task 100, points, streaks and achievements (#180): deterministic local-only rewards with weekly free passes and test coverage, awaiting CI and Codex review.
+- Task 110 start, cruet loading animation (#184): the four layers cut from Christian's emblem and the lead's working prototype in `docs/prototypes/`; the island comes next.
 - Task 95, modern sample questions page (#174): passed full CI and Codex review, merged into `staging` and awaiting the next production release.
 - Task 73, break-idea sharing proposal (#177): private submissions, moderation, reporting, export and account-deletion safeguards proposed for Christian's decisions.
 - Approved designs (#178): Christian's approved mockups saved in `docs/screenshots/approved-2026-11-01/` for the builders.
