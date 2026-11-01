@@ -92,7 +92,7 @@ function Session({ questions, check }: Props) {
               })}
             </div>
           </fieldset>
-          {!answer && <button type="button" className={`${button} mt-6`} disabled={waiting || !canCheck(state)} onClick={() => void submit()}>{waiting ? 'checking…' : 'check'}</button>}
+          {!answer && <button type="button" className={`${button} mt-6`} disabled={!canCheck(state)} aria-disabled={waiting} onClick={() => void submit()}>{waiting ? 'checking…' : 'check'}</button>}
           {answer && (
             <div className="mt-6">
               <p className="text-lg font-medium">{answer.correct ? 'right.' : 'not quite.'}</p>
