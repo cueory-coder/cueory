@@ -1,7 +1,7 @@
 /**
- * The daily games on /play (D-61), in the lowercase brand voice (D-47). The names are working names until Christian
- * picks: rename a game here, in one line. Each game has original rules and an original look (CLAUDE.md): never the
- * name, the colors, the tile grid or the colored-square shares of another word game.
+ * The daily games on /play (D-61), in the lowercase brand voice (D-47). The four names are Christian's final choice
+ * (D-64), each kept here in one line. Each game has original rules and an original look (CLAUDE.md): never the name,
+ * the colors, the tile grid or the colored-square shares of another word game.
  */
 export interface DailyGame {
   id: 'pulse' | 'cueword' | 'triage' | 'suture';
@@ -20,7 +20,12 @@ export const dailyGames: readonly DailyGame[] = [
     ready: true,
   },
   { id: 'cueword', name: 'cueword', line: 'a mini crossword.', ready: false },
-  { id: 'triage', name: 'triage', line: 'sort terms into the groups they belong to.', ready: false },
+  {
+    id: 'triage',
+    name: 'triage',
+    line: 'sort ten terms into three groups. one fits none of them. three slips end the round.',
+    ready: true,
+  },
   { id: 'suture', name: 'suture', line: 'trace hidden words through a grid of letters.', ready: false },
 ];
 

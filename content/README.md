@@ -9,6 +9,9 @@ Content is data, not code. Edit these files to change what students see; no prog
 - `games/pulse/` — sample puzzles for the pulse word game on `/play`, one JSON file each: an everyday `word` (five to
   seven lowercase letters) and its one-line `cue`. They are labeled samples on the page. Real puzzles are nursing
   content whose answers are answer keys, so they never go here (D-61).
+- `games/triage/` — sample puzzles for the triage sorting game, one JSON file each: three `groups`, each with a
+  lowercase `name` and exactly three `terms`, and one `oddOne` that belongs to none of them. Every term appears once.
+  Everyday words only, labeled as samples on the page (D-63).
 - `batches/` — one folder per review batch (format and checker: [docs/BATCHES.md](../docs/BATCHES.md)). Git ignores
   everything here, so batches stay on your computer.
 

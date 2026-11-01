@@ -1,24 +1,21 @@
 ---
 /**
- * Daily games on the home page (D-61): one calm silk scene after "ways to study", with the heading, one line and a
- * way into today's game. Like the other sections below the first screen, it fades in once (D-62). Its own scene, between the tint of "ways to study" and the launch-updates panel. The game's
- * name comes from src/config/games.ts, so a rename follows here too.
+ * Daily games on the home page (D-61, D-63): one calm silk scene after "ways to study", with the heading, one line and
+ * a way into today's games. Like the other sections below the first screen, it fades in once (D-62). It has its own
+ * scene, between the tint of "ways to study" and the launch-updates panel.
  */
-import { dailyGames } from '../config/games';
-
-const today = dailyGames.find((game) => game.ready)!;
 ---
 
 <section id="daily-games" class="scene scene-play scroll-mt-section py-section" aria-labelledby="games-heading">
   <div class="mx-auto max-w-prose px-gutter text-center" data-reveal-section>
     <h2 id="games-heading" class="display text-title sm:text-title-lg">daily games</h2>
-    <p class="mt-4 text-ink-soft">one short word puzzle a day, with more games on the way.</p>
+    <p class="mt-4 text-ink-soft">two short puzzles a day, a word to guess and terms to sort, with more on the way.</p>
     <a
       href="/play"
       class="mt-8 inline-block rounded-pill bg-button px-6 py-3 text-on-button no-underline hover:bg-button-hover hover:text-on-button"
       data-testid="games-link"
     >
-      play today's {today.name}
+      play today's games
     </a>
   </div>
 </section>

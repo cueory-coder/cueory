@@ -1,0 +1,30 @@
+{
+  "status": "sample",
+  "groups": [
+    {
+      "name": "fruits",
+      "terms": [
+        "apple",
+        "pear",
+        "mango"
+      ]
+    },
+    {
+      "name": "weather",
+      "terms": [
+        "rain",
+        "fog",
+        "hail"
+      ]
+    },
+    {
+      "name": "furniture",
+      "terms": [
+        "chair",
+        "sofa",
+        "desk"
+      ]
+    }
+  ],
+  "oddOne": "violin"
+}
