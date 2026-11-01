@@ -87,8 +87,15 @@ begin
     end if;
   end if;
   -- A student has a few plans, not thousands: the course name is free text of a safe shape, so the count is capped.
-  if tg_op = 'INSERT' and (select count(*) from public.exam_plans p where p.user_id = new.user_id) >= 10 then
-    raise exception 'no more than ten exam plans' using errcode = '54000';
+  -- Only a genuinely new course counts: an upsert (`on conflict … do update`) of a course the student already has
+  -- adds nothing, so it stays allowed at the cap. The lock is per student, so two inserts at once can't both count the
+  -- same nine plans and both pass (Codex review of #104).
+  if tg_op = 'INSERT' then
+    perform pg_advisory_xact_lock(hashtextextended('exam_plans:' || new.user_id::text, 0));
+    if not exists (select 1 from public.exam_plans p where p.user_id = new.user_id and p.course = new.course)
+       and (select count(*) from public.exam_plans p where p.user_id = new.user_id) >= 10 then
+      raise exception 'no more than ten exam plans' using errcode = '54000';
+    end if;
   end if;
   return new;
 end;

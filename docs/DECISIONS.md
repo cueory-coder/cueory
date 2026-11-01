@@ -835,8 +835,13 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
     the last and within a year, the last review not in the future (two days of slack for time zones) and not older than
     two years.
   - **`exam_plans`:** a student's optional exam date for a course (a `public.slug`, one plan per course, at most ten
-    per student). The date must be within the next two years (two days of slack). The scheduler never plans a review
+    per student; saving a course the student already has stays allowed at the cap, and a per-student lock keeps two
+    inserts at once from both passing the count, Codex review of #104). The date must be within the next two years (two days of slack). The scheduler never plans a review
     past it.
+  - **The plan cap (Codex review of #104):** only a genuinely new course counts toward the ten, so saving a course the
+    student already has (an upsert, `on conflict … do update`) stays allowed at the cap; and a per-student advisory lock
+    around the count keeps two inserts at once from both passing it. A single pgTAP session can't run two transactions
+    at once, so the lock is checked by reading it; the upsert at the cap has tests.
   - **Own rows only, written directly by the student:** each student reads, adds, changes and deletes only their own
     rows ("forget my progress"); signed-out visitors get nothing. `user_id` defaults to the signed-in student and is
     not a column a student may set or change, so they can't write for anyone else. A student chooses the question or
@@ -847,7 +852,7 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   - **Why not written by `check_answer`:** it can't know the student's local day, and a review is not the same event as
     checking an answer (cards and other modes review too, and the device decides). The device sends the result of its
     own scheduler, and the database refuses anything impossible.
-  - **Tests:** `supabase/tests/database/review_state_exam_plans_test.sql`, 47 checks: the exact grants per column, add,
+  - **Tests:** `supabase/tests/database/review_state_exam_plans_test.sql`, 50 checks: the exact grants per column, add,
     update, upsert and delete for the owner, every refusal, the other student seeing nothing, the cap, and cascade
     delete. Four weakened versions (a student may set `user_id`, everyone's rows readable, unpublished questions
     accepted, no plan cap) each failed.
