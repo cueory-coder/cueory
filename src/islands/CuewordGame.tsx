@@ -42,7 +42,7 @@ function Board({ puzzle, name }: Props) {
 
   useEffect(() => {
     if (solved) result.current?.focus();
-    else if (focusGrid.current) cells.current.get(state.cell)?.focus({ preventScroll: true });
+    else if (focusGrid.current) cells.current.get(state.cell)?.focus();
     focusGrid.current = false;
   }, [state, solved]);
 
