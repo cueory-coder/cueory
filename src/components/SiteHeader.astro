@@ -73,6 +73,22 @@ const { quiet = false, overlay = false } = Astro.props;
     transform: translateY(-100%);
   }
 
+  /*
+   * Keep scrollIntoView, keyboard focus and in-page links below the sticky home link.
+   * The clearances include the logo, its clear space, py-4 and a little breathing room.
+   * Phone: 28 spacing units (112px); sm and larger: 36 units (144px).
+   * Home's absolute overlay has no data-scroll-header, so it keeps its normal scroll behavior.
+   */
+  :global(html:has([data-scroll-header])) {
+    scroll-padding-top: calc(var(--spacing) * 28);
+  }
+
+  @media (min-width: 40rem) {
+    :global(html:has([data-scroll-header])) {
+      scroll-padding-top: calc(var(--spacing) * 36);
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     header.site-header-sticky,
     header.site-header-sticky.is-tucked {

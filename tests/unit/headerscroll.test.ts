@@ -82,6 +82,16 @@ describe('header integration guard', () => {
     expect(component).not.toMatch(/#[0-9a-f]{3,8}\b/i);
   });
 
+  it('reserves scroll clearance for focused game controls below the sticky header', () => {
+    expect(component).toContain(':global(html:has([data-scroll-header]))');
+    expect(component).toContain('scroll-padding-top: calc(var(--spacing) * 28)');
+    expect(component).toContain('@media (min-width: 40rem)');
+    expect(component).toContain('scroll-padding-top: calc(var(--spacing) * 36)');
+    expect(component).toContain("data-scroll-header={overlay ? undefined : ''}");
+    // Focused controls must be able to scroll below the home-logo link, not underneath it.
+    expect(component).toContain('site-header-sticky');
+  });
+
   it('keeps the account menu visible when Safari does not focus its toggle', () => {
     const corner = readFileSync(new URL('../../src/components/AccountCorner.astro', import.meta.url), 'utf8');
     expect(corner).toContain('data-account-toggle');
