@@ -246,8 +246,10 @@ Merged into `staging`:
 
 ## In review
 - Open pull requests add their own lines here. Waiting now: Release browser tests (#55).
-- In review: Task 64, "flag or comment" on every page (PR forthcoming): `FlagCorner.astro` and `FlagMount.tsx` added
-  to `Layout.astro` so every page has a quiet reporting button; stubs for Task 55 auth and Task 63 send.
+- In review ([#181](https://github.com/lilchristxan/Cueory/pull/181)): Task 64, "flag or comment" on every page
+  (head `e588f32`, all 7 CI checks green): `FlagCorner.astro` and `FlagMount.tsx` added to `Layout.astro` so every
+  page has a quiet reporting button; `client:only="react"` so no static HTML with JS off; `hideFlag` prop
+  (D-pending, Task 64) suppresses the button during sharpening/timed review; stubs for Task 55 auth and Task 63 send.
 - Task 95, modern sample questions page (#174): passed full CI and Codex review, merged into `staging` and awaiting the next production release.
 - Task 73, break-idea sharing proposal (#177): private submissions, moderation, reporting, export and account-deletion safeguards proposed for Christian's decisions.
 - Glove photos and the Kalam font (#163): Christian's nine glove colors cut out as WebP files, and the handwriting he
