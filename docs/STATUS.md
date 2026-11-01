@@ -217,6 +217,16 @@ Merged into `staging`; the database ones by the director on Christian's behalf (
   tests. A signed-in student can send a "Flag or comment" report (5 an hour, 20 a day); the reports table is closed to
   every website role and is read only in the locked `/admin` inbox (not built yet). It is signed-in only, which needs
   Christian's confirmation (D-88). It edits `supabase/`, so it waits for him. **Steps 1 to 4 are in `staging`** (#90, #92, #94, #104).
+- Task 31 ([#113](https://github.com/lilchristxan/Cueory/pull/113), D-69, D-87): `importRows(progress, idMap, today)` —
+  converts guest localStorage progress into rows for `review_state`. `idMap` is a nested
+  `Map<deckId, Map<cardId, uuid>>` so deck-local card ids are never confused across decks. "Know it" cards start at
+  level 1 (next review in 3 days via `nextReview`); "still learning" and starred-only cards start at level 0 (due
+  today). Stars returned separately in `starred[]`; `today` validated; 28 unit tests. Exam plans deferred (D-87
+  follow-up). Account-import integration (wiring to sign-up flow) not yet built.
+- Open pull requests add their own lines here. Waiting now: study modes on pages (#77), export-my-data (#95, Task 19),
+  lesson videos (#97, Task C3), the 3D viewer shell (#98, Task C4), the Supabase settings reader (#101, Task 22),
+  delete-account checks (#105, Task 25), the daily puzzle checker (#108), database step 5, flags and `submit_flag`
+  (#110), the review-clip exporter (#111, Task C7) and Release browser tests (#55).
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).

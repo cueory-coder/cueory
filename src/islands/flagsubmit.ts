@@ -8,12 +8,10 @@ export interface FlagContext {
   page: string;
 }
 
-// item_id and item_version types are provisional: flag.ts treats them as slug/integer
-// but the database uses uuids. Decide with whoever writes submit_flag (no migration yet).
 export interface FlagArgs {
   page: string;
   item_id: string | null;
-  item_version: number | null;
+  item_version_id: string | null;
   reason: string;
   comment: string;
 }
@@ -52,7 +50,7 @@ export function flagArguments(report: CheckedReport, context: FlagContext): Flag
     return { ok: false, message: 'the page address is not valid for this site' };
   }
 
-  const { itemId, itemVersion, reason, comment } = report.report;
+  const { itemId, itemVersionId, reason, comment } = report.report;
 
   // Re-check reason and comment even on a pre-validated report — a hand-built ok:true
   // report could carry an invalid reason or an overlong comment.
@@ -68,7 +66,7 @@ export function flagArguments(report: CheckedReport, context: FlagContext): Flag
     args: {
       page,
       item_id: itemId ?? null,
-      item_version: itemVersion ?? null,
+      item_version_id: itemVersionId ?? null,
       reason,
       comment,
     },
