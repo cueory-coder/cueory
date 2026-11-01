@@ -20,8 +20,8 @@ interface Props {
   cards: LearnCard[];
 }
 
-const primaryButton = 'rounded-pill bg-button px-5 py-2.5 text-on-button hover:bg-button-hover';
-const secondaryButton = 'rounded-pill border border-control px-5 py-2.5 text-ink';
+const primaryButton = 'press rounded-pill bg-button px-5 py-3 text-on-button hover:bg-button-hover inline-flex items-center gap-2';
+const secondaryButton = 'press rounded-pill border border-control px-5 py-3 text-ink inline-flex items-center gap-2';
 
 const stepLabel: Record<Step, string> = {
   see: 'New card',
@@ -36,6 +36,16 @@ function ResultIcon({ correct }: { correct: boolean }) {
     <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5}>
       {correct ? <path d="M4 12.5 L9.5 18 L20 6" /> : <path d="M6 6 L18 18 M18 6 L6 18" />}
     </svg>
+  );
+}
+
+/** Empty circle placeholder for unchosen options. */
+function UnpickedIcon() {
+  return (
+    <span
+      aria-hidden="true"
+      className="mt-0.5 inline-block size-5 shrink-0 rounded-full border border-control"
+    />
   );
 }
 
@@ -57,6 +67,22 @@ export default function LearnSession({ cards }: Props) {
     if (focusRequest > 0) cardRef.current?.focus();
   }, [focusRequest]);
 
+  // Inject .enter animation and .press effect until Task 77's global.css lands on staging.
+  useEffect(() => {
+    const id = 'cueory-learn-motion';
+    if (document.getElementById(id)) return;
+    const el = document.createElement('style');
+    el.id = id;
+    el.textContent = [
+      '@keyframes enter-rise{from{opacity:0;translate:0 0.5rem}to{opacity:1;translate:0 0}}',
+      '.enter{animation:enter-rise var(--duration-base,240ms) var(--ease-soft,cubic-bezier(0.4,0,0.2,1)) both}',
+      '@media(prefers-reduced-motion:reduce){.enter{animation:none}}',
+      '.press:active{scale:0.98}',
+      '@media(prefers-reduced-motion:reduce){.press:active{scale:1}}',
+    ].join('\n');
+    document.head.appendChild(el);
+  }, []);
+
   const act = (next: (s: LearnState) => LearnState) => {
     setState(next);
     setFocusRequest((n) => n + 1);
@@ -72,15 +98,24 @@ export default function LearnSession({ cards }: Props) {
 
   const total = cards.length;
   const mastered = masteredCount(state);
+  const progressValue = total > 0 ? mastered / total : 0;
 
   if (isOver(state)) {
     return (
       <div>
-        <div ref={cardRef} tabIndex={-1} className="rounded-md border border-line bg-surface px-6 py-10">
+        <div
+          ref={cardRef}
+          tabIndex={-1}
+          className="enter rounded-xl border border-line bg-surface px-8 py-12"
+          style={{ boxShadow: 'var(--shadow-card)' }}
+        >
           <p className="text-xl">
             You know all {total} {total === 1 ? 'card' : 'cards'}.
           </p>
           <p className="mt-2 text-sm text-ink-soft">Each one was seen, chosen and recalled.</p>
+          <div className="mt-stack text-sm text-ink-soft">
+            <p>Mastered: {total}</p>
+          </div>
         </div>
         <div className="mt-stack">
           <button type="button" onClick={() => act(() => startLearn(cards))} className={primaryButton}>
@@ -100,20 +135,37 @@ export default function LearnSession({ cards }: Props) {
 
   return (
     <div>
-      <p className="text-sm text-ink-soft">
-        Mastered {mastered} of {total}
-      </p>
+      {/* Progress bar */}
+      <div className="flex items-center gap-4">
+        <p className="shrink-0 text-sm text-ink-soft">Mastered {mastered} of {total}</p>
+        <div
+          className="progress-track flex-1 h-2 overflow-hidden rounded-full bg-line"
+          role="progressbar"
+          aria-valuenow={mastered}
+          aria-valuemin={0}
+          aria-valuemax={total}
+          aria-label={`Mastered ${mastered} of ${total}`}
+        >
+          <div
+            className="progress-fill h-full rounded-full bg-ink"
+            style={{ transform: `scaleX(${progressValue})`, transformOrigin: 'left center' } as React.CSSProperties}
+          />
+        </div>
+      </div>
 
+      {/* Card — re-keyed on step change so .enter animation fires each time */}
       <div
+        key={`${state.queue[0]}-${step}`}
         ref={cardRef}
         tabIndex={-1}
         aria-live="polite"
-        className="mt-stack rounded-md border border-line bg-surface px-6 py-10"
+        className="enter mt-stack rounded-xl border border-line bg-surface px-8 py-10"
+        style={{ boxShadow: 'var(--shadow-card)' }}
       >
         <p data-testid="learn-step" className="text-sm text-ink-soft">
           {stepLabel[step]}
         </p>
-        <p data-testid="learn-prompt" className="mt-2 text-xl">
+        <p data-testid="learn-prompt" className="mt-3 text-xl">
           {card.front}
         </p>
 
@@ -157,18 +209,28 @@ export default function LearnSession({ cards }: Props) {
           {state.choices.map((choice) => {
             const picked = result?.given === choice;
             const isAnswer = choice === index;
-            const note = result ? (isAnswer ? 'The answer' : picked ? 'Your choice' : '') : '';
+            const note = result ? (isAnswer ? 'Correct answer' : picked ? 'Your choice' : '') : '';
+            const showIcon = Boolean(result) && (isAnswer || picked);
             return (
               <li key={choice}>
                 <button
                   type="button"
                   onClick={() => act((s) => choose(s, cards, choice))}
                   disabled={result !== null}
-                  aria-pressed={result ? picked : undefined}
-                  className="w-full rounded-md border border-control px-5 py-3 text-left text-ink disabled:cursor-default"
+                  aria-pressed={result ? (picked || isAnswer) : undefined}
+                  className={`press w-full rounded-xl border px-6 py-4 text-left disabled:cursor-default flex items-start gap-3 transition-colors${
+                    result && isAnswer
+                      ? ' border-button text-ink'
+                      : result && picked && !isAnswer
+                      ? ' border-control text-ink opacity-75'
+                      : ' border-control text-ink hover:border-button'
+                  }`}
                 >
-                  {cards[choice]!.back}
-                  {note && <span className="block text-sm text-ink-soft">{note}</span>}
+                  {showIcon ? <ResultIcon correct={isAnswer} /> : <UnpickedIcon />}
+                  <span className="flex-1">
+                    {cards[choice]!.back}
+                    {note && <span className="mt-1 block text-sm text-ink-soft">{note}</span>}
+                  </span>
                 </button>
               </li>
             );
@@ -189,7 +251,7 @@ export default function LearnSession({ cards }: Props) {
             autoComplete="off"
             autoCapitalize="off"
             spellCheck={false}
-            className="mt-2 w-full rounded-md border border-control bg-surface px-4 py-2.5 text-ink"
+            className="mt-2 w-full rounded-xl border border-control bg-surface px-5 py-3.5 text-lg text-ink"
           />
           <button type="submit" disabled={typed.trim() === ''} className={`mt-stack ${primaryButton} disabled:opacity-50`}>
             Check
