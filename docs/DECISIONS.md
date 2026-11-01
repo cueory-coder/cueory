@@ -465,6 +465,17 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   only approved visuals can appear on a page (`approvedOnly`), each visual shows the credit WisTech Open's terms ask
   for (`creditsFor`), and every overlay says "simplified for learning" (`notesFor`). Reason: no picture can ship with
   a word its cited source doesn't state.
+- **D-69** Guest progress and onboarding (Task C2, ROADMAP Task 4). One versioned record in the browser's local storage
+  (`cueory-progress`, `src/scripts/progress.ts`) holds only the two optional setup answers (course, exam date) and, per
+  card deck, the "know it" / "still learning" piles and the stars (CLAUDE.md rule 2). Reading drops anything unknown or
+  invalid field by field and never throws; blocked storage just means nothing is remembered. Stars saved before this
+  under `cueory-stars-<deck>`, for any deck (including ones no longer on the site), move into the record when a card
+  deck or `/progress` opens, and "forget" removes any that remain. `/start` asks the
+  two questions (each optional, "skip for now" keeps earlier answers); `/progress` shows everything kept, downloads it
+  as a JSON file and forgets it after a confirm step (the theme pick and promo date aren't progress and stay). The ☰
+  "my progress" link now opens `/progress`. Nothing leaves the device until accounts exist (Task 2), which will
+  import this record. The review scheduler (Task 8) reads it through `readProgress` and `deckProgress` only.
+  `/privacy` says exactly what is kept. Reason: ROADMAP Task 4 and the coordinator's Task C2 brief.
 - **D-70** The crossword on `/play` (internal id `cueword`; shown as "crossword", D-66). A Codex helper built the engine
   and board (#51): the usual numbering, typing that skips gaps, checking a word or the whole grid with a symbol and
   words for each mark, up to three cues that each fill in one letter and lock it, and a plain-words share line ("cueory
@@ -574,6 +585,28 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
     merges into main. Cloudflare Workers Builds' 3,000 free build minutes still apply, so the push discipline stays.
 
   Reason: free CI at full speed, with nothing private in the repository.
+- **D-76** Private stats for the daily games on `/play` (ROADMAP Task 7: stats are optional and private, with no
+  streak guilt). A "your stats" panel sits under the four games, off until the student turns on its switch ("keep my
+  stats on this device").
+  - **What it keeps:** for each finished round, the puzzle's day in the visitor's own time zone, whether it was solved,
+    and its tries: beats for pulse, slips for sort, cues for the crossword and loose stitches for word path. It follows
+    the helper's rules in `src/islands/gamestats.ts` (#70): the first result of each game and day counts. Results older
+    than 400 days, by today's date, are deleted the next time `/play` opens.
+  - **Where:** only in this browser, under one storage key (`cueory-game-stats`). Its presence is what "on" means, so
+    turning stats off deletes it. Nothing is ever sent anywhere. Each change starts from what storage holds at that
+    moment, so turning stats off in one tab holds in every other open tab too. A round that waits to be kept (while
+    stats are off, or while the panel loads) waits in one list on the page, which is emptied whenever another tab
+    changes the stats, so it can't be kept later.
+  - **What it shows:** per game, the days played and solved, and the tries in words. No streaks, no comparisons and no
+    scores. "forget" for one game, "forget all my stats" and turning the switch off delete what was kept, and keyboard
+    focus stays in the panel.
+  - **How the games report:** a finished round sends a browser event (`cueory:game-result`), so no game touches storage
+    itself. A round finished just before the student turns stats on still counts, and so does one finished before the
+    panel's own code has loaded: it waits in memory on the page until the panel takes it.
+  - `/privacy` says all of this, in its "Right now" section.
+
+  Reason: Christian's daily-games request (stats that are optional and private), within the privacy rule that only
+  study progress is kept.
 
 - **D-72** The visuals kit's first batch is reviewed in two steps, words first and drawings second. Its three source
   files (body fluid compartments; osmosis and fluid shifts; the sodium-potassium pump) list every label and everything
@@ -695,6 +728,9 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
     `version`, `stem` and `status` (`status` because the policies on items and choices look at it, and a policy's
     subquery runs with the reader's privileges; every visible row is published anyway); the choices of a published
     version. The source and dates stay closed. Only the service role writes.
+  - **Two gaps found in review, now closed (Codex and the lead on #92):** moving a choice or an answer to another
+    version counts as changing both, so both versions must be drafts (it can't empty a published version's key); and a
+    question's `type` can't change once any version has been published or retired (a trigger on `items`).
   - **Versions:** editing an item makes a new version (ROADMAP Task 2). A version is a draft, published or retired. One
     version of an item is published at a time (a partial unique index). A published or retired version's stem and source
     can't change, and its choices and answers can't be added, changed or deleted; a retired version can't come back.
@@ -704,10 +740,43 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   - **Left for later:** risk level and public label are in the roadmap's admin table but not defined anywhere yet, so
     I haven't invented values for them; they come with `reviews` and the admin area. The trigger functions revoke
     `execute` from `public`, `anon` and `authenticated`, as D-73 requires.
-  - **Tests:** `supabase/tests/database/items_test.sql`, 50 checks: the exact grants (including per column), what
+  - **Tests:** `supabase/tests/database/items_test.sql`, 56 checks: the exact grants (including per column), what
     a visitor, a student and the service role can read and write, every publishing rule, immutability and the shapes.
     The lockdown test's list of tables a visitor may read now has the three new public ones, and still not `item_answers`.
     Each of four weakened versions (key readable, drafts visible, answers editable after publish, publishing without
     completeness) was seen failing.
 
   Reason: the director's request on #11 (Task C6), following D-73's schema order.
+
+- **D-81** The visuals kit's drawings show only their source file's words and depictions (Task C5, first batch).
+  - **Words:** every word on a drawing is a label from `content/visuals/<id>.json`, drawn through `Label`
+    (`src/visuals/drawings/parts.tsx`), so a word that isn't a label stops the build. Words a depiction needed but no
+    label held (the transcellular areas, the parts of whole blood, what a cell holds, "ICF", "ECF", "water movement",
+    "larger particles are blocked") were added as labels, each the book's own words from a sentence Christian already
+    approved, and each checked against its quote by the unit tests.
+  - **Shapes:** every shape sits in a group naming the depiction it shows (`data-depiction`), and the tests check both
+    ways: everything drawn is a depiction in the file, and every depiction in the file is drawn. Nothing the book
+    doesn't describe is drawn from memory: blood parts are words inside the vessel, cells are plain rounded shapes,
+    "more" is shown as more of something, and the pump has no ion counts and no ATP. The ECF carries no number, because
+    the book's 40% is of body weight, not body fluid.
+  - **Steps and captions:** `DiagramPlayer` now passes the current step to the drawing, which adds each step's parts.
+    Captions are only labels joined by ": " and " · ". The description under a drawing is its depictions' wording.
+  - **Drafts:** `VisualDiagram` shows nothing for a draft unless `allowDraft` is set, which only review screenshots
+    use. The review sheet is a private page for Christian, linked from the pull request.
+
+  Reason: a drawing can't show more than the approved source says, and a test proves it.
+
+- **D-89** Overnight merges into `staging` on Christian's behalf (Christian, 2026-11-01, about 1:00 am Phoenix: "whatever
+  can be merged ... merge it on my behalf to avoid bottlenecks", choosing "everything but rules").
+  - **What:** during the director's 18-minute check-ins, the director merges held pull requests into `staging`:
+    database changes, content drafts and samples, and new packages. Only after every check passed (including the
+    Database check for `supabase/`), Codex's review of the exact head is clean, and the director has read the diff.
+  - **Never:** workflows (`.github/`), the rule files (CLAUDE.md, AGENTS.md, SECURITY.md), `automation.json`, the
+    auto-merge code, `wrangler.jsonc`, anything into `main`, and approving a draft visual's words. Releases stay
+    Christian's (D-80).
+  - **Why not the bot:** the auto-merge runs from `main`, so changing its rules tonight would need a release of all of
+    `staging` to the live site first.
+  - **Ends** when the 12-hour session ends (about 20:00Z, 2026-11-01); each merge is listed in the daily report.
+
+  Reason: Christian's order, kept to the test site and away from anything that changes what the robots may do.
+

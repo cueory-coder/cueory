@@ -18,7 +18,9 @@
     { "id": "albumin", "text": "albumin", "source": "orn-15-2-oncotic" },
     { "id": "interstitial", "text": "interstitial compartment", "source": "orn-15-2-arterial-end" },
     { "id": "intravascular", "text": "intravascular compartment", "source": "orn-15-2-salty-shift" },
-    { "id": "intracellular", "text": "intracellular compartment", "source": "orn-15-2-salty-shift" }
+    { "id": "intracellular", "text": "intracellular compartment", "source": "orn-15-2-salty-shift" },
+    { "id": "water-movement", "text": "water movement", "source": "orn-15-2-osmosis" },
+    { "id": "larger-blocked", "text": "larger particles are blocked", "source": "orn-15-2-membrane" }
   ],
   "depictions": [
     {

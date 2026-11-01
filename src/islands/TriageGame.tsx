@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { dayLabel } from './daily';
+import { localDay, reportRound } from './gameresults';
 import { dayNumber, puzzleForDay } from './pulse';
 import {
   answerInWords,
@@ -56,9 +57,15 @@ export default function TriageGame({ puzzles }: Props) {
     tray.current?.querySelector('button')?.focus();
   });
 
-  // When the round ends, focus moves to the result so it is read out, and the share button is next.
+  // When the round ends, focus moves to the result so it is read out, and the share button is next. The round is also
+  // reported once, for the stats panel, which keeps it only if the student has turned stats on (D-76).
+  const reported = useRef(false);
   useEffect(() => {
-    if (state.status !== 'playing') result.current?.focus();
+    if (state.status === 'playing') return;
+    result.current?.focus();
+    if (reported.current) return;
+    reported.current = true;
+    reportRound({ game: 'triage', day: localDay(today), solved: state.status === 'sorted', tries: state.slips });
   }, [state.status]);
 
   if (!puzzle) return <p>no puzzle today.</p>;
