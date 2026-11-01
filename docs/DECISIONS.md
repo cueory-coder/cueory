@@ -465,6 +465,17 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   only approved visuals can appear on a page (`approvedOnly`), each visual shows the credit WisTech Open's terms ask
   for (`creditsFor`), and every overlay says "simplified for learning" (`notesFor`). Reason: no picture can ship with
   a word its cited source doesn't state.
+- **D-69** Guest progress and onboarding (Task C2, ROADMAP Task 4). One versioned record in the browser's local storage
+  (`cueory-progress`, `src/scripts/progress.ts`) holds only the two optional setup answers (course, exam date) and, per
+  card deck, the "know it" / "still learning" piles and the stars (CLAUDE.md rule 2). Reading drops anything unknown or
+  invalid field by field and never throws; blocked storage just means nothing is remembered. Stars saved before this
+  under `cueory-stars-<deck>`, for any deck (including ones no longer on the site), move into the record when a card
+  deck or `/progress` opens, and "forget" removes any that remain. `/start` asks the
+  two questions (each optional, "skip for now" keeps earlier answers); `/progress` shows everything kept, downloads it
+  as a JSON file and forgets it after a confirm step (the theme pick and promo date aren't progress and stay). The ☰
+  "my progress" link now opens `/progress`. Nothing leaves the device until accounts exist (Task 2), which will
+  import this record. The review scheduler (Task 8) reads it through `readProgress` and `deckProgress` only.
+  `/privacy` says exactly what is kept. Reason: ROADMAP Task 4 and the coordinator's Task C2 brief.
 - **D-70** The crossword on `/play` (internal id `cueword`; shown as "crossword", D-66). A Codex helper built the engine
   and board (#51): the usual numbering, typing that skips gaps, checking a word or the whole grid with a symbol and
   words for each mark, up to three cues that each fill in one letter and lock it, and a plain-words share line ("cueory
@@ -574,6 +585,28 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
     merges into main. Cloudflare Workers Builds' 3,000 free build minutes still apply, so the push discipline stays.
 
   Reason: free CI at full speed, with nothing private in the repository.
+- **D-76** Private stats for the daily games on `/play` (ROADMAP Task 7: stats are optional and private, with no
+  streak guilt). A "your stats" panel sits under the four games, off until the student turns on its switch ("keep my
+  stats on this device").
+  - **What it keeps:** for each finished round, the puzzle's day in the visitor's own time zone, whether it was solved,
+    and its tries: beats for pulse, slips for sort, cues for the crossword and loose stitches for word path. It follows
+    the helper's rules in `src/islands/gamestats.ts` (#70): the first result of each game and day counts. Results older
+    than 400 days, by today's date, are deleted the next time `/play` opens.
+  - **Where:** only in this browser, under one storage key (`cueory-game-stats`). Its presence is what "on" means, so
+    turning stats off deletes it. Nothing is ever sent anywhere. Each change starts from what storage holds at that
+    moment, so turning stats off in one tab holds in every other open tab too. A round that waits to be kept (while
+    stats are off, or while the panel loads) waits in one list on the page, which is emptied whenever another tab
+    changes the stats, so it can't be kept later.
+  - **What it shows:** per game, the days played and solved, and the tries in words. No streaks, no comparisons and no
+    scores. "forget" for one game, "forget all my stats" and turning the switch off delete what was kept, and keyboard
+    focus stays in the panel.
+  - **How the games report:** a finished round sends a browser event (`cueory:game-result`), so no game touches storage
+    itself. A round finished just before the student turns stats on still counts, and so does one finished before the
+    panel's own code has loaded: it waits in memory on the page until the panel takes it.
+  - `/privacy` says all of this, in its "Right now" section.
+
+  Reason: Christian's daily-games request (stats that are optional and private), within the privacy rule that only
+  study progress is kept.
 
 - **D-72** The visuals kit's first batch is reviewed in two steps, words first and drawings second. Its three source
   files (body fluid compartments; osmosis and fluid shifts; the sodium-potassium pump) list every label and everything
@@ -652,3 +685,143 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
     Christian merges it. The pre-launch auto-merge into `staging` (D-42) is unchanged.
 
   Reason: Christian's calls on the three open questions (D-57 and the auto-release question on issue #4).
+
+- **D-84** Task 2's third database change: concepts, sources and rights records (Task C6, step 1; follows D-73 and
+  D-77, copying #76's pattern). The Supabase docs read first: "Row Level Security" (always name the role in a policy
+  with `to`; wrap `auth.uid()` in a select) and "Testing Your Database" (`set local role`, JWT claims, `begin` and
+  `rollback`).
+  - **`concepts` and `sources`:** public once published. Visitors and students may only read rows marked `published`
+    (a policy with `to anon, authenticated`); nobody on the website can add, change or delete. Only the service role
+    writes, as the admin tools and import jobs will. A source is a credit line, so a published one is public.
+  - **`rights_records`:** Christian's private record of why an image may be used (ROADMAP Task 4c). It is admin data
+    (CLAUDE.md rule 1), so `anon` and `authenticated` get no grant at all, not even to read. A record names its source,
+    the holder, the licence and where the licence was checked; "verified" always comes with a date (never in the
+    future). A source with a record can't be deleted. It also has an explicit restrictive policy (`using (false)`, for
+    `anon` and `authenticated`) on top of having no grants, so the rule is written down and survives a later grant by
+    mistake (Codex review of #90).
+  - **Shapes:** slugs are lowercase words with dashes, up to 80 characters (`public.slug`, one rule for every table
+    that needs one); titles 1 to 200 characters with no control characters; every address is a plain `https://` link
+    with no spaces, so a source can't carry a script or a `data:` address. No data is in the migration: the repository
+    is public (D-75).
+  - **Tests:** `supabase/tests/database/concepts_sources_rights_test.sql`, 35 checks: the exact grants, what a visitor,
+    a student and the service role can really read and write, every shape rule, and the foreign keys. The lockdown
+    test now lists the two tables a visitor may read, SELECT only, and fails if the list gets longer without a
+    reviewer seeing it. Each check was seen failing when a grant, a policy or row-level security was weakened.
+  - **Run locally without Docker:** the Mac has no Docker, so these ran on PGlite (Postgres 17 in WebAssembly) with a
+    small pgTAP look-alike for the few functions the tests use, with Supabase's old grant-everything defaults as the
+    worst case. That stands in for, and doesn't replace, the Database check, which runs the real pgTAP on Supabase's
+    Postgres. The first real run found two places where the real pgTAP is stricter (`results_eq` won't compare a
+    `slug` column with text, so tests cast to `text`; a delete blocked by a foreign key reports 23503), so later steps
+    in this stack write tests that way from the start.
+
+  Reason: the director's request on #11 (Task C6), following D-73's schema order.
+
+- **D-85** Task 2's fourth database change: items and their versions (Task C6, step 2, stacked on D-84). Follows D-33
+  (a real answer key never reaches the browser), D-45 (select-all-that-apply is all-or-nothing) and D-73.
+  - **Where the key lives:** the stem and choices a student sees are in `item_versions` and `item_choices`, which the
+    website can read for a published version only. Which choices are right, and each choice's rationale, are in
+    `item_answers`, which no website role can read at all: no grant, row-level security on, and a test that tries both
+    roles, plus an explicit restrictive policy (`using (false)`, for `anon` and `authenticated`) so the rule is written
+    down and survives a later grant by mistake (Codex review of #90). `check_answer` (next step) reads it and returns
+    it only after an attempt.
+  - **What the website may read:** `items` that have a published version; from `item_versions` only `id`, `item_id`,
+    `version`, `stem` and `status` (`status` because the policies on items and choices look at it, and a policy's
+    subquery runs with the reader's privileges; every visible row is published anyway); the choices of a published
+    version. The source and dates stay closed. Only the service role writes.
+  - **Two gaps found in review, now closed (Codex and the lead on #92):** moving a choice or an answer to another
+    version counts as changing both, so both versions must be drafts (it can't empty a published version's key); and a
+    question's `type` can't change once any version has been published or retired (a trigger on `items`).
+  - **Editing while publishing (Codex P2 on #92):** an edit of a version's choices or answers locks that version row
+    `for share` until it commits, and publishing locks it `for update` first and then counts. So one waits for the
+    other: a publication can't count a key that a half-finished edit is changing, and an edit can't slip in after
+    publication. The same holds for a question's type: publishing reads it `for share`, and a type change takes the item
+    row `for update` before it looks for published versions. A single pgTAP session can't run two transactions at
+    once, so this is checked by reading the locking statements, not by a test.
+  - **Versions:** editing an item makes a new version (ROADMAP Task 2). A version is a draft, published or retired. One
+    version of an item is published at a time (a partial unique index). A published or retired version's stem and source
+    can't change, and its choices and answers can't be added, changed or deleted; a retired version can't come back.
+  - **Publishing needs a complete version** (a trigger, so it holds whoever writes): a source, two to five choices, an
+    answer row with a rationale for each choice, and one right answer for a single question or at least one for
+    select-all. A version can't be created already published.
+  - **Left for later:** risk level and public label are in the roadmap's admin table but not defined anywhere yet, so
+    I haven't invented values for them; they come with `reviews` and the admin area. The trigger functions revoke
+    `execute` from `public`, `anon` and `authenticated`, as D-73 requires.
+  - **Tests:** `supabase/tests/database/items_test.sql`, 56 checks: the exact grants (including per column), what
+    a visitor, a student and the service role can read and write, every publishing rule, immutability and the shapes.
+    The lockdown test's list of tables a visitor may read now has the three new public ones, and still not `item_answers`.
+    Each of four weakened versions (key readable, drafts visible, answers editable after publish, publishing without
+    completeness) was seen failing.
+
+  Reason: the director's request on #11 (Task C6), following D-73's schema order.
+
+- **D-86** Task 2's fifth database change: attempts and `check_answer` (Task C6, step 3, stacked on D-85). Follows D-33,
+  D-45 and D-73, and Supabase's "Database Functions" docs (`security definer` with a fixed `search_path`; revoke
+  `execute` from `public` and `anon`).
+  - **`check_answer(item_id, version_id, picked)`** is the only way the browser learns an answer. A signed-in student
+    sends the question, the version they were shown (its `id`, which they can read) and the choice letters they
+    picked. It refuses an item with no published version, and bad input (no picks, the same choice
+    twice, a letter the question doesn't have, more than one pick for a single-answer question, more than five), all
+    before anything is recorded or revealed. Then it checks the picks against the key (select-all is all-or-nothing,
+    and the order of picks doesn't matter), records the attempt, and returns `correct`, the `key`, every choice's
+    `rationales` and the `version_id` it checked. It is `security definer`, `set search_path = ''`, with `execute`
+    revoked from everyone and granted back to `authenticated` by name.
+  - **Bound to the version the student saw (Codex review of #94):** `check_answer` takes the `version_id` the student
+    was shown. If the question has been updated since (the published version is now another one), it refuses with
+    error 55000, grades nothing and records nothing, so a student is never graded on a question they didn't see; the
+    page reloads and asks again. This adds a parameter to the signature the plan sketched, `check_answer(item_id,
+    picked)`; clients call it by name with `item_id`, `version_id` and `picked`.
+  - **`attempts`:** one row per checked answer: the student, the version, the sorted picks and whether it was right. A
+    student reads only their own rows (`to authenticated`, `(select auth.uid()) = user_id`); nobody on the website
+    writes; deleting an account deletes its attempts.
+  - **Rate limit:** 200 checks an hour per person, counted from their own attempts and guarded by a per-person
+    advisory lock so two quick calls can't both slip under it. The 201st gets error 54000. Other students aren't
+    affected, and attempts older than an hour stop counting.
+  - **For Christian to confirm: signed-in only.** `check_answer` hands out the key after one attempt, so unlimited
+    callers could walk the whole question bank, and a signed-out visitor has no identity to limit. A CAPTCHA would load
+    a third-party script (CLAUDE.md), the same reason D-73 gives for reports. So guests keep studying the sample modes
+    in the browser, and real questions need a free account. If he wants guests to answer real questions, that needs his
+    decision on a CAPTCHA exception.
+  - **A small change to the plan:** attempts moved from step 4 into this step, because `check_answer` writes them and
+    counts them for the limit, and a function that can't record or limit would have to be rewritten next step. Step 4
+    is now `review_state` and `exam_plans`.
+  - **Tests:** `supabase/tests/database/check_answer_test.sql`, 48 checks: who may run it, right and wrong answers, the
+    key and rationales after an attempt, select-all in any order, every refusal recording nothing, own-rows-only,
+    direct writes refused, the limit at 200 (not 201, not for others, not for old attempts) and cascade delete. The
+    lockdown test's allowed-function list now names `check_answer`, and a new check requires every `security definer`
+    function in `public` to have an empty `search_path`. Four weakened versions (visitors may run it, no limit,
+    select-all as any-match, nothing recorded) each failed.
+
+  Reason: the director's request on #11 (Task C6), following D-73's schema order.
+
+- **D-81** The visuals kit's drawings show only their source file's words and depictions (Task C5, first batch).
+  - **Words:** every word on a drawing is a label from `content/visuals/<id>.json`, drawn through `Label`
+    (`src/visuals/drawings/parts.tsx`), so a word that isn't a label stops the build. Words a depiction needed but no
+    label held (the transcellular areas, the parts of whole blood, what a cell holds, "ICF", "ECF", "water movement",
+    "larger particles are blocked") were added as labels, each the book's own words from a sentence Christian already
+    approved, and each checked against its quote by the unit tests.
+  - **Shapes:** every shape sits in a group naming the depiction it shows (`data-depiction`), and the tests check both
+    ways: everything drawn is a depiction in the file, and every depiction in the file is drawn. Nothing the book
+    doesn't describe is drawn from memory: blood parts are words inside the vessel, cells are plain rounded shapes,
+    "more" is shown as more of something, and the pump has no ion counts and no ATP. The ECF carries no number, because
+    the book's 40% is of body weight, not body fluid.
+  - **Steps and captions:** `DiagramPlayer` now passes the current step to the drawing, which adds each step's parts.
+    Captions are only labels joined by ": " and " · ". The description under a drawing is its depictions' wording.
+  - **Drafts:** `VisualDiagram` shows nothing for a draft unless `allowDraft` is set, which only review screenshots
+    use. The review sheet is a private page for Christian, linked from the pull request.
+
+  Reason: a drawing can't show more than the approved source says, and a test proves it.
+
+- **D-89** Overnight merges into `staging` on Christian's behalf (Christian, 2026-11-01, about 1:00 am Phoenix: "whatever
+  can be merged ... merge it on my behalf to avoid bottlenecks", choosing "everything but rules").
+  - **What:** during the director's 18-minute check-ins, the director merges held pull requests into `staging`:
+    database changes, content drafts and samples, and new packages. Only after every check passed (including the
+    Database check for `supabase/`), Codex's review of the exact head is clean, and the director has read the diff.
+  - **Never:** workflows (`.github/`), the rule files (CLAUDE.md, AGENTS.md, SECURITY.md), `automation.json`, the
+    auto-merge code, `wrangler.jsonc`, anything into `main`, and approving a draft visual's words. Releases stay
+    Christian's (D-80).
+  - **Why not the bot:** the auto-merge runs from `main`, so changing its rules tonight would need a release of all of
+    `staging` to the live site first.
+  - **Ends** when the 12-hour session ends (about 20:00Z, 2026-11-01); each merge is listed in the daily report.
+
+  Reason: Christian's order, kept to the test site and away from anything that changes what the robots may do.
+

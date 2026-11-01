@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { dayLabel } from './daily';
+import { localDay, reportRound } from './gameresults';
 import {
   checkAll, checkWord, currentWord, emptyState, erase, isSolved, move, nextWord, numbering,
   parsePuzzle, previousWord, revealCue, selectCell, shareLine, toggleDirection, type, words,
@@ -45,6 +46,14 @@ function Board({ puzzle, name }: Props) {
     else if (focusGrid.current) cells.current.get(state.cell)?.focus();
     focusGrid.current = false;
   }, [state, solved]);
+
+  // A solved grid is reported once, for the stats panel, which keeps it only if the student turned stats on (D-76).
+  const reported = useRef(false);
+  useEffect(() => {
+    if (!solved || reported.current) return;
+    reported.current = true;
+    reportRound({ game: 'cueword', day: localDay(today), solved: true, tries: state.cued.length });
+  }, [solved]);
 
   const update = (next: CuewordState, focus = true) => {
     if (!solved && isSolved(next)) setElapsed(Math.floor((Date.now() - started.current) / 1000));

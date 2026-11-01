@@ -145,9 +145,24 @@ Merged into `staging` tonight (pulse and sort were already live; the rest reache
 - Christian's decisions (D-80): the 3D atlas is BodyParts3D; OpenStax is link-only; releases stay manual.
 
 ## In review
+- Task 2, database step 3 (Task C6, D-86, stacked on #92): `attempts` and `check_answer`, with 43 database tests. A
+  signed-in student sends their picks and, only after the attempt is recorded, gets right or wrong, the key and the
+  rationales. 200 checks an hour per person. It is signed-in only, which needs Christian's confirmation (D-86). It
+  edits `supabase/`, so it waits for him.
+- Task 2, database step 2 (Task C6, D-85, stacked on #90): `items`, `item_versions`, `item_choices` and `item_answers`,
+  with 49 database tests. Students read a published version's stem and choices; the key and rationales are closed to
+  every website role. A version can be published only when complete and never changes after. It edits `supabase/`,
+  so it waits for Christian.
+- Task 2, database step 1 (Task C6, D-84): `concepts`, `sources` and `rights_records`, with 34 database tests. Visitors
+  and students read only published concepts and sources; nobody on the website can write; rights records are closed
+  to every website role. It edits `supabase/`, so it waits for Christian. Steps 2 to 5 stack on it: items, then
+  `check_answer`, then attempts and exam plans, then flags.
 - [Concept map](https://github.com/lilchristxan/Cueory/pull/68) (Task 14): every concept in a unit with its status in
   words and a shape (an empty circle, a quarter, a half or a check), never color alone, with a filter by status. No
   scores or predictions.
+- Visuals kit, the first batch's drawings (Task C5, D-81): body fluid compartments, osmosis and fluid shifts, and
+  the sodium-potassium pump, drawn only from their approved source files and checked by tests. Drafts, so nothing shows
+  on a page until Christian approves them; his review sheet is linked from the pull request.
 - Open pull requests add their own lines here: study modes on pages (#77), guest progress (#74), game stats on
   `/play` (#79), the Safari preview fix (#88) and Release browser tests (#55).
 
