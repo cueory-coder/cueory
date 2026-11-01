@@ -1086,6 +1086,38 @@ test.describe('site search in the ☰ panel (D-49)', () => {
   });
 });
 
+test.describe('social links (D-54)', () => {
+  test("the footer and the ☰ panel link to cueory's profiles in a new tab, only where an address is set", async ({
+    page,
+  }) => {
+    await page.goto('/privacy');
+    const footer = page.getByRole('contentinfo');
+    const expected: Record<string, string> = {
+      instagram: 'https://instagram.com/cueory',
+      tiktok: 'https://tiktok.com/@cueory',
+      youtube: 'https://youtube.com/@cueory',
+    };
+    await expect(footer.locator('[data-social]')).toHaveCount(3);
+    for (const [id, href] of Object.entries(expected)) {
+      const link = footer.locator(`[data-social="${id}"]`);
+      await expect(link).toHaveAttribute('href', href);
+      await expect(link).toHaveAttribute('target', '_blank');
+      await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+      // The mark is drawn inline from our own page, never loaded from the platform.
+      await expect(link.locator('svg path')).toHaveCount(1);
+      const box = (await link.boundingBox())!;
+      expect(box.width).toBeGreaterThanOrEqual(44);
+      expect(box.height).toBeGreaterThanOrEqual(44);
+    }
+    await expect(footer.getByRole('link', { name: 'cueory on Instagram (opens in a new tab)' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'menu' }).click();
+    await expect(page.getByTestId('site-menu').locator('[data-social]')).toHaveCount(3);
+    const axe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+    expect(axe.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+  });
+});
+
 test.describe('without JavaScript, the corners', () => {
   test.use({ javaScriptEnabled: false });
 

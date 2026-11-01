@@ -288,3 +288,12 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   without it. With the taller sections, the carousel's auto-advance now pauses only while a mouse rests on the cards or
   their buttons (or keyboard focus is inside), not anywhere over the section, which on a computer would have stopped it
   for good. Study screens are unchanged. Reason: Christian's request.
+- **D-54** Social links (Christian's change request, 2026-10-31, 1:15 pm). The footer and the bottom of the ☰ panel link
+  to Cueory's profiles, each as its platform's official one-color mark, opening in a new tab with `rel="noopener
+  noreferrer"` and named for screen readers ("cueory on Instagram (opens in a new tab)"). The addresses live in
+  `src/config/site.ts` (`socials`), and only filled-in ones show: Instagram, TikTok and YouTube (the defaults Christian
+  is confirming); X and Facebook stay empty until he confirms them. The marks come from Simple Icons (CC0;
+  `simple-icons`, pinned, a build-time package), so each is drawn inline from our own page and nothing loads from the
+  platforms until someone clicks; the platforms' own brand guidelines allow one-color marks that link to a profile. Each
+  link is a 44 px target, in the text color (the ☰ panel's light ink there). The promo panel gets the same links in its
+  own pull request. Reason: Christian's request.

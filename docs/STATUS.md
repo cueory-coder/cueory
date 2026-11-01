@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-10-31
+Last updated: 2026-11-01
 
 ## Done
 - Static site: Astro + React islands + TypeScript + Tailwind, static output, tested at phone and desktop sizes.
@@ -55,24 +55,24 @@ Last updated: 2026-10-31
     [select-all-that-apply in the batch checker](https://github.com/lilchristxan/Cueory/pull/19) (D-45), the first
     pull requests the pre-launch auto-merge took on its own.
   - [Rollback guide](https://github.com/lilchristxan/Cueory/pull/22) in `docs/SETUP.md`.
-- In `staging`, waiting for the next release ([#26](https://github.com/lilchristxan/Cueory/pull/26), open for Christian):
+- Fourth release 31 Oct ([#26](https://github.com/lilchristxan/Cueory/pull/26)), merged by Christian; live on `main`:
   [home hero, ☰ side panel and account corner](https://github.com/lilchristxan/Cueory/pull/24) in the all-lowercase
   voice (D-46, D-47), with phone, tablet and desktop browser tests (D-48), [search in the ☰ panel](https://github.com/lilchristxan/Cueory/pull/27)
-  (D-49) and the ["ways to study" carousel](https://github.com/lilchristxan/Cueory/pull/28) (D-50).
+  (D-49), the ["ways to study" carousel](https://github.com/lilchristxan/Cueory/pull/28) (D-50), its
+  [preview and hover zoom](https://github.com/lilchristxan/Cueory/pull/29) (D-51), the
+  [silk scenes](https://github.com/lilchristxan/Cueory/pull/32) (D-53) and the
+  [med-surg lesson map](https://github.com/lilchristxan/Cueory/pull/31) (docs only).
+- In `staging`, waiting for the next release: [auto-merge hardening](https://github.com/lilchristxan/Cueory/pull/30)
+  (D-52), merged by Christian. Before launch the bot now also holds changes to package.json `scripts`, `engines` and
+  `packageManager`, and lockfile changes that add a package, an install script or a download from outside the npm
+  registry; version bumps of existing packages still merge themselves.
 
 ## In review
-- Auto-merge hardening (D-52): before launch the bot now also holds changes to package.json `scripts`, `engines` and
-  `packageManager`, and lockfile changes that add a package, an install script or a download from outside the npm
-  registry. Version bumps of existing packages still merge themselves. Edits `scripts/automerge/`, so Christian
-  approves and merges it.
-- [Study-mode preview and hover zoom](https://github.com/lilchristxan/Cueory/pull/29) (D-51): a card grows into a
-  preview with its moving illustration, two plain lines, "try it" and the free-account link; X, Escape, the darkened
-  page or a swipe down closes it. The auto-merge takes it once it is clean.
-- Silk scenes down the home page (D-53): the hero, "ways to study" and the launch-updates panel are three scenes of one
-  silk, with numbered sections, a figure caption and one thin rhythm line. The auto-merge takes it once it is clean.
+- [Social links](https://github.com/lilchristxan/Cueory/pull/33) (D-54): Instagram, TikTok and YouTube marks in the
+  footer and the ☰ panel. It adds a package (`simple-icons`), so it waits for Christian's merge.
 
 ## Queued (Christian's change requests on issue #4, in his order)
-1. Social links (Simple Icons), then the once-only promo panel.
+1. The once-only promo panel.
 2. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
 3. Auto-release (`staging` into `main` in pre-launch mode), after the change requests.
 

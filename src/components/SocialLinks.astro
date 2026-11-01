@@ -1,0 +1,41 @@
+---
+/**
+ * Cueory's social profiles (D-54): each platform's official one-color mark from Simple Icons (CC0, a build-time
+ * package, so the marks are drawn inline from our own page and nothing loads from the platforms), linking to the
+ * profile in a new tab. Only profiles with an address in `src/config/site.ts` show. Each link is a 44 px target.
+ */
+import { siFacebook, siInstagram, siTiktok, siX, siYoutube } from 'simple-icons';
+import { socials } from '../config/site';
+
+interface Props {
+  /** The ☰ panel's light ink instead of the page's. */
+  panel?: boolean;
+}
+
+const { panel = false } = Astro.props;
+const marks = { instagram: siInstagram, tiktok: siTiktok, youtube: siYoutube, x: siX, facebook: siFacebook } as const;
+const shown = socials.filter((social) => social.href);
+---
+
+{
+  shown.length > 0 && (
+    <ul class="-ms-3 flex flex-wrap gap-1" aria-label="cueory elsewhere">
+      {shown.map((social) => (
+        <li>
+          <a
+            href={social.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            class:list={['social-link', panel && 'social-link-panel']}
+            aria-label={`cueory on ${social.name} (opens in a new tab)`}
+            data-social={social.id}
+          >
+            <svg viewBox="0 0 24 24" class="size-5" aria-hidden="true" focusable="false">
+              <path d={marks[social.id].path} fill="currentColor" />
+            </svg>
+          </a>
+        </li>
+      ))}
+    </ul>
+  )
+}
