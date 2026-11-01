@@ -185,6 +185,17 @@ Merged into `staging`; the database ones by the director on Christian's behalf (
   `/admin` (ROADMAP Task 2, D-34). Uses the fallback row shape since PR #110 had not merged when this was written.
   Pure logic: no page, no network, no database. 22 unit tests.
   [In review](https://github.com/lilchristxan/Cueory/pull/120).
+- Task 37: `checkDisplayName(input)` — mirrors both database constraints from the profiles migration (1–50 code
+  points, no control characters). Trims leading/trailing spaces before validating; counts code points correctly for
+  emoji and accented letters. 17 unit tests.
+  [In review](https://github.com/lilchristxan/Cueory/pull/121).
+- Task 38: `studentMessage(fn, error)` — maps all 14 RPC error messages (`check_answer` and `submit_flag`) to calm
+  student-facing sentences. Never echoes SQL, table names, or SQLSTATE codes. 19 unit tests.
+  [In review](https://github.com/lilchristxan/Cueory/pull/122).
+- Task 39: `visualsForLesson(visuals, lessonId)` and `missingDrawings(visuals)` — returns approved visuals for a
+  lesson that have a drawing in the registry; drafts are never returned. Live batch-1 import test confirms all
+  current content files are drafts. 15 unit tests.
+  [In review](https://github.com/lilchristxan/Cueory/pull/123).
 - Open pull requests add their own lines here. Waiting now: study modes on pages (#77), export-my-data (#95, Task 19),
   lesson videos (#97, Task C3), the 3D viewer shell (#98, Task C4), the Supabase settings reader (#101, Task 22),
   delete-account checks (#105, Task 25), the daily puzzle checker (#108), database step 5, flags and `submit_flag`
