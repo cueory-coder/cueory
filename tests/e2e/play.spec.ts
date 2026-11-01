@@ -37,7 +37,7 @@ test.describe('daily games: pulse (D-61)', () => {
     await expect(page.getByRole('heading', { level: 2, name: 'pulse' })).toBeVisible();
     await expect(page.getByTestId('sample-note')).toHaveText("today's word is a sample.");
     await expect(page.getByText('a 6-letter word · 7 of 7 beats left')).toBeVisible();
-    for (const name of ['cueword', 'triage', 'suture']) await expect(page.getByText(name, { exact: true })).toBeVisible();
+    for (const name of ['crossword', 'sort', 'word path']) await expect(page.getByText(name, { exact: true })).toBeVisible();
     const results = await axe(page);
     expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -182,7 +182,7 @@ test.describe('daily games: triage (D-63)', () => {
   });
 
   test('pick a term, then its group: a right place shows it there with ✓, and axe passes', async ({ page }) => {
-    await expect(page.getByRole('heading', { level: 2, name: 'triage' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: 'sort' })).toBeVisible();
     await expect(page.getByTestId('triage-sample-note')).toHaveText("today's terms are a sample.");
     await expect(page.getByTestId('triage-status')).toHaveText('10 terms to sort · 3 slips left');
     await term(page, 'mango').click();
@@ -231,7 +231,7 @@ test.describe('daily games: triage (D-63)', () => {
       'furniture: chair, sofa, desk.',
       'none of these: violin.',
     ]);
-    await expect(result).toContainText('cueory triage, sun 1 nov: not sorted this time.');
+    await expect(result).toContainText('cueory sort, sun 1 nov: not sorted this time.');
     await expect(page.getByRole('list', { name: 'terms to sort' })).toHaveCount(0);
     await expect(page.getByTestId('triage-status')).toHaveCount(0);
     await expect(place(page, 'fruits')).toBeDisabled();
@@ -263,9 +263,9 @@ test.describe('daily games: triage (D-63)', () => {
     const result = page.getByTestId('triage-result');
     await expect(result).toBeFocused();
     await expect(result).toContainText('sorted.');
-    await expect(result).toContainText('cueory triage, sun 1 nov: sorted with no slips.');
+    await expect(result).toContainText('cueory sort, sun 1 nov: sorted with no slips.');
     await result.getByRole('button', { name: 'copy my result' }).click();
-    await expect(result).toContainText('cueory triage, sun 1 nov: sorted with no slips.');
+    await expect(result).toContainText('cueory sort, sun 1 nov: sorted with no slips.');
     await expect(result.getByText('a new puzzle comes tomorrow.')).toBeVisible();
     // Each group lists its terms in the order they were dealt, each with ✓.
     for (const [group, terms] of Object.entries(answer)) {
@@ -290,7 +290,7 @@ test.describe('daily games without JavaScript', () => {
   test('pulse and triage say they need JavaScript', async ({ page }) => {
     await page.goto('/play');
     // Playwright's text matching skips <noscript>, so this uses CSS.
-    await expect(page.locator('noscript p')).toHaveText(['pulse needs JavaScript.', 'triage needs JavaScript.']);
+    await expect(page.locator('noscript p')).toHaveText(['pulse needs JavaScript.', 'sort needs JavaScript.']);
     await expect(page.getByTestId('sample-note')).toBeVisible();
     await expect(page.getByTestId('triage-sample-note')).toBeVisible();
   });
