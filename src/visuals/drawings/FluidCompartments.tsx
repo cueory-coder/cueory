@@ -7,8 +7,9 @@
  * their labels, so color is never the only signal.
  */
 import type { ReactNode } from 'react';
-import { labelText, type Visual } from '../sources';
-import { wrapLines, type DrawingStep } from '../drawing';
+import type { Visual } from '../sources';
+import type { DrawingStep } from '../drawing';
+import { Label, type LabelProps } from './parts';
 
 export const steps: readonly DrawingStep[] = [
   {
@@ -39,38 +40,16 @@ interface Props {
 }
 
 export default function FluidCompartments({ visual, shown = steps.length, idPrefix = 'fluid-compartments' }: Props) {
-  const label = (id: string) => labelText(visual, id);
   const lines = idPrefix + '-icf-lines';
   const dots = idPrefix + '-ecf-dots';
   const barX = 8;
   const barWidth = WIDTH - 16;
   const icfWidth = barWidth * ICF_SHARE;
 
-  /** One label, wrapped onto as many lines as it needs. */
-  const text = (
-    id: string,
-    x: number,
-    y: number,
-    options: { size?: number; max?: number; anchor?: 'start' | 'middle' | 'end'; strong?: boolean; soft?: boolean } = {},
-  ): ReactNode => {
-    const { size = 15, max = 40, anchor = 'start', strong = false, soft = false } = options;
-    return (
-      <text
-        data-label={id}
-        x={x}
-        y={y}
-        fontSize={size}
-        textAnchor={anchor}
-        className={`${soft ? 'fill-ink-soft' : 'fill-ink'} ${strong ? 'font-semibold' : ''}`}
-      >
-        {wrapLines(label(id), max).map((line, index) => (
-          <tspan key={index} x={x} dy={index === 0 ? 0 : size * 1.25}>
-            {line}
-          </tspan>
-        ))}
-      </text>
-    );
-  };
+  /** One label from the source file, wrapped onto as many lines as it needs. */
+  const text = (id: string, x: number, y: number, options: Omit<LabelProps, 'visual' | 'id' | 'x' | 'y'> = {}): ReactNode => (
+    <Label visual={visual} id={id} x={x} y={y} {...options} />
+  );
 
   return (
     <svg

@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest';
 import fluidCompartmentsFile from '../../content/visuals/fluid-compartments.json';
 import { captionFrom, describedParts, playerSteps, wrapLines, type DrawingStep } from '../../src/visuals/drawing';
 import FluidCompartments, { steps as fluidSteps } from '../../src/visuals/drawings/FluidCompartments';
+import OsmosisFluidShifts, { steps as osmosisSteps } from '../../src/visuals/drawings/OsmosisFluidShifts';
+import osmosisFile from '../../content/visuals/osmosis-fluid-shifts.json';
 import { labelText, visualProblems, type Visual } from '../../src/visuals/sources';
 import { parseSteps } from '../../src/visuals/steps';
 
@@ -16,6 +18,11 @@ const drawings: { visual: Visual; steps: readonly DrawingStep[]; render: (shown?
     visual: fluidCompartmentsFile as Visual,
     steps: fluidSteps,
     render: (shown) => renderToStaticMarkup(createElement(FluidCompartments, { visual: fluidCompartmentsFile as Visual, shown })),
+  },
+  {
+    visual: osmosisFile as Visual,
+    steps: osmosisSteps,
+    render: (shown) => renderToStaticMarkup(createElement(OsmosisFluidShifts, { visual: osmosisFile as Visual, shown })),
   },
 ];
 
@@ -117,6 +124,24 @@ describe('body fluid compartments', () => {
     expect(captionFrom(visual, fluidSteps[0]!.caption)).toBe(
       'intracellular fluid (ICF): 60% of the volume of body fluids · extracellular fluid (ECF)',
     );
+  });
+});
+
+describe('osmosis and fluid shifts', () => {
+  const markup = renderToStaticMarkup(createElement(OsmosisFluidShifts, { visual: osmosisFile as Visual }));
+
+  it('has no energy symbol: the book calls osmosis passive transport', () => {
+    expect(markup).not.toMatch(/energy symbol|data-energy|⚡/);
+    expect(texts(markup).map(({ id }) => id)).toContain('passive');
+  });
+
+  it('shows more solute dots on the greater-concentration side than on the lesser one', () => {
+    const step1 = markup.slice(0, markup.indexOf('data-depiction="arterial-push'));
+    const dots = [...step1.matchAll(/<circle cx="(\d+)" cy="(\d+)" r="3"/g)].map(([, cx, cy]) => ({ x: Number(cx), y: Number(cy) }));
+    const inside = dots.filter(({ y }) => y > 36 && y < 212);
+    const lesser = inside.filter(({ x }) => x < 180).length;
+    const greater = inside.filter(({ x }) => x > 180).length;
+    expect(greater).toBeGreaterThan(lesser);
   });
 });
 
