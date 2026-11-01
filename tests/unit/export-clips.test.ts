@@ -100,14 +100,17 @@ describe('drawingBands', () => {
     expect(table[0]!.height).not.toBe(equal[0]!.height);
   });
 
-  it('sodium-potassium-pump step 2 band includes the pump (SVG y=190–266)', () => {
+  it('sodium-potassium-pump step 2 band starts before the heading and includes the pump (SVG y=190–266)', () => {
     // With equal-height bands the step-2 band starts at FRAME_HEIGHT/2, which is
     // past the pump at SVG y=190–266 (≈34–47% of 560). The table band must start
     // before the pump and extend past it.
+    // Additionally, the "active transport" heading sits at SVG y=24 (baseline);
+    // the band must start at SVG y=0 (pixel y=0) so the heading is not clipped.
     const bs = drawingBands('sodium-potassium-pump', 2);
     const scale = FRAME_HEIGHT / 560;
     const pumpStart = 190 * scale;
     const pumpEnd = 266 * scale;
+    expect(bs[1]!.y).toBe(0); // starts at top — includes full "active transport" heading
     expect(bs[1]!.y).toBeLessThanOrEqual(pumpStart);
     expect(bs[1]!.y + bs[1]!.height).toBeGreaterThanOrEqual(pumpEnd);
   });
@@ -434,10 +437,10 @@ describe('frameHtml drawing-inner geometry', () => {
 // ── rewriteFontUrls: file:// font paths (Fix 8 — Inter font on file:// pages) ─
 
 describe('rewriteFontUrls', () => {
-  it('rewrites /_astro/ font URLs to absolute file:// paths', () => {
+  it('rewrites /_astro/ font URLs to absolute file:// paths using CSS quoted string syntax', () => {
     const css = "src: url(/_astro/Inter-Bold.B1a2c3.woff2) format('woff2');";
     const result = rewriteFontUrls(css, '/abs/path/dist/_astro');
-    expect(result).toBe("src: url(file:///abs/path/dist/_astro/Inter-Bold.B1a2c3.woff2) format('woff2');");
+    expect(result).toBe("src: url(\"file:///abs/path/dist/_astro/Inter-Bold.B1a2c3.woff2\") format('woff2');");
   });
 
   it('rewrites multiple font URLs in one CSS string', () => {
@@ -446,6 +449,7 @@ describe('rewriteFontUrls', () => {
     expect(result).toContain('file:///dist/_astro/A.woff2');
     expect(result).toContain('file:///dist/_astro/B.woff2');
     expect(result).not.toContain('url(/_astro/');
+    expect(result).toContain('url("file://');
   });
 
   it('leaves non-font URLs unchanged', () => {
@@ -458,16 +462,30 @@ describe('rewriteFontUrls', () => {
     expect(rewriteFontUrls(css, '/dist/_astro')).toBe(css);
   });
 
-  it('percent-encodes spaces in path segments so the CSS url() value is valid', () => {
-    // An unquoted CSS url() cannot contain spaces. A repo in "/Users/chris/My Project/..."
-    // must produce url(file:///Users/chris/My%20Project/...) with encoded spaces.
+  it('percent-encodes spaces so the file: URL is well-formed, and uses CSS quoted string so parens/apostrophes are valid', () => {
+    // CSS double-quoted url() handles spaces (encoded as %20), parentheses, and
+    // apostrophes, all of which appear in real checkout directory names.
     const css = "src: url(/_astro/Inter-Bold.woff2) format('woff2');";
     const result = rewriteFontUrls(css, '/Users/christian/My Project/dist/_astro');
     expect(result).toContain('file:///Users/christian/My%20Project/dist/_astro/');
-    // The url() token itself must not contain a raw space (spaces are invalid in unquoted CSS urls).
-    const urlMatch = result.match(/url\([^)]+\)/);
+    // CSS string must be double-quoted so the url() is valid CSS.
+    expect(result).toContain('url("file://');
+    // No raw space inside the url("...") value.
+    const urlMatch = result.match(/url\("([^"]+)"\)/);
     expect(urlMatch).not.toBeNull();
-    expect(urlMatch![0]).not.toContain(' ');
+    expect(urlMatch![1]).not.toContain(' ');
+  });
+
+  it('handles parentheses in the checkout path (CSS double-quoted string allows them)', () => {
+    // encodeURIComponent preserves ( and ), so without CSS quoting a path like
+    // "pr111 (font probe)" would close the url() early. CSS double-quoting fixes this.
+    const css = "src: url(/_astro/Inter-Bold.woff2) format('woff2');";
+    const result = rewriteFontUrls(css, '/Users/christian/pr111 (font probe)/dist/_astro');
+    // Spaces encoded; parens kept as-is (valid in file: URLs and inside CSS strings).
+    expect(result).toContain('file:///Users/christian/pr111%20(font%20probe)/dist/_astro/');
+    expect(result).toContain('url("file://');
+    // The url() must be a complete well-formed token: url("...woff2").
+    expect(result).toMatch(/url\("file:\/\/[^"]+Inter-Bold\.woff2"\)/);
   });
 });
 

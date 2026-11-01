@@ -69,7 +69,7 @@ const DRAWING_STEP_BANDS_SVG: Record<
   ],
   'sodium-potassium-pump': [
     { y:  8, height: 460 }, // step 1: two-sides overview — ECF, membrane, ICF, key (8–468 of 560)
-    { y: 24, height: 524 }, // step 2: pump + transport — includes pump at 190–266 (24–548 of 560)
+    { y:  0, height: 548 }, // step 2: pump + transport — starts at 0 to include "active transport" heading (0–548 of 560)
   ],
 };
 
@@ -225,14 +225,20 @@ ${builtCss}
  * a `file://` page. Chromium cannot fetch `/_astro/Inter-*.woff2` from a local
  * file, so we replace those references with absolute `file://` paths.
  *
- * Example: `url(/_astro/Inter-Bold.woff2)` → `url(file:///abs/path/dist/_astro/Inter-Bold.woff2)`
+ * Example: `url(/_astro/Inter-Bold.woff2)` → `url("file:///abs/path/dist/_astro/Inter-Bold.woff2")`
  *
- * Path segments are percent-encoded so directory names containing spaces remain valid
- * in CSS url() unquoted values (spaces are invalid in unquoted url() syntax).
+ * The url() value is wrapped in CSS double-quotes so any character valid in a
+ * filesystem path — spaces, parentheses, apostrophes — is also valid inside the
+ * string. Only `"` itself needs percent-encoding to prevent premature string
+ * termination; all other characters are safe inside a CSS double-quoted string and
+ * are valid in file: URLs (RFC 3986 sub-delimiters include `'`, `(`, `)`;
+ * spaces become %20 so the URL is well-formed).
  */
 export function rewriteFontUrls(css: string, astroDir: string): string {
-  const safeDir = astroDir.split('/').map(encodeURIComponent).join('/');
-  return css.replace(/url\(\/_astro\//g, `url(file://${safeDir}/`);
+  const safeDir = astroDir.replace(/ /g, '%20').replace(/"/g, '%22');
+  return css.replace(/url\(\/_astro\/([^)]*)\)/g, (_, filename) =>
+    `url("file://${safeDir}/${filename}")`
+  );
 }
 
 // ── ffmpeg concat list ────────────────────────────────────────────────────────
