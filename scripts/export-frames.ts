@@ -41,6 +41,12 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
       const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1 });
       try {
         const page = await context.newPage();
+        // Freeze every animation at its start before the page loads, so one that would finish while images or fonts
+        // are still loading is there to rewind and sample (Codex review, #47). Chromium's DevTools protocol sets the
+        // rate of the page's animation timeline.
+        const devtools = await context.newCDPSession(page);
+        await devtools.send('Animation.enable');
+        await devtools.send('Animation.setPlaybackRate', { playbackRate: 0 });
         await page.goto(options.url, { waitUntil: 'load' });
         await page.evaluate(async () => { await document.fonts.ready; });
         const element = page.locator(options.selector);
@@ -60,6 +66,9 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
           return typeof end === 'number' ? end : Number.NaN;
         }));
         const times = frameTimes(durationMs(ends, options.seconds), options.fps);
+        if (times.length === 0) {
+          throw new PlanError('Nothing to capture: no animation runs on the page. Give --seconds for a still clip.');
+        }
         for (let index = 0; index < times.length; index++) {
           await page.evaluate((time) => {
             for (const animation of document.getAnimations()) {
