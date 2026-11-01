@@ -454,3 +454,13 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   into a share line ("cueory sort, …") instead of reading it with `gameName()`. Ids used as ids (content folders,
   class names, test ids, imports) and comments are left alone. Reason: the names will change again, and builders work
   in parallel, so a forgotten old name should fail CI instead of reaching a page.
+- **D-68** The visuals kit's source-file check (Task 6, D-56). The build checks every file in `content/visuals/`
+  (`visualProblems` in `src/visuals/sources.ts`, run by `src/content.config.ts`) and stops with a plain message when:
+  a label or depiction points to no source in the file, or a source is unused; a source quotes a book that isn't
+  allowed (only Open RN *Nursing Fundamentals, 2nd Edition*, CC BY 4.0, for now: OpenStax stays out while D-57 waits,
+  and nothing NonCommercial can join); a source doesn't link to the page it quotes inside that book's site, gives the
+  wrong license or misses the day its words were copied (`retrieved`); or ids repeat. The unit tests also check each
+  file's name and its lesson ids against the lesson map. Drawings take label text only from the file (`labelText`),
+  only approved visuals can appear on a page (`approvedOnly`), each visual shows the credit WisTech Open's terms ask
+  for (`creditsFor`), and every overlay says "simplified for learning" (`notesFor`). Reason: no picture can ship with
+  a word its cited source doesn't state.
