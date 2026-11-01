@@ -316,6 +316,26 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   with three.js's `MeshoptDecoder` on the page's own thread. Its WebAssembly needs only the `'wasm-unsafe-eval'` the
   CSP already allows (D-49). Draco was not chosen: three.js's Draco loader always decodes in workers made from `blob:`
   addresses, which would need a looser CSP. Reason: smaller files with no security-policy change.
+- **D-60** "ways to study" becomes an endless merry-go-round, and the home page loses its clutter (Christian's feedback,
+  2026-10-31, 6:40 pm, relayed by the lead on issue #4). The card in the middle is in front, and its neighbours stay
+  visible on both sides (one on phones and tablets, two from 64rem wide), stepping back: 0.88 and then 0.76 of its
+  size, turned 10° away round the ring, and quieter (no shadow, the heading in the second ink, a softer drawing; their
+  words keep the frosted-panel contrast, since nothing masks, fades or blurs a card). Next after the last card is the
+  first and previous before the first is the last. A tap on a side card brings it to the middle, and a tap on the card
+  in the middle opens its preview (D-51). The arrows, the arrow keys (Home and End too), a sideways swipe or a
+  sideways trackpad swipe turn it by one card; a turn takes 240 ms, easing out (brand guide §7.3), and a card going
+  round the back, or a jump of several cards, switches at once instead of sweeping across. With reduced motion there is
+  no glide and no turn. The auto-advance, its pause button and its rules are unchanged (D-50). Only the card in the
+  middle is in the Tab order, and screen readers hear only the card where the ring comes to rest ("matching, 5 of 11").
+  Without JavaScript the cards are still a row that scrolls sideways. Eleven cards: video (replacing "lesson": the
+  sentence reader stays inside lessons as the read-along text), cards, learn, fill-in, matching, organizer, questions,
+  review, then three from the roadmap marked coming soon: label it (Task 4c), adaptive quiz and level test (Task 4b).
+  The video card's drawing is its click-to-play cover (D-40); no video exists yet, so it is coming soon. Removed: the
+  mode chips, the numbered section labels and their rule, the figure caption and the rhythm line (the brand guide
+  forbids ECG lines); the building notice is now lowercase. The ring reuses the card tokens; its step-back, turn and
+  timing numbers live in `src/scripts/carousel.ts` (unit tested) because `tokens.css` is held for brand v1.0 until the
+  lead's pull request merges, and `--drop-mode-card` (no longer used) goes then too. Reason: Christian's request for
+  an endless merry-go-round that is never empty, and a calmer, less templated page.
 - **D-61** Daily games start with pulse on `/play` (Christian's request, 2026-10-31, 6:40 pm, item 4 of the lead's note
   on issue #4). `/play` lists the four games under working names kept in `src/config/games.ts` (pulse, cueword, triage,
   suture), so a rename is one line; the ☰ panel links to it, and the home page section follows once brand v1.0 is in

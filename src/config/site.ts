@@ -16,7 +16,7 @@ export const site = {
   /** The live address. */
   url: 'https://cueory.app',
 
-  /** Shows "We're still building. More coming soon." on every page. Set to false to remove it. */
+  /** Shows "we're still building. more coming soon." on every page. Set to false to remove it. */
   showBuildingNotice: true,
 
   /** Christian's tip page. Leave empty to hide the button on /support. */
