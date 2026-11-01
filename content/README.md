@@ -15,7 +15,7 @@ Content is data, not code. Edit these files to change what students see; no prog
 - `games/cueword/` — sample puzzles for the small crossword, one JSON file each: a `grid` of 3 to 7 rows of equal
   length (capital letters, `.` for a gap) and its `clues`, `across` and `down`, each numbered the usual way. The build
   checks every file with the game's own rules (every word has exactly one clue). Everyday words only, labeled as
-  samples on the page (D-67).
+  samples on the page (D-70).
 - `batches/` — one folder per review batch (format and checker: [docs/BATCHES.md](../docs/BATCHES.md)). Git ignores
   everything here, so batches stay on your computer.
 

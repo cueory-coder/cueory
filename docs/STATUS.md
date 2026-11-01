@@ -100,7 +100,7 @@ Last updated: 2026-11-01
   only (tap, click or keyboard, no dragging), every result said in words and shown by ✓, and a plain-words share line.
   Seven labeled everyday samples under `content/games/triage/`, so it also waits for Christian's merge.
 
-- The crossword on `/play` (D-67): today's labeled sample, picked from the visitor's own date like the other games,
+- The crossword on `/play` (D-70): today's labeled sample, picked from the visitor's own date like the other games,
   on the engine and board from [#51](https://github.com/lilchristxan/Cueory/pull/51) (a Codex helper's, now in
   `staging`). Six everyday samples under `content/games/cueword/`, each checked by the game's own rules at build time,
   so it waits for Christian's merge. Next: word path the same way (its engine, #52, is in `staging`).

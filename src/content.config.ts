@@ -96,7 +96,7 @@ const triage = defineCollection({
 });
 
 /**
- * The small crossword (internal id cueword, D-67): sample puzzles, one JSON file each in /content/games/cueword. The
+ * The small crossword (internal id cueword, D-70): sample puzzles, one JSON file each in /content/games/cueword. The
  * shape is checked here; /play also runs each one through the game's own parsePuzzle at build time, so a clue that
  * doesn't match a word stops the build with a plain message.
  */

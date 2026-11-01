@@ -4,14 +4,14 @@ import type { CuewordPuzzle } from './cueword';
 import { dayNumber, puzzleForDay } from './pulse';
 
 interface Props {
-  /** Sample puzzles (D-67): the page hands over all of them, and today's is picked from the visitor's own date. */
+  /** Sample puzzles (D-70): the page hands over all of them, and today's is picked from the visitor's own date. */
   puzzles: CuewordPuzzle[];
   /** The game's name as the page shows it, from src/config/games.ts (D-66). */
   name: string;
 }
 
 /**
- * The small crossword on /play (D-67): picks the puzzle for the visitor's own date, going round the samples like pulse
+ * The small crossword on /play (D-70): picks the puzzle for the visitor's own date, going round the samples like pulse
  * and sort do, and hands it to the board. Rendered only in the browser (client:only), so "today" is the visitor's day.
  */
 export default function CuewordToday({ puzzles, name }: Props) {

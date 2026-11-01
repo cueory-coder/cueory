@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parsePuzzle, words } from '../../src/islands/cueword';
 
-describe('crossword samples (D-67)', () => {
+describe('crossword samples (D-70)', () => {
   it("keeps every sample labeled, and every one passes the game's own rules", () => {
     const folder = new URL('../../content/games/cueword/', import.meta.url);
     const files = readdirSync(folder).filter((name) => name.endsWith('.json'));

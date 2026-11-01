@@ -286,7 +286,7 @@ test.describe('daily games: triage (D-63)', () => {
   });
 });
 
-test.describe('daily games: crossword (D-67)', () => {
+test.describe('daily games: crossword (D-70)', () => {
   // 1 November: the first sample. 1 across STAR, 3 across APPLE; 1 down SOFA, 2 down RAIL.
   const clues = (page: Page, direction: 'across' | 'down') =>
     page.getByRole('list', { name: `${direction} clues` }).getByRole('button');
