@@ -145,6 +145,9 @@ Merged into `staging` tonight (pulse and sort were already live; the rest reache
 - Christian's decisions (D-80): the 3D atlas is BodyParts3D; OpenStax is link-only; releases stay manual.
 
 ## In review
+- Task 30 ([#108](https://github.com/lilchristxan/Cueory/pull/108), D-61): `acceptPuzzle(payload, today)` — checks a
+  day's puzzle payload before any game sees it. Validates game id, date=today exactly, and game-specific shape for all
+  four daily games. Extra fields are dropped; error messages never reveal puzzle answers. 30 unit tests, CI green.
 - Task 2, database step 3 (Task C6, D-86, stacked on #92): `attempts` and `check_answer`, with 43 database tests. A
   signed-in student sends their picks and, only after the attempt is recorded, gets right or wrong, the key and the
   rationales. 200 checks an hour per person. It is signed-in only, which needs Christian's confirmation (D-86). It
