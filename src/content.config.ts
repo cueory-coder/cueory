@@ -104,7 +104,8 @@ const triage = defineCollection({
  */
 const visualId = z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'an id is lowercase letters, digits and dashes');
 const visuals = defineCollection({
-  loader: glob({ base: './content/visuals', pattern: '**/*.json' }),
+  // One file per visual, directly in content/visuals (no subfolders), so the unit tests check exactly these files.
+  loader: glob({ base: './content/visuals', pattern: '*.json' }),
   schema: z
     .object({
       id: visualId,

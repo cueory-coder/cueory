@@ -169,12 +169,20 @@ const lessonMap = new Set(
 );
 
 const visualsDir = new URL('../../content/visuals/', import.meta.url);
-const visualFiles = existsSync(visualsDir) ? readdirSync(visualsDir).filter((file) => file.endsWith('.json')) : [];
+/** Every .json file under content/visuals, subfolders included, as paths relative to it. */
+const allVisualFiles = existsSync(visualsDir)
+  ? readdirSync(visualsDir, { recursive: true, encoding: 'utf8' }).filter((file) => file.endsWith('.json'))
+  : [];
+const visualFiles = allVisualFiles.filter((file) => !/[\\/]/.test(file));
 
 describe('the visual source files in content/visuals', () => {
   it('reads the lesson map', () => {
     expect(lessonMap.size).toBeGreaterThan(300);
     expect(lessonMap.has('U01-T01-L01')).toBe(true);
+  });
+
+  it('keeps every file directly in content/visuals, where the build reads them (no subfolders)', () => {
+    expect(allVisualFiles).toEqual(visualFiles);
   });
 
   for (const file of visualFiles) {
