@@ -114,9 +114,15 @@ Warnings appear in the report but don't fail any question:
 - `passed.csv`: `item_id`, `concept_id`, `hash` of every question that passed. The importer reads this. The `hash`
   column holds the SHA-256 of the canonical item JSON (all item columns plus the answer key in a fixed order). The
   importer rejects any item whose hash is absent or does not match — it catches accidental edits to `items.csv` or
-  `key.csv` after the checker ran. It does not protect against someone who edits all three files; the importer
-  will also re-run `checkBatch` in a later task. The hash column is written by the checker; the importer refuses
-  any row without it.
+  `key.csv` after the checker ran. The hash column is written by the checker (with the importer's own `itemHash`);
+  the importer refuses any row without it. It does not, by itself, protect against someone who edits all three
+  files, which is why the importer also runs the checker again on the files it is given (below).
+- **The importer checks again.** Before importing anything it runs `checkBatch` on the exact items, key, reviewer, facts
+  and sources files it was given. An item goes in only if it is on `passed.csv`, its hash matches, **and** the checker
+  passes it now (same five reviewers, same answers, working source links, no duplicate question). If the batch fails as
+  a whole (for example a reviewer file went missing), nothing is imported. The checker and the importer also agree on
+  what a complete question is, so the checker never passes an item the importer would refuse: for example, every choice
+  needs its own rationale, on single-answer questions as well as select-all-that-apply ones.
 - `failed.csv`: `item_id`, `concept_id` and `reasons`, all reasons in one cell separated by `;`.
 - `pending.csv`: `item_id`, `concept_id` and `waiting_for` (which reviewers haven't finished), separated by `;`.
 - `report.md`: a plain-language summary with the balance table and each reviewer's agreement with the key.

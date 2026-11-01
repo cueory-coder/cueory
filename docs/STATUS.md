@@ -192,6 +192,10 @@ a page yet:
 - Open pull requests add their own lines here. Waiting now: study modes on pages (#77), export-my-data (#95, Task 19),
   lesson videos (#97, Task C3), the 3D viewer shell (#98, Task C4), the Supabase settings reader (#101, Task 22),
   delete-account checks (#105, Task 25), the daily puzzle checker (#108), database step 5, flags and `submit_flag`
+  (#110), the review-clip exporter (#111, Task C7) and Release browser tests (#55).
+- Task C8 (D-90): the batch checker matches the importer. It requires a rationale for every choice on every question,
+  `passed.csv` carries the importer's own hash (tested end to end), and the importer runs the checker again on its files
+  and imports only what the checker passes now. Samples only; no real questions.
   (#110), the review-clip exporter (#111, Task C7), Release browser tests (#55), and the new tasks 40 to 42 and C8
   when they open.
 
