@@ -16,6 +16,10 @@ Content is data, not code. Edit these files to change what students see; no prog
   length (capital letters, `.` for a gap) and its `clues`, `across` and `down`, each numbered the usual way. The build
   checks every file with the game's own rules (every word has exactly one clue). Everyday words only, labeled as
   samples on the page (D-70).
+- `games/suture/` — sample puzzles for word path, one JSON file each: a `grid` of capital letters (3 to 7 rows of equal
+  length) and its `words`, each with a lowercase `cue`, its `answer` and the `path` of `[row, column]` cells it runs
+  through, up, down, left or right, never diagonally, with no cell shared. The build checks every file with the game's
+  own rules. Everyday words only, labeled as samples on the page (D-71).
 - `batches/` — one folder per review batch (format and checker: [docs/BATCHES.md](../docs/BATCHES.md)). Git ignores
   everything here, so batches stay on your computer.
 

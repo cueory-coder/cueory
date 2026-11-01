@@ -1,0 +1,100 @@
+{
+  "status": "sample",
+  "grid": [
+    "GREEN",
+    "BOSTP",
+    "LUEAI",
+    "RWMYN",
+    "EDHCK"
+  ],
+  "words": [
+    {
+      "cue": "the color of grass",
+      "answer": "GREEN",
+      "path": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          0,
+          3
+        ],
+        [
+          0,
+          4
+        ]
+      ]
+    },
+    {
+      "cue": "the color of a clear sky",
+      "answer": "BLUE",
+      "path": [
+        [
+          1,
+          0
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ],
+        [
+          2,
+          2
+        ]
+      ]
+    },
+    {
+      "cue": "a light red, like a flamingo",
+      "answer": "PINK",
+      "path": [
+        [
+          1,
+          4
+        ],
+        [
+          2,
+          4
+        ],
+        [
+          3,
+          4
+        ],
+        [
+          4,
+          4
+        ]
+      ]
+    },
+    {
+      "cue": "the color of a ripe tomato",
+      "answer": "RED",
+      "path": [
+        [
+          3,
+          0
+        ],
+        [
+          4,
+          0
+        ],
+        [
+          4,
+          1
+        ]
+      ]
+    }
+  ]
+}

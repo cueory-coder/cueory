@@ -105,12 +105,17 @@ Last updated: 2026-11-01
   `staging`). Six everyday samples under `content/games/cueword/`, each checked by the game's own rules at build time,
   so it waits for Christian's merge. Next: word path the same way (its engine, #52, is in `staging`).
 
+- Word path on `/play` (D-71, stacked on the crossword's pull request): today's labeled sample on the engine and board
+  from [#52](https://github.com/lilchristxan/Cueory/pull/52) (a Codex helper's, now in `staging`). Five everyday
+  samples under `content/games/suture/`, checked by the game's own rules at build time, so it waits for Christian's
+  merge. With it, all four daily games are playable on samples.
+
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
 2. Auto-release (`staging` into `main` in pre-launch mode), after the change requests.
 3. Christian's 31 Oct evening requests ([the lead's note on issue #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6551841155)),
    now first: brand v1.0 (the lead's branch), then the home page polish pass, then the rest of daily games (the home
-   page section, pulse and sort are in `staging`; the crossword is in review, and word path is next).
+   page section, pulse and sort are in `staging`; the crossword and word path are in review).
 
 ## Visuals kit (Task 6, D-56)
 Targets: first visuals by about 14 November, the full kit by about 12 December ([plan](VISUALS.md)).

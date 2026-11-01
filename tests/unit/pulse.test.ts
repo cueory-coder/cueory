@@ -24,7 +24,7 @@ describe('daily games (D-61)', () => {
     // Plain names for now (D-66): trademark filings exist for cueword, triage and suture. The ids stay.
     expect(dailyGames.map((game) => game.name)).toEqual(['pulse', 'crossword', 'sort', 'word path']);
     expect(dailyGames.map((game) => game.id)).toEqual(['pulse', 'cueword', 'triage', 'suture']);
-    expect(dailyGames.filter((game) => game.ready).map((game) => game.id)).toEqual(['pulse', 'cueword', 'triage']);
+    expect(dailyGames.filter((game) => game.ready).map((game) => game.id)).toEqual(['pulse', 'cueword', 'triage', 'suture']);
     for (const game of dailyGames) {
       expect(game.name).toBe(game.name.toLowerCase());
       expect(game.line).toBe(game.line.toLowerCase());
@@ -42,6 +42,9 @@ describe('daily games (D-61)', () => {
       '../../src/islands/CuewordGame.tsx',
       '../../src/islands/CuewordToday.tsx',
       '../../src/islands/cueword.ts',
+      '../../src/islands/SutureGame.tsx',
+      '../../src/islands/SutureToday.tsx',
+      '../../src/islands/suture.ts',
       '../../src/components/DailyGamesSection.astro',
     ].map((path) => readFileSync(new URL(path, import.meta.url), 'utf8'));
     const named = (text: string) =>

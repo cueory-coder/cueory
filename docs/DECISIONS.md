@@ -461,3 +461,16 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   as D-61 proposes. Typing on a cued letter moves on to the next open cell instead of dropping the letter (also from
   that review). The grid is labeled "crossword grid", because "crossword crossword" read badly once the game took its
   plain name. Reason: Christian's request for four daily games, with the third one playable.
+- **D-71** Word path on `/play` (internal id `suture`; shown as "word path", D-66), the fourth daily game. A Codex helper
+  built the engine and board (#52): a small grid of capital letters hides three to six everyday words, each with its
+  own cue and length. A word runs through touching cells, up, down, left or right, never diagonally, never reusing a
+  cell, and no two words share one; some letters are fillers. Tap touching letters and press **stitch**: the exact path,
+  in either direction, finds the word; anything else is a "loose stitch", counted and said in words. There is no game
+  over, and the share line is plain words ("cueory word path, sun 1 nov: stitched 3 of 3 words with 0 loose
+  stitches."). Its own rules on purpose: orthogonal paths, a cue for every word and filler letters, unlike other
+  letter-grid games. Five everyday samples (`content/games/suture/`) are checked by the game's own `parsePuzzle` at build
+  time, and a unit test makes sure each word can be spelled along exactly one path, so a right trace is never refused
+  for taking another route. Today's sample is picked from the visitor's own date, like the other games, and as with the
+  crossword (D-70) a real puzzle never reaches the browser before its day (D-61). With all four games playable, the
+  "coming soon" list on `/play` shows only while a game is still on its way. Reason: Christian's request for four daily
+  games.

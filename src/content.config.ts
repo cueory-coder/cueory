@@ -113,4 +113,26 @@ const cueword = defineCollection({
   }),
 });
 
-export const collections = { lessons, cards, pulse, triage, cueword };
+/**
+ * Word path (internal id suture, D-71): sample puzzles, one JSON file each in /content/games/suture. The shape is checked
+ * here; /play also runs each one through the game's own parsePuzzle at build time.
+ */
+const suture = defineCollection({
+  loader: glob({ base: './content/games/suture', pattern: '**/*.json' }),
+  schema: z.object({
+    status: z.literal('sample'),
+    grid: z.array(z.string().regex(/^[A-Z]{3,7}$/, 'a word path row is 3 to 7 capital letters')).min(3).max(7),
+    words: z
+      .array(
+        z.object({
+          cue: z.string().min(1).max(120),
+          answer: z.string().regex(/^[A-Z]{3,8}$/),
+          path: z.array(z.tuple([z.number().int().min(0), z.number().int().min(0)])),
+        }),
+      )
+      .min(3)
+      .max(6),
+  }),
+});
+
+export const collections = { lessons, cards, pulse, triage, cueword, suture };

@@ -315,7 +315,8 @@ test.describe('daily games: crossword (D-70)', () => {
     await fill(page, 'across', 0, 'stax');
     await page.getByRole('button', { name: 'check', exact: true }).click();
     await expect(page.getByTestId('cueword-live')).toHaveText('1 letter is wrong in 1 across. 0 cells are empty.');
-    await expect(page.getByRole('button', { name: /^row 1, column 4,/ })).toContainText('×');
+    // Word path's letters are labeled by row and column too, so this stays inside the crossword.
+    await expect(page.getByTestId('cueword').getByRole('button', { name: /^row 1, column 4,/ })).toContainText('×');
   });
 
   test('typing from the clue list solves it, and the result shares as plain words', async ({ page }) => {
@@ -346,6 +347,67 @@ test.describe('daily games: crossword (D-70)', () => {
   });
 });
 
+test.describe('daily games: word path (D-71)', () => {
+  // 1 November: the first sample. APPLE along the top row; GRAPE from row 2 down and right; LIME from row 4.
+  const cell = (page: Page, row: number, col: number) =>
+    page.getByTestId('suture').getByRole('button', { name: new RegExp(`^row ${row}, column ${col},`) });
+  const trace = async (page: Page, cells: [number, number][]) => {
+    for (const [row, col] of cells) await cell(page, row, col).click();
+    await page.getByRole('button', { name: 'stitch', exact: true }).click();
+  };
+
+  test.beforeEach(async ({ page }) => {
+    await page.clock.setFixedTime(new Date('2026-11-01T15:00:00'));
+    await page.goto('/play');
+    await expect(page.getByTestId('suture')).toBeVisible();
+  });
+
+  test("today's sample is labeled, each word has its cue, and axe passes", async ({ page }) => {
+    await expect(page.getByRole('heading', { level: 2, name: 'word path' })).toBeVisible();
+    await expect(page.getByTestId('suture')).toContainText("today's puzzle is a sample");
+    await expect(page.getByRole('list', { name: 'word cues' }).getByRole('listitem')).toHaveCount(3);
+    await expect(page.getByRole('heading', { name: 'coming soon' })).toHaveCount(0);
+    const results = await axe(page);
+    expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+
+  test('a wrong trace is a loose stitch, said in words', async ({ page }) => {
+    await trace(page, [[1, 1], [1, 2], [1, 3]]);
+    await expect(page.getByTestId('suture-live')).toHaveText("loose stitch: those letters aren't one of the words.");
+    await expect(page.getByTestId('suture')).toContainText('3 words left · 1 loose stitch');
+  });
+
+  test('tracing every word solves it, and the result shares as plain words', async ({ page }) => {
+    await trace(page, [[1, 1], [1, 2], [1, 3], [1, 4], [1, 5]]);
+    await expect(page.getByTestId('suture-live')).toHaveText('found word 1: apple.');
+    await trace(page, [[2, 1], [3, 1], [3, 2], [3, 3], [3, 4]]);
+    await trace(page, [[4, 1], [5, 1], [5, 2], [5, 3]]);
+    const result = page.getByTestId('suture-result');
+    await expect(result).toBeFocused();
+    await expect(result).toContainText('cueory word path, sun 1 nov: stitched 3 of 3 words with 0 loose stitches.');
+  });
+
+  test('at 320 px every letter and button is on screen and at least 44 px tall', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 700 });
+    for (const day of ['2026-11-01', '2026-11-05']) {
+      await page.clock.setFixedTime(new Date(`${day}T15:00:00`));
+      await page.goto('/play');
+      await expect(page.getByTestId('suture')).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      const boxes = await page
+        .getByTestId('suture')
+        .getByRole('button')
+        .evaluateAll((els) => els.map((el) => el.getBoundingClientRect()));
+      for (const box of boxes) {
+        expect(box.left).toBeGreaterThanOrEqual(0);
+        expect(box.right).toBeLessThanOrEqual(320);
+        expect(box.height).toBeGreaterThanOrEqual(44);
+      }
+    }
+  });
+});
+
 test.describe('daily games without JavaScript', () => {
   test.use({ javaScriptEnabled: false });
 
@@ -356,6 +418,7 @@ test.describe('daily games without JavaScript', () => {
       'pulse needs JavaScript.',
       'sort needs JavaScript.',
       'crossword needs JavaScript.',
+      'word path needs JavaScript.',
     ]);
     await expect(page.getByTestId('sample-note')).toBeVisible();
     await expect(page.getByTestId('triage-sample-note')).toBeVisible();
