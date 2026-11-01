@@ -75,7 +75,7 @@ function Session({ items: suppliedItems }: Props) {
       <p className="text-sm text-ink-soft">
         round {state.roundNumber} · item {state.pos + 1} of {state.round.length}
       </p>
-      <p className="mt-4 text-xl">
+      <p id={`${id}-sentence`} className="mt-4 text-xl">
         {parts.before}
         <span aria-hidden="true" className="border-b border-control px-3">_____</span>
         <span className="sr-only">blank</span>
@@ -89,7 +89,8 @@ function Session({ items: suppliedItems }: Props) {
           id={`${id}-answer`}
           value={typed}
           readOnly={answered}
-          aria-describedby={message ? `${id}-message` : undefined}
+          // The sentence describes the field, so moving to the next item reads the new sentence too (Codex on #56).
+          aria-describedby={message ? `${id}-sentence ${id}-message` : `${id}-sentence`}
           onChange={(event) => setTyped(event.currentTarget.value)}
           onKeyDown={(event) => {
             if (event.key === 'Enter') {
