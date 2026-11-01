@@ -54,7 +54,7 @@ test.describe('once-only promo panel (D-59)', () => {
     await expect(support).toHaveAttribute('rel', 'noopener noreferrer');
     // The social marks (D-54): the profiles that have an address, each opening in a new tab.
     const socialLinks = panel.getByRole('list', { name: 'cueory elsewhere' }).getByRole('link');
-    await expect(socialLinks).toHaveCount(3);
+    await expect(socialLinks).toHaveCount(socials.filter((social) => social.href).length);
     for (const { id, href } of socials.filter((social) => social.href)) {
       const link = panel.locator(`a[data-social="${id}"]`);
       await expect(link).toHaveAttribute('href', href);

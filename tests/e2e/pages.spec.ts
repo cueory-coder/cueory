@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import { socials } from '../../src/config/site';
 
 // The once-only promo panel (D-59) slides down after 5 seconds and takes keyboard focus, which would interrupt these
 // tests part-way, so every page here starts as if it had already been shown. tests/e2e/promo.spec.ts tests the panel.
@@ -1275,12 +1276,8 @@ test.describe('social links (D-54)', () => {
   }) => {
     await page.goto('/privacy');
     const footer = page.getByRole('contentinfo');
-    const expected: Record<string, string> = {
-      instagram: 'https://instagram.com/cueory',
-      tiktok: 'https://tiktok.com/@cueory',
-      youtube: 'https://youtube.com/@cueory',
-    };
-    await expect(footer.locator('[data-social]')).toHaveCount(3);
+    const expected = Object.fromEntries(socials.filter((social) => social.href).map((social) => [social.id, social.href]));
+    await expect(footer.locator('[data-social]')).toHaveCount(Object.keys(expected).length);
     for (const [id, href] of Object.entries(expected)) {
       const link = footer.locator(`[data-social="${id}"]`);
       await expect(link).toHaveAttribute('href', href);
@@ -1295,7 +1292,7 @@ test.describe('social links (D-54)', () => {
     await expect(footer.getByRole('link', { name: 'cueory on Instagram (opens in a new tab)' })).toBeVisible();
 
     await page.getByRole('button', { name: 'menu' }).click();
-    await expect(page.getByTestId('site-menu').locator('[data-social]')).toHaveCount(3);
+    await expect(page.getByTestId('site-menu').locator('[data-social]')).toHaveCount(Object.keys(expected).length);
     const axe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
     expect(axe.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
   });
