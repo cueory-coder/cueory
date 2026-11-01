@@ -688,7 +688,9 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   - **Where the key lives:** the stem and choices a student sees are in `item_versions` and `item_choices`, which the
     website can read for a published version only. Which choices are right, and each choice's rationale, are in
     `item_answers`, which no website role can read at all: no grant, row-level security on, and a test that tries both
-    roles. `check_answer` (next step) reads it and returns it only after an attempt.
+    roles, plus an explicit restrictive policy (`using (false)`, for `anon` and `authenticated`) so the rule is written
+    down and survives a later grant by mistake (Codex review of #90). `check_answer` (next step) reads it and returns
+    it only after an attempt.
   - **What the website may read:** `items` that have a published version; from `item_versions` only `id`, `item_id`,
     `version`, `stem` and `status` (`status` because the policies on items and choices look at it, and a policy's
     subquery runs with the reader's privileges; every visible row is published anyway); the choices of a published
@@ -702,7 +704,7 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   - **Left for later:** risk level and public label are in the roadmap's admin table but not defined anywhere yet, so
     I haven't invented values for them; they come with `reviews` and the admin area. The trigger functions revoke
     `execute` from `public`, `anon` and `authenticated`, as D-73 requires.
-  - **Tests:** `supabase/tests/database/items_test.sql`, 49 checks: the exact grants (including per column), what
+  - **Tests:** `supabase/tests/database/items_test.sql`, 50 checks: the exact grants (including per column), what
     a visitor, a student and the service role can read and write, every publishing rule, immutability and the shapes.
     The lockdown test's list of tables a visitor may read now has the three new public ones, and still not `item_answers`.
     Each of four weakened versions (key readable, drafts visible, answers editable after publish, publishing without
