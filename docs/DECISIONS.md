@@ -512,3 +512,19 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
 
   Reason: the lead's request; it follows Supabase's 2026 grants change and keeps every key and answer out of the
   browser.
+- **D-74** CI spends fewer free Actions minutes (the lead, 2026-11-01).
+  - **Why:** on a private repository, GitHub Free includes 2,000 Actions minutes a month. Tonight's parallel
+    helpers ran CI about 80 times in six hours (about 9 billed minutes each), which would use the month's minutes in
+    a day or two. When they run out, CI stops and nothing can merge.
+  - **What changes:**
+    - drafts run no CI until marked ready for review;
+    - pushes to staging no longer run CI again (the pull request already passed, and the Release pull request runs
+      everything before main);
+    - a pull request that changes only Markdown files outside content/ and src/ passes without building or
+      testing;
+    - pull requests into staging run the browser tests at phone and desktop size, and Release pull requests into
+      main still run every device.
+  - **What stays:** the required checks and the auto-merge rules are unchanged.
+
+  Reason: keep CI inside the free minutes so the pipeline never stalls and costs stay $0.
+
