@@ -371,6 +371,14 @@ describe('frameHtml drawing-inner geometry', () => {
     expect(html).toContain('height:248px');
   });
 
+  it('.drawing-clip uses flex:none so the inline bandHeight is not overridden', () => {
+    const html = frameHtml(minimalFrameHtmlOpts());
+    // flex:1 would cause the flex algorithm to replace the inline height with the remaining
+    // frame space. flex:none lets the explicit style="height:${bandHeight}px" take effect.
+    expect(html).toMatch(/\.drawing-clip\s*\{[^}]*flex:\s*none/);
+    expect(html).not.toMatch(/\.drawing-clip\s*\{[^}]*flex:\s*1/);
+  });
+
   it('different drawingHeight values produce different inner heights', () => {
     const html500 = frameHtml({ ...minimalFrameHtmlOpts(), drawingHeight: 500 });
     const html983 = frameHtml({ ...minimalFrameHtmlOpts(), drawingHeight: 983 });
@@ -429,23 +437,23 @@ describe('encode-error exit code', () => {
 });
 
 // ── Node entry-point import check (Fix 6 — ERR_MODULE_NOT_FOUND regression) ──
-// Spawns the documented Node command so any extensionless relative import in the
-// dependency chain would produce ERR_MODULE_NOT_FOUND before this test passes.
-// The script itself needs dist/ to run fully, so the test only verifies the
-// import graph loads; any exit code other than a module-not-found crash is fine.
+// Spawns the documented Node command with no arguments so any extensionless
+// relative import in the dependency chain would produce ERR_MODULE_NOT_FOUND
+// before the usage-error path is reached. With all imports fixed, the script
+// loads, parses the (empty) args, and exits 2 with a usage message on stderr.
 
 describe('Node entry-point import check', () => {
-  it('documented node command loads without ERR_MODULE_NOT_FOUND', () => {
+  it('documented node command exits with usage error (not ERR_MODULE_NOT_FOUND)', () => {
     const scriptPath = resolve('scripts/export-clips.ts');
     const result = spawnSync(
       process.execPath,
-      ['--experimental-strip-types', '--no-warnings', scriptPath, '--out', '/nonexistent-test-path-42', '--frames-only'],
+      ['--experimental-strip-types', '--no-warnings', scriptPath],
       { encoding: 'utf-8', timeout: 30_000 },
     );
-    // A module-not-found crash produces a non-zero status AND the error in stderr.
-    // With the import fixes applied, the script loads, then exits 2 (missing dist/)
-    // or exits cleanly — neither contains ERR_MODULE_NOT_FOUND.
+    // A module-not-found crash exits non-zero AND writes ERR_MODULE_NOT_FOUND to stderr.
+    // A successful import + missing-arg parse exits 2 with a usage message instead.
     expect(result.stderr ?? '').not.toContain('ERR_MODULE_NOT_FOUND');
+    expect(result.status).toBe(2);
     expect(result.signal).toBeNull();
   });
 });

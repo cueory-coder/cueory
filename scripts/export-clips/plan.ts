@@ -139,7 +139,7 @@ html, body { width: ${FRAME_WIDTH}px; height: ${FRAME_HEIGHT}px; overflow: hidde
 ${builtCss}
 .frame { display: flex; flex-direction: column; width: ${FRAME_WIDTH}px; height: ${FRAME_HEIGHT}px; font-family: "Inter Variable", system-ui, -apple-system, "Segoe UI", sans-serif; padding: 48px 40px 40px; gap: 24px; position: relative; }
 .frame-title { font-size: 36px; font-weight: 700; line-height: 1.2; color: #3e2c23; }
-.drawing-clip { flex: 1; overflow: hidden; position: relative; }
+.drawing-clip { flex: none; overflow: hidden; position: relative; }
 .drawing-inner { position: absolute; left: 0; top: -${bandY}px; width: 100%; height: ${drawingHeight}px; }
 .drawing-inner svg { width: 100%; height: 100%; }
 .caption { font-size: 28px; color: #3e2c23; line-height: 1.4; }
