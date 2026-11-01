@@ -144,15 +144,62 @@ Merged into `staging` tonight (pulse and sort were already live; the rest reache
   preview has finished closing.
 - Christian's decisions (D-80): the 3D atlas is BodyParts3D; OpenStax is link-only; releases stay manual.
 
+## Done (director, 2026-11-01, 1–2 am Phoenix)
+Merged into `staging` overnight; the database and content ones by the director on Christian's behalf (D-89):
+- Task 2, the database's next three steps (Task C6, each with the lead's security review): step 1 (#90, D-84),
+  `concepts`, `sources` and `rights_records`; step 2 (#92, D-85), questions in `items`, `item_versions` and
+  `item_choices`, with the key and rationales in `item_answers`, which no website role can read; step 3 (#94, D-86),
+  `attempts` and `check_answer`, which records the attempt before it returns the key and rationales (200 checks an hour
+  per person). Nothing reaches `cueory-staging` or `cueory-prod` until Christian applies migrations himself.
+- Visuals kit, the first batch's drawings (#93, D-81): body fluid compartments, osmosis and fluid shifts, and the
+  sodium-potassium pump, drawn only from their approved source files. Still drafts: nothing shows on a page until
+  Christian approves them. Draft video clips of all three (1080 × 1920) went to Christian in the director's chat.
+- Guest progress and onboarding saved on this device (#74, D-69), private game stats on `/play` (#79, D-76), the
+  concept map (#68), and the Safari preview fix (#88).
+- Helpers' logic, not on a page yet: account initials and menu (#91, Task 18), and the `/admin` review-table model
+  (#96, Task 20).
+
+## Done (director, 2026-11-01, 2–4 am Phoenix)
+Merged into `staging`; the database ones by the director on Christian's behalf (D-89), each with the lead's review:
+- Task 2, database step 4 (#104, D-87): `review_state` and `exam_plans`. Each student reads and writes only their own
+  spaced-review progress and exam dates. Steps 1 to 4 are in `staging`; nothing reaches `cueory-staging` or
+  `cueory-prod` until Christian applies migrations himself.
+- Helpers' logic, not on a page yet:
+  - the batch importer's parser (#100, Task 21): reads a passed batch with its item and key files, never guessing a
+    missing field;
+  - the "flag or comment" arguments for `submit_flag` (#107, Task 26);
+  - the disease-overlay frame (#102, Task 24), which always shows "simplified for learning";
+  - exam-date wording (#106, Task 27), calm and counted in calendar days;
+  - concept status from attempts (#109, Task 29), on the existing adaptive rules;
+  - what the offline cache may keep (#112, Task 32);
+  - study events with nothing personal in them (#114, Task 33), with no analytics script yet.
+
 ## In review
-- [Concept map](https://github.com/lilchristxan/Cueory/pull/68) (Task 14): every concept in a unit with its status in
-  words and a shape (an empty circle, a quarter, a half or a check), never color alone, with a filter by status. No
-  scores or predictions.
-- Visuals kit, the first batch's drawings (Task C5, D-81): body fluid compartments, osmosis and fluid shifts, and
-  the sodium-potassium pump, drawn only from their approved source files and checked by tests. Drafts, so nothing shows
-  on a page until Christian approves them; his review sheet is linked from the pull request.
-- Open pull requests add their own lines here: study modes on pages (#77), guest progress (#74), game stats on
-  `/play` (#79), the Safari preview fix (#88) and Release browser tests (#55).
+- Task 31 ([#113](https://github.com/lilchristxan/Cueory/pull/113), D-69, D-87): `importRows(progress, idMap, today)` —
+  converts guest localStorage progress into rows for `review_state`. `idMap` is a nested
+  `Map<deckId, Map<cardId, uuid>>` so deck-local card ids are never confused across decks. "Know it" cards start at
+  level 1 (next review in 3 days via `nextReview`); "still learning" and starred-only cards start at level 0 (due
+  today). Stars returned separately in `starred[]`; `today` validated; 28 unit tests. Exam plans deferred (D-87
+  follow-up). Account-import integration (wiring to sign-up flow) not yet built.
+- Task 35: `inbox(flags, filter)`, `groupByItem(flags)`, and `markHandled(flag, when)` — the flag-inbox model for
+  `/admin` (ROADMAP Task 2, D-34). Uses the fallback row shape since PR #110 had not merged when this was written.
+  Pure logic: no page, no network, no database. 22 unit tests.
+  [In review](https://github.com/lilchristxan/Cueory/pull/120).
+- Task 37: `checkDisplayName(input)` — mirrors both database constraints from the profiles migration (1–50 code
+  points, no control characters). Trims leading/trailing spaces before validating; counts code points correctly for
+  emoji and accented letters. 17 unit tests.
+  [In review](https://github.com/lilchristxan/Cueory/pull/121).
+- Task 38: `studentMessage(fn, error)` — maps all 14 RPC error messages (`check_answer` and `submit_flag`) to calm
+  student-facing sentences. Never echoes SQL, table names, or SQLSTATE codes. 19 unit tests.
+  [In review](https://github.com/lilchristxan/Cueory/pull/122).
+- Task 39: `visualsForLesson(visuals, lessonId)` and `missingDrawings(visuals)` — returns approved visuals for a
+  lesson that have a drawing in the registry; drafts are never returned. Live batch-1 import test confirms all
+  current content files are drafts. 15 unit tests.
+  [In review](https://github.com/lilchristxan/Cueory/pull/123).
+- Open pull requests add their own lines here. Waiting now: study modes on pages (#77), export-my-data (#95, Task 19),
+  lesson videos (#97, Task C3), the 3D viewer shell (#98, Task C4), the Supabase settings reader (#101, Task 22),
+  delete-account checks (#105, Task 25), the daily puzzle checker (#108), database step 5, flags and `submit_flag`
+  (#110), the review-clip exporter (#111, Task C7) and Release browser tests (#55).
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
@@ -193,6 +240,9 @@ Targets: first visuals by about 14 November, the full kit by about 12 December (
 - **Signup form** shows "signups open soon" until the Kit form exists (SETUP.md, Part I).
 
 ## Needs Christian's hands
+- [ ] Real questions need a free account (D-86): `check_answer` reveals the key after one try, so signed-out visitors
+  can't use it (a limit needs an identity, and a CAPTCHA would load a third-party script). Guests keep the sample modes.
+  Reply "ok" to keep it this way, or ask for a CAPTCHA exception.
 - [x] Daily report (#4) and task list (#11) locked so only collaborators can comment (D-79), done by Christian on
   2026-11-01.
 - [x] Private vulnerability reporting turned on (D-79), done by Christian on 2026-11-01.
