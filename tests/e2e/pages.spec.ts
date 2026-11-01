@@ -36,6 +36,7 @@ const pages = [
   '/play',
   '/start',
   '/progress',
+  '/learn/video-sample',
 ];
 
 for (const path of pages) {

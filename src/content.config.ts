@@ -5,6 +5,7 @@ import { sentenceParts } from './islands/fillin';
 import { parseSet as parseLabelSet } from './islands/labelit';
 import { sampleChecker, type SampleItem } from './islands/questions';
 import { visualProblems } from './visuals/sources';
+import { videoSchema } from './videos/schema';
 
 /**
  * Lessons are content, not code: they live as JSON files in /content/lessons.
@@ -312,4 +313,13 @@ const visuals = defineCollection({
     }),
 });
 
-export const collections = { lessons, cards, pulse, triage, cueword, suture, organizer, 'fill-in': fillIn, 'label-it': labelIt, questions, visuals };
+/**
+ * Lesson videos (D-82): one JSON file per video in /content/videos. The videoId is a YouTube video id
+ * (or a clearly labeled placeholder). A video appears on the lesson page only when its status is 'published'.
+ */
+const videos = defineCollection({
+  loader: glob({ base: './content/videos', pattern: '**/*.json' }),
+  schema: videoSchema,
+});
+
+export const collections = { lessons, cards, pulse, triage, cueword, suture, organizer, 'fill-in': fillIn, 'label-it': labelIt, questions, visuals, videos };

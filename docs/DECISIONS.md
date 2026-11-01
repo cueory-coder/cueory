@@ -811,6 +811,41 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
 
   Reason: a drawing can't show more than the approved source says, and a test proves it.
 
+- **D-82** Lesson videos (Task C3, `src/islands/LessonVideo.tsx`). Single-tap rule (follows D-32, D-40): nothing loads
+  from YouTube before the student taps the cover; ONE tap creates the `youtube-nocookie.com` player with autoplay and
+  starts the video, and focus moves to the player. The cover is a self-hosted `thumbnail` image from the video's file,
+  or a drawn placeholder; the "tapping play loads YouTube and its cookies" note and any captions/transcript links show
+  before the tap (ROADMAP Task 4d). The player is at least 200 px tall at every width (YouTube's minimum). Only
+  `published` videos show on a page; drafts and placeholders never render (the study-skills entry stays a draft until
+  Christian supplies a real video). Video files (`content/videos/`, rules in `src/videos/schema.ts`): `videoId` is
+  exactly 11 characters (`[A-Za-z0-9_-]`), caption and transcript links are https or site paths only, `thumbnail` is a
+  site path only. CSP gains `frame-src https://www.youtube-nocookie.com`; `/privacy` lists YouTube. To check on a real
+  iPhone before launch: Safari may drop the tap permission that autoplay needs. Reason: D-32 and D-40.
+
+- **D-83** 3D body viewer shell (Task C4, 2026-11-01, lead review on PR #98).
+  - **Lazy loading:** `three` loads only after the student taps "open the 3D view". Nothing from three.js is in the
+    initial bundle. The tap shows a loading state, then the viewer.
+  - **Placeholder model:** built in code from `THREE.CylinderGeometry` / `SphereGeometry` shapes grouped into three
+    layers (bone, muscle, skin). No file download, no external request. Labeled a placeholder in the UI and credit
+    line. The real model will be BodyParts3D (D-80), CC BY 4.0, added when Christian merges the dependency.
+  - **On-demand rendering:** `needsRender` flag; the render loop skips frames unless controls moved, a layer was
+    toggled, the canvas was resized, or the color scheme changed. Avoids battery drain at idle.
+  - **Keyboard and accessibility:** `tabIndex={0}` on the canvas; arrow keys orbit, +/- zoom; canvas receives focus
+    after open. Layer buttons use `aria-pressed`. Reduced-motion turns off OrbitControls damping.
+  - **Dark mode:** background color reads both `data-theme` and `matchMedia`; mirrors `--color-page` tokens
+    (Ivory `#f9f5ef` light / Charcoal `#1c1917` dark). Color-scheme changes while the viewer is open are handled.
+  - **Preview page:** `noindex` meta tag (not linked from the main nav; excluded from Pagefind).
+  - **Credit:** "Placeholder model (geometric shapes). Real model: BodyParts3D, © The Database Center for Life
+    Science licensed under CC Attribution 4.0 International."
+
+  - **Version and size budget:** `three` is `^0.187.0`, matching `@types/three`. The 3 MB model limit is enforced at
+    build time by `tests/unit/modelbudget.test.ts` (fails if any `.glb` / `.gltf` under `public/` is over 3 MB; passes
+    when none exist). The viewer itself checks only the triangle count, since size cannot be known before download.
+  - **Fix:** the viewer failed to open ("Cannot access before initialization") because `needsRender` was used before
+    its declaration; it is now declared first. Errors during open clean up and show the error state.
+
+  Reason: meets CLAUDE.md rule 6 (keyboard), brand tokens, battery discipline, and BodyParts3D licence from D-80.
+
 - **D-89** Overnight merges into `staging` on Christian's behalf (Christian, 2026-11-01, about 1:00 am Phoenix: "whatever
   can be merged ... merge it on my behalf to avoid bottlenecks", choosing "everything but rules").
   - **What:** during the director's 18-minute check-ins, the director merges held pull requests into `staging`:
@@ -858,3 +893,39 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
     accepted, no plan cap) each failed.
 
   Reason: the director's request on #11 (Task C6), following D-73's schema order.
+
+- **D-90** The batch checker matches the importer (Task C8, the lead's follow-up on #115, Task 3). Three changes, one
+  rule: the checker must never pass an item the importer would refuse, and the importer must never trust that the
+  checker was run.
+  - **A rationale for every choice, on every question.** The checker used to ask for per-choice rationales only on
+    select-all-that-apply questions; the importer (and the database, D-85) require them on all. A single-answer item
+    missing one now fails the check with "choice C has no rationale (rationale_c); every choice needs one".
+  - **The hash.** `passed.csv` carries the `hash` column, made by `itemHash` imported from the importer, not copied, so
+    the two can't drift. (#115 had already wired `passedCsv(result, input)` to do this; this task adds the tests that
+    hold it: a round trip, and a check that every passed row's hash matches the importer's.)
+  - **The importer re-runs `checkBatch`.** `parsePassed` now takes the reviewer files, `facts.csv` and `sources.csv`
+    (`BatchFiles.recheck`) along with the items and key texts, and runs the checker on exactly those files after its own
+    row checks. An item is imported only if the checker passes it now; an item that fails or is waiting on a reviewer is
+    refused with the checker's own reasons; a batch the checker refuses as a whole (a missing reviewer file, a duplicate
+    id) imports nothing. Without the `recheck` input the importer refuses everything, so the safe path is the only one.
+  - **Tests (`tests/unit/check-batch.test.ts`, `import-batch.test.ts`):** the round trip (checker, `passed.csv`,
+    importer, every passed item comes back with its hash accepted, select-all included); one field edited after checking
+    (the stem, a choice, a choice rationale, the main rationale, the key, the sources) is refused; a list of eleven ways
+    to make an item invalid, each seen refused by both the checker and the importer; and seven re-check cases (a reviewer
+    now failing, disagreeing or pending, a broken source link, a missing reviewer file, a duplicate question, no re-check
+    input). With the old checker the new agreement tests fail. Samples only (rule 7): no real questions.
+
+  Reason: the lead's review of #115 and the director's brief for Task C8.
+
+- **D-91** Export-my-data covers everything stored about a student (Task 19, #95; CLAUDE.md rule 2). `exportJson` and
+  `exportCsv` in `src/islands/exportdata.ts` stay pure: no network, no storage; the caller hands over the student's own
+  rows. Besides the profile, setup answers, guest progress, guest review and game history, they now take three sections
+  that mirror the database tables from D-86 and D-87: `attempts` (item version, letters picked, right or wrong, time),
+  `examPlans` (course, exam day, created) and `reviewRows` (the account's `review_state`: question, level 0 to 3, last
+  and next review day). Each has a strict schema: uuids lowercase and well formed, 1 to 5 distinct letters a to e,
+  a course slug of at most 80 characters, real calendar days. No user id, answer key or rationale is ever exported; if
+  one is passed it is dropped and only its name is listed. Caps: 50,000 rows for `attempts` and `reviewRows`, 10 for
+  `examPlans` (the database's cap); anything beyond is reported in `dropped` as `section[cap+]`. Each section also gets
+  a CSV file with the same formula guard and quoting.
+
+  Reason: the review of #95 found server-side study progress missing from the download.

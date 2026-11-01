@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-11-01
+Last updated: 2026-11-01 (Task 42)
 
 ## Done
 - Static site: Astro + React islands + TypeScript + Tailwind, static output, tested at phone and desktop sizes.
@@ -188,166 +188,26 @@ a page yet:
 - plain words for the database's refusals (#122, Task 38);
 - which visuals a lesson may show: approved ones with a drawing, never drafts (#123, Task 39).
 
+## Done (director, 2026-11-01, 5–6 am Phoenix)
+Merged into `staging`; the ones touching the content security policy, accounts or a package by the director on
+Christian's behalf (D-89), each with the lead's review:
+- Lesson videos (#97, Task C3, D-82): a click-to-play cover; nothing loads from YouTube before the tap, one tap loads
+  the player and starts the video, and only `published` videos show (the placeholder stays a draft). `/privacy` names
+  YouTube. Needs Christian's check on a real iPhone (below).
+- The 3D body viewer shell (#98, Task C4, D-83): `three` loads only after a tap; a placeholder model in bone, muscle and
+  skin layers, keyboard controls, and a test that keeps model files under 3 MB. The real model will be BodyParts3D.
+- Export-my-data (#95, Task 19, D-91) covers everything stored about a student, including attempts, exam dates and
+  review rows, as JSON and CSV. Not on a page yet.
+- The Supabase settings reader (#101, Task 22), the daily puzzle checker (#108, Task 30), and the batch checker matching
+  the importer (#125, Task C8, D-90).
+- Visuals kit helpers, not on a page yet: the review sheet for Christian (#126, Task 40), "no rights record, no image"
+  (#128, Task 41) and credits for a lesson page (#127, Task 42).
+
 ## In review
-- Auto-merge sweep (D-78, the lead's): an ordinary comment can no longer cancel a waiting merge check, and once an
-  hour a sweep re-checks every open pull request. It edits `.github/`, so it waits for Christian.
-- Safari focus fixes (from the WebKit runs for D-48): the ☰ panel's Tab trap now moves focus one item at a time in every
-  browser (Safari's own Tab skips links and buttons), and the promo panel gives focus back after a link click even
-  though Safari leaves focus on the page. Two WebKit-only test findings stay open: the triage keyboard tests use the
-  browser's own Tab, and one promo timing test runs late in WebKit.
-- Game-name guard (D-67): a unit test fails if a page or game shows an internal id (`cueword`, `triage`, `suture`) as
-  words, or types a name into a share line, so the next rename stays a one-line change.
-- [Questions player, with rationales](https://github.com/lilchristxan/Cueory/pull/53) (a Codex helper's, Task 6 on
-  #11): single-answer and select-all-that-apply questions, scored all-or-nothing (D-45), with each choice marked by a
-  symbol and words and its rationale shown after the check. It never holds an answer key: it asks a checker it is
-  given (D-33), and the sample checker refuses anything that isn't a labeled sample. Not on a page yet: that comes
-  with the study-mode pages (Task C1 on #11).
-- Promo panel fix: it waits until the ☰ panel or a study-mode preview has finished closing, so their own focus
-  handling never takes focus away from it (a browser test failed 2 of 12 runs because of this).
-- [Fill-in](https://github.com/lilchristxan/Cueory/pull/56) (a Codex helper's, Task 7 on #11): a sentence with one
-  word or phrase missing, and the student types it. Capitals, extra spaces and end punctuation don't count, and a
-  one-letter slip in an answer of five letters or more is "almost". Missed and hinted items come back in the next
-  round. Not on a page yet: that comes with the study-mode pages (Task C1 on #11).
-- Daily games, first part (D-61): `/play` with pulse, playable with labeled sample puzzles, and cueword, triage and
-  suture listed as coming soon; a link in the ☰ panel and a section on the home page after "ways to study". It adds
-  sample puzzles under `content/`, so it waits for Christian's merge. How real puzzles reach the browser one day at a
-  time is proposed in D-61 for Christian.
-- [Review scheduler](https://github.com/lilchristxan/Cueory/pull/64) (a Codex helper's, Task 8 on #11): a card the
-  student knows comes back in 3, then 7, then 14 days; a miss brings it back the next day. When an exam is coming, a
-  review that would land too late moves to the day before it. It counts whole calendar days, so time zones and clock
-  changes can't move a review. Not on a page yet: the review mode comes next.
-- Daily games, second game (D-63, stacked on the first part): triage on `/play`. Sort ten terms into three named
-  groups, with one that fits none ("none of these"); a wrong place is a slip, and three slips end the round. Buttons
-  only (tap, click or keyboard, no dragging), every result said in words and shown by ✓, and a plain-words share line.
-  Seven labeled everyday samples under `content/games/triage/`, so it also waits for Christian's merge.
-- Engines and boards from tonight's helpers, each in its own pull request. None is on a page yet: the study-mode
-  pages (Task C1 on #11), guest progress (Task C2) and the visuals kit's drawings (Task C5) bring them in.
-  - In `staging`: [diagram step player](https://github.com/lilchristxan/Cueory/pull/63) (Task 11): a teaching diagram
-    as numbered steps, paused at first. The student steps through by hand or presses play, and each step's caption is
-    read out. With reduced motion there is no play button, only the steps by hand.
-  - In `staging`: [break timer](https://github.com/lilchristxan/Cueory/pull/67) (Task 12): an optional study-break
-    reminder, off unless the student turns it on (by default 25 minutes of study, then a suggested 5-minute break). It
-    makes no sound, saves nothing and never blocks the page; the student can pause it, skip or put off a break, or
-    take one early.
-  - [Concept map](https://github.com/lilchristxan/Cueory/pull/68) (Task 14): every concept in a unit with its status in
-    words and a shape (an empty circle, a quarter, a half or a check), never color alone, with a filter by status. No
-    scores or predictions.
-  - In `staging`: [private game stats](https://github.com/lilchristxan/Cueory/pull/70) (Task 13): for each daily game,
-    the first result of the day counts and replays can't change it. Days played, games solved and how many tries, in
-    plain words, with no streaks and no comparisons; up to 400 days per game, and a student can forget one game or all
-    of them. The panel on `/play` that saves them, off until the student turns it on, is in review
-    ([#79](https://github.com/lilchristxan/Cueory/pull/79), D-76).
-  - [Label it](https://github.com/lilchristxan/Cueory/pull/71) (Task 9), image occlusion (ROADMAP Task 4c): a
-    diagram's labels are covered, and the student uncovers them one at a time or all at once and marks each "know it"
-    or "still learning"; the next round covers only the "still learning" ones. No image without alt text and a
-    credit, and a covered label's words are never on the page.
-  - [Flag or comment form](https://github.com/lilchristxan/Cueory/pull/82) (Task 15, D-34): "what's wrong?" with five
-    choices and an optional comment, checked and cleaned before it's sent. Signed out, it says reports need an
-    account. Sending is Task 2's `submit_flag` (D-73), so nothing is sent anywhere yet.
-  - [Review session](https://github.com/lilchristxan/Cueory/pull/83) (Task 16, stacked on the review scheduler): the
-    cards due today, then up to 10 new ones, each shown once: front, "show the answer", then "know it" or "still
-    learning". A summary in words says when the next review is. No timer, no streak, no score.
-  - [Level test rules](https://github.com/lilchristxan/Cueory/pull/84) (Task 17, ROADMAP Task 4b): up to two questions
-    per concept, starting at level 2; each concept ends as "not started", "learning", "getting there" or "got it",
-    never a score or a chance of passing.
-- In `staging`: [crossword fix](https://github.com/lilchristxan/Cueory/pull/59) (a Codex helper's): on a narrow
-  screen, the cell being typed in with the keyboard now scrolls into view.
-
-- The crossword on `/play` (D-70): today's labeled sample, picked from the visitor's own date like the other games,
-  on the engine and board from [#51](https://github.com/lilchristxan/Cueory/pull/51) (a Codex helper's, now in
-  `staging`). Six everyday samples under `content/games/cueword/`, each checked by the game's own rules at build time,
-  so it waits for Christian's merge. Next: word path the same way (its engine, #52, is in `staging`).
-
-- Word path on `/play` (D-71, stacked on the crossword's pull request): today's labeled sample on the engine and board
-  from [#52](https://github.com/lilchristxan/Cueory/pull/52) (a Codex helper's, now in `staging`). Five everyday
-  samples under `content/games/suture/`, checked by the game's own rules at build time, so it waits for Christian's
-  merge. With it, all four daily games are playable on samples.
-- Task 26 (D-34, D-73): `flagArguments(report, context)` — the pure adapter that converts a validated `FlagReport`
-  into the exact args for the database's `submit_flag` function. Validates page (same-site, strips query and hash),
-  maps camelCase to snake_case, and sets absent fields to null. Sending waits for the RPC and integration step.
-  [PR #107](https://github.com/lilchristxan/Cueory/pull/107).
-- Task 2, database step 3 (Task C6, D-86, stacked on #92): `attempts` and `check_answer`, with 43 database tests. A
-  signed-in student sends their picks and, only after the attempt is recorded, gets right or wrong, the key and the
-  rationales. 200 checks an hour per person. It is signed-in only, which needs Christian's confirmation (D-86). It
-  edits `supabase/`, so it waits for him.
-- Task 2, database step 2 (Task C6, D-85, stacked on #90): `items`, `item_versions`, `item_choices` and `item_answers`,
-  with 49 database tests. Students read a published version's stem and choices; the key and rationales are closed to
-  every website role. A version can be published only when complete and never changes after. It edits `supabase/`,
-  so it waits for Christian.
-- Task 2, database step 1 (Task C6, D-84): `concepts`, `sources` and `rights_records`, with 34 database tests. Visitors
-  and students read only published concepts and sources; nobody on the website can write; rights records are closed
-  to every website role. It edits `supabase/`, so it waits for Christian. Steps 2 to 5 stack on it: items, then
-  `check_answer`, then attempts and exam plans, then flags.
-- Task 2, database step 4 (Task C6, D-87): `review_state` and `exam_plans`, with 47 database tests. Each student reads and
-  writes only their own spaced-review progress and exam dates; the database refuses impossible values. It edits
-  `supabase/`, so it waits for Christian. **Steps 1 to 3 are in `staging`** (#90, #92 and #94): concepts, sources and
-  rights records (D-84); items, versions and the hidden answer key (D-85); and attempts with `check_answer` (D-86), 140
-  database tests in all. `check_answer` is signed-in only, which still needs Christian's confirmation (D-86). Step 5,
-  flags and `submit_flag`, comes next.
-- [Concept map](https://github.com/lilchristxan/Cueory/pull/68) (Task 14): every concept in a unit with its status in
-  words and a shape (an empty circle, a quarter, a half or a check), never color alone, with a filter by status. No
-  scores or predictions.
-- Visuals kit, the first batch's drawings (Task C5, D-81): body fluid compartments, osmosis and fluid shifts, and
-  the sodium-potassium pump, drawn only from their approved source files and checked by tests. Drafts, so nothing shows
-  on a page until Christian approves them; his review sheet is linked from the pull request.
-- Open pull requests add their own lines here: study modes on pages (#77), guest progress (#74), game stats on
-  `/play` (#79), the Safari preview fix (#88) and Release browser tests (#55).
-- Open pull requests add their own lines here: study modes on pages (#77), export-my-data (#95, Task 19), lesson
-  videos (#97, Task C3), the 3D viewer shell (#98, Task C4), the batch importer's parser (#100, Task 21), the
-  disease-overlay frame (#102, Task 24) and Release browser tests (#55).
-- Open pull requests add their own lines here. Waiting now: study modes on pages (#77), export-my-data (#95, Task 19),
-  lesson videos (#97, Task C3), the 3D viewer shell (#98, Task C4), the Supabase settings reader (#101, Task 22),
-  delete-account checks (#105, Task 25), the daily puzzle checker (#108), database step 5, flags and `submit_flag`
-  (#110), the review-clip exporter (#111, Task C7), guest progress into an account (#113, Task 31) and Release browser
-  tests (#55).
-- Organizer on a page (Task C1 on #11): `/learn/study-skills/organizer`, opened from the lesson page and the home
-  page's organizer card. Sort eight everyday foods into fruit, vegetable and grain by tapping, number keys or
-  dragging; nothing is marked until **check**. The set is a labeled sample in `content/organizer/`, so it waits for
-  Christian's merge. Fill-in, questions and label it get their pages the same way as their engines merge.
-- Fill-in on a page (Task C1): `/learn/study-skills/fill-in`, from the lesson page and the home page's fill-in card.
-  Type the missing word; "almost" when one letter is off, a first-letter hint, and the missed or hinted sentences come
-  back in a second round. Four labeled everyday sample sentences in `content/fill-in/`, so it waits for Christian's
-  merge.
-- Label it on a page (Task C1): `/learn/study-skills/label-it`. Uncover the labels on a drawing by tapping its numbered
-  covers or with the keyboard, mark each one, and the next round covers only "still learning". The labels load from
-  their own JSON file after the page opens, so none is in the page's HTML (a build test checks). The sample is a plain
-  house drawn for Cueory in brand colors (`public/learn/study-skills/label-it/house.svg`), with its labels in
-  `content/label-it/`, so it waits for Christian's merge. Real diagrams come with rights records (Task 2).
-- Questions on a page (Task C1): `/learn/study-skills/questions`. Single-answer and select-all questions; after
-  **check**, every choice says in words and a symbol whether it was picked and right, then its rationale. Three
-  everyday sample questions in `content/questions/`, checked by the player's sample checker after the page loads, so
-  no key is in the page's HTML (a build test checks). Real questions never go in the repository (D-33). It waits for
-  Christian's merge.
-- Task 28: `itemHash(itemRow, keyRow)` and fail-closed hash verification in `parsePassed()` — the importer
-  rejects items whose `hash` is absent (fail-closed) or does not match the canonical SHA-256 of the item JSON.
-  Per-choice rationales are required for all items. `passed.csv` gains a `hash` column; the checker's
-  `passedCsv()` will emit it in a follow-up task. [PR #115](https://github.com/lilchristxan/Cueory/pull/115).
-- Task 31 ([#113](https://github.com/lilchristxan/Cueory/pull/113), D-69, D-87): `importRows(progress, idMap, today)` —
-  converts guest localStorage progress into rows for `review_state`. `idMap` is a nested
-  `Map<deckId, Map<cardId, uuid>>` so deck-local card ids are never confused across decks. "Know it" cards start at
-  level 1 (next review in 3 days via `nextReview`); "still learning" and starred-only cards start at level 0 (due
-  today). Stars returned separately in `starred[]`; `today` validated; 28 unit tests. Exam plans deferred (D-87
-  follow-up). Account-import integration (wiring to sign-up flow) not yet built.
-- Task 35: `inbox(flags, filter)`, `groupByItem(flags)`, and `markHandled(flag, when)` — the flag-inbox model for
-  `/admin` (ROADMAP Task 2, D-34). Uses the fallback row shape since PR #110 had not merged when this was written.
-  Pure logic: no page, no network, no database. 22 unit tests.
-  [In review](https://github.com/lilchristxan/Cueory/pull/120).
-- Task 37: `checkDisplayName(input)` — mirrors both database constraints from the profiles migration (1–50 code
-  points, no control characters). Trims leading/trailing spaces before validating; counts code points correctly for
-  emoji and accented letters. 17 unit tests.
-  [In review](https://github.com/lilchristxan/Cueory/pull/121).
-- Task 38: `studentMessage(fn, error)` — maps all 14 RPC error messages (`check_answer` and `submit_flag`) to calm
-  student-facing sentences. Never echoes SQL, table names, or SQLSTATE codes. 19 unit tests.
-  [In review](https://github.com/lilchristxan/Cueory/pull/122).
-- Task 39: `visualsForLesson(visuals, lessonId)` and `missingDrawings(visuals)` — returns approved visuals for a
-  lesson that have a drawing in the registry; drafts are never returned. Live batch-1 import test confirms all
-  current content files are drafts. 15 unit tests.
-  [In review](https://github.com/lilchristxan/Cueory/pull/123).
-- Open pull requests add their own lines here. Waiting now: study modes on pages (#77), export-my-data (#95, Task 19),
-  lesson videos (#97, Task C3), the 3D viewer shell (#98, Task C4), the Supabase settings reader (#101, Task 22),
-  delete-account checks (#105, Task 25), the daily puzzle checker (#108), database step 5, flags and `submit_flag`
-  (#110), the review-clip exporter (#111, Task C7), Release browser tests (#55), and the new tasks 40 to 42 and C8
-  when they open.
+- Open pull requests add their own lines here. Waiting now: study modes on pages (#77, held for Christian's choice
+  below), delete-account checks (#105, Task 25), database step 5, flags and `submit_flag` (#110), the review-clip
+  exporter (#111, Task C7), visuals on lesson pages (#129, Task C9), the review-sheet script (Task 43) and Release
+  browser tests (#55).
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
@@ -372,8 +232,12 @@ Targets: first visuals by about 14 November, the full kit by about 12 December (
 - In `staging`: the first batch's words (D-72), approved by Christian: the source files for body fluid compartments,
   osmosis and fluid shifts, and the sodium-potassium pump, every label quoted from Open RN *Nursing Fundamentals 2e*
   15.2.
-- Next: the three drawings (Task C5), made only from those files. The 3D viewer adds three.js, so it waits for
-  Christian's merge; its models come from BodyParts3D (D-80).
+- In `staging` ([#98](https://github.com/lilchristxan/Cueory/pull/98)): 3D body viewer shell (D-83). Lazy-loads
+  `three` on tap, renders a placeholder model grouped into bone / muscle / skin layers with OrbitControls. On-demand
+  rendering (battery), keyboard controls (arrow keys / +−), dark-mode background tokens, reduced-motion support.
+  Preview page has `noindex`. Real model will be BodyParts3D (D-80). `three` 0.187; a unit test caps model files
+  under `public/` at 3 MB.
+- Next: the three drawings (Task C5), made only from those files.
 
 ## Planning
 - [Med-surg lesson map](curriculum/README.md) ([#31](https://github.com/lilchristxan/Cueory/pull/31)): the master
@@ -385,6 +249,14 @@ Targets: first visuals by about 14 November, the full kit by about 12 December (
 - **Signup form** shows "signups open soon" until the Kit form exists (SETUP.md, Part I).
 
 ## Needs Christian's hands
+- [ ] Lesson videos (#97, now in `staging`): on a real iPhone, open `/learn/video-sample` on the staging site and tap
+  the cover once. The video should start playing right away. Safari can drop the tap's permission to play, which
+  automated tests can't see. Reply "video ok" or describe what happened.
+- [ ] Study modes on pages (#77): its questions page sends the sample answers to the browser before a student answers,
+  and organizer and fill-in carry their answers in the page, like cards. Choose one: (1) split it, publishing what
+  has no answer before an attempt, with questions waiting for `check_answer` and accounts (recommended); (2) keep all
+  four pages on the locked staging site only, left out of live builds; or (3) allow labeled everyday samples with
+  answers in the browser.
 - [ ] Real questions need a free account (D-86): `check_answer` reveals the key after one try, so signed-out visitors
   can't use it (a limit needs an identity, and a CAPTCHA would load a third-party script). Guests keep the sample modes.
   Reply "ok" to keep it this way, or ask for a CAPTCHA exception.

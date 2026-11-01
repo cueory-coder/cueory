@@ -2,12 +2,15 @@
 import { getEntry } from 'astro:content';
 import Layout from '../../../layouts/Layout.astro';
 import SentenceStepper from '../../../islands/SentenceStepper';
+import LessonVideo from '../../../islands/LessonVideo';
+import { isShowable } from '../../../videos/schema';
 
 const lesson = await getEntry('lessons', 'study-skills-01');
 if (!lesson) {
   throw new Error('Lesson file content/lessons/study-skills-01.json is missing.');
 }
 const { title, summary, sentences, status } = lesson.data;
+const video = await getEntry('videos', 'study-skills-01');
 ---
 
 <Layout title={title} description={summary} variant="study">
@@ -25,6 +28,19 @@ const { title, summary, sentences, status } = lesson.data;
         </ol>
       </noscript>
     </div>
+
+    {video && isShowable(video.data.status) && (
+      <div class="mt-section">
+        <LessonVideo
+          client:only="react"
+          videoId={video.data.videoId}
+          title={video.data.title}
+          thumbnail={video.data.thumbnail}
+          captionsUrl={video.data.captionsUrl || undefined}
+          transcriptUrl={video.data.transcriptUrl || undefined}
+        />
+      </div>
+    )}
 
     <ul class="mt-section space-y-2 text-sm">
       <li><a href="/learn/study-skills/cards">Practice this lesson with cards</a></li>
