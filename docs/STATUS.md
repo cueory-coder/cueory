@@ -174,6 +174,20 @@ Merged into `staging`; the database ones by the director on Christian's behalf (
   - what the offline cache may keep (#112, Task 32);
   - study events with nothing personal in them (#114, Task 33), with no analytics script yet.
 
+## Done (director, 2026-11-01, 4–5 am Phoenix)
+Merged into `staging` (#115 by the director on Christian's behalf, D-89, with the lead's review). Helpers' logic, not on
+a page yet:
+- the batch importer refuses an item whose hash is missing or doesn't match, and needs every choice's rationale (#115,
+  Task 28); the checker is being brought in line with it (Task C8);
+- the flag-name fix for item versions (#117, Task 26);
+- guest progress turned into review rows for when an account is created (#113, Task 31);
+- the review queue from database rows (#118, Task 34);
+- the flag inbox model for `/admin` (#120, Task 35);
+- the curriculum lesson map read in build order (#119, Task 36);
+- display-name checks in the browser that match the database (#121, Task 37);
+- plain words for the database's refusals (#122, Task 38);
+- which visuals a lesson may show: approved ones with a drawing, never drafts (#123, Task 39).
+
 ## In review
 - Auto-merge sweep (D-78, the lead's): an ordinary comment can no longer cancel a waiting merge check, and once an
   hour a sweep re-checks every open pull request. It edits `.github/`, so it waits for Christian.
@@ -332,7 +346,8 @@ Merged into `staging`; the database ones by the director on Christian's behalf (
 - Open pull requests add their own lines here. Waiting now: study modes on pages (#77), export-my-data (#95, Task 19),
   lesson videos (#97, Task C3), the 3D viewer shell (#98, Task C4), the Supabase settings reader (#101, Task 22),
   delete-account checks (#105, Task 25), the daily puzzle checker (#108), database step 5, flags and `submit_flag`
-  (#110), the review-clip exporter (#111, Task C7) and Release browser tests (#55).
+  (#110), the review-clip exporter (#111, Task C7), Release browser tests (#55), and the new tasks 40 to 42 and C8
+  when they open.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
