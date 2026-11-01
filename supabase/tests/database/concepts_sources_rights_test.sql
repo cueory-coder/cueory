@@ -3,7 +3,7 @@
 -- local database; every row below exists only inside this test.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(34);
+select plan(35);
 
 -- Rows, made as the database owner (which is how migrations and the admin tools write).
 insert into public.concepts (id, slug, title, published) values
@@ -28,6 +28,17 @@ select table_privs_are('public', 'sources', 'authenticated', array['SELECT'], 's
 select table_privs_are('public', 'rights_records', 'anon', array[]::text[], 'visitors have no access to rights records');
 select table_privs_are(
   'public', 'rights_records', 'authenticated', array[]::text[], 'students have no access to rights records'
+);
+
+select ok(
+  exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'rights_records'
+      and permissive = 'RESTRICTIVE' and cmd = 'ALL'
+      and roles @> array['anon', 'authenticated']::name[] and cardinality(roles) = 2
+      and qual = 'false' and with_check = 'false'
+  ),
+  'rights records have an explicit policy that refuses every website role'
 );
 
 -- ---- Signed out.
