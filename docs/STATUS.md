@@ -251,6 +251,10 @@ Merged into `staging` overnight; the database and content ones by the director o
   from [#52](https://github.com/lilchristxan/Cueory/pull/52) (a Codex helper's, now in `staging`). Five everyday
   samples under `content/games/suture/`, checked by the game's own rules at build time, so it waits for Christian's
   merge. With it, all four daily games are playable on samples.
+- Task 26 (D-34, D-73): `flagArguments(report, context)` — the pure adapter that converts a validated `FlagReport`
+  into the exact args for the database's `submit_flag` function. Validates page (same-site, strips query and hash),
+  maps camelCase to snake_case, and sets absent fields to null. Sending waits for the RPC and integration step.
+  [PR #107](https://github.com/lilchristxan/Cueory/pull/107).
 - Task 2, database step 3 (Task C6, D-86, stacked on #92): `attempts` and `check_answer`, with 43 database tests. A
   signed-in student sends their picks and, only after the attempt is recorded, gets right or wrong, the key and the
   rationales. 200 checks an hour per person. It is signed-in only, which needs Christian's confirmation (D-86). It
