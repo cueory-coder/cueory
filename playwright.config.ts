@@ -5,6 +5,9 @@ const port = 4322;
 // Safari's engine (WebKit) and Firefox run only when CI sets ALL_ENGINES=1, which it does on pull requests into `main`
 // (D-48). Without it these projects don't exist, so ordinary pull requests and `npm run test:e2e` stay Chromium only.
 const allEngines = process.env.ALL_ENGINES === '1';
+// The accessibility scan (axe) takes about 30 s per page in WebKit on a Mac, which is the whole default test limit, so
+// the engine projects get a longer limit. Only the time allowed changes; no assertion is skipped or loosened.
+const engineTimeout = 90_000;
 
 export default defineConfig({
   testDir: 'tests/e2e',
@@ -27,9 +30,9 @@ export default defineConfig({
     { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } },
     ...(allEngines
       ? [
-          { name: 'webkit-phone', use: { ...devices['iPhone 14'], viewport: { width: 390, height: 844 } } },
-          { name: 'webkit-desktop', use: { ...devices['Desktop Safari'], viewport: { width: 1440, height: 900 } } },
-          { name: 'firefox-desktop', use: { ...devices['Desktop Firefox'], viewport: { width: 1440, height: 900 } } },
+          { name: 'webkit-phone', timeout: engineTimeout, use: { ...devices['iPhone 14'], viewport: { width: 390, height: 844 } } },
+          { name: 'webkit-desktop', timeout: engineTimeout, use: { ...devices['Desktop Safari'], viewport: { width: 1440, height: 900 } } },
+          { name: 'firefox-desktop', timeout: engineTimeout, use: { ...devices['Desktop Firefox'], viewport: { width: 1440, height: 900 } } },
         ]
       : []),
   ],
