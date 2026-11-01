@@ -307,6 +307,27 @@
     background-color: rgb(var(--glass-hover-rgb) / var(--glass-hover-alpha));
   }
 
+  /* Social profile links (D-54): the platform's one-color mark in the text color, on a 44 px target. */
+  .social-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-inline-size: calc(var(--spacing) * 11);
+    min-block-size: calc(var(--spacing) * 11);
+    border-radius: var(--radius-pill);
+    color: var(--color-ink-soft);
+  }
+
+  .social-link:hover {
+    color: var(--color-ink);
+  }
+
+  /* In the dark ☰ panel: the panel's light ink, which never changes on hover (its contrast is checked as it is). */
+  .social-link-panel,
+  .social-link-panel:hover {
+    color: var(--color-panel-ink);
+  }
+
   /* The ☰ side panel: full height, from the left, dark glass. A native modal <dialog>. */
   .menu-panel {
     position: fixed;
