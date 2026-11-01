@@ -127,9 +127,11 @@ select results_eq(
 select results_eq(
   $$ select count(*)::int from public.attempts $$, $$ values (10) $$, 'every checked answer is recorded for the student'
 );
+-- Both the "a, c" and the "c, a" check are stored as {a,c}: one distinct row, whatever order they came in. (Not "the
+-- first row": inside one transaction every created_at is the same, so there is no first.)
 select results_eq(
-  $$ select picked::text from public.attempts
-     where item_version_id = '00000000-0000-4000-8000-0000000000f2' order by created_at, id limit 1 $$,
+  $$ select distinct picked::text from public.attempts
+     where item_version_id = '00000000-0000-4000-8000-0000000000f2' and picked @> array['a', 'c'] and cardinality(picked) = 2 $$,
   $$ values ('{a,c}') $$, 'the picks are recorded in sorted order'
 );
 
