@@ -101,6 +101,8 @@ Last updated: 2026-11-01
   later.
 
 ## In review
+- Safari: the study-mode preview's Tab trap now takes every Tab step itself, like the ☰ panel (found by the WebKit run for
+  D-48).
 - Auto-merge sweep (D-78, the lead's): an ordinary comment can no longer cancel a waiting merge check, and once an
   hour a sweep re-checks every open pull request. It edits `.github/`, so it waits for Christian.
 - Safari focus fixes (from the WebKit runs for D-48): the ☰ panel's Tab trap now moves focus one item at a time in every
