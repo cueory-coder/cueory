@@ -109,6 +109,11 @@ Last updated: 2026-11-01
   browser's own Tab, and one promo timing test runs late in WebKit.
 - Game-name guard (D-67): a unit test fails if a page or game shows an internal id (`cueword`, `triage`, `suture`) as
   words, or types a name into a share line, so the next rename stays a one-line change.
+- [Questions player, with rationales](https://github.com/lilchristxan/Cueory/pull/53) (a Codex helper's, Task 6 on
+  #11): single-answer and select-all-that-apply questions, scored all-or-nothing (D-45), with each choice marked by a
+  symbol and words and its rationale shown after the check. It never holds an answer key: it asks a checker it is
+  given (D-33), and the sample checker refuses anything that isn't a labeled sample. Not on a page yet: that comes
+  with the study-mode pages (Task C1 on #11).
 - Promo panel fix: it waits until the ☰ panel or a study-mode preview has finished closing, so their own focus
   handling never takes focus away from it (a browser test failed 2 of 12 runs because of this).
 - [Fill-in](https://github.com/lilchristxan/Cueory/pull/56) (a Codex helper's, Task 7 on #11): a sentence with one
