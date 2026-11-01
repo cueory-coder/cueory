@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parsePuzzle } from '../../src/islands/suture';
 
-/** Every way to spell a word along touching cells (up, down, left, right), each cell once. */
+/** Every way to spell a word along straight-line touching cells (up, down, left, right), each cell once. */
 function paths(grid: string[], word: string): number {
   let count = 0;
   const walk = (row: number, col: number, i: number, used: Set<string>) => {
@@ -29,9 +29,16 @@ describe('word path samples (D-71)', () => {
       const data = JSON.parse(readFileSync(new URL(name, folder), 'utf8'));
       expect(name).toMatch(/^sample-\d{2}\.json$/);
       expect(data.status).toBe('sample');
-      const puzzle = parsePuzzle({ id: name.replace('.json', ''), sample: true, grid: data.grid, words: data.words });
+      const puzzle = parsePuzzle({ id: name.replace('.json', ''), sample: true, grid: data.grid, words: data.words, theme: data.theme });
       for (const word of puzzle.words) {
-        expect(word.cue).toBe(word.cue.toLowerCase());
+        // cue is now optional; only validate lowercase when present
+        if (word.cue !== undefined) {
+          expect(word.cue).toBe(word.cue.toLowerCase());
+        }
+        // theme is optional but must be ≤60 chars when present
+        if (puzzle.theme !== undefined) {
+          expect(puzzle.theme.length).toBeLessThanOrEqual(60);
+        }
         // One path only, so a correct trace of the word is never refused for taking another route.
         expect(paths(puzzle.grid, word.answer)).toBe(1);
       }

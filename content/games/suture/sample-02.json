@@ -1,100 +1,18 @@
 {
   "status": "sample",
+  "theme": "the weather",
   "grid": [
-    "CLOUD",
-    "RAETB",
-    "KINYF",
-    "SHEMO",
-    "NOWPG"
+    "CLOUDS",
+    "ZZZZZN",
+    "RAINZO",
+    "ZZZZZW",
+    "FOGZZZ",
+    "ZZZZZZ"
   ],
   "words": [
-    {
-      "cue": "white and fluffy, up in the sky",
-      "answer": "CLOUD",
-      "path": [
-        [
-          0,
-          0
-        ],
-        [
-          0,
-          1
-        ],
-        [
-          0,
-          2
-        ],
-        [
-          0,
-          3
-        ],
-        [
-          0,
-          4
-        ]
-      ]
-    },
-    {
-      "cue": "water falling from the sky",
-      "answer": "RAIN",
-      "path": [
-        [
-          1,
-          0
-        ],
-        [
-          1,
-          1
-        ],
-        [
-          2,
-          1
-        ],
-        [
-          2,
-          2
-        ]
-      ]
-    },
-    {
-      "cue": "cold and white, it falls in winter",
-      "answer": "SNOW",
-      "path": [
-        [
-          3,
-          0
-        ],
-        [
-          4,
-          0
-        ],
-        [
-          4,
-          1
-        ],
-        [
-          4,
-          2
-        ]
-      ]
-    },
-    {
-      "cue": "a low cloud that makes it hard to see",
-      "answer": "FOG",
-      "path": [
-        [
-          2,
-          4
-        ],
-        [
-          3,
-          4
-        ],
-        [
-          4,
-          4
-        ]
-      ]
-    }
+    { "answer": "CLOUD", "path": [[0,0],[0,1],[0,2],[0,3],[0,4]] },
+    { "answer": "SNOW",  "path": [[0,5],[1,5],[2,5],[3,5]] },
+    { "answer": "RAIN",  "path": [[2,0],[2,1],[2,2],[2,3]] },
+    { "answer": "FOG",   "path": [[4,0],[4,1],[4,2]] }
   ]
 }

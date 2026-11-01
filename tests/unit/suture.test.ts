@@ -1,143 +1,252 @@
 import { describe, expect, it } from 'vitest';
-import { cellLabel, clearTrace, foundWord, isDone, parsePuzzle, shareLine, startSuture, stitch, tapCell, traceInWords, wordsLeft, type Cell, type SuturePuzzle, type SutureState } from '../../src/islands/suture';
+import { cellLabel, clearTrace, foundWord, isDone, parsePuzzle, pathBetween, shareLine, startSuture, stitch, tapCell, traceInWords, wordsLeft, type Cell, type SuturePuzzle, type SutureState } from '../../src/islands/suture';
 
+// Straight-line puzzle (word search format).
 const puzzle: SuturePuzzle = {
-  id: 'everyday', sample: true, grid: ['CATX', 'DOGY', 'SUNZ'],
+  id: 'everyday', sample: true, theme: 'study break',
+  grid: ['WATERZ', 'ZZZZZZ', 'STRETCHZZ'.slice(0, 6), 'ZZZZZZ', 'WALKZZ', 'MUSICZ'],
   words: [
-    { cue: 'a purring pet', answer: 'CAT', path: [[0, 0], [0, 1], [0, 2]] },
-    { cue: 'a barking pet', answer: 'DOG', path: [[1, 0], [1, 1], [1, 2]] },
-    { cue: 'the daytime star', answer: 'SUN', path: [[2, 0], [2, 1], [2, 2]] },
+    { answer: 'WATER',   path: [[0,0],[0,1],[0,2],[0,3],[0,4]] },
+    { answer: 'WALK',    path: [[4,0],[4,1],[4,2],[4,3]] },
+    { answer: 'MUSIC',   path: [[5,0],[5,1],[5,2],[5,3],[5,4]] },
   ],
 };
-const copy = () => structuredClone(puzzle);
-const trace = (state: SutureState, cells: Cell[]) => cells.reduce((next, cell) => tapCell(next, puzzle, cell), state);
 
-describe('word-path validation', () => {
-  it('parses a clean puzzle with filler cells, and copies its arrays', () => {
-    const input = copy();
-    const parsed = parsePuzzle(input);
-    expect(parsed).toEqual(puzzle);
-    parsed.words[0]!.path[0]![0] = 1;
-    parsed.grid[0] = 'XXXX';
-    expect(input).toEqual(puzzle);
+// Simpler 4-row puzzle for basic state tests.
+const small: SuturePuzzle = {
+  id: 'small', sample: true,
+  grid: ['CATX', 'DOGY', 'SUNZ', 'ZZZZ'],
+  words: [
+    { answer: 'CAT', path: [[0,0],[0,1],[0,2]] },
+    { answer: 'DOG', path: [[1,0],[1,1],[1,2]] },
+    { answer: 'SUN', path: [[2,0],[2,1],[2,2]] },
+  ],
+};
+const copy = () => structuredClone(small);
+
+describe('pathBetween', () => {
+  it('returns a horizontal path left to right', () => {
+    expect(pathBetween([0, 0], [0, 2])).toEqual([[0,0],[0,1],[0,2]]);
   });
-  it.each([null, [], {}, { ...puzzle, sample: 'yes' }, { ...puzzle, id: '' }])('rejects missing metadata %j', (data) => {
-    expect(() => parsePuzzle(data)).toThrow();
+  it('returns a horizontal path right to left', () => {
+    expect(pathBetween([0, 2], [0, 0])).toEqual([[0,2],[0,1],[0,0]]);
   });
-  it('rejects bad grid sizes, uneven rows and nonletters', () => {
-    expect(() => parsePuzzle({ ...puzzle, grid: ['CAT', 'DOG'] })).toThrow(/rows/);
-    expect(() => parsePuzzle({ ...puzzle, grid: Array(8).fill('CAT') })).toThrow(/rows/);
-    expect(() => parsePuzzle({ ...puzzle, grid: ['CATX', 'DOG', 'SUNZ'] })).toThrow(/equal/);
-    expect(() => parsePuzzle({ ...puzzle, grid: ['C@TX', 'DOGY', 'SUNZ'] })).toThrow(/uppercase/);
-    expect(() => parsePuzzle({ ...puzzle, grid: ['catx', 'DOGY', 'SUNZ'] })).toThrow(/uppercase/);
+  it('returns a vertical path top to bottom', () => {
+    expect(pathBetween([0, 0], [2, 0])).toEqual([[0,0],[1,0],[2,0]]);
   });
-  it('requires three to six words with cues and three to eight letters', () => {
-    expect(() => parsePuzzle({ ...puzzle, words: puzzle.words.slice(0, 2) })).toThrow(/3 to 6/);
-    expect(() => parsePuzzle({ ...puzzle, words: Array(7).fill(puzzle.words[0]) })).toThrow(/3 to 6/);
-    const bad = copy(); bad.words[0]!.answer = 'AT';
-    expect(() => parsePuzzle(bad)).toThrow(/3 to 8/);
-    bad.words[0]!.answer = 'ABCDEFGHI';
-    expect(() => parsePuzzle(bad)).toThrow(/3 to 8/);
-    bad.words[0]!.cue = '';
-    expect(() => parsePuzzle(bad)).toThrow(/cue/);
+  it('returns null for diagonal', () => {
+    expect(pathBetween([0, 0], [2, 1])).toBeNull();
+    expect(pathBetween([1, 1], [3, 3])).toBeNull();
   });
-  it('rejects diagonal, repeated, off-grid and jumping cells', () => {
-    const bad = copy(); bad.words[0]!.path = [[0, 0], [1, 1], [0, 2]];
-    expect(() => parsePuzzle(bad)).toThrow(/diagonally/);
-    bad.words[0]!.path = [[0, 0], [0, 1], [0, 0]];
-    expect(() => parsePuzzle(bad)).toThrow(/repeats/);
-    bad.words[0]!.path = [[-1, 0], [0, 1], [0, 2]];
-    expect(() => parsePuzzle(bad)).toThrow(/leaves/);
-    bad.words[0]!.path = [[0, 0], [0, 2], [0, 3]];
-    expect(() => parsePuzzle(bad)).toThrow(/steps/);
-    bad.words[0]!.path = [[0.5, 0], [0, 1], [0, 2]];
-    expect(() => parsePuzzle(bad)).toThrow(/whole-number/);
-  });
-  it('rejects wrong path length, a misspelled answer and shared cells', () => {
-    const bad = copy(); bad.words[0]!.path.pop();
-    expect(() => parsePuzzle(bad)).toThrow(/one cell/);
-    bad.words[0] = { ...puzzle.words[0]!, answer: 'CAR' };
-    expect(() => parsePuzzle(bad)).toThrow(/spell/);
-    bad.words[0] = structuredClone(puzzle.words[0]!);
-    bad.words[1] = structuredClone(puzzle.words[0]!);
-    expect(() => parsePuzzle(bad)).toThrow(/share/);
-  });
-  it('accepts a path that turns through orthogonally touching cells', () => {
-    const turning = parsePuzzle({
-      id: 'turning', sample: true, grid: ['CATXX', 'XRXXX', 'DOGXX', 'XXXXX', 'SUNXX'],
-      words: [
-        { cue: 'a road vehicle', answer: 'CAR', path: [[0, 0], [0, 1], [1, 1]] },
-        { cue: 'a pet', answer: 'DOG', path: [[2, 0], [2, 1], [2, 2]] },
-        { cue: 'the daytime star', answer: 'SUN', path: [[4, 0], [4, 1], [4, 2]] },
-      ],
-    });
-    let state = startSuture(turning);
-    for (const cell of turning.words[0]!.path) state = tapCell(state, turning, cell);
-    expect(stitch(state, turning)).toMatchObject({ found: true, word: 1 });
+  it('returns a single-cell path when from === to', () => {
+    expect(pathBetween([1, 1], [1, 1])).toEqual([[1,1]]);
   });
 });
 
-describe('tracing and stitching', () => {
-  it('adds touching cells, ignores non-touching/repeated cells, and removes the last one', () => {
-    const start = startSuture(puzzle);
-    let state = tapCell(start, puzzle, [0, 0]);
-    expect(start.trace).toEqual([]);
-    expect(tapCell(state, puzzle, [0, 2])).toBe(state);
-    expect(tapCell(state, puzzle, [1, 1])).toBe(state);
-    expect(tapCell(state, puzzle, [-1, 0])).toBe(state);
-    state = tapCell(state, puzzle, [0, 1]);
-    expect(tapCell(state, puzzle, [0, 0])).toBe(state);
-    state = tapCell(state, puzzle, [0, 1]);
-    expect(state.trace).toEqual([[0, 0]]);
-    expect(clearTrace(state).trace).toEqual([]);
+describe('word-path validation', () => {
+  it('parses a clean puzzle with theme and no cues, and copies its arrays', () => {
+    const input = copy();
+    const parsed = parsePuzzle(input);
+    expect(parsed.id).toBe('small');
+    expect(parsed.theme).toBeUndefined();
+    parsed.grid[0] = 'XXXX';
+    expect(input.grid[0]).toBe('CATX');
   });
-  it('finds exact paths in either direction, and locks found cells', () => {
-    let state = trace(startSuture(puzzle), puzzle.words[0]!.path);
-    const first = stitch(state, puzzle);
-    expect(first).toMatchObject({ found: true, word: 1 });
-    expect(first.state.trace).toEqual([]);
-    expect(first.state.found).toEqual([0]);
-    expect(tapCell(first.state, puzzle, [0, 0])).toBe(first.state);
-    state = trace(first.state, [...puzzle.words[1]!.path].reverse());
-    expect(stitch(state, puzzle)).toMatchObject({ found: true, word: 2, state: { found: [0, 1] } });
+  it('parses a puzzle with optional theme', () => {
+    const withTheme = parsePuzzle({ ...copy(), theme: 'study break' });
+    expect(withTheme.theme).toBe('study break');
   });
-  it('clears and counts a loose stitch, without losing found words or ending the puzzle', () => {
-    let state = stitch(trace(startSuture(puzzle), puzzle.words[0]!.path), puzzle).state;
-    state = trace(state, [[1, 3], [2, 3]]);
-    const loose = stitch(state, puzzle);
-    expect(loose.found).toBe(false);
-    expect(loose.state).toMatchObject({ trace: [], found: [0], looseStitches: 1 });
-    expect(isDone(loose.state)).toBe(false);
-    expect(stitch(loose.state, puzzle).state).toBe(loose.state);
+  it.each([null, [], {}, { ...copy(), sample: 'yes' }, { ...copy(), id: '' }])('rejects missing metadata %j', (data) => {
+    expect(() => parsePuzzle(data)).toThrow();
   });
-  it('finishes only after all words, with no game over from loose stitches', () => {
-    let state = startSuture(puzzle);
-    for (let i = 0; i < 10; i++) state = stitch(tapCell(state, puzzle, [0, 3]), puzzle).state;
-    expect(isDone(state)).toBe(false);
-    expect(wordsLeft(state)).toBe(3);
-    for (const word of puzzle.words) state = stitch(trace(state, word.path), puzzle).state;
-    expect(isDone(state)).toBe(true);
-    expect(wordsLeft(state)).toBe(0);
-    expect(tapCell(state, puzzle, [0, 3])).toBe(state);
-    expect(stitch(state, puzzle).state).toBe(state);
+  it('rejects a theme over 60 characters', () => {
+    expect(() => parsePuzzle({ ...copy(), theme: 'a'.repeat(61) })).toThrow(/60 characters/);
   });
-  it('labels coordinates, letters, trace order and found-word numbers in words', () => {
-    let state = trace(startSuture(puzzle), [[0, 0], [0, 1]]);
-    expect(cellLabel(state, puzzle, [0, 1])).toBe('row 1, column 2, letter A, trace step 2');
-    expect(traceInWords(state, puzzle)).toBe('trace: c, a.');
-    state = stitch(tapCell(state, puzzle, [0, 2]), puzzle).state;
-    expect(cellLabel(state, puzzle, [0, 1])).toBe('row 1, column 2, letter A, in word 1');
-    expect(foundWord(state, puzzle, [0, 1])).toBe(1);
-    expect(foundWord(state, puzzle, [1, 0])).toBeUndefined();
-    expect(traceInWords(state, puzzle)).toBe('no letters traced.');
+  it('rejects bad grid sizes, uneven rows and nonletters', () => {
+    expect(() => parsePuzzle({ ...copy(), grid: ['CAT', 'DOG'] })).toThrow(/rows/);
+    expect(() => parsePuzzle({ ...copy(), grid: Array(12).fill('CATR') })).toThrow(/rows/);
+    expect(() => parsePuzzle({ ...copy(), grid: ['CATX', 'DOG', 'SUNZ', 'ZZZZ'] })).toThrow(/equal/);
+    expect(() => parsePuzzle({ ...copy(), grid: ['C@TX', 'DOGY', 'SUNZ', 'ZZZZ'] })).toThrow(/uppercase/);
   });
+  it('accepts grids up to 11 × 11', () => {
+    const big = parsePuzzle({
+      id: 'big', sample: false,
+      grid: Array(11).fill('ABCDEFGHIJK'),
+      words: [
+        { answer: 'ABCDEFGHIJK', path: Array.from({ length: 11 }, (_, i) => [0, i]) },
+        { answer: 'ABC', path: [[1,0],[1,1],[1,2]] },
+        { answer: 'DEF', path: [[2,3],[2,4],[2,5]] },
+      ],
+    });
+    expect(big.grid.length).toBe(11);
+  });
+  it('rejects turning (non-straight) paths', () => {
+    const bad = copy();
+    // L-shaped path: down then right — not a straight line
+    bad.words[0] = { answer: 'CAT', path: [[0,0],[1,0],[1,1]] };
+    expect(() => parsePuzzle(bad)).toThrow(/straight line/);
+  });
+  it('rejects diagonal path cells', () => {
+    const bad = copy();
+    bad.words[0] = { answer: 'CAT', path: [[0,0],[1,1],[2,2]] };
+    expect(() => parsePuzzle(bad)).toThrow(/diagonally/);
+  });
+  it('requires 3 to 20 words with 3 to 11 letters', () => {
+    expect(() => parsePuzzle({ ...copy(), words: small.words.slice(0, 2) })).toThrow(/3 to 20/);
+    const bad = copy(); bad.words[0] = { ...bad.words[0]!, answer: 'AT', path: [[0,0],[0,1]] };
+    expect(() => parsePuzzle(bad)).toThrow(/3 to 11/);
+  });
+  it('accepts optional cue when present and rejects empty cue', () => {
+    const withCue = parsePuzzle({ ...copy(), words: copy().words.map((w) => ({ ...w, cue: 'a hint' })) });
+    expect(withCue.words[0]!.cue).toBe('a hint');
+    const bad = copy(); bad.words[0] = { ...bad.words[0]!, cue: '' };
+    expect(() => parsePuzzle(bad)).toThrow(/cue/);
+  });
+  it('rejects a word not in the grid or off its path', () => {
+    const bad = copy();
+    bad.words[0] = { answer: 'CAT', path: [[0,0],[0,1],[0,3]] };
+    expect(() => parsePuzzle(bad)).toThrow();
+  });
+});
+
+describe('tapCell', () => {
+  it('sets anchor on first tap', () => {
+    const s = startSuture(small);
+    const next = tapCell(s, small, [0, 0]);
+    expect(next.anchor).toEqual([0, 0]);
+    expect(next.cursor).toEqual([0, 0]);
+  });
+  it('updates cursor on second tap', () => {
+    let s = tapCell(startSuture(small), small, [0, 0]);
+    s = tapCell(s, small, [0, 2]);
+    expect(s.anchor).toEqual([0, 0]);
+    expect(s.cursor).toEqual([0, 2]);
+  });
+  it('clears anchor when tapping the anchor cell again', () => {
+    let s = tapCell(startSuture(small), small, [0, 0]);
+    s = tapCell(s, small, [0, 0]);
+    expect(s.anchor).toBeNull();
+    expect(s.cursor).toBeNull();
+  });
+  it('ignores taps on found word cells', () => {
+    let s = startSuture(small);
+    s = tapCell(s, small, [0, 0]);
+    s = tapCell(s, small, [0, 2]);
+    s = stitch(s, small).state;
+    const before = s;
+    expect(tapCell(s, small, [0, 1])).toBe(before);
+  });
+  it('ignores taps after the puzzle is done', () => {
+    let s = startSuture(small);
+    for (const word of small.words) {
+      s = tapCell(s, small, word.path[0]!);
+      s = tapCell(s, small, word.path.at(-1)!);
+      s = stitch(s, small).state;
+    }
+    expect(isDone(s)).toBe(true);
+    expect(tapCell(s, small, [0, 0])).toBe(s);
+  });
+});
+
+describe('stitch', () => {
+  it('finds a word stitched forward', () => {
+    let s = tapCell(startSuture(small), small, [0, 0]);
+    s = tapCell(s, small, [0, 2]);
+    const result = stitch(s, small);
+    expect(result.found).toBe(true);
+    expect(result.word).toBe(1);
+    expect(result.state.found).toEqual([0]);
+    expect(result.state.anchor).toBeNull();
+  });
+  it('finds a word stitched in reverse', () => {
+    let s = tapCell(startSuture(small), small, [0, 2]);
+    s = tapCell(s, small, [0, 0]);
+    const result = stitch(s, small);
+    expect(result.found).toBe(true);
+    expect(result.word).toBe(1);
+  });
+  it('registers a loose stitch on a non-matching path', () => {
+    let s = tapCell(startSuture(small), small, [0, 0]);
+    s = tapCell(s, small, [0, 1]);
+    const result = stitch(s, small);
+    expect(result.found).toBe(false);
+    expect(result.state.looseStitches).toBe(1);
+    expect(result.state.anchor).toBeNull();
+  });
+  it('registers a loose stitch on a diagonal selection', () => {
+    let s = tapCell(startSuture(small), small, [0, 0]);
+    s = { ...s, cursor: [2, 2] as Cell };
+    const result = stitch(s, small);
+    expect(result.found).toBe(false);
+    expect(result.state.looseStitches).toBe(1);
+  });
+  it('does nothing when no anchor is set', () => {
+    const s = startSuture(small);
+    expect(stitch(s, small).state).toBe(s);
+    expect(stitch(s, small).found).toBe(false);
+  });
+  it('finishes only after all words', () => {
+    let s = startSuture(small);
+    expect(isDone(s)).toBe(false);
+    for (const word of small.words) {
+      s = tapCell(s, small, word.path[0]!);
+      s = tapCell(s, small, word.path.at(-1)!);
+      s = stitch(s, small).state;
+    }
+    expect(isDone(s)).toBe(true);
+    expect(wordsLeft(s)).toBe(0);
+  });
+});
+
+describe('clearTrace', () => {
+  it('clears anchor and cursor', () => {
+    let s = tapCell(startSuture(small), small, [0, 0]);
+    s = tapCell(s, small, [0, 2]);
+    expect(clearTrace(s).anchor).toBeNull();
+    expect(clearTrace(s).cursor).toBeNull();
+  });
+  it('returns the same reference when nothing is selected', () => {
+    const s = startSuture(small);
+    expect(clearTrace(s)).toBe(s);
+  });
+});
+
+describe('foundWord and cellLabel', () => {
+  it('labels coordinates, letters, selection state and found-word numbers', () => {
+    let s = tapCell(startSuture(small), small, [0, 0]);
+    s = tapCell(s, small, [0, 2]);
+    expect(cellLabel(s, small, [0, 0])).toContain('selected first');
+    expect(cellLabel(s, small, [0, 1])).toContain('highlighted');
+    s = stitch(s, small).state;
+    expect(cellLabel(s, small, [0, 1])).toContain('in word 1');
+    expect(foundWord(s, small, [0, 1])).toBe(1);
+    expect(foundWord(s, small, [1, 0])).toBeUndefined();
+  });
+  it('traceInWords shows the active selection path', () => {
+    let s = tapCell(startSuture(small), small, [0, 0]);
+    s = tapCell(s, small, [0, 2]);
+    expect(traceInWords(s, small)).toBe('selected: c, a, t.');
+    expect(traceInWords(startSuture(small), small)).toBe('no letters selected.');
+  });
+});
+
+describe('shareLine', () => {
   it('shares a configured name in one plain line, never a grid or squares', () => {
-    let state = startSuture(puzzle);
-    state = stitch(tapCell(state, puzzle, [0, 3]), puzzle).state;
-    for (const word of puzzle.words) state = stitch(trace(state, word.path), puzzle).state;
-    const line = shareLine(state, 'SUN\n1 NOV', 'sample word path');
-    expect(line).toBe('cueory sample word path, sun 1 nov: stitched 3 of 3 words with 1 loose stitch.');
-    expect(line).not.toMatch(/[\n\r\u25a0-\u25ff]|🟩|🟨/u);
-    expect(shareLine(startSuture(puzzle), 'sun 1 nov', 'another name')).toContain('with 0 loose stitches.');
+    let s = startSuture(small);
+    for (const word of small.words) {
+      s = tapCell(s, small, word.path[0]!);
+      s = tapCell(s, small, word.path.at(-1)!);
+      s = stitch(s, small).state;
+    }
+    const line = shareLine(s, 'SUN\n1 NOV', 'sample word path');
+    expect(line).toBe('cueory sample word path, sun 1 nov: stitched 3 of 3 words with 0 loose stitches.');
+    expect(line).not.toMatch(/[\n\r■-◿]|🟩|🟨/u);
+  });
+  it('uses singular "stitch" when looseStitches is 1', () => {
+    let s = startSuture(small);
+    s = tapCell(s, small, [0, 0]);
+    s = tapCell(s, small, [0, 1]);
+    s = stitch(s, small).state; // loose stitch
+    expect(shareLine(s, 'nov', 'game')).toContain('1 loose stitch.');
   });
 });

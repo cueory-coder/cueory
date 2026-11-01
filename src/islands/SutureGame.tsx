@@ -1,16 +1,25 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { dayLabel } from './daily';
 import { localDay, reportRound } from './gameresults';
-import { cellLabel, clearTrace, foundWord, isDone, parsePuzzle, shareLine, startSuture, stitch, tapCell, traceInWords, wordsLeft, type Cell, type SuturePuzzle } from './suture';
+import { cellLabel, clearTrace, foundWord, isDone, parsePuzzle, pathBetween, shareLine, startSuture, stitch, tapCell, traceInWords, wordsLeft, type Cell, type SuturePuzzle } from './suture';
 
 interface Props { puzzle: SuturePuzzle; name: string }
 const button = 'min-h-11 min-w-11 rounded-md border border-control bg-page px-4 py-2 text-ink disabled:opacity-50';
+
+// Injected once: shake animation for wrong picks, used before Task 77's global.css lands on staging.
+const SUTURE_CSS_ID = 'cueory-suture-motion';
+const SUTURE_CSS = [
+  '@keyframes suture-shake{0%,100%{translate:0 0}25%{translate:-4px 0}75%{translate:4px 0}}',
+  '.suture-shake{animation:suture-shake 300ms ease-in-out}',
+  '@media(prefers-reduced-motion:reduce){.suture-shake{animation:none}}',
+].join('\n');
 
 function Board({ puzzle, name }: Props) {
   const [state, setState] = useState(() => startSuture(puzzle));
   const [focused, setFocused] = useState(0);
   const [said, setSaid] = useState('');
   const [copied, setCopied] = useState('');
+  const [shaking, setShaking] = useState(false);
   const [today] = useState(() => new Date());
   const result = useRef<HTMLDivElement>(null);
   const buttons = useRef(new Map<number, HTMLButtonElement>());
@@ -18,10 +27,19 @@ function Board({ puzzle, name }: Props) {
   const done = isDone(state);
   const width = puzzle.grid[0]!.length;
   const shared = shareLine(state, dayLabel(today), name);
+  const foundCount = state.found.length;
+
+  useEffect(() => {
+    if (!document.getElementById(SUTURE_CSS_ID)) {
+      const el = document.createElement('style');
+      el.id = SUTURE_CSS_ID;
+      el.textContent = SUTURE_CSS;
+      document.head.appendChild(el);
+    }
+  }, []);
 
   useEffect(() => { if (done) result.current?.focus(); }, [done]);
 
-  // A finished grid is reported once, for the stats panel, which keeps it only if the student turned stats on (D-76).
   const reported = useRef(false);
   useEffect(() => {
     if (!done || reported.current) return;
@@ -29,14 +47,28 @@ function Board({ puzzle, name }: Props) {
     reportRound({ game: 'suture', day: localDay(today), solved: true, tries: state.looseStitches });
   }, [done]);
 
+  const activePath = state.anchor && state.cursor && !state.anchor.every((v, i) => v === state.cursor![i])
+    ? pathBetween(state.anchor, state.cursor)
+    : state.anchor ? [state.anchor] : null;
+
   const tap = (cell: Cell) => {
     const next = tapCell(state, puzzle, cell);
-    if (next === state) {
-      setSaid('choose a touching letter, up, down, left or right. a found word stays in place.');
-      return;
-    }
+    if (next === state) return;
     setState(next);
     setSaid(traceInWords(next, puzzle));
+  };
+
+  const sew = () => {
+    const outcome = stitch(state, puzzle);
+    setState(outcome.state);
+    if (outcome.found) {
+      setSaid(`found word ${outcome.word}: ${puzzle.words[outcome.word! - 1]!.answer.toLowerCase()}.${isDone(outcome.state) ? ' all words found.' : ''}`);
+      setShaking(false);
+    } else {
+      setSaid("loose stitch: those letters aren't one of the words.");
+      setShaking(true);
+      setTimeout(() => setShaking(false), 400);
+    }
   };
 
   const key = (event: KeyboardEvent<HTMLButtonElement>, cell: Cell) => {
@@ -46,8 +78,8 @@ function Board({ puzzle, name }: Props) {
     }
     if (event.key === 'Backspace') {
       event.preventDefault();
-      const last = state.trace.at(-1);
-      if (last) tap(last);
+      setState((s) => clearTrace(s));
+      setSaid('selection cleared.');
       return;
     }
     let [row, col] = cell;
@@ -63,14 +95,6 @@ function Board({ puzzle, name }: Props) {
     buttons.current.get(next)?.focus();
   };
 
-  const sew = () => {
-    const outcome = stitch(state, puzzle);
-    setState(outcome.state);
-    setSaid(outcome.found
-      ? `found word ${outcome.word}: ${puzzle.words[outcome.word! - 1]!.answer.toLowerCase()}.${isDone(outcome.state) ? ' all words found.' : ''}`
-      : "loose stitch: those letters aren't one of the words.");
-  };
-
   const share = async () => {
     try { await navigator.clipboard.writeText(shared); setCopied(`copied: ${shared}`); }
     catch { setCopied(shared); }
@@ -79,50 +103,87 @@ function Board({ puzzle, name }: Props) {
   return (
     <section aria-label={`${name} puzzle`} data-testid="suture">
       {puzzle.sample && <p className="text-sm text-ink-soft">today's puzzle is a sample</p>}
+      {puzzle.theme && <p className="mt-1 text-xl font-bold text-ink">{puzzle.theme}</p>}
+      <p className="mt-1 text-sm text-ink-soft">
+        find all {state.totalWords} words. they run up, down, left or right.
+      </p>
       <p className="mt-2 text-sm text-ink-soft">{wordsLeft(state)} words left · {state.looseStitches} loose {state.looseStitches === 1 ? 'stitch' : 'stitches'}</p>
-      <p id={help} className="mt-3 text-sm text-ink-soft">tap touching letters, then stitch. arrows move; enter or space chooses a letter. backspace removes the last letter. words run up, down, left or right.</p>
-      <div className="mt-4 max-w-full overflow-x-auto">
-        <div role="grid" aria-label={`${name} letters`} aria-describedby={help} aria-rowcount={puzzle.grid.length} aria-colcount={width} className="mx-auto flex w-max flex-col gap-1 p-1">
-          {puzzle.grid.map((row, r) => <div role="row" aria-rowindex={r + 1} key={r} className="flex gap-1">
-            {[...row].map((letter, c) => {
-              const cell: Cell = [r, c];
-              const index = r * width + c;
-              const position = state.trace.findIndex(([row, col]) => row === r && col === c);
-              const word = foundWord(state, puzzle, cell);
-              return <div role="gridcell" aria-colindex={c + 1} aria-selected={position >= 0} key={c}>
+      <p id={help} className="mt-2 text-sm text-ink-soft">tap a letter to anchor it, then tap the other end of the word, then stitch. arrows move; enter or space selects. backspace clears.</p>
+      <div className="mt-4">
+        <div
+          role="grid"
+          aria-label={`${name} letters`}
+          aria-describedby={help}
+          aria-rowcount={puzzle.grid.length}
+          aria-colcount={width}
+          className={`w-full text-ink${shaking ? ' suture-shake' : ''}`}
+          style={{ display: 'grid', gridTemplateColumns: `repeat(${width}, 1fr)`, border: '2.5px solid currentColor' }}
+        >
+          {puzzle.grid.map((row, r) => row.split('').map((letter, c) => {
+            const cell: Cell = [r, c];
+            const index = r * width + c;
+            const word = foundWord(state, puzzle, cell);
+            const inActivePath = activePath?.some(([pr, pc]) => pr === r && pc === c) ?? false;
+            const isAnchor = state.anchor?.[0] === r && state.anchor?.[1] === c;
+            return (
+              <div role="gridcell" aria-colindex={c + 1} aria-rowindex={r + 1} key={index}>
                 <button
-                  ref={(element) => { if (element) buttons.current.set(index, element); else buttons.current.delete(index); }}
-                  type="button" tabIndex={index === focused ? 0 : -1} disabled={done}
-                  aria-label={cellLabel(state, puzzle, cell)} aria-pressed={position >= 0}
-                  aria-disabled={word !== undefined || done} data-cell={index}
-                  className={`relative flex size-11 items-center justify-center rounded-sm border text-lg text-ink ${position >= 0 ? 'border-b-4 border-ink bg-surface outline outline-2 outline-ink' : 'border-control bg-page'}`}
-                  onFocus={() => setFocused(index)} onClick={() => tap(cell)} onKeyDown={(event) => key(event, cell)}
+                  ref={(el) => { if (el) buttons.current.set(index, el); else buttons.current.delete(index); }}
+                  type="button"
+                  tabIndex={index === focused ? 0 : -1}
+                  disabled={done}
+                  aria-label={cellLabel(state, puzzle, cell)}
+                  aria-pressed={isAnchor || inActivePath}
+                  aria-disabled={word !== undefined || done}
+                  data-cell={index}
+                  className={`relative w-full flex items-center justify-center font-bold text-ink${
+                    word !== undefined
+                      ? ' bg-line'
+                      : isAnchor
+                      ? ' bg-button text-on-button'
+                      : inActivePath
+                      ? ' bg-surface'
+                      : ' bg-page'
+                  }`}
+                  style={{ aspectRatio: '1 / 1' }}
+                  onFocus={() => setFocused(index)}
+                  onClick={() => tap(cell)}
+                  onKeyDown={(event) => key(event, cell)}
                 >
-                  <span aria-hidden="true">{letter}</span>
-                  {position >= 0 && <span aria-hidden="true" className="absolute left-0 top-0 px-1 text-xs">{position + 1}</span>}
-                  {word !== undefined && <span aria-hidden="true" className="absolute right-0 bottom-0 px-1 text-xs">{word} ✓</span>}
+                  <span aria-hidden="true" className={word !== undefined ? 'line-through opacity-50' : ''}>{letter}</span>
                 </button>
-              </div>;
-            })}
-          </div>)}
+              </div>
+            );
+          }))}
         </div>
       </div>
       <p className="mt-3 text-sm text-ink-soft" data-testid="suture-trace">{traceInWords(state, puzzle)}</p>
-      {!done && <div className="mt-3 flex flex-wrap gap-2">
-        <button type="button" className={button} onClick={sew} disabled={!state.trace.length}>stitch</button>
-        <button type="button" className={button} onClick={() => { setState(clearTrace(state)); setSaid('trace cleared.'); }} disabled={!state.trace.length}>clear</button>
-      </div>}
-      <ol className="mt-6 flex flex-col gap-3" aria-label="word cues">
-        {puzzle.words.map((word, i) => <li key={i} className="rounded-md border border-line p-3">
-          <span className="font-medium">{i + 1}. </span>{state.found.includes(i) && <span>found: {word.answer.toLowerCase()}. </span>}{word.cue} ({word.answer.length})
-        </li>)}
+      {!done && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button type="button" className={button} onClick={sew} disabled={!state.anchor || !state.cursor || (state.anchor[0] === state.cursor[0] && state.anchor[1] === state.cursor[1])}>stitch</button>
+          <button type="button" className={button} onClick={() => { setState(clearTrace(state)); setSaid('selection cleared.'); }} disabled={!state.anchor}>clear</button>
+        </div>
+      )}
+      <p className="mt-2 text-sm text-ink-soft">{foundCount} of {state.totalWords} found</p>
+      <ol className="mt-4 grid grid-cols-3 gap-2" aria-label="word cues">
+        {puzzle.words.map((word, i) => {
+          const iFound = state.found.includes(i);
+          return (
+            <li key={i} className={`rounded-md border p-2 text-sm${iFound ? ' border-line text-ink-soft' : ' border-control text-ink'}`}>
+              {iFound ? <s>{word.answer.toLowerCase()}</s> : <span className="font-bold">{word.answer.toLowerCase()}</span>}
+              {word.cue && !iFound && <span className="block text-xs text-ink-soft">{word.cue}</span>}
+            </li>
+          );
+        })}
       </ol>
-      {done && <div ref={result} tabIndex={-1} className="mt-6 rounded-md border border-control p-4" data-testid="suture-result">
-        <p className="text-lg font-medium">all words found.</p>
-        <p className="mt-2">{shared}</p>
-        <button type="button" className={`${button} mt-3`} onClick={share}>copy my result</button>
-        {copied && <p className="mt-2 text-sm text-ink-soft" aria-live="polite">{copied}</p>}
-      </div>}
+      {done && (
+        <div ref={result} tabIndex={-1} className="mt-6 rounded-md border border-control p-4" data-testid="suture-result">
+          <p className="text-lg font-medium">all words found.</p>
+          <p className="mt-2">{shared}</p>
+          <button type="button" className={`${button} mt-3`} onClick={share}>copy my result</button>
+          {copied && <p className="mt-2 text-sm text-ink-soft" aria-live="polite">{copied}</p>}
+        </div>
+      )}
       <p className="mt-3 text-sm text-ink-soft" aria-live="polite" aria-atomic="true" data-testid="suture-live">{said}</p>
     </section>
   );

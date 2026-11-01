@@ -1,100 +1,17 @@
 {
   "status": "sample",
+  "theme": "colors",
   "grid": [
-    "GREEN",
-    "BOSTP",
-    "LUEAI",
-    "RWMYN",
-    "EDHCK"
+    "GREENB",
+    "ZZZZZL",
+    "PINKZU",
+    "ZZZZZE",
+    "REDZZZ"
   ],
   "words": [
-    {
-      "cue": "the color of grass",
-      "answer": "GREEN",
-      "path": [
-        [
-          0,
-          0
-        ],
-        [
-          0,
-          1
-        ],
-        [
-          0,
-          2
-        ],
-        [
-          0,
-          3
-        ],
-        [
-          0,
-          4
-        ]
-      ]
-    },
-    {
-      "cue": "the color of a clear sky",
-      "answer": "BLUE",
-      "path": [
-        [
-          1,
-          0
-        ],
-        [
-          2,
-          0
-        ],
-        [
-          2,
-          1
-        ],
-        [
-          2,
-          2
-        ]
-      ]
-    },
-    {
-      "cue": "a light red, like a flamingo",
-      "answer": "PINK",
-      "path": [
-        [
-          1,
-          4
-        ],
-        [
-          2,
-          4
-        ],
-        [
-          3,
-          4
-        ],
-        [
-          4,
-          4
-        ]
-      ]
-    },
-    {
-      "cue": "the color of a ripe tomato",
-      "answer": "RED",
-      "path": [
-        [
-          3,
-          0
-        ],
-        [
-          4,
-          0
-        ],
-        [
-          4,
-          1
-        ]
-      ]
-    }
+    { "answer": "GREEN", "path": [[0,0],[0,1],[0,2],[0,3],[0,4]] },
+    { "answer": "BLUE",  "path": [[0,5],[1,5],[2,5],[3,5]] },
+    { "answer": "PINK",  "path": [[2,0],[2,1],[2,2],[2,3]] },
+    { "answer": "RED",   "path": [[4,0],[4,1],[4,2]] }
   ]
 }

@@ -1,86 +1,16 @@
 {
   "status": "sample",
+  "theme": "fresh fruit",
   "grid": [
-    "APPLE",
-    "GUTOW",
-    "RAPEN",
-    "LOWSK",
-    "IMEDY"
+    "APPLEG",
+    "ZZZZZR",
+    "ZZZZZA",
+    "ZZZZZP",
+    "ZLIMEE"
   ],
   "words": [
-    {
-      "cue": "a red or green fruit",
-      "answer": "APPLE",
-      "path": [
-        [
-          0,
-          0
-        ],
-        [
-          0,
-          1
-        ],
-        [
-          0,
-          2
-        ],
-        [
-          0,
-          3
-        ],
-        [
-          0,
-          4
-        ]
-      ]
-    },
-    {
-      "cue": "a small fruit that grows in bunches",
-      "answer": "GRAPE",
-      "path": [
-        [
-          1,
-          0
-        ],
-        [
-          2,
-          0
-        ],
-        [
-          2,
-          1
-        ],
-        [
-          2,
-          2
-        ],
-        [
-          2,
-          3
-        ]
-      ]
-    },
-    {
-      "cue": "a small green fruit with a sour taste",
-      "answer": "LIME",
-      "path": [
-        [
-          3,
-          0
-        ],
-        [
-          4,
-          0
-        ],
-        [
-          4,
-          1
-        ],
-        [
-          4,
-          2
-        ]
-      ]
-    }
+    { "answer": "APPLE", "path": [[0,0],[0,1],[0,2],[0,3],[0,4]] },
+    { "answer": "GRAPE", "path": [[0,5],[1,5],[2,5],[3,5],[4,5]] },
+    { "answer": "LIME",  "path": [[4,1],[4,2],[4,3],[4,4]] }
   ]
 }
