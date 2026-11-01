@@ -12,7 +12,7 @@ const missionLines = [
 test.describe('supporting our mission (/support)', () => {
   test('shows the mission in Christian\'s words, with a button that says it opens a new tab', async ({ page }) => {
     // Nothing leaves the test machine.
-    await page.context().route(/ko-fi\.com/, (route) => route.abort());
+    await page.context().route('https://ko-fi.com/**', (route) => route.abort());
     await page.goto('/support');
 
     await expect(page.getByRole('heading', { level: 1, name: 'supporting our mission' })).toBeVisible();
