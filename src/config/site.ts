@@ -19,7 +19,7 @@ export const site = {
   /** Shows "we're still building. more coming soon." on every page. Set to false to remove it. */
   showBuildingNotice: true,
 
-  /** Christian's tip page. Leave empty to hide the button on /support. */
+  /** The supporting-our-mission page (Ko-fi; D-94). Leave empty to hide the button on /support. */
   tipPageUrl: 'https://ko-fi.com/cueory',
 
   /** Shown in the footer and on the privacy page. */
@@ -100,8 +100,8 @@ export const promo = {
   heading: 'welcome to cueory.',
   text: "we're still building. get a few emails about new lessons and the launch.",
   joinLabel: 'join the launch list',
-  /** Goes to the tip page (`site.tipPageUrl`, Ko-fi); hidden when that is empty. */
-  supportLabel: 'support us while we build',
+  /** Goes to the supporting-our-mission page (`site.tipPageUrl`, Ko-fi); hidden when that is empty (D-94). */
+  supportLabel: 'supporting our mission',
 } as const;
 
 /**
