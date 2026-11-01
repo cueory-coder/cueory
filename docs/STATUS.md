@@ -178,6 +178,7 @@ Targets: first visuals by about 14 November, the full kit by about 12 December (
 - **Signup form** shows "signups open soon" until the Kit form exists (SETUP.md, Part I).
 
 ## Needs Christian's hands
+- Make the repository public (D-75): merge the go-public pull request, then flip the visibility in Settings and turn on secret scanning with push protection.
 - Merge the CI minutes change (D-74; it edits `.github/`). Check GitHub's Actions minutes used this month.
 - Supabase account and the two projects (docs/SETUP.md, Part K): in progress tonight (2026-10-31).
 Follow [docs/SETUP.md](SETUP.md):

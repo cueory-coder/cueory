@@ -527,4 +527,25 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   - **What stays:** the required checks and the auto-merge rules are unchanged.
 
   Reason: keep CI inside the free minutes so the pipeline never stalls and costs stay $0.
+- **D-75** The repository goes public (Christian's decision, 2026-10-31, 11:06 pm, "Make repo go public before we
+  launch").
+  - **Why:** GitHub Actions minutes are free and unlimited on public repositories. The builders used 1,030 of
+    November's 2,000 free minutes in about six hours.
+  - **What's in it:**
+    - a LICENSE that keeps all rights (public, not open source);
+    - a README note that outside pull requests aren't accepted.
+  - **Rules updated:**
+    - CLAUDE.md rule 1 and SECURITY.md: GitHub secret scanning with push protection and CodeQL run; Semgrep and
+      gitleaks stay as a second layer.
+    - CLAUDE.md rule 7: real questions, answer keys, rationales and unreleased lessons never go in this repository.
+      They live in Christian's private content store and the database. `/content` keeps only labeled samples,
+      schemas and approved public text.
+  - **Checked before going public:** history, issues, pull requests and comments hold no tokens, keys, passwords,
+    addresses or phone numbers (gitleaks scans every commit in CI; the lead also searched every issue and comment).
+    The only personal detail is the email address on Christian's older commits, which becomes visible; he decides
+    whether that's acceptable.
+  - **Still safe from outsiders:** the staging auto-merge already skips pull requests from forks, and only Christian
+    merges into main. Cloudflare Workers Builds' 3,000 free build minutes still apply, so the push discipline stays.
+
+  Reason: free CI at full speed, with nothing private in the repository.
 
