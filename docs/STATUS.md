@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-11-01
+Last updated: 2026-11-01 (Task 42)
 
 ## Done
 - Static site: Astro + React islands + TypeScript + Tailwind, static output, tested at phone and desktop sizes.
@@ -186,9 +186,14 @@ a page yet:
 - the curriculum lesson map read in build order (#119, Task 36);
 - display-name checks in the browser that match the database (#121, Task 37);
 - plain words for the database's refusals (#122, Task 38);
-- which visuals a lesson may show: approved ones with a drawing, never drafts (#123, Task 39).
+- which visuals a lesson may show: approved ones with a drawing, never drafts (#123, Task 39);
+- `creditsFor` for a lesson page showing several visuals (#127, Task 42, D-56, D-81): returns each quoted book's credit once, in first-mention order, and throws if a source names a book that isn't in `allowedBooks`. 13 unit tests, including all three batch-1 real files → exactly one credit each and together.
 
 ## In review
+- [Lesson videos](https://github.com/lilchristxan/Cueory/pull/97) (Task C3, D-82): a `LessonVideo` island with a
+  click-to-play cover; nothing loads from YouTube before the student taps, and one tap loads the player and starts the
+  video. Only `published` videos show. The placeholder entry stays a draft. Needs a check on a real iPhone.
+
 - Task 2, database step 5, the last (Task C6, D-88): `flags` and `submit_flag`, with 44 database tests
   ([#110](https://github.com/lilchristxan/Cueory/pull/110)). A signed-in student can send a "Flag or comment" report
   (5 an hour, 20 a day); the reports table is closed to every website role and is read only in the locked `/admin`
@@ -197,8 +202,13 @@ a page yet:
 - Open pull requests add their own lines here. Waiting now: study modes on pages (#77), export-my-data (#95, Task 19),
   lesson videos (#97, Task C3), the 3D viewer shell (#98, Task C4), the Supabase settings reader (#101, Task 22),
   delete-account checks (#105, Task 25), the daily puzzle checker (#108), database step 5, flags and `submit_flag`
+  (#110), the review-clip exporter (#111, Task C7) and Release browser tests (#55).
+- Task C8 (D-90): the batch checker matches the importer. It requires a rationale for every choice on every question,
+  `passed.csv` carries the importer's own hash (tested end to end), and the importer runs the checker again on its files
+  and imports only what the checker passes now. Samples only; no real questions.
   (#110), the review-clip exporter (#111, Task C7), Release browser tests (#55), and the new tasks 40 to 42 and C8
   when they open.
+- Task 40: `reviewSheet(visual)` prepares source and credit tables with an unticked visual-review checklist; pure logic, in review.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
