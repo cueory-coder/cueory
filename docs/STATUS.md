@@ -186,24 +186,28 @@ a page yet:
 - the curriculum lesson map read in build order (#119, Task 36);
 - display-name checks in the browser that match the database (#121, Task 37);
 - plain words for the database's refusals (#122, Task 38);
-- which visuals a lesson may show: approved ones with a drawing, never drafts (#123, Task 39);
-- `creditsFor` for a lesson page showing several visuals (#127, Task 42, D-56, D-81): returns each quoted book's credit once, in first-mention order, and throws if a source names a book that isn't in `allowedBooks`. 13 unit tests, including all three batch-1 real files → exactly one credit each and together.
+- which visuals a lesson may show: approved ones with a drawing, never drafts (#123, Task 39).
+
+## Done (director, 2026-11-01, 5–6 am Phoenix)
+Merged into `staging`; the ones touching the content security policy, accounts or a package by the director on
+Christian's behalf (D-89), each with the lead's review:
+- Lesson videos (#97, Task C3, D-82): a click-to-play cover; nothing loads from YouTube before the tap, one tap loads
+  the player and starts the video, and only `published` videos show (the placeholder stays a draft). `/privacy` names
+  YouTube. Needs Christian's check on a real iPhone (below).
+- The 3D body viewer shell (#98, Task C4, D-83): `three` loads only after a tap; a placeholder model in bone, muscle and
+  skin layers, keyboard controls, and a test that keeps model files under 3 MB. The real model will be BodyParts3D.
+- Export-my-data (#95, Task 19, D-91) covers everything stored about a student, including attempts, exam dates and
+  review rows, as JSON and CSV. Not on a page yet.
+- The Supabase settings reader (#101, Task 22), the daily puzzle checker (#108, Task 30), and the batch checker matching
+  the importer (#125, Task C8, D-90).
+- Visuals kit helpers, not on a page yet: the review sheet for Christian (#126, Task 40), "no rights record, no image"
+  (#128, Task 41) and credits for a lesson page (#127, Task 42).
 
 ## In review
-- [Lesson videos](https://github.com/lilchristxan/Cueory/pull/97) (Task C3, D-82): a `LessonVideo` island with a
-  click-to-play cover; nothing loads from YouTube before the student taps, and one tap loads the player and starts the
-  video. Only `published` videos show. The placeholder entry stays a draft. Needs a check on a real iPhone.
-- Open pull requests add their own lines here. Waiting now: study modes on pages (#77), export-my-data (#95, Task 19),
-  lesson videos (#97, Task C3), the 3D viewer shell (#98, Task C4), the Supabase settings reader (#101, Task 22),
-  delete-account checks (#105, Task 25), the daily puzzle checker (#108), database step 5, flags and `submit_flag`
-  (#110), the review-clip exporter (#111, Task C7) and Release browser tests (#55).
-- Task C8 (D-90): the batch checker matches the importer. It requires a rationale for every choice on every question,
-  `passed.csv` carries the importer's own hash (tested end to end), and the importer runs the checker again on its files
-  and imports only what the checker passes now. Samples only; no real questions.
-  (#110), the review-clip exporter (#111, Task C7), Release browser tests (#55), and the new tasks 40 to 42 and C8
-  when they open.
-- Task 40: `reviewSheet(visual)` prepares source and credit tables with an unticked visual-review checklist; pure logic, in review.
-- Task 41: `rightsProblems` checks recorded image rights; `usableAssets` keeps only exact assets with a valid verified record; pure logic, in review.
+- Open pull requests add their own lines here. Waiting now: study modes on pages (#77, held for Christian's choice
+  below), delete-account checks (#105, Task 25), database step 5, flags and `submit_flag` (#110), the review-clip
+  exporter (#111, Task C7), visuals on lesson pages (#129, Task C9), the review-sheet script (Task 43) and Release
+  browser tests (#55).
 - Task 43: `node scripts/visuals-sheet.ts --out <folder>` writes draft review sheets outside the repository and refuses existing output; in review.
 
 ## Queued (Christian's change requests on issue #4, in his order)
@@ -229,8 +233,12 @@ Targets: first visuals by about 14 November, the full kit by about 12 December (
 - In `staging`: the first batch's words (D-72), approved by Christian: the source files for body fluid compartments,
   osmosis and fluid shifts, and the sodium-potassium pump, every label quoted from Open RN *Nursing Fundamentals 2e*
   15.2.
-- Next: the three drawings (Task C5), made only from those files. The 3D viewer adds three.js, so it waits for
-  Christian's merge; its models come from BodyParts3D (D-80).
+- In `staging` ([#98](https://github.com/lilchristxan/Cueory/pull/98)): 3D body viewer shell (D-83). Lazy-loads
+  `three` on tap, renders a placeholder model grouped into bone / muscle / skin layers with OrbitControls. On-demand
+  rendering (battery), keyboard controls (arrow keys / +−), dark-mode background tokens, reduced-motion support.
+  Preview page has `noindex`. Real model will be BodyParts3D (D-80). `three` 0.187; a unit test caps model files
+  under `public/` at 3 MB.
+- Next: the three drawings (Task C5), made only from those files.
 
 ## Planning
 - [Med-surg lesson map](curriculum/README.md) ([#31](https://github.com/lilchristxan/Cueory/pull/31)): the master
@@ -242,6 +250,14 @@ Targets: first visuals by about 14 November, the full kit by about 12 December (
 - **Signup form** shows "signups open soon" until the Kit form exists (SETUP.md, Part I).
 
 ## Needs Christian's hands
+- [ ] Lesson videos (#97, now in `staging`): on a real iPhone, open `/learn/video-sample` on the staging site and tap
+  the cover once. The video should start playing right away. Safari can drop the tap's permission to play, which
+  automated tests can't see. Reply "video ok" or describe what happened.
+- [ ] Study modes on pages (#77): its questions page sends the sample answers to the browser before a student answers,
+  and organizer and fill-in carry their answers in the page, like cards. Choose one: (1) split it, publishing what
+  has no answer before an attempt, with questions waiting for `check_answer` and accounts (recommended); (2) keep all
+  four pages on the locked staging site only, left out of live builds; or (3) allow labeled everyday samples with
+  answers in the browser.
 - [ ] Real questions need a free account (D-86): `check_answer` reveals the key after one try, so signed-out visitors
   can't use it (a limit needs an identity, and a CAPTCHA would load a third-party script). Guests keep the sample modes.
   Reply "ok" to keep it this way, or ask for a CAPTCHA exception.
