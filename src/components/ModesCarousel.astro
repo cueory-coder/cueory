@@ -6,8 +6,8 @@
  *
  * Without JavaScript it still works: the row scrolls by swiping or the keyboard, and each chip is a link to its card.
  * The script adds the coverflow look, chip and arrow navigation, arrow keys, and a gentle auto-advance that stops for
- * good once the visitor uses the carousel, pauses on hover or focus, and never runs with reduced motion. The pause
- * button stops the auto-advance and the illustration loops (WCAG 2.2.2).
+ * good once the visitor uses the carousel, pauses while a mouse rests on the cards or keyboard focus is inside, and
+ * never runs with reduced motion. The pause button stops the auto-advance and the illustration loops (WCAG 2.2.2).
  *
  * The preview (D-51): tapping or clicking a card grows it from its place into a larger preview, a native modal
  * <dialog> over the darkened, softly frosted page, with the mode's illustration playing, two plain lines, "try it"
@@ -26,13 +26,25 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
 
 <section
   id="ways-to-study"
-  class="modes mt-section scroll-mt-section"
+  class="modes scene scene-tint py-section scroll-mt-section"
   aria-labelledby="modes-heading"
   aria-roledescription="carousel"
   data-modes
 >
-  <div class="mx-auto max-w-page px-gutter text-center">
-    <p class="text-sm font-medium tracking-label text-ink-soft">study modes</p>
+  <!-- The page's one medical cue (D-53): a thin rhythm line between the hero and this first section. -->
+  <svg class="rhythm" viewBox="0 0 240 28" aria-hidden="true" focusable="false" data-rhythm>
+    <path
+      d="M0 16H84c4 0 6-5 10-5s6 5 10 5h10l4 4 6-17 7 22 4-9h13c6 0 9-7 16-7s10 7 16 7h60"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.25"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    ></path>
+  </svg>
+
+  <div class="mx-auto mt-10 max-w-page px-gutter text-center">
+    <p class="text-sm font-medium tracking-label text-ink-soft" data-section-label>01 — study modes</p>
     <h2 id="modes-heading" class="display mt-3 text-title sm:text-title-lg">ways to study</h2>
   </div>
 
@@ -123,7 +135,7 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
   <p class="sr-only" aria-live="off" aria-atomic="true" data-modes-live></p>
 
   <p class="mx-auto mt-8 max-w-page px-gutter text-center text-sm text-ink-soft">
-    {openList} are open now, with placeholder cards. the rest are on the way.
+    fig. 1 — {openList} are open now, with placeholder cards. the rest are on the way.
   </p>
 
   <dialog id="mode-preview" class="mode-preview" aria-labelledby="mode-preview-title" data-mode-preview>
@@ -318,12 +330,19 @@ const openList = `${open.slice(0, -1).join(', ')} and ${open.at(-1)}`;
       { passive: true },
     );
 
-    root.addEventListener('pointerenter', (event) => {
-      if (event.pointerType === 'mouse') state.hovering = true;
-    });
-    root.addEventListener('pointerleave', () => {
-      state.hovering = false;
-    });
+    // A mouse resting on the cards or their buttons pauses the auto-advance. The words around them don't: the section
+    // is taller than many windows, so pausing for the whole of it would stop the auto-advance for good on a computer.
+    const hovered = new Set<HTMLElement>();
+    for (const area of [track, root.querySelector<HTMLElement>('[data-modes-controls]')]) {
+      area?.addEventListener('pointerenter', (event) => {
+        if (event.pointerType === 'mouse') hovered.add(area);
+        state.hovering = hovered.size > 0;
+      });
+      area?.addEventListener('pointerleave', () => {
+        hovered.delete(area);
+        state.hovering = hovered.size > 0;
+      });
+    }
     root.addEventListener('focusin', () => {
       state.focusInside = true;
     });

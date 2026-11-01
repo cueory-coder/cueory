@@ -58,14 +58,13 @@ Last updated: 2026-10-31
 - In `staging`, waiting for the next release ([#26](https://github.com/lilchristxan/Cueory/pull/26), open for Christian):
   [home hero, ☰ side panel and account corner](https://github.com/lilchristxan/Cueory/pull/24) in the all-lowercase
   voice (D-46, D-47), with phone, tablet and desktop browser tests (D-48), [search in the ☰ panel](https://github.com/lilchristxan/Cueory/pull/27)
-  (D-49), the ["ways to study" carousel](https://github.com/lilchristxan/Cueory/pull/28) (D-50) and its
-  [preview and hover zoom](https://github.com/lilchristxan/Cueory/pull/29) (D-51).
+  (D-49), the ["ways to study" carousel](https://github.com/lilchristxan/Cueory/pull/28) (D-50), its
+  [preview and hover zoom](https://github.com/lilchristxan/Cueory/pull/29) (D-51) and the
+  [silk scenes](https://github.com/lilchristxan/Cueory/pull/32) (D-53).
 
 ## In review
-- [Silk scenes down the home page](https://github.com/lilchristxan/Cueory/pull/32) (D-53): the hero, "ways to study"
-  and the launch-updates panel as three scenes of one silk. The auto-merge takes it once it is clean.
-- Social links (D-54): Instagram, TikTok and YouTube marks in the footer and the ☰ panel. It adds a package
-  (`simple-icons`), so it waits for Christian's merge.
+- [Social links](https://github.com/lilchristxan/Cueory/pull/33) (D-54): Instagram, TikTok and YouTube marks in the
+  footer and the ☰ panel. It adds a package (`simple-icons`), so it waits for Christian's merge.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. The once-only promo panel.
@@ -76,7 +75,7 @@ Last updated: 2026-10-31
 - **Task 2 (accounts and database)** waits for Christian to create the two Supabase projects, and its sign-in and
   database-policy parts need his approval. The "Flag or comment" button is built with it (D-34). Task 4 parts that
   don't need accounts go first (D-35).
-- **Signup form** shows "Signups open soon" until the Kit form exists (SETUP.md, Part I).
+- **Signup form** shows "signups open soon" until the Kit form exists (SETUP.md, Part I).
 
 ## Needs Christian's hands
 Follow [docs/SETUP.md](SETUP.md):

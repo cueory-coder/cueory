@@ -634,21 +634,92 @@ test.describe('"ways to study" carousel (D-50)', () => {
     );
   });
 
-  test('auto-advance moves on after about six seconds, and stops once the visitor takes over', async ({
+  test('auto-advance moves on after about six seconds, pauses on the cards, and stops once the visitor takes over', async ({
     page,
   }, testInfo) => {
     test.skip(testInfo.project.name !== 'desktop', 'one size is enough for a timing test');
     test.slow();
     await page.goto('/');
     await page.locator('#ways-to-study').scrollIntoViewIfNeeded();
+    // The mouse over the section's words, not its cards: that doesn't pause it.
     await page.mouse.move(0, 0);
     await expect(chip(page, 'cards')).toHaveAttribute('aria-current', 'true', { timeout: 9000 });
 
+    // Resting on the cards pauses it; moving off lets it go on.
+    await page.getByRole('group', { name: 'study mode cards' }).hover();
+    await page.waitForTimeout(7000);
+    await expect(chip(page, 'cards')).toHaveAttribute('aria-current', 'true');
+    await page.mouse.move(0, 0);
+    await expect(chip(page, 'learn')).toHaveAttribute('aria-current', 'true', { timeout: 9000 });
+
     await page.locator('#ways-to-study').getByRole('button', { name: 'next study mode' }).click();
-    await expect(chip(page, 'learn')).toHaveAttribute('aria-current', 'true');
+    await expect(chip(page, 'fill-in')).toHaveAttribute('aria-current', 'true');
     await page.mouse.move(0, 0);
     await page.waitForTimeout(7000);
-    await expect(chip(page, 'learn')).toHaveAttribute('aria-current', 'true');
+    await expect(chip(page, 'fill-in')).toHaveAttribute('aria-current', 'true');
+  });
+});
+
+test.describe('silk scenes down the home page (D-53)', () => {
+  test('three scenes in order, each its own layer behind its section, with numbered sections and one rhythm line', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    const scenes = await page.locator('.scene').evaluateAll((sections) =>
+      sections.map((section) => {
+        const layer = getComputedStyle(section, '::before');
+        return {
+          kind: [...section.classList].find((name) => name.startsWith('scene-')),
+          drawn: layer.backgroundImage !== 'none',
+          behind: layer.zIndex,
+          fades: (layer.maskImage || layer.getPropertyValue('-webkit-mask-image')).includes('linear-gradient'),
+        };
+      }),
+    );
+    expect(scenes.map((scene) => scene.kind)).toEqual(['scene-hero', 'scene-tint', 'scene-low']);
+    for (const scene of scenes) expect(scene).toMatchObject({ drawn: true, behind: '-20', fades: true });
+
+    await expect(page.locator('[data-section-label]')).toHaveText(['01 — study modes', '02 — stay in touch']);
+    const rhythm = page.locator('[data-rhythm]');
+    await expect(rhythm).toHaveCount(1);
+    await expect(rhythm).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  test('every fade between scenes lies in empty space, never over words', async ({ page }) => {
+    await page.goto('/');
+    const covered = await page.evaluate(() => {
+      // Each scene fades in over the space above it and the last one fades out at its bottom: measure those bands.
+      const length = (section: Element, name: string) => {
+        const probe = document.createElement('div');
+        probe.style.blockSize = `var(${name})`;
+        section.append(probe);
+        const size = probe.getBoundingClientRect().height;
+        probe.remove();
+        return size;
+      };
+      const bands: Array<[number, number]> = [];
+      for (const section of document.querySelectorAll('.scene')) {
+        const box = section.getBoundingClientRect();
+        const top = length(section, '--scene-fade-top');
+        const bottom = length(section, '--scene-fade-bottom');
+        if (top > 0) bands.push([box.top - top, box.top]);
+        if (bottom > 0) bands.push([box.bottom - bottom, box.bottom]);
+      }
+      const hits: string[] = [];
+      const walker = document.createTreeWalker(document.querySelector('main')!, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        if (!node.textContent?.trim()) continue;
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        for (const rect of range.getClientRects()) {
+          if (rect.width === 0 || rect.height === 0) continue;
+          if (bands.some(([from, to]) => rect.bottom > from && rect.top < to)) hits.push(node.textContent.trim());
+        }
+      }
+      return { bands: bands.length, hits };
+    });
+    expect(covered.bands).toBe(3);
+    expect(covered.hits).toEqual([]);
   });
 });
 

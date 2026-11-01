@@ -40,6 +40,7 @@
   --color-silk-base: #f9f5ef;   /* Ivory    — silk background */
   --color-silk-sheen: #f9f5ef;  /* Ivory    — light catching a fold */
   --color-silk-shade: #eadccf;  /* Linen    — the shaded side of a fold (fold shadows: --silk-fold-rgb below) */
+  --color-silk-tint: #eadccf;   /* Linen    — the tinted silk scenes down the home page (D-53) */
   --color-emboss: #eadccf;      /* Linen    — the faint tone-on-tone logo behind the hero */
 
   /* ---------- ☰ side panel and account menu (D-46): dark glass on every page ---------- */
@@ -184,6 +185,7 @@
     --color-silk-base: #1b1715;   /* Charcoal */
     --color-silk-sheen: #3a2d24;  /* Walnut */
     --color-silk-shade: #1b1715;  /* Charcoal */
+    --color-silk-tint: #3a2d24;   /* Walnut */
     --color-emboss: #3a2d24;      /* Walnut */
     --color-panel-ink: #efe6da;   /* Evening Ivory */
     --color-panel-ink-soft: #cbb8a4; /* Sand */
@@ -223,6 +225,7 @@
   --color-silk-base: #1b1715;   /* Charcoal */
   --color-silk-sheen: #3a2d24;  /* Walnut */
   --color-silk-shade: #1b1715;  /* Charcoal */
+  --color-silk-tint: #3a2d24;   /* Walnut */
   --color-emboss: #3a2d24;      /* Walnut */
   --color-panel-ink: #efe6da;   /* Evening Ivory */
   --color-panel-ink-soft: #cbb8a4; /* Sand */

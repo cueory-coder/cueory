@@ -164,6 +164,33 @@ describe('marketing background (D-41)', () => {
     }
   });
 
+  /*
+    Silk scenes down the home page (D-53): each is the hero's cloth with the folds at another angle and the light from
+    another side, on Ivory or the tint (Linen; Evening: Walnut). The tint is a color the checks above already use for
+    the worst points (Linen in the darkest Daytime point, Walnut in the lightest Evening one), and a scene can only
+    change angles, light and base, so every scene stays within the contrast checked above.
+  */
+  it('tints the silk scenes only with colors the worst-case checks already cover', () => {
+    expect([daytime['silk-base'], daytime['silk-shade']]).toContain(daytime['silk-tint']);
+    expect([evening['silk-base'], evening['silk-sheen']]).toContain(evening['silk-tint']);
+    expect(readColorTokens(eveningPickedCss)['silk-tint']).toBe(evening['silk-tint']);
+  });
+
+  it('lets a silk scene change only its angles, light, base and fades', () => {
+    const globalCss = readFileSync(new URL('../../src/styles/global.css', import.meta.url), 'utf8');
+    const scenes = [...globalCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+      .map(([, selector, body]) => [selector!.replace(/\/\*[\s\S]*?\*\//g, '').trim(), body!] as const)
+      .filter(([selector]) => /^\.scene-(?!rule)[\w-]+$/.test(selector));
+    expect(scenes.length).toBeGreaterThanOrEqual(3);
+    for (const [selector, body] of scenes) {
+      const declarations = body.split(';').map((d) => d.trim()).filter(Boolean);
+      for (const declaration of declarations) {
+        expect(declaration, selector).toMatch(/^--scene-(light|angle|cross|fade-top|fade-bottom|base):/);
+        if (declaration.startsWith('--scene-base')) expect(declaration, selector).toMatch(/var\(--color-silk-(base|tint)\)$/);
+      }
+    }
+  });
+
   // The study-mode preview (D-51) is drawn in the frosted panels' color but fully opaque, over a darkened page.
   it.each([
     ['Daytime', daytime, day.veil],
