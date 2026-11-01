@@ -1,0 +1,31 @@
+---
+import { getCollection } from 'astro:content';
+import Layout from '../layouts/Layout.astro';
+import ProgressPanel from '../islands/ProgressPanel';
+
+const decks = (await getCollection('cards'))
+  .map((deck) => ({ id: deck.id, title: deck.data.title, cardIds: deck.data.cards.map((card) => card.id) }))
+  .sort((a, b) => a.id.localeCompare(b.id));
+---
+
+<Layout
+  title="your progress"
+  description="What cueory keeps in your browser: your setup answers, card piles and stars. Download it or forget it."
+  noindex
+  promo={false}
+>
+  <div class="mx-auto max-w-prose pt-8">
+    <h1 class="text-2xl">your progress on this device</h1>
+    <p class="mt-3 text-ink-soft">
+      until free accounts arrive, cueory keeps your progress in this browser only. here’s all of it.
+    </p>
+
+    <div class="mt-10">
+      {/* client:only: progress lives in this browser, so there is nothing to pre-render. */}
+      <ProgressPanel client:only="react" decks={decks} />
+      <noscript>
+        <p>this page needs javascript turned on to read what your browser saved.</p>
+      </noscript>
+    </div>
+  </div>
+</Layout>

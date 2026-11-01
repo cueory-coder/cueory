@@ -160,6 +160,9 @@ Merged into `staging` tonight (pulse and sort were already live; the rest reache
 - [Concept map](https://github.com/lilchristxan/Cueory/pull/68) (Task 14): every concept in a unit with its status in
   words and a shape (an empty circle, a quarter, a half or a check), never color alone, with a filter by status. No
   scores or predictions.
+- Visuals kit, the first batch's drawings (Task C5, D-81): body fluid compartments, osmosis and fluid shifts, and
+  the sodium-potassium pump, drawn only from their approved source files and checked by tests. Drafts, so nothing shows
+  on a page until Christian approves them; his review sheet is linked from the pull request.
 - Open pull requests add their own lines here: study modes on pages (#77), guest progress (#74), game stats on
   `/play` (#79), the Safari preview fix (#88) and Release browser tests (#55).
 

@@ -86,7 +86,7 @@ comment on table public.item_answers is
 
 -- ---------------------------------------------------------------- rules that keep a version honest
 
--- Only a draft's stem, choices and answers can change. These three triggers run as whoever writes (the service
+-- Only a draft's stem, choices and answers can change. These triggers run as whoever writes (the service
 -- role), need no extra privileges, and nobody can call them directly.
 create function public.item_versions_guard()
 returns trigger
@@ -141,22 +141,29 @@ create trigger item_versions_guard
   before insert or update on public.item_versions
   for each row execute function public.item_versions_guard();
 
--- Choices and answers can only be added, changed or removed while their version is a draft.
+-- Choices and answers can only be added, changed or removed while their version is a draft. An update that moves a
+-- row to another version counts as changing both: it removes the row from the old version and adds it to the new one,
+-- so both must be drafts (Codex and the lead's review of #92).
 create function public.item_parts_guard()
 returns trigger
 language plpgsql
 set search_path = ''
 as $$
 declare
-  v_id uuid;
   v_status text;
+  v_ids uuid[];
 begin
-  v_id := case when tg_op = 'DELETE' then old.item_version_id else new.item_version_id end;
-  select v.status into v_status from public.item_versions v where v.id = v_id;
+  v_ids := case tg_op
+    when 'DELETE' then array[old.item_version_id]
+    when 'INSERT' then array[new.item_version_id]
+    else array[old.item_version_id, new.item_version_id]
+  end;
   -- A deleted version (cascade) leaves no row to check; allow its parts to go with it.
-  if v_status is not null and v_status <> 'draft' then
-    raise exception 'choices and answers can change only while the version is a draft' using errcode = '23514';
-  end if;
+  for v_status in select v.status from public.item_versions v where v.id = any (v_ids) loop
+    if v_status <> 'draft' then
+      raise exception 'choices and answers can change only while the version is a draft' using errcode = '23514';
+    end if;
+  end loop;
   return case when tg_op = 'DELETE' then old else new end;
 end;
 $$;
@@ -169,9 +176,31 @@ create trigger item_answers_guard
   before insert or update or delete on public.item_answers
   for each row execute function public.item_parts_guard();
 
+-- A question's type is part of what students were shown and what its key means, so it can't change once any version has
+-- been published or retired (Codex and the lead's review of #92). While every version is still a draft it can.
+create function public.items_guard()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if new.type <> old.type and exists (
+    select 1 from public.item_versions v where v.item_id = old.id and v.status <> 'draft'
+  ) then
+    raise exception 'a question''s type cannot change once a version has been published' using errcode = '23514';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger items_guard
+  before update on public.items
+  for each row execute function public.items_guard();
+
 -- Nobody calls these directly (D-73: every function revokes execute from public and the website roles).
 revoke execute on function public.item_versions_guard() from public, anon, authenticated;
 revoke execute on function public.item_parts_guard() from public, anon, authenticated;
+revoke execute on function public.items_guard() from public, anon, authenticated;
 
 -- ---------------------------------------------------------------- who may do what
 

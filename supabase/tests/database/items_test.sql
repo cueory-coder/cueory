@@ -3,7 +3,7 @@
 -- version never changes. Run by `supabase test db` on a throwaway local database; every row exists only in this test.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(50);
+select plan(56);
 
 -- Fixtures, made as the database owner (which is how migrations and the admin tools write).
 insert into public.concepts (id, slug, title, published) values
@@ -72,7 +72,9 @@ select ok(
   not has_function_privilege('anon', 'public.item_versions_guard()', 'execute')
     and not has_function_privilege('authenticated', 'public.item_versions_guard()', 'execute')
     and not has_function_privilege('anon', 'public.item_parts_guard()', 'execute')
-    and not has_function_privilege('authenticated', 'public.item_parts_guard()', 'execute'),
+    and not has_function_privilege('authenticated', 'public.item_parts_guard()', 'execute')
+    and not has_function_privilege('anon', 'public.items_guard()', 'execute')
+    and not has_function_privilege('authenticated', 'public.items_guard()', 'execute'),
   'nobody on the website runs the version rules directly'
 );
 
@@ -238,6 +240,39 @@ select throws_ok(
 select throws_ok(
   $$ delete from public.item_answers where item_version_id = '00000000-0000-4000-8000-0000000000f1' $$,
   '23514', null, 'a published version''s answers cannot be deleted'
+);
+
+-- ---- Moving a row between versions counts as changing both versions.
+-- Version f2 is a draft with answer rows a, b, c. Free its "a" row, then try to move published f4's "a" row there.
+-- (f4 is published at this point, and its choices and answers are a, b.)
+select throws_ok(
+  $$ update public.item_answers set item_version_id = '00000000-0000-4000-8000-0000000000f2'
+     where item_version_id = '00000000-0000-4000-8000-0000000000f4' and choice_id = 'a' $$,
+  '23514', null, 'an answer cannot be moved out of a published version into a draft'
+);
+select throws_ok(
+  $$ update public.item_choices set item_version_id = '00000000-0000-4000-8000-0000000000f2', choice_id = 'e'
+     where item_version_id = '00000000-0000-4000-8000-0000000000f4' and choice_id = 'a' $$,
+  '23514', null, 'a choice cannot be moved out of a published version into a draft'
+);
+select throws_ok(
+  $$ update public.item_answers set item_version_id = '00000000-0000-4000-8000-0000000000f4'
+     where item_version_id = '00000000-0000-4000-8000-0000000000f2' and choice_id = 'a' $$,
+  '23514', null, 'an answer cannot be moved from a draft into a published version'
+);
+select lives_ok(
+  $$ update public.item_answers set rationale = 'reworded' where item_version_id = '00000000-0000-4000-8000-0000000000f2' and choice_id = 'a' $$,
+  'a draft''s answers can still be edited'
+);
+
+-- ---- A question's type is fixed once a version has been published or retired.
+select throws_ok(
+  $$ update public.items set type = 'sata' where id = '00000000-0000-4000-8000-0000000000e3' $$,
+  '23514', null, 'a question with a published version cannot change its type'
+);
+select lives_ok(
+  $$ update public.items set type = 'single' where id = '00000000-0000-4000-8000-0000000000e2' $$,
+  'a question whose versions are all drafts can still change its type'
 );
 
 -- ---- Shapes.

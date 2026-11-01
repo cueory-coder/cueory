@@ -4,7 +4,8 @@ import { advance, next, parseSteps, pause, play, previous, startSteps, stepInWor
 interface Props {
   title: string;
   steps: DiagramStep[];
-  children?: ReactNode;
+  /** The drawing. A function gets the step on screen, so the drawing can show what that step adds (D-81). */
+  children?: ReactNode | ((step: { id: string; index: number }) => ReactNode);
 }
 
 const control = 'min-h-11 min-w-11 rounded-md border border-control bg-page px-4 py-2 text-ink disabled:opacity-50';
@@ -61,7 +62,7 @@ function Board({ title, steps, children }: Props) {
         data-step-index={state.index}
         className="mt-3 max-w-full overflow-hidden rounded-md border border-line bg-surface p-3"
       >
-        {children}
+        {typeof children === 'function' ? children({ id: step.id, index: state.index }) : children}
       </div>
       <figcaption aria-live="polite" aria-atomic="true" className="mt-3 text-sm text-ink-soft">
         {words}
