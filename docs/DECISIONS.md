@@ -731,6 +731,11 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   - **Two gaps found in review, now closed (Codex and the lead on #92):** moving a choice or an answer to another
     version counts as changing both, so both versions must be drafts (it can't empty a published version's key); and a
     question's `type` can't change once any version has been published or retired (a trigger on `items`).
+  - **Editing while publishing (Codex P2 on #92):** an edit of a version's choices or answers locks that version row
+    `for share` until it commits, and publishing locks it `for update` first and then counts. So one waits for the
+    other: a publication can't count a key that a half-finished edit is changing, and an edit can't slip in after
+    publication. A single pgTAP session can't run two transactions at once, so this is checked by reading the
+    locking statements, not by a test.
   - **Versions:** editing an item makes a new version (ROADMAP Task 2). A version is a draft, published or retired. One
     version of an item is published at a time (a partial unique index). A published or retired version's stem and source
     can't change, and its choices and answers can't be added, changed or deleted; a retired version can't come back.
