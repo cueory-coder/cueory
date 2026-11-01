@@ -10,5 +10,5 @@ const { page, flagItem } = Astro.props;
 ---
 
 <aside class="mt-8 pb-4" aria-label="flag or comment">
-  <FlagMount client:idle page={page} itemId={flagItem?.itemId} itemVersionId={flagItem?.itemVersionId} />
+  <FlagMount client:only="react" page={page} itemId={flagItem?.itemId} itemVersionId={flagItem?.itemVersionId} />
 </aside>
