@@ -1,0 +1,48 @@
+---
+/**
+ * A planned course unit, built only from the source-checked lesson map's unit/topic titles.
+ * Details are native HTML: touch, Enter and Space all open them without JavaScript.
+ */
+import type { MapUnit } from '../islands/lessonmap';
+
+interface Props {
+  unit: MapUnit;
+  /** Display order, not the internal U00/U01 ids. */
+  position: number;
+}
+
+const { unit, position } = Astro.props;
+const lessonCount = unit.topics.reduce((count, topic) => count + topic.lessons.length, 0);
+---
+
+<article
+  data-unit-id={unit.id}
+  class="unit-card lift flex h-full min-w-0 flex-col rounded-xl border border-line bg-surface p-5 sm:p-6"
+>
+  <div class="flex flex-wrap items-start justify-between gap-3">
+    <p class="text-sm font-medium text-ink-soft">unit {String(position).padStart(2, '0')}</p>
+    <span class="rounded-full border border-control px-3 py-1 text-sm text-ink">coming soon</span>
+  </div>
+  <h3 class="mt-4 text-lg font-semibold">{unit.title}</h3>
+  <p class="mt-2 text-sm text-ink-soft">
+    {lessonCount} {lessonCount === 1 ? 'lesson' : 'lessons'} planned
+  </p>
+  <details class="mt-auto border-t border-line pt-3">
+    <summary class="min-h-11 cursor-pointer rounded-sm py-2 text-sm font-medium text-ink">
+      view {unit.topics.length} {unit.topics.length === 1 ? 'topic' : 'topics'}
+    </summary>
+    <ul class="list-disc space-y-2 pb-2 pl-5 text-sm text-ink-soft">
+      {unit.topics.map((topic) => <li>{topic.title}</li>)}
+    </ul>
+  </details>
+</article>
+
+<style>
+  .unit-card {
+    box-shadow: var(--shadow-card, var(--shadow-soft));
+  }
+
+  .unit-card:focus-within {
+    box-shadow: var(--shadow-card-hover, var(--shadow-soft));
+  }
+</style>
