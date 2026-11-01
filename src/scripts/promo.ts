@@ -1,5 +1,5 @@
 /**
- * The once-only promo panel (D-55). Pure helpers, kept apart from the page script in PromoPanel.astro so they can be
+ * The once-only promo panel (D-59). Pure helpers, kept apart from the page script in PromoPanel.astro so they can be
  * unit tested (tests/unit/promo.test.ts). The only thing remembered is a date in this browser's local storage, which
  * never reaches us.
  */

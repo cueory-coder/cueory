@@ -40,7 +40,7 @@ const pairs: Array<[string, string, number]> = [
   ['focus', 'surface', 3],
   ['button', 'page', 3],
   ['button', 'surface', 3],
-  // The promo panel's light pill button (D-55), and its hover.
+  // The promo panel's light pill button (D-59), and its hover.
   ['on-panel-button', 'panel-ink', 4.5],
   ['on-panel-button', 'panel-ink-soft', 4.5],
 ];
@@ -280,7 +280,7 @@ describe('glass button and side panel (D-46)', () => {
   });
 
   /*
-    The promo panel (D-55) floats over the whole page, so anything can be behind it, not just page colors: its text is
+    The promo panel (D-59) floats over the whole page, so anything can be behind it, not just page colors: its text is
     checked on the panel mixed over the lightest color of each palette (Ivory; Evening Ivory).
   */
   it.each([

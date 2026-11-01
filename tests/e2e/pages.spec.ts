@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
-// The once-only promo panel (D-55) slides down after 5 seconds and takes keyboard focus, which would interrupt these
+// The once-only promo panel (D-59) slides down after 5 seconds and takes keyboard focus, which would interrupt these
 // tests part-way, so every page here starts as if it had already been shown. tests/e2e/promo.spec.ts tests the panel.
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {

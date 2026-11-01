@@ -567,7 +567,7 @@
   }
 
   /*
-    The once-only promo panel (D-55): the account menu's dark glass in a small card that slides down from the top of
+    The once-only promo panel (D-59): the account menu's dark glass in a small card that slides down from the top of
     marketing pages. It floats over the page (fixed), so nothing moves when it appears. Its text uses the panel's two
     inks, checked on the panel over the lightest color anything behind it can have (tests/unit/tokens.test.ts).
   */
@@ -591,7 +591,7 @@
     backdrop-filter: blur(var(--blur-veil));
     /* Inside the dark panel, focus outlines use the panel's light ink. */
     --color-focus: var(--color-panel-ink);
-    /* Starts above the window and slides down into place (D-55). */
+    /* Starts above the window and slides down into place (D-59). */
     transform: translateY(calc(-100% - var(--spacing) * 6));
     opacity: 0;
     transition:
@@ -654,7 +654,7 @@
     }
   }
 
-  /* Reduced motion: the promo panel appears in place, with no slide (D-55). */
+  /* Reduced motion: the promo panel appears in place, with no slide (D-59). */
   @media (prefers-reduced-motion: reduce) {
     .promo {
       transition: none;

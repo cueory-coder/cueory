@@ -68,15 +68,26 @@ Last updated: 2026-11-01
   registry; version bumps of existing packages still merge themselves.
 - In `staging`, also merged by Christian: [social links](https://github.com/lilchristxan/Cueory/pull/33) (D-54),
   Instagram, TikTok and YouTube marks in the footer and the ☰ panel.
+- In `staging` (auto-merged): the [visuals kit plan](https://github.com/lilchristxan/Cueory/pull/35) (D-56 to D-58),
+  docs only.
 
 ## In review
-- [Once-only promo panel](https://github.com/lilchristxan/Cueory/pull/34) (D-55): on marketing pages a small dark panel
+- [Once-only promo panel](https://github.com/lilchristxan/Cueory/pull/34) (D-59): on marketing pages a small dark panel
   slides down from the top after 5 seconds or halfway down the page, with "join the launch list", "support us while we
-  build" and the social marks; once shown, it stays away for 30 days. The auto-merge takes it once it is clean.
-
+  build" and the social marks; once shown, it stays away for 30 days. A draft until brand v1
+  ([#36](https://github.com/lilchristxan/Cueory/pull/36), the lead's) merges, because both change `tokens.css` and
+  `Layout.astro`.
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
 2. Auto-release (`staging` into `main` in pre-launch mode), after the change requests.
+
+## Visuals kit (Task 6, D-56)
+Targets: first visuals by about 14 November, the full kit by about 12 December ([plan](VISUALS.md)).
+- Done: the plan, and license checks on every source. Open RN *Nursing Fundamentals 2e* is the cited source (CC BY
+  4.0). OpenStax waits for Christian (D-57).
+- Next: the visual source-file check and draft-only rendering, then the first batch (fluid compartments, osmosis and
+  fluid shifts, the sodium-potassium pump) with its review sheet. The 3D viewer adds three.js, so it waits for
+  Christian's merge; its models wait for the atlas choice.
 
 ## Planning
 - [Med-surg lesson map](curriculum/README.md) ([#31](https://github.com/lilchristxan/Cueory/pull/31)): the master
@@ -109,6 +120,10 @@ Follow [docs/SETUP.md](SETUP.md):
 - [ ] Auto-release (`staging` into `main` with no person in the loop): Christian's yes reached the repo through
   another Claude session on issue #4. The safety check of the session that builds it needs that yes from Christian
   himself, in the Claude chat that runs these updates, before it builds anything that changes the live site on its own.
+- [ ] Visuals kit, OpenStax (D-57): its books are CC BY-NC-SA, not CC BY, and its pages ask that they not be fed to
+  AI tools without permission. Keep it out (recommended), or ask OpenStax for permission.
+- [ ] Visuals kit, 3D atlas (D-57): BodyParts3D (CC BY 4.0: credit only; recommended) or Z-Anatomy (CC BY-SA 4.0: our
+  models and the videos that show them must use the same license).
 - [ ] An "about" page for the ☰ panel: the text is Christian's (D-46 leaves the link out until it exists).
 - [ ] Later decision: show a student's Google profile photo in the account corner instead of initials (it would load
   images from Google; ROADMAP Task 2).

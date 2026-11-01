@@ -84,7 +84,7 @@ export const menuSmallLinks = [
 ] as const;
 
 /**
- * The once-only promo panel (D-55), on marketing pages only, never on study screens. It slides down from the top after
+ * The once-only promo panel (D-59), on marketing pages only, never on study screens. It slides down from the top after
  * `delaySeconds`, or as soon as the visitor has scrolled halfway down the page, whichever comes first. Once it has
  * been shown it stays away for `rememberDays`, whether the visitor closed it, clicked it or ignored it. Lowercase brand
  * voice (D-47). When accounts exist (ROADMAP Task 2), the button becomes "create your free account" and goes to

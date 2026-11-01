@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { socials } from '../../src/config/site';
 
 /**
- * The once-only promo panel (D-55). The page's clock is faked, so "5 seconds later" takes no real time. The other
+ * The once-only promo panel (D-59). The page's clock is faked, so "5 seconds later" takes no real time. The other
  * browser tests (pages.spec.ts) start as if the panel had already been shown, so it never interrupts them.
  */
 const KEY = 'cueory-promo-seen';
@@ -14,7 +14,7 @@ const axe = (page: Page) => new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2a
 /** Lets the page's clock run, as if the visitor had waited that long. */
 const wait = (page: Page, ms: number) => page.clock.runFor(ms);
 
-test.describe('once-only promo panel (D-55)', () => {
+test.describe('once-only promo panel (D-59)', () => {
   test.beforeEach(async ({ page }) => {
     await page.clock.install();
   });
@@ -159,6 +159,20 @@ test.describe('once-only promo panel (D-55)', () => {
     await wait(page, 500);
     await expect(promoPanel(page)).toBeHidden();
     await expect(hero).toBeFocused();
+  });
+
+  test('leaving the page closes it, so Back never brings it back (back/forward cache)', async ({ page }) => {
+    await page.goto('/');
+    await wait(page, 5_500);
+    await expect(promoPanel(page)).toBeVisible();
+    // What the browser fires when it keeps the page in its back/forward cache to show again on Back.
+    await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true })));
+    await expect(promoPanel(page)).toBeHidden();
+
+    await page.goto('/privacy');
+    await page.goBack();
+    await wait(page, 10_000);
+    await expect(promoPanel(page)).toBeHidden();
   });
 
   test('waits while the ☰ panel is open, then appears once it closes', async ({ page }) => {

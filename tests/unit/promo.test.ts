@@ -40,7 +40,7 @@ const blocked: KeyValueStorage = {
   },
 };
 
-describe('once-only promo panel (D-55)', () => {
+describe('once-only promo panel (D-59)', () => {
   it('shows to a visitor it has never been shown to', () => {
     expect(mayShow(memory(), NOW, 30)).toBe(true);
   });
