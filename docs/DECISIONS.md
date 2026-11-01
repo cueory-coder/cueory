@@ -559,13 +559,14 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
     control characters. The email stays in Supabase's `auth.users`, and onboarding answers come with the onboarding
     pages. A student reads their own row and can change only `display_name`; signed-out visitors get nothing; deleting
     an account deletes its profile. The trigger writes only the id, so bad sign-up data can't block a sign-up.
-  - **Tests:** 24 pgTAP tests in `supabase/tests/database/`. They check that every table has row-level security, that
-    anon can do nothing to any table, view or sequence (effective privileges, so grants through `PUBLIC` count too),
-    that no function in `public` can be called from the website unless it's on the allowed list (empty for now), that
-    new tables start with no grants, and every profile rule above. Each check also has a probe that proves it catches a
-    table or function reachable only through `PUBLIC`. They passed locally on a stand-in database set up with Supabase's
-    old grant-everything defaults (the worst case), and they fail when a table lacks row-level security or a function
-    keeps `execute` for `public`.
+  - **Tests:** 25 pgTAP tests in `supabase/tests/database/`. They check that every table has row-level security, that
+    anon can do nothing to any table, view or sequence (effective privileges, so grants through `PUBLIC` count too, and
+    every table privilege Postgres 17 has, `MAINTAIN` included), that no function in `public` can be called from the
+    website unless it's on the allowed list (empty for now), that new tables and sequences start with no privileges for
+    `anon`, `authenticated` or `service_role`, and every profile rule above. Each check also has a probe that proves it
+    catches a table, a `MAINTAIN` grant or a function reachable only through `PUBLIC`. They passed locally on a
+    stand-in database set up with Supabase's old grant-everything defaults (the worst case), and they fail when a table
+    lacks row-level security or a function keeps `execute` for `public`.
   - **CI:** `.github/workflows/database.yml` runs the pinned Supabase CLI (2.122.0, from npm) to start a throwaway
     local database, apply every migration and run the tests. It needs no secrets and runs only when `supabase/` or the
     workflow itself changes, and never on drafts (lead's note 2, D-74).

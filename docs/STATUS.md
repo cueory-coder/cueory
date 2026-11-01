@@ -111,7 +111,7 @@ Last updated: 2026-11-01
 - Task 2, the first database change (D-77), waiting for Christian because it changes the database and CI: the
   database starts locked (nothing new is reachable from the website until a change grants it), then `profiles`, one row
   per account with only a display name that each student reads and changes for themselves. A new CI job applies every
-  change to a throwaway local database and runs 24 database tests, only when `supabase/` changes.
+  change to a throwaway local database and runs 25 database tests, only when `supabase/` changes.
 - Promo panel fix: it waits until the ☰ panel or a study-mode preview has finished closing, so their own focus
   handling never takes focus away from it (a browser test failed 2 of 12 runs because of this).
 - Daily games, first part (D-61): `/play` with pulse, playable with labeled sample puzzles, and cueword, triage and
