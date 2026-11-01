@@ -233,6 +233,8 @@ Merged into `staging`; the database one by the director on Christian's behalf (D
   transport the page will supply once accounts are on.
 
 ## In review
+- When a glove note may appear (Task 50, D-94): `decideNote` answers "nothing" or "this kind, this photo", from the
+  visit's memory, the page kind, time, scroll, study minutes, pauses and busy states. Logic only; nothing visible.
 - "Tip" becomes "supporting our mission" (Task C13, D-94): `/support` shows Christian's two mission lines and a
   "support our mission" button; the promo panel's link says "supporting our mission". No "tip" left in visible text.
 - Task 53: pure glove-note sound permission gates and the remembered on/off toggle; no audio calls or assets, and a known browser refusal stays silent.
