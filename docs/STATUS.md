@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-10-31
+Last updated: 2026-11-01
 
 ## Done
 - Static site: Astro + React islands + TypeScript + Tailwind, static output, tested at phone and desktop sizes.
@@ -55,12 +55,17 @@ Last updated: 2026-10-31
     [select-all-that-apply in the batch checker](https://github.com/lilchristxan/Cueory/pull/19) (D-45), the first
     pull requests the pre-launch auto-merge took on its own.
   - [Rollback guide](https://github.com/lilchristxan/Cueory/pull/22) in `docs/SETUP.md`.
-- In `staging`, waiting for the next release ([#26](https://github.com/lilchristxan/Cueory/pull/26), open for Christian):
+- Fourth release 31 Oct ([#26](https://github.com/lilchristxan/Cueory/pull/26)), merged by Christian; live on `main`:
   [home hero, ☰ side panel and account corner](https://github.com/lilchristxan/Cueory/pull/24) in the all-lowercase
   voice (D-46, D-47), with phone, tablet and desktop browser tests (D-48), [search in the ☰ panel](https://github.com/lilchristxan/Cueory/pull/27)
   (D-49), the ["ways to study" carousel](https://github.com/lilchristxan/Cueory/pull/28) (D-50), its
-  [preview and hover zoom](https://github.com/lilchristxan/Cueory/pull/29) (D-51) and the
-  [silk scenes](https://github.com/lilchristxan/Cueory/pull/32) (D-53).
+  [preview and hover zoom](https://github.com/lilchristxan/Cueory/pull/29) (D-51), the
+  [silk scenes](https://github.com/lilchristxan/Cueory/pull/32) (D-53) and the
+  [med-surg lesson map](https://github.com/lilchristxan/Cueory/pull/31) (docs only).
+- In `staging`, waiting for the next release: [auto-merge hardening](https://github.com/lilchristxan/Cueory/pull/30)
+  (D-52), merged by Christian. Before launch the bot now also holds changes to package.json `scripts`, `engines` and
+  `packageManager`, and lockfile changes that add a package, an install script or a download from outside the npm
+  registry; version bumps of existing packages still merge themselves.
 
 ## In review
 - [Social links](https://github.com/lilchristxan/Cueory/pull/33) (D-54): Instagram, TikTok and YouTube marks in the
@@ -70,6 +75,12 @@ Last updated: 2026-10-31
 1. The once-only promo panel.
 2. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
 3. Auto-release (`staging` into `main` in pre-launch mode), after the change requests.
+
+## Planning
+- [Med-surg lesson map](curriculum/README.md) ([#31](https://github.com/lilchristxan/Cueory/pull/31)): the master
+  list of 351 lessons in 19 units, in build order, each with a stable `lesson_id`; ROADMAP points to it. It is an
+  outline of topics only, with no clinical facts: lessons still come through the content pipeline (source brief,
+  reviewers, approval), and higher-risk topics wait for a qualified reviewer.
 
 ## Blocked
 - **Task 2 (accounts and database)** waits for Christian to create the two Supabase projects, and its sign-in and

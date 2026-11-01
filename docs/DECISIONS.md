@@ -262,6 +262,15 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   color, so its text keeps the plain page-color contrast; a pause button in it shares the row's setting (WCAG 2.2.2).
   With a mouse, the card under the pointer or keyboard focus grows to 1.04 with a deeper shadow; touch screens and
   reduced motion skip it. Reason: Christian's request.
+- **D-52** Auto-merge holds package.json scripts and risky lockfile changes before launch (found in a repo review,
+  2026-10-31). The pre-launch auto-merge (D-42) now also waits for Christian when a pull request changes, adds or
+  removes `scripts`, `engines` or `packageManager` in a package.json (a changed `build` or a `postinstall` would run in
+  the staging build the moment the bot merged it), or when its `package-lock.json` adds a package name the base
+  lockfile lacks, gives a package an install script, or downloads anything from outside `https://registry.npmjs.org/`.
+  A lockfile that only moves existing packages to other versions still merges itself, so minor bumps keep working
+  (D-42). A lockfile that can't be read on either side waits. Once the site is live every lockfile change is held, as
+  before. Reason: before this, only package.json's dependency lists were compared, so a lockfile alone could pull in
+  new code. This pull request edits `scripts/automerge/`, so it waits for Christian like any change to the auto-merge.
 - **D-53** Silk scenes down the home page (Christian's change requests, 2026-10-31, 1:15 pm and 1:22 pm). The hero,
   "ways to study" and the launch-updates panel are three scenes cut from the same silk: the hero's folds, sheen and
   grain, with the folds at another angle, the light from another side and the tint moving from Ivory to Linen and back
