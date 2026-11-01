@@ -135,9 +135,10 @@ Targets: first visuals by about 14 November, the full kit by about 12 December (
   reviewers, approval), and higher-risk topics wait for a qualified reviewer.
 
 ## Blocked
-- **Task 2 (accounts and database)** waits for Christian to create the two Supabase projects, and its sign-in and
-  database-policy parts need his approval. The "Flag or comment" button is built with it (D-34). Task 4 parts that
-  don't need accounts go first (D-35).
+- **Task 2 (accounts and database)** is starting: Christian is creating the two Supabase projects (SETUP Part K),
+  and the plan is D-73 (grants, row-level security and policies in one migration; `check_answer`; Flag or comment for
+  signed-in students; keys per environment; migrations tested in CI with no real keys). Its migrations, sign-in and
+  database-policy parts need his approval. The "Flag or comment" button is built with it (D-34).
 - **Signup form** shows "signups open soon" until the Kit form exists (SETUP.md, Part I).
 
 ## Needs Christian's hands
