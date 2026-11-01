@@ -205,6 +205,8 @@ a page yet:
 - Task 40: `reviewSheet(visual)` prepares source and credit tables with an unticked visual-review checklist; pure logic, in review.
 - Task 41: `rightsProblems` checks recorded image rights; `usableAssets` keeps only exact assets with a valid verified record; pure logic, in review.
 
+- Export-my-data (#95, Task 19) now also covers account attempts, exam dates and review rows, in JSON and CSV (D-91).
+
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
 2. Releases stay manual (D-80): the director opens a Release pull request and Christian merges it.
