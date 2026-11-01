@@ -3,7 +3,7 @@
 -- their own attempts, and the hourly limit holds. Run by `supabase test db` on a throwaway local database.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(43);
+select plan(48);
 
 -- Two students, as Supabase Auth would create them.
 insert into auth.users (id, email) values
@@ -52,13 +52,13 @@ insert into public.item_versions (id, item_id, version, stem) values
 
 -- ---- Who may run it.
 select ok(
-  has_function_privilege('authenticated', 'public.check_answer(uuid, text[])', 'execute')
-    and not has_function_privilege('anon', 'public.check_answer(uuid, text[])', 'execute'),
+  has_function_privilege('authenticated', 'public.check_answer(uuid, uuid, text[])', 'execute')
+    and not has_function_privilege('anon', 'public.check_answer(uuid, uuid, text[])', 'execute'),
   'signed-in students can run check_answer and signed-out visitors cannot'
 );
 select ok(
-  (select prosecdef from pg_proc where oid = 'public.check_answer(uuid, text[])'::regprocedure)
-    and (select proconfig @> array['search_path=""'] from pg_proc where oid = 'public.check_answer(uuid, text[])'::regprocedure),
+  (select prosecdef from pg_proc where oid = 'public.check_answer(uuid, uuid, text[])'::regprocedure)
+    and (select proconfig @> array['search_path=""'] from pg_proc where oid = 'public.check_answer(uuid, uuid, text[])'::regprocedure),
   'check_answer is security definer with an empty search_path'
 );
 select table_privs_are('public', 'attempts', 'anon', array[]::text[], 'visitors have no access to attempts');
@@ -70,7 +70,7 @@ set local "request.jwt.claims" to '{"role": "anon"}';
 set local "request.jwt.claim.sub" to '';
 
 select throws_ok(
-  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e1', array['a']) $$,
+  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e1', '00000000-0000-4000-8000-0000000000f1', array['a']) $$,
   '42501', null, 'a signed-out visitor cannot run check_answer'
 );
 select throws_ok($$ select id from public.attempts $$, '42501', null, 'a signed-out visitor cannot read attempts');
@@ -81,45 +81,45 @@ set local "request.jwt.claims" to '{"sub": "00000000-0000-4000-8000-000000000001
 set local "request.jwt.claim.sub" to '00000000-0000-4000-8000-000000000001';
 
 select results_eq(
-  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e1', array['a'])->>'correct' $$,
+  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e1', '00000000-0000-4000-8000-0000000000f1', array['a'])->>'correct' $$,
   $$ values ('true') $$, 'the right single answer is marked right'
 );
 select results_eq(
-  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e1', array['b'])->>'correct' $$,
+  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e1', '00000000-0000-4000-8000-0000000000f1', array['b'])->>'correct' $$,
   $$ values ('false') $$, 'a wrong single answer is marked wrong'
 );
 select results_eq(
-  $$ select (public.check_answer('00000000-0000-4000-8000-0000000000e1', array['c'])->'key')::text $$,
+  $$ select (public.check_answer('00000000-0000-4000-8000-0000000000e1', '00000000-0000-4000-8000-0000000000f1', array['c'])->'key')::text $$,
   $$ values ('["a"]') $$, 'the key comes back after an attempt, even a wrong one'
 );
 select results_eq(
-  $$ select (public.check_answer('00000000-0000-4000-8000-0000000000e1', array['a'])->'rationales'->>'b') $$,
+  $$ select (public.check_answer('00000000-0000-4000-8000-0000000000e1', '00000000-0000-4000-8000-0000000000f1', array['a'])->'rationales'->>'b') $$,
   $$ values ('why b is not') $$, 'every choice''s rationale comes back after an attempt'
 );
 select results_eq(
-  $$ select (public.check_answer('00000000-0000-4000-8000-0000000000e1', array['a'])->>'version_id')::uuid $$,
+  $$ select (public.check_answer('00000000-0000-4000-8000-0000000000e1', '00000000-0000-4000-8000-0000000000f1', array['a'])->>'version_id')::uuid $$,
   $$ values ('00000000-0000-4000-8000-0000000000f1'::uuid) $$, 'the answer says which version it checked'
 );
 
 -- Select-all is all-or-nothing, in any order.
 select results_eq(
-  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e2', array['a', 'c'])->>'correct' $$,
+  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e2', '00000000-0000-4000-8000-0000000000f2', array['a', 'c'])->>'correct' $$,
   $$ values ('true') $$, 'select-all: exactly the right set is right'
 );
 select results_eq(
-  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e2', array['c', 'a'])->>'correct' $$,
+  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e2', '00000000-0000-4000-8000-0000000000f2', array['c', 'a'])->>'correct' $$,
   $$ values ('true') $$, 'select-all: the order of the picks does not matter'
 );
 select results_eq(
-  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e2', array['a'])->>'correct' $$,
+  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e2', '00000000-0000-4000-8000-0000000000f2', array['a'])->>'correct' $$,
   $$ values ('false') $$, 'select-all: part of the right set is wrong'
 );
 select results_eq(
-  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e2', array['a', 'b', 'c'])->>'correct' $$,
+  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e2', '00000000-0000-4000-8000-0000000000f2', array['a', 'b', 'c'])->>'correct' $$,
   $$ values ('false') $$, 'select-all: the right set plus a wrong choice is wrong'
 );
 select results_eq(
-  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e2', array['b', 'd'])->>'correct' $$,
+  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e2', '00000000-0000-4000-8000-0000000000f2', array['b', 'd'])->>'correct' $$,
   $$ values ('false') $$, 'select-all: only wrong choices is wrong'
 );
 
@@ -137,45 +137,58 @@ select results_eq(
 
 -- Refused before anything is recorded or revealed.
 select throws_ok(
-  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e3', array['a']) $$,
+  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e3', '00000000-0000-4000-8000-0000000000f3', array['a']) $$,
   'P0002', null, 'an item with no published version cannot be answered'
 );
 select throws_ok(
-  $$ select public.check_answer('00000000-0000-4000-8000-0000000000ff', array['a']) $$,
+  $$ select public.check_answer('00000000-0000-4000-8000-0000000000ff', '00000000-0000-4000-8000-0000000000f1', array['a']) $$,
   'P0002', null, 'an unknown item cannot be answered'
 );
 select throws_ok(
-  $$ select public.check_answer(null, array['a']) $$, '22023', null, 'no item is refused'
+  $$ select public.check_answer(null, '00000000-0000-4000-8000-0000000000f1', array['a']) $$, '22023', null, 'no item is refused'
 );
 select throws_ok(
-  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e1', null) $$, '22023', null, 'no picks is refused'
+  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e1', '00000000-0000-4000-8000-0000000000f1', null) $$, '22023', null, 'no picks is refused'
 );
 select throws_ok(
-  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e1', array[]::text[]) $$,
+  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e1', '00000000-0000-4000-8000-0000000000f1', array[]::text[]) $$,
   '22023', null, 'an empty pick is refused'
 );
 select throws_ok(
-  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e2', array['a', 'a']) $$,
+  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e2', '00000000-0000-4000-8000-0000000000f2', array['a', 'a']) $$,
   '22023', null, 'the same choice twice is refused'
 );
 select throws_ok(
-  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e1', array['d']) $$,
+  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e1', '00000000-0000-4000-8000-0000000000f1', array['d']) $$,
   '22023', null, 'a choice the question does not have is refused'
 );
 select throws_ok(
-  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e1', array['a', null]) $$,
+  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e1', '00000000-0000-4000-8000-0000000000f1', array['a', null]) $$,
   '22023', null, 'a null pick is refused'
 );
 select throws_ok(
-  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e1', array['a', 'b']) $$,
+  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e1', '00000000-0000-4000-8000-0000000000f1', array['a', 'b']) $$,
   '22023', null, 'two picks for a single-answer question are refused'
 );
 select throws_ok(
-  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e1', array['a', 'b', 'c', 'd', 'e', 'f']) $$,
+  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e1', '00000000-0000-4000-8000-0000000000f1', array['a', 'b', 'c', 'd', 'e', 'f']) $$,
   '22023', null, 'more than five picks are refused'
 );
 select results_eq(
   $$ select count(*)::int from public.attempts $$, $$ values (10) $$, 'refused calls recorded nothing'
+);
+
+-- The student answers the version they were shown (Codex review of #94).
+select throws_ok(
+  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e1', null, array['a']) $$,
+  '22023', null, 'no version is refused'
+);
+select throws_ok(
+  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e1', '00000000-0000-4000-8000-0000000000f2', array['a']) $$,
+  '55000', null, 'picks for a different version than the published one are refused'
+);
+select results_eq(
+  $$ select count(*)::int from public.attempts $$, $$ values (10) $$, 'a stale or missing version recorded nothing'
 );
 
 -- Attempts belong to the student, and only check_answer writes them.
@@ -202,7 +215,7 @@ select results_eq(
   $$ select count(*)::int from public.attempts $$, $$ values (0) $$, 'a student does not see anyone else''s attempts'
 );
 select lives_ok(
-  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e1', array['a']) $$, 'a second student can check'
+  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e1', '00000000-0000-4000-8000-0000000000f1', array['a']) $$, 'a second student can check'
 );
 select results_eq(
   $$ select count(*)::int from public.attempts $$, $$ values (1) $$, 'and sees only their own attempt'
@@ -220,11 +233,11 @@ select results_eq(
 );
 set local role authenticated;
 select lives_ok(
-  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e1', array['a']) $$,
+  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e1', '00000000-0000-4000-8000-0000000000f1', array['a']) $$,
   'the 200th check in an hour is allowed'
 );
 select throws_ok(
-  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e1', array['a']) $$,
+  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e1', '00000000-0000-4000-8000-0000000000f1', array['a']) $$,
   '54000', null, 'the 201st check in an hour is refused'
 );
 select results_eq(
@@ -235,7 +248,7 @@ select results_eq(
 set local "request.jwt.claims" to '{"sub": "00000000-0000-4000-8000-000000000001", "role": "authenticated"}';
 set local "request.jwt.claim.sub" to '00000000-0000-4000-8000-000000000001';
 select lives_ok(
-  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e1', array['a']) $$,
+  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e1', '00000000-0000-4000-8000-0000000000f1', array['a']) $$,
   'one student being at the limit does not stop another'
 );
 reset role;
@@ -247,9 +260,35 @@ set local role authenticated;
 set local "request.jwt.claims" to '{"sub": "00000000-0000-4000-8000-000000000003", "role": "authenticated"}';
 set local "request.jwt.claim.sub" to '00000000-0000-4000-8000-000000000003';
 select lives_ok(
-  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e1', array['a']) $$,
+  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e1', '00000000-0000-4000-8000-0000000000f1', array['a']) $$,
   'attempts older than an hour do not count toward the limit'
 );
+
+-- ---- The question is updated while a student still has the old version open.
+reset role;
+update public.item_versions set status = 'retired' where id = '00000000-0000-4000-8000-0000000000f1';
+insert into public.item_versions (id, item_id, version, stem, source_id) values
+  ('00000000-0000-4000-8000-0000000000f7', '00000000-0000-4000-8000-0000000000e1', 2, 'single stem, new version',
+   '00000000-0000-4000-8000-0000000000a1');
+insert into public.item_choices (item_version_id, choice_id, text) values
+  ('00000000-0000-4000-8000-0000000000f7', 'a', 'new a'), ('00000000-0000-4000-8000-0000000000f7', 'b', 'new b'),
+  ('00000000-0000-4000-8000-0000000000f7', 'c', 'new c');
+insert into public.item_answers (item_version_id, choice_id, is_correct, rationale) values
+  ('00000000-0000-4000-8000-0000000000f7', 'a', false, 'new why a'), ('00000000-0000-4000-8000-0000000000f7', 'b', true, 'new why b'),
+  ('00000000-0000-4000-8000-0000000000f7', 'c', false, 'new why c');
+update public.item_versions set status = 'published' where id = '00000000-0000-4000-8000-0000000000f7';
+set local role authenticated;
+set local "request.jwt.claims" to '{"sub": "00000000-0000-4000-8000-000000000001", "role": "authenticated"}';
+set local "request.jwt.claim.sub" to '00000000-0000-4000-8000-000000000001';
+select throws_ok(
+  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e1', '00000000-0000-4000-8000-0000000000f1', array['a']) $$,
+  '55000', null, 'picks for the old version are not graded against the new one'
+);
+select results_eq(
+  $$ select public.check_answer('00000000-0000-4000-8000-0000000000e1', '00000000-0000-4000-8000-0000000000f7', array['b'])->>'correct' $$,
+  $$ values ('true') $$, 'picks for the new version are graded against it'
+);
+reset role;
 
 -- ---- Deleting an account deletes its attempts.
 reset role;

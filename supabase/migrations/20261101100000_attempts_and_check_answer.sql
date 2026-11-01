@@ -1,7 +1,7 @@
 -- Attempts and check_answer (ROADMAP Task 2, D-73, D-33, D-45, D-86).
 --
--- check_answer(item_id, picked) is the ONLY way the browser learns an answer. A signed-in student sends the choices
--- they picked; the function checks them against the key, records the attempt, and only then returns right or wrong,
+-- check_answer(item_id, version_id, picked) is the ONLY way the browser learns an answer. A signed-in student sends
+-- the question, the version they were shown and the choices they picked; the function checks them against the key, records the attempt, and only then returns right or wrong,
 -- the key and every choice's rationale. A student cannot read item_answers directly (D-85), so the key stays in the
 -- database until they have tried.
 --
@@ -50,7 +50,7 @@ create policy "students read their own attempts"
 
 -- security definer with an empty search_path and schema-qualified names, as Supabase's "Database Functions" docs
 -- require. The function runs as its owner, so it can read item_answers; everything it returns is chosen below.
-create function public.check_answer(item_id uuid, picked text[])
+create function public.check_answer(item_id uuid, version_id uuid, picked text[])
 returns jsonb
 language plpgsql
 security definer
@@ -72,8 +72,8 @@ begin
     raise exception 'sign in to check an answer' using errcode = '28000';
   end if;
 
-  if check_answer.item_id is null or check_answer.picked is null then
-    raise exception 'an item and your choices are needed' using errcode = '22023';
+  if check_answer.item_id is null or check_answer.version_id is null or check_answer.picked is null then
+    raise exception 'an item, the version you were shown and your choices are needed' using errcode = '22023';
   end if;
 
   -- Only the published version of an item can be answered; an unpublished or unknown item looks the same.
@@ -84,6 +84,12 @@ begin
     where v.item_id = check_answer.item_id and v.status = 'published';
   if v_id is null then
     raise exception 'no such question' using errcode = 'P0002';
+  end if;
+  -- The student answers the version they were shown. If the question was updated since (a new version is published),
+  -- the picks are not graded and nothing is recorded: grading them against a question they never saw would record
+  -- false progress (Codex review of #94). The page reloads the question and asks again.
+  if v_id <> check_answer.version_id then
+    raise exception 'this question was updated; reload it and answer again' using errcode = '55000';
   end if;
 
   -- Bad input is refused before anything is recorded or revealed.
@@ -135,9 +141,9 @@ begin
 end;
 $$;
 
-comment on function public.check_answer(uuid, text[]) is
+comment on function public.check_answer(uuid, uuid, text[]) is
   'Checks a signed-in student''s picks, records the attempt, then returns right or wrong, the key and the rationales (D-86).';
 
 -- Nobody can run it until it is granted back by name (D-73), and then only signed-in students.
-revoke execute on function public.check_answer(uuid, text[]) from public, anon, authenticated;
-grant execute on function public.check_answer(uuid, text[]) to authenticated;
+revoke execute on function public.check_answer(uuid, uuid, text[]) from public, anon, authenticated;
+grant execute on function public.check_answer(uuid, uuid, text[]) to authenticated;

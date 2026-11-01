@@ -756,13 +756,19 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
 - **D-86** Task 2's fifth database change: attempts and `check_answer` (Task C6, step 3, stacked on D-85). Follows D-33,
   D-45 and D-73, and Supabase's "Database Functions" docs (`security definer` with a fixed `search_path`; revoke
   `execute` from `public` and `anon`).
-  - **`check_answer(item_id, picked)`** is the only way the browser learns an answer. A signed-in student sends the
-    choice letters they picked. It refuses an item with no published version, and bad input (no picks, the same choice
+  - **`check_answer(item_id, version_id, picked)`** is the only way the browser learns an answer. A signed-in student
+    sends the question, the version they were shown (its `id`, which they can read) and the choice letters they
+    picked. It refuses an item with no published version, and bad input (no picks, the same choice
     twice, a letter the question doesn't have, more than one pick for a single-answer question, more than five), all
     before anything is recorded or revealed. Then it checks the picks against the key (select-all is all-or-nothing,
     and the order of picks doesn't matter), records the attempt, and returns `correct`, the `key`, every choice's
     `rationales` and the `version_id` it checked. It is `security definer`, `set search_path = ''`, with `execute`
     revoked from everyone and granted back to `authenticated` by name.
+  - **Bound to the version the student saw (Codex review of #94):** `check_answer` takes the `version_id` the student
+    was shown. If the question has been updated since (the published version is now another one), it refuses with
+    error 55000, grades nothing and records nothing, so a student is never graded on a question they didn't see; the
+    page reloads and asks again. This adds a parameter to the signature the plan sketched, `check_answer(item_id,
+    picked)`; clients call it by name with `item_id`, `version_id` and `picked`.
   - **`attempts`:** one row per checked answer: the student, the version, the sorted picks and whether it was right. A
     student reads only their own rows (`to authenticated`, `(select auth.uid()) = user_id`); nobody on the website
     writes; deleting an account deletes its attempts.
@@ -777,7 +783,7 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   - **A small change to the plan:** attempts moved from step 4 into this step, because `check_answer` writes them and
     counts them for the limit, and a function that can't record or limit would have to be rewritten next step. Step 4
     is now `review_state` and `exam_plans`.
-  - **Tests:** `supabase/tests/database/check_answer_test.sql`, 43 checks: who may run it, right and wrong answers, the
+  - **Tests:** `supabase/tests/database/check_answer_test.sql`, 48 checks: who may run it, right and wrong answers, the
     key and rationales after an attempt, select-all in any order, every refusal recording nothing, own-rows-only,
     direct writes refused, the limit at 200 (not 201, not for others, not for old attempts) and cascade delete. The
     lockdown test's allowed-function list now names `check_answer`, and a new check requires every `security definer`
