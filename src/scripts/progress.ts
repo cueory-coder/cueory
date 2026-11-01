@@ -201,9 +201,17 @@ export function forgetProgress(storage: KeyValueStorage | undefined, deckIds: re
   }
 }
 
+/**
+ * The deck's saved entry, if there is one of its own. Deck ids are plain words, and some ("constructor") are also names
+ * every JavaScript object inherits, so only an own entry counts.
+ */
+function savedDeck(progress: Progress, deckId: string): DeckProgress | undefined {
+  return Object.hasOwn(progress.decks, deckId) ? progress.decks[deckId] : undefined;
+}
+
 /** One deck's piles and stars (empty lists when nothing is saved). */
 export function deckProgress(progress: Progress, deckId: string): DeckProgress {
-  const deck = progress.decks[deckId];
+  const deck = savedDeck(progress, deckId);
   return deck ? { know: [...deck.know], learning: [...deck.learning], starred: [...deck.starred] } : { know: [], learning: [], starred: [] };
 }
 
@@ -217,7 +225,7 @@ function withDeck(progress: Progress, deckId: string, deck: DeckProgress): Progr
 }
 
 export function pileOf(progress: Progress, deckId: string, cardId: string): Pile | null {
-  const deck = progress.decks[deckId];
+  const deck = savedDeck(progress, deckId);
   if (deck?.know.includes(cardId)) return 'know';
   if (deck?.learning.includes(cardId)) return 'learning';
   return null;

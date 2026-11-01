@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   COURSES,
   deckProgress,
@@ -42,6 +42,21 @@ export default function ProgressPanel({ decks }: Props) {
   const confirmRef = useRef<HTMLButtonElement>(null);
   const saidRef = useRef<HTMLParagraphElement>(null);
 
+  // Studying in another tab changes what's saved. Read it again when another tab saves, and when this page comes back
+  // into view, so the page, the download and "forget" always match what's actually kept.
+  useEffect(() => {
+    const refresh = () => setProgress(migrateLegacyStars(storage));
+    const onVisible = () => document.visibilityState === 'visible' && refresh();
+    window.addEventListener('storage', refresh);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('storage', refresh);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [storage]);
+
   const { course, examDate, done } = progress.onboarding;
   // Decks no longer on the site still show, so the page lists everything that's kept.
   const retired = Object.keys(progress.decks)
@@ -57,7 +72,10 @@ export default function ProgressPanel({ decks }: Props) {
   });
 
   const download = () => {
-    const blob = new Blob([exportProgress(progress, localDay(new Date()))], { type: 'application/json' });
+    // Read what's saved right now, not what this page showed when it opened.
+    const current = migrateLegacyStars(storage);
+    setProgress(current);
+    const blob = new Blob([exportProgress(current, localDay(new Date()))], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;

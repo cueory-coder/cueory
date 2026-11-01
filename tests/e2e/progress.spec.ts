@@ -115,7 +115,9 @@ test('card piles and stars show on the progress page; download and forget work',
   expect(await saved(page)).not.toBeNull();
 
   await page.getByRole('button', { name: 'forget my progress on this device' }).click();
-  await page.keyboard.press('Enter'); // "yes, forget it" has focus
+  // Focus moves to "yes, forget it" one frame after the question appears; wait for it before pressing Enter.
+  await expect(page.getByRole('button', { name: 'yes, forget it' })).toBeFocused();
+  await page.keyboard.press('Enter');
   await expect(page.getByText('done. your progress is no longer saved on this device.')).toBeFocused();
   expect(await saved(page)).toBeNull();
   await expect(page.getByText('nothing saved yet.', { exact: false })).toBeVisible();
@@ -148,6 +150,25 @@ test('stars kept only under old keys show on the progress page, and forget remov
   await page.getByRole('button', { name: 'yes, forget it' }).click();
   const left = await page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith('cueory-') && key !== 'cueory-promo-seen'));
   expect(left).toEqual([]);
+});
+
+test('the progress page picks up what another tab saves, and the download includes it (Codex on #74)', async ({ page, context }) => {
+  await page.goto('/progress');
+  await expect(page.getByText('nothing saved yet.', { exact: false })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'download my progress' })).toBeDisabled();
+
+  const other = await context.newPage();
+  await other.goto('/learn/study-skills/cards');
+  await other.getByRole('button', { name: 'Show answer' }).click();
+  await other.getByRole('button', { name: 'Know it' }).click();
+  await other.close();
+
+  // The other tab's save reaches this page through the browser's storage event.
+  await expect(page.getByText('1 know it · 0 still learning · 0 stars')).toBeVisible();
+  const downloading = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'download my progress' }).click();
+  const content = JSON.parse(readFileSync((await (await downloading).path())!, 'utf8'));
+  expect(content.decks['study-skills-01'].know).toEqual(['ss01-c01']);
 });
 
 test('the pages fit a 320 px screen without sideways scrolling', async ({ page }) => {

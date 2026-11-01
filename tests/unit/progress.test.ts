@@ -145,6 +145,17 @@ describe('guest progress record (D-69)', () => {
     expect(Object.keys(storage.data).sort()).toEqual([PROGRESS_STORAGE_KEY, 'cueory-theme']);
   });
 
+  it('treats deck ids that are also built-in JavaScript names as ordinary decks (Codex on #74)', () => {
+    const storage = memoryStorage({ [legacyStarsKey('constructor')]: '["c1"]' });
+    expect(deckProgress(readProgress(storage), 'constructor')).toEqual({ know: [], learning: [], starred: [] });
+    expect(pileOf(emptyProgress(), 'constructor', 'c1')).toBeNull();
+    const progress = migrateLegacyStars(storage);
+    expect(deckProgress(progress, 'constructor').starred).toEqual(['c1']);
+    expect(deckProgress(withPile(progress, 'constructor', 'c2', 'know'), 'constructor')).toEqual({ know: ['c2'], learning: [], starred: ['c1'] });
+    expect(deckProgress(readProgress(storage), 'constructor').starred).toEqual(['c1']);
+    expect(Object.hasOwn(readProgress(storage).decks, 'constructor')).toBe(true);
+  });
+
   it('keeps the old keys when the record cannot be saved, and never throws', () => {
     expect(migrateLegacyStars(undefined)).toEqual(emptyProgress());
     expect(migrateLegacyStars(blockedStorage)).toEqual(emptyProgress());
