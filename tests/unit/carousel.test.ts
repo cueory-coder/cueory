@@ -1,17 +1,22 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { studyModes } from '../../src/config/modes';
 import {
   AUTO_ADVANCE_MS,
   canAutoAdvance,
-  distance,
   flipFrom,
+  glides,
   isSwipeDown,
   keyTarget,
-  MAX_DISTANCE,
-  nearestIndex,
   PREVIEW_MS,
+  REST_MS,
+  RING_MS,
+  ringOffset,
+  ringPlace,
   slideAnnouncement,
   SWIPE_CLOSE_PX,
+  SWIPE_TURN_PX,
+  swipeTurn,
   wrap,
   type MotionState,
 } from '../../src/scripts/carousel';
@@ -25,10 +30,10 @@ const idle: MotionState = {
   onScreen: true,
 };
 
-describe('"ways to study" carousel (D-50)', () => {
-  it('lists the eight study modes in Christian\'s order, in the lowercase voice', () => {
+describe('"ways to study" merry-go-round (D-50, D-57)', () => {
+  it("lists the eleven study modes in Christian's order, in the lowercase voice", () => {
     expect(studyModes.map((mode) => mode.name)).toEqual([
-      'lesson',
+      'video',
       'cards',
       'learn',
       'fill-in',
@@ -36,6 +41,9 @@ describe('"ways to study" carousel (D-50)', () => {
       'organizer',
       'questions',
       'review',
+      'label it',
+      'adaptive quiz',
+      'level test',
     ]);
     for (const mode of studyModes) {
       expect(mode.name).toBe(mode.name.toLowerCase());
@@ -45,56 +53,89 @@ describe('"ways to study" carousel (D-50)', () => {
     expect(new Set(studyModes.map((mode) => mode.id)).size).toBe(studyModes.length);
   });
 
-  it('links each mode that is open now to its page', () => {
+  it('links each mode that is open now to its page; the video and the roadmap modes are coming soon', () => {
     const links = Object.fromEntries(studyModes.filter((mode) => mode.link).map((mode) => [mode.id, mode.link!.href]));
     expect(links).toEqual({
-      lesson: '/learn/study-skills',
       cards: '/learn/study-skills/cards',
       learn: '/learn/study-skills/learn-mode',
       matching: '/learn/study-skills/matching',
     });
   });
 
-  it('finds the card nearest the middle of the row', () => {
-    expect(nearestIndex([100, 440, 780], 440)).toBe(1);
-    expect(nearestIndex([100, 440, 780], 0)).toBe(0);
-    expect(nearestIndex([100, 440, 780], 2000)).toBe(2);
-    expect(nearestIndex([100, 440, 780], 271)).toBe(1);
-    expect(nearestIndex([100, 440, 780], 269)).toBe(0);
-    // A tie keeps the earlier card.
-    expect(nearestIndex([100, 440], 270)).toBe(0);
+  it('counts each card the short way round from the middle, so there is always a neighbour on both sides', () => {
+    // Eleven cards, the first in the middle: the last one is its left neighbour, the second its right one.
+    expect(Array.from({ length: 11 }, (_, i) => ringOffset(i, 0, 11))).toEqual([0, 1, 2, 3, 4, 5, -5, -4, -3, -2, -1]);
+    // The last card in the middle: the first one is its right neighbour.
+    expect(ringOffset(0, 10, 11)).toBe(1);
+    expect(ringOffset(9, 10, 11)).toBe(-1);
+    expect(ringOffset(4, 4, 11)).toBe(0);
+    expect(ringOffset(3, 0, 0)).toBe(0);
   });
 
-  it('measures how far a card is from the middle, in cards, up to the coverflow limit', () => {
-    expect(distance(440, 440, 340)).toBe(0);
-    expect(distance(780, 440, 340)).toBe(1);
-    expect(distance(100, 440, 340)).toBe(1);
-    expect(distance(610, 440, 340)).toBeCloseTo(0.5);
-    expect(distance(5000, 440, 340)).toBe(MAX_DISTANCE);
-    expect(distance(5000, 440, 0)).toBe(0);
+  it('steps the neighbours back: smaller, turned away round the ring, edge to edge, the middle card on top', () => {
+    expect(ringPlace(0)).toEqual({ distance: 0, side: 0, scale: 1, shift: 0, gaps: 0, turn: 0, layer: 10 });
+    expect(ringPlace(1)).toEqual({ distance: 1, side: 1, scale: 0.88, shift: 0.94, gaps: 1, turn: 10, layer: 9 });
+    expect(ringPlace(-1)).toEqual({ distance: 1, side: -1, scale: 0.88, shift: -0.94, gaps: -1, turn: -10, layer: 9 });
+    expect(ringPlace(2)).toMatchObject({ scale: 0.76, shift: 1.76, gaps: 2, turn: 10, layer: 8 });
+    // Edge to edge: the space between two middles is half of each card's width, plus one gap.
+    for (const d of [1, 2, 3]) {
+      const inner = ringPlace(d - 1);
+      const outer = ringPlace(d);
+      expect(outer.shift - inner.shift).toBeCloseTo((inner.scale + outer.scale) / 2, 3);
+      expect(outer.gaps - inner.gaps).toBe(1);
+    }
+    // With reduced motion the side cards face forward.
+    expect(ringPlace(1, true).turn).toBe(0);
+    expect(ringPlace(-2, true).turn).toBe(0);
+  });
+
+  it('glides a turn of one or two cards, and switches at once round the back or for a long jump', () => {
+    expect(glides(1, 0)).toBe(true);
+    expect(glides(-1, -2)).toBe(true);
+    expect(glides(2, 0)).toBe(true);
+    expect(glides(-5, 5)).toBe(false);
+    expect(glides(0, 4)).toBe(false);
   });
 
   it('wraps from the last card to the first and back', () => {
-    expect(wrap(8, 8)).toBe(0);
-    expect(wrap(-1, 8)).toBe(7);
-    expect(wrap(3, 8)).toBe(3);
-    expect(wrap(17, 8)).toBe(1);
+    expect(wrap(11, 11)).toBe(0);
+    expect(wrap(-1, 11)).toBe(10);
+    expect(wrap(3, 11)).toBe(3);
+    expect(wrap(23, 11)).toBe(1);
     expect(wrap(2, 0)).toBe(0);
   });
 
-  it('moves with the arrow keys, Home and End, and ignores other keys', () => {
-    expect(keyTarget('ArrowRight', 0, 8)).toBe(1);
-    expect(keyTarget('ArrowRight', 7, 8)).toBe(0);
-    expect(keyTarget('ArrowLeft', 0, 8)).toBe(7);
-    expect(keyTarget('ArrowLeft', 4, 8)).toBe(3);
-    expect(keyTarget('Home', 5, 8)).toBe(0);
-    expect(keyTarget('End', 2, 8)).toBe(7);
-    expect(keyTarget('Enter', 2, 8)).toBeUndefined();
-    expect(keyTarget('ArrowDown', 2, 8)).toBeUndefined();
+  it('moves with the arrow keys, Home and End, endlessly, and ignores other keys', () => {
+    expect(keyTarget('ArrowRight', 0, 11)).toBe(1);
+    expect(keyTarget('ArrowRight', 10, 11)).toBe(0);
+    expect(keyTarget('ArrowLeft', 0, 11)).toBe(10);
+    expect(keyTarget('ArrowLeft', 4, 11)).toBe(3);
+    expect(keyTarget('Home', 5, 11)).toBe(0);
+    expect(keyTarget('End', 2, 11)).toBe(10);
+    expect(keyTarget('Enter', 2, 11)).toBeUndefined();
+    expect(keyTarget('ArrowDown', 2, 11)).toBeUndefined();
+  });
+
+  it('turns one card per sideways swipe, never for a short or up-and-down one', () => {
+    expect(SWIPE_TURN_PX).toBe(40);
+    expect(swipeTurn(-60, 5)).toBe(1);
+    expect(swipeTurn(60, -10)).toBe(-1);
+    expect(swipeTurn(-39, 0)).toBe(0);
+    expect(swipeTurn(-50, 80)).toBe(0);
+    expect(swipeTurn(0, -200)).toBe(0);
+  });
+
+  it('turns quickly, easing out, and the styles use the same timing', () => {
+    expect(RING_MS).toBeGreaterThanOrEqual(180);
+    expect(RING_MS).toBeLessThanOrEqual(280);
+    expect(REST_MS).toBeGreaterThan(RING_MS);
+    const css = readFileSync(new URL('../../src/styles/global.css', import.meta.url), 'utf8');
+    const rule = css.match(/\.modes\[data-ring\] \.mode-card \{([^}]*)\}/)?.[1] ?? '';
+    expect(rule).toContain(`transform ${RING_MS}ms cubic-bezier(0.2, 0.8, 0.2, 1)`);
   });
 
   it('announces the card in the middle by name and position', () => {
-    expect(slideAnnouncement('matching', 4, 8)).toBe('matching, 5 of 8');
+    expect(slideAnnouncement('matching', 4, 11)).toBe('matching, 5 of 11');
   });
 
   it('auto-advances gently, and only while nobody is using the carousel', () => {

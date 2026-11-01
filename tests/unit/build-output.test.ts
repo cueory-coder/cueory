@@ -99,20 +99,22 @@ describe.skipIf(!existsSync(dist))('built site', () => {
     '%s shows the building notice',
     (page) => {
       const html = readFileSync(join(dist, page), 'utf8');
-      expect(html).toContain("We're still building. More coming soon.");
+      expect(html).toContain("we're still building. more coming soon.");
     },
   );
 
-  it('home page: "lesson" is the sentence-by-sentence reader and "learn" is Learn mode (D-43, D-50)', () => {
+  it('home page: "video" comes first, "learn" is Learn mode, and modes not built yet say coming soon (D-43, D-50, D-57)', () => {
     const html = readFileSync(join(dist, 'index.html'), 'utf8');
     const card = (id: string) => {
       const match = new RegExp(`<div[^>]*id="mode-${id}"[\\s\\S]*?<h3[^>]*>([^<]+)</h3>[\\s\\S]*?(?:href="([^"]+)"|coming soon)`).exec(html);
       expect(match, `card ${id}`).not.toBeNull();
       return { name: match![1]!.trim(), href: match![2] };
     };
-    expect(card('lesson')).toEqual({ name: 'lesson', href: '/learn/study-skills' });
+    expect(card('video')).toEqual({ name: 'video', href: undefined });
     expect(card('learn')).toEqual({ name: 'learn', href: '/learn/study-skills/learn-mode' });
     expect(card('fill-in')).toEqual({ name: 'fill-in', href: undefined });
+    expect(card('level-test')).toEqual({ name: 'level test', href: undefined });
+    expect(html).not.toContain('id="mode-lesson"');
   });
 
   it('keeps the signup thank-you page out of search engines', () => {

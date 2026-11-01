@@ -149,15 +149,16 @@ describe('marketing background (D-41)', () => {
   });
 
   /*
-    "ways to study" carousel (D-50): its cards are the frosted panels checked above, so their text is covered as long
-    as nothing fades a card. The row scrolls, scales and lowers the cards, but never masks, fades or blurs them, the row
-    or the chips. (The illustrations inside the cards are decoration and may use opacity.)
+    "ways to study" merry-go-round (D-50, D-57): its cards are the frosted panels checked above, so their words are
+    covered as long as nothing fades a card. It moves, scales and turns the cards, and gives side cards the second ink,
+    but never masks, fades or blurs the row or a card. (The illustrations inside the cards are decoration and may use
+    opacity.)
   */
-  it('never masks, fades or blurs the carousel row, its cards or its chips', () => {
+  it('never masks, fades or blurs the carousel row or its cards', () => {
     const globalCss = readFileSync(new URL('../../src/styles/global.css', import.meta.url), 'utf8');
     const rules = [...globalCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
       .map(([, selector, body]) => [selector!.replace(/\/\*[\s\S]*?\*\//g, '').trim(), body!] as const)
-      .filter(([selector]) => /\.(modes-track|mode-card|mode-chip)\b/.test(selector) && !/\.ill[\w-]*\s*$/.test(selector));
+      .filter(([selector]) => /\.(modes-track|mode-card)\b/.test(selector) && !/\.ill[\w-]*\s*$/.test(selector));
     expect(rules.length).toBeGreaterThanOrEqual(4);
     for (const [selector, body] of rules) {
       expect(body, selector).not.toMatch(/(^|[\s;{])(-webkit-)?(mask[\w-]*|opacity|filter)\s*:/);
@@ -180,7 +181,7 @@ describe('marketing background (D-41)', () => {
     const globalCss = readFileSync(new URL('../../src/styles/global.css', import.meta.url), 'utf8');
     const scenes = [...globalCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
       .map(([, selector, body]) => [selector!.replace(/\/\*[\s\S]*?\*\//g, '').trim(), body!] as const)
-      .filter(([selector]) => /^\.scene-(?!rule)[\w-]+$/.test(selector));
+      .filter(([selector]) => /^\.scene-[\w-]+$/.test(selector));
     expect(scenes.length).toBeGreaterThanOrEqual(3);
     for (const [selector, body] of scenes) {
       const declarations = body.split(';').map((d) => d.trim()).filter(Boolean);

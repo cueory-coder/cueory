@@ -93,7 +93,7 @@ tells it to serve the built site as static files.
 6. Open a private (incognito) browser window and go to `https://staging.cueory.pages.dev`.
    You should see a **Cloudflare sign-in page**, not the site. That means the lock works.
 7. Enter your business Gmail, then the code Cloudflare emails you.
-   You should see the Cueory home page with the "We're still building" bar.
+   You should see the Cueory home page with the "we're still building" bar.
 8. Click around: home, Lesson 1, Privacy, Terms, Disclaimer, Support.
 9. Tell Claude "staging looks good" (or what looks wrong).
 

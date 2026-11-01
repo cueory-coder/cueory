@@ -187,29 +187,6 @@
     --scene-fade-bottom: var(--spacing-section);
   }
 
-  /* "02 — stay in touch": a small numbered label under a fine rule, like a heading in a lab notebook. */
-  .scene-rule {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: calc(var(--spacing) * 3);
-  }
-
-  .scene-rule::before {
-    content: "";
-    inline-size: calc(var(--spacing) * 12);
-    border-block-start: 1px solid var(--color-line);
-  }
-
-  /* The one medical cue on the page: a thin rhythm line between the hero and the first section. Decoration only. */
-  .rhythm {
-    display: block;
-    inline-size: min(15rem, 60%);
-    block-size: auto;
-    margin-inline: auto;
-    color: var(--color-highlight);
-  }
-
   /* The same cloth without folds, for whole pages behind text. */
   .silk-quiet {
     background-color: var(--color-silk-base);
@@ -599,11 +576,10 @@ html:has(dialog.menu-panel[open]) {
 }
 
 /*
-  "ways to study" carousel on the home page (D-50). A row of cards that scrolls sideways and snaps each card to the
-  middle, so swiping, the keyboard and pages without JavaScript all work. The script sets --mode-distance on each card
-  (0 in the middle, up to 2), which draws the coverflow look: neighbours smaller and a little lower. The row runs the
-  full width of the window, so the neighbours are simply cut off by the window's edge. Nothing masks, fades or blurs a
-  card: its text keeps the frosted-panel contrast checked in tests/unit/tokens.test.ts.
+  "ways to study" on the home page (D-50, D-57). Without JavaScript, a row of cards that scrolls sideways and snaps
+  each card to the middle. With it, the merry-go-round below. Either way the row runs the full width of the window,
+  and nothing masks, fades or blurs a card: its words keep the frosted-panel contrast checked in
+  tests/unit/tokens.test.ts.
 */
 @layer components {
   .modes-track {
@@ -631,9 +607,79 @@ html:has(dialog.menu-panel[open]) {
     flex-direction: column;
     padding: calc(var(--spacing) * 6);
     scroll-snap-align: center;
-    transform: translateY(calc(var(--mode-distance, 0) * var(--drop-mode-card)))
-      scale(calc(1 - var(--mode-distance, 0) * 0.08));
-    transform-origin: 50% 0;
+  }
+
+  /*
+    The merry-go-round (D-57), once the script has taken over (data-ring). Every card sits in the same spot in the
+    middle, and the script's numbers move it out to its place: --ring-shift card widths and --ring-gaps gaps sideways,
+    so neighbours sit edge to edge; --ring-scale its size (1, then 0.88 and 0.76: stepping back); and --ring-turn
+    degrees turned away, round the ring. Only the card in the middle and its neighbours show: one on each side on
+    phones and tablets, two on wider screens. A turn takes 240 ms, easing out (RING_MS in src/scripts/carousel.ts).
+  */
+  .modes[data-ring] .modes-track {
+    display: grid;
+    grid-template-areas: "ring";
+    justify-content: center;
+    /*
+      Still a scroll box, as the plain row was (but nothing to scroll), so the switch causes no layout shift. The row's
+      padding leaves room for the lift of the card in the middle.
+    */
+    overflow: hidden;
+    scroll-snap-type: none;
+    padding-inline: 0;
+    touch-action: pan-y;
+  }
+
+  .modes[data-ring] .mode-card {
+    grid-area: ring;
+    inline-size: var(--container-mode-card);
+    visibility: hidden;
+    z-index: var(--ring-layer, 0);
+    transform: perspective(calc(var(--container-mode-card) * 4))
+      translateX(calc(var(--ring-shift, 0) * var(--container-mode-card) + var(--ring-gaps, 0) * var(--gap-mode-card)))
+      rotateY(calc(var(--ring-turn, 0) * 1deg)) scale(var(--ring-scale, 1));
+    transition:
+      transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      visibility 240ms,
+      scale 200ms ease,
+      box-shadow 200ms ease;
+  }
+
+  .modes[data-ring] .mode-card:is([data-offset="-1"], [data-offset="0"], [data-offset="1"]) {
+    visibility: visible;
+  }
+
+  @media (width >= 64rem) {
+    .modes[data-ring] .mode-card:is([data-offset="-2"], [data-offset="2"]) {
+      visibility: visible;
+    }
+  }
+
+  /* Going round the back, or a jump of several cards, switches at once instead of sweeping across the row. */
+  .modes[data-ring] .mode-card[data-jump] {
+    transition: none;
+  }
+
+  /*
+    Side cards are quieter: no shadow, a softer drawing, and the heading in the second ink. Their words keep the
+    frosted-panel contrast, since both inks are checked on it. A tap anywhere on a side card brings it to the middle,
+    so its own link waits until it is there.
+  */
+  .modes[data-ring] .mode-card:not([data-offset="0"]) {
+    box-shadow: none;
+    cursor: pointer;
+  }
+
+  .modes[data-ring] .mode-card:not([data-offset="0"]) h3 {
+    color: var(--color-ink-soft);
+  }
+
+  .modes[data-ring] .mode-card:not([data-offset="0"]) a {
+    pointer-events: none;
+  }
+
+  .modes[data-ring] .mode-card:not([data-offset="0"]) .ill {
+    opacity: 0.6;
   }
 
   /*
@@ -659,30 +705,6 @@ html:has(dialog.menu-panel[open]) {
     aspect-ratio: 10 / 7;
     border-radius: var(--radius-lg);
     background-color: color-mix(in srgb, var(--color-surface) 55%, transparent);
-  }
-
-  .mode-chip {
-    display: inline-flex;
-    align-items: center;
-    min-block-size: calc(var(--spacing) * 11);
-    padding-inline: calc(var(--spacing) * 4);
-    border-radius: var(--radius-pill);
-    border: 1px solid var(--color-control);
-    color: var(--color-ink);
-    text-decoration: none;
-  }
-
-  .mode-chip:hover {
-    color: var(--color-ink);
-    text-decoration: underline;
-  }
-
-  /* The chip for the card in the middle: filled Espresso (Evening: Sand), and bolder, so not by color alone. */
-  .mode-chip[aria-current="true"] {
-    border-color: var(--color-button);
-    color: var(--color-on-button);
-    background-color: var(--color-button);
-    font-weight: 600;
   }
 
   /* Illustrations: brand colors only. */
@@ -790,6 +812,15 @@ html:has(dialog.menu-panel[open]) {
     transform-box: fill-box;
     transform-origin: center;
   }
+
+  .ill-from-left {
+    transform-origin: left center;
+  }
+
+  /* The play mark on the video's cover, in the page color on the dark button. */
+  .ill-play {
+    fill: var(--color-page);
+  }
 }
 
 /*
@@ -798,15 +829,8 @@ html:has(dialog.menu-panel[open]) {
   complete. Each loop is 6 s, the same as the auto-advance.
 */
 .modes[data-motion]:not([data-paused]) :is(.mode-card[data-active], .mode-preview) {
-  & .ill-lesson-1,
-  & .ill-lesson-2,
-  & .ill-lesson-3,
-  & .ill-lesson-4 {
-    animation: ill-lesson-line 6s ease-in-out infinite both;
-  }
-  & .ill-lesson-2 { animation-delay: 0.9s; }
-  & .ill-lesson-3 { animation-delay: 1.8s; }
-  & .ill-lesson-4 { animation-delay: 2.7s; }
+  & .ill-video-press { animation: ill-video-press 6s ease-in-out infinite both; }
+  & .ill-video-progress { animation: ill-video-progress 6s ease-in-out infinite both; }
 
   & .ill-flip-front { animation: ill-flip-front 6s ease-in-out infinite both; }
   & .ill-flip-back { animation: ill-flip-back 6s ease-in-out infinite both; }
@@ -836,6 +860,18 @@ html:has(dialog.menu-panel[open]) {
   & .ill-review-4 { animation: ill-pop 6s ease-out 1.8s infinite both; }
   & .ill-review-5 { animation: ill-pop 6s ease-out 2.2s infinite both; }
   & .ill-review-flag { animation: ill-flag 6s ease-in-out infinite both; }
+
+  & .ill-label-cover-1 { animation: ill-label-reveal 6s ease-in-out infinite both; }
+  & .ill-label-cover-2 { animation: ill-label-reveal 6s ease-in-out 1.2s infinite both; }
+
+  & .ill-climb { animation: ill-climb 6s ease-in-out infinite both; }
+
+  & .ill-level-1 { animation: ill-pop 6s ease-out infinite both; }
+  & .ill-level-2 { animation: ill-pop 6s ease-out 0.3s infinite both; }
+  & .ill-level-3 { animation: ill-pop 6s ease-out 0.6s infinite both; }
+  & .ill-level-4 { animation: ill-pop 6s ease-out 1s infinite both; }
+  & .ill-level-5 { animation: ill-pop 6s ease-out 1.3s infinite both; }
+  & .ill-level-7 { animation: ill-pop 6s ease-out 1.7s infinite both; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -846,20 +882,18 @@ html:has(dialog.menu-panel[open]) {
   .modes-track {
     scroll-behavior: auto;
   }
+
+  .modes[data-ring] .mode-card {
+    transition: none;
+  }
 }
 
 /*
-  Hover zoom (D-51): with a mouse, the card under the pointer or keyboard focus grows a little and lifts. Polish only:
-  touch screens and reduced motion skip it, and nothing depends on it. `scale` adds to the coverflow transform.
+  Hover zoom (D-51): with a mouse, the card in the middle grows a little and lifts under the pointer or keyboard
+  focus. Polish only: touch screens and reduced motion skip it, and nothing depends on it.
 */
 @media (hover: hover) and (pointer: fine) {
-  .modes[data-motion] .mode-card {
-    transition:
-      scale 200ms ease,
-      box-shadow 200ms ease;
-  }
-
-  .modes[data-motion] .mode-card:is(:hover, :has(.mode-open:focus-visible)) {
+  .modes[data-motion] .mode-card[data-active]:is(:hover, :has(.mode-open:focus-visible)) {
     scale: var(--zoom-mode-card);
     box-shadow: var(--shadow-lift);
   }
@@ -942,10 +976,28 @@ html:has(dialog.mode-preview[open]) {
   background-color: color-mix(in srgb, rgb(var(--shadow-tint)) calc(var(--scrim-alpha) * 100%), var(--color-page));
 }
 
-@keyframes ill-lesson-line {
-  0%, 6% { opacity: 0; transform: scaleX(0.4); }
-  14%, 82% { opacity: 1; transform: none; }
-  94%, 100% { opacity: 0; transform: none; }
+@keyframes ill-video-press {
+  0%, 14% { transform: none; }
+  20% { transform: scale(0.86); }
+  28%, 100% { transform: none; }
+}
+
+@keyframes ill-video-progress {
+  0%, 26% { transform: scaleX(0); }
+  88%, 100% { transform: none; }
+}
+
+@keyframes ill-label-reveal {
+  0%, 20% { transform: none; }
+  30%, 80% { transform: scaleY(0); }
+  90%, 100% { transform: none; }
+}
+
+@keyframes ill-climb {
+  0%, 16% { transform: none; }
+  30%, 46% { transform: translate(18px, -16px); }
+  60%, 84% { transform: translate(36px, -32px); }
+  96%, 100% { transform: none; }
 }
 
 @keyframes ill-flip-front {

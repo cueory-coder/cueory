@@ -65,16 +65,22 @@ Last updated: 2026-11-01
 - In `staging`, waiting for the next release: [auto-merge hardening](https://github.com/lilchristxan/Cueory/pull/30)
   (D-52), merged by Christian. Before launch the bot now also holds changes to package.json `scripts`, `engines` and
   `packageManager`, and lockfile changes that add a package, an install script or a download from outside the npm
-  registry; version bumps of existing packages still merge themselves.
+  registry; version bumps of existing packages still merge themselves. Also [social links](https://github.com/lilchristxan/Cueory/pull/33)
+  (D-54) in the footer and the ☰ panel, merged by Christian.
 
 ## In review
-- [Social links](https://github.com/lilchristxan/Cueory/pull/33) (D-54): Instagram, TikTok and YouTube marks in the
-  footer and the ☰ panel. It adds a package (`simple-icons`), so it waits for Christian's merge.
+- "ways to study" merry-go-round and a calmer home page (D-57): an endless ring of 11 study-mode cards with
+  neighbours on both sides (video replaces lesson; label it, adaptive quiz and level test are coming soon), and no
+  chips, section numbers, figure caption or rhythm line; the building notice is lowercase. The auto-merge takes it
+  once it is clean.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. The once-only promo panel.
 2. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
 3. Auto-release (`staging` into `main` in pre-launch mode), after the change requests.
+4. Christian's 31 Oct evening requests ([the lead's note on issue #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6551841155)),
+   now first: brand v1.0 (the lead's branch), the merry-go-round and decluttering (in review), then the home page
+   polish pass once brand v1.0 is in, then daily games (four games, a home page section and `/play`).
 
 ## Planning
 - [Med-surg lesson map](curriculum/README.md) ([#31](https://github.com/lilchristxan/Cueory/pull/31)): the master
