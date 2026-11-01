@@ -82,11 +82,24 @@ Last updated: 2026-11-01
 - In `staging` (auto-merged): the [home page polish](https://github.com/lilchristxan/Cueory/pull/42) (D-62): 16 px
   panels with a hairline and one soft shadow, a crisper glassy button, sections that fade in once, and a shorter
   launch-updates panel.
+- In `staging` (auto-merged): the [once-only promo panel](https://github.com/lilchristxan/Cueory/pull/34) (D-59). On
+  marketing pages a small dark panel slides down from the top after 5 seconds or halfway down the page, with "join the
+  launch list", "support us while we build" and the social marks; once shown, it stays away for 30 days.
+
+## Done (lead, 2026-10-31 evening)
+- Daily games show plain names for now (D-66): pulse, crossword, sort and word path. Christian picks final names
+  later.
 
 ## In review
-- [Once-only promo panel](https://github.com/lilchristxan/Cueory/pull/34) (D-59): on marketing pages a small dark panel
-  slides down from the top after 5 seconds or halfway down the page, with "join the launch list", "support us while we
-  build" and the social marks; once shown, it stays away for 30 days. Now on brand v1.0's colors.
+- Game-name guard (D-67): a unit test fails if a page or game shows an internal id (`cueword`, `triage`, `suture`) as
+  words, or types a name into a share line, so the next rename stays a one-line change.
+- [Questions player, with rationales](https://github.com/lilchristxan/Cueory/pull/53) (a Codex helper's, Task 6 on
+  #11): single-answer and select-all-that-apply questions, scored all-or-nothing (D-45), with each choice marked by a
+  symbol and words and its rationale shown after the check. It never holds an answer key: it asks a checker it is
+  given (D-33), and the sample checker refuses anything that isn't a labeled sample. Not on a page yet: that comes
+  with the study-mode pages (Task C1 on #11).
+- Promo panel fix: it waits until the ☰ panel or a study-mode preview has finished closing, so their own focus
+  handling never takes focus away from it (a browser test failed 2 of 12 runs because of this).
 - Daily games, first part (D-61): `/play` with pulse, playable with labeled sample puzzles, and cueword, triage and
   suture listed as coming soon; a link in the ☰ panel and a section on the home page after "ways to study". It adds
   sample puzzles under `content/`, so it waits for Christian's merge. How real puzzles reach the browser one day at a
@@ -96,26 +109,33 @@ Last updated: 2026-11-01
   only (tap, click or keyboard, no dragging), every result said in words and shown by ✓, and a plain-words share line.
   Seven labeled everyday samples under `content/games/triage/`, so it also waits for Christian's merge.
 
-- [Questions player, with rationales](https://github.com/lilchristxan/Cueory/pull/53) (a Codex helper's, Task 6 on
-  #11): single-answer and select-all-that-apply questions, scored all-or-nothing (D-45), with each choice marked by a
-  symbol and words and its rationale shown after the check. It never holds an answer key: it asks a checker it is
-  given (D-33), and the sample checker refuses anything that isn't a labeled sample. Not on a page yet: that comes
-  with the study-mode pages (Task C1 on #11).
+- [Crossword engine and board](https://github.com/lilchristxan/Cueory/pull/51) (a Codex helper's, Task 3 on #11):
+  numbering, typing that skips gaps, checking a word or the whole grid, three cues that lock their letters, and a
+  plain-words share line, on a keyboard- and tap-friendly board. It isn't on a page yet: wiring it into `/play` with
+  labeled samples comes next, after the interim names (#48), and then the check on the locked staging site.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
 2. Auto-release (`staging` into `main` in pre-launch mode), after the change requests.
 3. Christian's 31 Oct evening requests ([the lead's note on issue #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6551841155)),
    now first: brand v1.0 (the lead's branch), then the home page polish pass, then the rest of daily games (the home
-   page section and triage are in review; cueword and suture are next).
+   page section and triage are in `staging`; the crossword and word path engines are in review).
 
 ## Visuals kit (Task 6, D-56)
 Targets: first visuals by about 14 November, the full kit by about 12 December ([plan](VISUALS.md)).
 - Done: the plan, and license checks on every source. Open RN *Nursing Fundamentals 2e* is the cited source (CC BY
   4.0). OpenStax waits for Christian (D-57).
-- Next: the visual source-file check and draft-only rendering, then the first batch (fluid compartments, osmosis and
-  fluid shifts, the sodium-potassium pump) with its review sheet. The 3D viewer adds three.js, so it waits for
-  Christian's merge; its models wait for the atlas choice.
+- In `staging`: [video frames for teaching diagrams](https://github.com/lilchristxan/Cueory/pull/47) (a Codex
+  helper's, finished by the lead): `node scripts/export-frames.ts --url … --selector … --out …` saves numbered PNG
+  frames at 1080 × 1920 and 1920 × 1080 for shorts, with the diagram stretched to fill each frame. In review
+  ([#57](https://github.com/lilchristxan/Cueory/pull/57)): only the selected diagram's own animations set a clip's
+  length, so a spinner elsewhere on the page can't make it "endless".
+- In review: the [source-file check](https://github.com/lilchristxan/Cueory/pull/49) (`src/visuals/sources.ts`,
+  D-68). The build refuses a visual whose labels or depictions have no source, that quotes a book not on the allowed
+  list, or whose source has the wrong license or no page address. Only approved visuals can appear on a page, and
+  each shows its book's credit.
+- Next: the first batch (fluid compartments, osmosis and fluid shifts, the sodium-potassium pump) with its review
+  sheet. The 3D viewer adds three.js, so it waits for Christian's merge; its models wait for the atlas choice.
 
 ## Planning
 - [Med-surg lesson map](curriculum/README.md) ([#31](https://github.com/lilchristxan/Cueory/pull/31)): the master
@@ -124,12 +144,14 @@ Targets: first visuals by about 14 November, the full kit by about 12 December (
   reviewers, approval), and higher-risk topics wait for a qualified reviewer.
 
 ## Blocked
-- **Task 2 (accounts and database)** waits for Christian to create the two Supabase projects, and its sign-in and
-  database-policy parts need his approval. The "Flag or comment" button is built with it (D-34). Task 4 parts that
-  don't need accounts go first (D-35).
+- **Task 2 (accounts and database)** is starting: Christian is creating the two Supabase projects (SETUP Part K),
+  and the plan is D-73 (grants, row-level security and policies in one migration; `check_answer`; Flag or comment for
+  signed-in students; keys per environment; migrations tested in CI with no real keys). Its migrations, sign-in and
+  database-policy parts need his approval. The "Flag or comment" button is built with it (D-34).
 - **Signup form** shows "signups open soon" until the Kit form exists (SETUP.md, Part I).
 
 ## Needs Christian's hands
+- Supabase account and the two projects (docs/SETUP.md, Part K): in progress tonight (2026-10-31).
 Follow [docs/SETUP.md](SETUP.md):
 - [ ] A. Two-factor login on Google, GitHub, Cloudflare
 - [x] B. Turn on Codex reviews
