@@ -159,25 +159,22 @@ Merged into `staging` overnight; the database and content ones by the director o
 - Helpers' logic, not on a page yet: account initials and menu (#91, Task 18), and the `/admin` review-table model
   (#96, Task 20).
 
+## Done (director, 2026-11-01, 2–4 am Phoenix)
+Merged into `staging`; the database ones by the director on Christian's behalf (D-89), each with the lead's review:
+- Task 2, database step 4 (#104, D-87): `review_state` and `exam_plans`. Each student reads and writes only their own
+  spaced-review progress and exam dates. Steps 1 to 4 are in `staging`; nothing reaches `cueory-staging` or
+  `cueory-prod` until Christian applies migrations himself.
+- Helpers' logic, not on a page yet:
+  - the batch importer's parser (#100, Task 21): reads a passed batch with its item and key files, never guessing a
+    missing field;
+  - the "flag or comment" arguments for `submit_flag` (#107, Task 26);
+  - the disease-overlay frame (#102, Task 24), which always shows "simplified for learning";
+  - exam-date wording (#106, Task 27), calm and counted in calendar days;
+  - concept status from attempts (#109, Task 29), on the existing adaptive rules;
+  - what the offline cache may keep (#112, Task 32);
+  - study events with nothing personal in them (#114, Task 33), with no analytics script yet.
+
 ## In review
-- Organizer on a page (Task C1 on #11): `/learn/study-skills/organizer`, opened from the lesson page and the home
-  page's organizer card. Sort eight everyday foods into fruit, vegetable and grain by tapping, number keys or
-  dragging; nothing is marked until **check**. The set is a labeled sample in `content/organizer/`, so it waits for
-  Christian's merge. Fill-in, questions and label it get their pages the same way as their engines merge.
-- Fill-in on a page (Task C1): `/learn/study-skills/fill-in`, from the lesson page and the home page's fill-in card.
-  Type the missing word; "almost" when one letter is off, a first-letter hint, and the missed or hinted sentences come
-  back in a second round. Four labeled everyday sample sentences in `content/fill-in/`, so it waits for Christian's
-  merge.
-- Label it on a page (Task C1): `/learn/study-skills/label-it`. Uncover the labels on a drawing by tapping its numbered
-  covers or with the keyboard, mark each one, and the next round covers only "still learning". The labels load from
-  their own JSON file after the page opens, so none is in the page's HTML (a build test checks). The sample is a plain
-  house drawn for Cueory in brand colors (`public/learn/study-skills/label-it/house.svg`), with its labels in
-  `content/label-it/`, so it waits for Christian's merge. Real diagrams come with rights records (Task 2).
-- Questions on a page (Task C1): `/learn/study-skills/questions`. Single-answer and select-all questions; after
-  **check**, every choice says in words and a symbol whether it was picked and right, then its rationale. Three
-  everyday sample questions in `content/questions/`, checked by the player's sample checker after the page loads, so
-  no key is in the page's HTML (a build test checks). Real questions never go in the repository (D-33). It waits for
-  Christian's merge.
 - Auto-merge sweep (D-78, the lead's): an ordinary comment can no longer cancel a waiting merge check, and once an
   hour a sweep re-checks every open pull request. It edits `.github/`, so it waits for Christian.
 - Safari focus fixes (from the WebKit runs for D-48): the ☰ panel's Tab trap now moves focus one item at a time in every
@@ -284,6 +281,29 @@ Merged into `staging` overnight; the database and content ones by the director o
 - Open pull requests add their own lines here: study modes on pages (#77), export-my-data (#95, Task 19), lesson
   videos (#97, Task C3), the 3D viewer shell (#98, Task C4), the batch importer's parser (#100, Task 21), the
   disease-overlay frame (#102, Task 24) and Release browser tests (#55).
+- Open pull requests add their own lines here. Waiting now: study modes on pages (#77), export-my-data (#95, Task 19),
+  lesson videos (#97, Task C3), the 3D viewer shell (#98, Task C4), the Supabase settings reader (#101, Task 22),
+  delete-account checks (#105, Task 25), the daily puzzle checker (#108), database step 5, flags and `submit_flag`
+  (#110), the review-clip exporter (#111, Task C7), guest progress into an account (#113, Task 31) and Release browser
+  tests (#55).
+- Organizer on a page (Task C1 on #11): `/learn/study-skills/organizer`, opened from the lesson page and the home
+  page's organizer card. Sort eight everyday foods into fruit, vegetable and grain by tapping, number keys or
+  dragging; nothing is marked until **check**. The set is a labeled sample in `content/organizer/`, so it waits for
+  Christian's merge. Fill-in, questions and label it get their pages the same way as their engines merge.
+- Fill-in on a page (Task C1): `/learn/study-skills/fill-in`, from the lesson page and the home page's fill-in card.
+  Type the missing word; "almost" when one letter is off, a first-letter hint, and the missed or hinted sentences come
+  back in a second round. Four labeled everyday sample sentences in `content/fill-in/`, so it waits for Christian's
+  merge.
+- Label it on a page (Task C1): `/learn/study-skills/label-it`. Uncover the labels on a drawing by tapping its numbered
+  covers or with the keyboard, mark each one, and the next round covers only "still learning". The labels load from
+  their own JSON file after the page opens, so none is in the page's HTML (a build test checks). The sample is a plain
+  house drawn for Cueory in brand colors (`public/learn/study-skills/label-it/house.svg`), with its labels in
+  `content/label-it/`, so it waits for Christian's merge. Real diagrams come with rights records (Task 2).
+- Questions on a page (Task C1): `/learn/study-skills/questions`. Single-answer and select-all questions; after
+  **check**, every choice says in words and a symbol whether it was picked and right, then its rationale. Three
+  everyday sample questions in `content/questions/`, checked by the player's sample checker after the page loads, so
+  no key is in the page's HTML (a build test checks). Real questions never go in the repository (D-33). It waits for
+  Christian's merge.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
