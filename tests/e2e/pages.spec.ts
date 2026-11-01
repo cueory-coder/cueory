@@ -583,7 +583,7 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
     await expect
       .poll(() => onScreen(page))
       .toEqual(
-        testInfo.project.name === 'desktop'
+        (testInfo.project.use.viewport?.width ?? 0) >= 1200
           ? ['adaptive quiz', 'level test', 'video', 'cards', 'learn']
           : ['level test', 'video', 'cards'],
       );
