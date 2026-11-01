@@ -238,6 +238,7 @@ Merged into `staging`; the database one by the director on Christian's behalf (D
 - Task 48: SQL/browser RPC contracts include the real version-aware answer adapter, with no remaining TODO; in review.
 - Open pull requests add their own lines here. Waiting now: the review-clip exporter (#111, Tasks C7 and C10), the
   `check_answer` contract test (#142, Task 48), the glove-note logic (Tasks 50 to 53) and Release browser tests (#55).
+- Task 51: pure glove-note idea checks (60 Unicode code points, strict IDs and text, no links or hidden controls) and shuffled picks without consecutive repeats; wording approval and visible wiring stay with Christian and the director.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
