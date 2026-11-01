@@ -1,7 +1,7 @@
 /**
- * The daily games on /play (D-61), in the lowercase brand voice (D-47). The names are working names until Christian
- * picks: rename a game here, in one line. Each game has original rules and an original look (CLAUDE.md): never the
- * name, the colors, the tile grid or the colored-square shares of another word game.
+ * The daily games on /play (D-61), in the lowercase brand voice (D-47). The four names are Christian's final choice
+ * (D-64), each kept here in one line. Each game has original rules and an original look (CLAUDE.md): never the name,
+ * the colors, the tile grid or the colored-square shares of another word game.
  */
 export interface DailyGame {
   id: 'pulse' | 'cueword' | 'triage' | 'suture';

@@ -421,3 +421,9 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   everyday words (`content/games/triage/`, checked by `src/content.config.ts`: three groups of three, every term once)
   and say so on the page; real puzzles follow pulse's path in D-61. The home page section now says "play today's
   games". Reason: Christian's request for daily games as a major feature, with rules and a look of our own.
+- **D-64** The daily game names are final (Christian's decision, 2026-10-31, 8:52 pm Phoenix, relayed by the lead on
+  issue #4): **pulse** (guess the word), **cueword** (a mini crossword), **triage** (sort terms into groups) and
+  **suture** (trace hidden words through a letter grid). They stay in `src/config/games.ts`, and the "working name"
+  wording is gone from the code and docs. Rules, look and content stay as briefed: each game has its own rules, never
+  another word game's names, colors, tile grids or square shares, and real puzzles are Christian-reviewed content.
+  Reason: Christian's decision.

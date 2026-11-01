@@ -110,8 +110,8 @@ and review steps are in [docs/VISUALS.md](VISUALS.md) (D-56).
   in batches, each with a one-page review sheet, and never release on their own.
 
 ## Task 7 — Daily medical puzzles (major feature, now ahead of the visuals kit)
-One fresh set of medical-themed puzzles a day for everyone, on `/play` and in a home page section. Four games, under
-working names until Christian picks (`src/config/games.ts`): pulse (guess the word: five to seven letters, seven beats,
+One fresh set of medical-themed puzzles a day for everyone, on `/play` and in a home page section. Four games, with
+the names Christian chose (D-64, `src/config/games.ts`): pulse (guess the word: five to seven letters, seven beats,
 a cue for one beat), cueword (a mini crossword), triage (sort ten terms into three named groups, one of them fitting
 none; three slips end the round) and suture (trace hidden words through a letter grid). pulse is first (D-61), then
 triage (D-63). Words and clues come only from approved lesson content and go through the

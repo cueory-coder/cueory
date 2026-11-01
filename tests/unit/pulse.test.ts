@@ -20,7 +20,7 @@ import {
 } from '../../src/islands/pulse';
 
 describe('daily games (D-61)', () => {
-  it('lists the four games under their working names, lowercase, with pulse and triage playable', () => {
+  it("lists the four games under Christian's final names (D-64), lowercase, with pulse and triage playable", () => {
     expect(dailyGames.map((game) => game.name)).toEqual(['pulse', 'cueword', 'triage', 'suture']);
     expect(dailyGames.filter((game) => game.ready).map((game) => game.id)).toEqual(['pulse', 'triage']);
     for (const game of dailyGames) {
