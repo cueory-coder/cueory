@@ -13,11 +13,13 @@ function validReport() {
   });
 }
 
+const ITEM_VERSION_UUID = '00000000-0000-0000-0000-000000000002';
+
 function validReportWithItem() {
   return checkReport({
     page: VALID_PAGE,
     itemId: 'item-abc-123',
-    itemVersion: 2,
+    itemVersionId: ITEM_VERSION_UUID,
     reason: 'wrong-fact',
     comment: 'The fact is incorrect.',
   });
@@ -32,17 +34,17 @@ describe('valid flagArguments', () => {
     if (!result.ok) return;
     expect(result.args.page).toBe(VALID_PAGE);
     expect(result.args.item_id).toBeNull();
-    expect(result.args.item_version).toBeNull();
+    expect(result.args.item_version_id).toBeNull();
     expect(result.args.reason).toBe('typo');
     expect(result.args.comment).toBe('There is a typo here.');
   });
 
-  it('passes item_id and item_version through', () => {
+  it('passes item_id and item_version_id through', () => {
     const result = flagArguments(validReportWithItem(), ctx(VALID_PAGE));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.args.item_id).toBe('item-abc-123');
-    expect(result.args.item_version).toBe(2);
+    expect(result.args.item_version_id).toBe(ITEM_VERSION_UUID);
   });
 
   it('strips query string from page', () => {
@@ -92,7 +94,7 @@ describe('valid flagArguments', () => {
     const result = flagArguments(validReport(), ctx(VALID_PAGE));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(Object.keys(result.args).sort()).toEqual(['comment', 'item_id', 'item_version', 'page', 'reason']);
+    expect(Object.keys(result.args).sort()).toEqual(['comment', 'item_id', 'item_version_id', 'page', 'reason']);
   });
 });
 

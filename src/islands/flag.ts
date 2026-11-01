@@ -4,7 +4,7 @@ export type Reason = typeof REASONS[number];
 export interface FlagReport {
   page: string;
   itemId?: string;
-  itemVersion?: number;
+  itemVersionId?: string;
   reason: Reason;
   comment: string;
 }
@@ -28,7 +28,7 @@ export function checkReport(input: unknown): CheckedReport {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
     return { ok: false, problems: [{ field: 'page', message: 'the report needs this page’s address.' }] };
   }
-  const { page, itemId, itemVersion, reason, comment } = input as Record<string, unknown>;
+  const { page, itemId, itemVersionId, reason, comment } = input as Record<string, unknown>;
   const problems: FlagProblem[] = [];
   if (typeof page !== 'string' || page.length > 200 || !/^\/[a-z0-9/_.-]*$/i.test(page) || page.includes('//') || page.includes('..')) {
     problems.push({ field: 'page', message: 'use a path on this site, up to 200 characters, without a query, fragment or doubled slashes or dots.' });
@@ -36,8 +36,8 @@ export function checkReport(input: unknown): CheckedReport {
   if (itemId !== undefined && (typeof itemId !== 'string' || !/^[a-z0-9_-]{1,80}$/i.test(itemId))) {
     problems.push({ field: 'itemId', message: 'use an item id of 1 to 80 letters, numbers, hyphens or underscores.' });
   }
-  if (itemVersion !== undefined && (typeof itemVersion !== 'number' || !Number.isSafeInteger(itemVersion) || itemVersion < 1)) {
-    problems.push({ field: 'itemVersion', message: 'use a whole item version of 1 or more.' });
+  if (itemVersionId !== undefined && (typeof itemVersionId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(itemVersionId))) {
+    problems.push({ field: 'itemVersionId', message: 'use a valid uuid for the item version.' });
   }
   if (typeof reason !== 'string' || !REASONS.includes(reason as Reason)) {
     problems.push({ field: 'reason', message: 'choose what is wrong.' });
@@ -52,7 +52,7 @@ export function checkReport(input: unknown): CheckedReport {
     report: {
       page: page as string,
       ...(itemId === undefined ? {} : { itemId: itemId as string }),
-      ...(itemVersion === undefined ? {} : { itemVersion: itemVersion as number }),
+      ...(itemVersionId === undefined ? {} : { itemVersionId: itemVersionId as string }),
       reason: reason as Reason, comment: cleaned,
     },
   };
