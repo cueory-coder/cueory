@@ -705,8 +705,10 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
 
   test('a sideways swipe turns it one card each way; a short or mostly up-and-down one does not', async ({
     page,
+    browserName,
   }, testInfo) => {
     test.skip(!testInfo.project.use.hasTouch, 'a touch-screen gesture');
+    test.skip(browserName !== 'chromium', 'the swipe is sent with a Chromium-only protocol call (newCDPSession)');
     await page.goto('/');
     await section(page).scrollIntoViewIfNeeded();
     const cdp = await page.context().newCDPSession(page);
@@ -1035,8 +1037,9 @@ test.describe('study-mode preview (D-51)', () => {
     expect(await dialog(page).evaluate((el) => (el as HTMLDialogElement).open)).toBe(false);
   });
 
-  test('a swipe down closes it on touch screens, a short one does not', async ({ page }, testInfo) => {
+  test('a swipe down closes it on touch screens, a short one does not', async ({ page, browserName }, testInfo) => {
     test.skip(!testInfo.project.use.hasTouch, 'a touch-screen gesture');
+    test.skip(browserName !== 'chromium', 'the test builds Touch and TouchEvent objects by hand, which WebKit forbids');
     await openPreview(page, 'video');
     const swipe = (distance: number) =>
       page.locator('[data-mode-preview-panel]').evaluate((panel, down) => {
