@@ -1,25 +1,59 @@
 ---
 /**
- * The "cueory" wordmark: outlines traced from Christian's approved banner
- * (brand-source/, built by scripts/build-brand.mjs). Never retype it in a font.
- * It takes the current text color, so it is Espresso on Ivory and Evening
- * Ivory on Charcoal automatically. Brand guide: never narrower than 96px.
+ * The cueory logo: Christian's brand v1.0 artwork (brand-source/v1.0/, DECISIONS.md D-55). Never retype it in a
+ * font, trace, redraw, emboss, shadow or recolor it (brand guide §3.6). The web copies in public/brand/v1/ are built
+ * by scripts/build-brand-v1.mjs: Espresso artwork for the Daytime palette and Ivory artwork for the Evening palette,
+ * on transparent backgrounds. Both are in the page; global.css (.logo-day, .logo-evening) shows the one that matches
+ * the palette, with the same rules tokens.css uses.
+ *
+ * variant "full" (default): the wordmark with the cruet. Guide §3.5: about 240px wide or more where it fits.
+ * variant "emblem": the water-drop c with the cruet, for compact places such as study screens.
+ *
+ * Size it with a width class. Decorative by default (empty alt text): name the link around it, or pass `label` when
+ * the logo stands alone.
  */
-import wordmark from '../assets/brand/wordmark-path.json';
-
 interface Props {
+  variant?: 'full' | 'emblem';
+  /** How wide the logo shows, so the browser picks the right file (the img `sizes` attribute). */
+  sizes?: string;
+  /** Accessible name, when nothing around the logo names the brand. */
+  label?: string;
   class?: string;
 }
 
-const { class: className } = Astro.props;
+const files = {
+  full: { name: 'logo-full', widths: [480, 960, 1440], width: 960, height: 303 },
+  emblem: { name: 'emblem', widths: [96, 192, 384], width: 384, height: 428 },
+} as const;
+
+const { variant = 'full', sizes, label, class: className } = Astro.props;
+const art = files[variant];
+const path = (mode: 'light' | 'dark', width: number) => `/brand/v1/${art.name}-${mode}-${width}.png`;
+const srcset = (mode: 'light' | 'dark') => art.widths.map((width) => `${path(mode, width)} ${width}w`).join(', ');
+const shownAt = sizes ?? (variant === 'full' ? '15rem' : '2.25rem');
 ---
 
-<svg
-  xmlns="http://www.w3.org/2000/svg"
-  viewBox={wordmark.viewBox}
-  class:list={['block h-auto min-w-24 fill-current', className]}
-  aria-hidden="true"
-  focusable="false"
->
-  <path fill-rule="evenodd" d={wordmark.d}></path>
-</svg>
+<span class:list={['logo', className]} role={label ? 'img' : undefined} aria-label={label}>
+  <img
+    class="logo-day"
+    src={path('light', art.widths[1])}
+    srcset={srcset('light')}
+    sizes={shownAt}
+    width={art.width}
+    height={art.height}
+    alt=""
+    decoding="async"
+    draggable="false"
+  />
+  <img
+    class="logo-evening"
+    src={path('dark', art.widths[1])}
+    srcset={srcset('dark')}
+    sizes={shownAt}
+    width={art.width}
+    height={art.height}
+    alt=""
+    decoding="async"
+    draggable="false"
+  />
+</span>

@@ -341,7 +341,7 @@ test('home page has a launch-updates signup that works by keyboard', async ({ pa
 test.describe('theme switch', () => {
   const pageBackground = (page: import('@playwright/test').Page) =>
     page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-  const charcoal = 'rgb(27, 23, 21)';
+  const charcoal = 'rgb(28, 25, 23)'; // #1C1917, brand v1.0 (D-55)
   const ivory = 'rgb(249, 245, 239)';
 
   test('Light, Dark and Follow device change the palette and are remembered', async ({ page }, testInfo) => {
@@ -395,11 +395,11 @@ test.describe('marketing look (D-41)', () => {
     const button = page.getByRole('link', { name: 'create your free account', exact: true });
     await expect(button).toHaveAttribute('href', '/#signup');
     await expect(page.getByText('save your progress and pick up where you left off.')).toBeVisible();
-    // The free course stays one tap away until accounts exist.
-    await expect(page.getByRole('link', { name: 'or start the free study-skills course' })).toHaveAttribute(
-      'href',
-      '/learn/study-skills',
-    );
+    // A calmer hero (D-55): no course link, no motto line and no embossed logo behind the headline.
+    const hero = page.locator('.scene-hero');
+    await expect(hero.getByRole('link')).toHaveCount(1);
+    await expect(hero.getByText('by nursing students, for nursing students.')).toHaveCount(0);
+    await expect(hero.locator('.logo')).toHaveCount(1);
     for (const element of [headline, button]) {
       const box = (await element.boundingBox())!;
       expect(box.y + box.height).toBeLessThanOrEqual(height);
@@ -419,6 +419,49 @@ test.describe('marketing look (D-41)', () => {
     expect(fit.inside).toBe(true);
     expect(await headline.evaluate((el) => getComputedStyle(el).fontFamily)).toMatch(/^"?Bodoni Moda/);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+
+  test('the logo is the brand v1.0 artwork in the palette\'s color, and the motto is in the footer (D-55)', async ({
+    page,
+  }) => {
+    const shown = (scope: import('@playwright/test').Locator) =>
+      scope.locator('.logo img').evaluateAll((imgs) =>
+        imgs
+          .filter((img) => img.getClientRects().length > 0)
+          .map((img) => ({ src: (img as HTMLImageElement).currentSrc, alt: img.getAttribute('alt') })),
+      );
+    await page.goto('/');
+    const hero = page.locator('.scene-hero');
+    await page.getByRole('radio', { name: 'Light' }).check();
+    let images = await shown(hero);
+    expect(images).toHaveLength(1);
+    expect(images[0]!.src).toMatch(/\/brand\/v1\/logo-full-light-\d+\.png$/);
+    expect(images[0]!.alt).toBe('');
+    expect(await hero.locator('.logo img').first().evaluate((img) => (img as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+    const width = (await hero.locator('.logo').boundingBox())!.width;
+    expect(width).toBeGreaterThanOrEqual(239);
+
+    await page.getByRole('radio', { name: 'Dark' }).check();
+    images = await shown(hero);
+    expect(images).toHaveLength(1);
+    expect(images[0]!.src).toMatch(/\/brand\/v1\/logo-full-dark-\d+\.png$/);
+
+    await expect(page.locator('footer').getByText('by nursing students, for nursing students.')).toBeVisible();
+    await expect(page.locator('link[rel="icon"][sizes="32x32"]')).toHaveAttribute('href', '/brand/v1/icon-32.png');
+    await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute('href', '/brand/v1/icon-180.png');
+
+    // Other pages: the logo in the header, named by its link. The full logo where it fits (640px and wider), the
+    // emblem on phones, and the header never wider than the screen.
+    await page.goto('/support');
+    const home = page.getByRole('link', { name: 'cueory home' });
+    await expect(home).toBeVisible();
+    const header = await shown(home);
+    expect(header).toHaveLength(1);
+    const wide = page.viewportSize()!.width >= 640;
+    expect(header[0]!.src).toMatch(wide ? /\/brand\/v1\/logo-full-dark-\d+\.png$/ : /\/brand\/v1\/emblem-dark-\d+\.png$/);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    const account = (await page.getByRole('button', { name: /account/i }).first().boundingBox())!;
+    expect(account.x + account.width).toBeLessThanOrEqual(page.viewportSize()!.width);
   });
 
   test('the glassy button is see-through glass with a blur, and its text stays readable', async ({ page }) => {
