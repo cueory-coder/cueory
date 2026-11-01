@@ -464,6 +464,31 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   only approved visuals can appear on a page (`approvedOnly`), each visual shows the credit WisTech Open's terms ask
   for (`creditsFor`), and every overlay says "simplified for learning" (`notesFor`). Reason: no picture can ship with
   a word its cited source doesn't state.
+- **D-70** The crossword on `/play` (internal id `cueword`; shown as "crossword", D-66). A Codex helper built the engine
+  and board (#51): the usual numbering, typing that skips gaps, checking a word or the whole grid with a symbol and
+  words for each mark, up to three cues that each fill in one letter and lock it, and a plain-words share line ("cueory
+  crossword, sun 1 nov: solved in 2:41 with 1 cue."). The page hands every sample to a small wrapper that picks today's
+  from the visitor's own date, like pulse and sort. Samples use everyday words (`content/games/cueword/`, six
+  four-by-five grids), and the build runs each one through the game's own `parsePuzzle`, so a clue that doesn't match a
+  word stops the build with the file's name. The board checks answers in the browser, so every sample (answers
+  included) is in the page: fine for samples, but a real puzzle must never reach the browser before its day, or anyone
+  could read ahead (the director's review of #51; word path is the same). Real puzzles therefore come one day at a time,
+  as D-61 proposes. Typing on a cued letter moves on to the next open cell instead of dropping the letter (also from
+  that review). The grid is labeled "crossword grid", because "crossword crossword" read badly once the game took its
+  plain name. Reason: Christian's request for four daily games, with the third one playable.
+- **D-71** Word path on `/play` (internal id `suture`; shown as "word path", D-66), the fourth daily game. A Codex helper
+  built the engine and board (#52): a small grid of capital letters hides three to six everyday words, each with its
+  own cue and length. A word runs through touching cells, up, down, left or right, never diagonally, never reusing a
+  cell, and no two words share one; some letters are fillers. Tap touching letters and press **stitch**: the exact path,
+  in either direction, finds the word; anything else is a "loose stitch", counted and said in words. There is no game
+  over, and the share line is plain words ("cueory word path, sun 1 nov: stitched 3 of 3 words with 0 loose
+  stitches."). Its own rules on purpose: orthogonal paths, a cue for every word and filler letters, unlike other
+  letter-grid games. Five everyday samples (`content/games/suture/`) are checked by the game's own `parsePuzzle` at build
+  time, and a unit test makes sure each word can be spelled along exactly one path, so a right trace is never refused
+  for taking another route. Today's sample is picked from the visitor's own date, like the other games, and as with the
+  crossword (D-70) a real puzzle never reaches the browser before its day (D-61). With all four games playable, the
+  "coming soon" list on `/play` shows only while a game is still on its way. Reason: Christian's request for four daily
+  games.
 - **D-73** Task 2 plan: accounts and the database (the lead's request on issue #4, 2026-10-31, 10:45 pm, while
   Christian creates `cueory-staging` and `cueory-prod`, SETUP Part K). Checked against Supabase's and Cloudflare's
   docs on 1 Nov 2026. Each step is its own small pull request; `supabase/` and `.github/` always wait for Christian.

@@ -24,14 +24,24 @@ export const dailyGames: readonly DailyGame[] = [
     line: 'guess the word of the day in seven beats. a guess spends a beat, and so does the cue.',
     ready: true,
   },
-  { id: 'cueword', name: 'crossword', line: 'a small crossword.', ready: false },
+  {
+    id: 'cueword',
+    name: 'crossword',
+    line: 'a small crossword. up to three cues, and each one fills in a letter for you.',
+    ready: true,
+  },
   {
     id: 'triage',
     name: 'sort',
     line: 'sort ten terms into three groups. one fits none of them. three slips end the round.',
     ready: true,
   },
-  { id: 'suture', name: 'word path', line: 'trace hidden words through a grid of letters.', ready: false },
+  {
+    id: 'suture',
+    name: 'word path',
+    line: 'find the hidden words in a grid of letters. each one runs up, down, left or right, and has its own cue.',
+    ready: true,
+  },
 ];
 
 /** The name visitors see for a game. */

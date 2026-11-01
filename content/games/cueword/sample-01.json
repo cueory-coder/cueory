@@ -1,0 +1,31 @@
+{
+  "status": "sample",
+  "grid": [
+    "STAR.",
+    "O..A.",
+    "F..I.",
+    "APPLE"
+  ],
+  "clues": {
+    "across": [
+      {
+        "number": 1,
+        "text": "it twinkles in the night sky"
+      },
+      {
+        "number": 3,
+        "text": "a red or green fruit"
+      }
+    ],
+    "down": [
+      {
+        "number": 1,
+        "text": "a comfy seat for two or three people"
+      },
+      {
+        "number": 2,
+        "text": "a train runs along it"
+      }
+    ]
+  }
+}
