@@ -20,6 +20,34 @@ function supportedJoiners(text: string): boolean {
   return true;
 }
 
+/**
+ * URL parsing also catches IDNA/emoji labels and escaped hostnames that a character-class check can miss.
+ * This only parses text; it never requests an address. WHATWG host conversion:
+ * https://nodejs.org/api/url.html#new-urlinput-base
+ */
+function hasBrowserAddress(text: string): boolean {
+  return text.split(/[\s<>(){},;"'!?\u2018\u2019\u201c\u201d]+/u).some(token => {
+    let candidate = token.replace(/^[*_]+|[*_]+$/gu, '');
+    // Keep brackets for IPv6; other brackets can be ordinary prose around a domain.
+    if (!/^\[[\da-f:.]+\]/iu.test(candidate)) candidate = candidate.replace(/^[\[]+|[\]]+$/gu, '');
+    try {
+      const hostname = new URL(`https://${candidate}`).hostname.replace(/\.$/u, '');
+      if (/^\[[\da-f:]+\]$/iu.test(hostname)) return true;
+      if (/^(?:\d{1,3}\.){3}\d{1,3}$/u.test(hostname)) {
+        // URL also treats a plain number or decimal as an abbreviated IP; ordinary numbers are allowed in ideas.
+        const writtenHost = candidate.split('/')[0]!;
+        return writtenHost.includes('%') || writtenHost.split('.').length >= 4 || /^0x[\da-f]+$/iu.test(writtenHost);
+      }
+      const labels = hostname.split('.');
+      return labels.length > 1
+        && labels.every(label => /^[a-z\d](?:[a-z\d-]{0,61}[a-z\d])?$/iu.test(label))
+        && /^(?:[a-z]{2,63}|xn--[a-z\d-]{2,59})$/iu.test(labels.at(-1)!);
+    } catch {
+      return false;
+    }
+  });
+}
+
 /** The later signed-in share form uses these same text checks; this does not approve content. */
 export function checkSharedIdea(value: unknown): SharedIdeaCheck {
   if (typeof value !== 'string') return { ok: false, message: 'write your idea as text.' };
@@ -37,7 +65,7 @@ export function checkSharedIdea(value: unknown): SharedIdeaCheck {
   // Normalize only for detection; preserve the writer's accepted text and emoji.
   const addressText = text.normalize('NFKC')
     .replace(/\p{Default_Ignorable_Code_Point}/gu, '').replace(/[\u3002\uff0e\uff61]/gu, '.');
-  if (linkOrAddress.test(addressText)) {
+  if (linkOrAddress.test(addressText) || hasBrowserAddress(addressText)) {
     return { ok: false, message: 'leave out links, web addresses and email addresses.' };
   }
   return { ok: true, text };

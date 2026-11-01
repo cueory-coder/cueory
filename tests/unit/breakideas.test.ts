@@ -44,6 +44,17 @@ describe('glove note idea checks', () => {
     expect(() => parseIdeas({ ideas: [idea('sample-one', text)] })).toThrow(/break idea 1: leave out links/);
   });
 
+  it.each(['👩🏽.com', '(👩🏽.com)', '[👩🏽.com]', '“👩🏽.com”', '%65xample%2ecom', '[2001:db8::1]',
+    '[::ffff:192.0.2.1]', '0x7f000001'])('refuses browser-normalized web addresses: %s', text => {
+    expect(checkSharedIdea(text)).toMatchObject({ ok: false });
+    expect(() => parseIdeas({ ideas: [idea('sample-one', text)] })).toThrow(/break idea 1/);
+  });
+
+  it.each(['sample 1.5 minutes', 'sample 25', 'sample, then sample.', 'sample (another sample)'])
+    ('keeps ordinary numbers and prose punctuation: %s', text => {
+      expect(checkSharedIdea(text)).toEqual({ ok: true, text });
+    });
+
   it.each([null, undefined, 4, [], {}, true, '   '])('refuses missing or non-text ideas: %j', value => {
     expect(checkSharedIdea(value)).toMatchObject({ ok: false, message: expect.any(String) });
   });
