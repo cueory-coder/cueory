@@ -144,6 +144,21 @@ Merged into `staging` tonight (pulse and sort were already live; the rest reache
   preview has finished closing.
 - Christian's decisions (D-80): the 3D atlas is BodyParts3D; OpenStax is link-only; releases stay manual.
 
+## Done (director, 2026-11-01, 1–2 am Phoenix)
+Merged into `staging` overnight; the database and content ones by the director on Christian's behalf (D-89):
+- Task 2, the database's next three steps (Task C6, each with the lead's security review): step 1 (#90, D-84),
+  `concepts`, `sources` and `rights_records`; step 2 (#92, D-85), questions in `items`, `item_versions` and
+  `item_choices`, with the key and rationales in `item_answers`, which no website role can read; step 3 (#94, D-86),
+  `attempts` and `check_answer`, which records the attempt before it returns the key and rationales (200 checks an hour
+  per person). Nothing reaches `cueory-staging` or `cueory-prod` until Christian applies migrations himself.
+- Visuals kit, the first batch's drawings (#93, D-81): body fluid compartments, osmosis and fluid shifts, and the
+  sodium-potassium pump, drawn only from their approved source files. Still drafts: nothing shows on a page until
+  Christian approves them. Draft video clips of all three (1080 × 1920) went to Christian in the director's chat.
+- Guest progress and onboarding saved on this device (#74, D-69), private game stats on `/play` (#79, D-76), the
+  concept map (#68), and the Safari preview fix (#88).
+- Helpers' logic, not on a page yet: account initials and menu (#91, Task 18), and the `/admin` review-table model
+  (#96, Task 20).
+
 ## In review
 - Task 26 (D-34, D-73): `flagArguments(report, context)` — the pure adapter that converts a validated `FlagReport`
   into the exact args for the database's `submit_flag` function. Validates page (same-site, strips query and hash),
@@ -161,6 +176,12 @@ Merged into `staging` tonight (pulse and sort were already live; the rest reache
   and students read only published concepts and sources; nobody on the website can write; rights records are closed
   to every website role. It edits `supabase/`, so it waits for Christian. Steps 2 to 5 stack on it: items, then
   `check_answer`, then attempts and exam plans, then flags.
+- Task 2, database step 4 (Task C6, D-87): `review_state` and `exam_plans`, with 47 database tests. Each student reads and
+  writes only their own spaced-review progress and exam dates; the database refuses impossible values. It edits
+  `supabase/`, so it waits for Christian. **Steps 1 to 3 are in `staging`** (#90, #92 and #94): concepts, sources and
+  rights records (D-84); items, versions and the hidden answer key (D-85); and attempts with `check_answer` (D-86), 140
+  database tests in all. `check_answer` is signed-in only, which still needs Christian's confirmation (D-86). Step 5,
+  flags and `submit_flag`, comes next.
 - [Concept map](https://github.com/lilchristxan/Cueory/pull/68) (Task 14): every concept in a unit with its status in
   words and a shape (an empty circle, a quarter, a half or a check), never color alone, with a filter by status. No
   scores or predictions.
@@ -169,6 +190,9 @@ Merged into `staging` tonight (pulse and sort were already live; the rest reache
   on a page until Christian approves them; his review sheet is linked from the pull request.
 - Open pull requests add their own lines here: study modes on pages (#77), guest progress (#74), game stats on
   `/play` (#79), the Safari preview fix (#88) and Release browser tests (#55).
+- Open pull requests add their own lines here: study modes on pages (#77), export-my-data (#95, Task 19), lesson
+  videos (#97, Task C3), the 3D viewer shell (#98, Task C4), the batch importer's parser (#100, Task 21), the
+  disease-overlay frame (#102, Task 24) and Release browser tests (#55).
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
@@ -206,6 +230,9 @@ Targets: first visuals by about 14 November, the full kit by about 12 December (
 - **Signup form** shows "signups open soon" until the Kit form exists (SETUP.md, Part I).
 
 ## Needs Christian's hands
+- [ ] Real questions need a free account (D-86): `check_answer` reveals the key after one try, so signed-out visitors
+  can't use it (a limit needs an identity, and a CAPTCHA would load a third-party script). Guests keep the sample modes.
+  Reply "ok" to keep it this way, or ask for a CAPTCHA exception.
 - [x] Daily report (#4) and task list (#11) locked so only collaborators can comment (D-79), done by Christian on
   2026-11-01.
 - [x] Private vulnerability reporting turned on (D-79), done by Christian on 2026-11-01.

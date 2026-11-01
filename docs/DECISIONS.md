@@ -825,3 +825,36 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
 
   Reason: Christian's order, kept to the test site and away from anything that changes what the robots may do.
 
+- **D-87** Task 2's sixth database change: `review_state` and `exam_plans` (Task C6, step 4, stacked on D-86; `attempts`
+  came in with D-86). Follows D-73 and Supabase's "Row Level Security" docs (name the role with `to`; wrap
+  `auth.uid()` in a select).
+  - **`review_state`:** one row per student and question for spaced review (about 1, 3, 7 and 14 days, ROADMAP Task 4):
+    the `level` (0 to 3, the times in a row the student knew it, as `src/islands/review.ts` counts), the `last_reviewed`
+    day and the `next_review` day. The student's device works the days out, because only it knows their local calendar
+    day (`review.ts` does no clock arithmetic); the database keeps the rows honest: level 0 to 3, the next review after
+    the last and within a year, the last review not in the future (two days of slack for time zones) and not older than
+    two years.
+  - **`exam_plans`:** a student's optional exam date for a course (a `public.slug`, one plan per course, at most ten
+    per student; saving a course the student already has stays allowed at the cap, and a per-student lock keeps two
+    inserts at once from both passing the count, Codex review of #104). The date must be within the next two years (two days of slack). The scheduler never plans a review
+    past it.
+  - **The plan cap (Codex review of #104):** only a genuinely new course counts toward the ten, so saving a course the
+    student already has (an upsert, `on conflict … do update`) stays allowed at the cap; and a per-student advisory lock
+    around the count keeps two inserts at once from both passing it. A single pgTAP session can't run two transactions
+    at once, so the lock is checked by reading it; the upsert at the cap has tests.
+  - **Own rows only, written directly by the student:** each student reads, adds, changes and deletes only their own
+    rows ("forget my progress"); signed-out visitors get nothing. `user_id` defaults to the signed-in student and is
+    not a column a student may set or change, so they can't write for anyone else. A student chooses the question or
+    course when adding a row and can change only the level and dates (the exam date for a plan). A review row can only
+    be added for a published question: the policy asks whether the student can see the item, so an unpublished or
+    made-up id is refused the same way and nothing about it leaks. Upserts (`on conflict`) work. Deleting an account
+    deletes its rows. There is no answer data here: a level and some dates (CLAUDE.md rule 2).
+  - **Why not written by `check_answer`:** it can't know the student's local day, and a review is not the same event as
+    checking an answer (cards and other modes review too, and the device decides). The device sends the result of its
+    own scheduler, and the database refuses anything impossible.
+  - **Tests:** `supabase/tests/database/review_state_exam_plans_test.sql`, 50 checks: the exact grants per column, add,
+    update, upsert and delete for the owner, every refusal, the other student seeing nothing, the cap, and cascade
+    delete. Four weakened versions (a student may set `user_id`, everyone's rows readable, unpublished questions
+    accepted, no plan cap) each failed.
+
+  Reason: the director's request on #11 (Task C6), following D-73's schema order.
