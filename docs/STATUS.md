@@ -229,10 +229,12 @@ Merged into `staging`; the database one by the director on Christian's behalf (D
   query strings are never kept. Off switch: `offline.enabled` in `src/config/site.ts` (docs/OFFLINE.md).
 - Helpers' logic: the `/admin` flag inbox uses the real `flags` rows (#138, Task 47), and tests check that the browser
   helpers and the database functions agree on arguments, error messages and the export's report fields (#139, Task 48).
+  The `check_answer` request (#140, Task 49) checks the item, version and letters before sending anything, through a
+  transport the page will supply once accounts are on.
 
 ## In review
-- Open pull requests add their own lines here. Waiting now: the review-clip exporter (#111, Tasks C7 and C10), the
-  `check_answer` request (Task 49) and Release browser tests (#55).
+- Open pull requests add their own lines here. Waiting now: the review-clip exporter (#111, Tasks C7 and C10) and
+  Release browser tests (#55).
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
