@@ -20,6 +20,7 @@ interface Props {
 }
 
 type Move = (state: BreakState, now: number) => BreakState;
+type FocusTarget = 'pause-resume' | 'break-choice';
 
 const control = 'min-h-11 min-w-11 rounded-md border border-control bg-page px-4 py-2 text-ink disabled:opacity-50';
 
@@ -29,7 +30,12 @@ export default function BreakTimer({ settings }: Props) {
   const [now, setNow] = useState(() => Date.now());
   const [announcement, setAnnouncement] = useState('');
   const previousStatus = useRef(state.status);
+  const pauseResumeControl = useRef<HTMLButtonElement>(null);
+  const startBreakControl = useRef<HTMLButtonElement>(null);
+  const focusAfterMove = useRef<FocusTarget | null>(null);
   const on = state.status !== 'off';
+  const canPause = state.status === 'focusing' || state.status === 'on break' || state.status === 'paused';
+  const isPaused = state.status === 'paused';
 
   useEffect(() => {
     if (previousStatus.current === state.status) return;
@@ -44,14 +50,30 @@ export default function BreakTimer({ settings }: Props) {
     const wait = Math.min(60_000, remainingMs(state, current));
     const timer = window.setTimeout(() => {
       const current = Date.now();
+      // If the focused pause control is about to disappear, keep the keyboard user's place at the first choice.
+      if (
+        state.status === 'focusing'
+        && state.endsAt !== null
+        && current >= state.endsAt
+        && document.activeElement === pauseResumeControl.current
+      ) focusAfterMove.current = 'break-choice';
       setNow(current);
       setState((value) => tick(value, current));
     }, wait);
     return () => window.clearTimeout(timer);
   }, [now, state.endsAt, state.status]);
 
-  const move = (change: Move) => {
+  useEffect(() => {
+    const target = focusAfterMove.current;
+    if (!target) return;
+    focusAfterMove.current = null;
+    (target === 'pause-resume' ? pauseResumeControl.current : startBreakControl.current)
+      ?.focus({ preventScroll: true });
+  });
+
+  const move = (change: Move, focus?: FocusTarget) => {
     const current = Date.now();
+    focusAfterMove.current = focus ?? null;
     setNow(current);
     setState((value) => change(value, current));
   };
@@ -73,14 +95,42 @@ export default function BreakTimer({ settings }: Props) {
       {on && <>
         <p className="mt-3 text-sm text-ink-soft" data-testid="break-status">{statusInWords(state, now)}</p>
         <div className="mt-3 flex max-w-full flex-wrap gap-2">
-          {(state.status === 'focusing' || state.status === 'on break') &&
-            <button type="button" className={control} onClick={() => move(pause)}>pause</button>}
-          {state.status === 'paused' &&
-            <button type="button" className={control} onClick={() => move(resume)}>resume</button>}
+          {canPause &&
+            <button
+              ref={pauseResumeControl}
+              key="pause-resume"
+              type="button"
+              className={control}
+              onClick={() => move(isPaused ? resume : pause)}
+            >
+              {isPaused ? 'resume' : 'pause'}
+            </button>}
           {state.status === 'break due' && <>
-            <button type="button" className={control} onClick={() => move(startBreak)}>start break</button>
-            <button type="button" className={control} onClick={() => move(skipBreak)}>skip</button>
-            <button type="button" className={control} onClick={() => move(snooze)}>5 more minutes</button>
+            <button
+              ref={startBreakControl}
+              key="start-break"
+              type="button"
+              className={control}
+              onClick={() => move(startBreak, 'pause-resume')}
+            >
+              start break
+            </button>
+            <button
+              key="skip"
+              type="button"
+              className={control}
+              onClick={() => move(skipBreak, 'pause-resume')}
+            >
+              skip
+            </button>
+            <button
+              key="snooze"
+              type="button"
+              className={control}
+              onClick={() => move(snooze, 'pause-resume')}
+            >
+              5 more minutes
+            </button>
           </>}
         </div>
       </>}
