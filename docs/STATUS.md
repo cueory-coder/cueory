@@ -233,6 +233,7 @@ Merged into `staging`; the database one by the director on Christian's behalf (D
   transport the page will supply once accounts are on.
 
 ## In review
+- Task 53: pure glove-note sound permission gates and the remembered on/off toggle; no audio calls or assets, and a known browser refusal stays silent.
 - Task 52: pure palm-text fitting wraps whole words, finds the largest fitting font size and avoids a final single-word line when another wrap fits; tests use injected font measurements.
 - Task 48: SQL/browser RPC contracts include the real version-aware answer adapter, with no remaining TODO; in review.
 - Open pull requests add their own lines here. Waiting now: the review-clip exporter (#111, Tasks C7 and C10), the
