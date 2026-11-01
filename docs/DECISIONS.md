@@ -716,6 +716,83 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
 
   Reason: the director's request on #11 (Task C6), following D-73's schema order.
 
+- **D-85** Task 2's fourth database change: items and their versions (Task C6, step 2, stacked on D-84). Follows D-33
+  (a real answer key never reaches the browser), D-45 (select-all-that-apply is all-or-nothing) and D-73.
+  - **Where the key lives:** the stem and choices a student sees are in `item_versions` and `item_choices`, which the
+    website can read for a published version only. Which choices are right, and each choice's rationale, are in
+    `item_answers`, which no website role can read at all: no grant, row-level security on, and a test that tries both
+    roles, plus an explicit restrictive policy (`using (false)`, for `anon` and `authenticated`) so the rule is written
+    down and survives a later grant by mistake (Codex review of #90). `check_answer` (next step) reads it and returns
+    it only after an attempt.
+  - **What the website may read:** `items` that have a published version; from `item_versions` only `id`, `item_id`,
+    `version`, `stem` and `status` (`status` because the policies on items and choices look at it, and a policy's
+    subquery runs with the reader's privileges; every visible row is published anyway); the choices of a published
+    version. The source and dates stay closed. Only the service role writes.
+  - **Two gaps found in review, now closed (Codex and the lead on #92):** moving a choice or an answer to another
+    version counts as changing both, so both versions must be drafts (it can't empty a published version's key); and a
+    question's `type` can't change once any version has been published or retired (a trigger on `items`).
+  - **Editing while publishing (Codex P2 on #92):** an edit of a version's choices or answers locks that version row
+    `for share` until it commits, and publishing locks it `for update` first and then counts. So one waits for the
+    other: a publication can't count a key that a half-finished edit is changing, and an edit can't slip in after
+    publication. The same holds for a question's type: publishing reads it `for share`, and a type change takes the item
+    row `for update` before it looks for published versions. A single pgTAP session can't run two transactions at
+    once, so this is checked by reading the locking statements, not by a test.
+  - **Versions:** editing an item makes a new version (ROADMAP Task 2). A version is a draft, published or retired. One
+    version of an item is published at a time (a partial unique index). A published or retired version's stem and source
+    can't change, and its choices and answers can't be added, changed or deleted; a retired version can't come back.
+  - **Publishing needs a complete version** (a trigger, so it holds whoever writes): a source, two to five choices, an
+    answer row with a rationale for each choice, and one right answer for a single question or at least one for
+    select-all. A version can't be created already published.
+  - **Left for later:** risk level and public label are in the roadmap's admin table but not defined anywhere yet, so
+    I haven't invented values for them; they come with `reviews` and the admin area. The trigger functions revoke
+    `execute` from `public`, `anon` and `authenticated`, as D-73 requires.
+  - **Tests:** `supabase/tests/database/items_test.sql`, 56 checks: the exact grants (including per column), what
+    a visitor, a student and the service role can read and write, every publishing rule, immutability and the shapes.
+    The lockdown test's list of tables a visitor may read now has the three new public ones, and still not `item_answers`.
+    Each of four weakened versions (key readable, drafts visible, answers editable after publish, publishing without
+    completeness) was seen failing.
+
+  Reason: the director's request on #11 (Task C6), following D-73's schema order.
+
+- **D-86** Task 2's fifth database change: attempts and `check_answer` (Task C6, step 3, stacked on D-85). Follows D-33,
+  D-45 and D-73, and Supabase's "Database Functions" docs (`security definer` with a fixed `search_path`; revoke
+  `execute` from `public` and `anon`).
+  - **`check_answer(item_id, version_id, picked)`** is the only way the browser learns an answer. A signed-in student
+    sends the question, the version they were shown (its `id`, which they can read) and the choice letters they
+    picked. It refuses an item with no published version, and bad input (no picks, the same choice
+    twice, a letter the question doesn't have, more than one pick for a single-answer question, more than five), all
+    before anything is recorded or revealed. Then it checks the picks against the key (select-all is all-or-nothing,
+    and the order of picks doesn't matter), records the attempt, and returns `correct`, the `key`, every choice's
+    `rationales` and the `version_id` it checked. It is `security definer`, `set search_path = ''`, with `execute`
+    revoked from everyone and granted back to `authenticated` by name.
+  - **Bound to the version the student saw (Codex review of #94):** `check_answer` takes the `version_id` the student
+    was shown. If the question has been updated since (the published version is now another one), it refuses with
+    error 55000, grades nothing and records nothing, so a student is never graded on a question they didn't see; the
+    page reloads and asks again. This adds a parameter to the signature the plan sketched, `check_answer(item_id,
+    picked)`; clients call it by name with `item_id`, `version_id` and `picked`.
+  - **`attempts`:** one row per checked answer: the student, the version, the sorted picks and whether it was right. A
+    student reads only their own rows (`to authenticated`, `(select auth.uid()) = user_id`); nobody on the website
+    writes; deleting an account deletes its attempts.
+  - **Rate limit:** 200 checks an hour per person, counted from their own attempts and guarded by a per-person
+    advisory lock so two quick calls can't both slip under it. The 201st gets error 54000. Other students aren't
+    affected, and attempts older than an hour stop counting.
+  - **For Christian to confirm: signed-in only.** `check_answer` hands out the key after one attempt, so unlimited
+    callers could walk the whole question bank, and a signed-out visitor has no identity to limit. A CAPTCHA would load
+    a third-party script (CLAUDE.md), the same reason D-73 gives for reports. So guests keep studying the sample modes
+    in the browser, and real questions need a free account. If he wants guests to answer real questions, that needs his
+    decision on a CAPTCHA exception.
+  - **A small change to the plan:** attempts moved from step 4 into this step, because `check_answer` writes them and
+    counts them for the limit, and a function that can't record or limit would have to be rewritten next step. Step 4
+    is now `review_state` and `exam_plans`.
+  - **Tests:** `supabase/tests/database/check_answer_test.sql`, 48 checks: who may run it, right and wrong answers, the
+    key and rationales after an attempt, select-all in any order, every refusal recording nothing, own-rows-only,
+    direct writes refused, the limit at 200 (not 201, not for others, not for old attempts) and cascade delete. The
+    lockdown test's allowed-function list now names `check_answer`, and a new check requires every `security definer`
+    function in `public` to have an empty `search_path`. Four weakened versions (visitors may run it, no limit,
+    select-all as any-match, nothing recorded) each failed.
+
+  Reason: the director's request on #11 (Task C6), following D-73's schema order.
+
 - **D-81** The visuals kit's drawings show only their source file's words and depictions (Task C5, first batch).
   - **Words:** every word on a drawing is a label from `content/visuals/<id>.json`, drawn through `Label`
     (`src/visuals/drawings/parts.tsx`), so a word that isn't a label stops the build. Words a depiction needed but no
@@ -748,3 +825,36 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
 
   Reason: Christian's order, kept to the test site and away from anything that changes what the robots may do.
 
+- **D-87** Task 2's sixth database change: `review_state` and `exam_plans` (Task C6, step 4, stacked on D-86; `attempts`
+  came in with D-86). Follows D-73 and Supabase's "Row Level Security" docs (name the role with `to`; wrap
+  `auth.uid()` in a select).
+  - **`review_state`:** one row per student and question for spaced review (about 1, 3, 7 and 14 days, ROADMAP Task 4):
+    the `level` (0 to 3, the times in a row the student knew it, as `src/islands/review.ts` counts), the `last_reviewed`
+    day and the `next_review` day. The student's device works the days out, because only it knows their local calendar
+    day (`review.ts` does no clock arithmetic); the database keeps the rows honest: level 0 to 3, the next review after
+    the last and within a year, the last review not in the future (two days of slack for time zones) and not older than
+    two years.
+  - **`exam_plans`:** a student's optional exam date for a course (a `public.slug`, one plan per course, at most ten
+    per student; saving a course the student already has stays allowed at the cap, and a per-student lock keeps two
+    inserts at once from both passing the count, Codex review of #104). The date must be within the next two years (two days of slack). The scheduler never plans a review
+    past it.
+  - **The plan cap (Codex review of #104):** only a genuinely new course counts toward the ten, so saving a course the
+    student already has (an upsert, `on conflict … do update`) stays allowed at the cap; and a per-student advisory lock
+    around the count keeps two inserts at once from both passing it. A single pgTAP session can't run two transactions
+    at once, so the lock is checked by reading it; the upsert at the cap has tests.
+  - **Own rows only, written directly by the student:** each student reads, adds, changes and deletes only their own
+    rows ("forget my progress"); signed-out visitors get nothing. `user_id` defaults to the signed-in student and is
+    not a column a student may set or change, so they can't write for anyone else. A student chooses the question or
+    course when adding a row and can change only the level and dates (the exam date for a plan). A review row can only
+    be added for a published question: the policy asks whether the student can see the item, so an unpublished or
+    made-up id is refused the same way and nothing about it leaks. Upserts (`on conflict`) work. Deleting an account
+    deletes its rows. There is no answer data here: a level and some dates (CLAUDE.md rule 2).
+  - **Why not written by `check_answer`:** it can't know the student's local day, and a review is not the same event as
+    checking an answer (cards and other modes review too, and the device decides). The device sends the result of its
+    own scheduler, and the database refuses anything impossible.
+  - **Tests:** `supabase/tests/database/review_state_exam_plans_test.sql`, 50 checks: the exact grants per column, add,
+    update, upsert and delete for the owner, every refusal, the other student seeing nothing, the cap, and cascade
+    delete. Four weakened versions (a student may set `user_id`, everyone's rows readable, unpublished questions
+    accepted, no plan cap) each failed.
+
+  Reason: the director's request on #11 (Task C6), following D-73's schema order.
