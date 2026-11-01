@@ -246,6 +246,7 @@ Merged into `staging`:
 
 ## In review
 - Open pull requests add their own lines here. Waiting now: Release browser tests (#55).
+- Task 82, course library (#175): the /learn page shows one available study-skills lesson and expandable curriculum units marked coming soon.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
