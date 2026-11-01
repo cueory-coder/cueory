@@ -33,6 +33,17 @@ describe('concept map input', () => {
     expect(() => parseItems([{ ...items[0], description: ' ' }])).toThrow(/description/);
     expect(() => parseItems([{ ...items[0], description: 1 }])).toThrow(/description/);
   });
+  it.each([
+    { field: 'description', value: '80% chance of a passing score' },
+    { field: 'concept', value: 'exam score' },
+    { field: 'description', value: 'a SCORE target' },
+    { field: 'concept', value: 'Chance of passing' },
+    { field: 'description', value: '90% complete' },
+  ])('rejects predictive supplied text in $field: $value', ({ field, value }) => {
+    expect(() => parseItems([{ ...items[0], [field]: value }])).toThrow('use plain study-status text without predictions.');
+    try { parseItems([{ ...items[0], [field]: value }]); }
+    catch (error) { expect((error as Error).message).not.toMatch(/%|score|chance/i); }
+  });
 });
 
 describe('concept counts and filters', () => {

@@ -12,6 +12,9 @@ export function parseItems(data: unknown): ConceptItem[] {
     const item = value as Record<string, unknown>;
     if (typeof item.concept !== 'string' || !item.concept.trim()) throw new Error('each concept needs a name.');
     if (typeof item.description !== 'string' || !item.description.trim()) throw new Error('each concept needs a description.');
+    if (/%|score|chance/i.test(item.concept) || /%|score|chance/i.test(item.description)) {
+      throw new Error('use plain study-status text without predictions.');
+    }
     if (typeof item.status !== 'string' || !STATUS_ORDER.includes(item.status as ConceptStatus)) throw new Error('each concept needs a known status.');
     const key = item.concept.trim().toLowerCase();
     if (seen.has(key)) throw new Error('a concept is repeated.');
