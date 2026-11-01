@@ -15,6 +15,8 @@ function Board({ title, steps, children }: Props) {
   const [reducedMotion, setReducedMotion] = useState(true);
   const figure = useRef<HTMLElement>(null);
   const playControl = useRef<HTMLButtonElement>(null);
+  const currentSteps = useRef(steps);
+  currentSteps.current = steps;
   const words = stepInWords(steps, state);
   const step = steps[state.index]!;
 
@@ -35,9 +37,9 @@ function Board({ title, steps, children }: Props) {
 
   useEffect(() => {
     if (reducedMotion || !state.playing) return;
-    const timer = window.setTimeout(() => setState((current) => advance(current, steps)), step.durationMs);
+    const timer = window.setTimeout(() => setState((current) => advance(current, currentSteps.current)), step.durationMs);
     return () => window.clearTimeout(timer);
-  }, [reducedMotion, state.index, state.playing, step.durationMs, steps]);
+  }, [reducedMotion, state.index, state.playing, step.durationMs]);
 
   const key = (event: KeyboardEvent<HTMLElement>) => {
     // Arrow presses on a focused control belong to that control, not the figure.
