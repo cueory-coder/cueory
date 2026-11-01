@@ -246,6 +246,9 @@ Merged into `staging`:
 
 ## In review
 - Open pull requests add their own lines here. Waiting now: Release browser tests (#55).
+- In review ([#176](https://github.com/lilchristxan/Cueory/pull/176)): studying together plan
+  (`docs/TOGETHER.md`). Leaderboards, profiles/badges, silent focus rooms, text chat, and camera rooms —
+  decision checklist for each step before any code can start.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
