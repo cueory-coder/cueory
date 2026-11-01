@@ -100,7 +100,7 @@ function Board({ puzzle, name }: Props) {
           aria-rowcount={puzzle.grid.length}
           aria-colcount={width}
           className={`w-full text-ink${shaking ? ' suture-shake' : ''}`}
-          style={{ display: 'grid', gridTemplateColumns: `repeat(${width}, 1fr)`, border: '2.5px solid currentColor' }}
+          style={{ display: 'grid', gridTemplateColumns: `repeat(${width}, 1fr)`, border: 'var(--suture-grid-border) solid currentColor' }}
         >
           {puzzle.grid.map((row, r) => (
             <div key={r} role="row" aria-rowindex={r + 1} style={{ display: 'contents' }}>
@@ -121,7 +121,7 @@ function Board({ puzzle, name }: Props) {
                       aria-pressed={isAnchor || inActivePath}
                       aria-disabled={word !== undefined || done}
                       data-cell={index}
-                      className={`relative w-full flex items-center justify-center font-bold text-ink${
+                      className={`relative w-full min-h-11 flex items-center justify-center font-bold text-ink${
                         word !== undefined
                           ? ' bg-line'
                           : isAnchor

@@ -1470,6 +1470,9 @@ html:has(dialog.mode-preview[open]) {
   100% { opacity: 0; transform: none; }
 }
 
+/* Word path (suture, D-71): design tokens */
+:root { --suture-grid-border: 2.5px; }
+
 /* Word path (suture, D-71): wrong-pick shake */
 @keyframes suture-shake {
   0%, 100% { translate: 0 0; }
