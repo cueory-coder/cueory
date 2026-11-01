@@ -33,6 +33,7 @@ import {
   clipFileName,
   frameHtml,
   frameList,
+  rewriteFontUrls,
   CROSSFADE_DURATION_S,
   FPS,
   FRAME_HEIGHT,
@@ -86,7 +87,8 @@ async function findBuiltCss(root: string): Promise<string> {
   const { readdirSync } = await import('node:fs');
   const cssFiles = readdirSync(astroDir).filter((f) => f.endsWith('.css'));
   if (!cssFiles.length) throw new ClipError('No .css file found in dist/_astro/.');
-  return await readFile(join(astroDir, cssFiles[0]!), 'utf-8');
+  const raw = await readFile(join(astroDir, cssFiles[0]!), 'utf-8');
+  return rewriteFontUrls(raw, astroDir);
 }
 
 // ── SVG height measurement ────────────────────────────────────────────────────
@@ -254,11 +256,21 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
           builtCss,
           bandY: spec.band.y,
           bandHeight: spec.band.height,
+          drawingHeight,
         };
 
         const tmpHtml = join(drawingOutDir, `_frame-${spec.stepIndex}.html`);
         await writeFile(tmpHtml, frameHtml(htmlOpts));
         await page.goto(pathToFileURL(tmpHtml).href, { waitUntil: 'networkidle' });
+        await page.evaluate(() => document.fonts.ready);
+        const interLoaded = await page.evaluate(
+          () => document.fonts.check('700 36px "Inter Variable"'),
+        );
+        if (!interLoaded) {
+          throw new ClipError(
+            `Inter Variable font did not load for ${spec.fileName}. Check that dist/_astro/ contains the woff2 files.`,
+          );
+        }
         const framePath = join(drawingOutDir, spec.fileName);
         await page.screenshot({ path: framePath, type: 'jpeg', quality: JPEG_QUALITY });
         await rm(tmpHtml);

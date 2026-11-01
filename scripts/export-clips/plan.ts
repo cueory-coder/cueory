@@ -115,6 +115,8 @@ export interface FrameHtmlOptions {
   builtCss: string;
   bandY: number;
   bandHeight: number;
+  /** Actual rendered SVG height in pixels, as measured by measureDrawingHeight. */
+  drawingHeight: number;
 }
 
 /**
@@ -123,7 +125,7 @@ export interface FrameHtmlOptions {
  * Mocha draft-badge background.
  */
 export function frameHtml(opts: FrameHtmlOptions): string {
-  const { svgMarkup, title, caption, stepLabel, creditLines, isDraft, builtCss, bandY, bandHeight } = opts;
+  const { svgMarkup, title, caption, stepLabel, creditLines, isDraft, builtCss, bandY, bandHeight, drawingHeight } = opts;
   const draftBadge = isDraft ? `<div class="draft-badge">draft for review</div>` : '';
   const creditsHtml = creditLines.map((line) => `<p class="credit">${escHtml(line)}</p>`).join('');
   return `<!doctype html>
@@ -138,7 +140,7 @@ ${builtCss}
 .frame { display: flex; flex-direction: column; width: ${FRAME_WIDTH}px; height: ${FRAME_HEIGHT}px; font-family: "Inter Variable", system-ui, -apple-system, "Segoe UI", sans-serif; padding: 48px 40px 40px; gap: 24px; position: relative; }
 .frame-title { font-size: 36px; font-weight: 700; line-height: 1.2; color: #3e2c23; }
 .drawing-clip { flex: 1; overflow: hidden; position: relative; }
-.drawing-inner { position: absolute; left: 0; top: -${bandY}px; width: 100%; height: ${FRAME_HEIGHT}px; }
+.drawing-inner { position: absolute; left: 0; top: -${bandY}px; width: 100%; height: ${drawingHeight}px; }
 .drawing-inner svg { width: 100%; height: 100%; }
 .caption { font-size: 28px; color: #3e2c23; line-height: 1.4; }
 .step-label { font-size: 22px; color: #6b5243; }
@@ -160,6 +162,19 @@ ${builtCss}
 </div>
 </body>
 </html>`;
+}
+
+// ── Font URL rewriting ────────────────────────────────────────────────────────
+
+/**
+ * Rewrites root-relative font URLs in built CSS so they resolve when loaded as
+ * a `file://` page. Chromium cannot fetch `/_astro/Inter-*.woff2` from a local
+ * file, so we replace those references with absolute `file://` paths.
+ *
+ * Example: `url(/_astro/Inter-Bold.woff2)` → `url(file:///abs/path/dist/_astro/Inter-Bold.woff2)`
+ */
+export function rewriteFontUrls(css: string, astroDir: string): string {
+  return css.replace(/url\(\/_astro\//g, `url(file://${astroDir}/`);
 }
 
 // ── ffmpeg concat list ────────────────────────────────────────────────────────

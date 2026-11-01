@@ -1,3 +1,5 @@
+import { spawnSync } from 'node:child_process';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   bands,
@@ -7,6 +9,7 @@ import {
   frameFileName,
   frameHtml,
   frameList,
+  rewriteFontUrls,
   parseArguments,
   ClipError,
   FRAME_HEIGHT,
@@ -268,6 +271,7 @@ function minimalFrameHtmlOpts() {
     builtCss: '',
     bandY: 0,
     bandHeight: 400,
+    drawingHeight: 983,
   };
 }
 
@@ -347,6 +351,63 @@ describe('frameHtml', () => {
   });
 });
 
+// ── frameHtml: geometry (Fix 7 — band/screenshot coordinate space) ───────────
+
+describe('frameHtml drawing-inner geometry', () => {
+  it('uses drawingHeight (not FRAME_HEIGHT) for .drawing-inner height', () => {
+    const html = frameHtml({ ...minimalFrameHtmlOpts(), drawingHeight: 983 });
+    // The .drawing-inner rule must use the measured drawing height.
+    expect(html).toMatch(/\.drawing-inner\s*\{[^}]*height:\s*983px/);
+    expect(html).not.toMatch(/\.drawing-inner\s*\{[^}]*height:\s*1920px/);
+  });
+
+  it('uses bandY for the top offset so the correct band is visible', () => {
+    const html = frameHtml({ ...minimalFrameHtmlOpts(), bandY: 245, drawingHeight: 983 });
+    expect(html).toContain('top: -245px');
+  });
+
+  it('uses bandHeight for the drawing-clip viewport height', () => {
+    const html = frameHtml({ ...minimalFrameHtmlOpts(), bandHeight: 248, drawingHeight: 983 });
+    expect(html).toContain('height:248px');
+  });
+
+  it('different drawingHeight values produce different inner heights', () => {
+    const html500 = frameHtml({ ...minimalFrameHtmlOpts(), drawingHeight: 500 });
+    const html983 = frameHtml({ ...minimalFrameHtmlOpts(), drawingHeight: 983 });
+    expect(html500).toContain('height: 500px');
+    expect(html983).toContain('height: 983px');
+    expect(html500).not.toContain('height: 983px');
+  });
+});
+
+// ── rewriteFontUrls: file:// font paths (Fix 8 — Inter font on file:// pages) ─
+
+describe('rewriteFontUrls', () => {
+  it('rewrites /_astro/ font URLs to absolute file:// paths', () => {
+    const css = "src: url(/_astro/Inter-Bold.B1a2c3.woff2) format('woff2');";
+    const result = rewriteFontUrls(css, '/abs/path/dist/_astro');
+    expect(result).toBe("src: url(file:///abs/path/dist/_astro/Inter-Bold.B1a2c3.woff2) format('woff2');");
+  });
+
+  it('rewrites multiple font URLs in one CSS string', () => {
+    const css = "url(/_astro/A.woff2) url(/_astro/B.woff2)";
+    const result = rewriteFontUrls(css, '/dist/_astro');
+    expect(result).toContain('file:///dist/_astro/A.woff2');
+    expect(result).toContain('file:///dist/_astro/B.woff2');
+    expect(result).not.toContain('url(/_astro/');
+  });
+
+  it('leaves non-font URLs unchanged', () => {
+    const css = "background: url(/images/logo.png);";
+    expect(rewriteFontUrls(css, '/dist/_astro')).toBe(css);
+  });
+
+  it('returns unchanged CSS when there are no /_astro/ font URLs', () => {
+    const css = '.frame { color: red; }';
+    expect(rewriteFontUrls(css, '/dist/_astro')).toBe(css);
+  });
+});
+
 // ── false-success exit code (Fix 3) ───────────────────────────────────────────
 
 describe('encode-error exit code', () => {
@@ -364,6 +425,28 @@ describe('encode-error exit code', () => {
   it('returns 1 for multiple encode errors', () => {
     const encodeErrors = 3;
     expect(encodeErrors > 0 ? 1 : 0).toBe(1);
+  });
+});
+
+// ── Node entry-point import check (Fix 6 — ERR_MODULE_NOT_FOUND regression) ──
+// Spawns the documented Node command so any extensionless relative import in the
+// dependency chain would produce ERR_MODULE_NOT_FOUND before this test passes.
+// The script itself needs dist/ to run fully, so the test only verifies the
+// import graph loads; any exit code other than a module-not-found crash is fine.
+
+describe('Node entry-point import check', () => {
+  it('documented node command loads without ERR_MODULE_NOT_FOUND', () => {
+    const scriptPath = resolve('scripts/export-clips.ts');
+    const result = spawnSync(
+      process.execPath,
+      ['--experimental-strip-types', '--no-warnings', scriptPath, '--out', '/nonexistent-test-path-42', '--frames-only'],
+      { encoding: 'utf-8', timeout: 30_000 },
+    );
+    // A module-not-found crash produces a non-zero status AND the error in stderr.
+    // With the import fixes applied, the script loads, then exits 2 (missing dist/)
+    // or exits cleanly — neither contains ERR_MODULE_NOT_FOUND.
+    expect(result.stderr ?? '').not.toContain('ERR_MODULE_NOT_FOUND');
+    expect(result.signal).toBeNull();
   });
 });
 
