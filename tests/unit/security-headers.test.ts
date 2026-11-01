@@ -155,9 +155,10 @@ describe('security headers (Task 75)', () => {
   });
 
   it('permits one exact Supabase project origin (Task 55), but not two', () => {
+    // Replace the whole directive, not its prefix: Task 55 may already have added one allowed project.
     const updated = astroText.replace(
-      "connect-src 'self' https://cloudflareinsights.com",
-      "connect-src 'self' https://cloudflareinsights.com https://project123.supabase.co",
+      /"connect-src [^"]*"/,
+      "\"connect-src 'self' https://cloudflareinsights.com https://project123.supabase.co\"",
     );
     expect(() => checkAstroPolicy(updated)).not.toThrow();
     expect(() => checkAstroPolicy(updated.replace(
