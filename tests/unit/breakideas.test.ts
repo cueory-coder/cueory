@@ -37,6 +37,13 @@ describe('glove note idea checks', () => {
     expect(checkSharedIdea('a\u200db')).toMatchObject({ ok: false });
   });
 
+  it.each(['example.भारत', 'example.संगठन'])('refuses a domain suffix containing combining marks: %s', text => {
+    expect(checkSharedIdea(text)).toEqual({
+      ok: false, message: 'leave out links, web addresses and email addresses.',
+    });
+    expect(() => parseIdeas({ ideas: [idea('sample-one', text)] })).toThrow(/break idea 1: leave out links/);
+  });
+
   it.each([null, undefined, 4, [], {}, true, '   '])('refuses missing or non-text ideas: %j', value => {
     expect(checkSharedIdea(value)).toMatchObject({ ok: false, message: expect.any(String) });
   });

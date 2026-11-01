@@ -10,7 +10,7 @@ export type SharedIdeaCheck = { ok: true; text: string } | { ok: false; message:
 
 // Only supported emoji sequences may use a format-character joiner.
 const hiddenControls = /[\p{Cc}\p{Zl}\p{Zp}]|(?!\u200d)\p{Cf}/u;
-const linkOrAddress = /(?:\b(?:https?|ftp|file|data|javascript|mailto|tel):|\/\/|www\.|@|(?:[\p{L}\p{N}\p{Extended_Pictographic}][\p{L}\p{N}\p{M}\p{Extended_Pictographic}-]*\.)+(?:[\p{L}]{2,63}|xn--[\p{L}\p{N}-]{2,59})(?=$|[^\p{L}\p{N}-])|\b(?:\d{1,3}\.){3}\d{1,3}\b|\blocalhost(?::\d+|\/)|\[[^\]]*\]\s*\(|<a\b)/iu;
+const linkOrAddress = /(?:\b(?:https?|ftp|file|data|javascript|mailto|tel):|\/\/|www\.|@|(?:[\p{L}\p{N}\p{Extended_Pictographic}][\p{L}\p{N}\p{M}\p{Extended_Pictographic}-]*\.)+(?:\p{L}[\p{L}\p{M}]{1,62}|xn--[\p{L}\p{N}-]{2,59})(?=$|[^\p{L}\p{N}\p{M}-])|\b(?:\d{1,3}\.){3}\d{1,3}\b|\blocalhost(?::\d+|\/)|\[[^\]]*\]\s*\(|<a\b)/iu;
 
 function supportedJoiners(text: string): boolean {
   for (let index = text.indexOf('\u200d'); index >= 0; index = text.indexOf('\u200d', index + 1)) {
