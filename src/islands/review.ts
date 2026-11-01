@@ -73,7 +73,7 @@ export function nextReview(
 /** Due cards, oldest due day first, then by id in deterministic text order. */
 export function dueOn(cards: readonly ReviewCard[], today: string, examDay?: string): string[] {
   const now = dayNumber(today);
-  if (examDay !== undefined) dayNumber(examDay);
+  const exam = examDay === undefined ? undefined : dayNumber(examDay);
   if (!Array.isArray(cards)) throw new Error('Cards must be a list.');
   const ids = new Set<string>();
   const due: { id: string; day: number }[] = [];
@@ -82,7 +82,12 @@ export function dueOn(cards: readonly ReviewCard[], today: string, examDay?: str
       throw new Error('Each card needs a different, nonempty id.');
     }
     ids.add(card.id);
-    const scheduled = nextReview(card.history, examDay, today);
+    const { last } = readHistory(card.history);
+    if (last !== undefined && last > now) throw new Error('Today cannot be before the last review.');
+    // A due-list lookup must preserve the interval scheduled from the last review.
+    // Today's date decides whether the exam is still active; it must not move the
+    // minimum interval forward again on every lookup.
+    const scheduled = nextReview(card.history, exam !== undefined && exam >= now ? examDay : undefined);
     if (scheduled !== undefined) {
       const day = dayNumber(scheduled);
       if (day <= now) due.push({ id: card.id, day });

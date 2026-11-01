@@ -64,6 +64,20 @@ describe('exam limits', () => {
     expect(dueOn([{ id: 'colors', history }], '2026-11-04', '2026-11-03')).toEqual([]);
     expect(dueOn([{ id: 'colors', history }], '2026-11-15', '2026-11-03')).toEqual(['colors']);
   });
+  it('keeps a capped review due on its scheduled day and on the exam day', () => {
+    const cards = [{ id: 'colors', history }];
+    expect(nextReview(history, '2026-11-10')).toBe('2026-11-09');
+    expect(dueOn(cards, '2026-11-08', '2026-11-10')).toEqual([]);
+    expect(dueOn(cards, '2026-11-09', '2026-11-10')).toEqual(['colors']);
+    expect(dueOn(cards, '2026-11-10', '2026-11-10')).toEqual(['colors']);
+    // The stated past-exam rule still applies once the exam is over.
+    expect(dueOn(cards, '2026-11-11', '2026-11-10')).toEqual([]);
+  });
+  it('applies the minimum interval once, from the last review, when the exam is imminent', () => {
+    const cards = [{ id: 'colors', history: [knew('2026-11-09')] }];
+    expect(dueOn(cards, '2026-11-09', '2026-11-10')).toEqual([]);
+    expect(dueOn(cards, '2026-11-10', '2026-11-10')).toEqual(['colors']);
+  });
 });
 
 describe('due cards and words', () => {
@@ -113,6 +127,7 @@ describe('input errors', () => {
   it('rejects reversed, future and malformed history rather than inventing progress', () => {
     expect(() => nextReview([knew('2026-11-02'), missed('2026-11-01')])).toThrow('oldest first');
     expect(() => nextReview([knew('2026-11-02')], undefined, '2026-11-01')).toThrow('before the last review');
+    expect(() => dueOn([{ id: 'colors', history: [knew('2026-11-02')] }], '2026-11-01')).toThrow('before the last review');
     expect(() => nextReview([{ day: '2026-11-01', result: 'other' } as unknown as Review])).toThrow('knew or missed');
     expect(() => nextReview(new Array<Review>(1))).toThrow();
   });
