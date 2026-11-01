@@ -549,3 +549,16 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
 
   Reason: free CI at full speed, with nothing private in the repository.
 
+
+- **D-78** The staging auto-merge no longer misses a ready pull request (the lead, 2026-11-01).
+  - **What went wrong:** every comment on an issue or pull request starts a run of the auto-merge workflow, and
+    GitHub keeps only one run waiting in line. With the one-at-a-time rule on the whole workflow, an ordinary
+    comment's run, about to be skipped, could take that place and cancel a waiting run from a finished check (seen
+    twice on 2026-11-01, at 06:24 and 06:25 UTC). The pull request then waited for some later event.
+  - **Fix:** the rule moves onto the job, so a skipped run never waits in line, and an hourly sweep re-checks every
+    open pull request into `staging` in case an event is still missed. The merge rules in `scripts/automerge/` don't
+    change.
+  - **Cost:** free while the repository is public (D-75). If it ever goes private again, drop the sweep (about 720
+    billed minutes a month).
+
+  Reason: a ready pull request merges within the hour even when its last event is lost.
