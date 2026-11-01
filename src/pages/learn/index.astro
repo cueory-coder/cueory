@@ -43,7 +43,7 @@ const openModeCount = studyModes.filter((mode) => mode.link).length;
       </header>
 
       <section class="mt-6" aria-labelledby="available-lesson-title">
-        <a href="/learn/study-skills" class="featured-lesson lift block rounded-xl border border-line bg-surface p-5 sm:p-6">
+        <article class="featured-lesson lift rounded-xl border border-line bg-surface p-5 sm:p-6">
           <span class="inline-block rounded-full border border-control px-3 py-1 text-sm font-medium">open now · sample</span>
           <h2 id="available-lesson-title" class="mt-3 text-lg font-semibold">how to study for nursing school</h2>
           <p class="mt-2 text-sm text-ink-soft">
@@ -63,8 +63,9 @@ const openModeCount = studyModes.filter((mode) => mode.link).length;
               0 of {cardCount} cards studied on this device
             </output>
           </div>
-          <span class="mt-4 inline-block font-medium underline underline-offset-4">start the lesson</span>
-        </a>
+          <a href="/learn/study-skills" aria-label="start the lesson: how to study for nursing school"
+            class="mt-4 inline-block font-medium underline underline-offset-4">start the lesson</a>
+        </article>
       </section>
 
       <section class="mt-8" aria-labelledby="planned-units-title">
@@ -90,12 +91,12 @@ const openModeCount = studyModes.filter((mode) => mode.link).length;
     box-shadow: var(--shadow-card, var(--shadow-soft));
   }
   .featured-lesson:hover,
-  .featured-lesson:focus-visible {
+  .featured-lesson:focus-within {
     box-shadow: var(--shadow-card-hover, var(--shadow-soft));
   }
   .library-progress {
     appearance: none;
-    height: var(--spacing-2);
+    height: calc(var(--spacing) * 2);
     border-radius: var(--radius-pill);
     overflow: hidden;
     background-color: var(--color-soft);
