@@ -233,6 +233,7 @@ Merged into `staging`; the database one by the director on Christian's behalf (D
   transport the page will supply once accounts are on.
 
 ## In review
+- Task 52: pure palm-text fitting wraps whole words, finds the largest fitting font size and avoids a final single-word line when another wrap fits; tests use injected font measurements.
 - Task 48: SQL/browser RPC contracts include the real version-aware answer adapter, with no remaining TODO; in review.
 - Open pull requests add their own lines here. Waiting now: the review-clip exporter (#111, Tasks C7 and C10), the
   `check_answer` contract test (#142, Task 48), the glove-note logic (Tasks 50 to 53) and Release browser tests (#55).
