@@ -33,20 +33,20 @@ describe('concept map input', () => {
     expect(() => parseItems([{ ...items[0], description: ' ' }])).toThrow(/description/);
     expect(() => parseItems([{ ...items[0], description: 1 }])).toThrow(/description/);
   });
+  it.each(['scorekeeping', 'chance games', 'weather predictions', 'percentages', '50% of shapes'])('preserves reviewed supplied text: %s', text => {
+    const input = [{ concept: text, status: 'learning' as const, description: `study words about ${text}` }];
+    expect(parseItems(input)).toEqual(input);
+    expect(countsInWords(parseItems(input))).toBe('1 learning.');
+  });
+  it('accepts names up to 200 and descriptions up to 1,000 Unicode code points', () => {
+    const input = [{ ...items[0], concept: '😀'.repeat(200), description: 'a'.repeat(1_000) }];
+    expect(parseItems(input)).toEqual(input);
+  });
   it.each([
-    { field: 'description', value: '80% chance of a passing score' },
-    { field: 'concept', value: 'exam score' },
-    { field: 'description', value: 'a SCORE target' },
-    { field: 'concept', value: 'Chance of passing' },
-    { field: 'description', value: '90% complete' },
-    { field: 'concept', value: 'a passing percentage' },
-    { field: 'description', value: 'a passing PERCENTAGE' },
-    { field: 'concept', value: 'a prediction about tomorrow' },
-    { field: 'description', value: 'PREDICTED outcome' },
-  ])('rejects predictive supplied text in $field: $value', ({ field, value }) => {
-    expect(() => parseItems([{ ...items[0], [field]: value }])).toThrow('use plain study-status text.');
-    try { parseItems([{ ...items[0], [field]: value }]); }
-    catch (error) { expect((error as Error).message).not.toMatch(/%|score|chance|percent|predict/i); }
+    { field: 'concept', value: 'a'.repeat(201), message: 'a concept name can have at most 200 characters.' },
+    { field: 'description', value: 'a'.repeat(1_001), message: 'a description can have at most 1,000 characters.' },
+  ])('rejects overly long $field text', ({ field, value, message }) => {
+    expect(() => parseItems([{ ...items[0], [field]: value }])).toThrow(message);
   });
 });
 
