@@ -118,12 +118,15 @@ Last updated: 2026-11-01
 Targets: first visuals by about 14 November, the full kit by about 12 December ([plan](VISUALS.md)).
 - Done: the plan, and license checks on every source. Open RN *Nursing Fundamentals 2e* is the cited source (CC BY
   4.0). OpenStax waits for Christian (D-57).
-- In review: [video frames for teaching diagrams](https://github.com/lilchristxan/Cueory/pull/47) (a Codex helper's,
-  finished by the lead): `node scripts/export-frames.ts --url … --selector … --out …` saves numbered PNG frames at
-  1080 × 1920 and 1920 × 1080 for shorts, with the diagram stretched to fill each frame.
-- Next: the visual source-file check and draft-only rendering, then the first batch (fluid compartments, osmosis and
-  fluid shifts, the sodium-potassium pump) with its review sheet. The 3D viewer adds three.js, so it waits for
-  Christian's merge; its models wait for the atlas choice.
+- In `staging`: [video frames for teaching diagrams](https://github.com/lilchristxan/Cueory/pull/47) (a Codex
+  helper's, finished by the lead): `node scripts/export-frames.ts --url … --selector … --out …` saves numbered PNG
+  frames at 1080 × 1920 and 1920 × 1080 for shorts, with the diagram stretched to fill each frame.
+- In review: the [source-file check](https://github.com/lilchristxan/Cueory/pull/49) (`src/visuals/sources.ts`,
+  D-68). The build refuses a visual whose labels or depictions have no source, that quotes a book not on the allowed
+  list, or whose source has the wrong license or no page address. Only approved visuals can appear on a page, and
+  each shows its book's credit.
+- Next: the first batch (fluid compartments, osmosis and fluid shifts, the sodium-potassium pump) with its review
+  sheet. The 3D viewer adds three.js, so it waits for Christian's merge; its models wait for the atlas choice.
 
 ## Planning
 - [Med-surg lesson map](curriculum/README.md) ([#31](https://github.com/lilchristxan/Cueory/pull/31)): the master
