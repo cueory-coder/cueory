@@ -179,6 +179,12 @@ Merged into `staging`; the database ones by the director on Christian's behalf (
   rejects items whose `hash` is absent (fail-closed) or does not match the canonical SHA-256 of the item JSON.
   Per-choice rationales are required for all items. `passed.csv` gains a `hash` column; the checker's
   `passedCsv()` will emit it in a follow-up task. [PR #115](https://github.com/lilchristxan/Cueory/pull/115).
+- Task 34: `dueItems(rows, today)` and `syntheticHistory(rows)` from `review_state` rows (D-87) — turns a student's
+  review-state rows into the ordered list of items due today, plus a synthetic answer history for the UI. Pure logic,
+  no network. [PR #118](https://github.com/lilchristxan/Cueory/pull/118).
+- Task 36: `parseLessonMap(csvText)` — reads the curriculum outline CSV in build order, grouping lessons under topics
+  and topics under units with row-specific error reporting. Pure logic, no file I/O.
+  [PR #119](https://github.com/lilchristxan/Cueory/pull/119).
 - Open pull requests add their own lines here. Waiting now: study modes on pages (#77), export-my-data (#95, Task 19),
   lesson videos (#97, Task C3), the 3D viewer shell (#98, Task C4), the Supabase settings reader (#101, Task 22),
   delete-account checks (#105, Task 25), the daily puzzle checker (#108), database step 5, flags and `submit_flag`
