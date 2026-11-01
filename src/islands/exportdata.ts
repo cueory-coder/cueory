@@ -1,12 +1,14 @@
 /** A download DTO, not a database reader. The caller supplies only their own data and the export date. */
 import { dailyGames } from '../config/games';
+import { isCourse, isExamDate, PROGRESS_VERSION, type DeckProgress, type Progress } from '../scripts/progress';
 import type { GameStats } from './gamestats';
 
 export interface ExportData {
-  profile?: { displayName?: string | null; createdAt?: string | null };
+  profile?: { displayName?: string | null; email?: string | null; createdAt?: string | null };
   onboarding?: { course?: string | null; examDate?: string | null; done?: boolean; school?: string | null };
-  progress?: readonly { id: string; result: string | boolean; date: string }[];
+  progress?: readonly { id: string; result: string | boolean; date: string }[] | Progress;
   reviewState?: readonly { id: string; nextDueDate: string; interval: number }[];
+  /** Supplied from this browser's storage, never fetched from an account or a server. */
   gameStats?: GameStats;
 }
 export interface CsvFile { fileName: string; text: string }
@@ -23,12 +25,21 @@ function day(value: unknown): boolean {
   const time = Date.parse(`${value}T00:00:00.000Z`);
   return Number.isFinite(time) && new Date(time).toISOString().slice(0, 10) === value;
 }
-function date(value: unknown): boolean {
-  if (day(value)) return true;
-  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/.test(value)) return false;
-  return day(value.slice(0, 10)) && Number.isFinite(Date.parse(value));
+function utcDate(value: unknown): string | undefined {
+  if (day(value)) return value as string;
+  if (typeof value !== 'string') return;
+  const parts = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,6}))?(Z|[+-]\d{2}:\d{2})$/.exec(value);
+  if (!parts || !day(parts[1]) || Number(parts[2]) > 23 || Number(parts[3]) > 59 || Number(parts[4]) > 59) return;
+  const time = Date.parse(value);
+  if (!Number.isFinite(time)) return;
+  const iso = new Date(time).toISOString();
+  if (!/^\d{4}-/.test(iso) || iso.startsWith('0000')) return;
+  // Date preserves milliseconds; retain Postgres's remaining microseconds too.
+  const micros = (parts[5] ?? '').padEnd(6, '0').slice(3).replace(/0+$/, '');
+  return iso.slice(0, -1) + micros + 'Z';
 }
-const profileSchema: Schema = { displayName: nullableText, createdAt: value => value === null || date(value) };
+const date = (value: unknown) => utcDate(value) !== undefined;
+const profileSchema: Schema = { displayName: nullableText, email: nullableText, createdAt: value => value === null || date(value) };
 const onboardingSchema: Schema = {
   course: nullableText, examDate: value => value === null || day(value), done: bool, school: nullableText,
 };
@@ -39,6 +50,24 @@ const gameSchema: Schema = {
 };
 const sections = ['profile', 'onboarding', 'progress', 'reviewState', 'gameStats'] as const;
 type Section = typeof sections[number];
+interface GuestSnapshot {
+  version: typeof PROGRESS_VERSION;
+  onboarding: Row;
+  decks: Record<string, Partial<DeckProgress>>;
+}
+interface Sections {
+  profile: Row;
+  onboarding: Row;
+  progress: Row[] | GuestSnapshot;
+  reviewState: Row[];
+  gameStats: Row[];
+}
+const guestId = /^[a-z0-9-]{1,64}$/;
+const piles = ['know', 'learning', 'starred'] as const;
+const guestOnboarding: Schema = {
+  course: value => value === null || isCourse(value),
+  examDate: value => value === null || isExamDate(value), done: bool,
+};
 
 function plain(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value) &&
@@ -65,7 +94,8 @@ function cleanRow(value: unknown, schema: Schema, path: string, dropped: Set<str
     if (valid(field)) row[key] = field as Cell;
     else { dropped.add(`${path}.${key}`); complete = false; }
   }
-  return required && !complete ? undefined : row;
+  if (required && !complete) { dropped.add(path); return; }
+  return row;
 }
 
 function cleanList(value: unknown, schema: Schema, path: string, dropped: Set<string>): Row[] {
@@ -82,7 +112,41 @@ function cleanList(value: unknown, schema: Schema, path: string, dropped: Set<st
   return rows;
 }
 
-function prepare(data: unknown): { data: Record<Section, Row | Row[]>; dropped: string[] } {
+function cleanGuest(value: unknown, dropped: Set<string>): GuestSnapshot | undefined {
+  if (!plain(value)) { dropped.add('progress'); return; }
+  for (const key of Object.keys(value)) if (!['version', 'onboarding', 'decks'].includes(key)) dropped.add(`progress.${key}`);
+  if (own(value, 'version') !== PROGRESS_VERSION) { dropped.add('progress.version'); dropped.add('progress'); return; }
+  const onboarding = cleanRow(own(value, 'onboarding'), guestOnboarding, 'progress.onboarding', dropped) ?? {};
+  const decks: GuestSnapshot['decks'] = Object.create(null);
+  const supplied = own(value, 'decks');
+  if (!plain(supplied)) dropped.add('progress.decks');
+  else for (const id of Object.keys(supplied).sort()) {
+    const path = `progress.decks.${id}`;
+    if (!guestId.test(id)) { dropped.add(path); continue; }
+    const source = own(supplied, id);
+    if (!plain(source)) { dropped.add(path); continue; }
+    const deck: Partial<DeckProgress> = {};
+    for (const key of Object.keys(source)) if (!(piles as readonly string[]).includes(key)) dropped.add(`${path}.${key}`);
+    for (const pile of piles) {
+      const cards = own(source, pile);
+      if (!Array.isArray(cards)) { dropped.add(`${path}.${pile}`); continue; }
+      const ids: string[] = [];
+      for (let index = 0; index < cards.length; index++) {
+        const card = own(cards, String(index));
+        if (typeof card === 'string' && guestId.test(card)) ids.push(card);
+        else dropped.add(`${path}.${pile}[${index}]`);
+      }
+      for (const key of Object.keys(cards)) {
+        if (!/^(0|[1-9]\d*)$/.test(key) || Number(key) >= cards.length) dropped.add(`${path}.${pile}.${key}`);
+      }
+      deck[pile] = ids;
+    }
+    decks[id] = deck;
+  }
+  return { version: PROGRESS_VERSION, onboarding, decks };
+}
+
+function prepare(data: unknown): { data: Sections; dropped: string[] } {
   const dropped = new Set<string>();
   const source = plain(data) ? data : {};
   if (!plain(data)) dropped.add('input');
@@ -91,11 +155,17 @@ function prepare(data: unknown): { data: Record<Section, Row | Row[]>; dropped: 
     ? cleanRow(own(source, key), schema, key, dropped) ?? {} : {};
   const listSection = (key: Section, schema: Schema) => Object.hasOwn(source, key)
     ? cleanList(own(source, key), schema, key, dropped) : [];
+  const profile = recordSection('profile', profileSchema);
+  if (typeof profile.createdAt === 'string') profile.createdAt = utcDate(profile.createdAt)!;
+  const suppliedProgress = own(source, 'progress');
+  const progress = !Object.hasOwn(source, 'progress') ? [] : Array.isArray(suppliedProgress)
+    ? cleanList(suppliedProgress, progressSchema, 'progress', dropped) : cleanGuest(suppliedProgress, dropped) ?? [];
+  if (Array.isArray(progress)) for (const row of progress) row.date = utcDate(row.date)!;
   return {
     data: {
-      profile: recordSection('profile', profileSchema),
+      profile,
       onboarding: recordSection('onboarding', onboardingSchema),
-      progress: listSection('progress', progressSchema),
+      progress,
       reviewState: listSection('reviewState', reviewSchema),
       gameStats: listSection('gameStats', gameSchema),
     },
@@ -104,8 +174,9 @@ function prepare(data: unknown): { data: Record<Section, Row | Row[]>; dropped: 
 }
 
 function exportDay(exportDate: string): string {
-  if (!date(exportDate)) throw new Error('pass the export date as a real day or a UTC date and time.');
-  return exportDate;
+  const normalized = utcDate(exportDate);
+  if (!normalized) throw new Error('pass the export date as a real day or an ISO date and time.');
+  return normalized;
 }
 
 /** Fixed field order; preserves record order, so attempts and review histories stay meaningful. */
@@ -126,13 +197,25 @@ function csv(headers: string[], rows: Row[]): string {
 /** The dropped-fields file is a report of names only; discarded values are never read or copied. */
 export function exportCsv(data: unknown): CsvFile[] {
   const clean = prepare(data);
-  const schemas = [profileSchema, onboardingSchema, progressSchema, reviewSchema, gameSchema];
+  const progressRows: Row[] = [];
+  if (Array.isArray(clean.data.progress)) progressRows.push(...clean.data.progress);
+  else {
+    const guest = clean.data.progress;
+    const metadata: Row = { progressVersion: guest.version, ...guest.onboarding };
+    for (const [deckId, deck] of Object.entries(guest.decks)) {
+      const before = progressRows.length;
+      for (const pile of piles) for (const id of deck[pile] ?? []) progressRows.push({ id, result: pile, deckId, ...metadata });
+      if (progressRows.length === before) progressRows.push({ deckId, ...metadata });
+    }
+    if (!progressRows.length) progressRows.push(metadata);
+  }
+  const recordRows = (value: Row) => Object.keys(value).length ? [value] : [];
   return [
-    ...sections.map((section, index) => {
-      const value = clean.data[section];
-      const rows = Array.isArray(value) ? value : Object.keys(value).length ? [value] : [];
-      return { fileName: `${section}.csv`, text: csv(Object.keys(schemas[index]), rows) };
-    }),
+    { fileName: 'profile.csv', text: csv(Object.keys(profileSchema), recordRows(clean.data.profile)) },
+    { fileName: 'onboarding.csv', text: csv(Object.keys(onboardingSchema), recordRows(clean.data.onboarding)) },
+    { fileName: 'progress.csv', text: csv([...Object.keys(progressSchema), 'deckId', 'progressVersion', 'course', 'examDate', 'done'], progressRows) },
+    { fileName: 'reviewState.csv', text: csv(Object.keys(reviewSchema), clean.data.reviewState) },
+    { fileName: 'gameStats.csv', text: csv(Object.keys(gameSchema), clean.data.gameStats) },
     { fileName: 'dropped.csv', text: csv(['dropped'], clean.dropped.map(dropped => ({ dropped }))) },
   ];
 }
