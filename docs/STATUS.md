@@ -232,17 +232,20 @@ Merged into `staging`; the database one by the director on Christian's behalf (D
   The `check_answer` request (#140, Task 49) checks the item, version and letters before sending anything, through a
   transport the page will supply once accounts are on.
 
+## Done (director, 2026-11-01, 9–11 am Phoenix)
+Merged into `staging`:
+- "Tip" becomes **supporting our mission** (#147, Task C13, D-94): `/support` shows Christian's two mission lines
+  exactly, with a "support our mission" button; the promo panel's link says "supporting our mission".
+- The glove-note logic (D-94), with nothing visible until Christian's photos and recordings arrive:
+  - when a note may appear (#148, Task 50);
+  - checked and shuffled break ideas of up to 60 characters (#144, Task 51);
+  - level writing fitted inside the palm (#145, Task 52);
+  - when a glove sound may play, and its remembered on/off switch (#146, Task 53).
+- The review-clip exporter for Christian's private review of the drawings (#111, Tasks C7 and C10), and the
+  `check_answer` contract test against the real request helper (#142, Task 48).
+
 ## In review
-- When a glove note may appear (Task 50, D-94): `decideNote` answers "nothing" or "this kind, this photo", from the
-  visit's memory, the page kind, time, scroll, study minutes, pauses and busy states. Logic only; nothing visible.
-- "Tip" becomes "supporting our mission" (Task C13, D-94): `/support` shows Christian's two mission lines and a
-  "support our mission" button; the promo panel's link says "supporting our mission". No "tip" left in visible text.
-- Task 53: pure glove-note sound permission gates and the remembered on/off toggle; no audio calls or assets, and a known browser refusal stays silent.
-- Task 52: pure palm-text fitting wraps whole words, finds the largest fitting font size and avoids a final single-word line when another wrap fits; tests use injected font measurements.
-- Task 48: SQL/browser RPC contracts include the real version-aware answer adapter, with no remaining TODO; in review.
-- Open pull requests add their own lines here. Waiting now: the review-clip exporter (#111, Tasks C7 and C10), the
-  `check_answer` contract test (#142, Task 48), the glove-note logic (Tasks 50 to 53) and Release browser tests (#55).
-- Task 51: pure glove-note idea checks (60 Unicode code points, strict IDs and text, no links or hidden controls) and shuffled picks without consecutive repeats; wording approval and visible wiring stay with Christian and the director.
+- Open pull requests add their own lines here. Waiting now: Release browser tests (#55).
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
