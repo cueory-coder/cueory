@@ -577,6 +577,37 @@ test.describe('daily games: private stats (D-76)', () => {
     ]);
   });
 
+  test('a round finished before the panel loads is dropped when another tab turns stats off', async ({
+    page,
+    context,
+  }) => {
+    let release = () => {};
+    const held = new Promise<void>((resolve) => (release = resolve));
+    await page.route(/\/_astro\/GameStatsPanel\.[^/]+\.js$/, async (route) => {
+      await held;
+      await route.continue();
+    });
+    await page.goto('/play');
+    await expect(page.getByTestId('pulse')).toBeVisible();
+    await expect(toggle(page)).toHaveCount(0);
+    await solvePulse(page);
+
+    // Another tab turns stats on then off before this panel finishes loading.
+    const other = await context.newPage();
+    await other.clock.setFixedTime(new Date('2026-11-01T15:00:00'));
+    await other.goto('/play');
+    await toggle(other).click();
+    await toggle(other).click();
+    await other.close();
+
+    // Panel loads; the pre-disable round must not appear when turning stats on.
+    release();
+    await toggle(page).click();
+    await expect(toggle(page)).toHaveAttribute('aria-checked', 'true');
+    await expect(pulseStats(page)).toContainText('not played yet.');
+    expect(JSON.parse((await kept(page))!).results).toEqual([]);
+  });
+
   test('at 320 px the panel fits, and its buttons are at least 44 px tall', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 720 });
     await toggle(page).click();

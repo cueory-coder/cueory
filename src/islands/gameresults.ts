@@ -49,6 +49,17 @@ export function takeFinishedRounds(): RoundResult[] {
   return finished.splice(0);
 }
 
+// Clear queued rounds as soon as another tab turns stats off, before the panel has a chance to drain them and
+// move them to its own unsaved buffer. Without this, a round finished while the panel module was still loading
+// would survive a cross-tab opt-out and reappear when the student later turned stats on here (Codex on #79).
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (event) => {
+    if (event.key === null || (event.key === STATS_STORAGE_KEY && event.newValue === null)) {
+      finished.splice(0);
+    }
+  });
+}
+
 /** How many calendar days of results this browser keeps, counting today. */
 export const KEEP_DAYS = 400;
 
