@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-11-01 (Task 42)
+Last updated: 2026-11-01 (Task C10)
 
 ## Done
 - Static site: Astro + React islands + TypeScript + Tailwind, static output, tested at phone and desktop sizes.
@@ -202,6 +202,9 @@ Christian's behalf (D-89), each with the lead's review:
   the importer (#125, Task C8, D-90).
 - Visuals kit helpers, not on a page yet: the review sheet for Christian (#126, Task 40), "no rights record, no image"
   (#128, Task 41) and credits for a lesson page (#127, Task 42).
+- Review-clip exporter repairs (#111, Task C10, D-81): esbuild bundle loader for TSX drawings, Playwright SVG-height
+  measurement for correct per-step crop bands, non-zero exit on ffmpeg failure, brand tokens in frame HTML, and
+  single-quote escaping in the ffmpeg concat list. 57 new tests; 1940 total pass.
 
 ## In review
 - Open pull requests add their own lines here. Waiting now: study modes on pages (#77, held for Christian's choice
