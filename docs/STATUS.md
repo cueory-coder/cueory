@@ -246,7 +246,7 @@ Merged into `staging`:
 
 ## In review
 - Open pull requests add their own lines here. Waiting now: Release browser tests (#55).
-- Task 110 start, cruet loading animation (#this): the four layers cut from Christian's emblem and the lead's working prototype in `docs/prototypes/`; the island comes next.
+- Task 110 start, cruet loading animation (#184): the four layers cut from Christian's emblem and the lead's working prototype in `docs/prototypes/`; the island comes next.
 - Task 95, modern sample questions page (#174): passed full CI and Codex review, merged into `staging` and awaiting the next production release.
 - Task 73, break-idea sharing proposal (#177): private submissions, moderation, reporting, export and account-deletion safeguards proposed for Christian's decisions.
 - Glove photos and the Kalam font (#163): Christian's nine glove colors cut out as WebP files, and the handwriting he
