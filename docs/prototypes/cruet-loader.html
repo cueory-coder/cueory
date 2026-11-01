@@ -7,7 +7,7 @@ canvas{width:min(300px,60vw);height:auto}
 </style></head><body><div class="wrap"><canvas id="c" width="1024" height="1024"></canvas><div class="t" role="status">loading…</div></div>
 <script>
 const G={x0:1227,y0:0,w:714,h:649,S:2048};
-const imgs={};let loaded=0;['c-letter','vessel-interior','vessel-outline','interior-mask'].forEach(n=>{const i=new Image();i.onload=()=>{loaded++;if(loaded===4)ready();};i.src='../../public/brand/v1/loader/'+n+'.png';imgs[n]=i;});
+const imgs={};let loaded=0;['c-letter','vessel-interior','vessel-outline','interior-mask'].forEach(n=>{const i=new Image();i.onload=()=>{loaded++;if(loaded===4)ready();};i.src='../../public/loader/'+n+'.png';imgs[n]=i;});
 const cv=document.getElementById('c'),ctx=cv.getContext('2d');const SC=0.72,OX=150,OY=250;const k=cv.width/G.S*SC;
 const off=document.createElement('canvas');off.width=cv.width;off.height=cv.height;const oc=off.getContext('2d');
 const PIV={x:480,y:430}, SPOUT={x:14,y:268};
@@ -43,5 +43,6 @@ function state(t){
  return [th,L,pouring];
 }
 function ready(){window.render=t=>{const [th,L,s]=state(t);draw(th,L+G.y0,s);};
- if(!/frames/.test(location.search)){const t0=performance.now();const loop=n=>{render(((n-t0)/1000)%4.6);requestAnimationFrame(loop)};requestAnimationFrame(loop);} window.READY=true;}
+ const still=matchMedia('(prefers-reduced-motion: reduce)').matches;
+ if(still){render(1.4);} else if(!/frames/.test(location.search)){const t0=performance.now();const loop=n=>{render(((n-t0)/1000)%4.6);requestAnimationFrame(loop)};requestAnimationFrame(loop);} window.READY=true;}
 </script></body></html>
