@@ -116,25 +116,37 @@ export function nextQuestion(
   const concepts = summaries(questions, attempts);
   if (concepts.length === 0) return undefined;
 
-  const missedLast = concepts.filter((summary) => summary.attempts.at(-1)?.attempt.right === false);
-  const selected =
-    missedLast[0] ??
-    concepts.reduce((fewest, summary) =>
-      summary.attempts.length < fewest.attempts.length ? summary : fewest,
+  const recentIds = new Set(attempts.slice(-5).map((attempt) => attempt.questionId));
+  const rankedConcepts = concepts.toSorted((a, b) => {
+    const aMissed = a.attempts.at(-1)?.attempt.right === false;
+    const bMissed = b.attempts.at(-1)?.attempt.right === false;
+    if (aMissed !== bMissed) return aMissed ? -1 : 1;
+    if (!aMissed && a.attempts.length !== b.attempts.length) {
+      return a.attempts.length - b.attempts.length;
+    }
+    return concepts.indexOf(a) - concepts.indexOf(b);
+  });
+
+  let selected: ConceptSummary | undefined;
+  let candidates: AdaptiveQuestion[] = [];
+  for (const summary of rankedConcepts) {
+    const levelOrder: (1 | 2 | 3)[] = [1, 2, 3];
+    levelOrder.sort(
+      (a, b) => Math.abs(a - summary.level) - Math.abs(b - summary.level) || a - b,
     );
 
-  const recentIds = new Set(attempts.slice(-5).map((attempt) => attempt.questionId));
-  const levelOrder: (1 | 2 | 3)[] = [1, 2, 3];
-  levelOrder.sort(
-    (a, b) => Math.abs(a - selected.level) - Math.abs(b - selected.level) || a - b,
-  );
-
-  let candidates: AdaptiveQuestion[] = [];
-  for (const level of levelOrder) {
-    candidates = selected.questions.filter((question) => question.level === level && !recentIds.has(question.id));
-    if (candidates.length > 0) break;
+    for (const level of levelOrder) {
+      candidates = summary.questions.filter(
+        (question) => question.level === level && !recentIds.has(question.id),
+      );
+      if (candidates.length > 0) break;
+    }
+    if (candidates.length > 0) {
+      selected = summary;
+      break;
+    }
   }
-  if (candidates.length === 0) return undefined;
+  if (!selected || candidates.length === 0) return undefined;
 
   const question = candidates[seededIndex(seed, candidates.length)]!;
   const concept = displayConcept(selected.concept);

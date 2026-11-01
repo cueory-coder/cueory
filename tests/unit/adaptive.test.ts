@@ -127,6 +127,18 @@ describe('adaptive question selection', () => {
     expect(nextQuestion(small, attempts, 0)).toBeUndefined();
   });
 
+  it('tries the next-ranked concept when the preferred concept has no unused question', () => {
+    const onePerConcept: AdaptiveQuestion[] = [
+      { id: 'color-1', concept: 'colors', level: 1 },
+      { id: 'shape-1', concept: 'shapes', level: 1 },
+    ];
+    const attempts: AdaptiveAttempt[] = [{ questionId: 'color-1', right: false }];
+    expect(nextQuestion(onePerConcept, attempts, 0)).toEqual({
+      id: 'shape-1',
+      why: "'shapes' is new to you.",
+    });
+  });
+
   it('uses the seed only to break a question tie and is repeatable', () => {
     const first = nextQuestion(questions, [], 7);
     expect(nextQuestion(questions, [], 7)).toEqual(first);
