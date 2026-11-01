@@ -453,7 +453,8 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   (`cueory-progress`, `src/scripts/progress.ts`) holds only the two optional setup answers (course, exam date) and, per
   card deck, the "know it" / "still learning" piles and the stars (CLAUDE.md rule 2). Reading drops anything unknown or
   invalid field by field and never throws; blocked storage just means nothing is remembered. Stars saved before this
-  under `cueory-stars-<deck>` are still read and move into the record the next time they change. `/start` asks the
+  under `cueory-stars-<deck>`, for any deck (including ones no longer on the site), move into the record when a card
+  deck or `/progress` opens, and "forget" removes any that remain. `/start` asks the
   two questions (each optional, "skip for now" keeps earlier answers); `/progress` shows everything kept, downloads it
   as a JSON file and forgets it after a confirm step (the theme pick and promo date aren't progress and stay). The ☰
   "my progress" link now opens `/progress`. Nothing leaves the device until accounts exist (Task 2), which will

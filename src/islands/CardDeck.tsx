@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { saveSort, type Pile } from '../scripts/progress';
+import { migrateLegacyStars, saveSort, type Pile } from '../scripts/progress';
 import { browserStorage } from '../scripts/storage';
 import {
   back,
@@ -60,7 +60,11 @@ function StarIcon({ filled }: { filled: boolean }) {
  */
 export default function CardDeck({ deckId, cards }: Props) {
   const allCards = cards.map((_, i) => i);
-  const [storage] = useState(browserStorage);
+  const [storage] = useState(() => {
+    const found = browserStorage();
+    migrateLegacyStars(found); // stars saved before D-69 move into the record (D-69)
+    return found;
+  });
   const [starred, setStarred] = useState(() => loadStars(storage, deckId, cards.map((c) => c.id)));
   const [shuffle, setShuffle] = useState(false);
   const [starredOnly, setStarredOnly] = useState(false);

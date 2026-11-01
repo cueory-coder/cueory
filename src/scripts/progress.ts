@@ -13,8 +13,9 @@ import type { KeyValueStorage } from './storage';
 export const PROGRESS_STORAGE_KEY = 'cueory-progress';
 export const PROGRESS_VERSION = 1;
 
-/** Where stars were kept before D-69, one key per deck. Read once, moved into the progress record, then removed. */
-export const legacyStarsKey = (deckId: string) => `cueory-stars-${deckId}`;
+/** Where stars were kept before D-69, one key per deck. Moved into the progress record, then removed. */
+const LEGACY_STARS_PREFIX = 'cueory-stars-';
+export const legacyStarsKey = (deckId: string) => `${LEGACY_STARS_PREFIX}${deckId}`;
 
 export const COURSES = [
   { id: 'fundamentals', label: 'fundamentals' },
@@ -138,15 +139,62 @@ export function isEmptyProgress(progress: Progress): boolean {
   return !course && !examDate && !done && Object.keys(progress.decks).length === 0;
 }
 
+/** Every pre-D-69 stars key in storage, whatever deck it was for (empty when storage can't be listed). */
+function legacyStarKeys(storage: KeyValueStorage): string[] {
+  try {
+    if (typeof storage.length !== 'number' || !storage.key) return [];
+    const keys: string[] = [];
+    for (let i = 0; i < storage.length; i++) {
+      const key = storage.key(i);
+      if (key?.startsWith(LEGACY_STARS_PREFIX)) keys.push(key);
+    }
+    return keys;
+  } catch {
+    return [];
+  }
+}
+
 /**
- * Removes everything this store keeps on the device, including stars saved before D-69 for the decks named. The theme
- * pick and the promo panel's date are not progress and stay. False when the browser refused.
+ * Moves every pre-D-69 stars key into the record (joined with any stars already there), then removes the old keys,
+ * so the record is the one place progress lives. Decks no longer on the site are kept too: they're still the
+ * student's data until they forget it. Returns the record as it now stands.
+ */
+export function migrateLegacyStars(storage: KeyValueStorage | undefined): Progress {
+  let progress = readProgress(storage);
+  if (!storage) return progress;
+  const keys = legacyStarKeys(storage);
+  for (const key of keys) {
+    const deckId = key.slice(LEGACY_STARS_PREFIX.length);
+    let old: string[] = [];
+    try {
+      old = idList(JSON.parse(storage.getItem(key) ?? '[]'));
+    } catch {
+      // Unreadable: nothing to move, and the key is removed below.
+    }
+    if (ID.test(deckId) && old.length) {
+      progress = withStars(progress, deckId, [...deckProgress(progress, deckId).starred, ...old]);
+    }
+  }
+  if (keys.length && saveProgress(storage, progress)) {
+    try {
+      for (const key of keys) storage.removeItem(key);
+    } catch {
+      // The old keys stay; the next visit moves them again, and joining is harmless.
+    }
+  }
+  return progress;
+}
+
+/**
+ * Removes everything this store keeps on the device: the record and every pre-D-69 stars key, for any deck (the named
+ * decks' keys too, for storage that can't be listed). The theme pick and the promo panel's date are not progress and
+ * stay. False when the browser refused.
  */
 export function forgetProgress(storage: KeyValueStorage | undefined, deckIds: readonly string[]): boolean {
   if (!storage) return false;
   try {
     storage.removeItem(PROGRESS_STORAGE_KEY);
-    for (const deckId of deckIds) storage.removeItem(legacyStarsKey(deckId));
+    for (const key of new Set([...legacyStarKeys(storage), ...deckIds.map(legacyStarsKey)])) storage.removeItem(key);
     return true;
   } catch {
     return false;

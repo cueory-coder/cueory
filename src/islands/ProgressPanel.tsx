@@ -8,7 +8,7 @@ import {
   forgetProgress,
   isEmptyProgress,
   localDay,
-  readProgress,
+  migrateLegacyStars,
 } from '../scripts/progress';
 import { browserStorage } from '../scripts/storage';
 
@@ -34,7 +34,8 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
  */
 export default function ProgressPanel({ decks }: Props) {
   const [storage] = useState(browserStorage);
-  const [progress, setProgress] = useState(() => readProgress(storage));
+  // Stars saved before D-69 move into the record first, so this page shows (and forgets) all of it.
+  const [progress, setProgress] = useState(() => migrateLegacyStars(storage));
   const [confirming, setConfirming] = useState(false);
   const [said, setSaid] = useState('');
   const forgetRef = useRef<HTMLButtonElement>(null);
@@ -42,10 +43,14 @@ export default function ProgressPanel({ decks }: Props) {
   const saidRef = useRef<HTMLParagraphElement>(null);
 
   const { course, examDate, done } = progress.onboarding;
-  const deckLines = decks.flatMap((deck) => {
-    const known = new Set(deck.cardIds);
+  // Decks no longer on the site still show, so the page lists everything that's kept.
+  const retired = Object.keys(progress.decks)
+    .filter((id) => !decks.some((deck) => deck.id === id))
+    .map((id) => ({ id, title: `a deck no longer on the site (${id})`, cardIds: null }));
+  const deckLines = [...decks, ...retired].flatMap((deck) => {
+    const known = deck.cardIds ? new Set(deck.cardIds) : null;
     const saved = deckProgress(progress, deck.id);
-    const count = (ids: string[]) => ids.filter((id) => known.has(id)).length;
+    const count = (ids: string[]) => ids.filter((id) => !known || known.has(id)).length;
     const [know, learning, starred] = [count(saved.know), count(saved.learning), count(saved.starred)];
     if (!know && !learning && !starred) return [];
     return [{ id: deck.id, title: deck.title, text: `${know} know it · ${learning} still learning · ${plural(starred, 'star', 'stars')}` }];

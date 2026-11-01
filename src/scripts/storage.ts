@@ -6,6 +6,9 @@ export interface KeyValueStorage {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
   removeItem(key: string): void;
+  /** Listing what's stored (the browser's localStorage has these). Optional, so simple stand-ins can leave them out. */
+  readonly length?: number;
+  key?(index: number): string | null;
 }
 
 /** Browser storage can be missing or blocked (private windows, strict settings). Then nothing is remembered. */

@@ -8,6 +8,7 @@ import {
   isExamDate,
   legacyStarsKey,
   localDay,
+  migrateLegacyStars,
   parseProgress,
   pileOf,
   PROGRESS_STORAGE_KEY,
@@ -27,6 +28,10 @@ function memoryStorage(initial: Record<string, string> = {}): KeyValueStorage & 
     getItem: (k) => data[k] ?? null,
     setItem: (k, v) => void (data[k] = v),
     removeItem: (k) => void delete data[k],
+    get length() {
+      return Object.keys(data).length;
+    },
+    key: (i) => Object.keys(data)[i] ?? null,
   };
 }
 
@@ -123,6 +128,32 @@ describe('guest progress record (D-69)', () => {
       expect(forgetProgress(storage, ['deck-a'])).toBe(false);
       expect(() => saveSort(storage, 'deck-a', 'c1', 'know')).not.toThrow();
     }
+  });
+
+  it('moves every pre-D-69 stars key into the record, for any deck, joining stars already there', () => {
+    const storage = memoryStorage({
+      [PROGRESS_STORAGE_KEY]: JSON.stringify({ version: 1, decks: { 'deck-a': { starred: ['c2'] } } }),
+      [legacyStarsKey('deck-a')]: '["c1"]',
+      [legacyStarsKey('retired-deck')]: '["x9"]',
+      [legacyStarsKey('broken')]: 'not json',
+      'cueory-theme': 'dark',
+    });
+    const progress = migrateLegacyStars(storage);
+    expect(deckProgress(progress, 'deck-a').starred).toEqual(['c1', 'c2']);
+    expect(deckProgress(progress, 'retired-deck').starred).toEqual(['x9']);
+    expect(readProgress(storage)).toEqual(progress);
+    expect(Object.keys(storage.data).sort()).toEqual([PROGRESS_STORAGE_KEY, 'cueory-theme']);
+  });
+
+  it('keeps the old keys when the record cannot be saved, and never throws', () => {
+    expect(migrateLegacyStars(undefined)).toEqual(emptyProgress());
+    expect(migrateLegacyStars(blockedStorage)).toEqual(emptyProgress());
+  });
+
+  it('forgets stars kept under old keys for decks no longer on the site', () => {
+    const storage = memoryStorage({ [legacyStarsKey('retired-deck')]: '["x9"]', 'cueory-theme': 'dark' });
+    expect(forgetProgress(storage, ['deck-a'])).toBe(true);
+    expect(Object.keys(storage.data)).toEqual(['cueory-theme']);
   });
 
   it('forgets the record and stars saved before D-69, and leaves the theme pick and promo date alone', () => {

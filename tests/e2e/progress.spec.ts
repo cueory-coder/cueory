@@ -132,6 +132,24 @@ test('stars saved before D-69 still show, and move into the record when they cha
   expect(await page.evaluate(() => localStorage.getItem('cueory-stars-study-skills-01'))).toBeNull();
 });
 
+test('stars kept only under old keys show on the progress page, and forget removes them all', async ({ page }) => {
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem('seeded')) return;
+    sessionStorage.setItem('seeded', '1');
+    localStorage.setItem('cueory-stars-study-skills-01', '["ss01-c01"]');
+    localStorage.setItem('cueory-stars-retired-deck', '["x9"]');
+  });
+  await page.goto('/progress');
+  await expect(page.getByText('0 know it · 0 still learning · 1 star')).toHaveCount(2);
+  await expect(page.getByText('a deck no longer on the site (retired-deck)')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'download my progress' })).toBeEnabled();
+
+  await page.getByRole('button', { name: 'forget my progress on this device' }).click();
+  await page.getByRole('button', { name: 'yes, forget it' }).click();
+  const left = await page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith('cueory-') && key !== 'cueory-promo-seen'));
+  expect(left).toEqual([]);
+});
+
 test('the pages fit a 320 px screen without sideways scrolling', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 });
   for (const path of ['/start', '/progress']) {
