@@ -3,11 +3,13 @@
  *
  * Sections (JSON key and CSV file share the name): profile, onboarding, progress, reviewState and gameStats come from
  * the account page or this browser; attempts, examPlans and reviewRows mirror the student's own rows in the database
- * tables `attempts`, `exam_plans` and `review_state` (supabase/migrations 20261101100000 and 20261101110000).
+ * tables `attempts`, `exam_plans` and `review_state` (supabase/migrations 20261101100000 and 20261101110000), and
+ * reports holds the student's own "Flag or comment" reports as the database function `my_flags()` returns them (D-88):
+ * never the admin fields (user, status, handled time), which are dropped by name like any other unknown field.
  * Each section has a strict schema: unknown fields are dropped and listed by NAME in `dropped` (never by value), and a
  * bad field reports the field and its row. The database rows never carry a user id, an answer key or a rationale, and
  * if a caller passes one it is dropped like any other unknown field. In CSV, `picked` letters are joined with ";".
- * Row caps: attempts and reviewRows keep their first 50,000 rows, examPlans its first 10; the rest is reported in
+ * Row caps: attempts and reviewRows keep their first 50,000 rows, examPlans its first 10 and reports its first 10,000; the rest is reported in
  * `dropped` as `<section>[<cap>+]`.
  */
 import { dailyGames } from '../config/games';
@@ -27,6 +29,10 @@ export interface ExportData {
   examPlans?: readonly { course: string; examDate: string; createdAt: string }[];
   /** The signed-in student's `review_state` rows; the guest `reviewState` section is separate. */
   reviewRows?: readonly { itemId: string; level: number; lastReviewed: string; nextReview: string }[];
+  /** The student's own "Flag or comment" reports, as `my_flags()` returns them. */
+  reports?: readonly {
+    id: string; page: string; itemId: string | null; itemVersionId: string | null; reason: string; comment: string | null; createdAt: string;
+  }[];
 }
 export interface CsvFile { fileName: string; text: string }
 type Cell = string | number | boolean | null | readonly string[];
@@ -79,13 +85,23 @@ const slug = (value: unknown) => typeof value === 'string' && value.length <= 80
 const level = (value: unknown) => typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 3;
 const attemptSchema: Schema = { itemVersionId: uuid, picked: letters, correct: bool, createdAt: date };
 const examPlanSchema: Schema = { course: slug, examDate: day, createdAt: date };
+/** A page on this site, as submit_flag stores it: a path, never an address on another site. */
+const sitePath = (value: unknown) =>
+  typeof value === 'string' && value.length >= 1 && value.length <= 200 && /^\/[A-Za-z0-9._~/%:@!$&'()*+,;=-]*$/.test(value) && !value.startsWith('//');
+const reportReasons = ['wrong-fact', 'typo', 'confusing', 'broken', 'other'];
+const reportComment = (value: unknown) =>
+  value === null || (typeof value === 'string' && [...value].length >= 1 && [...value].length <= 1000 && !/[\x01-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(value));
+const reportSchema: Schema = {
+  id: uuid, page: sitePath, itemId: value => value === null || uuid(value), itemVersionId: value => value === null || uuid(value),
+  reason: value => typeof value === 'string' && reportReasons.includes(value), comment: reportComment, createdAt: date,
+};
 const reviewRowSchema: Schema = { itemId: uuid, level, lastReviewed: day, nextReview: day };
 const reviewSchema: Schema = { id: value => text(value) && !!(value as string).trim(), nextDueDate: day, interval: whole };
 const gameSchema: Schema = {
   game: value => dailyGames.some(game => game.id === value), day, solved: bool, tries: whole,
 };
-const sections = ['profile', 'onboarding', 'progress', 'reviewState', 'gameStats', 'attempts', 'examPlans', 'reviewRows'] as const;
-const rowCaps: Partial<Record<Section, number>> = { attempts: 50_000, examPlans: 10, reviewRows: 50_000 };
+const sections = ['profile', 'onboarding', 'progress', 'reviewState', 'gameStats', 'attempts', 'examPlans', 'reviewRows', 'reports'] as const;
+const rowCaps: Partial<Record<Section, number>> = { attempts: 50_000, examPlans: 10, reviewRows: 50_000, reports: 10_000 };
 type Section = typeof sections[number];
 interface GuestSnapshot {
   version: typeof PROGRESS_VERSION;
@@ -101,6 +117,7 @@ interface Sections {
   attempts: Row[];
   examPlans: Row[];
   reviewRows: Row[];
+  reports: Row[];
 }
 const guestId = /^[a-z0-9-]{1,64}$/;
 const piles = ['know', 'learning', 'starred'] as const;
@@ -210,6 +227,8 @@ function prepare(data: unknown): { data: Sections; dropped: string[] } {
   }
   const examPlans = listSection('examPlans', examPlanSchema);
   for (const row of examPlans) row.createdAt = utcDate(row.createdAt)!;
+  const reports = listSection('reports', reportSchema);
+  for (const row of reports) row.createdAt = utcDate(row.createdAt)!;
   return {
     data: {
       profile,
@@ -220,6 +239,7 @@ function prepare(data: unknown): { data: Sections; dropped: string[] } {
       attempts,
       examPlans,
       reviewRows: listSection('reviewRows', reviewRowSchema),
+      reports,
     },
     dropped: [...dropped].sort(),
   };
@@ -271,6 +291,7 @@ export function exportCsv(data: unknown): CsvFile[] {
     { fileName: 'attempts.csv', text: csv(Object.keys(attemptSchema), clean.data.attempts) },
     { fileName: 'examPlans.csv', text: csv(Object.keys(examPlanSchema), clean.data.examPlans) },
     { fileName: 'reviewRows.csv', text: csv(Object.keys(reviewRowSchema), clean.data.reviewRows) },
+    { fileName: 'reports.csv', text: csv(Object.keys(reportSchema), clean.data.reports) },
     { fileName: 'dropped.csv', text: csv(['dropped'], clean.dropped.map(dropped => ({ dropped }))) },
   ];
 }

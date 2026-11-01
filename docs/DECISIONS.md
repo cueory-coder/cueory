@@ -894,6 +894,41 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
 
   Reason: the director's request on #11 (Task C6), following D-73's schema order.
 
+- **D-88** Task 2's seventh database change: `flags` and `submit_flag` (Task C6, step 5, the last, stacked on D-87).
+  The "Flag or comment" button of D-34, built to D-73's plan and Supabase's "Database Functions" docs (`security
+  definer` with a fixed `search_path`; revoke `execute` from `public` and `anon`).
+  - **`flags` is admin data:** no website role can read or write it, not even a student's own reports. No grants, row-level
+    security on, and an explicit restrictive deny policy for `anon` and `authenticated` (as for the key, D-85). Only the
+    service role (the `/admin` inbox) reads and writes it. A student reads their own reports (for export-my-data, rule 2)
+    only through **`my_flags()`**, a signed-in-only `security definer` function that returns the report's id, page, item,
+    version, reason, comment and time and never the user, status or handled time; chosen over a select policy with column
+    grants so the table stays fully closed and the locked-by-default test keeps one allowed list of functions. A report has the page, the item and version (both
+    or neither), a reason, an optional comment, a status (`open` until Christian marks it `handled`, which needs a date), and
+    belongs to a student; deleting an account deletes its reports.
+  - **`submit_flag(page, item_id, item_version_id, reason, comment)`** is the only way in, for signed-in students only,
+    and it checks everything before writing: the page is a path on this site (`/…`, 200 characters at most, plain URL
+    characters, no space, query, markup or `//`), the reason is one of `wrong-fact`, `typo`, `confusing`, `broken`,
+    `other`, the comment is plain text up to 1,000 characters (blank means none, outer spaces are trimmed), and the
+    item and version come together with the version belonging to the item. Every way of naming a question wrongly gets
+    the same answer ("that question was not found"), so a report can't be used to find which ids exist. It answers with
+    the report's id.
+  - **Limits, per person:** 5 reports an hour and 20 a day, counted from the table, with a per-person advisory lock. The
+    next one gets error 54000. Other students aren't affected, and old reports stop counting.
+  - **Signed-in only, for Christian to confirm** (the same reasoning as `check_answer`, D-86, and D-73): an anonymous
+    report would need a CAPTCHA, and Supabase's (hCaptcha or Cloudflare Turnstile) loads a third-party script, which
+    CLAUDE.md rules out unless he makes an exception. Signed-out visitors see that a free account is needed and are given
+    hello@cueory.app instead (the lead's note on D-77).
+  - **Not built yet:** the `/admin` inbox and the button itself (a form that calls `submit_flag`), and `/privacy` and
+    export-my-data covering what a signed-in student sends. They come with the pages that use these functions.
+  - **Tests:** `supabase/tests/database/flags_test.sql`, 44 checks: grants and policy, signed-out refusal, a valid report
+    with and without an item, the table staying closed even for a student's own reports, every refusal writing
+    nothing, the exact limits (5 an hour, 20 a day, not for other students, not for old reports), the inbox rules and
+    cascade delete. The lockdown test's allowed-function list now names `submit_flag`. Four weakened versions (students
+    may read flags, no limits, a version of another item accepted, other-site pages accepted) each failed.
+
+  Reason: the director's request on #11 (Task C6), following D-73's schema order. This completes that plan's tables and
+  functions.
+
 - **D-90** The batch checker matches the importer (Task C8, the lead's follow-up on #115, Task 3). Three changes, one
   rule: the checker must never pass an item the importer would refuse, and the importer must never trust that the
   checker was run.
@@ -926,6 +961,8 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   a course slug of at most 80 characters, real calendar days. No user id, answer key or rationale is ever exported; if
   one is passed it is dropped and only its name is listed. Caps: 50,000 rows for `attempts` and `reviewRows`, 10 for
   `examPlans` (the database's cap); anything beyond is reported in `dropped` as `section[cap+]`. Each section also gets
-  a CSV file with the same formula guard and quoting.
+  a CSV file with the same formula guard and quoting. A fourth section, `reports` (C11), holds the student's own "Flag or comment"
+  reports as `my_flags()` returns them (D-88): id, page (a site path), item, version, reason, comment and time; the admin
+  fields are dropped by name; cap 10,000 rows.
 
   Reason: the review of #95 found server-side study progress missing from the download.

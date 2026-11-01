@@ -204,6 +204,12 @@ Christian's behalf (D-89), each with the lead's review:
   (#128, Task 41) and credits for a lesson page (#127, Task 42).
 
 ## In review
+- Task 2, database step 5, the last (Task C6, D-88): `flags`, `submit_flag` and `my_flags`, with 52 database tests
+  ([#110](https://github.com/lilchristxan/Cueory/pull/110)). A signed-in student can send a "Flag or comment" report
+  (5 an hour, 20 a day); the reports table is closed to every website role and is read only in the locked `/admin`
+  inbox (not built yet); a student reads their own through `my_flags()`, and export-my-data now includes them (C11).
+  It is signed-in only, which needs Christian's confirmation (D-88). Steps 1 to 4 are in
+  `staging` (#90, #92, #94, #104).
 - Open pull requests add their own lines here. Waiting now: study modes on pages (#77, held for Christian's choice
   below), delete-account checks (#105, Task 25), database step 5, flags and `submit_flag` (#110), the review-clip
   exporter (#111, Task C7), visuals on lesson pages (#129, Task C9), the review-sheet script (Task 43) and Release
