@@ -1,0 +1,44 @@
+---
+/**
+ * Preview page for the 3D body viewer (D-83).
+ * Unlinked from the main nav — for internal review only.
+ */
+import Layout from '../../layouts/Layout.astro';
+import BodyViewer from '../../islands/BodyViewer';
+---
+
+<Layout
+  title="preview: 3D body viewer"
+  description="Preview of the 3D body viewer island (D-83, placeholder model)."
+  noindex
+>
+  <div class="mx-auto max-w-prose pt-8 space-y-8">
+    <div>
+      <p class="text-sm text-ink-soft">Preview · not linked from the site</p>
+      <h1 class="mt-2 text-2xl">3D body viewer</h1>
+      <p class="mt-2 text-sm text-ink-soft">
+        Placeholder model built from simple geometric shapes. The real model will be BodyParts3D (D-80).
+        Tap "open the 3D view" to load three.js and render.
+      </p>
+    </div>
+
+    <BodyViewer
+      client:only="react"
+      creditText="Placeholder model made of simple shapes. The finished viewer will use BodyParts3D, © The Database Center for Life Science, licensed under CC Attribution 4.0 International."
+    />
+
+    <section class="text-sm text-ink-soft space-y-2">
+      <h2 class="text-base text-ink">What to check</h2>
+      <ul class="list-disc pl-5 space-y-1">
+        <li>Nothing loads from three.js before tapping the button.</li>
+        <li>After tap: a placeholder model appears; OrbitControls let you rotate and zoom.</li>
+        <li>Keyboard: arrow keys rotate, + / − zoom, Tab moves to the layer buttons.</li>
+        <li>Layer buttons (Skin / Muscle / Bone) toggle visibility with <code>aria-pressed</code>.</li>
+        <li>Dark mode: canvas background matches the page token (Charcoal).</li>
+        <li>Reduced motion: damping is off; model stays put when controls stop.</li>
+        <li>Viewer fits a 320 px viewport without horizontal scroll.</li>
+        <li>No CSP violations in the browser console.</li>
+      </ul>
+    </section>
+  </div>
+</Layout>
