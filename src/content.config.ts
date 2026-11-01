@@ -2,6 +2,7 @@ import { defineCollection } from 'astro:content';
 import { glob } from 'astro/loaders';
 import { z } from 'astro/zod';
 import { sentenceParts } from './islands/fillin';
+import { parseSet as parseLabelSet } from './islands/labelit';
 import { visualProblems } from './visuals/sources';
 
 /**
@@ -166,6 +167,36 @@ const fillIn = defineCollection({
 });
 
 /**
+ * "label it" sets (ROADMAP Task 4c): one JSON file per lesson in /content/label-it, checked with the board's own
+ * parseSet (boxes inside the image, unique ids, label text, and an image credit: no credit, no image). The page never
+ * puts this file in its HTML; a static endpoint serves it and the board fetches it after the page loads.
+ * Until reviewed images with rights records exist (Task 2), a set is an everyday "sample" drawn for Cueory.
+ */
+const labelIt = defineCollection({
+  loader: glob({ base: './content/label-it', pattern: '*.json' }),
+  schema: z
+    .object({
+      lesson: z.string().regex(/^[a-z0-9-]+$/),
+      status: z.literal('sample'),
+      image: z.object({
+        src: z.string().regex(/^\/[\w\-./]+\.(svg|png|webp|jpg)$/, 'the image is a file on this site, starting with /'),
+        alt: z.string().min(1).max(300),
+        width: z.number().positive(),
+        height: z.number().positive(),
+        credit: z.string().min(1).max(300),
+      }),
+      labels: z.array(z.object({ id: z.string(), text: z.string(), x: z.number(), y: z.number(), w: z.number(), h: z.number() })),
+    })
+    .superRefine((data, context) => {
+      try {
+        parseLabelSet({ id: 'check', image: data.image, labels: data.labels });
+      } catch (error) {
+        context.addIssue({ code: 'custom', path: ['labels'], message: (error as Error).message });
+      }
+    }),
+});
+
+/**
  * The visuals kit (Task 6, D-56, docs/VISUALS.md): one source file per visual in /content/visuals. Every label and
  * every depiction points to a source that gives the book's exact words, its section and the page address, and only
  * allowed books can be quoted (src/visuals/sources.ts). The build stops with a plain message when a file breaks a rule.
@@ -203,4 +234,4 @@ const visuals = defineCollection({
     }),
 });
 
-export const collections = { lessons, cards, pulse, triage, organizer, 'fill-in': fillIn, visuals };
+export const collections = { lessons, cards, pulse, triage, organizer, 'fill-in': fillIn, 'label-it': labelIt, visuals };

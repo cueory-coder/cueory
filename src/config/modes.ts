@@ -87,6 +87,7 @@ export const studyModes: readonly StudyMode[] = [
     name: 'label it',
     text: 'uncover the labels on a diagram, one at a time.',
     more: 'the labels on a diagram are covered. you reveal them one at a time, or all at once, and mark each one know it or still learning.',
+    link: { href: '/learn/study-skills/label-it', label: 'try label it' },
   },
   {
     id: 'adaptive-quiz',

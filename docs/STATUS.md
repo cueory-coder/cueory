@@ -109,6 +109,11 @@ Last updated: 2026-11-01
   Type the missing word; "almost" when one letter is off, a first-letter hint, and the missed or hinted sentences come
   back in a second round. Four labeled everyday sample sentences in `content/fill-in/`, so it waits for Christian's
   merge.
+- Label it on a page (Task C1): `/learn/study-skills/label-it`. Uncover the labels on a drawing by tapping its numbered
+  covers or with the keyboard, mark each one, and the next round covers only "still learning". The labels load from
+  their own JSON file after the page opens, so none is in the page's HTML (a build test checks). The sample is a plain
+  house drawn for Cueory in brand colors (`public/learn/study-skills/label-it/house.svg`), with its labels in
+  `content/label-it/`, so it waits for Christian's merge. Real diagrams come with rights records (Task 2).
 - Auto-merge sweep (D-78, the lead's): an ordinary comment can no longer cancel a waiting merge check, and once an
   hour a sweep re-checks every open pull request. It edits `.github/`, so it waits for Christian.
 - Safari focus fixes (from the WebKit runs for D-48): the ☰ panel's Tab trap now moves focus one item at a time in every

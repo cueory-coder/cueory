@@ -26,6 +26,7 @@ const pages = [
   '/learn/study-skills/matching',
   '/learn/study-skills/organizer',
   '/learn/study-skills/fill-in',
+  '/learn/study-skills/label-it',
   '/privacy',
   '/terms',
   '/disclaimer',
@@ -743,6 +744,7 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
       matching: ['try matching', '/learn/study-skills/matching'],
       organizer: ['try the organizer', '/learn/study-skills/organizer'],
       'fill-in': ['try fill-in', '/learn/study-skills/fill-in'],
+      'label-it': ['try label it', '/learn/study-skills/label-it'],
     };
     const modes = [
       ['video', 'video'],
@@ -1455,6 +1457,67 @@ test.describe('fill-in at 320 px', () => {
     await next.click();
     await expect(board.getByText('all 4 recalled in 2 rounds.')).toBeVisible();
     await axe();
+    expect(errors).toEqual([]);
+  });
+});
+
+test.describe('label it at 320 px', () => {
+  test.use({ viewport: { width: 320, height: 720 } });
+
+  test('uncovers by keyboard and tap, marks each label, and covers only "still learning" again', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('console', (msg) => msg.type() === 'error' && errors.push(msg.text()));
+    await page.goto('/learn/study-skills');
+    await expect(page.getByRole('link', { name: "uncover a diagram's labels with label it" })).toHaveAttribute(
+      'href',
+      '/learn/study-skills/label-it',
+    );
+    await page.goto('/learn/study-skills/label-it');
+    await expect(page.getByTestId('label-it-sample-note')).toBeVisible();
+
+    const board = page.getByTestId('labelit');
+    await expect(board).toBeVisible();
+    const live = page.getByTestId('labelit-live');
+    const status = page.getByTestId('labelit-status');
+    const axe = async () => {
+      const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+      expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    };
+
+    // The drawing loads, with its credit, and nothing in the board names a covered label.
+    await expect.poll(() => board.locator('img').evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+    await expect(board).toContainText('drawing: cueory');
+    await expect(board).not.toContainText(/roof|chimney|window|door/);
+    await expect(status).toHaveText('4 covered · know it: 0 · still learning: 0');
+    await expect(page.getByTestId('cover-1')).toHaveAccessibleName('label 1, covered');
+    await axe();
+
+    // Keyboard on the drawing: the cover keeps focus and says what it was.
+    await page.getByTestId('cover-1').focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('cover-1')).toHaveAccessibleName('label 1: roof');
+    await expect(page.getByTestId('cover-1')).toBeFocused();
+    await expect(live).toHaveText('label 1: roof.');
+
+    // "uncover" in the list hands focus to that label's "know it".
+    await board.getByRole('button', { name: 'uncover label 2' }).click();
+    await expect(board.getByRole('group', { name: 'mark label 2' }).getByRole('button', { name: 'know it' })).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(live).toHaveText('chimney: know it. 3 left to mark.');
+
+    // Tap: reveal all, then mark the rest; roof and door are still learning.
+    await board.getByRole('button', { name: 'reveal all' }).click();
+    for (const [n, mark] of [[1, 'still learning'], [3, 'know it'], [4, 'still learning']] as const) {
+      await board.getByRole('group', { name: `mark label ${n}` }).getByRole('button', { name: mark }).click();
+    }
+    await axe();
+
+    await board.getByRole('button', { name: 'study the 2 still learning' }).click();
+    await expect(status).toHaveText('round 2 · 2 covered · know it: 2 · still learning: 0');
+    await expect(page.getByTestId('cover-1')).toHaveAccessibleName('label 1, covered');
+    await expect(page.getByTestId('cover-4')).toHaveAccessibleName('label 4, covered');
+    await expect(page.getByTestId('cover-2')).toHaveAccessibleName('label 2: chimney');
     expect(errors).toEqual([]);
   });
 });

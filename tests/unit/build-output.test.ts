@@ -103,6 +103,21 @@ describe.skipIf(!existsSync(dist))('built site', () => {
     },
   );
 
+  it('label it: the page holds no label text; the labels come from their own JSON file (Codex review of #71)', () => {
+    const source = JSON.parse(readFileSync(new URL('../../content/label-it/study-skills-01.json', import.meta.url), 'utf8'));
+    const html = readFileSync(join(dist, 'learn/study-skills/label-it.html'), 'utf8');
+    // Astro's own scripts can contain everyday words like "window"; what matters is the page's markup and props.
+    const markup = html.replace(/<script[\s\S]*?<\/script>/g, '');
+    for (const label of source.labels as { text: string }[]) {
+      expect(markup, label.text).not.toMatch(new RegExp(`\\b${label.text}\\b`, 'i'));
+    }
+    const props = [...html.matchAll(/<astro-island[^>]*\sprops="([^"]*)"/g)].map((m) => m[1]);
+    expect(props).toEqual(['{&quot;src&quot;:[0,&quot;/learn/study-skills/label-it/study-skills-01.json&quot;]}']);
+    const served = JSON.parse(readFileSync(join(dist, 'learn/study-skills/label-it/study-skills-01.json'), 'utf8'));
+    expect(served.labels.map((l: { text: string }) => l.text)).toEqual(source.labels.map((l: { text: string }) => l.text));
+    expect(served.image.credit).toBe(source.image.credit);
+  });
+
   it('home page: "video" comes first, "learn" is Learn mode, and modes not built yet say coming soon (D-43, D-50, D-60)', () => {
     const html = readFileSync(join(dist, 'index.html'), 'utf8');
     const card = (id: string) => {
