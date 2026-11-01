@@ -4,7 +4,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 -- Migrations run as postgres, so the probes below are made as postgres too.
 set local role postgres;
-select plan(9);
+select plan(10);
 
 -- Every table privilege this Postgres has. PostgreSQL 17 added MAINTAIN, and the local database is PostgreSQL 17
 -- (supabase/config.toml); the check also runs on older versions, without it (security review of #76).
@@ -34,15 +34,15 @@ create temporary view anon_reach as
   cross join (values ('USAGE'), ('SELECT'), ('UPDATE')) as p (privilege)
   where n.nspname = 'public' and c.relkind = 'S' and has_sequence_privilege('anon', c.oid, p.privilege);
 
--- What the website (anon or authenticated) can run in public, also as effective privileges. The allowed list is empty
--- for now: check_answer and submit_flag join it when they exist.
+-- What the website (anon or authenticated) can run in public, also as effective privileges. Only the functions on the
+-- allowed list: check_answer (D-86), and submit_flag when it exists. Each gets its own test file for who may run it.
 create temporary view website_functions as
   select 'public.' || p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' as function
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'public'
     and (has_function_privilege('anon', p.oid, 'execute')
          or has_function_privilege('authenticated', p.oid, 'execute'))
-    and p.proname <> all (array[]::name[]);
+    and p.proname <> all (array['check_answer']::name[]);
 
 select is_empty(
   $$ select c.relname
@@ -74,6 +74,15 @@ select is_empty(
      from anon_may_read r join anon_reach a on a.relation = r.relation
      where a.privilege <> 'SELECT' $$,
   'the public-content tables give signed-out visitors nothing but SELECT'
+);
+
+-- Every security definer function in public pins an empty search_path (Supabase docs, "Database Functions"), so a
+-- caller can't make it run their own objects.
+select is_empty(
+  $$ select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.prosecdef
+       and not coalesce(p.proconfig @> array['search_path=""'], false) $$,
+  'every security definer function in public has an empty search_path'
 );
 
 -- The two checks above catch access that comes only through PUBLIC.
