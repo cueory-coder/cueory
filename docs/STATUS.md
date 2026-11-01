@@ -101,6 +101,10 @@ Last updated: 2026-11-01
   later.
 
 ## In review
+- Safari focus fixes (from the WebKit runs for D-48): the ☰ panel's Tab trap now moves focus one item at a time in every
+  browser (Safari's own Tab skips links and buttons), and the promo panel gives focus back after a link click even
+  though Safari leaves focus on the page. Two WebKit-only test findings stay open: the triage keyboard tests use the
+  browser's own Tab, and one promo timing test runs late in WebKit.
 - Game-name guard (D-67): a unit test fails if a page or game shows an internal id (`cueword`, `triage`, `suture`) as
   words, or types a name into a share line, so the next rename stays a one-line change.
 - Promo panel fix: it waits until the ☰ panel or a study-mode preview has finished closing, so their own focus
