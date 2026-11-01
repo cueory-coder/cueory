@@ -517,6 +517,37 @@ test.describe('daily games: private stats (D-76)', () => {
     expect(JSON.parse((await kept(page))!).results).toEqual([]);
   });
 
+  test('a round waiting for the stats panel to load is dropped when another tab turns stats on and off', async ({
+    page,
+    context,
+  }) => {
+    let release = () => {};
+    const held = new Promise<void>((resolve) => (release = resolve));
+    await page.route(/\/_astro\/GameStatsPanel\.[^/]+\.js$/, async (route) => {
+      await held;
+      await route.continue();
+    });
+    await page.goto('/play');
+    await expect(page.getByTestId('pulse')).toBeVisible();
+    await expect(toggle(page)).toHaveCount(0);
+    await solvePulse(page);
+
+    const other = await context.newPage();
+    await other.clock.setFixedTime(new Date('2026-11-01T15:00:00'));
+    await other.goto('/play');
+    await toggle(other).click();
+    await expect(toggle(other)).toHaveAttribute('aria-checked', 'true');
+    await toggle(other).click();
+    await expect(toggle(other)).toHaveAttribute('aria-checked', 'false');
+    await other.close();
+
+    release();
+    await toggle(page).click();
+    await expect(toggle(page)).toHaveAttribute('aria-checked', 'true');
+    await expect(pulseStats(page)).toContainText('not played yet.');
+    expect(JSON.parse((await kept(page))!).results).toEqual([]);
+  });
+
   test('a page back from the back/forward cache drops a round it was holding', async ({ page }) => {
     await solvePulse(page);
     // As if another tab turned stats on and off while this page was away: a page doesn't hear its own storage

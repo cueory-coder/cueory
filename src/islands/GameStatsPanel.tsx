@@ -3,14 +3,14 @@ import { dailyGames } from '../config/games';
 import { browserStorage } from '../scripts/storage';
 import {
   deleteStats,
+  forgetHeldRounds,
   GAME_RESULT_EVENT,
+  heldRounds,
   loadStats,
   localDay,
   saveStats,
   STATS_STORAGE_KEY,
-  takeFinishedRounds,
   triesInWords,
-  type RoundResult,
   type SavedStats,
 } from './gameresults';
 import { forget, recordResult, summary, summaryInWords, type GameId, type GameStats } from './gamestats';
@@ -27,7 +27,8 @@ const latest = (): SavedStats => loadStats(browserStorage(), localDay(new Date()
  * opens. Rendered only in the browser (client:only).
  *
  * Every change starts from what storage holds at that moment, not from what this tab last showed, so turning stats off
- * in one tab holds in every other open tab too.
+ * in one tab holds in every other open tab too. Rounds not kept yet wait in ./gameresults, which drops them whenever
+ * another tab changes the stats.
  */
 interface Props {
   /** The games in the order the page shows them. */
@@ -38,8 +39,6 @@ export default function GameStatsPanel({ games: order }: Props) {
   const [saved, setSaved] = useState(latest);
   const [said, setSaid] = useState('');
   const [blocked, setBlocked] = useState(false);
-  /** Rounds finished on this page while stats were off, so turning them on right after a game still counts it. */
-  const unsaved = useRef<RoundResult[]>([]);
   /** What this tab shows, for the listeners, which are set up once. */
   const shown = useRef(saved);
   shown.current = saved;
@@ -73,47 +72,49 @@ export default function GameStatsPanel({ games: order }: Props) {
     if (now.on) saveStats(browserStorage(), now.stats);
     setSaved(now);
 
-    const onResult = (result: RoundResult) => {
+    // Keeps the rounds waiting in ./gameresults when stats are on. While they're off, the rounds keep waiting, so
+    // turning stats on right after a game still counts it.
+    const keepWaiting = () => {
+      const waiting = heldRounds();
+      if (waiting.length === 0) return;
       const now = latest();
       if (!now.on) {
         if (shown.current.on) setSaid("stats are off now, so this game wasn't kept.");
-        unsaved.current.push(result);
         setSaved(now);
         return;
       }
-      const name = dailyGames.find((game) => game.id === result?.game)?.name;
-      const next = recordResult(now.stats, result);
-      // The first result of each game and day counts; a replay changes nothing.
-      if (next === now.stats) {
+      let stats = now.stats;
+      let message = '';
+      for (const result of waiting) {
+        const name = dailyGames.find((game) => game.id === result.game)?.name ?? '';
+        const next = recordResult(stats, result);
+        // The first result of each game and day counts; a replay changes nothing.
+        if (name) message = next === stats ? `${name}: today's first game is already in your stats.` : `${name} added to your stats.`;
+        stats = next;
+      }
+      if (stats === now.stats) {
+        forgetHeldRounds();
         setSaved(now);
-        if (name) setSaid(`${name}: today's first game is already in your stats.`);
+        setSaid(message);
         return;
       }
-      keep(next, name ? `${name} added to your stats.` : '');
+      if (keep(stats, message)) forgetHeldRounds();
     };
-    // Rounds finished before this panel loaded wait in a list, so they are taken here first, then as each one ends.
-    const takeRounds = () => {
-      for (const result of takeFinishedRounds()) onResult(result);
-    };
-    // Another tab turned stats on or off, forgot a game, or added one. A round this tab was holding from before that
-    // is dropped, so turning stats off in another tab can't bring it back later (Codex on #79).
-    const changedElsewhere = () => {
-      unsaved.current = [];
-      setSaved(latest());
-    };
+    // Another tab changed the stats, or this page came back from the back/forward cache. ./gameresults has already
+    // dropped any waiting rounds; this shows what storage holds now.
     const onStorage = (event: StorageEvent) => {
-      if (event.key === null || event.key === STATS_STORAGE_KEY) changedElsewhere();
+      if (event.key === null || event.key === STATS_STORAGE_KEY) setSaved(latest());
     };
-    // A page coming back from the back/forward cache heard no storage events while it was away.
     const onPageShow = (event: PageTransitionEvent) => {
-      if (event.persisted) changedElsewhere();
+      if (event.persisted) setSaved(latest());
     };
-    takeRounds();
-    window.addEventListener(GAME_RESULT_EVENT, takeRounds);
+    // Rounds finished before this panel loaded are kept now, then each one as it ends.
+    keepWaiting();
+    window.addEventListener(GAME_RESULT_EVENT, keepWaiting);
     window.addEventListener('storage', onStorage);
     window.addEventListener('pageshow', onPageShow);
     return () => {
-      window.removeEventListener(GAME_RESULT_EVENT, takeRounds);
+      window.removeEventListener(GAME_RESULT_EVENT, keepWaiting);
       window.removeEventListener('storage', onStorage);
       window.removeEventListener('pageshow', onPageShow);
     };
@@ -125,14 +126,14 @@ export default function GameStatsPanel({ games: order }: Props) {
         setSaid("this browser didn't let us delete your stats. clearing this site's data in your browser removes them.");
         return;
       }
-      unsaved.current = [];
+      forgetHeldRounds();
       setSaved({ on: false, stats: [] });
       setSaid('stats are off, and what was kept is forgotten.');
       return;
     }
     const now = latest();
-    const stats = unsaved.current.reduce<GameStats>((all, result) => recordResult(all, result), now.stats);
-    if (keep(stats, 'stats are on. they stay in this browser.')) unsaved.current = [];
+    const stats = heldRounds().reduce<GameStats>((all, result) => recordResult(all, result), now.stats);
+    if (keep(stats, 'stats are on. they stay in this browser.')) forgetHeldRounds();
   };
 
   /** What storage holds now, or undefined (and the switch shows off) when stats were turned off meanwhile. */
@@ -145,15 +146,18 @@ export default function GameStatsPanel({ games: order }: Props) {
     return undefined;
   };
 
+  // A forgotten game's rounds that are still waiting to be kept are forgotten too.
   const forgetGame = (game: GameId, name: string) => {
     const stats = stillOn();
     if (!stats) return;
+    forgetHeldRounds(game);
     focusNext.current = game;
     keep(forget(stats, game), `${name} stats forgotten.`);
   };
 
   const forgetAll = () => {
     if (!stillOn()) return;
+    forgetHeldRounds();
     focusNext.current = 'switch';
     keep([], 'all your stats are forgotten. stats stay on.');
   };

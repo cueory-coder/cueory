@@ -31,22 +31,41 @@ export function localDay(date: Date): string {
 }
 
 /**
- * Rounds finished on this page that the stats panel hasn't taken yet, in memory only. A game can finish before the
- * panel's own code has loaded, so the round waits here instead of being lost. Every island on the page shares this
- * module, so they share the list.
+ * Rounds finished on this page that aren't kept yet, in memory only. A round waits here while stats are off, in case
+ * the student turns them on next, and while the stats panel's own code is still loading. Every island on the page
+ * shares this module, so they share the list.
  */
-const finished: RoundResult[] = [];
+const held: RoundResult[] = [];
 
-/** Tells the page that a round has ended: the round waits for the stats panel, and an event tells the panel. */
+/** Drops the waiting rounds of one game, or of every game, so none of them can be kept later. */
+export function forgetHeldRounds(game?: GameId): void {
+  const others = game === undefined ? [] : held.filter((result) => result.game !== game);
+  held.length = 0;
+  held.push(...others);
+}
+
+// Another tab turned stats on or off, forgot some or kept a game; or this page came back from the back/forward cache,
+// where it heard no such change. Either way a waiting round may be from before the student turned stats off, so it is
+// dropped. This is set up as soon as this module loads, which is before any round can wait (Codex on #79).
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (event) => {
+    if (event.key === null || event.key === STATS_STORAGE_KEY) forgetHeldRounds();
+  });
+  window.addEventListener('pageshow', (event) => {
+    if (event.persisted) forgetHeldRounds();
+  });
+}
+
+/** Tells the page that a round has ended: the round waits to be kept, and an event tells the stats panel. */
 export function reportRound(result: RoundResult): void {
-  finished.push(result);
+  held.push(result);
   if (typeof window === 'undefined') return;
   window.dispatchEvent(new CustomEvent<RoundResult>(GAME_RESULT_EVENT, { detail: result }));
 }
 
-/** Takes every round finished on this page since the last call, oldest first. */
-export function takeFinishedRounds(): RoundResult[] {
-  return finished.splice(0);
+/** The rounds waiting to be kept, oldest first. Reading them leaves them waiting; forget them once they're kept. */
+export function heldRounds(): RoundResult[] {
+  return [...held];
 }
 
 /** How many calendar days of results this browser keeps, counting today. */

@@ -582,8 +582,9 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
     than 400 days, by today's date, are deleted the next time `/play` opens.
   - **Where:** only in this browser, under one storage key (`cueory-game-stats`). Its presence is what "on" means, so
     turning stats off deletes it. Nothing is ever sent anywhere. Each change starts from what storage holds at that
-    moment, so turning stats off in one tab holds in every other open tab too, and a round another tab was holding
-    while stats were off is dropped rather than kept later.
+    moment, so turning stats off in one tab holds in every other open tab too. A round that waits to be kept (while
+    stats are off, or while the panel loads) waits in one list on the page, which is emptied whenever another tab
+    changes the stats, so it can't be kept later.
   - **What it shows:** per game, the days played and solved, and the tries in words. No streaks, no comparisons and no
     scores. "forget" for one game, "forget all my stats" and turning the switch off delete what was kept, and keyboard
     focus stays in the panel.

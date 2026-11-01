@@ -2,12 +2,13 @@ import { describe, expect, it } from 'vitest';
 import {
   deleteStats,
   firstKeptDay,
+  forgetHeldRounds,
+  heldRounds,
   loadStats,
   localDay,
   reportRound,
   saveStats,
   STATS_STORAGE_KEY,
-  takeFinishedRounds,
   triesInWords,
 } from '../../src/islands/gameresults';
 import type { KeyValueStorage } from '../../src/scripts/storage';
@@ -107,18 +108,26 @@ describe('private game stats on /play (D-76)', () => {
     expect(loadStats(storage, '2028-01-01')).toEqual({ on: true, stats: [] });
   });
 
-  it('keeps each finished round for the stats panel until it takes them, even before the panel has loaded', () => {
-    takeFinishedRounds();
+  it('keeps each finished round waiting until it is kept or forgotten, even before the panel has loaded', () => {
+    forgetHeldRounds();
     const first = { game: 'pulse', day: '2026-11-01', solved: true, tries: 1 } as const;
     const second = { game: 'triage', day: '2026-11-01', solved: false, tries: 3 } as const;
     reportRound(first);
     reportRound(second);
-    expect(takeFinishedRounds()).toEqual([first, second]);
-    expect(takeFinishedRounds()).toEqual([]);
+    // Reading the waiting rounds leaves them waiting, and a copy can't change them.
+    const waiting = heldRounds();
+    expect(waiting).toEqual([first, second]);
+    waiting.pop();
+    expect(heldRounds()).toEqual([first, second]);
+    // Forgetting one game drops only its rounds; forgetting all drops the rest.
+    forgetHeldRounds('pulse');
+    expect(heldRounds()).toEqual([second]);
+    forgetHeldRounds();
+    expect(heldRounds()).toEqual([]);
   });
 
   it('reporting a round never throws, even where there is no window (as during the build)', () => {
     expect(() => reportRound({ game: 'triage', day: '2026-11-01', solved: false, tries: 3 })).not.toThrow();
-    takeFinishedRounds();
+    forgetHeldRounds();
   });
 });
