@@ -1,4 +1,5 @@
 /** Pure batch parsing. Reads no files, writes no database rows and never invents missing question data. */
+import { createHash } from 'node:crypto';
 import { answerLetters, ITEM_COLUMNS, itemType, KEY_COLUMNS, type ItemType } from '../check-batch/check.ts';
 import { CsvError, parseCsv, type CsvRow } from '../check-batch/csv.ts';
 
@@ -28,6 +29,24 @@ const ID = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/;
 const LETTERS = ['A', 'B', 'C', 'D', 'E'] as const;
 const normalize = (value: string) => value.toLowerCase().replace(/\s+/gu, ' ').trim();
 
+// Canonical column order for the per-item integrity hash. Absent optional columns contribute ''.
+// The checker writes this hash to passed.csv; the importer recomputes it to detect edits after review.
+const HASH_COLUMNS = [
+  'item_id', 'concept_id', 'type', 'stem',
+  'choice_a', 'choice_b', 'choice_c', 'choice_d', 'choice_e',
+  'rationale', 'rationale_a', 'rationale_b', 'rationale_c', 'rationale_d', 'rationale_e',
+  'fact_ids', 'source_ids', 'answer',
+] as const;
+
+/** SHA-256 of the canonical item JSON (item row + answer), used to detect post-review edits. */
+export function itemHash(itemRow: CsvRow, keyRow: CsvRow): string {
+  const canonical: Record<string, string> = {};
+  for (const col of HASH_COLUMNS) {
+    canonical[col] = col === 'answer' ? (keyRow[col] ?? '') : (itemRow[col] ?? '');
+  }
+  return createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
+}
+
 function itemFromRows(item: CsvRow, key: CsvRow, itemRow: number, keyRow: number, problems: ImportProblem[]): ImportItem | undefined {
   const before = problems.length;
   const itemProblem = (message: string) => problems.push({ file: 'items.csv', row: itemRow, message });
@@ -52,8 +71,11 @@ function itemFromRows(item: CsvRow, key: CsvRow, itemRow: number, keyRow: number
     if (seen.has(normalized)) itemProblem('give each choice different text, including when capitals or spacing change.');
     seen.add(normalized);
     const rationale = item[`rationale_${id}`];
-    if (!rationale) itemProblem(`fill in the rationale for choice ${id}; the main rationale cannot replace it.`);
-    else rationales[id] = rationale;
+    if (!rationale) {
+      itemProblem(`fill in the rationale for choice ${id}; the main rationale cannot replace it.`);
+    } else {
+      rationales[id] = rationale;
+    }
     choices.push({ id, text });
   }
   const answer = answerLetters(key.answer ?? '', offered);
@@ -124,6 +146,15 @@ export function parsePassed(passedCsv: string, batch?: BatchFiles): ParsedBatch 
     }
     if (original[0].data.concept_id !== entry.concept_id) {
       problem(`the concept id must match items.csv row ${original[0].row}.`);
+      return;
+    }
+    if (!entry.hash) {
+      problem('this item is missing its hash; re-run the batch checker to generate it before importing.');
+      return;
+    }
+    const expected = itemHash(original[0].data, key[0].data);
+    if (expected !== entry.hash) {
+      problem('the item hash does not match; the question may have changed since it passed review.');
       return;
     }
     const parsed = itemFromRows(original[0].data, key[0].data, original[0].row, key[0].row, result.problems);
