@@ -120,7 +120,9 @@ begin
     if tg_op = 'UPDATE' then
       perform 1 from public.item_versions v where v.id = new.id for update;
     end if;
-    select i.type into kind from public.items i where i.id = new.item_id;
+    -- `for share` on the item row: a type change that is still uncommitted holds that row, so this waits for it (see
+    -- items_guard) and then reads the type that will actually stand.
+    select i.type into kind from public.items i where i.id = new.item_id for share;
     select count(*) into n_choices from public.item_choices c where c.item_version_id = new.id;
     select count(*), count(*) filter (where a.is_correct)
       into n_answers, n_correct
@@ -194,6 +196,11 @@ language plpgsql
 set search_path = ''
 as $$
 begin
+  if new.type <> old.type then
+    -- Take the item row first, so a publication that is counting right now (it holds this row `for share`) finishes
+    -- first and the check below sees its result (Codex P2 on #92).
+    perform 1 from public.items i where i.id = old.id for update;
+  end if;
   if new.type <> old.type and exists (
     select 1 from public.item_versions v where v.item_id = old.id and v.status <> 'draft'
   ) then
