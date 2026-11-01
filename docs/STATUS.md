@@ -88,6 +88,9 @@ Last updated: 2026-11-01
   later.
 
 ## In review
+- **Guest progress and onboarding** (D-69, Task C2): `/start` asks two optional questions (course, exam date);
+  card-deck piles and stars are saved in the browser; `/progress` shows all of it, downloads it as a file, or forgets
+  it. Nothing leaves the device. `/privacy` updated to match.
 - [Once-only promo panel](https://github.com/lilchristxan/Cueory/pull/34) (D-59): on marketing pages a small dark panel
   slides down from the top after 5 seconds or halfway down the page, with "join the launch list", "support us while we
   build" and the social marks; once shown, it stays away for 30 days. Now on brand v1.0's colors.

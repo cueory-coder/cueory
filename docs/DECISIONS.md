@@ -449,3 +449,13 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   - **Next:** Christian picks final names later, after a screen.
 
   Reason: avoid launching under names others have filed for related goods.
+- **D-69** Guest progress and onboarding (Task C2, ROADMAP Task 4). One versioned record in the browser's local storage
+  (`cueory-progress`, `src/scripts/progress.ts`) holds only the two optional setup answers (course, exam date) and, per
+  card deck, the "know it" / "still learning" piles and the stars (CLAUDE.md rule 2). Reading drops anything unknown or
+  invalid field by field and never throws; blocked storage just means nothing is remembered. Stars saved before this
+  under `cueory-stars-<deck>` are still read and move into the record the next time they change. `/start` asks the
+  two questions (each optional, "skip for now" keeps earlier answers); `/progress` shows everything kept, downloads it
+  as a JSON file and forgets it after a confirm step (the theme pick and promo date aren't progress and stay). The ☰
+  "my progress" link now opens `/progress`. Nothing leaves the device until accounts exist (Task 2), which will
+  import this record. The review scheduler (Task 8) reads it through `readProgress` and `deckProgress` only.
+  `/privacy` says exactly what is kept. Reason: ROADMAP Task 4 and the coordinator's Task C2 brief.
