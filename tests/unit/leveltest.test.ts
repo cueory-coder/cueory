@@ -74,16 +74,16 @@ describe('unit level-test order and branching', () => {
 describe('unit level-test words', () => {
   it('shows every status in concept order with lowercase explanations', () => {
     expect(levelTestResult(questions, [])).toEqual([
-      { concept: 'colors', status: 'not started', description: "'colors' has not been started." },
-      { concept: 'shapes', status: 'not started', description: "'shapes' has not been started." },
+      { concept: 'colors', status: 'not started', description: 'this concept has not been started.' },
+      { concept: 'shapes', status: 'not started', description: 'this concept has not been started.' },
     ]);
     const attempts = [answered('color-2a'), answered('shape-2'), answered('color-3a'), answered('shape-3', false)];
     expect(levelTestResult(questions, attempts)).toEqual([
-      { concept: 'colors', status: 'got it', description: "'colors' is going well." },
-      { concept: 'shapes', status: 'getting there', description: "'shapes' is getting there." },
+      { concept: 'colors', status: 'got it', description: 'this concept is going well.' },
+      { concept: 'shapes', status: 'getting there', description: 'this concept is getting there.' },
     ]);
     expect(levelTestResult(questions, [answered('color-2a', false)])[0]).toEqual({
-      concept: 'colors', status: 'learning', description: "'colors' is still learning.",
+      concept: 'colors', status: 'learning', description: 'this concept is still learning.',
     });
   });
   it('uses getting there after a right first answer, including a missing next level', () => {
@@ -104,22 +104,31 @@ describe('unit level-test words', () => {
       expect(levelTestResult(bank, attempts)[0]?.status).toBe('learning');
     }
   });
-  it('preserves a supplied concept name while explaining it in lowercase', () => {
+  it('preserves a supplied concept name while keeping generated explanations plain', () => {
     const bank = [{ id: 'one', concept: 'COLORS', level: 2 as const }];
-    expect(levelTestResult(bank, [])[0]).toEqual({ concept: 'COLORS', status: 'not started', description: "'colors' has not been started." });
+    expect(levelTestResult(bank, [])[0]).toEqual({ concept: 'COLORS', status: 'not started', description: 'this concept has not been started.' });
   });
   it('describes uniform tests and single-question concepts in words', () => {
     expect(levelTestInWords(questions)).toBe('the level test has up to 4 questions: up to 2 for each of 2 concepts.');
-    expect(levelTestInWords([questions[1]!])).toBe('the level test has up to 1 question: up to 1 question for each of 1 concept.');
-    expect(levelTestInWords([questions[3]!])).toBe('the level test has up to 1 question: up to 1 question for each of 1 concept.');
+    expect(levelTestInWords([questions[1]!])).toBe('the level test has up to 1 question for 1 concept.');
+    expect(levelTestInWords([questions[3]!])).toBe('the level test has up to 1 question for 1 concept.');
+    expect(levelTestInWords([questions[1]!, questions[5]!])).toBe('the level test has up to 2 questions: 1 question for each of 2 concepts.');
   });
   it('describes mixed concept lengths without promising a missing question', () => {
     const mixed = [questions[1]!, questions[3]!, questions[5]!];
-    expect(levelTestInWords(mixed)).toBe("the level test has up to 3 questions across 2 concepts: up to 2 for 'colors', up to 1 question for 'shapes'.");
+    expect(levelTestInWords(mixed)).toBe('the level test has up to 3 questions across 2 concepts: up to 2 for 1 concept and 1 question for 1 concept.');
   });
-  it('never outputs forbidden wording in results, test details or selected ids', () => {
-    const output = JSON.stringify([levelTestResult(questions, run(questions, 0)), levelTestInWords(questions), nextInLevelTest(questions, [], 0)]);
-    expect(output).not.toMatch(/%|score|chance|predict|percent/i);
+  it('never puts forbidden wording in any generated status description or summary', () => {
+    const bank: AdaptiveQuestion[] = [
+      { id: 'score-2', concept: 'scorekeeping', level: 2 },
+      { id: 'score-3', concept: 'scorekeeping', level: 3 },
+      { id: 'percent-2', concept: 'percentages', level: 2 },
+    ];
+    for (const attempts of [[], [answered('score-2', false)], [answered('score-2')], [answered('score-2'), answered('score-3', false)], [answered('score-2'), answered('score-3')]]) {
+      for (const result of levelTestResult(bank, attempts)) expect(result.description).not.toMatch(/%|score|chance|predict|percent/i);
+    }
+    expect(levelTestInWords(bank)).not.toMatch(/%|score|chance|predict|percent/i);
+    expect(nextInLevelTest(bank, [], 0)).toBe('score-2');
   });
 });
 
@@ -129,6 +138,8 @@ describe('unit level-test question errors', () => {
     { bank: [questions[0], questions[0]], message: 'a question id is repeated.' },
     { bank: [{ ...questions[0], id: ' ' }], message: 'each question needs an id.' },
     { bank: [{ ...questions[0], concept: '' }], message: 'each question needs a concept.' },
+    { bank: [{ ...questions[0], id: 'a'.repeat(201) }], message: 'a question id can have at most 200 characters.' },
+    { bank: [{ ...questions[0], concept: 'a'.repeat(201) }], message: 'a concept name can have at most 200 characters.' },
     { bank: [{ ...questions[0], level: 0 }], message: 'each question needs a level from 1 to 3.' },
     { bank: [{ ...questions[0], level: 4 }], message: 'each question needs a level from 1 to 3.' },
     { bank: [{ ...questions[0], level: 1.5 }], message: 'each question needs a level from 1 to 3.' },
@@ -140,12 +151,17 @@ describe('unit level-test question errors', () => {
     expect(() => levelTestInWords(input)).toThrow(message);
     expect(message).not.toMatch(/%|score|chance|predict|percent/i);
   });
-  it.each(['80%', 'Score', 'a chance', 'predicted outcome', 'passing percentage'])('rejects forbidden supplied text: %s', text => {
+  it.each(['80% of shapes', 'Scorekeeping', 'chance games', 'weather predictions', 'percentages'])('preserves reviewed supplied text: %s', text => {
     for (const field of ['id', 'concept']) {
       const bank = [{ ...questions[0]!, [field]: text }];
-      expect(() => nextInLevelTest(bank, [], 0)).toThrow('use plain study text for question ids and concepts.');
-      expect(() => levelTestResult(bank, [])).toThrow('use plain study text for question ids and concepts.');
-      expect(() => levelTestInWords(bank)).toThrow('use plain study text for question ids and concepts.');
+      expect(nextInLevelTest(bank, [], 0)).toBe(bank[0]!.id);
+      expect(levelTestResult(bank, [])[0]?.concept).toBe(bank[0]!.concept);
+      expect(levelTestResult(bank, [])[0]?.description).not.toMatch(/%|score|chance|predict|percent/i);
+      expect(levelTestInWords(bank)).not.toMatch(/%|score|chance|predict|percent/i);
     }
+  });
+  it('accepts ids and names at the 200-code-point limit', () => {
+    const bank = [{ ...questions[0]!, id: '😀'.repeat(200), concept: 'a'.repeat(200) }];
+    expect(nextInLevelTest(bank, [], 0)).toBe(bank[0]!.id);
   });
 });

@@ -6,6 +6,7 @@
  * - Never repeat a question. Ties use the same finite, truncated, wrapped seed index as adaptive.ts.
  * - "got it" needs two right answers, with the second at level 3, even after a first-level fallback.
  * - A right first answer with no unused level 3 question is "getting there".
+ * - Preserve reviewed ids and names; generated descriptions and summaries use only plain status words and counts.
  */
 import type { AdaptiveAttempt, AdaptiveQuestion, ConceptProgressStatus } from './adaptive';
 
@@ -30,9 +31,8 @@ function conceptsIn(questions: readonly AdaptiveQuestion[]): ConceptTest[] {
   for (const question of questions) {
     if (!question || typeof question.id !== 'string' || !question.id.trim()) throw new Error('each question needs an id.');
     if (typeof question.concept !== 'string' || !question.concept.trim()) throw new Error('each question needs a concept.');
-    if (/%|score|chance|predict|percent/i.test(question.id) || /%|score|chance|predict|percent/i.test(question.concept)) {
-      throw new Error('use plain study text for question ids and concepts.');
-    }
+    if ([...question.id].length > 200) throw new Error('a question id can have at most 200 characters.');
+    if ([...question.concept].length > 200) throw new Error('a concept name can have at most 200 characters.');
     if (![1, 2, 3].includes(question.level)) throw new Error('each question needs a level from 1 to 3.');
     if (ids.has(question.id)) throw new Error('a question id is repeated.');
     ids.add(question.id);
@@ -92,11 +92,10 @@ export function levelTestResult(
   questions: readonly AdaptiveQuestion[], attempts: readonly AdaptiveAttempt[],
 ): LevelTestProgress[] {
   return progress(questions, attempts).concepts.map(({ concept, first, second }) => {
-    const name = concept.trim().toLocaleLowerCase('en-US');
-    if (!first) return { concept, status: 'not started', description: `'${name}' has not been started.` };
-    if (!first.right) return { concept, status: 'learning', description: `'${name}' is still learning.` };
-    if (second?.right) return { concept, status: 'got it', description: `'${name}' is going well.` };
-    return { concept, status: 'getting there', description: `'${name}' is getting there.` };
+    if (!first) return { concept, status: 'not started', description: 'this concept has not been started.' };
+    if (!first.right) return { concept, status: 'learning', description: 'this concept is still learning.' };
+    if (second?.right) return { concept, status: 'got it', description: 'this concept is going well.' };
+    return { concept, status: 'getting there', description: 'this concept is getting there.' };
   });
 }
 
@@ -109,9 +108,11 @@ export function levelTestInWords(questions: readonly AdaptiveQuestion[]): string
   const total = capacity.reduce((sum, count) => sum + count, 0);
   const beginning = `the level test has up to ${total} ${total === 1 ? 'question' : 'questions'}`;
   const count = `${concepts.length} ${concepts.length === 1 ? 'concept' : 'concepts'}`;
+  if (concepts.length === 1) return `${beginning} for 1 concept.`;
   if (capacity.every(value => value === capacity[0])) {
-    return `${beginning}: up to ${capacity[0] === 1 ? '1 question' : '2'} for each of ${count}.`;
+    return `${beginning}: ${capacity[0] === 1 ? '1 question' : 'up to 2'} for each of ${count}.`;
   }
-  const detail = concepts.map((concept, index) => `up to ${capacity[index] === 1 ? '1 question' : '2'} for '${concept.concept.trim().toLocaleLowerCase('en-US')}'`);
-  return `${beginning} across ${count}: ${detail.join(', ')}.`;
+  const twos = capacity.filter(value => value === 2).length, ones = concepts.length - twos;
+  const forConcepts = (number: number) => number === 1 ? 'for 1 concept' : `for each of ${number} concepts`;
+  return `${beginning} across ${count}: up to 2 ${forConcepts(twos)} and 1 question ${forConcepts(ones)}.`;
 }
