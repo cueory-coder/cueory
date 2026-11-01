@@ -246,6 +246,7 @@ Merged into `staging`:
 
 ## In review
 - Open pull requests add their own lines here. Waiting now: Release browser tests (#55).
+- Task 99, Lato body font (#172): Lato for body and interface text, line spacing at least 1.5, plain accent line under the home headline. Waits for Christian (it edits CLAUDE.md).
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
