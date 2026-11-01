@@ -575,6 +575,35 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   Reason: free CI at full speed, with nothing private in the repository.
 
 
+- **D-77** Task 2's first database change, following D-73 and the lead's three notes on it (#66).
+  - **Locked by default:** the first migration revokes the default grants on new tables, sequences and functions in
+    `public` from `anon`, `authenticated` and `service_role`. Every table and function after it grants what it needs in
+    its own migration. Postgres lets every role run a new function and a per-schema rule can't stop that, so each
+    function also revokes `execute` from `public`.
+  - **`profiles`:** one row per account, made by a trigger when the account is created, as Supabase's "User
+    Management" docs show. It holds only a display name: empty until the student picks one, 1 to 50 characters, no
+    control characters. The email stays in Supabase's `auth.users`, and onboarding answers come with the onboarding
+    pages. A student reads their own row and can change only `display_name`; signed-out visitors get nothing; deleting
+    an account deletes its profile. The trigger writes only the id, so bad sign-up data can't block a sign-up.
+  - **Tests:** 25 pgTAP tests in `supabase/tests/database/`. They check that every table has row-level security, that
+    anon can do nothing to any table, view or sequence (effective privileges, so grants through `PUBLIC` count too, and
+    every table privilege Postgres 17 has, `MAINTAIN` included), that no function in `public` can be called from the
+    website unless it's on the allowed list (empty for now), that new tables and sequences start with no privileges for
+    `anon`, `authenticated` or `service_role`, and every profile rule above. Each check also has a probe that proves it
+    catches a table, a `MAINTAIN` grant or a function reachable only through `PUBLIC`. They passed locally on a
+    stand-in database set up with Supabase's old grant-everything defaults (the worst case), and they fail when a table
+    lacks row-level security or a function keeps `execute` for `public`.
+  - **CI:** `.github/workflows/database.yml` runs the pinned Supabase CLI (2.122.0, from npm) to start a throwaway
+    local database, apply every migration and run the tests. It needs no secrets and runs only when `supabase/` or the
+    workflow itself changes, and never on drafts (lead's note 2, D-74).
+  - **`supabase/config.toml`:** the CLI's own file, for that local database only. Seeding is off, because content
+    comes from reviewed batches.
+  - **Lead's notes 1 and 3, for later pull requests:** signed-out visitors still see "Flag or comment", and its form
+    says a free account is needed to send a report and offers hello@cueory.app instead. The keep-alive is one tiny
+    scheduled read a day per project.
+
+  Reason: D-73's plan, applied in the smallest first step, with tests that keep it locked.
+
 - **D-78** The staging auto-merge no longer misses a ready pull request (the lead, 2026-11-01).
   - **What went wrong:** every comment on an issue or pull request starts a run of the auto-merge workflow, and
     GitHub keeps only one run waiting in line. With the one-at-a-time rule on the whole workflow, an ordinary

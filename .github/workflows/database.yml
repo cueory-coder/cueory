@@ -1,0 +1,49 @@
+# Database checks (D-73, D-77): apply every migration to a throwaway local Supabase database and run the pgTAP tests in
+# supabase/tests (Supabase docs, "Testing Your Database" and "Automated testing using GitHub Actions"). The local
+# database makes its own throwaway keys, so this needs no secrets and never touches cueory-staging or cueory-prod.
+# Starting it pulls large images, so it runs only when the database files change (the lead's note on #66), and, like
+# CI (D-74), not on drafts.
+name: Database
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'supabase/**'
+      - '.github/workflows/database.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: database-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The Supabase CLI from npm, pinned to one release (2.122.0, published 23 October 2026).
+  SUPABASE_CLI: supabase@2.122.0
+
+jobs:
+  database:
+    name: Database migrations and policies
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+
+      - name: Start a throwaway local database and apply every migration
+        run: npx --yes "$SUPABASE_CLI" db start
+
+      - name: Run the pgTAP tests in supabase/tests
+        run: npx --yes "$SUPABASE_CLI" test db
+
+      - name: Stop the local database
+        if: always()
+        run: npx --yes "$SUPABASE_CLI" stop --no-backup
