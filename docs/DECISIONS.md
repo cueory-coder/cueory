@@ -297,6 +297,25 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   platforms until someone clicks; the platforms' own brand guidelines allow one-color marks that link to a profile. Each
   link is a 44 px target, in the text color (the ☰ panel's light ink there). The promo panel gets the same links in its
   own pull request. Reason: Christian's request.
+- **D-56** Med-surg I visuals kit is Task 6 and runs now, ahead of the remaining roadmap tasks (Christian's decision,
+  2026-10-31): Cueory's own 3D body, animated 2D diagrams and "simplified for learning" disease overlays, first visuals
+  by about 14 November and the full kit by about 12 December. Each visual has one source file,
+  `content/visuals/<visual-id>.json`, giving the exact source words, book, section and page address for every label
+  and depiction, and the `lesson_id` it serves. The build will check those files. Labeled visuals are content: they
+  wait for Christian in batches with a one-page review sheet, and only a visual marked `"status": "approved"` can
+  appear on a page, so drafts never reach the live site. Plan: docs/VISUALS.md. Reason: Christian's plan, and the
+  same review rules as every other piece of content.
+- **D-57** Sources for the visuals kit. The cited text source is Open RN *Nursing Fundamentals 2e* (CC BY 4.0), with
+  the credit the book asks for; its figures have their own licenses, so we cite its words and never copy its pictures.
+  OpenStax *Anatomy and Physiology 2e* is on hold: OpenStax's help page says its books are CC BY-NC-SA, not CC BY as
+  the plan assumed, and the book's pages say it may not be ingested into AI tools without OpenStax's written
+  permission. Nothing licensed NonCommercial is used anywhere in the kit, because Cueory takes tips and plans videos.
+  The 3D atlas (Z-Anatomy, CC BY-SA 4.0 with two NonCommercial parts left out, or BodyParts3D, CC BY 4.0) is
+  Christian's call. Reason: checked the licenses before using them (CLAUDE.md rule 5).
+- **D-58** 3D models are glTF compressed with meshopt (gltfpack, keeping each named structure separate) and decoded
+  with three.js's `MeshoptDecoder` on the page's own thread. Its WebAssembly needs only the `'wasm-unsafe-eval'` the
+  CSP already allows (D-49). Draco was not chosen: three.js's Draco loader always decodes in workers made from `blob:`
+  addresses, which would need a looser CSP. Reason: smaller files with no security-policy change.
 - **D-60** "ways to study" becomes an endless merry-go-round, and the home page loses its clutter (Christian's feedback,
   2026-10-31, 6:40 pm, relayed by the lead on issue #4). The card in the middle is in front, and its neighbours stay
   visible on both sides (one on phones and tablets, two from 64rem wide), stepping back: 0.88 and then 0.76 of its
