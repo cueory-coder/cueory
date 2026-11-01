@@ -24,7 +24,12 @@ export const dailyGames: readonly DailyGame[] = [
     line: 'guess the word of the day in seven beats. a guess spends a beat, and so does the cue.',
     ready: true,
   },
-  { id: 'cueword', name: 'crossword', line: 'a small crossword.', ready: false },
+  {
+    id: 'cueword',
+    name: 'crossword',
+    line: 'a small crossword. up to three cues, and each one fills in a letter for you.',
+    ready: true,
+  },
   {
     id: 'triage',
     name: 'sort',

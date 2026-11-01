@@ -449,3 +449,12 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   - **Next:** Christian picks final names later, after a screen.
 
   Reason: avoid launching under names others have filed for related goods.
+- **D-67** The crossword on `/play` (internal id `cueword`; shown as "crossword", D-66). A Codex helper built the engine
+  and board (#51): the usual numbering, typing that skips gaps, checking a word or the whole grid with a symbol and
+  words for each mark, up to three cues that each fill in one letter and lock it, and a plain-words share line ("cueory
+  crossword, sun 1 nov: solved in 2:41 with 1 cue."). The page hands every sample to a small wrapper that picks today's
+  from the visitor's own date, like pulse and sort. Samples use everyday words (`content/games/cueword/`, six
+  four-by-five grids), and the build runs each one through the game's own `parsePuzzle`, so a clue that doesn't match a
+  word stops the build with the file's name. Real puzzles follow pulse's path in D-61. The grid is labeled "crossword
+  grid", because "crossword crossword" read badly once the game took its plain name. Reason: Christian's request for
+  four daily games, with the third one playable.

@@ -1,0 +1,31 @@
+{
+  "status": "sample",
+  "grid": [
+    "CAKE.",
+    "O..A.",
+    "L..R.",
+    "DAWNS"
+  ],
+  "clues": {
+    "across": [
+      {
+        "number": 1,
+        "text": "a sweet treat with candles on top"
+      },
+      {
+        "number": 3,
+        "text": "mornings, as the sun comes up"
+      }
+    ],
+    "down": [
+      {
+        "number": 1,
+        "text": "the opposite of hot"
+      },
+      {
+        "number": 2,
+        "text": "to get paid for work"
+      }
+    ]
+  }
+}

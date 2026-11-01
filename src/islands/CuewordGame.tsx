@@ -109,7 +109,7 @@ function Board({ puzzle, name }: Props) {
       </p>
 
       <div className="mt-4 max-w-full overflow-x-auto">
-        <div role="grid" aria-label={`${name} crossword`} aria-describedby={help} aria-rowcount={puzzle.grid.length} aria-colcount={width} className="mx-auto flex w-max flex-col gap-1 p-1" onKeyDown={key}>
+        <div role="grid" aria-label={`${name} grid`} aria-describedby={help} aria-rowcount={puzzle.grid.length} aria-colcount={width} className="mx-auto flex w-max flex-col gap-1 p-1" onKeyDown={key}>
           {puzzle.grid.map((row, r) => (
             <div role="row" aria-rowindex={r + 1} key={r} className="flex gap-1">
               {[...row].map((answer, c) => {

@@ -37,7 +37,7 @@ test.describe('daily games: pulse (D-61)', () => {
     await expect(page.getByRole('heading', { level: 2, name: 'pulse' })).toBeVisible();
     await expect(page.getByTestId('sample-note')).toHaveText("today's word is a sample.");
     await expect(page.getByText('a 6-letter word · 7 of 7 beats left')).toBeVisible();
-    for (const name of ['crossword', 'sort', 'word path']) await expect(page.getByText(name, { exact: true })).toBeVisible();
+    for (const name of ['crossword', 'sort', 'word path']) await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
     const results = await axe(page);
     expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -76,9 +76,11 @@ test.describe('daily games: pulse (D-61)', () => {
   });
 
   test('the letter buttons alone can solve it, and the result shares as plain words', async ({ page }) => {
-    for (const letter of 'garden') await page.getByRole('button', { name: letter, exact: true }).click();
+    // The crossword below has letter buttons too, so these stay inside pulse.
+    const pulse = page.getByTestId('pulse');
+    for (const letter of 'garden') await pulse.getByRole('button', { name: letter, exact: true }).click();
     await expect(field(page)).toHaveValue('garden');
-    await page.getByRole('button', { name: 'enter', exact: true }).click();
+    await pulse.getByRole('button', { name: 'enter', exact: true }).click();
     const result = page.getByTestId('pulse-result');
     await expect(result).toBeFocused();
     await expect(result).toContainText('solved.');
@@ -284,13 +286,77 @@ test.describe('daily games: triage (D-63)', () => {
   });
 });
 
+test.describe('daily games: crossword (D-67)', () => {
+  // 1 November: the first sample. 1 across STAR, 3 across APPLE; 1 down SOFA, 2 down RAIL.
+  const clues = (page: Page, direction: 'across' | 'down') =>
+    page.getByRole('list', { name: `${direction} clues` }).getByRole('button');
+  const fill = async (page: Page, direction: 'across' | 'down', index: number, word: string) => {
+    await clues(page, direction).nth(index).click();
+    await page.keyboard.type(word);
+  };
+
+  test.beforeEach(async ({ page }) => {
+    await page.clock.setFixedTime(new Date('2026-11-01T15:00:00'));
+    await page.goto('/play');
+    await expect(page.getByTestId('cueword')).toBeVisible();
+  });
+
+  test("today's sample is labeled, its first clue shows, and axe passes", async ({ page }) => {
+    await expect(page.getByRole('heading', { level: 2, name: 'crossword' })).toBeVisible();
+    await expect(page.getByTestId('cueword')).toContainText("today's puzzle is a sample");
+    await expect(page.getByTestId('cueword-clue')).toHaveText('1 across: it twinkles in the night sky');
+    await expect(page.getByRole('grid', { name: 'crossword grid' })).toBeVisible();
+    const results = await axe(page);
+    expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+
+  test('check marks a wrong letter with a symbol and says it in words', async ({ page }) => {
+    await fill(page, 'across', 0, 'stax');
+    await page.getByRole('button', { name: 'check', exact: true }).click();
+    await expect(page.getByTestId('cueword-live')).toHaveText('1 letter is wrong in 1 across. 0 cells are empty.');
+    await expect(page.getByRole('button', { name: /^row 1, column 4,/ })).toContainText('×');
+  });
+
+  test('typing from the clue list solves it, and the result shares as plain words', async ({ page }) => {
+    await fill(page, 'across', 0, 'star');
+    await fill(page, 'across', 1, 'apple');
+    await fill(page, 'down', 0, 'sofa');
+    await fill(page, 'down', 1, 'rail');
+    const result = page.getByTestId('cueword-result');
+    await expect(result).toBeFocused();
+    await expect(result).toContainText('solved.');
+    await expect(result).toContainText('cueory crossword, sun 1 nov: solved in 0:00 with 0 cues.');
+  });
+
+  test('at 320 px the grid, the letters and the clues fit, each button at least 44 px tall', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 700 });
+    await page.goto('/play');
+    await expect(page.getByTestId('cueword')).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    const boxes = await page
+      .getByTestId('cueword')
+      .getByRole('button')
+      .evaluateAll((els) => els.map((el) => el.getBoundingClientRect()));
+    for (const box of boxes) {
+      expect(box.left).toBeGreaterThanOrEqual(0);
+      expect(box.right).toBeLessThanOrEqual(320);
+      expect(box.height).toBeGreaterThanOrEqual(44);
+    }
+  });
+});
+
 test.describe('daily games without JavaScript', () => {
   test.use({ javaScriptEnabled: false });
 
   test('pulse and triage say they need JavaScript', async ({ page }) => {
     await page.goto('/play');
     // Playwright's text matching skips <noscript>, so this uses CSS.
-    await expect(page.locator('noscript p')).toHaveText(['pulse needs JavaScript.', 'sort needs JavaScript.']);
+    await expect(page.locator('noscript p')).toHaveText([
+      'pulse needs JavaScript.',
+      'sort needs JavaScript.',
+      'crossword needs JavaScript.',
+    ]);
     await expect(page.getByTestId('sample-note')).toBeVisible();
     await expect(page.getByTestId('triage-sample-note')).toBeVisible();
   });

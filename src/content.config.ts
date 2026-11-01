@@ -95,4 +95,22 @@ const triage = defineCollection({
     ),
 });
 
-export const collections = { lessons, cards, pulse, triage };
+/**
+ * The small crossword (internal id cueword, D-67): sample puzzles, one JSON file each in /content/games/cueword. The
+ * shape is checked here; /play also runs each one through the game's own parsePuzzle at build time, so a clue that
+ * doesn't match a word stops the build with a plain message.
+ */
+const clue = z.object({ number: z.number().int().positive(), text: z.string().min(1).max(120) });
+const cueword = defineCollection({
+  loader: glob({ base: './content/games/cueword', pattern: '**/*.json' }),
+  schema: z.object({
+    status: z.literal('sample'),
+    grid: z
+      .array(z.string().regex(/^[A-Z.]{3,7}$/, 'a crossword row is 3 to 7 capital letters or dots'))
+      .min(3)
+      .max(7),
+    clues: z.object({ across: z.array(clue), down: z.array(clue) }),
+  }),
+});
+
+export const collections = { lessons, cards, pulse, triage, cueword };

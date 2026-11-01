@@ -1,0 +1,31 @@
+{
+  "status": "sample",
+  "grid": [
+    "LAMP.",
+    "E..L.",
+    "A..A.",
+    "FUNNY"
+  ],
+  "clues": {
+    "across": [
+      {
+        "number": 1,
+        "text": "it lights up a room at night"
+      },
+      {
+        "number": 3,
+        "text": "it makes you laugh"
+      }
+    ],
+    "down": [
+      {
+        "number": 1,
+        "text": "a green part of a tree that falls in autumn"
+      },
+      {
+        "number": 2,
+        "text": "what you make before a trip"
+      }
+    ]
+  }
+}
