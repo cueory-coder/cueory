@@ -83,6 +83,10 @@ Last updated: 2026-11-01
   panels with a hairline and one soft shadow, a crisper glassy button, sections that fade in once, and a shorter
   launch-updates panel.
 
+## Done (lead, 2026-10-31 evening)
+- Daily games show plain names for now (D-66): pulse, crossword, sort and word path. Christian picks final names
+  later.
+
 ## In review
 - [Once-only promo panel](https://github.com/lilchristxan/Cueory/pull/34) (D-59): on marketing pages a small dark panel
   slides down from the top after 5 seconds or halfway down the page, with "join the launch list", "support us while we

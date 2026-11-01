@@ -1,6 +1,6 @@
 ---
 /**
- * Daily games (D-61, D-63): one page for the four games, in the lowercase brand voice. pulse and triage are playable
+ * Daily games (D-61, D-63, D-66): one page for the four games, in the lowercase brand voice. pulse and sort are playable
  * now with sample puzzles (everyday words, labeled as samples); the other two say coming soon. The names live in
  * src/config/games.ts, so a rename is one line.
  */
@@ -37,7 +37,7 @@ const later = dailyGames.filter((game) => !game.ready);
         {/* client:only: nothing is pre-rendered, so without JavaScript only the note below shows. */}
         <PulseGame client:only="react" puzzles={samples} />
         <noscript>
-          <p>pulse needs JavaScript.</p>
+          <p>{pulse.name} needs JavaScript.</p>
         </noscript>
       </div>
     </section>
@@ -49,7 +49,7 @@ const later = dailyGames.filter((game) => !game.ready);
       <div class="mt-6">
         <TriageGame client:only="react" puzzles={triageSamples} />
         <noscript>
-          <p>triage needs JavaScript.</p>
+          <p>{triage.name} needs JavaScript.</p>
         </noscript>
       </div>
     </section>

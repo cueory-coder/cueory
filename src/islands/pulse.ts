@@ -6,6 +6,7 @@
  * you may spend one beat on the day's cue (a one-line hint) instead of a guess. After each guess every letter is
  * marked in words and by a symbol, never by color alone: in its place, in the word somewhere else, or not in it.
  */
+import { gameName } from '../config/games';
 
 /** Guesses and the cue together may use this many beats. */
 export const BEATS = 7;
@@ -128,7 +129,7 @@ export function shareText(state: PulseState, day: string): string {
   const used = BEATS - beatsLeft(state);
   const cue = state.cueUsed ? ', with the cue' : '';
   const result = state.status === 'solved' ? `solved in ${used} of ${BEATS} beats${cue}` : `not solved this time${cue}`;
-  return `cueory pulse, ${day}: ${result}.`;
+  return `cueory ${gameName('pulse')}, ${day}: ${result}.`;
 }
 
 /** Days from 1 November 2026 to a calendar date, in the visitor's own time zone. */

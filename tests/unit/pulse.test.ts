@@ -21,7 +21,9 @@ import {
 
 describe('daily games (D-61)', () => {
   it("lists the four games under Christian's final names (D-64), lowercase, with pulse and triage playable", () => {
-    expect(dailyGames.map((game) => game.name)).toEqual(['pulse', 'cueword', 'triage', 'suture']);
+    // Plain names for now (D-66): trademark filings exist for cueword, triage and suture. The ids stay.
+    expect(dailyGames.map((game) => game.name)).toEqual(['pulse', 'crossword', 'sort', 'word path']);
+    expect(dailyGames.map((game) => game.id)).toEqual(['pulse', 'cueword', 'triage', 'suture']);
     expect(dailyGames.filter((game) => game.ready).map((game) => game.id)).toEqual(['pulse', 'triage']);
     for (const game of dailyGames) {
       expect(game.name).toBe(game.name.toLowerCase());
