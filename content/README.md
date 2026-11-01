@@ -9,6 +9,9 @@ Content is data, not code. Edit these files to change what students see; no prog
 - `organizer/` — one JSON file per lesson's organizer set: 2 to 4 `groups` and 4 to 12 `items`, each item naming
   the group it belongs to. Checked by the build and again by the page. For now each set is an everyday `sample`, and
   the page says so; no clinical facts.
+- `fill-in/` — one JSON file per lesson's fill-in set: `items`, each with an `id` and a `sentence` that wraps its one
+  missing word in double brackets, like `Bees make [[honey]] from flowers.` Checked by the build. For now each set is an
+  everyday `sample`, and the page says so.
 - `games/pulse/` — sample puzzles for the pulse word game on `/play`, one JSON file each: an everyday `word` (five to
   seven lowercase letters) and its one-line `cue`. They are labeled samples on the page. Real puzzles are nursing
   content whose answers are answer keys, so they never go here (D-61).

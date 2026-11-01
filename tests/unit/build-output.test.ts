@@ -112,7 +112,8 @@ describe.skipIf(!existsSync(dist))('built site', () => {
     };
     expect(card('video')).toEqual({ name: 'video', href: undefined });
     expect(card('learn')).toEqual({ name: 'learn', href: '/learn/study-skills/learn-mode' });
-    expect(card('fill-in')).toEqual({ name: 'fill-in', href: undefined });
+    expect(card('fill-in')).toEqual({ name: 'fill-in', href: '/learn/study-skills/fill-in' });
+    expect(card('questions')).toEqual({ name: 'questions', href: undefined });
     expect(card('level-test')).toEqual({ name: 'level test', href: undefined });
     expect(html).not.toContain('id="mode-lesson"');
   });

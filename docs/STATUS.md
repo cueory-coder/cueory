@@ -105,6 +105,10 @@ Last updated: 2026-11-01
   page's organizer card. Sort eight everyday foods into fruit, vegetable and grain by tapping, number keys or
   dragging; nothing is marked until **check**. The set is a labeled sample in `content/organizer/`, so it waits for
   Christian's merge. Fill-in, questions and label it get their pages the same way as their engines merge.
+- Fill-in on a page (Task C1): `/learn/study-skills/fill-in`, from the lesson page and the home page's fill-in card.
+  Type the missing word; "almost" when one letter is off, a first-letter hint, and the missed or hinted sentences come
+  back in a second round. Four labeled everyday sample sentences in `content/fill-in/`, so it waits for Christian's
+  merge.
 - Safari focus fixes (from the WebKit runs for D-48): the ☰ panel's Tab trap now moves focus one item at a time in every
   browser (Safari's own Tab skips links and buttons), and the promo panel gives focus back after a link click even
   though Safari leaves focus on the page. Two WebKit-only test findings stay open: the triage keyboard tests use the

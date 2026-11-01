@@ -54,6 +54,7 @@ export const studyModes: readonly StudyMode[] = [
     name: 'fill-in',
     text: 'recall the missing word.',
     more: 'you read a sentence with one word missing and type the word yourself, so you practice recalling it, not just recognizing it.',
+    link: { href: '/learn/study-skills/fill-in', label: 'try fill-in' },
   },
   {
     id: 'matching',

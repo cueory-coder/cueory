@@ -1,6 +1,7 @@
 import { defineCollection } from 'astro:content';
 import { glob } from 'astro/loaders';
 import { z } from 'astro/zod';
+import { sentenceParts } from './islands/fillin';
 import { visualProblems } from './visuals/sources';
 
 /**
@@ -130,6 +131,41 @@ const organizer = defineCollection({
 });
 
 /**
+ * Fill-in sets (ROADMAP Task 4): one JSON file per lesson in /content/fill-in, played with FillInBoard. Each sentence
+ * wraps its one missing word in double brackets, checked with the same sentenceParts as the board. Until reviewed
+ * batches exist, a set is an everyday "sample" and the page says so; no clinical facts.
+ */
+const fillIn = defineCollection({
+  loader: glob({ base: './content/fill-in', pattern: '*.json' }),
+  schema: z
+    .object({
+      lesson: z.string().regex(/^[a-z0-9-]+$/),
+      status: z.literal('sample'),
+      items: z
+        .array(
+          z.object({
+            id: z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'an id is lowercase letters, digits and dashes'),
+            sentence: z.string().min(1).max(400),
+          }),
+        )
+        .min(1)
+        .max(30),
+    })
+    .superRefine(({ items }, context) => {
+      if (new Set(items.map((item) => item.id)).size !== items.length) {
+        context.addIssue({ code: 'custom', path: ['items'], message: 'an item id is repeated' });
+      }
+      items.forEach((item, i) => {
+        try {
+          sentenceParts(item.sentence);
+        } catch (error) {
+          context.addIssue({ code: 'custom', path: ['items', i, 'sentence'], message: (error as Error).message });
+        }
+      });
+    }),
+});
+
+/**
  * The visuals kit (Task 6, D-56, docs/VISUALS.md): one source file per visual in /content/visuals. Every label and
  * every depiction points to a source that gives the book's exact words, its section and the page address, and only
  * allowed books can be quoted (src/visuals/sources.ts). The build stops with a plain message when a file breaks a rule.
@@ -167,4 +203,4 @@ const visuals = defineCollection({
     }),
 });
 
-export const collections = { lessons, cards, pulse, triage, organizer, visuals };
+export const collections = { lessons, cards, pulse, triage, organizer, 'fill-in': fillIn, visuals };

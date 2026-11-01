@@ -25,6 +25,7 @@ const pages = [
   '/learn/study-skills/learn-mode',
   '/learn/study-skills/matching',
   '/learn/study-skills/organizer',
+  '/learn/study-skills/fill-in',
   '/privacy',
   '/terms',
   '/disclaimer',
@@ -741,6 +742,7 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
       learn: ['try learn mode', '/learn/study-skills/learn-mode'],
       matching: ['try matching', '/learn/study-skills/matching'],
       organizer: ['try the organizer', '/learn/study-skills/organizer'],
+      'fill-in': ['try fill-in', '/learn/study-skills/fill-in'],
     };
     const modes = [
       ['video', 'video'],
@@ -1382,6 +1384,77 @@ test.describe('organizer at 320 px', () => {
 
     await board.getByRole('button', { name: 'sort again' }).click();
     await expect(board.getByRole('list', { name: 'tray' }).getByRole('button')).toHaveCount(8);
+    expect(errors).toEqual([]);
+  });
+});
+
+test.describe('fill-in at 320 px', () => {
+  test.use({ viewport: { width: 320, height: 720 } });
+
+  test('recalls by keyboard: right, a hint, almost, wrong, then a second round of the missed ones', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('console', (msg) => msg.type() === 'error' && errors.push(msg.text()));
+    await page.goto('/learn/study-skills');
+    await expect(page.getByRole('link', { name: 'recall the missing word with fill-in' })).toHaveAttribute(
+      'href',
+      '/learn/study-skills/fill-in',
+    );
+    await page.goto('/learn/study-skills/fill-in');
+    await expect(page.getByTestId('fill-in-sample-note')).toBeVisible();
+
+    const board = page.getByTestId('fill-in');
+    const field = board.getByRole('textbox', { name: 'the missing word' });
+    const next = board.getByRole('button', { name: 'next' });
+    const axe = async () => {
+      const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+      expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    };
+    const answer = async (words: string) => {
+      await field.fill(words);
+      await field.press('Enter');
+    };
+
+    await expect(board.getByText('round 1 · item 1 of 4')).toBeVisible();
+    // The answer is never shown in the sentence.
+    await expect(board.getByText(/Bees make/)).not.toContainText('honey');
+    await axe();
+
+    // Right: focus moves to "next", and Enter moves on with focus back in the field.
+    await answer('Honey.');
+    await expect(board.getByText('right.', { exact: true })).toBeVisible();
+    await expect(next).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(board.getByText('round 1 · item 2 of 4')).toBeVisible();
+    await expect(field).toBeFocused();
+
+    // A hint gives the first letter; a right answer after a hint comes back next round.
+    await board.getByRole('button', { name: 'hint' }).click();
+    await expect(board.getByText('starts with d.')).toBeVisible();
+    await answer('days');
+    await expect(board.getByText("right. you'll see this one again because you used a hint.")).toBeVisible();
+    await next.click();
+
+    // One letter off is "almost", and the field stays open; a wrong answer shows the word.
+    await answer('pencl');
+    await expect(board.getByText('almost. check the spelling.')).toBeVisible();
+    await expect(field).toBeFocused();
+    await answer('pen');
+    await expect(board.getByText('the word was pencil.')).toBeVisible();
+    await axe();
+    await next.click();
+
+    await answer('umbrella');
+    await next.click();
+
+    // Round 2 is only the hinted and the missed ones.
+    await expect(board.getByText('round 2 · item 1 of 2')).toBeVisible();
+    await answer('days');
+    await next.click();
+    await answer('pencil');
+    await next.click();
+    await expect(board.getByText('all 4 recalled in 2 rounds.')).toBeVisible();
+    await axe();
     expect(errors).toEqual([]);
   });
 });

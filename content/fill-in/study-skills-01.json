@@ -1,0 +1,11 @@
+{
+  "id": "study-skills-01",
+  "lesson": "study-skills-01",
+  "status": "sample",
+  "items": [
+    { "id": "honey", "sentence": "Bees make [[honey]] from flowers." },
+    { "id": "days", "sentence": "A week has seven [[days]]." },
+    { "id": "pencil", "sentence": "You can erase a mark made with a [[pencil]]." },
+    { "id": "umbrella", "sentence": "An [[umbrella]] keeps you dry in the rain." }
+  ]
+}
