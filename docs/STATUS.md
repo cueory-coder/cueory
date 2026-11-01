@@ -218,17 +218,21 @@ Merged into `staging`; the database one by the director on Christian's behalf (D
   fix for macOS (#133).
 - Browser tests for `/start` (#136, Task 46): answers saved and restored, keyboard, focus, accessibility, clearing.
 
+## Done (2026-11-01, 8–9 am Phoenix)
+- **Live site:** Christian merged release [#132](https://github.com/lilchristxan/Cueory/pull/132) into `main` at about
+  8:30 am: all four daily games on `/play`, private game stats, onboarding and progress saved on the device, the study
+  modes on pages, and `/privacy` naming YouTube. Its checks and the production build passed.
+- Study modes on pages (#77, Task C1), merged by Christian with "Ok" just before the release: fill-in, organizer, label
+  it and questions for the study-skills lesson, on labeled everyday samples whose answers are in the browser (D-92).
+- Offline copies of pages (#135, Task C12, D-93), merged by the director on Christian's behalf (D-89) with the lead's
+  review: an opened lesson opens again with no connection; `/play`, `/admin`, `/progress`, `/start`, data files and
+  query strings are never kept. Off switch: `offline.enabled` in `src/config/site.ts` (docs/OFFLINE.md).
+- Helpers' logic: the `/admin` flag inbox uses the real `flags` rows (#138, Task 47), and tests check that the browser
+  helpers and the database functions agree on arguments, error messages and the export's report fields (#139, Task 48).
+
 ## In review
-- Task 48: SQL/browser RPC contracts are checked; the missing version-aware answer caller is an explicit TODO; in review.
-- Task 47: flag inbox uses the real flags UUID columns and paired handling status/date; in review.
-- Open pull requests add their own lines here. Waiting now: study modes on pages (#77, held for Christian's choice
-  below), the review-clip exporter (#111, Tasks C7 and C10), the offline service worker (#135, Task C12, held for the
-  lead's fix), Release browser tests (#55) and the release into `main` (#132, for Christian).
-- Task C12 ([#135](https://github.com/lilchristxan/Cueory/pull/135)): the offline service worker. `/sw.js` and an external
-  `/register-sw.js` are written at build time (no new package, no change to the security headers). A lesson or the home
-  page you have opened, even only once, opens again with no connection; `/play`, `/admin`, sign-in and progress pages,
-  data files and anything with a query string are never kept. `docs/OFFLINE.md` says how to switch it off. It needs the
-  lead's review.
+- Open pull requests add their own lines here. Waiting now: the review-clip exporter (#111, Tasks C7 and C10), the
+  `check_answer` request (Task 49) and Release browser tests (#55).
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
@@ -270,16 +274,12 @@ Targets: first visuals by about 14 November, the full kit by about 12 December (
 - **Signup form** shows "signups open soon" until the Kit form exists (SETUP.md, Part I).
 
 ## Needs Christian's hands
-- [ ] Merge the release into the live site ([#132](https://github.com/lilchristxan/Cueory/pull/132)) once its checks
-  are green on its latest version. Its description lists what changes for students and what needs your approval.
-- [ ] Lesson videos (#97, now in `staging`): on a real iPhone, open `/learn/video-sample` on the staging site and tap
+- [x] Release #132 merged into the live site by Christian on 2026-11-01, about 8:30 am Phoenix.
+- [ ] Lesson videos (#97, now live): on a real iPhone, open `/learn/video-sample` on the live or staging site and tap
   the cover once. The video should start playing right away. Safari can drop the tap's permission to play, which
   automated tests can't see. Reply "video ok" or describe what happened.
-- [ ] Study modes on pages (#77): its questions page sends the sample answers to the browser before a student answers,
-  and organizer and fill-in carry their answers in the page, like cards. Choose one: (1) split it, publishing what
-  has no answer before an attempt, with questions waiting for `check_answer` and accounts (recommended); (2) keep all
-  four pages on the locked staging site only, left out of live builds; or (3) allow labeled everyday samples with
-  answers in the browser.
+- [x] Study modes on pages (#77): merged by Christian with "Ok" on 2026-11-01, read as allowing labeled everyday
+  samples with their answers in the browser (D-92). If that reading is wrong, say so and the questions page comes off.
 - [ ] Real questions need a free account (D-86): `check_answer` reveals the key after one try, so signed-out visitors
   can't use it (a limit needs an identity, and a CAPTCHA would load a third-party script). Guests keep the sample modes.
   Reply "ok" to keep it this way, or ask for a CAPTCHA exception. The same goes for "Flag or comment" reports (D-88):
