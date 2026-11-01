@@ -192,6 +192,18 @@ alter table public.item_versions enable row level security;
 alter table public.item_choices enable row level security;
 alter table public.item_answers enable row level security;
 
+-- The key and the rationales: no grant to the website's roles, and an explicit restrictive policy that refuses them
+-- too, so the rule is written down and survives a later grant by mistake (AGENTS.md: explicit policies; Codex's finding
+-- on #90 for rights_records applies here even more). The service role bypasses row-level security, and check_answer
+-- (the next migration) reads this table as its owner.
+create policy "no website role reads or writes the key"
+  on public.item_answers
+  as restrictive
+  for all
+  to anon, authenticated
+  using (false)
+  with check (false);
+
 create policy "anyone reads published versions"
   on public.item_versions
   for select

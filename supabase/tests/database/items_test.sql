@@ -3,7 +3,7 @@
 -- version never changes. Run by `supabase test db` on a throwaway local database; every row exists only in this test.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(49);
+select plan(50);
 
 -- Fixtures, made as the database owner (which is how migrations and the admin tools write).
 insert into public.concepts (id, slug, title, published) values
@@ -74,6 +74,17 @@ select ok(
     and not has_function_privilege('anon', 'public.item_parts_guard()', 'execute')
     and not has_function_privilege('authenticated', 'public.item_parts_guard()', 'execute'),
   'nobody on the website runs the version rules directly'
+);
+
+select ok(
+  exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'item_answers'
+      and permissive = 'RESTRICTIVE' and cmd = 'ALL'
+      and roles @> array['anon', 'authenticated']::name[] and cardinality(roles) = 2
+      and qual = 'false' and with_check = 'false'
+  ),
+  'the key has an explicit policy that refuses every website role'
 );
 
 -- ---- Signed out.

@@ -663,12 +663,14 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   - **`rights_records`:** Christian's private record of why an image may be used (ROADMAP Task 4c). It is admin data
     (CLAUDE.md rule 1), so `anon` and `authenticated` get no grant at all, not even to read. A record names its source,
     the holder, the licence and where the licence was checked; "verified" always comes with a date (never in the
-    future). A source with a record can't be deleted.
+    future). A source with a record can't be deleted. It also has an explicit restrictive policy (`using (false)`, for
+    `anon` and `authenticated`) on top of having no grants, so the rule is written down and survives a later grant by
+    mistake (Codex review of #90).
   - **Shapes:** slugs are lowercase words with dashes, up to 80 characters (`public.slug`, one rule for every table
     that needs one); titles 1 to 200 characters with no control characters; every address is a plain `https://` link
     with no spaces, so a source can't carry a script or a `data:` address. No data is in the migration: the repository
     is public (D-75).
-  - **Tests:** `supabase/tests/database/concepts_sources_rights_test.sql`, 34 checks: the exact grants, what a visitor,
+  - **Tests:** `supabase/tests/database/concepts_sources_rights_test.sql`, 35 checks: the exact grants, what a visitor,
     a student and the service role can really read and write, every shape rule, and the foreign keys. The lockdown
     test now lists the two tables a visitor may read, SELECT only, and fails if the list gets longer without a
     reviewer seeing it. Each check was seen failing when a grant, a policy or row-level security was weakened.
@@ -686,7 +688,9 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   - **Where the key lives:** the stem and choices a student sees are in `item_versions` and `item_choices`, which the
     website can read for a published version only. Which choices are right, and each choice's rationale, are in
     `item_answers`, which no website role can read at all: no grant, row-level security on, and a test that tries both
-    roles. `check_answer` (next step) reads it and returns it only after an attempt.
+    roles, plus an explicit restrictive policy (`using (false)`, for `anon` and `authenticated`) so the rule is written
+    down and survives a later grant by mistake (Codex review of #90). `check_answer` (next step) reads it and returns
+    it only after an attempt.
   - **What the website may read:** `items` that have a published version; from `item_versions` only `id`, `item_id`,
     `version`, `stem` and `status` (`status` because the policies on items and choices look at it, and a policy's
     subquery runs with the reader's privileges; every visible row is published anyway); the choices of a published
@@ -700,7 +704,7 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   - **Left for later:** risk level and public label are in the roadmap's admin table but not defined anywhere yet, so
     I haven't invented values for them; they come with `reviews` and the admin area. The trigger functions revoke
     `execute` from `public`, `anon` and `authenticated`, as D-73 requires.
-  - **Tests:** `supabase/tests/database/items_test.sql`, 49 checks: the exact grants (including per column), what
+  - **Tests:** `supabase/tests/database/items_test.sql`, 50 checks: the exact grants (including per column), what
     a visitor, a student and the service role can read and write, every publishing rule, immutability and the shapes.
     The lockdown test's list of tables a visitor may read now has the three new public ones, and still not `item_answers`.
     Each of four weakened versions (key readable, drafts visible, answers editable after publish, publishing without
