@@ -233,6 +233,8 @@ Merged into `staging`; the database one by the director on Christian's behalf (D
   transport the page will supply once accounts are on.
 
 ## In review
+- "Tip" becomes "supporting our mission" (Task C13, D-94): `/support` shows Christian's two mission lines and a
+  "support our mission" button; the promo panel's link says "supporting our mission". No "tip" left in visible text.
 - Task 53: pure glove-note sound permission gates and the remembered on/off toggle; no audio calls or assets, and a known browser refusal stays silent.
 - Task 52: pure palm-text fitting wraps whole words, finds the largest fitting font size and avoids a final single-word line when another wrap fits; tests use injected font measurements.
 - Task 48: SQL/browser RPC contracts include the real version-aware answer adapter, with no remaining TODO; in review.
