@@ -1,0 +1,60 @@
+{
+  "id": "study-skills-01",
+  "lesson": "study-skills-01",
+  "status": "sample",
+  "items": [
+    {
+      "id": "fruit",
+      "status": "sample",
+      "type": "single",
+      "stem": "Which of these is a fruit?",
+      "choices": [
+        { "id": "a", "text": "an apple" },
+        { "id": "b", "text": "a carrot" },
+        { "id": "c", "text": "a slice of bread" }
+      ],
+      "key": ["a"],
+      "rationales": {
+        "a": "Apples are fruit.",
+        "b": "Carrots are vegetables.",
+        "c": "Bread is baked from flour, so it isn't a fruit."
+      }
+    },
+    {
+      "id": "weekdays",
+      "status": "sample",
+      "type": "sata",
+      "stem": "Which of these are days of the week?",
+      "choices": [
+        { "id": "a", "text": "Monday" },
+        { "id": "b", "text": "March" },
+        { "id": "c", "text": "Friday" },
+        { "id": "d", "text": "Summer" }
+      ],
+      "key": ["a", "c"],
+      "rationales": {
+        "a": "Monday is a day of the week.",
+        "b": "March is a month.",
+        "c": "Friday is a day of the week.",
+        "d": "Summer is a season."
+      }
+    },
+    {
+      "id": "hour",
+      "status": "sample",
+      "type": "single",
+      "stem": "How many minutes are in one hour?",
+      "choices": [
+        { "id": "a", "text": "30" },
+        { "id": "b", "text": "60" },
+        { "id": "c", "text": "100" }
+      ],
+      "key": ["b"],
+      "rationales": {
+        "a": "30 minutes is half an hour.",
+        "b": "One hour is 60 minutes.",
+        "c": "100 minutes is more than an hour and a half."
+      }
+    }
+  ]
+}

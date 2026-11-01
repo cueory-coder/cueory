@@ -1,0 +1,21 @@
+{
+  "id": "study-skills-01",
+  "lesson": "study-skills-01",
+  "status": "sample",
+  "title": "sample: sort the foods",
+  "groups": [
+    { "id": "fruit", "name": "fruit" },
+    { "id": "vegetable", "name": "vegetable" },
+    { "id": "grain", "name": "grain" }
+  ],
+  "items": [
+    { "id": "apple", "text": "apple", "group": "fruit" },
+    { "id": "pear", "text": "pear", "group": "fruit" },
+    { "id": "plum", "text": "plum", "group": "fruit" },
+    { "id": "carrot", "text": "carrot", "group": "vegetable" },
+    { "id": "spinach", "text": "spinach", "group": "vegetable" },
+    { "id": "onion", "text": "onion", "group": "vegetable" },
+    { "id": "rice", "text": "rice", "group": "grain" },
+    { "id": "oats", "text": "oats", "group": "grain" }
+  ]
+}
