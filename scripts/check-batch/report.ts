@@ -1,14 +1,29 @@
 /** Builds the plain-language report.md and the passed.csv / failed.csv contents from a checker result. */
-import type { BatchResult } from './check.ts';
-import { toCsv } from './csv.ts';
+import type { BatchInput, BatchResult } from './check.ts';
+import { toCsv, type CsvRow } from './csv.ts';
+import { itemHash } from '../import-batch/parse.ts';
 
 /** Keeps file-provided text from breaking the Markdown layout (backticks, line breaks). */
 const md = (text: string): string => text.replace(/[\r\n]+/g, ' ').replaceAll('`', "'");
 
-export function passedCsv(result: BatchResult): string {
+/**
+ * Produces passed.csv. When the original batch input is supplied the hash column is included,
+ * completing the checker → importer pipeline; without it only item_id and concept_id are written
+ * (for tests that check the checker in isolation from the importer).
+ */
+export function passedCsv(result: BatchResult, input?: BatchInput): string {
+  if (!input) {
+    return toCsv(['item_id', 'concept_id'], result.passed.map((r) => ({ item_id: r.item_id, concept_id: r.concept_id })));
+  }
+  const itemIndex = new Map<string, CsvRow>(input.items.map((r) => [r.item_id, r]));
+  const keyIndex = new Map<string, CsvRow>(input.key.map((r) => [r.item_id, r]));
   return toCsv(
-    ['item_id', 'concept_id'],
-    result.passed.map((r) => ({ item_id: r.item_id, concept_id: r.concept_id })),
+    ['item_id', 'concept_id', 'hash'],
+    result.passed.map((r) => ({
+      item_id: r.item_id,
+      concept_id: r.concept_id,
+      hash: itemHash(itemIndex.get(r.item_id) ?? {}, keyIndex.get(r.item_id) ?? {}),
+    })),
   );
 }
 
