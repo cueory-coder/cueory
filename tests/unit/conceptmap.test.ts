@@ -42,6 +42,25 @@ describe('concept map input', () => {
     const input = [{ ...items[0], concept: '😀'.repeat(200), description: 'a'.repeat(1_000) }];
     expect(parseItems(input)).toEqual(input);
   });
+  it.each(['concept', 'description'])('rejects combined exam and prediction wording in %s without echoing it', field => {
+    for (const value of [
+      'Your predicted exam score is 85%.',
+      'You have an 80% chance of passing the exam.',
+      'NCLEX odds', 'Passing is likely', 'exam likelihood', 'probably pass',
+      'probability of passing', 'predictions about exams', 'percentages for passed exams', 'exam score',
+    ]) {
+      expect(() => parseItems([{ ...items[0], [field]: value }])).toThrow('describe the concept without exam results.');
+      try { parseItems([{ ...items[0], [field]: value }]); }
+      catch (error) { expect((error as Error).message).not.toContain(value); }
+    }
+  });
+  it.each(['concept', 'description'])('preserves ordinary supplied words and whole-word boundaries in %s', field => {
+    for (const value of ['keep score in a card game', 'a 50% discount', 'pass the salt', 'likely compass', 'percentages of examiners', 'predicted example']) {
+      const input = [{ ...items[0], [field]: value }];
+      expect(parseItems(input)).toEqual(input);
+      expect(countsInWords(parseItems(input))).not.toMatch(/%|score|chance|percent|predict/i);
+    }
+  });
   it.each([
     { field: 'concept', value: 'a'.repeat(201), message: 'a concept name can have at most 200 characters.' },
     { field: 'description', value: 'a'.repeat(1_001), message: 'a description can have at most 1,000 characters.' },
