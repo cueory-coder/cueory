@@ -9,4 +9,5 @@ samples only.
 | `signin.jpg` | Welcome (create account / continue with Google), create account with password, sign in ("welcome back to" + logo) | 56 |
 | `play-phone.jpg`, `play-desktop.jpg` | /play as the nurses' station games lobby | 87 |
 | `word-path.jpg` | Word path as a classic word search (11 × 11, word list in three columns) | 97 |
-| `glove-note.jpg` | Glove break note: every word, including the three choices, inside the palm | 70 |
+| `glove-note.jpg` | Glove break note (**paused by Christian, 2:36 pm; don't build**) | 70 |
+| `module-flow.jpg` | The six-step module path with check marks, the video step, adaptive filters, sharpening, results with disputes, spaced review with a confidence meter | design only; the adaptive algorithm waits for research |
