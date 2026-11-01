@@ -106,7 +106,10 @@ import { accountHref, promo, site } from '../config/site';
       if (panel.hidden || !('open' in panel.dataset)) return;
       remember(storage, Date.now());
       document.removeEventListener('keydown', onKeydown);
-      const hadFocus = panel.contains(document.activeElement);
+      // Safari doesn't keep focus on a clicked link, so a click inside the panel leaves focus on the page itself
+      // (`body`); that counts as the panel having focus. Focus on any other element outside it is left alone.
+      const active = document.activeElement;
+      const hadFocus = panel.contains(active) || active === document.body || active === null;
       delete panel.dataset.open;
       panel.inert = true;
       const hide = () => {

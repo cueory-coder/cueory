@@ -95,6 +95,11 @@ Last updated: 2026-11-01
   moves it down. Each pick says why in words, and each concept's status is a word (not started, learning, getting
   there, got it), never a score or a chance of passing. It reaches a page once reviewed questions and `check_answer`
   exist (Task 2).
+- In `staging`: [Safari focus fixes](https://github.com/lilchristxan/Cueory/pull/78) (from the WebKit runs for D-48):
+  the ☰ panel's Tab trap now moves focus one item at a time in every browser (Safari's own Tab skips links and
+  buttons), and the promo panel gives focus back after a link click even though Safari leaves focus on the page. Two
+  WebKit-only test findings stay open: the triage keyboard tests use the browser's own Tab, and one promo timing test
+  runs late in WebKit.
 
 ## Done (lead, 2026-10-31 evening)
 - Daily games show plain names for now (D-66): pulse, crossword, sort and word path. Christian picks final names
