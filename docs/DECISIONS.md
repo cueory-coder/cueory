@@ -316,3 +316,21 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   with three.js's `MeshoptDecoder` on the page's own thread. Its WebAssembly needs only the `'wasm-unsafe-eval'` the
   CSP already allows (D-49). Draco was not chosen: three.js's Draco loader always decodes in workers made from `blob:`
   addresses, which would need a looser CSP. Reason: smaller files with no security-policy change.
+- **D-61** Daily games start with pulse on `/play` (Christian's request, 2026-10-31, 6:40 pm, item 4 of the lead's note
+  on issue #4). `/play` lists the four games under working names kept in `src/config/games.ts` (pulse, cueword, triage,
+  suture), so a rename is one line; the ☰ panel links to it, and the home page section follows once brand v1.0 is in
+  (`index.astro` is held for it). pulse is playable now with ten labeled sample puzzles of everyday words
+  (`content/games/pulse/`, checked by the content config). Its own rules: the word runs five to seven letters; there are
+  seven beats; a guess spends one, and the day's cue spends one (never the last); each letter is marked in place
+  (filled, ●), elsewhere in the word (ringed, ○) or not in it (plain, ·), in words for screen readers too, never by color
+  alone, as round letters in a row, never a tile grid. Typing in a labeled field and tapping the on-screen letters both
+  work. The result shares as one plain line ("cueory pulse, sun 1 nov: solved in 3 of 7 beats, with the cue."): no
+  squares, no streak, and no stats kept yet. A day's sample is picked from the visitor's own date, going round the list.
+  **Proposed, waiting for Christian: only today's puzzle reaches the browser.** Real puzzles are nursing content whose
+  answers are answer keys, so they never go in this repository (content/README.md). The smallest $0 way: reviewed
+  puzzles live in the Task 2 database (Supabase, free) with a publish date, and a database function returns only
+  today's puzzle (and past ones), with row-level security that blocks future rows; `/play` fetches it when it loads.
+  That needs Task 2's database and Christian's approval of its policies; until then pulse plays samples only. Without
+  the database, a small Cloudflare Worker route could hold the puzzles and answer only today's, but that changes
+  `wrangler.jsonc` (deployment), so it is also Christian's call. Reason: Christian's request for daily games as a major
+  feature, built so that no future puzzle can reach a browser.

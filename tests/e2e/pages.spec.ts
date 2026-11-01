@@ -12,6 +12,7 @@ const pages = [
   '/disclaimer',
   '/support',
   '/subscribed',
+  '/play',
 ];
 
 for (const path of pages) {
@@ -898,7 +899,7 @@ test.describe('☰ side panel and account corner (D-46)', () => {
       await expect(panel.getByRole('button', { name: 'close menu' })).toBeFocused();
 
       const nav = panel.getByRole('navigation', { name: 'site' });
-      for (const name of ['home', 'ways to study', 'lessons', 'my progress', 'support cueory']) {
+      for (const name of ['home', 'ways to study', 'lessons', 'daily games', 'my progress', 'support cueory']) {
         await expect(nav.getByRole('link', { name })).toBeVisible();
       }
       await expect(panel.getByRole('link', { name: 'privacy' })).toBeVisible();
