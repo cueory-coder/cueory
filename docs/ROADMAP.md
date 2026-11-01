@@ -7,6 +7,11 @@ workflows, deployment or secrets.
 Tasks go in this order. When a task waits on Christian (an account, a decision or an approval), the next task that
 doesn't wait goes first, and the waiting task is listed in STATUS.md (D-35).
 
+The order of the lessons themselves comes from the med-surg lesson map in [docs/curriculum/](curriculum/README.md):
+19 units and 351 lessons, each with a stable `lesson_id`. Units 00 (foundations: how nurses think) and 01 (fluids,
+electrolytes, acid-base) come first, then the systems in the order shown. The map is an outline of topics only: every
+lesson still goes through the content pipeline, and each visual names the `lesson_id` it serves.
+
 ## Task 1 — Static site foundation (see STATUS.md)
 Repo, design tokens, `main` and `staging` deploy branches, placeholder pages, launch-updates signup (Kit), security
 headers and CSP, CodeQL, Dependabot, secret scanning, CI, rules docs, Cloudflare setup steps.
