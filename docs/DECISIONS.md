@@ -574,6 +574,28 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
     merges into main. Cloudflare Workers Builds' 3,000 free build minutes still apply, so the push discipline stays.
 
   Reason: free CI at full speed, with nothing private in the repository.
+- **D-76** Private stats for the daily games on `/play` (ROADMAP Task 7: stats are optional and private, with no
+  streak guilt). A "your stats" panel sits under the four games, off until the student turns on its switch ("keep my
+  stats on this device").
+  - **What it keeps:** for each finished round, the puzzle's day in the visitor's own time zone, whether it was solved,
+    and its tries: beats for pulse, slips for sort, cues for the crossword and loose stitches for word path. It follows
+    the helper's rules in `src/islands/gamestats.ts` (#70): the first result of each game and day counts. Results older
+    than 400 days, by today's date, are deleted the next time `/play` opens.
+  - **Where:** only in this browser, under one storage key (`cueory-game-stats`). Its presence is what "on" means, so
+    turning stats off deletes it. Nothing is ever sent anywhere. Each change starts from what storage holds at that
+    moment, so turning stats off in one tab holds in every other open tab too. A round that waits to be kept (while
+    stats are off, or while the panel loads) waits in one list on the page, which is emptied whenever another tab
+    changes the stats, so it can't be kept later.
+  - **What it shows:** per game, the days played and solved, and the tries in words. No streaks, no comparisons and no
+    scores. "forget" for one game, "forget all my stats" and turning the switch off delete what was kept, and keyboard
+    focus stays in the panel.
+  - **How the games report:** a finished round sends a browser event (`cueory:game-result`), so no game touches storage
+    itself. A round finished just before the student turns stats on still counts, and so does one finished before the
+    panel's own code has loaded: it waits in memory on the page until the panel takes it.
+  - `/privacy` says all of this, in its "Right now" section.
+
+  Reason: Christian's daily-games request (stats that are optional and private), within the privacy rule that only
+  study progress is kept.
 
 - **D-72** The visuals kit's first batch is reviewed in two steps, words first and drawings second. Its three source
   files (body fluid compartments; osmosis and fluid shifts; the sodium-potassium pump) list every label and everything
