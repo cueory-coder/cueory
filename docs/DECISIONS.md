@@ -341,6 +341,7 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   permission. Nothing licensed NonCommercial is used anywhere in the kit, because Cueory takes tips and plans videos.
   The 3D atlas (Z-Anatomy, CC BY-SA 4.0 with two NonCommercial parts left out, or BodyParts3D, CC BY 4.0) is
   Christian's call. Reason: checked the licenses before using them (CLAUDE.md rule 5).
+  - **Christian's answers (2026-11-01, D-80):** the atlas is BodyParts3D, and OpenStax is link-only.
 - **D-58** 3D models are glTF compressed with meshopt (gltfpack, keeping each named structure separate) and decoded
   with three.js's `MeshoptDecoder` on the page's own thread. Its WebAssembly needs only the `'wasm-unsafe-eval'` the
   CSP already allows (D-49). Draco was not chosen: three.js's Draco loader always decodes in workers made from `blob:`
@@ -663,3 +664,13 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
     Advanced Security), because the hello@cueory.app forwarding is still undecided.
 
   Reason: a public comment box must never become a way to steer the agents.
+
+- **D-80** Three decisions by Christian (2026-11-01, 12:34 am Phoenix, relayed by the lead on issue #4).
+  - **3D atlas: BodyParts3D** (CC BY 4.0, credit only), not Z-Anatomy. Every 3D view shows its credit (docs/VISUALS.md).
+  - **OpenStax: link only.** A lesson may show a plain "further reading" link to an OpenStax page. Its text is never
+    quoted, its figures are never copied, and its pages are never fed to an AI tool. Open RN stays the cited source,
+    and `src/visuals/sources.ts` keeps OpenStax off the allowed list.
+  - **No automatic releases.** Releases into `main` stay manual: the director opens a Release pull request and
+    Christian merges it. The pre-launch auto-merge into `staging` (D-42) is unchanged.
+
+  Reason: Christian's calls on the three open questions (D-57 and the auto-release question on issue #4).
