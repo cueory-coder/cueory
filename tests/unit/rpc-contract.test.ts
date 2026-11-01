@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { checkAnswer, type AnswerTransport } from '../../src/islands/checkanswer';
 import { exportCsv, exportJson, type ExportData } from '../../src/islands/exportdata';
 import { checkReport } from '../../src/islands/flag';
 import { flagArguments } from '../../src/islands/flagsubmit';
@@ -43,7 +44,19 @@ describe('SQL arguments and browser request helpers', () => {
     expect(declaration('my_flags').arguments).toEqual([]);
   });
 
-  it.todo('check_answer needs a version-aware caller sending item_id, version_id and picked (Task 49)');
+  it('the version-aware checkAnswer transport matches the SQL argument names and order', async () => {
+    const version = { item_id: '00000000-0000-4000-8000-000000000001', id: '00000000-0000-4000-8000-000000000002' };
+    const rpc = vi.fn<AnswerTransport['rpc']>(async () => ({
+      data: { correct: false, key: ['b'], rationales: { b: 'sample rationale' }, version_id: version.id }, error: null,
+    }));
+    const result = await checkAnswer({ rpc }, version, ['c', 'a']);
+    expect(result.ok).toBe(true);
+    expect(rpc).toHaveBeenCalledOnce();
+    const [name, args] = rpc.mock.calls[0]!;
+    expect(name).toBe('check_answer');
+    expect(Object.keys(args)).toEqual(declaration('check_answer').arguments);
+    expect(args).toEqual({ item_id: version.item_id, version_id: version.id, picked: ['a', 'c'] });
+  });
 });
 
 describe('every explicit SQL refusal has a student message', () => {
