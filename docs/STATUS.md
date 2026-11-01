@@ -72,6 +72,12 @@ Last updated: 2026-10-31
 2. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
 3. Auto-release (`staging` into `main` in pre-launch mode), after the change requests.
 
+## Planning
+- [Med-surg lesson map](curriculum/README.md) ([#31](https://github.com/lilchristxan/Cueory/pull/31)): the master
+  list of 351 lessons in 19 units, in build order, each with a stable `lesson_id`; ROADMAP points to it. It is an
+  outline of topics only, with no clinical facts: lessons still come through the content pipeline (source brief,
+  reviewers, approval), and higher-risk topics wait for a qualified reviewer.
+
 ## Blocked
 - **Task 2 (accounts and database)** waits for Christian to create the two Supabase projects, and its sign-in and
   database-policy parts need his approval. The "Flag or comment" button is built with it (D-34). Task 4 parts that
