@@ -1,0 +1,18 @@
+---
+import Layout from '../layouts/Layout.astro';
+import SignIn from '../islands/SignIn';
+---
+
+<Layout title="sign in" description="Sign in to your cueory account." variant="study" noindex promo={false}>
+  <section class="mx-auto max-w-prose py-section" aria-labelledby="signin-heading">
+    <div class="rounded-lg border border-line bg-page p-6 sm:p-8">
+      <h1 id="signin-heading" class="text-2xl">sign in</h1>
+      <div class="mt-6">
+        <SignIn client:load />
+      </div>
+      <noscript>
+        <p class="mt-4">sign-in needs javascript. you can still browse the study materials.</p>
+      </noscript>
+    </div>
+  </section>
+</Layout>
