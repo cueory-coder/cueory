@@ -10,6 +10,9 @@ import pumpFile from '../../content/visuals/sodium-potassium-pump.json';
 import SodiumPotassiumPump, { steps as pumpSteps } from '../../src/visuals/drawings/SodiumPotassiumPump';
 import { labelText, visualProblems, type Visual } from '../../src/visuals/sources';
 import { parseSteps } from '../../src/visuals/steps';
+import VisualDiagram from '../../src/visuals/VisualDiagram';
+import { drawings as drawingRegistry } from '../../src/visuals/drawings';
+import { readdirSync, readFileSync } from 'node:fs';
 
 /**
  * The visuals kit's drawings (D-81) show only what their source files state: every word is a label, every part names
@@ -186,6 +189,34 @@ describe('the sodium-potassium pump', () => {
   it('shows no numbers: the book gives no ion counts', () => {
     const words = [...markup.matchAll(/<tspan[^>]*>([^<]*)<\/tspan>/g)].map(([, line]) => line);
     expect(words.filter((line) => /\d/.test(line!))).toEqual([]);
+  });
+});
+
+describe('VisualDiagram', () => {
+  const files = readdirSync('content/visuals')
+    .filter((name) => name.endsWith('.json'))
+    .map((name) => JSON.parse(readFileSync(`content/visuals/${name}`, 'utf8')) as Visual);
+
+  it('has a drawing for every diagram source file', () => {
+    const diagrams = files.filter((visual) => visual.kind === 'diagram').map((visual) => visual.id).sort();
+    expect(Object.keys(drawingRegistry).sort()).toEqual(diagrams);
+  });
+
+  it('never shows a draft on a page', () => {
+    for (const visual of files) {
+      const draft = { ...visual, status: 'draft' as const };
+      expect(renderToStaticMarkup(createElement(VisualDiagram, { visual: draft }))).toBe('');
+    }
+  });
+
+  it('shows an approved diagram with its description and credit', () => {
+    const visual = { ...(fluidCompartmentsFile as Visual), status: 'approved' as const };
+    const markup = decode(renderToStaticMarkup(createElement(VisualDiagram, { visual })));
+    expect(markup).toContain('what the drawing shows');
+    for (const depiction of visual.depictions) expect(markup).toContain(depiction.what);
+    expect(markup).toContain('Words adapted from Nursing Fundamentals, 2nd Edition');
+    expect(markup).toContain('href="https://creativecommons.org/licenses/by/4.0/"');
+    expect(markup).toContain('step 1 of 4');
   });
 });
 

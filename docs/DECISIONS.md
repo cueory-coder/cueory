@@ -652,3 +652,36 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
     Christian merges it. The pre-launch auto-merge into `staging` (D-42) is unchanged.
 
   Reason: Christian's calls on the three open questions (D-57 and the auto-release question on issue #4).
+
+- **D-81** The visuals kit's drawings show only their source file's words and depictions (Task C5, first batch).
+  - **Words:** every word on a drawing is a label from `content/visuals/<id>.json`, drawn through `Label`
+    (`src/visuals/drawings/parts.tsx`), so a word that isn't a label stops the build. Words a depiction needed but no
+    label held (the transcellular areas, the parts of whole blood, what a cell holds, "ICF", "ECF", "water movement",
+    "larger particles are blocked") were added as labels, each the book's own words from a sentence Christian already
+    approved, and each checked against its quote by the unit tests.
+  - **Shapes:** every shape sits in a group naming the depiction it shows (`data-depiction`), and the tests check both
+    ways: everything drawn is a depiction in the file, and every depiction in the file is drawn. Nothing the book
+    doesn't describe is drawn from memory: blood parts are words inside the vessel, cells are plain rounded shapes,
+    "more" is shown as more of something, and the pump has no ion counts and no ATP. The ECF carries no number, because
+    the book's 40% is of body weight, not body fluid.
+  - **Steps and captions:** `DiagramPlayer` now passes the current step to the drawing, which adds each step's parts.
+    Captions are only labels joined by ": " and " · ". The description under a drawing is its depictions' wording.
+  - **Drafts:** `VisualDiagram` shows nothing for a draft unless `allowDraft` is set, which only review screenshots
+    use. The review sheet is a private page for Christian, linked from the pull request.
+
+  Reason: a drawing can't show more than the approved source says, and a test proves it.
+
+- **D-89** Overnight merges into `staging` on Christian's behalf (Christian, 2026-11-01, about 1:00 am Phoenix: "whatever
+  can be merged ... merge it on my behalf to avoid bottlenecks", choosing "everything but rules").
+  - **What:** during the director's 18-minute check-ins, the director merges held pull requests into `staging`:
+    database changes, content drafts and samples, and new packages. Only after every check passed (including the
+    Database check for `supabase/`), Codex's review of the exact head is clean, and the director has read the diff.
+  - **Never:** workflows (`.github/`), the rule files (CLAUDE.md, AGENTS.md, SECURITY.md), `automation.json`, the
+    auto-merge code, `wrangler.jsonc`, anything into `main`, and approving a draft visual's words. Releases stay
+    Christian's (D-80).
+  - **Why not the bot:** the auto-merge runs from `main`, so changing its rules tonight would need a release of all of
+    `staging` to the live site first.
+  - **Ends** when the 12-hour session ends (about 20:00Z, 2026-11-01); each merge is listed in the daily report.
+
+  Reason: Christian's order, kept to the test site and away from anything that changes what the robots may do.
+
