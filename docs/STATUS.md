@@ -263,6 +263,12 @@ Merged into `staging` overnight; the database and content ones by the director o
   and students read only published concepts and sources; nobody on the website can write; rights records are closed
   to every website role. It edits `supabase/`, so it waits for Christian. Steps 2 to 5 stack on it: items, then
   `check_answer`, then attempts and exam plans, then flags.
+- Task 2, database step 4 (Task C6, D-87): `review_state` and `exam_plans`, with 47 database tests. Each student reads and
+  writes only their own spaced-review progress and exam dates; the database refuses impossible values. It edits
+  `supabase/`, so it waits for Christian. **Steps 1 to 3 are in `staging`** (#90, #92 and #94): concepts, sources and
+  rights records (D-84); items, versions and the hidden answer key (D-85); and attempts with `check_answer` (D-86), 140
+  database tests in all. `check_answer` is signed-in only, which still needs Christian's confirmation (D-86). Step 5,
+  flags and `submit_flag`, comes next.
 - [Concept map](https://github.com/lilchristxan/Cueory/pull/68) (Task 14): every concept in a unit with its status in
   words and a shape (an empty circle, a quarter, a half or a check), never color alone, with a filter by status. No
   scores or predictions.
