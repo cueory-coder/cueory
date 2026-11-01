@@ -34,14 +34,20 @@ function readCsp(text: string): Map<string, string[]> {
 function readLiteralArray(text: string, name: 'directives' | 'resources'): string[] {
   const found = new RegExp('\\b' + name + ':\\s*\\[([\\s\\S]*?)\\]\\s*,').exec(text);
   if (!found) throw new Error('Missing CSP ' + name + ' list');
-  return found[1]!.split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line && !line.startsWith('//'))
-    .map((line) => {
-      const match = /^(["'\x60])([\s\S]*?)\1,?$/.exec(line);
-      if (!match) throw new Error('Non-literal CSP ' + name + ' entry: ' + line);
-      return match[2]!;
-    });
+  const source = found[1]!.split(/\r?\n/)
+    .filter((line) => !line.trim().startsWith('//'))
+    .join('\n');
+  const values: string[] = [];
+  const token = /\s*(["'\x60])([\s\S]*?)\1\s*(?:,|$)/gy;
+  let offset = 0;
+  while (source.slice(offset).trim()) {
+    token.lastIndex = offset;
+    const match = token.exec(source);
+    if (!match || token.lastIndex <= offset) throw new Error('Non-literal CSP ' + name + ' entry');
+    values.push(match[2]!);
+    offset = token.lastIndex;
+  }
+  return values;
 }
 
 function rejectUnsafeSources(directives: Map<string, string[]>): void {
@@ -173,7 +179,7 @@ describe('security headers (Task 75)', () => {
     ))).toThrow();
     expect(() => checkAstroPolicy(astroText.replace(
       "\"object-src 'none'\",",
-      "\"object-src 'none'\",\n        \"object-src 'none'\",",
+      "\"object-src 'none'\", \"object-src 'none'\",",
     ))).toThrow('Duplicate CSP directive');
   });
 });
