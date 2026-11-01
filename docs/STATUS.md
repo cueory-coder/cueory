@@ -175,6 +175,10 @@ Merged into `staging`; the database ones by the director on Christian's behalf (
   - study events with nothing personal in them (#114, Task 33), with no analytics script yet.
 
 ## In review
+- Task 28: `itemHash(itemRow, keyRow)` and fail-closed hash verification in `parsePassed()` — the importer
+  rejects items whose `hash` is absent (fail-closed) or does not match the canonical SHA-256 of the item JSON.
+  Per-choice rationales are required for all items. `passed.csv` gains a `hash` column; the checker's
+  `passedCsv()` will emit it in a follow-up task. [PR #115](https://github.com/lilchristxan/Cueory/pull/115).
 - Task 31 ([#113](https://github.com/lilchristxan/Cueory/pull/113), D-69, D-87): `importRows(progress, idMap, today)` —
   converts guest localStorage progress into rows for `review_state`. `idMap` is a nested
   `Map<deckId, Map<cardId, uuid>>` so deck-local card ids are never confused across decks. "Know it" cards start at
