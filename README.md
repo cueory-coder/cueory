@@ -3,6 +3,13 @@
 Free, calm study help for nursing students in fundamentals and med-surg I. Lessons are built from short, standalone
 "atomic sentences". Live at **https://cueory.app**.
 
+## About this repository
+
+The code is public so anyone can see how Cueory is built. It is not open source: the code, the cueory name and logo,
+and the content are © 2026 Cueory, all rights reserved (see [LICENSE](LICENSE)). Files from other people keep their
+own licenses, noted where they are used. We don't take outside pull requests. To report a security problem, see
+[SECURITY.md](SECURITY.md).
+
 ## What's here (plain-language tour)
 
 | If you want to… | Open this |

@@ -248,9 +248,14 @@ const current = currentHref(
       }
       // Tab stays inside the panel instead of leaving for the browser's own buttons.
       if (event.key === 'Tab') {
-        const items = [...dialog.querySelectorAll<HTMLElement>('a[href], button, input')];
-        const target = wrapFocus(items.indexOf(document.activeElement as HTMLElement), items.length, event.shiftKey);
-        if (target !== undefined) {
+        const items = [...dialog.querySelectorAll<HTMLElement>('a[href], button, input')].filter(
+          (item) => item.checkVisibility?.() !== false,
+        );
+        const index = items.indexOf(document.activeElement as HTMLElement);
+        // Safari's own Tab skips links and buttons unless the visitor changed its setting, which would carry focus out
+        // of the panel; so every Tab step is taken here, one item at a time, in every browser.
+        const target = wrapFocus(index, items.length, event.shiftKey) ?? index + (event.shiftKey ? -1 : 1);
+        if (items.length > 0) {
           event.preventDefault();
           items[target]?.focus();
         }

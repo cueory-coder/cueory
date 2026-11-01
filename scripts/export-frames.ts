@@ -60,18 +60,31 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
           document.documentElement.style.setProperty('overflow', 'hidden', 'important');
           document.documentElement.style.setProperty('visibility', 'hidden', 'important');
         }, FILL_STYLE);
-        const ends = await page.evaluate(() => document.getAnimations().map((animation) => {
-          animation.pause();
-          const end = animation.effect?.getComputedTiming().endTime ?? 0;
-          return typeof end === 'number' ? end : Number.NaN;
-        }));
+        // Only the selected element's own animations, and its children's, set the timing: a spinner or any other
+        // animation elsewhere on the page never makes a clip longer or "endless" (the director's review of #47). The
+        // rest of the page is hidden in the frames anyway.
+        const ends = await element.evaluate((root) =>
+          document
+            .getAnimations()
+            .filter((animation) => {
+              const target = (animation.effect as KeyframeEffect | null)?.target;
+              return target != null && root.contains(target);
+            })
+            .map((animation) => {
+              animation.pause();
+              const end = animation.effect?.getComputedTiming().endTime ?? 0;
+              return typeof end === 'number' ? end : Number.NaN;
+            }),
+        );
         const times = frameTimes(durationMs(ends, options.seconds), options.fps);
         if (times.length === 0) {
-          throw new PlanError('Nothing to capture: no animation runs on the page. Give --seconds for a still clip.');
+          throw new PlanError('Nothing to capture: the selected element has no animation. Give --seconds for a still clip.');
         }
         for (let index = 0; index < times.length; index++) {
-          await page.evaluate((time) => {
+          await element.evaluate((root, time) => {
             for (const animation of document.getAnimations()) {
+              const target = (animation.effect as KeyframeEffect | null)?.target;
+              if (target == null || !root.contains(target)) continue;
               animation.pause();
               animation.currentTime = time;
             }

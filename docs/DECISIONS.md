@@ -449,6 +449,11 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   - **Next:** Christian picks final names later, after a screen.
 
   Reason: avoid launching under names others have filed for related goods.
+- **D-67** A guard for D-66: a unit test (`tests/unit/game-names.test.ts`) reads every page, component and island and
+  fails when one shows a game's internal id (`pulse`, `cueword`, `triage`, `suture`) as words, or types a game's name
+  into a share line ("cueory sort, …") instead of reading it with `gameName()`. Ids used as ids (content folders,
+  class names, test ids, imports) and comments are left alone. Reason: the names will change again, and builders work
+  in parallel, so a forgotten old name should fail CI instead of reaching a page.
 - **D-68** The visuals kit's source-file check (Task 6, D-56). The build checks every file in `content/visuals/`
   (`visualProblems` in `src/visuals/sources.ts`, run by `src/content.config.ts`) and stops with a plain message when:
   a label or depiction points to no source in the file, or a source is unused; a source quotes a book that isn't
@@ -507,3 +512,40 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
 
   Reason: the lead's request; it follows Supabase's 2026 grants change and keeps every key and answer out of the
   browser.
+- **D-74** CI spends fewer free Actions minutes (the lead, 2026-11-01).
+  - **Why:** on a private repository, GitHub Free includes 2,000 Actions minutes a month. Tonight's parallel
+    helpers ran CI about 80 times in six hours (about 9 billed minutes each), which would use the month's minutes in
+    a day or two. When they run out, CI stops and nothing can merge.
+  - **What changes:**
+    - drafts run no CI until marked ready for review;
+    - pushes to staging no longer run CI again (the pull request already passed, and the Release pull request runs
+      everything before main);
+    - a pull request that changes only Markdown files outside content/ and src/ passes without building or
+      testing;
+    - pull requests into staging run the browser tests at phone and desktop size, and Release pull requests into
+      main still run every device.
+  - **What stays:** the required checks and the auto-merge rules are unchanged.
+
+  Reason: keep CI inside the free minutes so the pipeline never stalls and costs stay $0.
+- **D-75** The repository goes public (Christian's decision, 2026-10-31, 11:06 pm, "Make repo go public before we
+  launch").
+  - **Why:** GitHub Actions minutes are free and unlimited on public repositories. The builders used 1,030 of
+    November's 2,000 free minutes in about six hours.
+  - **What's in it:**
+    - a LICENSE that keeps all rights (public, not open source);
+    - a README note that outside pull requests aren't accepted.
+  - **Rules updated:**
+    - CLAUDE.md rule 1 and SECURITY.md: GitHub secret scanning with push protection and CodeQL run; Semgrep and
+      gitleaks stay as a second layer.
+    - CLAUDE.md rule 7: real questions, answer keys, rationales and unreleased lessons never go in this repository.
+      They live in Christian's private content store and the database. `/content` keeps only labeled samples,
+      schemas and approved public text.
+  - **Checked before going public:** history, issues, pull requests and comments hold no tokens, keys, passwords,
+    addresses or phone numbers (gitleaks scans every commit in CI; the lead also searched every issue and comment).
+    The only personal detail is the email address on Christian's older commits, which becomes visible; he decides
+    whether that's acceptable.
+  - **Still safe from outsiders:** the staging auto-merge already skips pull requests from forks, and only Christian
+    merges into main. Cloudflare Workers Builds' 3,000 free build minutes still apply, so the push discipline stays.
+
+  Reason: free CI at full speed, with nothing private in the repository.
+
