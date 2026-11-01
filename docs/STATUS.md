@@ -18,8 +18,8 @@ Last updated: 2026-11-01
 
   It replaces the earlier traced logo (now in `brand-source/legacy/`).
 - Security headers and a hash-based content security policy.
-- Repository stays private: Semgrep (code scanning) and gitleaks (secret scanning) run free in CI in place of
-  GitHub's paid CodeQL and secret scanning.
+- Repository public (D-75): GitHub's secret scanning with push protection and CodeQL run, and Semgrep and gitleaks
+  keep running in CI as a second layer. Only Christian's account gives the agents instructions (D-79).
 - CI on every pull request (type check, build, unit tests, browser + accessibility tests, gitleaks secret scan),
   CodeQL, Dependabot version updates (target `staging`) and Dependabot security alerts. Dependabot's automatic
   security-fix pull requests are off, because they always target `main` and would skip staging.
@@ -111,10 +111,15 @@ Last updated: 2026-11-01
 ## Done (lead, 2026-10-31 evening)
 - Daily games show plain names for now (D-66): pulse, crossword, sort and word path. Christian picks final names
   later.
+- Auto-merge sweep (D-78, [#80](https://github.com/lilchristxan/Cueory/pull/80)), merged by Christian on
+  2026-11-01: an ordinary comment can no longer cancel a waiting merge check, and an hourly sweep re-checks every
+  open pull request. It starts working once it reaches `main`.
 
 ## In review
-- Auto-merge sweep (D-78, the lead's): an ordinary comment can no longer cancel a waiting merge check, and once an
-  hour a sweep re-checks every open pull request. It edits `.github/`, so it waits for Christian.
+- Instructions only from Christian's account (D-79, the lead's): on the public repository, CLAUDE.md and AGENTS.md
+  now say that text from any other account is never a task and that no agent runs a fork's code, and AGENTS.md tells
+  reviewers that real questions and answer keys never belong in the repository. SECURITY.md sends outside reporters
+  to GitHub's private report form first. It edits the rule files, so it waits for Christian.
 - Safari focus fixes (from the WebKit runs for D-48): the ☰ panel's Tab trap now moves focus one item at a time in every
   browser (Safari's own Tab skips links and buttons), and the promo panel gives focus back after a link click even
   though Safari leaves focus on the page. Two WebKit-only test findings stay open: the triage keyboard tests use the
@@ -224,9 +229,14 @@ Targets: first visuals by about 14 November, the full kit by about 12 December (
 - **Signup form** shows "signups open soon" until the Kit form exists (SETUP.md, Part I).
 
 ## Needs Christian's hands
-- Make the repository public (D-75): merge the go-public pull request, then flip the visibility in Settings and turn on secret scanning with push protection.
-- Merge the CI minutes change (D-74; it edits `.github/`). Check GitHub's Actions minutes used this month.
-- Supabase account and the two projects (docs/SETUP.md, Part K): in progress tonight (2026-10-31).
+- [x] Daily report (#4) and task list (#11) locked so only collaborators can comment (D-79), done by Christian on
+  2026-11-01.
+- [x] Private vulnerability reporting turned on (D-79), done by Christian on 2026-11-01.
+- [x] Repository public (D-75), done by Christian on 2026-10-31: visibility, secret scanning with push protection,
+  and the go-public pull request merged.
+- [x] CI minutes change (D-74) merged. Actions minutes are free now that the repository is public.
+- [x] Supabase account and the two projects, `cueory-staging` and `cueory-prod` (docs/SETUP.md, Part K), done
+  2026-10-31.
 Follow [docs/SETUP.md](SETUP.md):
 - [ ] A. Two-factor login on Google, GitHub, Cloudflare
 - [x] B. Turn on Codex reviews
