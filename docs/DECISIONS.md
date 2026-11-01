@@ -314,8 +314,9 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   - **Colors move to the guide's exact values:** Espresso `#3E2C23`, Charcoal `#1C1917`, and Ivory `#F9F5EF` for
     dark-mode text and logo. The older `#3F2E24`, `#1B1715` and `#EFE6DA` are retired (§4.3), and a test fails if they
     return.
-  - **Logo sizes follow §3.5:** the full logo about 240px wide in the header and 240–320px in the hero; study screens
-    get the compact emblem (§6.1). The favicons and home-screen icon become the emblem on Ivory.
+  - **Logo sizes follow §3.5:** the full logo 240px wide in the header and 240–320px in the hero. Study screens get
+    the compact emblem (§6.1), and so does the header on phones, where 240px plus the two corner buttons would be
+    wider than the screen. The favicons and home-screen icon become the emblem on Ivory.
   - **The hero calms down** (Christian: "this part of the homepage looks cluttered"):
     - the giant embossed logo behind the headline goes, because §3.6 forbids embossing the logo;
     - the motto moves from under the logo to the footer;

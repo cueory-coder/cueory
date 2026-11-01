@@ -114,7 +114,7 @@
   --nudge-mode-preview: 1rem;   /* how far the preview slides in when previous or next changes the mode (D-51) */
 
   /* ---------- Logo (brand guide v1.0 §3.5: the full logo about 240px wide or more; clear space 0.25 × letter height) ---------- */
-  --logo-width: min(15rem, calc(100vw - 9rem)); /* 240px in the header; a little less on the narrowest phones */
+  --logo-width: 15rem;          /* 240px in the header from 640px wide; phones get the emblem there (SiteHeader) */
   --logo-hero: clamp(15rem, 22vw, 20rem);       /* 240 to 320px above the hero headline */
   --logo-emblem: 2.25rem;       /* the compact emblem (c and cruet) on study screens: 36px wide, 40px tall */
   --logo-clear: 0.625rem;       /* clear space around the full logo at 240px (0.25 × the 39px letter c) */

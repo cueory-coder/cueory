@@ -35,12 +35,17 @@ const { quiet = false, overlay = false } = Astro.props;
       <a href="/" class="p-(--logo-clear) text-ink" aria-label={`${site.name} home`}>
         {/*
           Padding keeps the brand guide's clear space (0.25 × the letter c) around the logo. Study screens get the
-          compact emblem (guide §6.1: small, unobtrusive branding during study); other pages get the full logo.
+          compact emblem (guide §6.1: small, unobtrusive branding during study). Other pages get the full logo at
+          240px (guide §3.5) where it fits beside the two corner buttons, and the emblem on phones, where 240px plus
+          the corners, gaps and gutters would be wider than the screen.
         */}
         {quiet ? (
           <Wordmark variant="emblem" class="w-(--logo-emblem)" sizes="2.25rem" />
         ) : (
-          <Wordmark class="w-(--logo-width)" sizes="15rem" />
+          <>
+            <Wordmark variant="emblem" class="w-(--logo-emblem) sm:hidden" sizes="2.25rem" />
+            <Wordmark class="hidden w-(--logo-width) sm:block" sizes="15rem" />
+          </>
         )}
       </a>
     )

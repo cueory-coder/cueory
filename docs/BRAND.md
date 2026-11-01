@@ -36,7 +36,8 @@ Colors are applied in `src/styles/tokens.css`. The logo is shown by `src/compone
 - **Tests:** `tests/unit/brand.test.ts` fails if a source or web copy changes without rebuilding, or if any pixel
   drifts from the exact colors.
 - **Sizes (guide §3.5):**
-  - Full logo: 240px wide in the header (a little less on the narrowest phones) and 240–320px in the home hero.
+  - Full logo: 240px wide in the header on screens 640px and wider, and 240–320px in the home hero.
+  - On phones the header shows the emblem: 240px plus the two corner buttons would not fit.
   - Study screens show the emblem, 36px wide (guide §6.1: small, unobtrusive branding during study).
   - Clear space: at least 0.25 × the height of the letter c on every side.
 - **Palettes:** Espresso art on the Daytime palette, Ivory art on the Evening palette. Both images are in the page,

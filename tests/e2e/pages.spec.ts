@@ -422,7 +422,7 @@ test.describe('marketing look (D-41)', () => {
     const shown = (scope: import('@playwright/test').Locator) =>
       scope.locator('.logo img').evaluateAll((imgs) =>
         imgs
-          .filter((img) => getComputedStyle(img).display !== 'none')
+          .filter((img) => img.getClientRects().length > 0)
           .map((img) => ({ src: (img as HTMLImageElement).currentSrc, alt: img.getAttribute('alt') })),
       );
     await page.goto('/');
@@ -445,11 +445,18 @@ test.describe('marketing look (D-41)', () => {
     await expect(page.locator('link[rel="icon"][sizes="32x32"]')).toHaveAttribute('href', '/brand/v1/icon-32.png');
     await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute('href', '/brand/v1/icon-180.png');
 
-    // Other pages: the full logo in the header, named by its link.
+    // Other pages: the logo in the header, named by its link. The full logo where it fits (640px and wider), the
+    // emblem on phones, and the header never wider than the screen.
     await page.goto('/support');
     const home = page.getByRole('link', { name: 'cueory home' });
     await expect(home).toBeVisible();
-    expect((await shown(home))[0]!.src).toMatch(/\/brand\/v1\/logo-full-dark-\d+\.png$/);
+    const header = await shown(home);
+    expect(header).toHaveLength(1);
+    const wide = page.viewportSize()!.width >= 640;
+    expect(header[0]!.src).toMatch(wide ? /\/brand\/v1\/logo-full-dark-\d+\.png$/ : /\/brand\/v1\/emblem-dark-\d+\.png$/);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    const account = (await page.getByRole('button', { name: /account/i }).first().boundingBox())!;
+    expect(account.x + account.width).toBeLessThanOrEqual(page.viewportSize()!.width);
   });
 
   test('the glassy button is see-through glass with a blur, and its text stays readable', async ({ page }) => {
