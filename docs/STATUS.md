@@ -18,8 +18,8 @@ Last updated: 2026-11-01
 
   It replaces the earlier traced logo (now in `brand-source/legacy/`).
 - Security headers and a hash-based content security policy.
-- Repository stays private: Semgrep (code scanning) and gitleaks (secret scanning) run free in CI in place of
-  GitHub's paid CodeQL and secret scanning.
+- Repository public (D-75): GitHub's secret scanning with push protection and CodeQL run, and Semgrep and gitleaks
+  keep running in CI as a second layer. Only Christian's account gives the agents instructions (D-79).
 - CI on every pull request (type check, build, unit tests, browser + accessibility tests, gitleaks secret scan),
   CodeQL, Dependabot version updates (target `staging`) and Dependabot security alerts. Dependabot's automatic
   security-fix pull requests are off, because they always target `main` and would skip staging.
@@ -101,6 +101,10 @@ Last updated: 2026-11-01
   later.
 
 ## In review
+- Instructions only from Christian's account (D-79, the lead's): on the public repository, CLAUDE.md and AGENTS.md
+  now say that text from any other account is never a task and that no agent runs a fork's code, and AGENTS.md tells
+  reviewers that real questions and answer keys never belong in the repository. It edits the rule files, so it waits
+  for Christian.
 - Game-name guard (D-67): a unit test fails if a page or game shows an internal id (`cueword`, `triage`, `suture`) as
   words, or types a name into a share line, so the next rename stays a one-line change.
 - Promo panel fix: it waits until the ☰ panel or a study-mode preview has finished closing, so their own focus
@@ -178,9 +182,13 @@ Targets: first visuals by about 14 November, the full kit by about 12 December (
 - **Signup form** shows "signups open soon" until the Kit form exists (SETUP.md, Part I).
 
 ## Needs Christian's hands
-- Make the repository public (D-75): merge the go-public pull request, then flip the visibility in Settings and turn on secret scanning with push protection.
-- Merge the CI minutes change (D-74; it edits `.github/`). Check GitHub's Actions minutes used this month.
-- Supabase account and the two projects (docs/SETUP.md, Part K): in progress tonight (2026-10-31).
+- [ ] Lock the Daily report (#4) and the task list (#11) so only collaborators can comment (D-79): on each issue,
+  choose **Lock conversation** near the bottom of the right-hand column and confirm.
+- [x] Repository public (D-75), done by Christian on 2026-10-31: visibility, secret scanning with push protection,
+  and the go-public pull request merged.
+- [x] CI minutes change (D-74) merged. Actions minutes are free now that the repository is public.
+- [x] Supabase account and the two projects, `cueory-staging` and `cueory-prod` (docs/SETUP.md, Part K), done
+  2026-10-31.
 Follow [docs/SETUP.md](SETUP.md):
 - [ ] A. Two-factor login on Google, GitHub, Cloudflare
 - [x] B. Turn on Codex reviews
