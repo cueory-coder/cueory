@@ -144,6 +144,21 @@ Merged into `staging` tonight (pulse and sort were already live; the rest reache
   preview has finished closing.
 - Christian's decisions (D-80): the 3D atlas is BodyParts3D; OpenStax is link-only; releases stay manual.
 
+## Done (director, 2026-11-01, 1–2 am Phoenix)
+Merged into `staging` overnight; the database and content ones by the director on Christian's behalf (D-89):
+- Task 2, the database's next three steps (Task C6, each with the lead's security review): step 1 (#90, D-84),
+  `concepts`, `sources` and `rights_records`; step 2 (#92, D-85), questions in `items`, `item_versions` and
+  `item_choices`, with the key and rationales in `item_answers`, which no website role can read; step 3 (#94, D-86),
+  `attempts` and `check_answer`, which records the attempt before it returns the key and rationales (200 checks an hour
+  per person). Nothing reaches `cueory-staging` or `cueory-prod` until Christian applies migrations himself.
+- Visuals kit, the first batch's drawings (#93, D-81): body fluid compartments, osmosis and fluid shifts, and the
+  sodium-potassium pump, drawn only from their approved source files. Still drafts: nothing shows on a page until
+  Christian approves them. Draft video clips of all three (1080 × 1920) went to Christian in the director's chat.
+- Guest progress and onboarding saved on this device (#74, D-69), private game stats on `/play` (#79, D-76), the
+  concept map (#68), and the Safari preview fix (#88).
+- Helpers' logic, not on a page yet: account initials and menu (#91, Task 18), and the `/admin` review-table model
+  (#96, Task 20).
+
 ## In review
 - Task 2, database step 5, the last (Task C6, D-88, stacked on #104): `flags` and `submit_flag`, with 44 database
   tests. A signed-in student can send a "Flag or comment" report (5 an hour, 20 a day); the reports table is closed to
@@ -163,6 +178,9 @@ Merged into `staging` tonight (pulse and sort were already live; the rest reache
   on a page until Christian approves them; his review sheet is linked from the pull request.
 - Open pull requests add their own lines here: study modes on pages (#77), guest progress (#74), game stats on
   `/play` (#79), the Safari preview fix (#88) and Release browser tests (#55).
+- Open pull requests add their own lines here: study modes on pages (#77), export-my-data (#95, Task 19), lesson
+  videos (#97, Task C3), the 3D viewer shell (#98, Task C4), the batch importer's parser (#100, Task 21), the
+  disease-overlay frame (#102, Task 24) and Release browser tests (#55).
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
@@ -200,6 +218,9 @@ Targets: first visuals by about 14 November, the full kit by about 12 December (
 - **Signup form** shows "signups open soon" until the Kit form exists (SETUP.md, Part I).
 
 ## Needs Christian's hands
+- [ ] Real questions need a free account (D-86): `check_answer` reveals the key after one try, so signed-out visitors
+  can't use it (a limit needs an identity, and a CAPTCHA would load a third-party script). Guests keep the sample modes.
+  Reply "ok" to keep it this way, or ask for a CAPTCHA exception.
 - [x] Daily report (#4) and task list (#11) locked so only collaborators can comment (D-79), done by Christian on
   2026-11-01.
 - [x] Private vulnerability reporting turned on (D-79), done by Christian on 2026-11-01.

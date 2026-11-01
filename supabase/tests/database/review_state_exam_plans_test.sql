@@ -3,7 +3,7 @@
 -- database; the students and rows below exist only inside this test.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(47);
+select plan(50);
 
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-000000000001', 'one@example.com'),
@@ -184,6 +184,19 @@ select lives_ok(
 select throws_ok(
   $$ insert into public.exam_plans (course, exam_date) values ('one-too-many', current_date + 10) $$,
   '54000', null, 'but not an eleventh'
+);
+-- At the cap, saving a course the student already has is an update, not a new plan.
+select lives_ok(
+  $$ insert into public.exam_plans (course, exam_date) values ('med-surg-1', current_date + 70)
+     on conflict (user_id, course) do update set exam_date = excluded.exam_date $$,
+  'at ten plans, an upsert of a course the student already has is allowed'
+);
+select results_eq(
+  $$ select exam_date - current_date from public.exam_plans where course = 'med-surg-1' $$,
+  $$ values (70) $$, 'and it changed that plan''s date'
+);
+select results_eq(
+  $$ select count(*)::int from public.exam_plans $$, $$ values (10) $$, 'and the student still has ten plans'
 );
 
 -- ---- Student two sees and touches none of student one's rows.
