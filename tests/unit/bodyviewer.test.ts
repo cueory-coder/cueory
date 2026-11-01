@@ -4,6 +4,7 @@ import {
   MAX_SIZE_BYTES,
   MAX_TRIANGLES,
   checkModelBudget,
+  checkTriangleBudget,
   toggleLayer,
   type Layer,
 } from '../../src/islands/bodyviewer-logic';
@@ -93,5 +94,14 @@ describe('toggleLayer', () => {
       visible = toggleLayer(visible, layer);
     }
     expect(visible.size).toBe(0);
+  });
+});
+
+describe('checkTriangleBudget', () => {
+  it('accepts counts within budget and rejects larger or invalid ones', () => {
+    expect(checkTriangleBudget(MAX_TRIANGLES)).toBeNull();
+    expect(checkTriangleBudget(MAX_TRIANGLES + 1)).toContain('150,000');
+    expect(checkTriangleBudget(-1)).not.toBeNull();
+    expect(checkTriangleBudget(NaN)).not.toBeNull();
   });
 });

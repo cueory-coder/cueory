@@ -227,7 +227,8 @@ Targets: first visuals by about 14 November, the full kit by about 12 December (
 - In review ([#98](https://github.com/lilchristxan/Cueory/pull/98)): 3D body viewer shell (D-83). Lazy-loads
   `three` on tap, renders a placeholder model grouped into bone / muscle / skin layers with OrbitControls. On-demand
   rendering (battery), keyboard controls (arrow keys / +−), dark-mode background tokens, reduced-motion support.
-  Preview page has `noindex`. Real model will be BodyParts3D (D-80).
+  Preview page has `noindex`. Real model will be BodyParts3D (D-80). `three` 0.187; a unit test caps model files
+  under `public/` at 3 MB.
 - Next: the three drawings (Task C5), made only from those files.
 
 ## Planning

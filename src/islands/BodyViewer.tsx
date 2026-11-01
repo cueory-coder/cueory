@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type * as THREE from 'three';
-import { LAYERS, checkModelBudget, toggleLayer, type Layer } from './bodyviewer-logic';
+import { LAYERS, checkTriangleBudget, toggleLayer, type Layer } from './bodyviewer-logic';
 
 interface Props {
   /** Attribution text shown beneath the viewer. Names BodyParts3D when the real model is loaded. */
@@ -42,14 +42,19 @@ export default function BodyViewer({ creditText }: Props) {
 
   const open = useCallback(async () => {
     setState('loading');
+    setError('');
     try {
       const THREE = await import('three');
       const { OrbitControls } = await import('three/examples/jsm/controls/OrbitControls.js');
 
       // Wait one animation frame so React can commit the canvas to the DOM.
-      await new Promise<void>(r => requestAnimationFrame(() => r()));
+      // The timeout keeps this from hanging in a background tab, where animation frames never fire.
+      await new Promise<void>((r) => {
+        requestAnimationFrame(() => r());
+        setTimeout(r, 250);
+      });
       const canvas = canvasRef.current;
-      if (!canvas) { setState('error'); setError('Canvas element not ready.'); return; }
+      if (!canvas) { setError('Canvas element not ready.'); setState('error'); return; }
 
       const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -59,6 +64,10 @@ export default function BodyViewer({ creditText }: Props) {
       canvas.style.removeProperty('height');
 
       const scene = new THREE.Scene();
+
+      // Render flags are declared before first use (applyBg below sets needsRender).
+      let needsRender = true;
+      let raf = 0;
 
       // Dark-mode aware background: read theme at open time; re-read on color-scheme change.
       const applyBg = () => {
@@ -144,7 +153,7 @@ export default function BodyViewer({ creditText }: Props) {
         groupsRef.current[layer] = groupObjects[layer];
       }
 
-      // Triangle budget (placeholder is always within limit; this confirms the check runs).
+      // Triangle budget. File size is checked at build time (tests/unit/modelbudget.test.ts), not here.
       let totalTriangles = 0;
       scene.traverse((obj) => {
         if (obj instanceof THREE.Mesh) {
@@ -153,8 +162,8 @@ export default function BodyViewer({ creditText }: Props) {
             : obj.geometry.attributes['position']!.count / 3);
         }
       });
-      const budgetError = checkModelBudget(0, Math.round(totalTriangles));
-      if (budgetError) { setError(budgetError); setState('error'); renderer.dispose(); return; }
+      const budgetError = checkTriangleBudget(Math.round(totalTriangles));
+      if (budgetError) { setError(budgetError); setState('error'); renderer.dispose(); controls.dispose(); return; }
 
       const resize = () => {
         const w = canvas.clientWidth;
@@ -171,9 +180,6 @@ export default function BodyViewer({ creditText }: Props) {
       // ── On-demand render loop ───────────────────────────────────────────────
       // Render only when the scene has changed (controls moved, layer toggled, resize, theme change).
       // This avoids draining the battery at 60 fps while the viewer is idle.
-
-      let needsRender = true;
-      let raf = 0;
 
       const requestRender = () => { needsRender = true; };
       requestRenderRef.current = requestRender;
@@ -227,6 +233,8 @@ export default function BodyViewer({ creditText }: Props) {
 
       setState('ready');
     } catch (err) {
+      cleanupRef.current?.();
+      cleanupRef.current = null;
       setError(err instanceof Error ? err.message : 'Could not load the 3D viewer.');
       setState('error');
     }
@@ -257,7 +265,6 @@ export default function BodyViewer({ creditText }: Props) {
           type="button"
           onClick={open}
           className="flex min-h-14 w-full items-center justify-center gap-3 rounded-lg border border-line bg-soft px-5 py-3 text-ink hover:bg-button-hover hover:text-on-button focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-button"
-          aria-label="open the 3D view"
         >
           {/* Simple cube icon representing a 3D model */}
           <svg viewBox="0 0 24 24" className="size-6 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -290,7 +297,7 @@ export default function BodyViewer({ creditText }: Props) {
           ref={canvasRef}
           // tabIndex makes the canvas keyboard-focusable for arrow / zoom keys.
           tabIndex={0}
-          aria-label="open the 3D view — interactive 3D body viewer"
+          aria-label="Interactive 3D body viewer (placeholder model)"
           role="img"
           aria-describedby="body-viewer-desc"
           className="w-full rounded-lg bg-page focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-button"

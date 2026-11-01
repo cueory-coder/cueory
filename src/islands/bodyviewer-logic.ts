@@ -8,6 +8,17 @@ export const MAX_SIZE_BYTES = 3 * 1024 * 1024; // 3 MB
 export const MAX_TRIANGLES = 150_000;
 
 /**
+ * Triangle budget only. The file-size budget cannot be checked in the browser before the download, so it is
+ * enforced at build time by tests/unit/modelbudget.test.ts.
+ */
+export function checkTriangleBudget(triangles: number): string | null {
+  if (!Number.isFinite(triangles) || triangles < 0) return 'Triangle count is not a valid number.';
+  if (triangles > MAX_TRIANGLES)
+    return `Model has ${triangles.toLocaleString()} triangles; the phone budget is 150,000.`;
+  return null;
+}
+
+/**
  * Checks whether a model fits within the phone budget.
  * Returns a plain English error string, or null when the model is within budget.
  */

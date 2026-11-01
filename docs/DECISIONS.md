@@ -827,6 +827,12 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   - **Credit:** "Placeholder model (geometric shapes). Real model: BodyParts3D, © The Database Center for Life
     Science licensed under CC Attribution 4.0 International."
 
+  - **Version and size budget:** `three` is `^0.187.0`, matching `@types/three`. The 3 MB model limit is enforced at
+    build time by `tests/unit/modelbudget.test.ts` (fails if any `.glb` / `.gltf` under `public/` is over 3 MB; passes
+    when none exist). The viewer itself checks only the triangle count, since size cannot be known before download.
+  - **Fix:** the viewer failed to open ("Cannot access before initialization") because `needsRender` was used before
+    its declaration; it is now declared first. Errors during open clean up and show the error state.
+
   Reason: meets CLAUDE.md rule 6 (keyboard), brand tokens, battery discipline, and BodyParts3D licence from D-80.
 
 - **D-89** Overnight merges into `staging` on Christian's behalf (Christian, 2026-11-01, about 1:00 am Phoenix: "whatever
