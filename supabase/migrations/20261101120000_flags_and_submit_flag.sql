@@ -5,7 +5,8 @@
 -- the item's version are attached. Christian reads the reports in the locked /admin inbox and marks them handled.
 --
 -- The `flags` table is admin data (CLAUDE.md rule 1): no website role can read or write it, not even a student's own
--- reports. The only way in is submit_flag, which checks everything and limits how many a person can send. Sending one
+-- reports. The only way in is submit_flag, which checks everything and limits how many a person can send, and the only
+-- way to read your own is my_flags, which returns just the fields the student wrote (export-my-data, CLAUDE.md rule 2). Sending one
 -- needs a signed-in account: an anonymous report would need a CAPTCHA, and Supabase's (hCaptcha or Cloudflare Turnstile)
 -- loads a third-party script, which CLAUDE.md rules out unless Christian makes an exception (D-73). The form tells
 -- signed-out visitors a free account is needed and offers hello@cueory.app instead (the lead's note on D-77).
@@ -43,7 +44,8 @@ create index flags_item_version_idx on public.flags (item_version_id) where item
 comment on table public.flags is
   '"Flag or comment" reports (D-88). Admin data: no website role has any access; only submit_flag writes.';
 
--- Nothing for anon or authenticated. The service role (the admin inbox, export-my-data) does everything.
+-- Nothing for anon or authenticated, not even the student's own reports: they read those through my_flags() below.
+-- The service role (the admin inbox) does everything.
 grant select, insert, update, delete on table public.flags to service_role;
 
 alter table public.flags enable row level security;
@@ -132,3 +134,36 @@ comment on function public.submit_flag(text, uuid, uuid, text, text) is
 -- Nobody can run it until it is granted back by name (D-73), and then only signed-in students.
 revoke execute on function public.submit_flag(text, uuid, uuid, text, text) from public, anon, authenticated;
 grant execute on function public.submit_flag(text, uuid, uuid, text, text) to authenticated;
+
+-- ------------------------------------------------------------------- my_flags
+
+-- A student's own reports, for export-my-data (CLAUDE.md rule 2). A function instead of a select policy with column
+-- grants, so the table stays closed to every website role exactly as D-88 says: a later grant by mistake can't expose
+-- the admin fields (user_id, status, handled_at), and the locked-by-default test keeps its one allowed list of what the
+-- website may run. It returns only the fields the student wrote or that name what they reported, newest first.
+create function public.my_flags()
+returns table (
+  id uuid,
+  page text,
+  item_id uuid,
+  item_version_id uuid,
+  reason text,
+  comment text,
+  created_at timestamptz
+)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select f.id, f.page, f.item_id, f.item_version_id, f.reason, f.comment, f.created_at
+  from public.flags f
+  where f.user_id = (select auth.uid())
+  order by f.created_at desc, f.id;
+$$;
+
+comment on function public.my_flags() is
+  'A signed-in student''s own "Flag or comment" reports, without the admin fields (D-88, export-my-data).';
+
+revoke execute on function public.my_flags() from public, anon, authenticated;
+grant execute on function public.my_flags() to authenticated;

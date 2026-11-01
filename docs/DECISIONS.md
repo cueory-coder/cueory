@@ -899,7 +899,10 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   definer` with a fixed `search_path`; revoke `execute` from `public` and `anon`).
   - **`flags` is admin data:** no website role can read or write it, not even a student's own reports. No grants, row-level
     security on, and an explicit restrictive deny policy for `anon` and `authenticated` (as for the key, D-85). Only the
-    service role (the `/admin` inbox, export-my-data) reads and writes it. A report has the page, the item and version (both
+    service role (the `/admin` inbox) reads and writes it. A student reads their own reports (for export-my-data, rule 2)
+    only through **`my_flags()`**, a signed-in-only `security definer` function that returns the report's id, page, item,
+    version, reason, comment and time and never the user, status or handled time; chosen over a select policy with column
+    grants so the table stays fully closed and the locked-by-default test keeps one allowed list of functions. A report has the page, the item and version (both
     or neither), a reason, an optional comment, a status (`open` until Christian marks it `handled`, which needs a date), and
     belongs to a student; deleting an account deletes its reports.
   - **`submit_flag(page, item_id, item_version_id, reason, comment)`** is the only way in, for signed-in students only,
@@ -958,6 +961,8 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   a course slug of at most 80 characters, real calendar days. No user id, answer key or rationale is ever exported; if
   one is passed it is dropped and only its name is listed. Caps: 50,000 rows for `attempts` and `reviewRows`, 10 for
   `examPlans` (the database's cap); anything beyond is reported in `dropped` as `section[cap+]`. Each section also gets
-  a CSV file with the same formula guard and quoting.
+  a CSV file with the same formula guard and quoting. A fourth section, `reports` (C11), holds the student's own "Flag or comment"
+  reports as `my_flags()` returns them (D-88): id, page (a site path), item, version, reason, comment and time; the admin
+  fields are dropped by name; cap 10,000 rows.
 
   Reason: the review of #95 found server-side study progress missing from the download.

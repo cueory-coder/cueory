@@ -3,12 +3,13 @@
 -- `supabase test db` on a throwaway local database; the students and rows below exist only inside this test.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(44);
+select plan(52);
 
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-000000000001', 'one@example.com'),
   ('00000000-0000-4000-8000-000000000002', 'two@example.com'),
-  ('00000000-0000-4000-8000-000000000003', 'three@example.com');
+  ('00000000-0000-4000-8000-000000000003', 'three@example.com'),
+  ('00000000-0000-4000-8000-000000000004', 'four@example.com');
 
 -- A published question, so a report can name its item and version.
 insert into public.concepts (id, slug, title, published) values
@@ -49,6 +50,17 @@ select ok(
   'flags have an explicit policy that refuses every website role'
 );
 
+select ok(
+  has_function_privilege('authenticated', 'public.my_flags()', 'execute')
+    and not has_function_privilege('anon', 'public.my_flags()', 'execute'),
+  'signed-in students can run my_flags and signed-out visitors cannot'
+);
+select ok(
+  (select prosecdef from pg_proc where oid = 'public.my_flags()'::regprocedure)
+    and (select proconfig @> array['search_path=""'] from pg_proc where oid = 'public.my_flags()'::regprocedure),
+  'my_flags is security definer with an empty search_path'
+);
+
 -- ---- Signed out.
 set local role anon;
 set local "request.jwt.claims" to '{"role": "anon"}';
@@ -58,6 +70,7 @@ select throws_ok(
   '42501', null, 'a signed-out visitor cannot send a report'
 );
 select throws_ok($$ select id from public.flags $$, '42501', null, 'a signed-out visitor cannot read flags');
+select throws_ok($$ select * from public.my_flags() $$, '42501', null, 'a signed-out visitor cannot run my_flags');
 
 -- ---- Student one.
 set local role authenticated;
@@ -181,12 +194,32 @@ select throws_ok(
   '54000', null, 'the sixth report in an hour is refused'
 );
 
+-- ---- A student reads their own reports back, and only the fields they wrote (export-my-data).
+select results_eq(
+  $$ select count(*)::int from public.my_flags() $$, $$ values (5) $$,
+  'my_flags gives student one their five reports'
+);
+select results_eq(
+  $$ select array(select jsonb_object_keys(to_jsonb(f)) order by 1) from public.my_flags() f limit 1 $$,
+  $$ values (array['comment', 'created_at', 'id', 'item_id', 'item_version_id', 'page', 'reason']) $$,
+  'and only the student''s own fields: no user, status or handled time'
+);
+select results_eq(
+  $$ select reason, comment, item_id::text from public.my_flags() where page = '/learn/study-skills/questions' $$,
+  $$ values ('wrong-fact', null, '00000000-0000-4000-8000-0000000000e1') $$,
+  'with the report as it was stored'
+);
+
 -- ---- Another student is not affected; old reports stop counting; the daily cap holds.
 set local "request.jwt.claims" to '{"sub": "00000000-0000-4000-8000-000000000002", "role": "authenticated"}';
 set local "request.jwt.claim.sub" to '00000000-0000-4000-8000-000000000002';
 select lives_ok(
   $$ select public.submit_flag('/p', null, null, 'typo', 'student two is fine') $$,
   'one student being at the limit does not stop another'
+);
+select results_eq(
+  $$ select comment from public.my_flags() $$, $$ values ('student two is fine') $$,
+  'student two''s my_flags shows only their own report, none of student one''s five'
 );
 
 reset role;
@@ -207,6 +240,11 @@ select throws_ok(
   $$ select public.submit_flag('/p', null, null, 'typo', 'the twenty-first today') $$,
   '54000', null, 'twenty reports in a day is the most, whatever the hour'
 );
+
+-- ---- A student who has sent nothing sees nothing.
+set local "request.jwt.claims" to '{"sub": "00000000-0000-4000-8000-000000000004", "role": "authenticated"}';
+set local "request.jwt.claim.sub" to '00000000-0000-4000-8000-000000000004';
+select is_empty($$ select * from public.my_flags() $$, 'a student with no reports gets an empty list');
 
 -- ---- The admin inbox rules (as the owner).
 reset role;
