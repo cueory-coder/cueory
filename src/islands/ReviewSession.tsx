@@ -14,10 +14,12 @@ const secondary = 'min-h-11 rounded-pill border border-control px-5 py-2.5 text-
 
 /** Histories are a starting snapshot. Parent save echoes must not restart an active session. */
 export default function ReviewSession(props: Props) {
-  return <Session key={JSON.stringify([props.cards, props.today, props.examDay])} {...props} />;
+  // A keyed child may reset while an earlier snapshot is still being saved.
+  const saveQueue = useRef<Promise<void>>(Promise.resolve());
+  return <Session key={JSON.stringify([props.cards, props.today, props.examDay])} {...props} saveQueue={saveQueue} />;
 }
 
-function Session({ cards, histories, today, examDay, onSave }: Props) {
+function Session({ cards, histories, today, examDay, onSave, saveQueue }: Props & { saveQueue: { current: Promise<void> } }) {
   const [state, setState] = useState(() => startSession(cards, histories, today, examDay));
   const [revealed, setRevealed] = useState(false);
   const [focusRequest, setFocusRequest] = useState(0);
@@ -26,7 +28,6 @@ function Session({ cards, histories, today, examDay, onSave }: Props) {
   const end = useRef<HTMLDivElement>(null);
   const answeredId = useRef<string | undefined>(undefined);
   const saveRequest = useRef(0);
-  const saveQueue = useRef<Promise<void>>(Promise.resolve());
   const alive = useRef(true);
   const card = currentCard(state);
 
