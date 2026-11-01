@@ -608,6 +608,39 @@ test.describe('daily games: private stats (D-76)', () => {
     ]);
   });
 
+  test('a round finished before the panel loads is dropped when another tab forgets stats', async ({
+    page,
+    context,
+  }) => {
+    let release = () => {};
+    const held = new Promise<void>((resolve) => (release = resolve));
+    await page.route(/\/_astro\/GameStatsPanel\.[^/]+\.js$/, async (route) => {
+      await held;
+      await route.continue();
+    });
+    await page.goto('/play');
+    await expect(page.getByTestId('pulse')).toBeVisible();
+    await expect(toggle(page)).toHaveCount(0);
+    await solvePulse(page);
+
+    // Another tab: turn stats on, finish pulse there, then forget all stats (they stay on).
+    const other = await context.newPage();
+    await other.clock.setFixedTime(new Date('2026-11-01T15:00:00'));
+    await other.goto('/play');
+    await toggle(other).click();
+    await solvePulse(other);
+    await expect(pulseStats(other)).toContainText('played 1 day, solved 1.');
+    await other.getByRole('button', { name: 'forget all my stats' }).click();
+    await expect(pulseStats(other)).toContainText('not played yet.');
+    await other.close();
+
+    // The panel loads with stats still on, and the forgotten round doesn't come back.
+    release();
+    await expect(toggle(page)).toHaveAttribute('aria-checked', 'true');
+    await expect(pulseStats(page)).toContainText('not played yet.');
+    expect(JSON.parse((await kept(page))!).results).toEqual([]);
+  });
+
   test('at 320 px the panel fits, and its buttons are at least 44 px tall', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 720 });
     await toggle(page).click();
