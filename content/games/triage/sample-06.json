@@ -1,0 +1,30 @@
+{
+  "status": "sample",
+  "groups": [
+    {
+      "name": "trees",
+      "terms": [
+        "oak",
+        "maple",
+        "birch"
+      ]
+    },
+    {
+      "name": "sports",
+      "terms": [
+        "tennis",
+        "soccer",
+        "hockey"
+      ]
+    },
+    {
+      "name": "gemstones",
+      "terms": [
+        "ruby",
+        "emerald",
+        "opal"
+      ]
+    }
+  ],
+  "oddOne": "teacup"
+}

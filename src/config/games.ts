@@ -20,7 +20,12 @@ export const dailyGames: readonly DailyGame[] = [
     ready: true,
   },
   { id: 'cueword', name: 'cueword', line: 'a mini crossword.', ready: false },
-  { id: 'triage', name: 'triage', line: 'sort terms into the groups they belong to.', ready: false },
+  {
+    id: 'triage',
+    name: 'triage',
+    line: 'sort ten terms into three groups. one fits none of them. three slips end the round.',
+    ready: true,
+  },
   { id: 'suture', name: 'suture', line: 'trace hidden words through a grid of letters.', ready: false },
 ];
 

@@ -409,3 +409,15 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   connected the launch-updates panel says only "signups open soon."; the line about the emails comes with the form, so
   small grey lines never stack. The space between sections was already about 144 px on desktops, inside the 96 to
   160 px asked for, so it stays. Reason: Christian's request for a calmer page that looks expensive.
+- **D-63** triage, the second daily game on `/play` (Christian's request for four medically themed games with original
+  names, rules and look, 2026-10-31, item 4 of the lead's note on issue #4). Its own rules: the three groups are named
+  and shown from the start, so nothing is hidden but where each term goes. Ten terms: three for each group and one odd
+  one out that belongs to none, which goes to "none of these". Pick a term, then its group, with buttons only (tap,
+  click or keyboard; no dragging and no timer). A right place locks the term into its group with ✓; a wrong one is a
+  slip, said in words, and the term stays picked so it can go elsewhere; three slips end the round and show where each
+  term goes. The terms are dealt in an order seeded by the day, so everyone sees the same order on a day and the groups
+  never come pre-sorted. The look is a loose row of rounded pills and four quiet panels, never a grid of tiles or
+  colored rows, and the share is one plain line ("cueory triage, sun 1 nov: sorted with 1 slip."). Samples use
+  everyday words (`content/games/triage/`, checked by `src/content.config.ts`: three groups of three, every term once)
+  and say so on the page; real puzzles follow pulse's path in D-61. The home page section now says "play today's
+  games". Reason: Christian's request for daily games as a major feature, with rules and a look of our own.

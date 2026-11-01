@@ -1,0 +1,30 @@
+{
+  "status": "sample",
+  "groups": [
+    {
+      "name": "seasons",
+      "terms": [
+        "spring",
+        "summer",
+        "winter"
+      ]
+    },
+    {
+      "name": "drinks",
+      "terms": [
+        "tea",
+        "coffee",
+        "juice"
+      ]
+    },
+    {
+      "name": "insects",
+      "terms": [
+        "ant",
+        "bee",
+        "beetle"
+      ]
+    }
+  ],
+  "oddOne": "ladder"
+}

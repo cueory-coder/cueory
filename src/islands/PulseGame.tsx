@@ -18,6 +18,7 @@ import {
   type Mark,
   type PulseState,
 } from './pulse';
+import { dayLabel } from './daily';
 
 interface Puzzle {
   word: string;
@@ -31,13 +32,6 @@ interface Props {
 
 const KEY_ROWS = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
 const primaryButton = 'rounded-pill bg-button px-5 py-2.5 text-on-button hover:bg-button-hover';
-
-/** The date on the share line, in the visitor's own words: "sat 1 nov". */
-function dayLabel(date: Date): string {
-  const weekday = date.toLocaleDateString('en-US', { weekday: 'short' }).toLowerCase();
-  const month = date.toLocaleDateString('en-US', { month: 'short' }).toLowerCase();
-  return `${weekday} ${date.getDate()} ${month}`;
-}
 
 /**
  * pulse (D-61): guess the word of the day. Type a guess in the field (or tap the letters below) and press guess; each

@@ -20,9 +20,9 @@ import {
 } from '../../src/islands/pulse';
 
 describe('daily games (D-61)', () => {
-  it('lists the four games under their working names, lowercase, with pulse playable first', () => {
+  it('lists the four games under their working names, lowercase, with pulse and triage playable', () => {
     expect(dailyGames.map((game) => game.name)).toEqual(['pulse', 'cueword', 'triage', 'suture']);
-    expect(dailyGames.filter((game) => game.ready).map((game) => game.id)).toEqual(['pulse']);
+    expect(dailyGames.filter((game) => game.ready).map((game) => game.id)).toEqual(['pulse', 'triage']);
     for (const game of dailyGames) {
       expect(game.name).toBe(game.name.toLowerCase());
       expect(game.line).toBe(game.line.toLowerCase());
@@ -35,6 +35,9 @@ describe('daily games (D-61)', () => {
       '../../src/pages/play.astro',
       '../../src/islands/PulseGame.tsx',
       '../../src/islands/pulse.ts',
+      '../../src/islands/TriageGame.tsx',
+      '../../src/islands/triage.ts',
+      '../../src/components/DailyGamesSection.astro',
     ].map((path) => readFileSync(new URL(path, import.meta.url), 'utf8'));
     const named = (text: string) =>
       forbiddenGameWords.filter((word) => new RegExp(`\\b${word}\\b`).test(text.toLowerCase()));

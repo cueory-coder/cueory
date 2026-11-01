@@ -1,0 +1,30 @@
+{
+  "status": "sample",
+  "groups": [
+    {
+      "name": "birds",
+      "terms": [
+        "robin",
+        "eagle",
+        "owl"
+      ]
+    },
+    {
+      "name": "metals",
+      "terms": [
+        "iron",
+        "copper",
+        "tin"
+      ]
+    },
+    {
+      "name": "vegetables",
+      "terms": [
+        "carrot",
+        "onion",
+        "leek"
+      ]
+    }
+  ],
+  "oddOne": "candle"
+}

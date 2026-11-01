@@ -20,6 +20,10 @@ test.beforeEach(async ({ page }) => {
 const axe = (page: Page) => new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
 const field = (page: Page) => page.getByLabel('your guess', { exact: true });
 const live = (page: Page) => page.getByTestId('pulse-live');
+const term = (page: Page, name: string) =>
+  page.getByRole('list', { name: 'terms to sort' }).getByRole('button', { name, exact: true });
+const place = (page: Page, name: string) =>
+  page.getByRole('group', { name: 'groups' }).getByRole('button', { name: new RegExp(`^${name},`) });
 
 test.describe('daily games: pulse (D-61)', () => {
   test.beforeEach(async ({ page }) => {
@@ -102,7 +106,7 @@ test.describe('daily games on the home page (D-61)', () => {
     const headings = await page.getByRole('heading', { level: 2 }).allTextContents();
     expect(headings.indexOf('daily games')).toBe(headings.indexOf('ways to study') + 1);
     const link = page.getByTestId('games-link');
-    await expect(link).toHaveText("play today's pulse");
+    await expect(link).toHaveText("play today's games");
     await expect(link).toHaveAttribute('href', '/play');
     await link.click();
     await expect(page).toHaveURL(/\/play$/);
@@ -140,15 +144,143 @@ test.describe('daily games on a narrow phone', () => {
       expect(keys[i]!.left + keys[i]!.width / 2 - (keys[i - 1]!.left + keys[i - 1]!.width / 2)).toBeGreaterThanOrEqual(24);
     }
   });
+
+  test('at 320 px triage fits too: every term and group is on screen, each at least 44 px tall', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 700 });
+    await page.clock.setFixedTime(new Date('2026-11-03T15:00:00'));
+    await page.goto('/play');
+    // 3 November: the third sample, with the longest group name ("musical instruments").
+    await page.getByRole('list', { name: 'terms to sort' }).getByRole('button').first().click();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    const boxes = await page.locator('.triage-term, .triage-place-button').evaluateAll((els) =>
+      els.map((el) => el.getBoundingClientRect()),
+    );
+    expect(boxes).toHaveLength(14);
+    for (const box of boxes) {
+      expect(box.left).toBeGreaterThanOrEqual(0);
+      expect(box.right).toBeLessThanOrEqual(320);
+      expect(box.height).toBeGreaterThanOrEqual(44);
+    }
+  });
+});
+
+test.describe('daily games: triage (D-63)', () => {
+  // 1 November: the first sample. fruits: apple, pear, mango; weather: rain, fog, hail; furniture: chair, sofa, desk;
+  // and violin fits none of them.
+  const answer: Record<string, string[]> = {
+    fruits: ['apple', 'pear', 'mango'],
+    weather: ['rain', 'fog', 'hail'],
+    furniture: ['chair', 'sofa', 'desk'],
+    'none of these': ['violin'],
+  };
+  const triageLive = (page: Page) => page.getByTestId('triage-live');
+
+  test.beforeEach(async ({ page }) => {
+    await page.clock.setFixedTime(new Date('2026-11-01T15:00:00'));
+    await page.goto('/play');
+    await expect(page.getByTestId('triage')).toBeVisible();
+  });
+
+  test('pick a term, then its group: a right place shows it there with ✓, and axe passes', async ({ page }) => {
+    await expect(page.getByRole('heading', { level: 2, name: 'triage' })).toBeVisible();
+    await expect(page.getByTestId('triage-sample-note')).toHaveText("today's terms are a sample.");
+    await expect(page.getByTestId('triage-status')).toHaveText('10 terms to sort · 3 slips left');
+    await term(page, 'mango').click();
+    await expect(term(page, 'mango')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('triage-picked')).toHaveText('picked: mango. now pick its group.');
+    await expect(place(page, 'fruits')).toHaveAccessibleName('fruits, 0 of 3, put mango here');
+    const results = await axe(page);
+    expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+    await place(page, 'fruits').click();
+    await expect(triageLive(page)).toHaveText('mango goes in fruits. 9 terms left.');
+    await expect(page.getByRole('list', { name: 'in fruits' })).toHaveText('✓ mango');
+    await expect(term(page, 'mango')).toHaveCount(0);
+    await expect(page.getByTestId('triage-status')).toHaveText('9 terms to sort · 3 slips left');
+    await expect(place(page, 'fruits')).toHaveAccessibleName('fruits, 1 of 3');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+
+  test('tapping a picked term again puts it back, and a group with nothing picked asks for a term', async ({ page }) => {
+    await place(page, 'weather').click();
+    await expect(triageLive(page)).toHaveText('pick a term first.');
+    await term(page, 'fog').click();
+    await term(page, 'fog').click();
+    await expect(term(page, 'fog')).toHaveAttribute('aria-pressed', 'false');
+    await expect(triageLive(page)).toHaveText('fog put back.');
+    await expect(page.getByTestId('triage-status')).toHaveText('10 terms to sort · 3 slips left');
+  });
+
+  test('a wrong group is a slip, said in words; the third ends the round and shows where each term goes', async ({
+    page,
+  }) => {
+    await term(page, 'violin').click();
+    await place(page, 'fruits').click();
+    await expect(triageLive(page)).toHaveText("slip: violin isn't in fruits. 2 slips left.");
+    await expect(page.getByTestId('triage-status')).toHaveText('10 terms to sort · 2 slips left');
+    // The term stays picked, so it can go somewhere else.
+    await expect(term(page, 'violin')).toHaveAttribute('aria-pressed', 'true');
+    await place(page, 'weather').click();
+    await expect(triageLive(page)).toHaveText("slip: violin isn't in weather. 1 slip left.");
+    await place(page, 'furniture').click();
+    const result = page.getByTestId('triage-result');
+    await expect(result).toBeFocused();
+    await expect(result).toContainText('out of slips.');
+    await expect(page.getByTestId('triage-answer').getByRole('listitem')).toHaveText([
+      'fruits: apple, pear, mango.',
+      'weather: rain, fog, hail.',
+      'furniture: chair, sofa, desk.',
+      'none of these: violin.',
+    ]);
+    await expect(result).toContainText('cueory triage, sun 1 nov: not sorted this time.');
+    await expect(page.getByRole('list', { name: 'terms to sort' })).toHaveCount(0);
+    await expect(place(page, 'fruits')).toBeDisabled();
+  });
+
+  test('the keyboard alone sorts the whole round, and the result shares as plain words', async ({ page }) => {
+    const groups = Object.keys(answer);
+    for (const [group, terms] of Object.entries(answer)) {
+      for (const name of terms) {
+        await term(page, name).focus();
+        await page.keyboard.press('Enter');
+        // Enter on a term moves focus to the first group; Tab goes on to the others.
+        await expect(place(page, 'fruits')).toBeFocused();
+        for (let i = 0; i < groups.indexOf(group); i++) await page.keyboard.press('Tab');
+        await expect(place(page, group)).toBeFocused();
+        await page.keyboard.press('Enter');
+      }
+    }
+    const result = page.getByTestId('triage-result');
+    await expect(result).toBeFocused();
+    await expect(result).toContainText('sorted.');
+    await expect(result).toContainText('cueory triage, sun 1 nov: sorted with no slips.');
+    await result.getByRole('button', { name: 'copy my result' }).click();
+    await expect(result).toContainText('cueory triage, sun 1 nov: sorted with no slips.');
+    await expect(result.getByText('a new puzzle comes tomorrow.')).toBeVisible();
+    // Each group lists its terms in the order they were dealt, each with ✓.
+    for (const [group, terms] of Object.entries(answer)) {
+      const shown = await page.getByRole('list', { name: `in ${group}` }).getByRole('listitem').allInnerTexts();
+      expect(shown.sort()).toEqual(terms.map((name) => `✓ ${name}`).sort());
+    }
+  });
+
+  test('after a right place by keyboard, focus goes back to the terms still to sort', async ({ page }) => {
+    await term(page, 'rain').focus();
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Tab');
+    await expect(place(page, 'weather')).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('list', { name: 'terms to sort' }).getByRole('button').first()).toBeFocused();
+  });
 });
 
 test.describe('daily games without JavaScript', () => {
   test.use({ javaScriptEnabled: false });
 
-  test('pulse says it needs JavaScript', async ({ page }) => {
+  test('pulse and triage say they need JavaScript', async ({ page }) => {
     await page.goto('/play');
     // Playwright's text matching skips <noscript>, so this uses CSS.
-    await expect(page.locator('noscript p')).toHaveText('pulse needs JavaScript.');
+    await expect(page.locator('noscript p')).toHaveText(['pulse needs JavaScript.', 'triage needs JavaScript.']);
     await expect(page.getByTestId('sample-note')).toBeVisible();
+    await expect(page.getByTestId('triage-sample-note')).toBeVisible();
   });
 });

@@ -90,13 +90,17 @@ Last updated: 2026-11-01
   suture listed as coming soon; a link in the ☰ panel and a section on the home page after "ways to study". It adds
   sample puzzles under `content/`, so it waits for Christian's merge. How real puzzles reach the browser one day at a
   time is proposed in D-61 for Christian.
+- Daily games, second game (D-63, stacked on the first part): triage on `/play`. Sort ten terms into three named
+  groups, with one that fits none ("none of these"); a wrong place is a slip, and three slips end the round. Buttons
+  only (tap, click or keyboard, no dragging), every result said in words and shown by ✓, and a plain-words share line.
+  Seven labeled everyday samples under `content/games/triage/`, so it also waits for Christian's merge.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
 2. Auto-release (`staging` into `main` in pre-launch mode), after the change requests.
 3. Christian's 31 Oct evening requests ([the lead's note on issue #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6551841155)),
    now first: brand v1.0 (the lead's branch), then the home page polish pass, then the rest of daily games (the home
-   page section, cueword, triage and suture).
+   page section and triage are in review; cueword and suture are next).
 
 ## Visuals kit (Task 6, D-56)
 Targets: first visuals by about 14 November, the full kit by about 12 December ([plan](VISUALS.md)).
