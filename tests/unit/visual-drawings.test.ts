@@ -36,8 +36,9 @@ const drawings: { visual: Visual; steps: readonly DrawingStep[]; render: (shown?
   },
 ];
 
-const decode = (text: string) =>
-  text.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#x27;/g, "'");
+/** React's five escapes, undone in one pass, so "&amp;lt;" stays "&lt;" (never unescaped twice). */
+const ESCAPES: Record<string, string> = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#x27;': "'" };
+const decode = (text: string) => text.replace(/&(?:amp|lt|gt|quot|#x27);/g, (entity) => ESCAPES[entity]!);
 
 /** Each `<text>` element's label id and the words it shows, with its line breaks joined back up. */
 function texts(markup: string): { id: string | undefined; words: string }[] {
@@ -217,6 +218,12 @@ describe('VisualDiagram', () => {
     expect(markup).toContain('Words adapted from Nursing Fundamentals, 2nd Edition');
     expect(markup).toContain('href="https://creativecommons.org/licenses/by/4.0/"');
     expect(markup).toContain('step 1 of 4');
+  });
+});
+
+describe('decode', () => {
+  it('undoes each escape once', () => {
+    expect(decode('a &amp;lt; b &lt; c &#x27;d&#x27;')).toBe("a &lt; b < c 'd'");
   });
 });
 
