@@ -6,6 +6,7 @@
  * site works the same without it. When `offline.enabled` is false (src/config/site.ts) it removes any registration
  * instead. Keep it free of syntax the build can't strip (it is joined with swlogic.ts and offlineplan.ts).
  */
+import { cacheName } from './offlineplan';
 import { strategyFor } from './swlogic';
 
 interface WorkerRegistration {
@@ -27,6 +28,8 @@ export interface OfflineEnvironment {
   /** Addresses this page has already loaded (the browser's resource timing list). */
   resources: () => readonly string[];
   fetchOne: (url: string) => Promise<unknown>;
+  /** Deletes every saved copy this site made (and no other cache). */
+  clearCopies: () => Promise<unknown>;
   wait: (milliseconds: number) => Promise<void>;
 }
 
@@ -61,6 +64,8 @@ export async function startOffline(env: OfflineEnvironment): Promise<void> {
   const container = env.serviceWorker;
   if (!env.secure || !container) return;
   if (!env.enabled) {
+    // Copies first: unregistering does not delete them, and a worker still running could keep serving them.
+    await env.clearCopies().catch(() => undefined);
     const registrations = await container.getRegistrations().catch((): readonly WorkerRegistration[] => []);
     for (const registration of registrations) registration.unregister().catch(() => undefined);
     return;
@@ -95,6 +100,10 @@ if (typeof document !== 'undefined' && typeof navigator !== 'undefined') {
       pageUrl: location.href,
       resources: () => performance.getEntriesByType('resource').map((entry) => entry.name),
       fetchOne: (url) => fetch(url),
+      clearCopies: async () => {
+        const ours = cacheName('x').slice(0, -1);
+        for (const name of await caches.keys()) if (name.startsWith(ours)) await caches.delete(name);
+      },
       wait: (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
     }).catch(() => undefined);
   };

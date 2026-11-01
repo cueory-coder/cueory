@@ -105,6 +105,7 @@ function run(version: string, existing: string[] = [], script?: string) {
   const listeners: Record<string, ((event: unknown) => void)[]> = {};
   const calls = { fetch: [] as string[], skipWaiting: 0, claim: 0, unregister: 0 };
   const timers: { fn: () => void; ms: number }[] = [];
+  const failure = { cache: false };
   let network: (request: { url: string }) => Promise<Response> = async () => basic('page');
   const cache = (name: string) => {
     if (!stores.has(name)) stores.set(name, new Map());
@@ -123,7 +124,10 @@ function run(version: string, existing: string[] = [], script?: string) {
     caches: {
       keys: async () => [...stores.keys()],
       delete: async (name: string) => stores.delete(name),
-      open: async (name: string) => cache(name),
+      open: async (name: string) => {
+        if (failure.cache) throw new Error('cache unavailable');
+        return cache(name);
+      },
     },
     fetch: async (request: { url: string }) => {
       calls.fetch.push(request.url);
@@ -147,7 +151,7 @@ function run(version: string, existing: string[] = [], script?: string) {
     await settle(work);
     return { handled: answered !== undefined, response };
   }
-  return { stores, calls, fire, timers, listeners, setNetwork: (next: typeof network) => { network = next; } };
+  return { stores, calls, fire, timers, listeners, failure, setNetwork: (next: typeof network) => { network = next; } };
 }
 
 describe('the built worker', () => {
@@ -272,6 +276,19 @@ describe('a slow or failing network', () => {
   });
 });
 
+describe('a cache that cannot be read', () => {
+  const page = { method: 'GET', url: `${ORIGIN}/learn/study-skills` };
+  const asset = { method: 'GET', url: `${ORIGIN}/_astro/cards.abc123.js` };
+
+  it.each([['a page', page], ['a built file', asset]])('still gets %s from the network', async (_name, request) => {
+    const worker = run('v1');
+    worker.failure.cache = true;
+    const result = (await worker.fire('fetch', request)).response as Response;
+    expect(await result.text()).toBe('page');
+    expect(worker.calls.fetch).toEqual([request.url]);
+  });
+});
+
 describe('the switched-off worker', () => {
   const off = buildPlainScript([sources[0]!, read('src/scripts/swoff.ts')]);
 
@@ -327,7 +344,7 @@ describe('what a first visit saves', () => {
 describe('starting the offline copies from a page', () => {
   function environment(overrides: Partial<{ controller: boolean; failRegister: boolean; becomesController: boolean }> & Partial<OfflineEnvironment> = {}) {
     const { controller = false, failRegister = false, becomesController = true, ...rest } = overrides;
-    const log = { registered: [] as { url: string; scope: string }[], unregistered: 0, fetched: [] as string[], waits: [] as number[] };
+    const log = { registered: [] as { url: string; scope: string }[], unregistered: 0, fetched: [] as string[], waits: [] as number[], order: [] as string[] };
     let control: unknown = controller ? {} : undefined;
     const listeners: (() => void)[] = [];
     const container: WorkerContainer = {
@@ -338,13 +355,14 @@ describe('starting the offline copies from a page', () => {
         if (failRegister) throw new Error('refused');
         return {};
       },
-      getRegistrations: async () => [{ unregister: async () => { log.unregistered += 1; return true; } }, { unregister: async () => { log.unregistered += 1; return true; } }],
+      getRegistrations: async () => [{ unregister: async () => { log.order.push('unregistered'); log.unregistered += 1; return true; } }, { unregister: async () => { log.order.push('unregistered'); log.unregistered += 1; return true; } }],
       addEventListener: (_type, listener) => void listeners.push(listener),
     };
     const env: OfflineEnvironment = {
       serviceWorker: container, secure: true, enabled: true, origin: ORIGIN, pageUrl: `${ORIGIN}/learn/study-skills`,
       resources: () => [`${ORIGIN}/_astro/a.js`],
       fetchOne: async (url) => void log.fetched.push(url),
+      clearCopies: async () => void log.order.push('cleared'),
       wait: async (ms) => {
         log.waits.push(ms);
         if (becomesController) { control = {}; for (const listener of listeners) listener(); }
@@ -398,10 +416,16 @@ describe('starting the offline copies from a page', () => {
     expect(log.fetched).toHaveLength(2);
   });
 
-  it('removes every registration, and registers nothing, when the feature is switched off', async () => {
+  it('deletes the saved copies first, then removes every registration, and registers nothing, when switched off', async () => {
     const { env, log } = environment();
     await startOffline({ ...env, enabled: false });
-    expect(log.unregistered).toBe(2);
+    expect(log.order).toEqual(['cleared', 'unregistered', 'unregistered']);
     expect(log.registered).toEqual([]);
+  });
+
+  it('still removes the registrations when deleting the copies fails', async () => {
+    const { env, log } = environment();
+    await startOffline({ ...env, enabled: false, clearCopies: async () => { throw new Error('storage'); } });
+    expect(log.unregistered).toBe(2);
   });
 });

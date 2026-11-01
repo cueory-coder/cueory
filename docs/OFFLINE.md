@@ -27,7 +27,8 @@ opened opens again with no connection. This is what is built, what it never keep
 
 Open `src/config/site.ts`, set `offline.enabled` to `false`, and deploy. Then:
 
-1. Pages stop registering the worker and remove any registration they find.
+1. Pages stop registering the worker. Each page a visitor opens first deletes this site's saved copies, then removes any
+   registration it finds (in that order, because removing a registration does not delete the copies).
 2. `/sw.js` becomes a worker that deletes every saved copy this site made and removes itself the next time a visitor's
    browser checks for an update (browsers check on every visit, at least once a day).
 

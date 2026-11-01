@@ -46,6 +46,15 @@ worker.addEventListener('fetch', (event) => {
   event.respondWith(strategy === 'cache-first' ? cacheFirst(event) : networkFirst(event));
 });
 
+/** The saved copy of an address, or nothing: a cache that cannot be read is treated as an empty one, never as a failure. */
+async function saved(url: string): Promise<Response | undefined> {
+  try {
+    return await (await caches.open(CURRENT)).match(url);
+  } catch {
+    return undefined;
+  }
+}
+
 /** Keep a copy without making the student wait for it; a full disk just means no copy. */
 function keep(event: FetchEventLike, response: Response): void {
   if (!storable(response)) return;
@@ -64,27 +73,27 @@ function keep(event: FetchEventLike, response: Response): void {
  * saved copy waits for the network as it would without a worker.
  */
 async function networkFirst(event: FetchEventLike): Promise<Response> {
-  const saved = await (await caches.open(CURRENT)).match(event.request.url);
+  const copy = await saved(event.request.url);
   const fresh = fetch(event.request).then((response) => {
     keep(event, response);
     return response;
   });
-  if (!saved) return fresh;
+  if (!copy) return fresh;
   event.waitUntil(fresh.catch(() => undefined));
   try {
     const response = await Promise.race([
       fresh,
       new Promise<never>((_, giveUp) => setTimeout(() => giveUp(new Error('slow')), NETWORK_WAIT_MS)),
     ]);
-    return preferSaved(response) ? saved : response;
+    return preferSaved(response) ? copy : response;
   } catch {
-    return saved;
+    return copy;
   }
 }
 
 async function cacheFirst(event: FetchEventLike): Promise<Response> {
-  const cached = await (await caches.open(CURRENT)).match(event.request.url);
-  if (cached) return cached;
+  const copy = await saved(event.request.url);
+  if (copy) return copy;
   const response = await fetch(event.request);
   keep(event, response);
   return response;
