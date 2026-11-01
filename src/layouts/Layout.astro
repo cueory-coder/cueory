@@ -44,9 +44,12 @@ const searchTitle = isHome ? 'home' : title;
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Brand v1.0 icons (D-55): the emblem on Ivory, built by scripts/build-brand-v1.mjs. -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/brand/v1/icon-32.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/brand/v1/icon-192.png" />
+    <link rel="apple-touch-icon" href="/brand/v1/icon-180.png" />
     <meta name="theme-color" content="#f9f5ef" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#1b1715" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#1c1917" media="(prefers-color-scheme: dark)" />
     {noindex && <meta name="robots" content="noindex, nofollow" />}
     <!-- Applies a saved Light or Dark pick before the page paints (ThemePicker.astro, src/scripts/theme.ts). -->
     <script is:inline set:html={themeHeadScript} />

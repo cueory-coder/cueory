@@ -19,11 +19,18 @@ describe('evening palette copies', () => {
   });
 });
 
-// Exact brand-guide colors. Tokens may only use these.
+// Exact brand-guide v1.0 colors (§4.1 and §4.2; D-55). Tokens may only use these. The older #3f2e24, #1b1715 and
+// #efe6da are retired (§4.3).
 const brand = {
-  daytime: ['#f9f5ef', '#eadccf', '#d3b7a1', '#8b6f5b', '#3f2e24', '#6b5243'],
-  evening: ['#1b1715', '#3a2d24', '#6b5243', '#cbb8a4', '#efe6da'],
+  daytime: ['#f9f5ef', '#eadccf', '#d3b7a1', '#8b6f5b', '#3e2c23', '#6b5243'],
+  evening: ['#1c1917', '#3a2d24', '#6b5243', '#cbb8a4', '#f9f5ef'],
 };
+
+describe('retired colors (brand guide v1.0 §4.3)', () => {
+  it('appear nowhere in the tokens', () => {
+    expect(css.toLowerCase()).not.toMatch(/#3f2e24|#1b1715|#efe6da|63 46 36|27 23 21|239 230 218/);
+  });
+});
 
 // [foreground, background, minimum ratio]. 4.5 = WCAG AA text; 3 = borders, focus outlines and buttons.
 const pairs: Array<[string, string, number]> = [
@@ -79,7 +86,7 @@ describe('components', () => {
 });
 
 /*
-  Marketing pages (D-41): text sits on draped silk, an embossed logo and frosted panels, so the checks above (flat
+  Marketing pages (D-41): text sits on draped silk and frosted panels, so the checks above (flat
   token pairs) aren't enough. These compose the worst case for each palette: the darkest Daytime point (Linen, both fold
   layers, the grain at its strongest) and the lightest Evening point (Walnut plus grain), then require WCAG AA.
 */
@@ -138,10 +145,8 @@ describe('marketing background (D-41)', () => {
   const lightestEvening = mix(eve.grain.color, eve.grain.alpha, evening['silk-sheen']!);
   const surfaces: Array<[string, Record<string, string>, string]> = [
     ['Daytime silk at its darkest', daytime, darkestDay],
-    ['Daytime embossed logo', daytime, daytime.emboss!],
     ['Daytime frosted panel', daytime, mix(day.veil, day.veilAlpha, darkestDay)],
     ['Evening silk at its lightest', evening, lightestEvening],
-    ['Evening embossed logo', evening, mix(eve.grain.color, eve.grain.alpha, evening.emboss!)],
     ['Evening frosted panel', evening, mix(eve.veil, eve.veilAlpha, lightestEvening)],
   ];
 
@@ -152,15 +157,16 @@ describe('marketing background (D-41)', () => {
   });
 
   /*
-    "ways to study" carousel (D-50): its cards are the frosted panels checked above, so their text is covered as long
-    as nothing fades a card. The row scrolls, scales and lowers the cards, but never masks, fades or blurs them, the row
-    or the chips. (The illustrations inside the cards are decoration and may use opacity.)
+    "ways to study" merry-go-round (D-50, D-60): its cards are the frosted panels checked above, so their words are
+    covered as long as nothing fades a card. It moves, scales and turns the cards, and gives side cards the second ink,
+    but never masks, fades or blurs the row or a card. (The illustrations inside the cards are decoration and may use
+    opacity.)
   */
-  it('never masks, fades or blurs the carousel row, its cards or its chips', () => {
+  it('never masks, fades or blurs the carousel row or its cards', () => {
     const globalCss = readFileSync(new URL('../../src/styles/global.css', import.meta.url), 'utf8');
     const rules = [...globalCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
       .map(([, selector, body]) => [selector!.replace(/\/\*[\s\S]*?\*\//g, '').trim(), body!] as const)
-      .filter(([selector]) => /\.(modes-track|mode-card|mode-chip)\b/.test(selector) && !/\.ill[\w-]*\s*$/.test(selector));
+      .filter(([selector]) => /\.(modes-track|mode-card)\b/.test(selector) && !/\.ill[\w-]*\s*$/.test(selector));
     expect(rules.length).toBeGreaterThanOrEqual(4);
     for (const [selector, body] of rules) {
       expect(body, selector).not.toMatch(/(^|[\s;{])(-webkit-)?(mask[\w-]*|opacity|filter)\s*:/);
@@ -183,7 +189,7 @@ describe('marketing background (D-41)', () => {
     const globalCss = readFileSync(new URL('../../src/styles/global.css', import.meta.url), 'utf8');
     const scenes = [...globalCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
       .map(([, selector, body]) => [selector!.replace(/\/\*[\s\S]*?\*\//g, '').trim(), body!] as const)
-      .filter(([selector]) => /^\.scene-(?!rule)[\w-]+$/.test(selector));
+      .filter(([selector]) => /^\.scene-[\w-]+$/.test(selector));
     expect(scenes.length).toBeGreaterThanOrEqual(3);
     for (const [selector, body] of scenes) {
       const declarations = body.split(';').map((d) => d.trim()).filter(Boolean);
@@ -285,7 +291,7 @@ describe('glass button and side panel (D-46)', () => {
   */
   it.each([
     ['Daytime', daytime, day, '#f9f5ef'],
-    ['Evening', evening, eve, '#efe6da'],
+    ['Evening', evening, eve, '#f9f5ef'],
   ] as const)('%s promo panel keeps its text, button and focus outline readable over anything', (_n, colors, g, lightest) => {
     const panel = mix(g.panel, g.panelAlpha, lightest);
     expect(contrastRatio(colors['panel-ink']!, panel)).toBeGreaterThanOrEqual(4.5);

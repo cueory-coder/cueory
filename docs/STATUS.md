@@ -9,10 +9,14 @@ Last updated: 2026-11-01
   `/content/lessons`), `/privacy` (draft), `/terms` and `/disclaimer` (marked spots for Christian's text), `/support`
   (Ko-fi link), `/subscribed` (after signup), 404. "We're still building" notice on every page.
 - Light / Dark / Follow-device theme switch in every page footer (brand spec section 9).
-- Brand applied (docs/BRAND.md, brand-source/Cueory_Branding_Spec.md): Daytime and Evening palettes with automatic
-  dark mode, Inter, exact lowercase motto and product description, traced vector logo built into wordmark, square and
-  3:1 banner files (light and dark, SVG and PNG) with a checksum manifest. Logo approved by Christian and frozen as
-  master v1.0.
+- Brand v1.0 applied (docs/BRAND.md, brand-source/v1.0/Cueory_Brand_Guide.md, D-55):
+  - Christian's new PNG logo, with light and dark web copies built by `scripts/build-brand-v1.mjs` and checked by
+    tests;
+  - the guide's exact colors (Espresso `#3E2C23`, Charcoal `#1C1917`, Ivory lettering in dark mode);
+  - new favicons;
+  - a calmer hero: no embossed logo, and the motto moved to the footer.
+
+  It replaces the earlier traced logo (now in `brand-source/legacy/`).
 - Security headers and a hash-based content security policy.
 - Repository stays private: Semgrep (code scanning) and gitleaks (secret scanning) run free in CI in place of
   GitHub's paid CodeQL and secret scanning.
@@ -70,16 +74,22 @@ Last updated: 2026-11-01
   Instagram, TikTok and YouTube marks in the footer and the ☰ panel.
 - In `staging` (auto-merged): the [visuals kit plan](https://github.com/lilchristxan/Cueory/pull/35) (D-56 to D-58),
   docs only.
+- In `staging`: [brand v1.0](https://github.com/lilchristxan/Cueory/pull/38) (D-55, the lead's) and the
+  ["ways to study" merry-go-round and a calmer home page](https://github.com/lilchristxan/Cueory/pull/40) (D-60).
+  [Release #37](https://github.com/lilchristxan/Cueory/pull/37) carries everything in `staging` to `main` when
+  Christian merges it.
 
 ## In review
 - [Once-only promo panel](https://github.com/lilchristxan/Cueory/pull/34) (D-59): on marketing pages a small dark panel
   slides down from the top after 5 seconds or halfway down the page, with "join the launch list", "support us while we
-  build" and the social marks; once shown, it stays away for 30 days. A draft until brand v1
-  ([#36](https://github.com/lilchristxan/Cueory/pull/36), the lead's) merges, because both change `tokens.css` and
-  `Layout.astro`.
+  build" and the social marks; once shown, it stays away for 30 days. Now on brand v1.0's colors.
+
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
 2. Auto-release (`staging` into `main` in pre-launch mode), after the change requests.
+3. Christian's 31 Oct evening requests ([the lead's note on issue #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6551841155)),
+   now first: brand v1.0 (the lead's branch), the merry-go-round and decluttering (in review), then the home page
+   polish pass once brand v1.0 is in, then daily games (four games, a home page section and `/play`).
 
 ## Visuals kit (Task 6, D-56)
 Targets: first visuals by about 14 November, the full kit by about 12 December ([plan](VISUALS.md)).

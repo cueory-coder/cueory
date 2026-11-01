@@ -297,6 +297,35 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   platforms until someone clicks; the platforms' own brand guidelines allow one-color marks that link to a profile. Each
   link is a 44 px target, in the text color (the ☰ panel's light ink there). The promo panel gets the same links in its
   own pull request. Reason: Christian's request.
+- **D-55** Brand v1.0 (Christian's new logo and guide, 2026-10-31, 6:22 pm). His guide
+  `brand-source/v1.0/Cueory_Brand_Guide.md` replaces the earlier spec, which moves to `brand-source/legacy/` with the
+  traced banner and geometry master (history only). Changes:
+  - **The logo is his PNG artwork** (wordmark with a water-drop c and a half-filled cruet), never traced into an SVG,
+    retyped, redrawn, embossed, shadowed or recolored (guide §2.4, §3.6).
+  - **Sources:** every file he supplied is kept unchanged in `brand-source/v1.0/`, with checksums in `manifest.json`.
+  - **Web copies:** `scripts/build-brand-v1.mjs` makes them in `public/brand/v1/`: the full logo and the emblem, in
+    Espresso and in Ivory, on transparent backgrounds, cropped to the artwork, at three widths each, plus four icons
+    (the emblem on Ivory). The script reads how much ink covers each pixel and writes it in one exact color, so
+    nothing is redrawn, the logo sits on the silk without a box, and the cruet's empty half stays empty (§4.1).
+  - **One drawing for both palettes:** the light files' drawings (guide §4.5: same geometry, only colors change). The
+    dark files are the same drawings (the script checks the overlap: 96% for the full logo, 89% for the small dark
+    emblem), but the full logo's dark file has stair-stepped edges and the emblem's dark file is only 348px wide.
+  - **The cruet alone isn't exported yet:** its files draw it only about 135px wide, and the site doesn't use it yet.
+  - **Colors move to the guide's exact values:** Espresso `#3E2C23`, Charcoal `#1C1917`, and Ivory `#F9F5EF` for
+    dark-mode text and logo. The older `#3F2E24`, `#1B1715` and `#EFE6DA` are retired (§4.3), and a test fails if they
+    return.
+  - **Logo sizes follow §3.5:** the full logo 240px wide in the header and 240–320px in the hero. Study screens get
+    the compact emblem (§6.1), and so does the header on phones, where 240px plus the two corner buttons would be
+    wider than the screen. The favicons and home-screen icon become the emblem on Ivory.
+  - **The hero calms down** (Christian: "this part of the homepage looks cluttered"):
+    - the giant embossed logo behind the headline goes, because §3.6 forbids embossing the logo;
+    - the motto moves from under the logo to the footer;
+    - the "or start the free study-skills course" link goes (the ☰ panel and the carousel's "try it" links reach the
+      course).
+  - **What's left:** the logo, the headline, the accent line, one button and one short line under it (§7.2: one
+    primary call to action).
+
+  Reason: Christian's new brand, and his request for a cleaner hero.
 - **D-56** Med-surg I visuals kit is Task 6 and runs now, ahead of the remaining roadmap tasks (Christian's decision,
   2026-10-31): Cueory's own 3D body, animated 2D diagrams and "simplified for learning" disease overlays, first visuals
   by about 14 November and the full kit by about 12 December. Each visual has one source file,
@@ -332,3 +361,23 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   from the browser's back/forward cache (Codex review of #34). With reduced motion it appears without the slide; without
   JavaScript it never appears. Copy and timings live in `promo` in `src/config/site.ts`, and `/privacy` says what is
   remembered. Reason: Christian's request for a promo that is "not annoying": once, small, easy to close.
+- **D-60** "ways to study" becomes an endless merry-go-round, and the home page loses its clutter (Christian's feedback,
+  2026-10-31, 6:40 pm, relayed by the lead on issue #4). The card in the middle is in front, and its neighbours stay
+  visible on both sides (one on phones and tablets, two from 64rem wide), stepping back: 0.88 and then 0.76 of its
+  size, turned 10° away round the ring, and quieter (no shadow, the heading in the second ink, a softer drawing; their
+  words keep the frosted-panel contrast, since nothing masks, fades or blurs a card). Next after the last card is the
+  first and previous before the first is the last. A tap on a side card brings it to the middle, and a tap on the card
+  in the middle opens its preview (D-51). The arrows, the arrow keys (Home and End too), a sideways swipe or a
+  sideways trackpad swipe turn it by one card; a turn takes 240 ms, easing out (brand guide §7.3), and a card going
+  round the back, or a jump of several cards, switches at once instead of sweeping across. With reduced motion there is
+  no glide and no turn. The auto-advance, its pause button and its rules are unchanged (D-50). Only the card in the
+  middle is in the Tab order, and screen readers hear only the card where the ring comes to rest ("matching, 5 of 11").
+  Without JavaScript the cards are still a row that scrolls sideways. Eleven cards: video (replacing "lesson": the
+  sentence reader stays inside lessons as the read-along text), cards, learn, fill-in, matching, organizer, questions,
+  review, then three from the roadmap marked coming soon: label it (Task 4c), adaptive quiz and level test (Task 4b).
+  The video card's drawing is its click-to-play cover (D-40); no video exists yet, so it is coming soon. Removed: the
+  mode chips, the numbered section labels and their rule, the figure caption and the rhythm line (the brand guide
+  forbids ECG lines); the building notice is now lowercase. The ring reuses the card tokens; its step-back, turn and
+  timing numbers live in `src/scripts/carousel.ts` (unit tested) because `tokens.css` is held for brand v1.0 until the
+  lead's pull request merges, and `--drop-mode-card` (no longer used) goes then too. Reason: Christian's request for
+  an endless merry-go-round that is never empty, and a calmer, less templated page.

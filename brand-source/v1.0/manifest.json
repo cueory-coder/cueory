@@ -1,0 +1,201 @@
+{
+  "brand": "cueory",
+  "revision": "v1.0",
+  "guide": "brand-source/v1.0/Cueory_Brand_Guide.md",
+  "exported": "2026-11-01",
+  "approval": "Christian approved the v1.0 artwork on 2026-10-31. These web copies keep its geometry and exact colors; he checks them on the staging site.",
+  "method": "Ink coverage from an opaque source file, written in one exact brand color with coverage as transparency, cropped to the visible artwork. Nothing is traced, redrawn or retyped. Each family names the file its drawing comes from; the other palette file is checked to be the same drawing (overlap).",
+  "colors": {
+    "ivory": "#F9F5EF",
+    "espresso": "#3E2C23",
+    "charcoal": "#1C1917"
+  },
+  "sources": {
+    "Cueory_Brand_Guide.md": {
+      "role": "Brand identity and implementation specification v1.0",
+      "sha256": "99763a75dea02391a86267592ade7bb4a2cd1e9bbba1c512ff6eff96ef823a63"
+    },
+    "cueory_name_Light_logo.png": {
+      "role": "Primary full logo, light (opaque Ivory)",
+      "sha256": "8074520c233ae903ed36ca08718cc0edfd8b7d869b6be30fe04612a022885a54"
+    },
+    "cueory_name_dark_logo.png": {
+      "role": "Primary full logo, dark (opaque Charcoal)",
+      "sha256": "e09c1b6aa967cbf37760103a2265031eda89968283c4e67c645db6163aafa6e6"
+    },
+    "cueory_name_BW_logo.png": {
+      "role": "Full logo, monochrome source (transparent, black ink with a white cruet interior)",
+      "sha256": "a642f4bb0b1cf7657af1a2f2b72c025be1ac1eda2fcb3e8ca545e9b82c3dc585"
+    },
+    "cueory_letter_Light_logo.png": {
+      "role": "Compact emblem, light (opaque Ivory)",
+      "sha256": "ef8fd5f5d583890ac6a86f79f9332fc76388ec8c8fe36786d1439f9a54b19446"
+    },
+    "cueory_letter_dark_logo.png": {
+      "role": "Compact emblem, dark (opaque Charcoal)",
+      "sha256": "6401c9f5f46053a9b38c591280f3e2ac571c34d1cdc8b071b1fb1dc782b0371f"
+    },
+    "cueory_letter_logo.png": {
+      "role": "Compact emblem, monochrome source (transparent)",
+      "sha256": "dac496eee8ac7f2fe0fc36fcd154bda272c4533690a8d373d057362d0c84e5f0"
+    },
+    "cueory_cruet_light_logo.png": {
+      "role": "Cruet, light (opaque Ivory)",
+      "sha256": "07fb5e4bc0c5b32a4c6e350af4f14284803b84c6f8d56841107723e9411b4a4c"
+    },
+    "cueory_cruet_dark_logo.png": {
+      "role": "Cruet, dark (opaque Charcoal)",
+      "sha256": "e560f3bfa70886ef8a640104006416688c472623af5c4d2c7c5f6076c60da2ba"
+    },
+    "cueory_cruet_BW_logo.png": {
+      "role": "Cruet, monochrome source (transparent)",
+      "sha256": "e340b23c787cecdcfcc96cc9a98c67a8e424f420128a7afaa0f62669f6af2c08"
+    },
+    "cueory-waterdrop-wordmark-transparent.png": {
+      "role": "Historical filename: actually the emblem, transparent color (use with caution)",
+      "sha256": "49712f134e099c9328d47186307666ccffd7073b468e48a9dcadd40e14a998b8"
+    },
+    "cueory_letter_logo_source.psd": {
+      "role": "Photoshop working file for the emblem (two layers: the c and the cruet)",
+      "sha256": "cd8119ea32b8652085dcbde72a7356d29306903b944a418227520bc9b66dd2e9"
+    }
+  },
+  "families": {
+    "logo-full": {
+      "role": "Primary full logo: the wordmark with the cruet",
+      "sources": {
+        "light": "cueory_name_Light_logo.png",
+        "dark": "cueory_name_dark_logo.png"
+      },
+      "drawing": "both palettes from cueory_name_Light_logo.png",
+      "overlap": 0.958,
+      "files": {
+        "logo-full-light-480.png": {
+          "mode": "light",
+          "color": "#3E2C23",
+          "width": 480,
+          "height": 151,
+          "sha256": "3bd6c97b86767b4299af87d6c937e7ca3f24fa26647e497385d986b8b1bcba71"
+        },
+        "logo-full-light-960.png": {
+          "mode": "light",
+          "color": "#3E2C23",
+          "width": 960,
+          "height": 303,
+          "sha256": "6d5bf97e6ba192d20ff60c8cc6d0f5d8f9cf1abb741cdfb36bc74caa4250e479"
+        },
+        "logo-full-light-1440.png": {
+          "mode": "light",
+          "color": "#3E2C23",
+          "width": 1440,
+          "height": 454,
+          "sha256": "fe03feaa9f5db731af7cb0a5f8780d6ffa39dbfece632e300dde11de5e694628"
+        },
+        "logo-full-dark-480.png": {
+          "mode": "dark",
+          "color": "#F9F5EF",
+          "width": 480,
+          "height": 151,
+          "sha256": "713b0f36ef0992dccf5b8bdbfa3d046457621f4f8f7cb47c98176bf2607c575a"
+        },
+        "logo-full-dark-960.png": {
+          "mode": "dark",
+          "color": "#F9F5EF",
+          "width": 960,
+          "height": 303,
+          "sha256": "14b3c40e474720d8913d04757872569fe5aaf315ed478acfb38b47b60e645696"
+        },
+        "logo-full-dark-1440.png": {
+          "mode": "dark",
+          "color": "#F9F5EF",
+          "width": 1440,
+          "height": 454,
+          "sha256": "936bd664b48f577ee9fc0b078fbb138eafa585e1dfd04e5ff406227839e59007"
+        }
+      }
+    },
+    "emblem": {
+      "role": "Compact emblem: the water-drop c with the cruet",
+      "sources": {
+        "light": "cueory_letter_Light_logo.png",
+        "dark": "cueory_letter_dark_logo.png"
+      },
+      "drawing": "both palettes from cueory_letter_Light_logo.png",
+      "overlap": 0.891,
+      "files": {
+        "emblem-light-96.png": {
+          "mode": "light",
+          "color": "#3E2C23",
+          "width": 96,
+          "height": 107,
+          "sha256": "745aa26333d7f231443f0ffb8c074eca7895154a1d8e650dbc5e565ef2be38ec"
+        },
+        "emblem-light-192.png": {
+          "mode": "light",
+          "color": "#3E2C23",
+          "width": 192,
+          "height": 214,
+          "sha256": "db2903d14317804c38cace00ada8250155b90a03276e4fb8aadbeafc7c5dbd05"
+        },
+        "emblem-light-384.png": {
+          "mode": "light",
+          "color": "#3E2C23",
+          "width": 384,
+          "height": 428,
+          "sha256": "8e68860af205a279024356d733e78cbaef39c9dd10b5a5dc47d37b7d9572c629"
+        },
+        "emblem-dark-96.png": {
+          "mode": "dark",
+          "color": "#F9F5EF",
+          "width": 96,
+          "height": 107,
+          "sha256": "0273dc160e8cc72a2f75db22bb3fd1b5047415a25fe0f2b221a0afcff0a53998"
+        },
+        "emblem-dark-192.png": {
+          "mode": "dark",
+          "color": "#F9F5EF",
+          "width": 192,
+          "height": 214,
+          "sha256": "9df48b277d4459ddfd4f5efb32d73a7810599499c80fcc9a224b832cf58795a0"
+        },
+        "emblem-dark-384.png": {
+          "mode": "dark",
+          "color": "#F9F5EF",
+          "width": 384,
+          "height": 428,
+          "sha256": "701eacd139cdd6b601a8f5e580139369cdfcfc2b276c2f19fb3ca08835829430"
+        }
+      }
+    }
+  },
+  "icons": {
+    "icon-32.png": {
+      "from": "emblem (Daytime)",
+      "background": "#F9F5EF",
+      "width": 32,
+      "height": 32,
+      "sha256": "f4590c75cfcf4ba06d83f60e67e00f6f556bb81f0dcc4ea2a1dc1157ae66f38b"
+    },
+    "icon-180.png": {
+      "from": "emblem (Daytime)",
+      "background": "#F9F5EF",
+      "width": 180,
+      "height": 180,
+      "sha256": "ff6968f3f3902b033be34e0e8a2fbb703a0c5763ce692137930dad6445a75fa7"
+    },
+    "icon-192.png": {
+      "from": "emblem (Daytime)",
+      "background": "#F9F5EF",
+      "width": 192,
+      "height": 192,
+      "sha256": "2cc8b0cf2a6ef95e647ee28da0882703baded6e1becb2f80704a90ad5f6a904d"
+    },
+    "icon-512.png": {
+      "from": "emblem (Daytime)",
+      "background": "#F9F5EF",
+      "width": 512,
+      "height": 512,
+      "sha256": "968fd448a09cb81f97a94cc735141284afe94a4044c5c8e1ace80942df3d79db"
+    }
+  }
+}

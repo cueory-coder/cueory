@@ -1,7 +1,7 @@
 ---
 /**
- * Launch-updates signup, the home page's last silk scene (D-53): a numbered label under a fine rule and a frosted card
- * with a serif heading. A plain HTML form that posts straight to Kit, so it works without JavaScript and loads no
+ * Launch-updates signup, the home page's last silk scene (D-53): a frosted card with a serif heading (no section
+ * numbers, D-60). A plain HTML form that posts straight to Kit, so it works without JavaScript and loads no
  * third-party script. Kit validates the address, sends the confirmation (double opt-in) email and handles
  * unsubscribes. Until Kit is connected, the card says signups open soon. Lowercase brand voice (D-47).
  */
@@ -11,11 +11,7 @@ const ready = newsletter.formAction.startsWith('https://');
 ---
 
 <section id="signup" class="scene scene-low scroll-mt-section py-section" aria-labelledby="signup-heading">
-  <div class="mx-auto max-w-page px-gutter text-center">
-    <p class="scene-rule text-sm font-medium tracking-label text-ink-soft" data-section-label>02 — stay in touch</p>
-  </div>
-
-  <div class="mx-auto mt-8 max-w-prose px-gutter">
+  <div class="mx-auto max-w-prose px-gutter">
     <div class="veil p-6 sm:p-10">
       <h2 id="signup-heading" class="display text-title">get launch updates</h2>
       {
