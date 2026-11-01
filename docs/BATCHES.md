@@ -50,7 +50,7 @@ with `;`.
 | `choice_e` | Optional column. Fill it only on questions with a fifth choice. |
 | `type` | Optional column. Blank or `single`: one right answer. `sata`: select all that apply (D-45). |
 | `rationale` | Why the right answer is right. |
-| `rationale_a` … `rationale_e` | Optional columns: why each choice is right or wrong, shown after the student answers. Required for every choice on `sata` questions. |
+| `rationale_a` … `rationale_e` | Why each choice is right or wrong, shown after the student answers. Required for every choice on all questions — the database requires a per-choice rationale before a version can be published (D-85). |
 | `fact_ids` | The facts the question relies on (`f-001;f-014`). At least one. |
 | `source_ids` | The sources the question cites (`s-01`). At least one. |
 
@@ -91,7 +91,7 @@ A question passes only when every one of these is true:
   (all-or-nothing, the same way students are scored).
 - The key's answer is one of the question's choices. A single-answer question has exactly one letter in the key; a
   select-all-that-apply question has one or more, each named once.
-- A select-all-that-apply question has a rationale for every choice (`rationale_a` …), as well as the main rationale.
+- Every choice has a rationale (`rationale_a` …), as well as the main rationale.
 - The question, the rationale and every choice are filled in, and no two choices are the same.
 - No other question in the batch has the same text (ignoring capitals and spacing).
 - It cites at least one fact and one source. Every one exists, and every source link is a proper `https://` address.
@@ -111,7 +111,12 @@ Warnings appear in the report but don't fail any question:
 
 ## Result files
 
-- `passed.csv`: `item_id`, `concept_id` of every question that passed. The importer (Task 2) will read this.
+- `passed.csv`: `item_id`, `concept_id`, `hash` of every question that passed. The importer reads this. The `hash`
+  column holds the SHA-256 of the canonical item JSON (all item columns plus the answer key in a fixed order). The
+  importer rejects any item whose hash is absent or does not match — it catches accidental edits to `items.csv` or
+  `key.csv` after the checker ran. It does not protect against someone who edits all three files; the importer
+  will also re-run `checkBatch` in a later task. The hash column is written by the checker; the importer refuses
+  any row without it.
 - `failed.csv`: `item_id`, `concept_id` and `reasons`, all reasons in one cell separated by `;`.
 - `pending.csv`: `item_id`, `concept_id` and `waiting_for` (which reviewers haven't finished), separated by `;`.
 - `report.md`: a plain-language summary with the balance table and each reviewer's agreement with the key.

@@ -304,12 +304,31 @@ Merged into `staging`; the database ones by the director on Christian's behalf (
   everyday sample questions in `content/questions/`, checked by the player's sample checker after the page loads, so
   no key is in the page's HTML (a build test checks). Real questions never go in the repository (D-33). It waits for
   Christian's merge.
+- Task 28: `itemHash(itemRow, keyRow)` and fail-closed hash verification in `parsePassed()` — the importer
+  rejects items whose `hash` is absent (fail-closed) or does not match the canonical SHA-256 of the item JSON.
+  Per-choice rationales are required for all items. `passed.csv` gains a `hash` column; the checker's
+  `passedCsv()` will emit it in a follow-up task. [PR #115](https://github.com/lilchristxan/Cueory/pull/115).
 - Task 31 ([#113](https://github.com/lilchristxan/Cueory/pull/113), D-69, D-87): `importRows(progress, idMap, today)` —
   converts guest localStorage progress into rows for `review_state`. `idMap` is a nested
   `Map<deckId, Map<cardId, uuid>>` so deck-local card ids are never confused across decks. "Know it" cards start at
   level 1 (next review in 3 days via `nextReview`); "still learning" and starred-only cards start at level 0 (due
   today). Stars returned separately in `starred[]`; `today` validated; 28 unit tests. Exam plans deferred (D-87
   follow-up). Account-import integration (wiring to sign-up flow) not yet built.
+- Task 35: `inbox(flags, filter)`, `groupByItem(flags)`, and `markHandled(flag, when)` — the flag-inbox model for
+  `/admin` (ROADMAP Task 2, D-34). Uses the fallback row shape since PR #110 had not merged when this was written.
+  Pure logic: no page, no network, no database. 22 unit tests.
+  [In review](https://github.com/lilchristxan/Cueory/pull/120).
+- Task 37: `checkDisplayName(input)` — mirrors both database constraints from the profiles migration (1–50 code
+  points, no control characters). Trims leading/trailing spaces before validating; counts code points correctly for
+  emoji and accented letters. 17 unit tests.
+  [In review](https://github.com/lilchristxan/Cueory/pull/121).
+- Task 38: `studentMessage(fn, error)` — maps all 14 RPC error messages (`check_answer` and `submit_flag`) to calm
+  student-facing sentences. Never echoes SQL, table names, or SQLSTATE codes. 19 unit tests.
+  [In review](https://github.com/lilchristxan/Cueory/pull/122).
+- Task 39: `visualsForLesson(visuals, lessonId)` and `missingDrawings(visuals)` — returns approved visuals for a
+  lesson that have a drawing in the registry; drafts are never returned. Live batch-1 import test confirms all
+  current content files are drafts. 15 unit tests.
+  [In review](https://github.com/lilchristxan/Cueory/pull/123).
 - Open pull requests add their own lines here. Waiting now: study modes on pages (#77), export-my-data (#95, Task 19),
   lesson videos (#97, Task C3), the 3D viewer shell (#98, Task C4), the Supabase settings reader (#101, Task 22),
   delete-account checks (#105, Task 25), the daily puzzle checker (#108), database step 5, flags and `submit_flag`
