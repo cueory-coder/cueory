@@ -28,6 +28,7 @@ const pages = [
   '/disclaimer',
   '/support',
   '/subscribed',
+  '/play',
 ];
 
 for (const path of pages) {
@@ -531,12 +532,12 @@ test.describe('marketing look (D-41)', () => {
   }) => {
     await page.goto('/');
     const sections = page.locator('[data-reveal-section]');
-    await expect(sections).toHaveCount(2);
+    // "ways to study", daily games (D-61) and the launch-updates panel.
+    await expect(sections).toHaveCount(3);
     const look = (index: number) =>
       sections.nth(index).evaluate((el) => [el.getAttribute('data-reveal'), getComputedStyle(el).opacity, getComputedStyle(el).translate]);
-    // Both start below the first screen, so they wait, lowered and clear.
-    expect(await look(0)).toEqual(['waiting', '0', '0px 10px']);
-    expect(await look(1)).toEqual(['waiting', '0', '0px 10px']);
+    // All three start below the first screen, so they wait, lowered and clear.
+    for (const index of [0, 1, 2]) expect(await look(index)).toEqual(['waiting', '0', '0px 10px']);
     await page.locator('#ways-to-study').scrollIntoViewIfNeeded();
     await expect.poll(() => look(0)).toEqual(['shown', '1', 'none']);
     // Once only: scrolling away and back changes nothing.
@@ -547,7 +548,7 @@ test.describe('marketing look (D-41)', () => {
     // With reduced motion nothing waits or moves.
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.reload();
-    expect(await look(1)).toEqual([null, '1', 'none']);
+    for (const index of [0, 1, 2]) expect(await look(index)).toEqual([null, '1', 'none']);
   });
 
   test('study screens stay plain, with no texture behind lesson text', async ({ page }) => {
@@ -839,7 +840,7 @@ test.describe('silk scenes down the home page (D-53)', () => {
         };
       }),
     );
-    expect(scenes.map((scene) => scene.kind)).toEqual(['scene-hero', 'scene-tint', 'scene-low']);
+    expect(scenes.map((scene) => scene.kind)).toEqual(['scene-hero', 'scene-tint', 'scene-play', 'scene-low']);
     for (const scene of scenes) expect(scene).toMatchObject({ drawn: true, behind: '-20', fades: true });
 
     // Calm, not a template (D-60): no numbered labels, no figure caption, no rhythm line.
@@ -882,7 +883,7 @@ test.describe('silk scenes down the home page (D-53)', () => {
       }
       return { bands: bands.length, hits };
     });
-    expect(covered.bands).toBe(3);
+    expect(covered.bands).toBe(4);
     expect(covered.hits).toEqual([]);
   });
 });
@@ -1080,7 +1081,7 @@ test.describe('☰ side panel and account corner (D-46)', () => {
       await expect(panel.getByRole('button', { name: 'close menu' })).toBeFocused();
 
       const nav = panel.getByRole('navigation', { name: 'site' });
-      for (const name of ['home', 'ways to study', 'lessons', 'my progress', 'support cueory']) {
+      for (const name of ['home', 'ways to study', 'lessons', 'daily games', 'my progress', 'support cueory']) {
         await expect(nav.getByRole('link', { name })).toBeVisible();
       }
       await expect(panel.getByRole('link', { name: 'privacy' })).toBeVisible();

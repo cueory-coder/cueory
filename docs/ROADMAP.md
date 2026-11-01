@@ -109,12 +109,15 @@ and review steps are in [docs/VISUALS.md](VISUALS.md) (D-56).
 - Every label and depiction cites an open source in its file under `content/visuals/`. Labeled visuals go to Christian
   in batches, each with a one-page review sheet, and never release on their own.
 
-## Task 7 — Daily medical puzzles (major feature)
-One fresh set of medical-themed puzzles a day for everyone. Starting games: a five-letter medical word guess and a mini
-crossword. Later: a grouping puzzle, a word search, and "name the structure" on the 3D body. Words and clues come only
-from approved lesson content and go through the same review pipeline. Shareable emoji result grid, optional streak with
-no penalty for missing a day, works offline once loaded, and the "Flag or comment" button on every puzzle. Original
-game names, rules and visual design. Never the names Wordle, Connections or NYT, and never a copy of their look.
+## Task 7 — Daily medical puzzles (major feature, now ahead of the visuals kit)
+One fresh set of medical-themed puzzles a day for everyone, on `/play` and in a home page section. Four games, under
+working names until Christian picks (`src/config/games.ts`): pulse (guess the word: five to seven letters, seven beats,
+a cue for one beat), cueword (a mini crossword), triage (sort terms into groups) and suture (trace hidden words
+through a letter grid). pulse is first (D-61). Words and clues come only from approved lesson content and go through the
+same review pipeline; only today's puzzle ever reaches the browser (D-61 proposes how). Results share as plain words,
+stats are optional and private, there is no streak guilt, it works offline once loaded, and every puzzle gets the
+"Flag or comment" button. Original game names, rules and visual design. Never the names Wordle, Connections, Strands
+or NYT, and never their colors, tile grids or colored-square shares.
 
 ## Later
 App store versions.

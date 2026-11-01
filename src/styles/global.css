@@ -179,6 +179,13 @@
     --scene-cross: 292deg;
   }
 
+  /* Daily games (D-61): Ivory, the folds steeper, light from the upper left. */
+  .scene-play {
+    --scene-light: 14% 6%;
+    --scene-angle: 196deg;
+    --scene-cross: 344deg;
+  }
+
   /* Launch updates: Ivory again, gentler folds, light from below on the left. The last scene fades into the footer. */
   .scene-low {
     --scene-light: 24% 100%;
@@ -1012,6 +1019,160 @@ html:has(dialog.menu-panel[open]) {
 
   .modes[data-ring] .mode-card {
     transition: none;
+  }
+}
+
+/*
+  pulse, the word game on /play (D-61). Each guess is a row of round letters with its mark under each one, as a
+  symbol (● in place, ○ elsewhere in the word, · not in the word) and in words for screen readers, so nothing depends
+  on color. A letter in place is filled, one elsewhere is ringed, and one not in the word is plain and quieter. Brand
+  colors only, and no tile grid.
+*/
+@layer components {
+  .pulse-board {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--spacing) * 3);
+  }
+
+  .pulse-board:empty {
+    display: none;
+  }
+
+  /* Letters share the row's width, up to 40 px each, so a 7-letter guess fits a 320 px screen on one line. */
+  .pulse-row {
+    display: flex;
+    gap: calc(var(--spacing) * 1.5);
+  }
+
+  .pulse-letter {
+    display: inline-flex;
+    flex: 0 1 calc(var(--spacing) * 10);
+    flex-direction: column;
+    align-items: center;
+    gap: calc(var(--spacing) * 1);
+    min-inline-size: 0;
+  }
+
+  .pulse-char {
+    display: grid;
+    place-items: center;
+    inline-size: 100%;
+    aspect-ratio: 1;
+    min-block-size: 0;
+    line-height: 1;
+    border: 2px solid transparent;
+    border-radius: var(--radius-pill);
+    font-size: var(--text-lg);
+    font-weight: 500;
+    color: var(--color-ink);
+  }
+
+  .pulse-here .pulse-char {
+    border-color: var(--color-button);
+    color: var(--color-on-button);
+    background-color: var(--color-button);
+  }
+
+  .pulse-elsewhere .pulse-char {
+    border-color: var(--color-ink);
+  }
+
+  .pulse-absent .pulse-char {
+    color: var(--color-ink-soft);
+  }
+
+  .pulse-symbol {
+    font-size: var(--text-sm);
+    line-height: 1;
+    color: var(--color-ink-soft);
+  }
+
+  .pulse-cue {
+    padding-inline-start: calc(var(--spacing) * 3);
+    border-inline-start: 2px solid var(--color-line);
+  }
+
+  .pulse-field {
+    inline-size: 11ch;
+    font-size: var(--text-lg);
+    letter-spacing: var(--tracking-guess);
+  }
+
+  .pulse-cue-button {
+    min-block-size: calc(var(--spacing) * 11);
+    padding-inline: calc(var(--spacing) * 4);
+    border: 1px dashed var(--color-control);
+    border-radius: var(--radius-pill);
+    color: var(--color-ink);
+  }
+
+  .pulse-cue-button:disabled {
+    color: var(--color-ink-soft);
+    cursor: default;
+  }
+
+  /*
+    The letter buttons share each row's width, up to 40 px each and 4 px apart, and on phones they also use the
+    panel's side padding. At 320 px a key is about 23 px wide and 44 px tall, with middles about 27 px apart, so the
+    targets meet WCAG 2.5.8's spacing rule and nothing scrolls sideways (WCAG 1.4.10).
+  */
+  .pulse-keys {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--spacing) * 2);
+    margin-inline: calc(var(--spacing) * -4);
+  }
+
+  @media (width >= 40rem) {
+    .pulse-keys {
+      margin-inline: 0;
+    }
+  }
+
+  .pulse-key-row {
+    display: flex;
+    justify-content: center;
+    gap: calc(var(--spacing) * 1);
+  }
+
+  .pulse-key {
+    display: inline-flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-inline-size: 0;
+    max-inline-size: calc(var(--spacing) * 10);
+    min-block-size: calc(var(--spacing) * 11);
+    border: 1px solid var(--color-control);
+    border-radius: var(--radius-md);
+    line-height: 1.1;
+    color: var(--color-ink);
+    background-color: var(--color-page);
+  }
+
+  .pulse-key-wide {
+    flex: 0 1 calc(var(--spacing) * 24);
+    max-inline-size: none;
+  }
+
+  .pulse-key.pulse-here {
+    border-color: var(--color-button);
+    color: var(--color-on-button);
+    background-color: var(--color-button);
+  }
+
+  .pulse-key.pulse-elsewhere {
+    border: 2px solid var(--color-ink);
+  }
+
+  .pulse-key.pulse-absent {
+    color: var(--color-ink-soft);
+  }
+
+  .pulse-key-symbol {
+    font-size: var(--text-sm);
   }
 }
 
