@@ -433,3 +433,19 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   from the pinned Simple Icons (Pinterest added; no new package). Only profile addresses are kept in
   `src/config/site.ts`; account emails and passwords never go in the repository (a unit test checks the settings for
   them). Reason: Christian's confirmation on the chat, 2026-11-01.
+- **D-66** Plain game names for now (Christian's decision, 2026-10-31, 9:45 pm; replaces the names in D-64).
+  - **Why:** a trademark screen found live US filings for three of the four names:
+    - CUEWORD: a pending application for children's English-learning software, by the company behind Cuemath;
+    - SUTURE: a pending application for medicine and science education;
+    - TRIAGE: a registered board game, live since 2012.
+  - **What visitors see:** the four games show as **pulse**, **crossword**, **sort** and **word path**, together as
+    cueory games. pulse stays, because the other uses found were an adventure game and casino games, not education.
+  - **What stays the same:** the ids in the code and the content folders (`pulse`, `cueword`, `triage`, `suture`)
+    are never shown, so they stay.
+  - **One place for names:** every visible name, heading and share line comes from `src/config/games.ts`, so the
+    final names will be a one-line change.
+  - **Not "cue-" names:** Cuemath already holds several "cue" filings in education, and more "cue-" game names would
+    crowd them and weaken Cueory's own name.
+  - **Next:** Christian picks final names later, after a screen.
+
+  Reason: avoid launching under names others have filed for related goods.

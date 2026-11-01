@@ -5,8 +5,10 @@
  * Its own rules: three named groups are shown from the start, so nothing is hidden but where each term goes. Ten
  * terms: three for each group, and one odd one out that belongs to none, which goes to "none of these". Pick a term,
  * then where it goes. A right place locks it in; a wrong one is a slip, and three slips end the round. Every result is
- * said in words and shown by a symbol, never by color alone.
+ * said in words and shown by a symbol, never by color alone. Visitors see the game's name from src/config/games.ts
+ * ("sort" for now, D-66); "triage" stays only inside the code.
  */
+import { gameName } from '../config/games';
 
 /** Wrong places allowed before the round ends. */
 export const SLIPS = 3;
@@ -75,11 +77,12 @@ export function termsLeft(state: TriageState): string[] {
   return state.terms.filter((term) => !Object.hasOwn(state.placed, term));
 }
 
-/** What "share" copies: plain words, no squares and no grid. "cueory triage, sun 1 nov: sorted with 1 slip." */
+/** What "share" copies: plain words, no squares and no grid. "cueory sort, sun 1 nov: sorted with 1 slip." */
 export function triageShareText(state: TriageState, day: string): string {
-  if (state.status !== 'sorted') return `cueory triage, ${day}: not sorted this time.`;
+  const name = gameName('triage');
+  if (state.status !== 'sorted') return `cueory ${name}, ${day}: not sorted this time.`;
   const slips = state.slips === 0 ? 'no slips' : state.slips === 1 ? '1 slip' : `${state.slips} slips`;
-  return `cueory triage, ${day}: sorted with ${slips}.`;
+  return `cueory ${name}, ${day}: sorted with ${slips}.`;
 }
 
 /** What the fourth place is called on the page. */
