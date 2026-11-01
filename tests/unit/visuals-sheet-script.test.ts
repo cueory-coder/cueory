@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -28,9 +28,22 @@ describe('arguments and output location', () => {
   });
 
   it('accepts an outside folder with spaces, without creating it', () => {
-    const out = join(temporary(), 'not created yet', 'review sheets');
-    expect(parseArguments(['--out', out]).out).toBe(out);
-    expect(parseArguments([`--out=${out}`]).out).toBe(out);
+    const parent = temporary();
+    const out = join(parent, 'not created yet', 'review sheets');
+    const expected = join(realpathSync(parent), 'not created yet', 'review sheets');
+    expect(parseArguments(['--out', out]).out).toBe(expected);
+    expect(parseArguments([`--out=${out}`]).out).toBe(expected);
+    expect(existsSync(out)).toBe(false);
+  });
+
+  it('canonicalizes an outside temporary-folder alias before adding nonexistent children', () => {
+    const parent = temporary();
+    const actual = join(parent, 'actual');
+    const alias = join(parent, 'alias');
+    mkdirSync(actual);
+    symlinkSync(actual, alias, 'dir');
+    const out = join(alias, 'not created yet', 'review sheets');
+    expect(parseArguments(['--out', out]).out).toBe(join(realpathSync(actual), 'not created yet', 'review sheets'));
     expect(existsSync(out)).toBe(false);
   });
 
@@ -116,7 +129,7 @@ describe('native Node export', () => {
     else writeFileSync(existing, 'sample: keep this existing file');
     const result = cli(['--out', out], cwd);
     expect(result.status, result.stderr).toBe(1);
-    expect(result.stderr).toContain(existing);
+    expect(result.stderr).toContain(join(realpathSync(out), name));
     expect(readdirSync(out)).toEqual([name]);
     if (kind === 'sheet' || kind === 'index') expect(readFileSync(existing, 'utf8')).toBe('sample: keep this existing file');
   });
