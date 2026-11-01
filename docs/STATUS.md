@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-11-01 (Task C10 P1/P2/P3 repairs)
+Last updated: 2026-11-01 (PR #110 merged, Task C10 repairs in review)
 
 ## Done
 - Static site: Astro + React islands + TypeScript + Tailwind, static output, tested at phone and desktop sizes.
@@ -209,10 +209,14 @@ Christian's behalf (D-89), each with the lead's review:
   geometry using measured SVG height instead of hardcoded 1920 px, and Inter Variable font loaded via rewritten
   absolute `file://` URLs. 66 unit tests pass. Awaiting independent peer review.
 
+## Done (director, 2026-11-01, ~14:45Z)
+Merged into `staging` by the director on Christian's behalf (D-89), with the lead's review:
+- Task 2, database step 5 — flags, `submit_flag` and `my_flags` (#110, Task C11, D-88): a student can retrieve
+  their own submitted reports for export; reports table and admin fields stay closed. 52 real pgTAP checks pass.
+
 ## In review
 - Open pull requests add their own lines here. Waiting now: study modes on pages (#77, held for Christian's choice
-  below), delete-account checks (#105, Task 25), database step 5, flags and `submit_flag` (#110, all 8 CI checks
-  green, peer-approved, awaiting Christian + lead SQL re-review), the review-clip exporter (#111, Task C7/C10,
+  below), delete-account checks (#105, Task 25), the review-clip exporter (#111, Task C7/C10,
   P1/P2/P3 fixed at `1dfa300`, awaiting CI + independent peer review), visuals on lesson pages (#129, Task C9),
   the review-sheet script (Task 43), and Release browser tests (#55).
   Release #132 (daily games, private stats, onboarding) is open and mergeable — CI running, awaits Christian.
