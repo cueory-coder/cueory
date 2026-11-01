@@ -347,6 +347,7 @@ describe('starting the offline copies from a page', () => {
     const log = { registered: [] as { url: string; scope: string }[], unregistered: 0, fetched: [] as string[], waits: [] as number[], order: [] as string[] };
     let control: unknown = controller ? {} : undefined;
     const listeners: (() => void)[] = [];
+    const fire = () => { for (const listener of listeners.splice(0)) listener(); };
     const container: WorkerContainer = {
       get controller() { return control; },
       ready: Promise.resolve({}),
@@ -356,6 +357,7 @@ describe('starting the offline copies from a page', () => {
         return {};
       },
       getRegistrations: async () => [{ unregister: async () => { log.order.push('unregistered'); log.unregistered += 1; return true; } }, { unregister: async () => { log.order.push('unregistered'); log.unregistered += 1; return true; } }],
+      // Every listener here is registered with { once: true }, so each runs on the next change only.
       addEventListener: (_type, listener) => void listeners.push(listener),
     };
     const env: OfflineEnvironment = {
@@ -365,12 +367,12 @@ describe('starting the offline copies from a page', () => {
       clearCopies: async () => void log.order.push('cleared'),
       wait: async (ms) => {
         log.waits.push(ms);
-        if (becomesController) { control = {}; for (const listener of listeners) listener(); }
+        if (becomesController) { control = {}; fire(); }
         return new Promise<void>(() => undefined);
       },
       ...rest,
     };
-    return { env, log, takeControl: () => { control = {}; for (const listener of listeners) listener(); } };
+    return { env, log, takeControl: () => { control = {}; fire(); } };
   }
 
   it('registers /sw.js for the whole site, then saves the first visit once the worker controls the page', async () => {
@@ -394,6 +396,18 @@ describe('starting the offline copies from a page', () => {
     await startOffline(env);
     expect(log.registered).toHaveLength(1);
     expect(log.fetched).toEqual([]);
+  });
+
+  it('saves this page again when an updated worker takes control, because it deletes the old copies', async () => {
+    const { env, log, takeControl } = environment({ controller: true });
+    await startOffline(env);
+    expect(log.fetched).toEqual([]);
+    takeControl();
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(log.fetched).toEqual([`${ORIGIN}/learn/study-skills`, `${ORIGIN}/_astro/a.js`]);
+    takeControl();
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(log.fetched).toHaveLength(2);
   });
 
   it('does nothing on an insecure page or in a browser without service workers', async () => {

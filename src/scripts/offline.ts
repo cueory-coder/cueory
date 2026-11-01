@@ -76,8 +76,13 @@ export async function startOffline(env: OfflineEnvironment): Promise<void> {
   } catch {
     return;
   }
-  // A later visit is saved by the worker as it goes. The first one was loaded before it could keep anything.
-  if (controlled) return;
+  // A later visit is saved by the worker as it goes. But a new deploy's worker deletes the old worker's copies when it
+  // takes over, including the page just opened, so that page is saved again once the new worker has control.
+  if (controlled) {
+    container.addEventListener('controllerchange', () => void saveThisVisit(env).catch(() => undefined), { once: true });
+    return;
+  }
+  // The first visit was loaded before any worker could keep anything.
   await container.ready;
   if (!container.controller) {
     await Promise.race([
@@ -86,6 +91,11 @@ export async function startOffline(env: OfflineEnvironment): Promise<void> {
     ]);
   }
   if (!container.controller) return;
+  await saveThisVisit(env);
+}
+
+/** Fetches this page and the files it loaded through the worker, which keeps what its rules allow. */
+async function saveThisVisit(env: OfflineEnvironment): Promise<void> {
   for (const url of firstVisitUrls(env.pageUrl, env.resources(), env.origin)) await env.fetchOne(url).catch(() => undefined);
 }
 

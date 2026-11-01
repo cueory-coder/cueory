@@ -91,5 +91,8 @@ test('a page that was never visited fails the way it would without a worker', as
 
 test('the privacy page says pages may be kept on the device', async ({ page }) => {
   await page.goto('/privacy');
-  await expect(page.locator('main')).toContainText('copies of the pages you visit');
+  const paragraph = page.locator('p', { hasText: 'copies of the pages you visit' });
+  await expect(paragraph).toContainText('lessons and the home page');
+  await expect(paragraph).toContainText('daily games are never kept');
+  await expect(paragraph).not.toContainText('lessons, daily games');
 });
