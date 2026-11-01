@@ -1,4 +1,4 @@
--- Locked by default (D-73, D-75).
+-- Locked by default (D-73, D-77).
 --
 -- Nothing new in the public schema is reachable from the website's roles until a later migration grants it, in the
 -- same file that turns on row-level security and adds the policies. Since 30 October 2026 Supabase already gives new

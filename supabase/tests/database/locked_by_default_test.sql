@@ -1,4 +1,4 @@
--- The database stays locked by default (D-73, D-75). Run by `supabase test db` (Supabase docs, "Testing Your
+-- The database stays locked by default (D-73, D-77). Run by `supabase test db` (Supabase docs, "Testing Your
 -- Database"): a throwaway local database, so no real keys and no real data.
 begin;
 create extension if not exists pgtap with schema extensions;

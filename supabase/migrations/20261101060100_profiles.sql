@@ -1,4 +1,4 @@
--- Student profiles (ROADMAP Task 2, D-73, D-75).
+-- Student profiles (ROADMAP Task 2, D-73, D-77).
 --
 -- One row per account, made when the account is created. It holds only what CLAUDE.md allows about a person: the
 -- display name for now (the email stays in Supabase's own auth.users). Onboarding answers join later, with the
@@ -14,7 +14,7 @@ create table public.profiles (
 );
 
 comment on table public.profiles is
-  'One row per student account (D-75). Only the display name; the email stays in auth.users.';
+  'One row per student account (D-77). Only the display name; the email stays in auth.users.';
 
 -- Who may do what. A student reads their own row and changes only their display name; signed-out visitors get nothing;
 -- the service role (server-side jobs such as delete-my-account) may do everything, and it bypasses row-level security.

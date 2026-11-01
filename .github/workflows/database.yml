@@ -1,4 +1,4 @@
-# Database checks (D-73, D-75): apply every migration to a throwaway local Supabase database and run the pgTAP tests in
+# Database checks (D-73, D-77): apply every migration to a throwaway local Supabase database and run the pgTAP tests in
 # supabase/tests (Supabase docs, "Testing Your Database" and "Automated testing using GitHub Actions"). The local
 # database makes its own throwaway keys, so this needs no secrets and never touches cueory-staging or cueory-prod.
 # Starting it pulls large images, so it runs only when the database files change (the lead's note on #66), and, like

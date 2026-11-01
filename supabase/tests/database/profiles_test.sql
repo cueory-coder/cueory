@@ -1,4 +1,4 @@
--- Student profiles (D-75): every account gets one, and each student sees and changes only their own display name.
+-- Student profiles (D-77): every account gets one, and each student sees and changes only their own display name.
 -- Run by `supabase test db` on a throwaway local database; the two accounts below exist only inside this test.
 begin;
 create extension if not exists pgtap with schema extensions;

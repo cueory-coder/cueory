@@ -3,7 +3,7 @@
 # A string used to distinguish different Supabase projects on the same host. Defaults to the
 # working directory name when running `supabase init`.
 #
-# Cueory (D-75): this file only shapes the throwaway local database that `supabase db start` runs in CI. The real
+# Cueory (D-77): this file only shapes the throwaway local database that `supabase db start` runs in CI. The real
 # projects, cueory-staging and cueory-prod, are set in Supabase's dashboard, and nothing here holds a key.
 project_id = "cueory"
 
