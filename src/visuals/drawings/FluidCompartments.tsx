@@ -72,7 +72,7 @@ export default function FluidCompartments({ visual, shown = steps.length, idPref
 
       {/* Step 1: all body fluid as one bar, 60% ICF and the rest ECF. */}
       <g data-depiction="two-compartments icf-larger">
-        {text('icf-share', barX, 18, { size: 13, max: 18, soft: true })}
+        {text('icf-share', barX, 18, { size: 'note', max: 18, soft: true })}
         <path
           d={`M${barX} 50 V43 H${barX + icfWidth} V50`}
           fill="none"
@@ -90,8 +90,8 @@ export default function FluidCompartments({ visual, shown = steps.length, idPref
           className="stroke-ink"
         />
         <g className="stroke-page" strokeWidth="5" paintOrder="stroke" strokeLinejoin="round">
-          {text('icf-short', barX + icfWidth / 2, 84, { size: 17, anchor: 'middle', strong: true })}
-          {text('ecf-short', barX + icfWidth + (barWidth - icfWidth) / 2, 84, { size: 17, anchor: 'middle', strong: true })}
+          {text('icf-short', barX + icfWidth / 2, 84, { size: 'title', anchor: 'middle', strong: true })}
+          {text('ecf-short', barX + icfWidth + (barWidth - icfWidth) / 2, 84, { size: 'title', anchor: 'middle', strong: true })}
         </g>
         {text('icf', barX, 128)}
         {text('ecf', WIDTH - barX, 150, { anchor: 'end' })}
@@ -102,8 +102,8 @@ export default function FluidCompartments({ visual, shown = steps.length, idPref
         <g data-depiction="icf-contents">
           <rect x="8" y="172" width={barWidth} height="186" rx="12" strokeWidth="1.5" className="fill-surface stroke-line" />
           <rect x="8" y="172" width="12" height="186" rx="6" fill={`url(#${lines})`} strokeWidth="1.5" className="stroke-ink" />
-          {text('icf', 32, 198, { size: 16, strong: true })}
-          {text('icf-electrolyte', 32, 221, { size: 14, soft: true })}
+          {text('icf', 32, 198, { size: 'head', strong: true })}
+          {text('icf-electrolyte', 32, 221, { size: 'label', soft: true })}
           <rect x="48" y="240" width="264" height="100" rx="40" strokeWidth="2" className="fill-page stroke-ink" />
           {text('icf-protein', 130, 282, { anchor: 'middle' })}
           {text('icf-water', 230, 282, { anchor: 'middle' })}
@@ -117,8 +117,8 @@ export default function FluidCompartments({ visual, shown = steps.length, idPref
         <g data-depiction="two-compartments">
           <rect x="8" y="374" width={barWidth} height="408" rx="12" strokeWidth="1.5" className="fill-page stroke-line" />
           <rect x="8" y="374" width="12" height="408" rx="6" fill={`url(#${dots})`} strokeWidth="1.5" className="stroke-ink" />
-          {text('ecf', 32, 400, { size: 16, strong: true })}
-          {text('ecf-electrolyte', 32, 423, { size: 14, soft: true })}
+          {text('ecf', 32, 400, { size: 'head', strong: true })}
+          {text('ecf-electrolyte', 32, 423, { size: 'label', soft: true })}
         </g>
       )}
 
@@ -128,10 +128,10 @@ export default function FluidCompartments({ visual, shown = steps.length, idPref
           <g data-depiction="intravascular-blood">
             <rect x="32" y="442" width="304" height="112" rx="44" strokeWidth="2" className="fill-surface stroke-ink" />
             {text('intravascular', 184, 470, { anchor: 'middle', strong: true })}
-            {text('blood-rbc', 112, 500, { size: 14, anchor: 'middle' })}
-            {text('blood-wbc', 256, 500, { size: 14, anchor: 'middle' })}
-            {text('blood-plasma', 112, 528, { size: 14, anchor: 'middle' })}
-            {text('blood-platelets', 256, 528, { size: 14, anchor: 'middle' })}
+            {text('blood-rbc', 112, 500, { size: 'label', anchor: 'middle' })}
+            {text('blood-wbc', 256, 500, { size: 'label', anchor: 'middle' })}
+            {text('blood-plasma', 112, 528, { size: 'label', anchor: 'middle' })}
+            {text('blood-platelets', 256, 528, { size: 'label', anchor: 'middle' })}
           </g>
           <g data-depiction="interstitial-place">
             <rect x="40" y="574" width="280" height="64" fill={`url(#${dots})`} />
@@ -153,10 +153,10 @@ export default function FluidCompartments({ visual, shown = steps.length, idPref
               className="fill-page stroke-ink"
             />
             {text('transcellular', 48, 684, { strong: true })}
-            {text('area-cerebrospinal', 48, 714, { size: 14 })}
-            {text('area-synovial', 236, 714, { size: 14 })}
-            {text('area-gi', 48, 742, { size: 14 })}
-            {text('area-intrapleural', 236, 742, { size: 14 })}
+            {text('area-cerebrospinal', 48, 714, { size: 'label' })}
+            {text('area-synovial', 236, 714, { size: 'label' })}
+            {text('area-gi', 48, 742, { size: 'label' })}
+            {text('area-intrapleural', 236, 742, { size: 'label' })}
           </g>
         </g>
       )}

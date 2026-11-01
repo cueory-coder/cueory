@@ -5,12 +5,27 @@
 import { labelText, type Visual } from '../sources';
 import { wrapLines } from '../drawing';
 
+export type DiagramTextSize = 'note' | 'label' | 'body' | 'head' | 'title';
+
+/** The token class for each size, written out in full so Tailwind finds it. */
+const SIZE_CLASS: Record<DiagramTextSize, string> = {
+  note: 'text-diagram-note',
+  label: 'text-diagram-label',
+  body: 'text-diagram-body',
+  head: 'text-diagram-head',
+  title: 'text-diagram-title',
+};
+
+/** Space between a wrapped label's lines, relative to its size. */
+const LINE_GAP = '1.25em';
+
 export interface LabelProps {
   visual: Pick<Visual, 'id' | 'labels'>;
   id: string;
   x: number;
   y: number;
-  size?: number;
+  /** One of the diagram type sizes in src/styles/tokens.css. */
+  size?: DiagramTextSize;
   /** Longest line, in characters, before the label wraps at a space. */
   max?: number;
   anchor?: 'start' | 'middle' | 'end';
@@ -20,8 +35,8 @@ export interface LabelProps {
   halo?: boolean;
 }
 
-export function Label({ visual, id, x, y, size = 15, max = 40, anchor = 'start', strong, soft, halo }: LabelProps) {
-  const classes = [soft ? 'fill-ink-soft' : 'fill-ink', strong ? 'font-semibold' : '', halo ? 'stroke-page' : '']
+export function Label({ visual, id, x, y, size = 'body', max = 40, anchor = 'start', strong, soft, halo }: LabelProps) {
+  const classes = [SIZE_CLASS[size], soft ? 'fill-ink-soft' : 'fill-ink', strong ? 'font-semibold' : '', halo ? 'stroke-page' : '']
     .filter(Boolean)
     .join(' ');
   return (
@@ -29,13 +44,12 @@ export function Label({ visual, id, x, y, size = 15, max = 40, anchor = 'start',
       data-label={id}
       x={x}
       y={y}
-      fontSize={size}
       textAnchor={anchor}
       className={classes}
       {...(halo ? { strokeWidth: 5, paintOrder: 'stroke', strokeLinejoin: 'round' as const } : {})}
     >
       {wrapLines(labelText(visual, id), max).map((line, index) => (
-        <tspan key={index} x={x} dy={index === 0 ? 0 : size * 1.25}>
+        <tspan key={index} x={x} dy={index === 0 ? 0 : LINE_GAP}>
           {line}
         </tspan>
       ))}

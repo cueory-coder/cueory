@@ -90,7 +90,7 @@ export default function SodiumPotassiumPump({ visual, shown = steps.length, idPr
         <rect x="8" y="212" width="344" height="32" className="fill-surface" />
         <line x1="8" y1="212" x2="352" y2="212" strokeWidth="2" className="stroke-ink" />
         <line x1="8" y1="244" x2="352" y2="244" strokeWidth="2" className="stroke-ink" />
-        {text('cell-membrane', 20, 233, { size: 13 })}
+        {text('cell-membrane', 20, 233, { size: 'note' })}
         <g data-depiction="more-sodium-outside">
           {ions.sodium.outside.map((at) => <Sodium key={at.join()} at={at} />)}
           {ions.sodium.inside.map((at) => <Sodium key={at.join()} at={at} />)}
@@ -100,18 +100,18 @@ export default function SodiumPotassiumPump({ visual, shown = steps.length, idPr
           {ions.potassium.inside.map((at) => <Potassium key={at.join()} at={at} />)}
         </g>
         <Sodium at={[20, 446]} />
-        {text('sodium', 36, 451, { size: 14 })}
+        {text('sodium', 36, 451, { size: 'label' })}
         <Potassium at={[190, 446]} />
-        {text('potassium', 206, 451, { size: 14 })}
+        {text('potassium', 206, 451, { size: 'label' })}
       </g>
 
       {/* Step 2: the pump in the membrane, carrying each ion toward the side where it is higher, using energy. */}
       {shown >= 2 && (
         <g data-depiction="pump-in-membrane lower-to-higher energy-needed">
-          {text('active-transport', 8, 24, { size: 17, strong: true })}
+          {text('active-transport', 8, 24, { size: 'title', strong: true })}
           <g data-depiction="pump-in-membrane">
             <rect x="196" y="190" width="64" height="76" rx="16" strokeWidth="2.5" className="fill-page stroke-ink" />
-            {text('pump', 344, 100, { size: 14, max: 18, anchor: 'end', strong: true })}
+            {text('pump', 344, 100, { size: 'label', max: 18, anchor: 'end', strong: true })}
             <path d="M300 120 L248 188" fill="none" strokeWidth="1" className="stroke-ink-soft" />
           </g>
           <g data-depiction="lower-to-higher">
@@ -119,12 +119,12 @@ export default function SodiumPotassiumPump({ visual, shown = steps.length, idPr
             <path d="M212 290 V150" fill="none" strokeWidth="2" className="stroke-ink" markerEnd={`url(#${arrow})`} />
             <Potassium at={[244, 150]} />
             <path d="M244 160 V300" fill="none" strokeWidth="2" className="stroke-ink" markerEnd={`url(#${arrow})`} />
-            {text('against-gradient', 8, 486, { size: 14 })}
+            {text('against-gradient', 8, 486, { size: 'label' })}
           </g>
           <g data-depiction="energy-needed">
             <Bolt x={228} y={214} />
             <Bolt x={20} y={510} />
-            {text('uses-energy', 40, 530, { size: 14 })}
+            {text('uses-energy', 40, 530, { size: 'label' })}
           </g>
         </g>
       )}

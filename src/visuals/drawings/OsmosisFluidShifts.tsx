@@ -81,10 +81,10 @@ export default function OsmosisFluidShifts({ visual, shown = steps.length, idPre
 
       {/* Step 1: osmosis across a semipermeable membrane. */}
       <g data-depiction="water-crosses large-blocked no-energy">
-        {text('osmosis', 8, 22, { size: 17, strong: true })}
+        {text('osmosis', 8, 22, { size: 'title', strong: true })}
         <rect x="8" y="36" width="344" height="176" rx="12" strokeWidth="1.5" className="fill-page stroke-line" />
-        {text('lesser', 94, 60, { size: 13, max: 16, anchor: 'middle', soft: true })}
-        {text('greater', 266, 60, { size: 13, max: 16, anchor: 'middle', soft: true })}
+        {text('lesser', 94, 60, { size: 'note', max: 16, anchor: 'middle', soft: true })}
+        {text('greater', 266, 60, { size: 'note', max: 16, anchor: 'middle', soft: true })}
         <Solutes points={[[60, 186], [124, 110], [96, 196]]} />
         <Solutes
           points={[
@@ -93,7 +93,7 @@ export default function OsmosisFluidShifts({ visual, shown = steps.length, idPre
           ]}
         />
         <g data-depiction="water-crosses">
-          {text('water-movement', 112, 136, { size: 14, anchor: 'middle' })}
+          {text('water-movement', 112, 136, { size: 'label', anchor: 'middle' })}
           {line('M56 152 H300')}
         </g>
         <g data-depiction="large-blocked">
@@ -103,34 +103,34 @@ export default function OsmosisFluidShifts({ visual, shown = steps.length, idPre
           <circle cx="160" cy="200" r="9" strokeWidth="2" className="fill-surface stroke-ink" />
         </g>
         <line x1="180" y1="36" x2="180" y2="212" strokeWidth="3" strokeDasharray="12 7" className="stroke-ink" />
-        {text('membrane', 190, 232, { size: 14, max: 14 })}
-        {text('larger-blocked', 8, 262, { size: 14, soft: true })}
+        {text('membrane', 190, 232, { size: 'label', max: 14 })}
+        {text('larger-blocked', 8, 262, { size: 'label', soft: true })}
         <path d="M70 248 L153 208" fill="none" strokeWidth="1" className="stroke-ink-soft" />
-        {text('passive', 8, 290, { size: 14, strong: true })}
+        {text('passive', 8, 290, { size: 'label', strong: true })}
       </g>
 
       {/* Step 2: a capillary, pushed out at the arterial end and pulled back in at the venous end. */}
       {shown >= 2 && (
         <g data-depiction="arterial-push venous-pull albumin-holds">
           <rect x="8" y="318" width="344" height="218" rx="12" fill={`url(#${dots})`} strokeWidth="1.5" className="stroke-line" />
-          {text('interstitial', 20, 342, { size: 14, halo: true })}
+          {text('interstitial', 20, 342, { size: 'label', halo: true })}
           <g data-depiction="arterial-push">
-            {text('hydrostatic', 24, 372, { size: 14, max: 12, halo: true, strong: true })}
+            {text('hydrostatic', 24, 372, { size: 'label', max: 12, halo: true, strong: true })}
             {line('M76 428 V392')}
             {line('M108 428 V392')}
           </g>
           <g data-depiction="venous-pull">
-            {text('oncotic', 336, 372, { size: 14, max: 10, anchor: 'end', halo: true, strong: true })}
+            {text('oncotic', 336, 372, { size: 'label', max: 10, anchor: 'end', halo: true, strong: true })}
             {line('M252 392 V426')}
             {line('M284 392 V426')}
           </g>
           <rect x="24" y="432" width="312" height="66" rx="33" strokeWidth="2" className="fill-surface stroke-ink" />
           {text('capillary', 180, 460, { anchor: 'middle', strong: true })}
           <g data-depiction="albumin-holds">
-            {text('albumin', 180, 484, { size: 13, anchor: 'middle' })}
+            {text('albumin', 180, 484, { size: 'note', anchor: 'middle' })}
           </g>
-          {text('arterial-end', 28, 522, { size: 14, halo: true })}
-          {text('venous-end', 332, 522, { size: 14, anchor: 'end', halo: true })}
+          {text('arterial-end', 28, 522, { size: 'label', halo: true })}
+          {text('venous-end', 332, 522, { size: 'label', anchor: 'end', halo: true })}
         </g>
       )}
 
