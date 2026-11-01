@@ -107,9 +107,11 @@ Last updated: 2026-11-01
 Targets: first visuals by about 14 November, the full kit by about 12 December ([plan](VISUALS.md)).
 - Done: the plan, and license checks on every source. Open RN *Nursing Fundamentals 2e* is the cited source (CC BY
   4.0). OpenStax waits for Christian (D-57).
-- Next: the visual source-file check and draft-only rendering, then the first batch (fluid compartments, osmosis and
-  fluid shifts, the sodium-potassium pump) with its review sheet. The 3D viewer adds three.js, so it waits for
-  Christian's merge; its models wait for the atlas choice.
+- In review: the source-file check (`src/visuals/sources.ts`). The build refuses a visual whose labels or depictions
+  have no source, that quotes a book not on the allowed list, or whose source has the wrong license or no page
+  address. Only approved visuals can appear on a page, and each shows its book's credit.
+- Next: the first batch (fluid compartments, osmosis and fluid shifts, the sodium-potassium pump) with its review
+  sheet. The 3D viewer adds three.js, so it waits for Christian's merge; its models wait for the atlas choice.
 
 ## Planning
 - [Med-surg lesson map](curriculum/README.md) ([#31](https://github.com/lilchristxan/Cueory/pull/31)): the master
