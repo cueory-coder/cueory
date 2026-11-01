@@ -160,6 +160,11 @@ Merged into `staging` overnight; the database and content ones by the director o
   (#96, Task 20).
 
 ## In review
+- Task 28: `itemHash(itemRow, keyRow)` and hash verification in `parsePassed()` — the importer now detects
+  items edited after the checker approved them (Gap 1). Per-choice rationales are also made truly optional for
+  single-answer items, aligning the importer with BATCHES.md (Gap 2). `passed.csv` gains a `hash` column (SHA-256
+  of the canonical item JSON); the checker's `passedCsv()` will emit it in a follow-up task.
+  [PR #115](https://github.com/lilchristxan/Cueory/pull/115).
 - Task 26 (D-34, D-73): `flagArguments(report, context)` — the pure adapter that converts a validated `FlagReport`
   into the exact args for the database's `submit_flag` function. Validates page (same-site, strips query and hash),
   maps camelCase to snake_case, and sets absent fields to null. Sending waits for the RPC and integration step.
