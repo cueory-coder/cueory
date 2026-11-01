@@ -1,5 +1,5 @@
 /**
- * The "ways to study" merry-go-round on the home page (D-50, D-57). Pure helpers, kept apart from the page script so
+ * The "ways to study" merry-go-round on the home page (D-50, D-60). Pure helpers, kept apart from the page script so
  * they can be unit tested (tests/unit/carousel.test.ts).
  *
  * Without JavaScript the cards are a row that scrolls sideways and snaps each card to the middle. The script turns

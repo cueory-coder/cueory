@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
-/** The name of the card in the middle of the "ways to study" merry-go-round (D-57). */
+/** The name of the card in the middle of the "ways to study" merry-go-round (D-60). */
 const middleCard = (page: Page) =>
   page.locator('#ways-to-study [data-mode-card][data-offset="0"]').getAttribute('data-name');
 
@@ -469,7 +469,7 @@ test.describe('marketing look (D-41)', () => {
   });
 });
 
-test.describe('"ways to study" merry-go-round (D-50, D-57)', () => {
+test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
   const section = (page: Page) => page.locator('#ways-to-study');
   /** The names of the cards on screen, left to right. */
   const onScreen = (page: Page) =>
@@ -749,7 +749,7 @@ test.describe('silk scenes down the home page (D-53)', () => {
     expect(scenes.map((scene) => scene.kind)).toEqual(['scene-hero', 'scene-tint', 'scene-low']);
     for (const scene of scenes) expect(scene).toMatchObject({ drawn: true, behind: '-20', fades: true });
 
-    // Calm, not a template (D-57): no numbered labels, no figure caption, no rhythm line.
+    // Calm, not a template (D-60): no numbered labels, no figure caption, no rhythm line.
     await expect(page.locator('[data-section-label], [data-rhythm]')).toHaveCount(0);
     await expect(page.locator('main')).not.toContainText(/fig\. |\b0\d — /);
   });

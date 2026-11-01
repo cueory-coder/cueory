@@ -69,7 +69,7 @@ Last updated: 2026-11-01
   (D-54) in the footer and the ☰ panel, merged by Christian.
 
 ## In review
-- "ways to study" merry-go-round and a calmer home page (D-57): an endless ring of 11 study-mode cards with
+- "ways to study" merry-go-round and a calmer home page (D-60): an endless ring of 11 study-mode cards with
   neighbours on both sides (video replaces lesson; label it, adaptive quiz and level test are coming soon), and no
   chips, section numbers, figure caption or rhythm line; the building notice is lowercase. The auto-merge takes it
   once it is clean.

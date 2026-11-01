@@ -1,5 +1,5 @@
 /**
- * The study modes on the home page's "ways to study" merry-go-round (D-50, D-57), in Christian's order. Copy is in the
+ * The study modes on the home page's "ways to study" merry-go-round (D-50, D-60), in Christian's order. Copy is in the
  * lowercase brand voice (D-47). A mode with a `link` is open now; the rest say "coming soon". Change names, wording or
  * order here; the carousel, its preview and its tests follow.
  *

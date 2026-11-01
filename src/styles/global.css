@@ -576,7 +576,7 @@ html:has(dialog.menu-panel[open]) {
 }
 
 /*
-  "ways to study" on the home page (D-50, D-57). Without JavaScript, a row of cards that scrolls sideways and snaps
+  "ways to study" on the home page (D-50, D-60). Without JavaScript, a row of cards that scrolls sideways and snaps
   each card to the middle. With it, the merry-go-round below. Either way the row runs the full width of the window,
   and nothing masks, fades or blurs a card: its words keep the frosted-panel contrast checked in
   tests/unit/tokens.test.ts.
@@ -610,7 +610,7 @@ html:has(dialog.menu-panel[open]) {
   }
 
   /*
-    The merry-go-round (D-57), once the script has taken over (data-ring). Every card sits in the same spot in the
+    The merry-go-round (D-60), once the script has taken over (data-ring). Every card sits in the same spot in the
     middle, and the script's numbers move it out to its place: --ring-shift card widths and --ring-gaps gaps sideways,
     so neighbours sit edge to edge; --ring-scale its size (1, then 0.88 and 0.76: stepping back); and --ring-turn
     degrees turned away, round the ring. Only the card in the middle and its neighbours show: one on each side on

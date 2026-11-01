@@ -149,7 +149,7 @@ describe('marketing background (D-41)', () => {
   });
 
   /*
-    "ways to study" merry-go-round (D-50, D-57): its cards are the frosted panels checked above, so their words are
+    "ways to study" merry-go-round (D-50, D-60): its cards are the frosted panels checked above, so their words are
     covered as long as nothing fades a card. It moves, scales and turns the cards, and gives side cards the second ink,
     but never masks, fades or blurs the row or a card. (The illustrations inside the cards are decoration and may use
     opacity.)

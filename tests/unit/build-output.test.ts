@@ -103,7 +103,7 @@ describe.skipIf(!existsSync(dist))('built site', () => {
     },
   );
 
-  it('home page: "video" comes first, "learn" is Learn mode, and modes not built yet say coming soon (D-43, D-50, D-57)', () => {
+  it('home page: "video" comes first, "learn" is Learn mode, and modes not built yet say coming soon (D-43, D-50, D-60)', () => {
     const html = readFileSync(join(dist, 'index.html'), 'utf8');
     const card = (id: string) => {
       const match = new RegExp(`<div[^>]*id="mode-${id}"[\\s\\S]*?<h3[^>]*>([^<]+)</h3>[\\s\\S]*?(?:href="([^"]+)"|coming soon)`).exec(html);

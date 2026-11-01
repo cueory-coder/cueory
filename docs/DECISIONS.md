@@ -297,7 +297,7 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   platforms until someone clicks; the platforms' own brand guidelines allow one-color marks that link to a profile. Each
   link is a 44 px target, in the text color (the ☰ panel's light ink there). The promo panel gets the same links in its
   own pull request. Reason: Christian's request.
-- **D-57** "ways to study" becomes an endless merry-go-round, and the home page loses its clutter (Christian's feedback,
+- **D-60** "ways to study" becomes an endless merry-go-round, and the home page loses its clutter (Christian's feedback,
   2026-10-31, 6:40 pm, relayed by the lead on issue #4). The card in the middle is in front, and its neighbours stay
   visible on both sides (one on phones and tablets, two from 64rem wide), stepping back: 0.88 and then 0.76 of its
   size, turned 10° away round the ring, and quieter (no shadow, the heading in the second ink, a softer drawing; their

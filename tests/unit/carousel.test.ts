@@ -30,7 +30,7 @@ const idle: MotionState = {
   onScreen: true,
 };
 
-describe('"ways to study" merry-go-round (D-50, D-57)', () => {
+describe('"ways to study" merry-go-round (D-50, D-60)', () => {
   it("lists the eleven study modes in Christian's order, in the lowercase voice", () => {
     expect(studyModes.map((mode) => mode.name)).toEqual([
       'video',
