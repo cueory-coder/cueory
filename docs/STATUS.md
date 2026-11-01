@@ -101,6 +101,8 @@ Last updated: 2026-11-01
   later.
 
 ## In review
+- Auto-merge sweep (D-78, the lead's): an ordinary comment can no longer cancel a waiting merge check, and once an
+  hour a sweep re-checks every open pull request. It edits `.github/`, so it waits for Christian.
 - Game-name guard (D-67): a unit test fails if a page or game shows an internal id (`cueword`, `triage`, `suture`) as
   words, or types a name into a share line, so the next rename stays a one-line change.
 - Promo panel fix: it waits until the ☰ panel or a study-mode preview has finished closing, so their own focus
