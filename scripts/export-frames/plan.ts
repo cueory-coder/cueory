@@ -15,6 +15,33 @@ export const FRAME_SIZES = [
   { name: 'landscape', width: 1920, height: 1080 },
 ] as const;
 
+/**
+ * Styles that stretch the selected element over the whole window before capture, so every frame is exactly the
+ * frame size whatever size the diagram is drawn at (an SVG with a viewBox scales to fit). The rest of the page is
+ * hidden, so only the page's background shows around the diagram. They are set through the CSSOM, which the site's
+ * content security policy allows, and only in the exporter's own browser.
+ */
+export const FILL_STYLE: Readonly<Record<string, string>> = {
+  position: 'fixed',
+  inset: '0',
+  width: '100vw',
+  height: '100vh',
+  'max-width': 'none',
+  'max-height': 'none',
+  margin: '0',
+  'box-sizing': 'border-box',
+  'z-index': '2147483647',
+  visibility: 'visible',
+};
+
+/** The width and height written in a PNG's header (the IHDR chunk), or undefined when it isn't a PNG. */
+export function pngSize(png: Uint8Array): { width: number; height: number } | undefined {
+  const signature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  if (png.length < 24 || signature.some((byte, i) => png[i] !== byte)) return undefined;
+  const view = new DataView(png.buffer, png.byteOffset, png.byteLength);
+  return { width: view.getUint32(16), height: view.getUint32(20) };
+}
+
 function numeric(value: string, name: string, min: number, max: number): number {
   const number = Number(value);
   if (!value.trim() || !Number.isFinite(number) || number < min || number > max) {

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { durationMs, FRAME_SIZES, frameName, frameTimes, parseArguments } from '../../scripts/export-frames/plan';
+import {
+  durationMs,
+  FILL_STYLE,
+  FRAME_SIZES,
+  frameName,
+  frameTimes,
+  parseArguments,
+  pngSize,
+} from '../../scripts/export-frames/plan';
 
 const required = ['--url', 'http://localhost:4321/diagram', '--selector', '#diagram', '--out', 'out/frames'];
 
@@ -79,5 +87,22 @@ describe('frame plan', () => {
       { name: 'portrait', width: 1080, height: 1920 },
       { name: 'landscape', width: 1920, height: 1080 },
     ]);
+  });
+});
+
+describe('every frame is exactly the frame size (Codex review, #47)', () => {
+  it('stretches the selected element over the whole window', () => {
+    expect(FILL_STYLE).toMatchObject({ position: 'fixed', inset: '0', width: '100vw', height: '100vh' });
+  });
+
+  it("reads a PNG's width and height from its header, and refuses anything else", () => {
+    const header = new Uint8Array(24);
+    header.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52]);
+    const view = new DataView(header.buffer);
+    view.setUint32(16, 1080);
+    view.setUint32(20, 1920);
+    expect(pngSize(header)).toEqual({ width: 1080, height: 1920 });
+    expect(pngSize(new Uint8Array(24))).toBeUndefined();
+    expect(pngSize(header.subarray(0, 20))).toBeUndefined();
   });
 });

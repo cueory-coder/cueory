@@ -10,7 +10,16 @@ import { lstat, mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { chromium, type Browser } from '@playwright/test';
-import { durationMs, FRAME_SIZES, frameName, frameTimes, parseArguments, PlanError } from './export-frames/plan.ts';
+import {
+  durationMs,
+  FILL_STYLE,
+  FRAME_SIZES,
+  frameName,
+  frameTimes,
+  parseArguments,
+  PlanError,
+  pngSize,
+} from './export-frames/plan.ts';
 
 export async function main(args = process.argv.slice(2)): Promise<number> {
   let browser: Browser | undefined;
@@ -36,6 +45,15 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
         await page.evaluate(async () => { await document.fonts.ready; });
         const element = page.locator(options.selector);
         if ((await element.count()) !== 1) throw new PlanError('--selector must match exactly one element.');
+        // Stretch the element over the whole window, so each frame is exactly the frame size (Codex review, #47).
+        await element.evaluate((node, style) => {
+          for (const [property, value] of Object.entries(style)) {
+            (node as HTMLElement | SVGElement).style.setProperty(property, value, 'important');
+          }
+          // Everything else is hidden; the page's own background still shows around the diagram.
+          document.documentElement.style.setProperty('overflow', 'hidden', 'important');
+          document.documentElement.style.setProperty('visibility', 'hidden', 'important');
+        }, FILL_STYLE);
         const ends = await page.evaluate(() => document.getAnimations().map((animation) => {
           animation.pause();
           const end = animation.effect?.getComputedTiming().endTime ?? 0;
@@ -49,8 +67,12 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
               animation.currentTime = time;
             }
           }, times[index]!);
-          // Screenshots normally wait for an element to stop moving. At a paused time it is stable already.
-          const png = await element.screenshot({ type: 'png', animations: 'allow', scale: 'css' });
+          // The window is the frame: the element fills it. At a paused time nothing moves, so no waiting is needed.
+          const png = await page.screenshot({ type: 'png', animations: 'allow', scale: 'css' });
+          const size = pngSize(png);
+          if (size?.width !== width || size.height !== height) {
+            throw new Error(`A ${name} frame came out ${size?.width ?? '?'} × ${size?.height ?? '?'} px.`);
+          }
           // Refuse existing files (including symlinks), so a rerun never overwrites unrelated output.
           await writeFile(join(folder, frameName(index)), png, { flag: 'wx' });
           total++;
