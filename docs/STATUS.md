@@ -209,8 +209,9 @@ Christian's behalf (D-89), each with the lead's review:
 ## In review
 - Open pull requests add their own lines here. Waiting now: study modes on pages (#77, held for Christian's choice
   below), delete-account checks (#105, Task 25), database step 5, flags and `submit_flag` (#110), the review-clip
-  exporter (#111, Task C7), visuals on lesson pages (#129, Task C9), the review-sheet script (Task 43) and Release
-  browser tests (#55).
+  exporter (#111, Task C7), and Release browser tests (#55).
+- Release PR (#132, staging → main): CI running. New for students: crossword and word path live on /play. Unlinked
+  in release: study modes, flashcard decks, lesson video shell, 3D viewer shell.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
