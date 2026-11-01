@@ -1,22 +1,53 @@
 # cueory brand guide
 
-Sources: Christian's brand board and `brand-source/Cueory_Branding_Spec.md` (both 2026-10-31). Where they differ, the
-spec wins. Colors are applied in `src/styles/tokens.css`. Logo files are built from one traced geometry master by
-`scripts/build-brand.mjs`.
+**Brand v1.0 (D-55).** The full specification is Christian's
+[`brand-source/v1.0/Cueory_Brand_Guide.md`](../brand-source/v1.0/Cueory_Brand_Guide.md). It wins over this summary and
+over everything in `brand-source/legacy/` (the earlier spec, traced banner and geometry master, kept for history only).
+Colors are applied in `src/styles/tokens.css`. The logo is shown by `src/components/Wordmark.astro`.
 
 ## Identity
 - **Brand name:** Cueory (the logo is always lowercase: "cueory"). In prose the name is "Cueory"; in lowercase-styled
   UI (headlines, buttons, menus, page titles) it is "cueory", matching the wordmark (D-47).
 - **Motto (exact, always lowercase):** `by nursing students, for nursing students.`
 - **Product description:** Nursing school is hard enough. Cueory makes studying simpler.
-- **Use:** website, app, social, and all brand materials
+- **Use:** website, app, social, and all brand materials.
+
+## Logo
+- **The logo is Christian's PNG artwork**, approved 2026-10-31: the custom serif wordmark "cueory", a water-drop end on
+  the **c**, and a small half-filled **cruet** above the c and u. Three families (guide §3.4):
+  - the **full logo** (wordmark and cruet), the main identifier;
+  - the **emblem** (water-drop c and cruet), for compact places;
+  - the **cruet alone**, a small supporting mark, never the only identifier.
+- **Never** retype it in a font, trace it into an SVG, redraw the c, move or resize the cruet, stretch it, or add a
+  gradient, shadow, embossing, outline, texture or any other color (guide §3.6 and §2.4).
+- **Sources:** `brand-source/v1.0/` holds every file Christian supplied, unchanged: the guide, the PNGs and his
+  Photoshop working file for the emblem. `manifest.json` records each file's checksum.
+- **Web copies:** `public/brand/v1/` holds copies built from them by `node scripts/build-brand-v1.mjs`:
+  - the full logo and the emblem, in Espresso and in Ivory, on transparent backgrounds, cropped to the artwork, at a
+    few widths;
+  - browser and home-screen icons (the emblem on Ivory).
+
+  The script never redraws anything. It reads how much ink covers each pixel and writes that ink in one exact brand
+  color, so the logo sits on silk without a box, and the cruet's empty top half stays empty.
+- **Same drawing in both palettes (guide §4.5).** The full logo and the emblem use the light file's drawing in both
+  palettes. The dark files are the same drawings (the script checks the overlap), but the full logo's dark file has
+  stair-stepped edges and the emblem's dark file is only 348px wide. The cruet alone is not on the site yet; its files
+  draw it only about 135px wide.
+- **Tests:** `tests/unit/brand.test.ts` fails if a source or web copy changes without rebuilding, or if any pixel
+  drifts from the exact colors.
+- **Sizes (guide §3.5):**
+  - Full logo: 240px wide in the header (a little less on the narrowest phones) and 240–320px in the home hero.
+  - Study screens show the emblem, 36px wide (guide §6.1: small, unobtrusive branding during study).
+  - Clear space: at least 0.25 × the height of the letter c on every side.
+- **Palettes:** Espresso art on the Daytime palette, Ivory art on the Evening palette. Both images are in the page,
+  and CSS shows the one that matches. Printing uses the Espresso art.
 
 ## Typography
-- **Logo (wordmark "cueory"):** traced artwork from the approved banner. It is never typed in a font. Bodoni Moda
-  Medium was only an earlier approximation (spec section 1).
-- **Body text, UI, buttons, and headings on study screens:** Inter. Live-text motto: Inter Medium, letter spacing 0.02em.
-- **Marketing headings and their italic accent line:** Bodoni Moda Medium (spec section 4: 36–72 px, line height 1.12,
-  letter spacing −0.025em), self-hosted Latin files in `public/fonts/` under the SIL Open Font License (D-41).
+- **Logo:** the artwork above. Bodoni Moda Medium is only a reference for its letter style (guide §5.1).
+- **Body text, UI, buttons, and headings on study screens:** Inter (guide §5.2). Live-text motto: Inter Medium.
+- **Marketing headings and their italic accent line:** Bodoni Moda Medium (D-41). The fonts are self-hosted Latin
+  files in `public/fonts/`, under the SIL Open Font License. Serif is for the logo and selected editorial emphasis
+  only (guide §5.3).
 
 ## Daytime (light) palette
 | Role | Name | HEX |
@@ -24,78 +55,69 @@ spec wins. Colors are applied in `src/styles/tokens.css`. Logo files are built f
 | Page background | Ivory | `#F9F5EF` |
 | Card / surface | Linen | `#EADCCF` |
 | Decorative / soft fill | Taupe | `#D3B7A1` |
-| Accents / highlights | Mocha | `#8B6F5B` |
-| Primary text / logo / buttons | Espresso | `#3F2E24` |
+| Accents / highlights (not small text) | Mocha | `#8B6F5B` |
+| Primary text / logo / buttons | Espresso | `#3E2C23` |
 | Secondary text / icons | Bronze | `#6B5243` |
 
 ## Evening (dark) palette
 | Role | Name | HEX |
 | --- | --- | --- |
-| Page background | Charcoal | `#1B1715` |
+| Page background | Charcoal | `#1C1917` |
 | Card / surface | Walnut | `#3A2D24` |
-| Accents / highlights | Bronze | `#6B5243` |
+| Accents / highlights (not text) | Bronze | `#6B5243` |
 | Secondary text / UI | Sand | `#CBB8A4` |
-| Primary text / logo | Evening Ivory | `#EFE6DA` |
+| Primary text / logo | Ivory | `#F9F5EF` |
 
-## Logo
-- **Status: approved master v1.0** (approved by Christian on 2026-10-31). Traced with potrace from
-  `brand-source/cueory-banner-reference-light.png` (SHA-256 `056266ef…a962e0`). The geometry master
-  `brand-source/cueory-geometry-master-v1.0.json` (SHA-256 `4982f24f…3adea6`) is frozen: a test fails if it changes.
-  Any change needs a new version and Christian's approval.
-- Files in `public/brand/`: wordmark, square and 3:1 banner, each light and dark with identical geometry, plus PNG
-  exports and `cueory-brand-manifest.json` (checksums). Tests fail if a file drifts from the master.
-- Primary aspect ratio 1:1 (square), wordmark centered. The full banner is 3:1; use it only where the motto stays
-  readable (about 800px wide or more), otherwise wordmark plus live-text motto.
-- Clear space: at least 0.25 × letter height on all sides.
-- Minimum size: 96 px wide on screen, 25 mm (1 in) wide in print.
-- Espresso logo on ivory backgrounds. Evening Ivory logo on charcoal backgrounds.
+**Retired (guide §4.3):** Espresso `#3F2E24`, Charcoal `#1B1715` and Evening Ivory `#EFE6DA` from the earlier board. A
+test fails if they come back.
 
 ## Marketing look (D-41)
-Christian's redesign brief (2026-10-31) for the marketing pages only: home, support, the legal pages and 404. It relaxes
-"nothing decorative" there at his request; study screens stay plain.
-- **Mood:** quiet luxury, editorial, like a high-end "launching soon" page. Lots of empty space.
-- **Home hero (D-46):** full first screen, centered: the small traced wordmark, the motto, the Bodoni headline
-  "nursing school is hard enough." on one straight line at every width (its size follows the screen, 72 px at most),
-  the italic accent line "cueory makes studying simpler.", and one glassy pill button, "create your free account",
-  with a small line under it. Until accounts exist it goes to the launch-updates signup; a quiet link keeps the free
-  study-skills course one tap away.
+This covers the marketing pages only: home, support, the legal pages and 404. Study screens stay plain.
+- **Mood:** quiet luxury, editorial, calm (guide §6.1). Wide margins, one focal element per section, few simultaneous
+  visual cues, no clutter.
+- **Home hero (D-46, D-55):** full first screen, centered, top to bottom:
+  1. the logo;
+  2. the Bodoni headline "nursing school is hard enough." on one line at every width;
+  3. the italic accent line "cueory makes studying simpler.";
+  4. one glassy pill button, "create your free account";
+  5. one small line under it.
+
+  The embossed logo is gone (forbidden by guide §3.6). The motto is in the footer.
 - **Glassy button:** translucent brand glass (Espresso by day, Sand in the evening, about 80% opaque), a blur behind
   it, a thin light rim and a soft shadow. Where a browser can't blur, it is drawn solid.
-- **Corners (every page, D-46):** a round ☰ button top-left and an account button top-right, 44 px, frosted on
-  marketing pages and plain on study screens. ☰ opens a full-height side panel of dark glass (Espresso-tinted by day
-  with Ivory text, Charcoal in the evening) that slides in from the left and dims the page; the current page is marked
-  with a short line, not color alone. The account button opens a small menu of the same glass.
-- **Background:** draped silk drawn in code from brand colors only: Ivory, Linen and Taupe by day; Charcoal and Walnut in
-  the evening. CSS gradients plus a tiny SVG grain (about 1 KB for both palettes). No stock photos. A photo Christian
-  supplies could replace it later.
-- **Embossed logo:** the traced wordmark, very large and tone-on-tone (Linen by day, Walnut in the evening) behind the
-  hero, hidden from screen readers.
+- **Corners (every page, D-46):**
+  - A round ☰ button top-left and an account button top-right, 44px. They are frosted on marketing pages and plain on
+    study screens.
+  - ☰ opens a full-height side panel of dark glass that dims the page. The current page is marked with a short line,
+    not by color alone.
+- **Background:** draped silk drawn in code from brand colors only, plus a tiny SVG grain tinted Espresso by day and
+  Ivory in the evening. No stock photos.
 - **Panels:** frosted (Ivory or Walnut, three-quarters opaque, blurred), rounded `--radius-xl`, soft shadow.
-- **Readable:** tests compose the darkest Daytime and lightest Evening point of every background and require WCAG AA for
-  Espresso/Bronze and Evening Ivory/Sand text.
+- **Readable:** tests compose the darkest Daytime and the lightest Evening point of every background, and require WCAG
+  AA for text.
+- **No medical clip art** (guide §0, rule 4): no stethoscopes, ECG lines, cartoon nurses, syringes, red crosses or
+  hospital blue as decoration.
 
 ## Voice: all lowercase (D-47)
 Christian's decision (2026-10-31), to match how younger students write.
-- **Lowercase:** headlines, taglines, section labels, buttons, navigation and menu items, panels, carousel chips and
-  card titles, footer links, browser-tab titles, email and social copy. "nursing school is hard enough.",
-  "create your free account", "support cueory".
-- **Normal capitals stay** where accuracy and trust matter more than style: all nursing content (lessons, cards,
-  questions, rationales; ABG, COPD, IV, mmHg and Na+ stay exact), acronyms and proper nouns anywhere (NCLEX, Open RN,
-  YouTube, Ko-fi, Google), legal body text (privacy, terms, disclaimer; their headings can be lowercase), and error
-  messages or form instructions that must be read carefully.
-- **How:** write the copy in lowercase in the source. Never use CSS `text-transform` (it would change acronyms and
-  names too). Screen-reader labels stay natural; lowercase reads the same aloud.
-
-## Usage rules
-- Use only the exact colors, the fonts above, and the lowercase spelling "cueory".
-- Never retype, re-space, outline-stroke or stretch the logo; use the files in `public/brand/`.
+- **Lowercase:** headlines, taglines, section labels, buttons, navigation and menu items, panels, card titles, footer
+  links, browser-tab titles, email and social copy. Examples: "nursing school is hard enough.", "create your free
+  account", "support cueory".
+- **Normal capitals stay** where accuracy and trust matter more than style:
+  - all nursing content: lessons, cards, questions and rationales (ABG, COPD, IV, mmHg and Na+ stay exact);
+  - acronyms and proper nouns anywhere (NCLEX, Open RN, YouTube, Ko-fi, Google);
+  - legal body text: privacy, terms and disclaimer (their headings can be lowercase);
+  - error messages and form instructions that must be read carefully.
+- **How:** write the copy in lowercase in the source. Never use CSS `text-transform`, which would change acronyms and
+  names too. Screen-reader labels stay natural; lowercase reads the same aloud.
 
 ## Accessibility notes (engineering)
-- Mocha (daytime) and Bronze (evening) are too low-contrast for small text. Use them only for fills, borders and
-  highlights. Tests in `tests/unit/tokens.test.ts` enforce text contrast for both palettes.
-- Right/wrong answers (Task 4) must use words and icons. The brand has no red or green, and color is never the only
+- **Low-contrast colors:** Mocha (daytime, 4.28:1 on Ivory) and Bronze (evening) are too low-contrast for small text.
+  Use them only for fills, borders and highlights. `tests/unit/tokens.test.ts` enforces text contrast for both
+  palettes.
+- **Right and wrong answers** (Task 4) use words and icons. The brand has no red or green, and color is never the only
   signal.
-- Website color roles (spec section 6): buttons Espresso on Ivory text (day) / Sand with Charcoal text (evening);
-  form borders and focus outlines Bronze (day) / Sand (evening).
-- Light / Dark / Follow device (spec section 9): a switch in every page footer. Follow device is the default; a
-  Light or Dark pick overrides the device and is remembered in the browser. Colors change, layout never does.
+- **Motion:** hover scale 1.015–1.04 over 160–240 ms; transitions of 180–280 ms, easing out (guide §7.3). Reduced
+  motion removes everything nonessential.
+- **Light / Dark / Follow device:** a switch in every page footer. Follow device is the default; a Light or Dark pick
+  overrides the device and is remembered in the browser. Colors change; layout never does.

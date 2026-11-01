@@ -297,3 +297,31 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   platforms until someone clicks; the platforms' own brand guidelines allow one-color marks that link to a profile. Each
   link is a 44 px target, in the text color (the ☰ panel's light ink there). The promo panel gets the same links in its
   own pull request. Reason: Christian's request.
+- **D-55** Brand v1.0 (Christian's new logo and guide, 2026-10-31, 6:22 pm). His guide
+  `brand-source/v1.0/Cueory_Brand_Guide.md` replaces the earlier spec, which moves to `brand-source/legacy/` with the
+  traced banner and geometry master (history only). Changes:
+  - **The logo is his PNG artwork** (wordmark with a water-drop c and a half-filled cruet), never traced into an SVG,
+    retyped, redrawn, embossed, shadowed or recolored (guide §2.4, §3.6).
+  - **Sources:** every file he supplied is kept unchanged in `brand-source/v1.0/`, with checksums in `manifest.json`.
+  - **Web copies:** `scripts/build-brand-v1.mjs` makes them in `public/brand/v1/`: the full logo and the emblem, in
+    Espresso and in Ivory, on transparent backgrounds, cropped to the artwork, at three widths each, plus four icons
+    (the emblem on Ivory). The script reads how much ink covers each pixel and writes it in one exact color, so
+    nothing is redrawn, the logo sits on the silk without a box, and the cruet's empty half stays empty (§4.1).
+  - **One drawing for both palettes:** the light files' drawings (guide §4.5: same geometry, only colors change). The
+    dark files are the same drawings (the script checks the overlap: 96% for the full logo, 89% for the small dark
+    emblem), but the full logo's dark file has stair-stepped edges and the emblem's dark file is only 348px wide.
+  - **The cruet alone isn't exported yet:** its files draw it only about 135px wide, and the site doesn't use it yet.
+  - **Colors move to the guide's exact values:** Espresso `#3E2C23`, Charcoal `#1C1917`, and Ivory `#F9F5EF` for
+    dark-mode text and logo. The older `#3F2E24`, `#1B1715` and `#EFE6DA` are retired (§4.3), and a test fails if they
+    return.
+  - **Logo sizes follow §3.5:** the full logo about 240px wide in the header and 240–320px in the hero; study screens
+    get the compact emblem (§6.1). The favicons and home-screen icon become the emblem on Ivory.
+  - **The hero calms down** (Christian: "this part of the homepage looks cluttered"):
+    - the giant embossed logo behind the headline goes, because §3.6 forbids embossing the logo;
+    - the motto moves from under the logo to the footer;
+    - the "or start the free study-skills course" link goes (the ☰ panel and the carousel's "try it" links reach the
+      course).
+  - **What's left:** the logo, the headline, the accent line, one button and one short line under it (§7.2: one
+    primary call to action).
+
+  Reason: Christian's new brand, and his request for a cleaner hero.

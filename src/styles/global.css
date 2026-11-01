@@ -227,11 +227,62 @@
     backdrop-filter: blur(var(--blur-veil));
   }
 
-  /* Tone-on-tone logo pressed into the cloth: a light edge above, a faint shadow below. */
-  .emboss {
-    color: var(--color-emboss);
-    filter: drop-shadow(0 -1px 0 color-mix(in srgb, var(--color-silk-sheen) 85%, transparent))
-      drop-shadow(0 2px 2px rgb(var(--shadow-tint) / 0.08));
+}
+
+/*
+  The logo artwork (Wordmark.astro, D-55): Espresso art in the Daytime palette, Ivory art in the Evening palette, chosen
+  with the same rules as the palettes in tokens.css. Printing always uses the Daytime art on white paper. In forced
+  colors (Windows high contrast) the logo keeps its own page color behind it so it never disappears.
+*/
+@layer components {
+  .logo {
+    display: block;
+  }
+
+  .logo img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .logo .logo-evening {
+    display: none;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .logo .logo-day {
+      display: none;
+    }
+
+    :root:not([data-theme="light"]) .logo .logo-evening {
+      display: block;
+    }
+  }
+
+  :root[data-theme="dark"] .logo .logo-day {
+    display: none;
+  }
+
+  :root[data-theme="dark"] .logo .logo-evening {
+    display: block;
+  }
+
+  /* !important: a print rule has to win over the Dark pick above, whatever the selector weight. */
+  @media print {
+    .logo .logo-day {
+      display: block !important;
+    }
+
+    .logo .logo-evening {
+      display: none !important;
+    }
+  }
+
+  @media (forced-colors: active) {
+    .logo {
+      forced-color-adjust: none;
+      background-color: var(--color-page);
+    }
   }
 }
 

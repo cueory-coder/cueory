@@ -1,9 +1,9 @@
 /*
   CUEORY DESIGN TOKENS — the one place to change the look of the site.
 
-  Colors and fonts come from the cueory brand guide and
-  brand-source/Cueory_Branding_Spec.md (section 6). Use only these exact
-  colors. Components only use the names below (for example `bg-page`,
+  Colors and fonts come from the cueory brand guide v1.0,
+  brand-source/v1.0/Cueory_Brand_Guide.md (section 4; D-55). Use only these
+  exact colors. Components only use the names below (for example `bg-page`,
   `text-ink`, `border-control`), so changing a value here changes it
   everywhere.
 
@@ -25,23 +25,22 @@
   --color-surface: #eadccf;     /* Linen    — cards and panels */
   --color-soft: #d3b7a1;        /* Taupe    — decorative / soft fill (notice bar) */
   --color-highlight: #8b6f5b;   /* Mocha    — accents and highlights (not for small text) */
-  --color-ink: #3f2e24;         /* Espresso — primary text, logo, buttons */
+  --color-ink: #3e2c23;         /* Espresso — primary text, logo, buttons */
   --color-ink-soft: #6b5243;    /* Bronze   — secondary text and icons */
 
   /* ---------- Roles built from the palette ---------- */
   --color-line: #d3b7a1;        /* dividers (Taupe) */
   --color-control: #6b5243;     /* form field borders (Bronze) */
-  --color-button: #3f2e24;      /* main button background (Espresso) */
+  --color-button: #3e2c23;      /* main button background (Espresso) */
   --color-button-hover: #6b5243; /* main button on hover (Bronze) */
   --color-on-button: #f9f5ef;   /* text on main buttons (Ivory) */
   --color-focus: #6b5243;       /* keyboard focus outline (Bronze) */
 
-  /* ---------- Marketing pages only (D-41): draped-silk background, embossed logo, frosted panels ---------- */
+  /* ---------- Marketing pages only (D-41): draped-silk background and frosted panels (no embossed logo: D-55) ---------- */
   --color-silk-base: #f9f5ef;   /* Ivory    — silk background */
   --color-silk-sheen: #f9f5ef;  /* Ivory    — light catching a fold */
   --color-silk-shade: #eadccf;  /* Linen    — the shaded side of a fold (fold shadows: --silk-fold-rgb below) */
   --color-silk-tint: #eadccf;   /* Linen    — the tinted silk scenes down the home page (D-53) */
-  --color-emboss: #eadccf;      /* Linen    — the faint tone-on-tone logo behind the hero */
 
   /* ---------- ☰ side panel and account menu (D-46): dark glass on every page ---------- */
   --color-panel-ink: #f9f5ef;   /* Ivory    — text on the Espresso glass panel */
@@ -52,7 +51,7 @@
   /* Marketing headings and the italic accent line only (brand spec section 4; D-41). Self-hosted in public/fonts. */
   --font-display: "Bodoni Moda", "Bodoni 72", Didot, Georgia, serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
-  /* The logo is traced artwork (brand-source/, scripts/build-brand.mjs), never typed in a font. */
+  /* The logo is Christian's PNG artwork (Wordmark.astro, public/brand/v1/), never typed in a font (D-55). */
 
   /* ---------- Type scale (mobile first; large and readable) ---------- */
   --text-sm: 0.9375rem;
@@ -114,10 +113,11 @@
   --container-mode-preview: 28rem; /* the study-mode preview panel (D-51) */
   --nudge-mode-preview: 1rem;   /* how far the preview slides in when previous or next changes the mode (D-51) */
 
-  /* ---------- Logo (brand guide: min 96px wide, clear space 0.25 × letter height) ---------- */
-  --logo-width: 7.5rem;         /* 120px in the header */
-  --logo-hero: 8.5rem;          /* 136px above the hero headline */
-  --logo-emboss: min(64rem, 100vw); /* the faint logo behind the hero: full width on phones (decorative, hidden) */
+  /* ---------- Logo (brand guide v1.0 §3.5: the full logo about 240px wide or more; clear space 0.25 × letter height) ---------- */
+  --logo-width: min(15rem, calc(100vw - 9rem)); /* 240px in the header; a little less on the narrowest phones */
+  --logo-hero: clamp(15rem, 22vw, 20rem);       /* 240 to 320px above the hero headline */
+  --logo-emblem: 2.25rem;       /* the compact emblem (c and cruet) on study screens: 36px wide, 40px tall */
+  --logo-clear: 0.625rem;       /* clear space around the full logo at 240px (0.25 × the 39px letter c) */
 
   /* ---------- Shape ---------- */
   --radius-sm: 0.25rem;
@@ -139,7 +139,7 @@
 
 /* Strengths and images for the marketing background (D-41). Daytime values; the Evening ones are below. */
 :root {
-  --shadow-tint: 63 46 36;      /* Espresso */
+  --shadow-tint: 62 44 35;      /* Espresso */
   /* Fold shadows: Taupe at 16%, faint so Bronze text keeps AA contrast. Plain rgb() so every browser draws them right. */
   --silk-fold-rgb: 211 183 161; /* Taupe */
   --silk-fold-alpha: 0.16;
@@ -148,14 +148,14 @@
   --veil-alpha: 0.74;
   --silk-grain: url("/textures/grain-day.svg");
   /* Glassy hero button (D-46): Espresso glass, Bronze on hover, an Ivory rim. Opaque enough for AA text. */
-  --glass-rgb: 63 46 36;        /* Espresso */
+  --glass-rgb: 62 44 35;        /* Espresso */
   --glass-alpha: 0.8;
   --glass-hover-rgb: 107 82 67; /* Bronze */
   --glass-hover-alpha: 0.92;
   --glass-rim-rgb: 249 245 239; /* Ivory */
   --glass-rim-alpha: 0.4;
   /* ☰ side panel and account menu: Espresso glass, darker and more opaque than the page; the page behind dims. */
-  --panel-rgb: 63 46 36;        /* Espresso */
+  --panel-rgb: 62 44 35;        /* Espresso */
   --panel-alpha: 0.92;
   --scrim-alpha: 0.35;          /* the dimmed page behind the open side panel (Espresso shadow tint) */
 }
@@ -168,28 +168,27 @@
 */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --color-page: #1b1715;      /* Charcoal      — page background */
+    --color-page: #1c1917;      /* Charcoal      — page background */
     --color-surface: #3a2d24;   /* Walnut        — cards and panels */
     --color-soft: #3a2d24;      /* Walnut        — notice bar */
     --color-highlight: #6b5243; /* Bronze        — accents and highlights (not for text) */
-    --color-ink: #efe6da;       /* Evening Ivory — primary text and logo */
+    --color-ink: #f9f5ef;       /* Ivory         — primary text and logo */
     --color-ink-soft: #cbb8a4;  /* Sand          — secondary text and UI */
 
     --color-line: #6b5243;      /* Bronze */
     --color-control: #cbb8a4;   /* Sand */
     --color-button: #cbb8a4;    /* Sand */
-    --color-button-hover: #efe6da; /* Evening Ivory */
-    --color-on-button: #1b1715; /* Charcoal */
+    --color-button-hover: #f9f5ef; /* Ivory */
+    --color-on-button: #1c1917; /* Charcoal */
     --color-focus: #cbb8a4;     /* Sand */
 
-    --color-silk-base: #1b1715;   /* Charcoal */
+    --color-silk-base: #1c1917;   /* Charcoal */
     --color-silk-sheen: #3a2d24;  /* Walnut */
-    --color-silk-shade: #1b1715;  /* Charcoal */
+    --color-silk-shade: #1c1917;  /* Charcoal */
     --color-silk-tint: #3a2d24;   /* Walnut */
-    --color-emboss: #3a2d24;      /* Walnut */
-    --color-panel-ink: #efe6da;   /* Evening Ivory */
+    --color-panel-ink: #f9f5ef;   /* Ivory */
     --color-panel-ink-soft: #cbb8a4; /* Sand */
-    --shadow-tint: 27 23 21;      /* Charcoal */
+    --shadow-tint: 28 25 23;      /* Charcoal */
     --silk-fold-rgb: 58 45 36;    /* Walnut */
     --silk-fold-alpha: 0.7;
     --veil-rgb: 58 45 36;         /* Walnut */
@@ -197,39 +196,38 @@
     --silk-grain: url("/textures/grain-evening.svg");
     --glass-rgb: 203 184 164;     /* Sand */
     --glass-alpha: 0.82;
-    --glass-hover-rgb: 239 230 218; /* Evening Ivory */
+    --glass-hover-rgb: 249 245 239; /* Ivory */
     --glass-hover-alpha: 0.9;
-    --glass-rim-rgb: 239 230 218; /* Evening Ivory */
+    --glass-rim-rgb: 249 245 239; /* Ivory */
     --glass-rim-alpha: 0.35;
-    --panel-rgb: 27 23 21;        /* Charcoal */
+    --panel-rgb: 28 25 23;        /* Charcoal */
     --panel-alpha: 0.9;
     --scrim-alpha: 0.55;
   }
 }
 
 :root[data-theme="dark"] {
-  --color-page: #1b1715;      /* Charcoal      — page background */
+  --color-page: #1c1917;      /* Charcoal      — page background */
   --color-surface: #3a2d24;   /* Walnut        — cards and panels */
   --color-soft: #3a2d24;      /* Walnut        — notice bar */
   --color-highlight: #6b5243; /* Bronze        — accents and highlights (not for text) */
-  --color-ink: #efe6da;       /* Evening Ivory — primary text and logo */
+  --color-ink: #f9f5ef;       /* Ivory         — primary text and logo */
   --color-ink-soft: #cbb8a4;  /* Sand          — secondary text and UI */
 
   --color-line: #6b5243;      /* Bronze */
   --color-control: #cbb8a4;   /* Sand */
   --color-button: #cbb8a4;    /* Sand */
-  --color-button-hover: #efe6da; /* Evening Ivory */
-  --color-on-button: #1b1715; /* Charcoal */
+  --color-button-hover: #f9f5ef; /* Ivory */
+  --color-on-button: #1c1917; /* Charcoal */
   --color-focus: #cbb8a4;     /* Sand */
 
-  --color-silk-base: #1b1715;   /* Charcoal */
+  --color-silk-base: #1c1917;   /* Charcoal */
   --color-silk-sheen: #3a2d24;  /* Walnut */
-  --color-silk-shade: #1b1715;  /* Charcoal */
+  --color-silk-shade: #1c1917;  /* Charcoal */
   --color-silk-tint: #3a2d24;   /* Walnut */
-  --color-emboss: #3a2d24;      /* Walnut */
-  --color-panel-ink: #efe6da;   /* Evening Ivory */
+  --color-panel-ink: #f9f5ef;   /* Ivory */
   --color-panel-ink-soft: #cbb8a4; /* Sand */
-  --shadow-tint: 27 23 21;      /* Charcoal */
+  --shadow-tint: 28 25 23;      /* Charcoal */
   --silk-fold-rgb: 58 45 36;    /* Walnut */
   --silk-fold-alpha: 0.7;
   --veil-rgb: 58 45 36;         /* Walnut */
@@ -237,11 +235,11 @@
   --silk-grain: url("/textures/grain-evening.svg");
   --glass-rgb: 203 184 164;     /* Sand */
   --glass-alpha: 0.82;
-  --glass-hover-rgb: 239 230 218; /* Evening Ivory */
+  --glass-hover-rgb: 249 245 239; /* Ivory */
   --glass-hover-alpha: 0.9;
-  --glass-rim-rgb: 239 230 218; /* Evening Ivory */
+  --glass-rim-rgb: 249 245 239; /* Ivory */
   --glass-rim-alpha: 0.35;
-  --panel-rgb: 27 23 21;        /* Charcoal */
+  --panel-rgb: 28 25 23;        /* Charcoal */
   --panel-alpha: 0.9;
   --scrim-alpha: 0.55;
 }

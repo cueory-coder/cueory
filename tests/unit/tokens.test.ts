@@ -19,11 +19,18 @@ describe('evening palette copies', () => {
   });
 });
 
-// Exact brand-guide colors. Tokens may only use these.
+// Exact brand-guide v1.0 colors (§4.1 and §4.2; D-55). Tokens may only use these. The older #3f2e24, #1b1715 and
+// #efe6da are retired (§4.3).
 const brand = {
-  daytime: ['#f9f5ef', '#eadccf', '#d3b7a1', '#8b6f5b', '#3f2e24', '#6b5243'],
-  evening: ['#1b1715', '#3a2d24', '#6b5243', '#cbb8a4', '#efe6da'],
+  daytime: ['#f9f5ef', '#eadccf', '#d3b7a1', '#8b6f5b', '#3e2c23', '#6b5243'],
+  evening: ['#1c1917', '#3a2d24', '#6b5243', '#cbb8a4', '#f9f5ef'],
 };
+
+describe('retired colors (brand guide v1.0 §4.3)', () => {
+  it('appear nowhere in the tokens', () => {
+    expect(css.toLowerCase()).not.toMatch(/#3f2e24|#1b1715|#efe6da|63 46 36|27 23 21|239 230 218/);
+  });
+});
 
 // [foreground, background, minimum ratio]. 4.5 = WCAG AA text; 3 = borders, focus outlines and buttons.
 const pairs: Array<[string, string, number]> = [
@@ -76,7 +83,7 @@ describe('components', () => {
 });
 
 /*
-  Marketing pages (D-41): text sits on draped silk, an embossed logo and frosted panels, so the checks above (flat
+  Marketing pages (D-41): text sits on draped silk and frosted panels, so the checks above (flat
   token pairs) aren't enough. These compose the worst case for each palette: the darkest Daytime point (Linen, both fold
   layers, the grain at its strongest) and the lightest Evening point (Walnut plus grain), then require WCAG AA.
 */
@@ -135,10 +142,8 @@ describe('marketing background (D-41)', () => {
   const lightestEvening = mix(eve.grain.color, eve.grain.alpha, evening['silk-sheen']!);
   const surfaces: Array<[string, Record<string, string>, string]> = [
     ['Daytime silk at its darkest', daytime, darkestDay],
-    ['Daytime embossed logo', daytime, daytime.emboss!],
     ['Daytime frosted panel', daytime, mix(day.veil, day.veilAlpha, darkestDay)],
     ['Evening silk at its lightest', evening, lightestEvening],
-    ['Evening embossed logo', evening, mix(eve.grain.color, eve.grain.alpha, evening.emboss!)],
     ['Evening frosted panel', evening, mix(eve.veil, eve.veilAlpha, lightestEvening)],
   ];
 

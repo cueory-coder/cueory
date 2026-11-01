@@ -9,10 +9,14 @@ Last updated: 2026-11-01
   `/content/lessons`), `/privacy` (draft), `/terms` and `/disclaimer` (marked spots for Christian's text), `/support`
   (Ko-fi link), `/subscribed` (after signup), 404. "We're still building" notice on every page.
 - Light / Dark / Follow-device theme switch in every page footer (brand spec section 9).
-- Brand applied (docs/BRAND.md, brand-source/Cueory_Branding_Spec.md): Daytime and Evening palettes with automatic
-  dark mode, Inter, exact lowercase motto and product description, traced vector logo built into wordmark, square and
-  3:1 banner files (light and dark, SVG and PNG) with a checksum manifest. Logo approved by Christian and frozen as
-  master v1.0.
+- Brand v1.0 applied (docs/BRAND.md, brand-source/v1.0/Cueory_Brand_Guide.md, D-55):
+  - Christian's new PNG logo, with light and dark web copies built by `scripts/build-brand-v1.mjs` and checked by
+    tests;
+  - the guide's exact colors (Espresso `#3E2C23`, Charcoal `#1C1917`, Ivory lettering in dark mode);
+  - new favicons;
+  - a calmer hero: no embossed logo, and the motto moved to the footer.
+
+  It replaces the earlier traced logo (now in `brand-source/legacy/`).
 - Security headers and a hash-based content security policy.
 - Repository stays private: Semgrep (code scanning) and gitleaks (secret scanning) run free in CI in place of
   GitHub's paid CodeQL and secret scanning.
