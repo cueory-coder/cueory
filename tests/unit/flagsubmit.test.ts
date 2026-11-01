@@ -1,0 +1,139 @@
+import { describe, expect, it } from 'vitest';
+import { checkReport } from '../../src/islands/flag';
+import { flagArguments, type FlagContext } from '../../src/islands/flagsubmit';
+
+const VALID_PAGE = '/learn/anatomy';
+const ctx = (page: string): FlagContext => ({ page });
+
+function validReport() {
+  return checkReport({
+    page: VALID_PAGE,
+    reason: 'typo',
+    comment: 'There is a typo here.',
+  });
+}
+
+function validReportWithItem() {
+  return checkReport({
+    page: VALID_PAGE,
+    itemId: 'item-abc-123',
+    itemVersion: 2,
+    reason: 'wrong-fact',
+    comment: 'The fact is incorrect.',
+  });
+}
+
+// ── Valid cases ───────────────────────────────────────────────────────────────
+
+describe('valid flagArguments', () => {
+  it('returns ok with expected args for a minimal report', () => {
+    const result = flagArguments(validReport(), ctx(VALID_PAGE));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.args.page).toBe(VALID_PAGE);
+    expect(result.args.item_id).toBeNull();
+    expect(result.args.item_version).toBeNull();
+    expect(result.args.reason).toBe('typo');
+    expect(result.args.comment).toBe('There is a typo here.');
+  });
+
+  it('passes item_id and item_version through', () => {
+    const result = flagArguments(validReportWithItem(), ctx(VALID_PAGE));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.args.item_id).toBe('item-abc-123');
+    expect(result.args.item_version).toBe(2);
+  });
+
+  it('strips query string from page', () => {
+    const result = flagArguments(validReport(), ctx('/learn/anatomy?tab=overview'));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.args.page).toBe('/learn/anatomy');
+  });
+
+  it('strips hash from page', () => {
+    const result = flagArguments(validReport(), ctx('/learn/anatomy#section-2'));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.args.page).toBe('/learn/anatomy');
+  });
+
+  it('strips both query and hash from page', () => {
+    const result = flagArguments(validReport(), ctx('/learn/anatomy?tab=main#top'));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.args.page).toBe('/learn/anatomy');
+  });
+
+  it('accepts the root page /', () => {
+    const result = flagArguments(validReport(), ctx('/'));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.args.page).toBe('/');
+  });
+
+  it('accepts exactly 300-character page path', () => {
+    const longPath = '/' + 'a'.repeat(299);
+    const result = flagArguments(validReport(), ctx(longPath));
+    expect(result.ok).toBe(true);
+  });
+
+  it('passes through the longest allowed comment (1000 chars)', () => {
+    const longComment = 'a'.repeat(1000);
+    const report = checkReport({ page: VALID_PAGE, reason: 'confusing', comment: longComment });
+    const result = flagArguments(report, ctx(VALID_PAGE));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.args.comment.length).toBe(1000);
+  });
+
+  it('args object contains exactly the five expected fields', () => {
+    const result = flagArguments(validReport(), ctx(VALID_PAGE));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(Object.keys(result.args).sort()).toEqual(['comment', 'item_id', 'item_version', 'page', 'reason']);
+  });
+});
+
+// ── Rejected report ───────────────────────────────────────────────────────────
+
+describe('rejected report', () => {
+  it('returns ok:false when checkReport found problems', () => {
+    const bad = checkReport({ page: VALID_PAGE, reason: 'not-a-reason', comment: '' });
+    const result = flagArguments(bad, ctx(VALID_PAGE));
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.message).toBeTruthy();
+  });
+});
+
+// ── Invalid page ──────────────────────────────────────────────────────────────
+
+describe('invalid page in context', () => {
+  it('rejects javascript: scheme', () => {
+    const result = flagArguments(validReport(), ctx('javascript:alert(1)'));
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects https://other.site', () => {
+    const result = flagArguments(validReport(), ctx('https://other.site/page'));
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects a path without a leading slash', () => {
+    const result = flagArguments(validReport(), ctx('learn/anatomy'));
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects a path starting with //', () => {
+    const result = flagArguments(validReport(), ctx('//evil.com/path'));
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects a page path longer than 300 characters', () => {
+    const tooLong = '/' + 'a'.repeat(300);
+    const result = flagArguments(validReport(), ctx(tooLong));
+    expect(result.ok).toBe(false);
+  });
+});
