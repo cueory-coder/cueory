@@ -246,6 +246,7 @@ Merged into `staging`:
 
 ## In review
 - Open pull requests add their own lines here. Waiting now: Release browser tests (#55).
+- Task 54: `closeBreakNote` snoozes the break timer when a break note is closed (#151); in review.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
