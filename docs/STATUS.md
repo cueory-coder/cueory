@@ -114,6 +114,11 @@ Last updated: 2026-11-01
   their own JSON file after the page opens, so none is in the page's HTML (a build test checks). The sample is a plain
   house drawn for Cueory in brand colors (`public/learn/study-skills/label-it/house.svg`), with its labels in
   `content/label-it/`, so it waits for Christian's merge. Real diagrams come with rights records (Task 2).
+- Questions on a page (Task C1): `/learn/study-skills/questions`. Single-answer and select-all questions; after
+  **check**, every choice says in words and a symbol whether it was picked and right, then its rationale. Three
+  everyday sample questions in `content/questions/`, checked by the player's sample checker after the page loads, so
+  no key is in the page's HTML (a build test checks). Real questions never go in the repository (D-33). It waits for
+  Christian's merge.
 - Auto-merge sweep (D-78, the lead's): an ordinary comment can no longer cancel a waiting merge check, and once an
   hour a sweep re-checks every open pull request. It edits `.github/`, so it waits for Christian.
 - Safari focus fixes (from the WebKit runs for D-48): the ☰ panel's Tab trap now moves focus one item at a time in every

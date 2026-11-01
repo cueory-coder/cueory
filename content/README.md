@@ -15,6 +15,9 @@ Content is data, not code. Edit these files to change what students see; no prog
 - `label-it/` — one JSON file per lesson's "label it" set: an `image` (its file on this site, alt text, size and a
   required `credit`) and `labels`, each a box in percentages of the image with the text it covers. Checked by the
   build. For now the only image is an everyday sample drawn for Cueory; real diagrams need a rights record first.
+- `questions/` — sample questions only, one JSON file per lesson: `items` with a stem, two to five choices, the `key`
+  and a rationale per choice, every item marked `sample`. Real questions never go here: their keys stay in the
+  database (D-33).
 - `games/pulse/` — sample puzzles for the pulse word game on `/play`, one JSON file each: an everyday `word` (five to
   seven lowercase letters) and its one-line `cue`. They are labeled samples on the page. Real puzzles are nursing
   content whose answers are answer keys, so they never go here (D-61).

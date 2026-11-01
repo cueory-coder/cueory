@@ -62,6 +62,7 @@ describe('"ways to study" merry-go-round (D-50, D-60)', () => {
       organizer: '/learn/study-skills/organizer',
       'fill-in': '/learn/study-skills/fill-in',
       'label-it': '/learn/study-skills/label-it',
+      questions: '/learn/study-skills/questions',
     });
   });
 

@@ -3,6 +3,7 @@ import { glob } from 'astro/loaders';
 import { z } from 'astro/zod';
 import { sentenceParts } from './islands/fillin';
 import { parseSet as parseLabelSet } from './islands/labelit';
+import { sampleChecker, type SampleItem } from './islands/questions';
 import { visualProblems } from './visuals/sources';
 
 /**
@@ -197,6 +198,43 @@ const labelIt = defineCollection({
 });
 
 /**
+ * Sample questions (ROADMAP Task 4, D-33, D-45): one JSON file per lesson in /content/questions, with everyday
+ * questions only. Their keys and rationales are for the sample checker; real questions never go in this repository:
+ * their keys stay in the database and are checked by check_answer (Task 2). Checked with the player's own
+ * sampleChecker, which refuses anything that isn't marked "sample".
+ */
+const choiceId = z.enum(['a', 'b', 'c', 'd', 'e']);
+const questions = defineCollection({
+  loader: glob({ base: './content/questions', pattern: '*.json' }),
+  schema: z
+    .object({
+      lesson: z.string().regex(/^[a-z0-9-]+$/),
+      status: z.literal('sample'),
+      items: z
+        .array(
+          z.object({
+            id: z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'an id is lowercase letters, digits and dashes'),
+            status: z.literal('sample'),
+            type: z.enum(['single', 'sata']),
+            stem: z.string().min(1).max(400),
+            choices: z.array(z.object({ id: choiceId, text: z.string().min(1).max(300) })).min(2).max(5),
+            key: z.array(choiceId).min(1),
+            rationales: z.partialRecord(choiceId, z.string().min(1).max(400)),
+          }),
+        )
+        .min(1)
+        .max(30),
+    })
+    .superRefine(({ items }, context) => {
+      try {
+        sampleChecker(items as SampleItem[]);
+      } catch (error) {
+        context.addIssue({ code: 'custom', path: ['items'], message: (error as Error).message });
+      }
+    }),
+});
+
+/**
  * The visuals kit (Task 6, D-56, docs/VISUALS.md): one source file per visual in /content/visuals. Every label and
  * every depiction points to a source that gives the book's exact words, its section and the page address, and only
  * allowed books can be quoted (src/visuals/sources.ts). The build stops with a plain message when a file breaks a rule.
@@ -234,4 +272,4 @@ const visuals = defineCollection({
     }),
 });
 
-export const collections = { lessons, cards, pulse, triage, organizer, 'fill-in': fillIn, 'label-it': labelIt, visuals };
+export const collections = { lessons, cards, pulse, triage, organizer, 'fill-in': fillIn, 'label-it': labelIt, questions, visuals };

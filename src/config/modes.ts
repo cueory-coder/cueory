@@ -75,6 +75,7 @@ export const studyModes: readonly StudyMode[] = [
     name: 'questions',
     text: 'practice questions, each with a rationale.',
     more: 'you answer practice questions, then read why each choice is right or wrong, not just which one was.',
+    link: { href: '/learn/study-skills/questions', label: 'try the questions' },
   },
   {
     id: 'review',

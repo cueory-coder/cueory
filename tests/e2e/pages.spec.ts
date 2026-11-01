@@ -27,6 +27,7 @@ const pages = [
   '/learn/study-skills/organizer',
   '/learn/study-skills/fill-in',
   '/learn/study-skills/label-it',
+  '/learn/study-skills/questions',
   '/privacy',
   '/terms',
   '/disclaimer',
@@ -745,6 +746,7 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
       organizer: ['try the organizer', '/learn/study-skills/organizer'],
       'fill-in': ['try fill-in', '/learn/study-skills/fill-in'],
       'label-it': ['try label it', '/learn/study-skills/label-it'],
+      questions: ['try the questions', '/learn/study-skills/questions'],
     };
     const modes = [
       ['video', 'video'],
@@ -1518,6 +1520,72 @@ test.describe('label it at 320 px', () => {
     await expect(page.getByTestId('cover-1')).toHaveAccessibleName('label 1, covered');
     await expect(page.getByTestId('cover-4')).toHaveAccessibleName('label 4, covered');
     await expect(page.getByTestId('cover-2')).toHaveAccessibleName('label 2: chimney');
+    expect(errors).toEqual([]);
+  });
+});
+
+test.describe('questions at 320 px', () => {
+  test.use({ viewport: { width: 320, height: 720 } });
+
+  test('checks single and select-all answers, shows each choice in words with its rationale, and retries the missed', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('console', (msg) => msg.type() === 'error' && errors.push(msg.text()));
+    await page.goto('/learn/study-skills');
+    await expect(page.getByRole('link', { name: 'practice questions with rationales' })).toHaveAttribute(
+      'href',
+      '/learn/study-skills/questions',
+    );
+    await page.goto('/learn/study-skills/questions');
+    await expect(page.getByTestId('questions-sample-note')).toBeVisible();
+
+    const board = page.getByTestId('questions');
+    const check = board.getByRole('button', { name: 'check' });
+    const next = board.getByRole('button', { name: 'next question' });
+    const axe = async () => {
+      const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+      expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    };
+
+    await expect(board.getByText('question 1 of 3')).toBeVisible();
+    await expect(board).not.toContainText('Apples are fruit.');
+    await expect(check).toBeDisabled();
+    await axe();
+
+    // A wrong single answer: the verdict, then every choice marked in words, with its rationale.
+    await board.getByRole('radio', { name: 'a carrot' }).check();
+    await check.click();
+    await expect(board.getByText('not quite.', { exact: true }).first()).toBeVisible();
+    await expect(board.getByRole('group', { name: 'Which of these is a fruit?' })).toContainText(
+      "you picked this, but it's not right",
+    );
+    await expect(board).toContainText("this is right, and you didn't pick it");
+    await expect(board).toContainText('Apples are fruit.');
+    await expect(board).toContainText('Carrots are vegetables.');
+    await axe();
+    await next.click();
+
+    // Select all that apply, by keyboard: Space ticks each box.
+    await expect(board.getByText('question 2 of 3')).toBeVisible();
+    await expect(board.getByText('select all that apply')).toBeVisible();
+    await board.getByRole('checkbox', { name: 'Monday' }).focus();
+    await page.keyboard.press('Space');
+    await board.getByRole('checkbox', { name: 'Friday' }).focus();
+    await page.keyboard.press('Space');
+    await check.focus();
+    await page.keyboard.press('Enter');
+    await expect(board.getByText('right.', { exact: true }).first()).toBeVisible();
+    await next.click();
+
+    await board.getByRole('radio', { name: '60' }).check();
+    await check.click();
+    await next.click();
+
+    await expect(board.getByText('right on 2 of 3.')).toBeVisible();
+    await board.getByRole('button', { name: 'try the missed ones again' }).click();
+    await expect(board.getByText('question 1 of 1')).toBeVisible();
+    await expect(board.getByRole('radio', { name: 'an apple' })).not.toBeChecked();
+    await axe();
     expect(errors).toEqual([]);
   });
 });
