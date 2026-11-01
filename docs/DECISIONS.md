@@ -966,3 +966,25 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   fields are dropped by name; cap 10,000 rows.
 
   Reason: the review of #95 found server-side study progress missing from the download.
+
+- **D-92** Study-mode pages ship with labeled everyday samples (Christian, 2026-11-01, about 8:23 am Phoenix). The
+  director had put three choices for #77 in STATUS, because its questions page sends the sample answers to the browser
+  before a student answers, and organizer and fill-in carry theirs in the page. Christian's account commented "Ok" on
+  #77 and merged it, then merged release #132 into `main` at about 8:30 am. Read as the third choice: labeled everyday
+  samples (`sampleChecker`, D-33, D-45) may carry their answers in the browser. Real questions never do: they are
+  checked only by `check_answer` (D-86), and no real question, key or rationale is in this repository (CLAUDE.md
+  rule 7). If that reading is wrong, Christian says so and the questions page comes off until `check_answer` is wired.
+
+  Reason: the hold was Christian's call, and he made it by merging.
+
+- **D-93** Offline copies of pages (ROADMAP Task 5, #135, Task C12, with the lead's review). A service worker keeps
+  lesson pages, the home page and the site's own static files so an opened lesson opens again with no connection. It
+  never keeps `/play` (today's puzzles are inside the page, D-61), `/admin`, `/progress`, `/start`, `/privacy`, data
+  files, addresses with a query string, redirects, errors, or anything marked `no-store` or `private`. Pages ask the
+  network first and fall back to the copy after 4 seconds or on a server error; only hashed `/_astro/` files come from
+  the copy first. Each deploy has its own cache and older ones are deleted. Off switch: `offline.enabled` in
+  `src/config/site.ts`; when it is `false`, pages delete the saved copies before removing the registration, and
+  `/sw.js` becomes a worker that deletes the copies and removes itself (docs/OFFLINE.md). `/privacy` says pages may be
+  kept on the device. The content security policy needs no change: workers fall back to `script-src 'self'`.
+
+  Reason: Task 5 asks for an offline lesson cache, and Task 32's policy says what may be kept.

@@ -1,0 +1,18 @@
+{
+  "id": "study-skills-01",
+  "lesson": "study-skills-01",
+  "status": "sample",
+  "image": {
+    "src": "/learn/study-skills/label-it/house.svg",
+    "alt": "a simple drawing of a house with four labels",
+    "width": 800,
+    "height": 600,
+    "credit": "drawing: cueory, an everyday sample made for this page"
+  },
+  "labels": [
+    { "id": "roof", "text": "roof", "x": 42, "y": 5, "w": 16, "h": 7.5 },
+    { "id": "chimney", "text": "chimney", "x": 74, "y": 11.5, "w": 20, "h": 7.5 },
+    { "id": "window", "text": "window", "x": 5.5, "y": 47.5, "w": 17, "h": 7.5 },
+    { "id": "door", "text": "door", "x": 43, "y": 89.5, "w": 14, "h": 7.5 }
+  ]
+}

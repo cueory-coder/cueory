@@ -6,6 +6,18 @@ Content is data, not code. Edit these files to change what students see; no prog
   The build checks every file and stops with a clear message if something is missing.
 - `cards/` — one JSON file per lesson's card deck. `lesson` is the lesson's file name without `.json`; each card has a
   `front` and a `back`. Checked the same way.
+- `organizer/` — one JSON file per lesson's organizer set: 2 to 4 `groups` and 4 to 12 `items`, each item naming
+  the group it belongs to. Checked by the build and again by the page. For now each set is an everyday `sample`, and
+  the page says so; no clinical facts.
+- `fill-in/` — one JSON file per lesson's fill-in set: `items`, each with an `id` and a `sentence` that wraps its one
+  missing word in double brackets, like `Bees make [[honey]] from flowers.` Checked by the build. For now each set is an
+  everyday `sample`, and the page says so.
+- `label-it/` — one JSON file per lesson's "label it" set: an `image` (its file on this site, alt text, size and a
+  required `credit`) and `labels`, each a box in percentages of the image with the text it covers. Checked by the
+  build. For now the only image is an everyday sample drawn for Cueory; real diagrams need a rights record first.
+- `questions/` — sample questions only, one JSON file per lesson: `items` with a stem, two to five choices, the `key`
+  and a rationale per choice, every item marked `sample`. Real questions never go here: their keys stay in the
+  database (D-33).
 - `games/pulse/` — sample puzzles for the pulse word game on `/play`, one JSON file each: an everyday `word` (five to
   seven lowercase letters) and its one-line `cue`. They are labeled samples on the page. Real puzzles are nursing
   content whose answers are answer keys, so they never go here (D-61).
