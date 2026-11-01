@@ -1,0 +1,4 @@
+# Supabase CLI working files (they can name the linked project). Never commit them.
+.temp
+.branches
+.env

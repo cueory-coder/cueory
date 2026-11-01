@@ -2,9 +2,9 @@
 
 ## Reporting a problem
 
-If you find a security or privacy problem in Cueory, please email **hello@cueory.app**, or use GitHub's
-**Security → Report a vulnerability** form on this repository if it's shown. Please don't open a public issue. We aim
-to reply within 7 days.
+If you find a security or privacy problem in Cueory, please use GitHub's private **Report a vulnerability** form
+(this repository's **Security and quality** tab), or email **hello@cueory.app**. Please don't open a public issue. We
+aim to reply within 7 days.
 
 ## Rules every change must follow
 

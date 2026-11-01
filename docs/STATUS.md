@@ -18,8 +18,8 @@ Last updated: 2026-11-01
 
   It replaces the earlier traced logo (now in `brand-source/legacy/`).
 - Security headers and a hash-based content security policy.
-- Repository stays private: Semgrep (code scanning) and gitleaks (secret scanning) run free in CI in place of
-  GitHub's paid CodeQL and secret scanning.
+- Repository public (D-75): GitHub's secret scanning with push protection and CodeQL run, and Semgrep and gitleaks
+  keep running in CI as a second layer. Only Christian's account gives the agents instructions (D-79).
 - CI on every pull request (type check, build, unit tests, browser + accessibility tests, gitleaks secret scan),
   CodeQL, Dependabot version updates (target `staging`) and Dependabot security alerts. Dependabot's automatic
   security-fix pull requests are off, because they always target `main` and would skip staging.
@@ -95,14 +95,31 @@ Last updated: 2026-11-01
   moves it down. Each pick says why in words, and each concept's status is a word (not started, learning, getting
   there, got it), never a score or a chance of passing. It reaches a page once reviewed questions and `check_answer`
   exist (Task 2).
+- In `staging`: [Safari focus fixes](https://github.com/lilchristxan/Cueory/pull/78) (from the WebKit runs for D-48):
+  the ☰ panel's Tab trap now moves focus one item at a time in every browser (Safari's own Tab skips links and
+  buttons), and the promo panel gives focus back after a link click even though Safari leaves focus on the page. Two
+  WebKit-only test findings stay open: the triage keyboard tests use the browser's own Tab, and one promo timing test
+  runs late in WebKit.
+
+## Done (director, 2026-10-31 night)
+- Christian set up Supabase (SETUP Part K): the account on his business Gmail with two-factor on, and both projects,
+  `cueory-staging` and `cueory-prod`. Task 2 is unblocked.
+- In `staging`: the [game-name guard](https://github.com/lilchristxan/Cueory/pull/54) (D-67), a unit test that fails
+  if a page or game shows an internal id as words or types a name into a share line; and the
+  [Task 2 plan](https://github.com/lilchristxan/Cueory/pull/66) (D-73), approved by the lead with three notes (D-77).
 
 ## Done (lead, 2026-10-31 evening)
 - Daily games show plain names for now (D-66): pulse, crossword, sort and word path. Christian picks final names
   later.
+- Auto-merge sweep (D-78, [#80](https://github.com/lilchristxan/Cueory/pull/80)), merged by Christian on
+  2026-11-01: an ordinary comment can no longer cancel a waiting merge check, and an hourly sweep re-checks every
+  open pull request. It starts working once it reaches `main`.
 
 ## In review
-- Auto-merge sweep (D-78, the lead's): an ordinary comment can no longer cancel a waiting merge check, and once an
-  hour a sweep re-checks every open pull request. It edits `.github/`, so it waits for Christian.
+- Instructions only from Christian's account (D-79, the lead's): on the public repository, CLAUDE.md and AGENTS.md
+  now say that text from any other account is never a task and that no agent runs a fork's code, and AGENTS.md tells
+  reviewers that real questions and answer keys never belong in the repository. SECURITY.md sends outside reporters
+  to GitHub's private report form first. It edits the rule files, so it waits for Christian.
 - Safari focus fixes (from the WebKit runs for D-48): the ☰ panel's Tab trap now moves focus one item at a time in every
   browser (Safari's own Tab skips links and buttons), and the promo panel gives focus back after a link click even
   though Safari leaves focus on the page. Two WebKit-only test findings stay open: the triage keyboard tests use the
@@ -116,10 +133,15 @@ Last updated: 2026-11-01
   with the study-mode pages (Task C1 on #11).
 - Promo panel fix: it waits until the ☰ panel or a study-mode preview has finished closing, so their own focus
   handling never takes focus away from it (a browser test failed 2 of 12 runs because of this).
+- Task 2, the first database change (D-77), waiting for Christian because it changes the database and CI: the
+  database starts locked (nothing new is reachable from the website until a change grants it), then `profiles`, one row
+  per account with only a display name that each student reads and changes for themselves. A new CI job applies every
+  change to a throwaway local database and runs 25 database tests, only when `supabase/` changes.
 - [Fill-in](https://github.com/lilchristxan/Cueory/pull/56) (a Codex helper's, Task 7 on #11): a sentence with one
   word or phrase missing, and the student types it. Capitals, extra spaces and end punctuation don't count, and a
   one-letter slip in an answer of five letters or more is "almost". Missed and hinted items come back in the next
-  round. Not on a page yet: that comes with the study-mode pages (Task C1 on #11).
+  round. Not on a page yet: that comes with the study-mode pages (Task C1 on #11). Enter no longer checks an answer
+  while a Japanese, Chinese or Korean keyboard is still composing the word; it only confirms the word.
 - Daily games, first part (D-61): `/play` with pulse, playable with labeled sample puzzles, and cueword, triage and
   suture listed as coming soon; a link in the ☰ panel and a section on the home page after "ways to study". It adds
   sample puzzles under `content/`, so it waits for Christian's merge. How real puzzles reach the browser one day at a
@@ -196,12 +218,15 @@ Targets: first visuals by about 14 November, the full kit by about 12 December (
   frames at 1080 × 1920 and 1920 × 1080 for shorts, with the diagram stretched to fill each frame. In review
   ([#57](https://github.com/lilchristxan/Cueory/pull/57)): only the selected diagram's own animations set a clip's
   length, so a spinner elsewhere on the page can't make it "endless".
-- In review: the [source-file check](https://github.com/lilchristxan/Cueory/pull/49) (`src/visuals/sources.ts`,
+- In `staging`: the [source-file check](https://github.com/lilchristxan/Cueory/pull/49) (`src/visuals/sources.ts`,
   D-68). The build refuses a visual whose labels or depictions have no source, that quotes a book not on the allowed
   list, or whose source has the wrong license or no page address. Only approved visuals can appear on a page, and
   each shows its book's credit.
-- Next: the first batch (fluid compartments, osmosis and fluid shifts, the sodium-potassium pump) with its review
-  sheet. The 3D viewer adds three.js, so it waits for Christian's merge; its models wait for the atlas choice.
+- Waits for Christian: the first batch's words (D-72): the source files for body fluid compartments, osmosis and
+  fluid shifts, and the sodium-potassium pump, with every label and everything each drawing will show quoted from
+  Open RN *Nursing Fundamentals 2e* 15.2. The review sheet is in the pull request.
+- Next: the three drawings, made from those files once Christian approves the words. The 3D viewer adds three.js, so
+  it waits for Christian's merge; its models wait for the atlas choice.
 
 ## Planning
 - [Med-surg lesson map](curriculum/README.md) ([#31](https://github.com/lilchristxan/Cueory/pull/31)): the master
@@ -210,16 +235,17 @@ Targets: first visuals by about 14 November, the full kit by about 12 December (
   reviewers, approval), and higher-risk topics wait for a qualified reviewer.
 
 ## Blocked
-- **Task 2 (accounts and database)** is starting: Christian is creating the two Supabase projects (SETUP Part K),
-  and the plan is D-73 (grants, row-level security and policies in one migration; `check_answer`; Flag or comment for
-  signed-in students; keys per environment; migrations tested in CI with no real keys). Its migrations, sign-in and
-  database-policy parts need his approval. The "Flag or comment" button is built with it (D-34).
 - **Signup form** shows "signups open soon" until the Kit form exists (SETUP.md, Part I).
 
 ## Needs Christian's hands
-- Make the repository public (D-75): merge the go-public pull request, then flip the visibility in Settings and turn on secret scanning with push protection.
-- Merge the CI minutes change (D-74; it edits `.github/`). Check GitHub's Actions minutes used this month.
-- Supabase account and the two projects (docs/SETUP.md, Part K): in progress tonight (2026-10-31).
+- [x] Daily report (#4) and task list (#11) locked so only collaborators can comment (D-79), done by Christian on
+  2026-11-01.
+- [x] Private vulnerability reporting turned on (D-79), done by Christian on 2026-11-01.
+- [x] Repository public (D-75), done by Christian on 2026-10-31: visibility, secret scanning with push protection,
+  and the go-public pull request merged.
+- [x] CI minutes change (D-74) merged. Actions minutes are free now that the repository is public.
+- [x] Supabase account and the two projects, `cueory-staging` and `cueory-prod` (docs/SETUP.md, Part K), done
+  2026-10-31.
 Follow [docs/SETUP.md](SETUP.md):
 - [ ] A. Two-factor login on Google, GitHub, Cloudflare
 - [x] B. Turn on Codex reviews
