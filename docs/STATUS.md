@@ -61,6 +61,10 @@ Last updated: 2026-10-31
   (D-49) and the ["ways to study" carousel](https://github.com/lilchristxan/Cueory/pull/28) (D-50).
 
 ## In review
+- Auto-merge hardening (D-52): before launch the bot now also holds changes to package.json `scripts`, `engines` and
+  `packageManager`, and lockfile changes that add a package, an install script or a download from outside the npm
+  registry. Version bumps of existing packages still merge themselves. Edits `scripts/automerge/`, so Christian
+  approves and merges it.
 - [Study-mode preview and hover zoom](https://github.com/lilchristxan/Cueory/pull/29) (D-51): a card grows into a
   preview with its moving illustration, two plain lines, "try it" and the free-account link; X, Escape, the darkened
   page or a swipe down closes it. The auto-merge takes it once it is clean.

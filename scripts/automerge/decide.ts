@@ -5,8 +5,9 @@
  * - it is open, not a draft, comes from this repository (not a fork) and targets `staging`;
  * - it changes no held path for the current mode and isn't labelled "needs-christian" (those wait for Christian and
  *   are never merged by the bot);
- * - before launch, its package.json changes add no dependency and change no major version (read from the files
- *   themselves, never from the title);
+ * - before launch, its package.json changes add no dependency, change no major version and leave the scripts, engines
+ *   and packageManager alone, and its package-lock.json changes add no package, no install script and no download
+ *   outside the npm registry (all read from the files themselves, never from the title);
  * - every required check on its head commit passed, and no other check failed;
  * - Codex's latest review summary is for that exact head commit, finished, and reports no findings;
  * - GitHub says it merges cleanly.
@@ -146,6 +147,14 @@ export function heldPaths(files: readonly ChangedFile[], mode: Mode): string[] {
   return [...hits].sort();
 }
 
+/**
+ * Fields that run code or pick the toolchain in every install and build (D-52): any change, addition or removal waits,
+ * before launch too.
+ */
+const GUARDED_FIELDS = ['scripts', 'engines', 'packageManager'] as const;
+/** Where every npm download must come from. */
+const NPM_REGISTRY = 'https://registry.npmjs.org/';
+
 /** The dependency lists in a package.json. */
 const DEPENDENCY_FIELDS = ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies'] as const;
 /** Fields that can swap a package's version anywhere in the tree (npm, Yarn, pnpm): any change to them waits. */
@@ -168,7 +177,7 @@ export function majorOf(spec: string): string | null {
   return m[1] === '0' ? `0.${m[2]}` : m[1]!;
 }
 
-/** A package.json a pull request changes: its text on the base branch and in the pull request. */
+/** A package.json or package-lock.json a pull request changes: its text on the base branch and in the pull request. */
 export interface DependencyFile {
   path: string;
   /** null when the file doesn't exist on that side; undefined when it couldn't be read. */
@@ -181,6 +190,8 @@ interface PackageFacts {
   versions: Map<string, string>;
   /** The override fields, as text, to see whether they changed. */
   overrides: string;
+  /** Each guarded field (scripts, engines, packageManager) as text, to see whether it changed. */
+  guarded: Map<string, string>;
 }
 
 function packageFacts(text: string | null): PackageFacts | undefined {
@@ -201,14 +212,71 @@ function packageFacts(text: string | null): PackageFacts | undefined {
     for (const [name, spec] of Object.entries(list as Record<string, unknown>)) versions.set(`${field}:${name}`, String(spec));
   }
   const overrides = JSON.stringify(Object.fromEntries(OVERRIDE_FIELDS.map((f) => [f, pkg[f] ?? null])));
-  return { versions, overrides };
+  const guarded = new Map<string, string>(GUARDED_FIELDS.map((f) => [f, JSON.stringify(pkg[f] ?? null)]));
+  return { versions, overrides, guarded };
+}
+
+interface LockEntry {
+  name: string;
+  resolved: string | undefined;
+  installScript: boolean;
+}
+
+/** The packages in a package-lock.json (lockfile version 2 or 3), by install path. Undefined when it can't be read. */
+function lockPackages(text: string | null): Map<string, LockEntry> | undefined {
+  if (text === null) return new Map();
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+  const packages = parsed && typeof parsed === 'object' ? (parsed as { packages?: unknown }).packages : undefined;
+  if (!packages || typeof packages !== 'object' || Array.isArray(packages)) return undefined;
+  const out = new Map<string, LockEntry>();
+  for (const [path, entry] of Object.entries(packages as Record<string, unknown>)) {
+    if (path === '') continue; // the project itself
+    const e = entry && typeof entry === 'object' ? (entry as { resolved?: unknown; hasInstallScript?: unknown }) : {};
+    const marker = 'node_modules/';
+    const at = path.lastIndexOf(marker);
+    out.set(path, {
+      name: at === -1 ? path : path.slice(at + marker.length),
+      resolved: typeof e.resolved === 'string' ? e.resolved : undefined,
+      installScript: e.hasInstallScript === true,
+    });
+  }
+  return out;
+}
+
+/**
+ * Before launch a lockfile change is fine when it only moves existing packages to other versions (every Dependabot
+ * minor bump does). It waits when a package name appears that the base lockfile lacks, when a package gains an install
+ * script, or when something would be downloaded from outside the npm registry (D-52).
+ */
+function lockfileHolds(path: string, before: string | null, after: string | null): string[] {
+  if ((before === null) !== (after === null)) return [before === null ? `adds ${path}` : `removes ${path}`];
+  const old = lockPackages(before);
+  const now = lockPackages(after);
+  if (!old || !now) return [`couldn't read the packages in ${path}`];
+  const oldNames = new Set([...old.values()].map((e) => e.name));
+  const reasons: string[] = [];
+  for (const [key, entry] of now) {
+    const was = old.get(key);
+    if (!oldNames.has(entry.name)) reasons.push(`${path} adds the package ${entry.name}`);
+    if (entry.installScript && !was?.installScript) reasons.push(`${path}: ${entry.name} gains an install script`);
+    // A download address that is new or changed must be the npm registry; unchanged ones were accepted before.
+    if (entry.resolved !== undefined && entry.resolved !== was?.resolved && !entry.resolved.startsWith(NPM_REGISTRY)) {
+      reasons.push(`${path}: ${entry.name} comes from outside the npm registry`);
+    }
+  }
+  return reasons;
 }
 
 /**
  * What in a pull request's package.json changes waits for Christian before launch (D-42): a new dependency (it
  * could be a paid service, and every package is code we run), any version change the bot can't show stays within
- * one major version (TypeScript 7 and @types/node above Node 24 are never accepted, D-01, D-02), and any change to
- * overrides. It reads the files themselves, so a pull request's title can't hide an update. A file it can't read
+ * one major version (TypeScript 7 and @types/node above Node 24 are never accepted, D-01, D-02), any change to
+ * overrides, scripts, engines or packageManager, and lockfile changes that add packages (see lockfileHolds). It reads the files themselves, so a pull request's title can't hide an update. A file it can't read
  * waits too.
  */
 export function dependencyHolds(files: readonly DependencyFile[]): string[] {
@@ -216,6 +284,10 @@ export function dependencyHolds(files: readonly DependencyFile[]): string[] {
   for (const { path, before, after } of files) {
     if (before === undefined || after === undefined) {
       reasons.push(`couldn't read ${path}`);
+      continue;
+    }
+    if (path.slice(path.lastIndexOf('/') + 1) === 'package-lock.json') {
+      reasons.push(...lockfileHolds(path, before, after));
       continue;
     }
     const old = packageFacts(before);
@@ -234,16 +306,20 @@ export function dependencyHolds(files: readonly DependencyFile[]): string[] {
       }
     }
     if (old.overrides !== now.overrides) reasons.push(`changes the overrides in ${path}`);
+    for (const field of GUARDED_FIELDS) {
+      if (old.guarded.get(field) !== now.guarded.get(field)) reasons.push(`changes the ${field} in ${path}`);
+    }
   }
   return [...new Set(reasons)];
 }
 
-/** Every package.json a pull request touches, counting both sides of a rename (the files to read for dependencyHolds). */
+/** Every package.json and package-lock.json a pull request touches, counting both sides of a rename (the files to read for dependencyHolds). */
 export function dependencyPaths(files: readonly ChangedFile[]): string[] {
   const hits = new Set<string>();
   for (const f of files) {
     for (const path of [f.filename, f.previous_filename]) {
-      if (path && path.slice(path.lastIndexOf('/') + 1) === 'package.json') hits.add(path);
+      const name = path ? path.slice(path.lastIndexOf('/') + 1) : '';
+      if (path && (name === 'package.json' || name === 'package-lock.json')) hits.add(path);
     }
   }
   return [...hits].sort();
@@ -321,7 +397,7 @@ export interface DecideInput {
   mode: Mode;
   pr: PullRequest;
   files: readonly ChangedFile[];
-  /** Every package.json the pull request touches, read on both sides (see dependencyPaths). */
+  /** Every package.json and package-lock.json the pull request touches, read on both sides (see dependencyPaths). */
   dependencies: readonly DependencyFile[];
   checks: readonly CheckRun[];
   comments: readonly IssueComment[];
