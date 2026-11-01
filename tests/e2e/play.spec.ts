@@ -408,6 +408,91 @@ test.describe('daily games: word path (D-71)', () => {
   });
 });
 
+test.describe('daily games: private stats (D-76)', () => {
+  const panel = (page: Page) => page.getByTestId('game-stats');
+  const toggle = (page: Page) => panel(page).getByRole('switch', { name: 'keep my stats' });
+  const kept = (page: Page) => page.evaluate(() => localStorage.getItem('cueory-game-stats'));
+  const pulseStats = (page: Page) =>
+    panel(page).getByRole('listitem').filter({ has: page.getByRole('heading', { name: 'pulse', exact: true }) });
+  // Today's word on 1 November is "garden", so one guess solves it, in 1 beat.
+  const solvePulse = async (page: Page) => {
+    await field(page).fill('garden');
+    await field(page).press('Enter');
+    await expect(page.getByTestId('pulse-result')).toContainText('solved.');
+  };
+
+  test.beforeEach(async ({ page }) => {
+    await page.clock.setFixedTime(new Date('2026-11-01T15:00:00'));
+    await page.goto('/play');
+    await expect(toggle(page)).toBeVisible();
+  });
+
+  test('stats are off until the student turns them on, and nothing is kept while they are off', async ({ page }) => {
+    await expect(toggle(page)).toHaveAttribute('aria-checked', 'false');
+    await expect(panel(page)).toContainText('off: nothing is kept.');
+    await solvePulse(page);
+    expect(await kept(page)).toBeNull();
+    await page.reload();
+    await expect(toggle(page)).toHaveAttribute('aria-checked', 'false');
+    expect(await kept(page)).toBeNull();
+  });
+
+  test('turned on right after a game, it counts that game, keeps it after a reload, and passes axe', async ({ page }) => {
+    await solvePulse(page);
+    await toggle(page).click();
+    await expect(toggle(page)).toHaveAttribute('aria-checked', 'true');
+    await expect(pulseStats(page)).toContainText('played 1 day, solved 1.');
+    await expect(pulseStats(page)).toContainText('1 beat on 1 day.');
+    expect(JSON.parse((await kept(page))!)).toEqual({
+      version: 1,
+      results: [{ game: 'pulse', day: '2026-11-01', solved: true, tries: 1 }],
+    });
+    expect((await axe(page)).violations).toEqual([]);
+
+    await page.reload();
+    await expect(toggle(page)).toHaveAttribute('aria-checked', 'true');
+    await expect(pulseStats(page)).toContainText('played 1 day, solved 1.');
+    // Playing the same day again changes nothing: the first result of the day counts.
+    await solvePulse(page);
+    await expect(page.getByTestId('stats-live')).toHaveText("pulse: today's first game is already in your stats.");
+    await expect(pulseStats(page)).toContainText('played 1 day, solved 1.');
+    expect(JSON.parse((await kept(page))!).results).toHaveLength(1);
+  });
+
+  test('"forget" and turning stats off delete what was kept, and keyboard focus stays in the panel', async ({ page }) => {
+    await toggle(page).click();
+    await solvePulse(page);
+    await expect(pulseStats(page)).toContainText('played 1 day, solved 1.');
+
+    await panel(page).getByRole('button', { name: 'forget pulse' }).focus();
+    await page.keyboard.press('Enter');
+    await expect(pulseStats(page)).toContainText('not played yet.');
+    await expect(panel(page).getByRole('heading', { name: 'pulse', exact: true })).toBeFocused();
+    expect(JSON.parse((await kept(page))!).results).toEqual([]);
+
+    await toggle(page).focus();
+    await page.keyboard.press('Enter');
+    await expect(toggle(page)).toHaveAttribute('aria-checked', 'false');
+    await expect(toggle(page)).toBeFocused();
+    await expect(page.getByTestId('stats-live')).toHaveText('stats are off, and what was kept is forgotten.');
+    expect(await kept(page)).toBeNull();
+  });
+
+  test('at 320 px the panel fits, and its buttons are at least 44 px tall', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 720 });
+    await toggle(page).click();
+    await solvePulse(page);
+    await expect(pulseStats(page)).toContainText('played 1 day, solved 1.');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+    for (const button of [toggle(page), ...(await panel(page).getByRole('button').all())]) {
+      const box = (await button.boundingBox())!;
+      expect(box.height).toBeGreaterThanOrEqual(44);
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(320);
+    }
+  });
+});
+
 test.describe('daily games without JavaScript', () => {
   test.use({ javaScriptEnabled: false });
 
