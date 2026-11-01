@@ -198,6 +198,7 @@ a page yet:
   and imports only what the checker passes now. Samples only; no real questions.
   (#110), the review-clip exporter (#111, Task C7), Release browser tests (#55), and the new tasks 40 to 42 and C8
   when they open.
+- Task 40: `reviewSheet(visual)` prepares source and credit tables with an unticked visual-review checklist; pure logic, in review.
 - Task 41: `rightsProblems` checks recorded image rights; `usableAssets` keeps only exact assets with a valid verified record; pure logic, in review.
 
 ## Queued (Christian's change requests on issue #4, in his order)
