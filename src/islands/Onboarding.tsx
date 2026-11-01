@@ -100,7 +100,15 @@ export default function Onboarding() {
         />
         {dateProblem && <p id="exam-date-problem" className="mt-2 text-sm">{dateProblem}</p>}
         {examDate && (
-          <button type="button" onClick={() => setExamDate('')} className={`${quietButton} mt-2`}>
+          <button
+            type="button"
+            onClick={() => {
+              setExamDate('');
+              // This button disappears once the date is empty, so focus goes back to the date field.
+              dateRef.current?.focus();
+            }}
+            className={`${quietButton} mt-2`}
+          >
             clear the date
           </button>
         )}

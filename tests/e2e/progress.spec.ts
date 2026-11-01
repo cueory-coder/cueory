@@ -63,6 +63,18 @@ test('onboarding can be skipped, and skipping keeps earlier answers', async ({ p
   expect((await saved(page)).onboarding.course).toBe('fundamentals');
 });
 
+test('"clear the date" empties the date and puts focus back on it (Codex on #74)', async ({ page }) => {
+  await page.goto('/start');
+  const date = page.getByLabel('when is your exam?');
+  await date.fill('2027-05-12');
+  const clear = page.getByRole('button', { name: 'clear the date' });
+  await clear.focus();
+  await page.keyboard.press('Enter');
+  await expect(date).toHaveValue('');
+  await expect(date).toBeFocused();
+  await expect(clear).toHaveCount(0);
+});
+
 test('onboarding works with the keyboard alone', async ({ page }) => {
   await page.goto('/start');
   const first = page.getByRole('radio', { name: 'fundamentals' });
