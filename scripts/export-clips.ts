@@ -16,19 +16,22 @@
  */
 import { mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
-import { chromium, type Browser } from '@playwright/test';
+import { chromium, type Browser, type Page } from '@playwright/test';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createElement } from 'react';
-import { drawings } from '../src/visuals/drawings/index.ts';
 import { playerSteps } from '../src/visuals/drawing.ts';
 import { creditsFor, type Visual } from '../src/visuals/sources.ts';
 import {
   type ClipOptions,
+  type FrameHtmlOptions,
   ClipError,
+  buildFfmpegInput,
   clipFileName,
+  frameHtml,
   frameList,
   CROSSFADE_DURATION_S,
   FPS,
@@ -37,6 +40,33 @@ import {
   JPEG_QUALITY,
   parseArguments,
 } from './export-clips/plan.ts';
+
+// ── Drawing loader (esbuild bundle — handles TSX components) ──────────────────
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type DrawingEntry = { Component: (props: { visual: Visual; shown: number }) => any; steps: unknown[] };
+type DrawingMap = Record<string, DrawingEntry>;
+
+/**
+ * Bundles src/visuals/drawings/index.ts with esbuild so that the TSX component
+ * files it imports can be loaded by Node (which handles .ts but not .tsx natively).
+ * The bundle is written to a temp file and imported dynamically.
+ */
+async function loadDrawings(root: string): Promise<DrawingMap> {
+  const { build } = await import('esbuild');
+  const tmpFile = join(tmpdir(), `cueory-drawings-${Date.now()}.mjs`);
+  await build({
+    entryPoints: [join(root, 'src/visuals/drawings/index.ts')],
+    bundle: true,
+    format: 'esm',
+    outfile: tmpFile,
+    jsx: 'automatic',
+    platform: 'node',
+  });
+  const mod = await import(pathToFileURL(tmpFile).href);
+  rm(tmpFile).catch(() => {});
+  return mod.drawings as DrawingMap;
+}
 
 // ── Content loading ───────────────────────────────────────────────────────────
 
@@ -53,83 +83,52 @@ async function findBuiltCss(root: string): Promise<string> {
       `dist/_astro not found. Run "npm run build" first so the built CSS is available.`,
     );
   }
-  // Pick the first CSS file (the site builds a single bundle for the island pages).
   const { readdirSync } = await import('node:fs');
   const cssFiles = readdirSync(astroDir).filter((f) => f.endsWith('.css'));
   if (!cssFiles.length) throw new ClipError('No .css file found in dist/_astro/.');
   return await readFile(join(astroDir, cssFiles[0]!), 'utf-8');
 }
 
-// ── Frame HTML ────────────────────────────────────────────────────────────────
+// ── SVG height measurement ────────────────────────────────────────────────────
 
-function frameHtml(opts: {
-  svgMarkup: string;
-  title: string;
-  caption: string;
-  stepLabel: string;
-  creditLines: string[];
-  isDraft: boolean;
-  builtCss: string;
-  bandY: number;
-  bandHeight: number;
-}): string {
-  const { svgMarkup, title, caption, stepLabel, creditLines, isDraft, builtCss, bandY, bandHeight } = opts;
-  const draftBadge = isDraft
-    ? `<div class="draft-badge">draft for review</div>`
-    : '';
-  const creditsHtml = creditLines
-    .map((line) => `<p class="credit">${escHtml(line)}</p>`)
-    .join('');
-  // The drawing is clipped to show only the current step's y-band.
-  return `<!doctype html>
-<html lang="en">
-<head>
+/**
+ * Measures the actual rendered height of a drawing's SVG by loading a minimal
+ * measurement page in Playwright. This is necessary because SVG components use
+ * Tailwind classes like `max-w-md h-auto` that constrain the height to less than
+ * FRAME_HEIGHT, making bands() need the real height to crop correctly.
+ */
+async function measureDrawingHeight(
+  page: Page,
+  drawing: DrawingEntry,
+  visual: Visual,
+  builtCss: string,
+  outDir: string,
+): Promise<number> {
+  const svgMarkup = renderToStaticMarkup(
+    createElement(drawing.Component, { visual, shown: 999 }),
+  );
+  const measureHtml = `<!doctype html><html><head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=${FRAME_WIDTH}, height=${FRAME_HEIGHT}">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { width: ${FRAME_WIDTH}px; height: ${FRAME_HEIGHT}px; overflow: hidden; background: #fff; }
+html, body { width: ${FRAME_WIDTH}px; overflow: visible; }
 ${builtCss}
-.frame { display: flex; flex-direction: column; width: ${FRAME_WIDTH}px; height: ${FRAME_HEIGHT}px; font-family: system-ui, sans-serif; padding: 48px 40px 40px; gap: 24px; position: relative; }
-.frame-title { font-size: 36px; font-weight: 700; line-height: 1.2; color: #111; }
-.drawing-clip { flex: 1; overflow: hidden; position: relative; }
-.drawing-inner { position: absolute; left: 0; top: -${bandY}px; width: 100%; height: ${FRAME_HEIGHT}px; }
-.drawing-inner svg { width: 100%; height: 100%; }
-.caption { font-size: 28px; color: #222; line-height: 1.4; }
-.step-label { font-size: 22px; color: #666; }
-.credits { font-size: 18px; color: #888; }
-.credit { line-height: 1.3; }
-.draft-badge { position: absolute; top: 16px; right: 24px; background: #f59e0b; color: #fff; font-size: 20px; font-weight: 700; padding: 8px 18px; border-radius: 8px; letter-spacing: 0.05em; text-transform: uppercase; }
+.measure-wrap { width: 100%; padding: 0 40px; }
 </style>
-</head>
-<body>
-<div class="frame">
-  ${draftBadge}
-  <div class="frame-title">${escHtml(title)}</div>
-  <div class="drawing-clip" style="height:${bandHeight}px">
-    <div class="drawing-inner">${svgMarkup}</div>
-  </div>
-  <div class="caption">${escHtml(caption)}</div>
-  <div class="step-label">${escHtml(stepLabel)}</div>
-  <div class="credits">${creditsHtml}</div>
-</div>
-</body>
-</html>`;
-}
+</head><body><div class="measure-wrap">${svgMarkup}</div></body></html>`;
 
-function escHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const tmpHtml = join(outDir, '_measure.html');
+  await writeFile(tmpHtml, measureHtml);
+  await page.setViewportSize({ width: FRAME_WIDTH, height: FRAME_HEIGHT });
+  await page.goto(pathToFileURL(tmpHtml).href, { waitUntil: 'networkidle' });
+  const height = await page.evaluate(
+    () => document.querySelector('svg')?.getBoundingClientRect().height ?? 0,
+  );
+  await rm(tmpHtml);
+  return Math.max(1, Math.round(height));
 }
 
 // ── ffmpeg ────────────────────────────────────────────────────────────────────
-
-function buildFfmpegInput(frames: { fileName: string }[], outDir: string): string {
-  // ffmpeg concat demuxer input file: one duration-less entry per frame, with xfade transition durations.
-  const durationPerFrame = 2.0; // seconds each frame is visible before the xfade starts
-  return frames
-    .map((f) => `file '${join(outDir, f.fileName)}'\nduration ${durationPerFrame}`)
-    .join('\n') + `\nfile '${join(outDir, frames.at(-1)!.fileName)}'`;
-}
 
 function runFfmpeg(
   drawingId: string,
@@ -138,7 +137,6 @@ function runFfmpeg(
   clipOut: string,
 ): void {
   if (frames.length < 2) {
-    // Single-step drawing: just re-encode the one frame with no transition.
     const result = spawnSync(
       'ffmpeg',
       ['-y', '-loop', '1', '-i', join(framesDir, frames[0]!.fileName), '-t', '2', '-r', String(FPS), clipOut],
@@ -152,8 +150,6 @@ function runFfmpeg(
     return;
   }
 
-  // Build a filter_complex with xfade for N steps.
-  // For N inputs and N-1 xfades: each segment is 2 s; xfade starts 0.6s before end.
   const holdSec = 2.0;
   const xfadeSec = CROSSFADE_DURATION_S;
   const inputs: string[] = frames.flatMap((f) => ['-loop', '1', '-t', String(holdSec + xfadeSec), '-i', join(framesDir, f.fileName)]);
@@ -162,7 +158,7 @@ function runFfmpeg(
   for (let i = 1; i < frames.length; i++) {
     const next = `[${i}:v]`;
     const out = i < frames.length - 1 ? `[v${i}]` : '[vout]';
-    const offset = (holdSec) * i - xfadeSec * (i - 1);
+    const offset = holdSec * i - xfadeSec * (i - 1);
     filterParts.push(`${prev}${next}xfade=transition=fade:duration=${xfadeSec}:offset=${offset.toFixed(3)}${out}`);
     prev = `[v${i}]`;
   }
@@ -209,6 +205,15 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
     return 2;
   }
 
+  let drawings: DrawingMap;
+  try {
+    drawings = await loadDrawings(root);
+  } catch (e) {
+    process.stderr.write(`Failed to load drawings: ${String(e)}\n`);
+    return 2;
+  }
+
+  let encodeErrors = 0;
   let browser: Browser | undefined;
   try {
     browser = await chromium.launch();
@@ -221,10 +226,9 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
         continue;
       }
 
-      const steps = playerSteps(visual, drawing.steps);
+      const steps = playerSteps(visual, drawing.steps as Parameters<typeof playerSteps>[1]);
       const credits = creditsFor(visual).map((b) => b.credit);
       const isDraft = visual.status !== 'approved';
-      const frames = frameList(drawingId, steps.length);
 
       const drawingOutDir = join(outDir, drawingId);
       await mkdir(drawingOutDir, { recursive: true });
@@ -232,13 +236,15 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
       const page = await browser.newPage();
       await page.setViewportSize({ width: FRAME_WIDTH, height: FRAME_HEIGHT });
 
+      const drawingHeight = await measureDrawingHeight(page, drawing, visual, builtCss, drawingOutDir);
+      const frames = frameList(drawingId, steps.length, drawingHeight);
+
       for (const spec of frames) {
         const step = steps[spec.stepIndex]!;
-        // Render the drawing showing all steps up to and including this one (progressive reveal).
         const svgMarkup = renderToStaticMarkup(
           createElement(drawing.Component, { visual, shown: spec.stepIndex + 1 }),
         );
-        const html = frameHtml({
+        const htmlOpts: FrameHtmlOptions = {
           svgMarkup,
           title: visual.title,
           caption: step.caption,
@@ -248,10 +254,10 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
           builtCss,
           bandY: spec.band.y,
           bandHeight: spec.band.height,
-        });
+        };
 
         const tmpHtml = join(drawingOutDir, `_frame-${spec.stepIndex}.html`);
-        await writeFile(tmpHtml, html);
+        await writeFile(tmpHtml, frameHtml(htmlOpts));
         await page.goto(pathToFileURL(tmpHtml).href, { waitUntil: 'networkidle' });
         const framePath = join(drawingOutDir, spec.fileName);
         await page.screenshot({ path: framePath, type: 'jpeg', quality: JPEG_QUALITY });
@@ -268,11 +274,12 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
           runFfmpeg(drawingId, frames, drawingOutDir, clipOut);
           process.stdout.write(`  → ${clipOut}\n`);
         } catch (e) {
+          encodeErrors += 1;
           process.stderr.write(`${e instanceof ClipError ? e.message : String(e)}\n`);
         }
       }
     }
-    return 0;
+    return encodeErrors > 0 ? 1 : 0;
   } catch (e) {
     process.stderr.write(`Unexpected error: ${String(e)}\n`);
     return 1;

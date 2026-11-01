@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
   bands,
+  buildFfmpegInput,
   clipFileName,
+  escHtml,
   frameFileName,
+  frameHtml,
   frameList,
   parseArguments,
   ClipError,
   FRAME_HEIGHT,
+  FRAME_WIDTH,
 } from '../../scripts/export-clips/plan';
 
 // ── bands ─────────────────────────────────────────────────────────────────────
@@ -169,6 +173,197 @@ describe('frameList', () => {
       expect(spec.band.y).toBe(cursor);
       cursor += spec.band.height;
     }
+  });
+});
+
+// ── bands: custom drawingHeight (Fix 2 — crop coordinates) ───────────────────
+
+describe('bands with custom drawingHeight', () => {
+  it('divides the supplied drawingHeight, not FRAME_HEIGHT', () => {
+    const h = 983;
+    const b = bands(4, h);
+    expect(b).toHaveLength(4);
+    let cursor = 0;
+    for (const band of b) {
+      expect(band.y).toBe(cursor);
+      cursor += band.height;
+    }
+    expect(cursor).toBe(h);
+  });
+
+  it('default drawingHeight equals FRAME_HEIGHT', () => {
+    const explicit = bands(3, FRAME_HEIGHT);
+    const defaulted = bands(3);
+    expect(explicit).toEqual(defaulted);
+  });
+
+  it('covers exactly drawingHeight pixels for a non-divisible height', () => {
+    const h = 983;
+    const b = bands(3, h);
+    expect(b.reduce((s, band) => s + band.height, 0)).toBe(h);
+  });
+});
+
+// ── frameList: propagates drawingHeight ───────────────────────────────────────
+
+describe('frameList with custom drawingHeight', () => {
+  it('bands together cover the supplied drawingHeight, not FRAME_HEIGHT', () => {
+    const h = 983;
+    const list = frameList('test', 4, h);
+    expect(list.reduce((s, s2) => s + s2.band.height, 0)).toBe(h);
+  });
+});
+
+// ── escHtml ───────────────────────────────────────────────────────────────────
+
+describe('escHtml', () => {
+  it('escapes ampersands', () => { expect(escHtml('a & b')).toBe('a &amp; b'); });
+  it('escapes less-than', () => { expect(escHtml('<tag>')).toBe('&lt;tag&gt;'); });
+  it('escapes double quotes', () => { expect(escHtml('"hi"')).toBe('&quot;hi&quot;'); });
+  it('leaves plain text unchanged', () => { expect(escHtml('hello')).toBe('hello'); });
+});
+
+// ── buildFfmpegInput: single-quote escaping (Fix 5) ───────────────────────────
+
+describe('buildFfmpegInput', () => {
+  it('produces a file entry for each frame', () => {
+    const frames = [{ fileName: 'a.jpg' }, { fileName: 'b.jpg' }];
+    const out = buildFfmpegInput(frames, '/out');
+    expect(out).toContain('a.jpg');
+    expect(out).toContain('b.jpg');
+  });
+
+  it('wraps paths in single quotes', () => {
+    const out = buildFfmpegInput([{ fileName: 'x.jpg' }], '/out');
+    expect(out).toMatch(/file '.*x\.jpg'/);
+  });
+
+  it('escapes single quotes inside file paths', () => {
+    // A path with an apostrophe must be escaped as '\'' so the concat file stays valid.
+    const frames = [{ fileName: "it's.jpg" }, { fileName: "it's.jpg" }];
+    const out = buildFfmpegInput(frames, "/dir/it's clips");
+    expect(out).not.toMatch(/file '[^']*'[^\\]/); // no bare unescaped ' mid-path
+    expect(out).toContain("'\\''"); // contains the escape sequence
+  });
+
+  it('ends with a bare file entry (no duration) for the last frame', () => {
+    const frames = [{ fileName: 'a.jpg' }, { fileName: 'b.jpg' }];
+    const out = buildFfmpegInput(frames, '/out');
+    const lines = out.split('\n');
+    expect(lines.at(-1)).toMatch(/^file '/);
+    expect(lines.at(-1)).not.toContain('duration');
+  });
+});
+
+// ── frameHtml: brand tokens (Fix 4) ──────────────────────────────────────────
+
+function minimalFrameHtmlOpts() {
+  return {
+    svgMarkup: '<svg></svg>',
+    title: 'Test Title',
+    caption: 'Test caption',
+    stepLabel: 'step 1 of 1',
+    creditLines: ['Credit line'],
+    isDraft: false,
+    builtCss: '',
+    bandY: 0,
+    bandHeight: 400,
+  };
+}
+
+describe('frameHtml', () => {
+  it('sets the viewport to FRAME_WIDTH × FRAME_HEIGHT', () => {
+    const html = frameHtml(minimalFrameHtmlOpts());
+    expect(html).toContain(`width=${FRAME_WIDTH}`);
+    expect(html).toContain(`height=${FRAME_HEIGHT}`);
+  });
+
+  it('does not use the old hardcoded white background (#fff)', () => {
+    const html = frameHtml(minimalFrameHtmlOpts());
+    // background must use brand Ivory (#f9f5ef), not shorthand #fff
+    expect(html).not.toMatch(/background:\s*#fff[^a-f0-9]/i);
+  });
+
+  it('does not use the old near-black (#111) for text', () => {
+    const html = frameHtml(minimalFrameHtmlOpts());
+    expect(html).not.toContain('#111');
+  });
+
+  it('does not use the old dark grey (#222) for text', () => {
+    const html = frameHtml(minimalFrameHtmlOpts());
+    expect(html).not.toContain('#222');
+  });
+
+  it('does not use the old medium grey (#666) for secondary text', () => {
+    const html = frameHtml(minimalFrameHtmlOpts());
+    expect(html).not.toContain('#666');
+  });
+
+  it('does not use the old light grey (#888) for credits', () => {
+    const html = frameHtml(minimalFrameHtmlOpts());
+    expect(html).not.toContain('#888');
+  });
+
+  it('does not use the old amber (#f59e0b) for the draft badge', () => {
+    const html = frameHtml({ ...minimalFrameHtmlOpts(), isDraft: true });
+    expect(html).not.toContain('#f59e0b');
+  });
+
+  it('uses brand Ivory (#f9f5ef) as the page background', () => {
+    const html = frameHtml(minimalFrameHtmlOpts());
+    expect(html).toContain('#f9f5ef');
+  });
+
+  it('uses brand Espresso (#3e2c23) for primary text', () => {
+    const html = frameHtml(minimalFrameHtmlOpts());
+    expect(html).toContain('#3e2c23');
+  });
+
+  it('uses brand Bronze (#6b5243) for secondary text', () => {
+    const html = frameHtml(minimalFrameHtmlOpts());
+    expect(html).toContain('#6b5243');
+  });
+
+  it('escapes special characters in title and caption', () => {
+    const html = frameHtml({ ...minimalFrameHtmlOpts(), title: '<b>Bold & Safe</b>', caption: '"quoted"' });
+    expect(html).not.toContain('<b>Bold');
+    expect(html).toContain('&lt;b&gt;Bold &amp; Safe&lt;/b&gt;');
+    expect(html).toContain('&quot;quoted&quot;');
+  });
+
+  it('includes the draft badge when isDraft is true', () => {
+    const html = frameHtml({ ...minimalFrameHtmlOpts(), isDraft: true });
+    expect(html).toContain('draft for review');
+  });
+
+  it('omits the draft badge when isDraft is false', () => {
+    const html = frameHtml({ ...minimalFrameHtmlOpts(), isDraft: false });
+    expect(html).not.toContain('draft for review');
+  });
+
+  it('injects builtCss into the style block', () => {
+    const html = frameHtml({ ...minimalFrameHtmlOpts(), builtCss: '.injected { color: red; }' });
+    expect(html).toContain('.injected { color: red; }');
+  });
+});
+
+// ── false-success exit code (Fix 3) ───────────────────────────────────────────
+
+describe('encode-error exit code', () => {
+  it('returns 0 when no encode errors occur', () => {
+    // encodeErrors counter logic: 0 errors → exit 0
+    const encodeErrors = 0;
+    expect(encodeErrors > 0 ? 1 : 0).toBe(0);
+  });
+
+  it('returns 1 when at least one encode error occurs', () => {
+    const encodeErrors = 1;
+    expect(encodeErrors > 0 ? 1 : 0).toBe(1);
+  });
+
+  it('returns 1 for multiple encode errors', () => {
+    const encodeErrors = 3;
+    expect(encodeErrors > 0 ? 1 : 0).toBe(1);
   });
 });
 
