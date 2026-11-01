@@ -449,6 +449,11 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   - **Next:** Christian picks final names later, after a screen.
 
   Reason: avoid launching under names others have filed for related goods.
+- **D-67** A guard for D-66: a unit test (`tests/unit/game-names.test.ts`) reads every page, component and island and
+  fails when one shows a game's internal id (`pulse`, `cueword`, `triage`, `suture`) as words, or types a game's name
+  into a share line ("cueory sort, …") instead of reading it with `gameName()`. Ids used as ids (content folders,
+  class names, test ids, imports) and comments are left alone. Reason: the names will change again, and builders work
+  in parallel, so a forgotten old name should fail CI instead of reaching a page.
 - **D-68** The visuals kit's source-file check (Task 6, D-56). The build checks every file in `content/visuals/`
   (`visualProblems` in `src/visuals/sources.ts`, run by `src/content.config.ts`) and stops with a plain message when:
   a label or depiction points to no source in the file, or a source is unused; a source quotes a book that isn't
