@@ -28,6 +28,24 @@ const requiredPages = [
   'subscribed.html',
 ];
 
+/**
+ * A built page's markup without the contents of its script elements, found by plain text search in a lowercase copy.
+ * Used only to inspect our own build output (Astro's scripts can contain everyday words such as "window").
+ */
+function markupOutsideScripts(html: string): string {
+  const lower = html.toLowerCase();
+  let markup = '';
+  let at = 0;
+  for (;;) {
+    const open = lower.indexOf('<script', at);
+    if (open === -1) return markup + html.slice(at);
+    markup += html.slice(at, open);
+    const close = lower.indexOf('</script', open);
+    if (close === -1) return markup;
+    at = close + '</script'.length;
+  }
+}
+
 describe.skipIf(!existsSync(dist))('built site', () => {
   const pages = htmlFiles(dist);
 
@@ -103,6 +121,37 @@ describe.skipIf(!existsSync(dist))('built site', () => {
     },
   );
 
+  it('label it: the page holds no label text; the labels come from their own JSON file (Codex review of #71)', () => {
+    const source = JSON.parse(readFileSync(new URL('../../content/label-it/study-skills-01.json', import.meta.url), 'utf8'));
+    const html = readFileSync(join(dist, 'learn/study-skills/label-it.html'), 'utf8');
+    // Astro's own scripts can contain everyday words like "window"; what matters is the page's markup and props.
+    const markup = markupOutsideScripts(html);
+    for (const label of source.labels as { text: string }[]) {
+      expect(markup, label.text).not.toMatch(new RegExp(`\\b${label.text}\\b`, 'i'));
+    }
+    const props = [...html.matchAll(/<astro-island[^>]*\sprops="([^"]*)"/g)].map((m) => m[1]);
+    expect(props).toEqual(['{&quot;src&quot;:[0,&quot;/learn/study-skills/label-it/study-skills-01.json&quot;]}']);
+    const served = JSON.parse(readFileSync(join(dist, 'learn/study-skills/label-it/study-skills-01.json'), 'utf8'));
+    expect(served.labels.map((l: { text: string }) => l.text)).toEqual(source.labels.map((l: { text: string }) => l.text));
+    expect(served.image.credit).toBe(source.image.credit);
+  });
+
+  it('questions: the page holds no keys or rationales; only sample items are served (D-33)', () => {
+    const source = JSON.parse(readFileSync(new URL('../../content/questions/study-skills-01.json', import.meta.url), 'utf8'));
+    const html = readFileSync(join(dist, 'learn/study-skills/questions.html'), 'utf8');
+    const markup = markupOutsideScripts(html);
+    for (const item of source.items as { stem: string; rationales: Record<string, string> }[]) {
+      expect(markup).not.toContain(item.stem);
+      for (const rationale of Object.values(item.rationales)) expect(markup).not.toContain(rationale);
+    }
+    expect(markup).not.toMatch(/&quot;key&quot;|"key"/);
+    const props = [...html.matchAll(/<astro-island[^>]*\sprops="([^"]*)"/g)].map((m) => m[1]);
+    expect(props).toEqual(['{&quot;src&quot;:[0,&quot;/learn/study-skills/questions/study-skills-01.json&quot;]}']);
+    const served = JSON.parse(readFileSync(join(dist, 'learn/study-skills/questions/study-skills-01.json'), 'utf8'));
+    expect(served.status).toBe('sample');
+    expect(served.items.every((item: { status: string }) => item.status === 'sample')).toBe(true);
+  });
+
   it('home page: "video" comes first, "learn" is Learn mode, and modes not built yet say coming soon (D-43, D-50, D-60)', () => {
     const html = readFileSync(join(dist, 'index.html'), 'utf8');
     const card = (id: string) => {
@@ -112,7 +161,9 @@ describe.skipIf(!existsSync(dist))('built site', () => {
     };
     expect(card('video')).toEqual({ name: 'video', href: undefined });
     expect(card('learn')).toEqual({ name: 'learn', href: '/learn/study-skills/learn-mode' });
-    expect(card('fill-in')).toEqual({ name: 'fill-in', href: undefined });
+    expect(card('fill-in')).toEqual({ name: 'fill-in', href: '/learn/study-skills/fill-in' });
+    expect(card('questions')).toEqual({ name: 'questions', href: '/learn/study-skills/questions' });
+    expect(card('review')).toEqual({ name: 'review', href: undefined });
     expect(card('level-test')).toEqual({ name: 'level test', href: undefined });
     expect(html).not.toContain('id="mode-lesson"');
   });

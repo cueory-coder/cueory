@@ -1,0 +1,29 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import QuestionsSample from '../../../islands/QuestionsSample';
+---
+
+<Layout title="questions: lesson 1" description="practice questions with rationales for lesson 1 of how to study for nursing school." variant="study">
+  <div class="mx-auto max-w-prose pt-8">
+    <p class="text-sm text-ink-soft">how to study for nursing school · lesson 1 · questions</p>
+    <h1 class="mt-3 text-2xl">questions</h1>
+    <p class="mt-3 text-ink-soft">
+      pick your answer and check it. then you see why each choice is right or not.
+    </p>
+    <p class="mt-3 text-sm text-ink-soft" data-testid="questions-sample-note">
+      these are sample questions with everyday answers. the lesson's own questions come later.
+    </p>
+
+    <div class="mt-10" data-testid="questions">
+      {/* client:only, and only the file's address as a prop: the samples load after the page, never in its HTML. */}
+      <QuestionsSample client:only="react" src="/learn/study-skills/questions/study-skills-01.json" />
+      <noscript>
+        <p>questions need JavaScript. you can still read the lesson on the <a href="/learn/study-skills">lesson page</a>.</p>
+      </noscript>
+    </div>
+
+    <p class="mt-section text-sm">
+      <a href="/learn/study-skills">back to the lesson</a>
+    </p>
+  </div>
+</Layout>
