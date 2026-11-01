@@ -5,6 +5,18 @@ import { expect, test, type Page } from '@playwright/test';
  * Daily games (D-61): pulse on /play. The page's clock is set to 1 November 2026, the first day, so today's sample
  * word is "garden" (content/games/pulse/sample-01.json).
  */
+// The once-only promo panel (D-59) slides down after 5 seconds and takes keyboard focus, which would interrupt these
+// tests part-way, so every page here starts as if it had already been shown (as in pages.spec.ts).
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem('cueory-promo-seen', String(Date.now()));
+    } catch {
+      // Storage is blocked: the panel never shows then anyway.
+    }
+  });
+});
+
 const axe = (page: Page) => new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
 const field = (page: Page) => page.getByLabel('your guess', { exact: true });
 const live = (page: Page) => page.getByTestId('pulse-live');
