@@ -42,8 +42,8 @@ const LIMITS = {
 /** Exact, least-privilege columns from the existing Supabase migrations. */
 const COLUMNS = {
   profiles: 'display_name,created_at',
-  attempts: 'item_version_id,picked,correct,created_at',
-  exam_plans: 'course,exam_date,created_at',
+  attempts: 'id,item_version_id,picked,correct,created_at',
+  exam_plans: 'id,course,exam_date,created_at',
   review_state: 'item_id,level,last_reviewed,next_review',
 } as const;
 
@@ -222,6 +222,7 @@ export async function loadExport(reader: ExportReader): Promise<ExportLoadResult
 
 interface SupabaseQuery {
   order(column: string, options: { ascending: boolean }): SupabaseQuery;
+  gt(column: string, value: string): SupabaseQuery;
   range(from: number, to: number): PromiseLike<ReadResult>;
 }
 
@@ -231,32 +232,44 @@ export interface SupabaseExportClient {
   rpc(name: 'my_flags'): SupabaseQuery;
 }
 
-const ORDERS: Record<ExportTable | 'my_flags', readonly [string, boolean][]> = {
-  profiles: [['created_at', false], ['id', true]],
-  attempts: [['created_at', false], ['id', true]],
-  exam_plans: [['created_at', false], ['id', true]],
-  review_state: [['item_id', true]],
-  my_flags: [['created_at', false], ['id', true]],
+/** Stable unique row keys for keyset pagination. profiles has at most one row. */
+const CURSOR_COLUMN: Record<ExportTable | 'my_flags', string | null> = {
+  profiles: null,
+  attempts: 'id',
+  exam_plans: 'id',
+  review_state: 'item_id',
+  my_flags: 'id',
 };
 
 /**
- * Supabase's default per-request row limit is 1,000. Fetch smaller, ordered pages
- * so a successful response never silently omits older study data. Do not return
- * partial data on a failed page or when the export exceeds ExportData's row cap.
+ * Read a whole set in stable key order. Unlike offset pagination, deleting a previously
+ * read row while the export runs cannot move a later row past the next page's cursor.
+ * A keyset cursor is read only from the database's UUID primary key and is never exported,
+ * except my_flags' public report id. New writes while reading are not a database snapshot.
  */
 async function allPages(makeQuery: () => SupabaseQuery, which: ExportTable | 'my_flags'): Promise<ReadResult> {
   const results: unknown[] = [];
   const cap = LIMITS[which];
-  for (let start = 0; start <= cap; start += PAGE_SIZE) {
+  const key = CURSOR_COLUMN[which];
+  let cursor: string | null = null;
+  for (;;) {
     let query = makeQuery();
-    for (const [column, ascending] of ORDERS[which]) query = query.order(column, { ascending });
-    const reply = await query.range(start, start + PAGE_SIZE - 1);
+    query = query.order(key ?? 'created_at', { ascending: true });
+    if (key !== null && cursor !== null) query = query.gt(key, cursor);
+    const reply = await query.range(0, PAGE_SIZE - 1);
     if (!reply || reply.error != null || !Array.isArray(reply.data)) return { data: null, error: 'read failed' };
     if (results.length + reply.data.length > cap) return { data: null, error: 'too many rows' };
+    if (key !== null) {
+      for (const entry of reply.data) {
+        const next = uuid(row(entry), key);
+        if (cursor !== null && next <= cursor) return { data: null, error: 'invalid cursor ordering' };
+        cursor = next;
+      }
+    }
     results.push(...reply.data);
     if (reply.data.length < PAGE_SIZE) return { data: results, error: null };
+    if (key === null) return { data: null, error: 'too many profiles' };
   }
-  return { data: null, error: 'too many rows' };
 }
 
 /** Uses only the tables and RPC explicitly allowed by Task 61. */

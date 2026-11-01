@@ -6,16 +6,17 @@ const when = '2026-11-01T08:00:00.000Z';
 const versionId = '11111111-1111-4111-8111-111111111111';
 const itemId = '22222222-2222-4222-8222-222222222222';
 const reportId = '33333333-3333-4333-8333-333333333333';
+const id = (n: number) => n.toString(16).padStart(8, '0') + '-0000-4000-8000-000000000000';
 const fields = {
   profiles: 'display_name,created_at',
-  attempts: 'item_version_id,picked,correct,created_at',
-  exam_plans: 'course,exam_date,created_at',
+  attempts: 'id,item_version_id,picked,correct,created_at',
+  exam_plans: 'id,course,exam_date,created_at',
   review_state: 'item_id,level,last_reviewed,next_review',
 } as const;
 const rows = {
   profiles: [{ display_name: 'Sample', created_at: when, user_id: 'private' }],
-  attempts: [{ item_version_id: versionId, picked: ['a', 'c'], correct: true, created_at: when, user_id: 'private' }],
-  exam_plans: [{ course: 'med-surg-1', exam_date: '2026-12-15', created_at: when, id: 'private' }],
+  attempts: [{ id: id(1), item_version_id: versionId, picked: ['a', 'c'], correct: true, created_at: when, user_id: 'private' }],
+  exam_plans: [{ id: id(2), course: 'med-surg-1', exam_date: '2026-12-15', created_at: when }],
   review_state: [{ item_id: itemId, level: 2, last_reviewed: '2026-10-30', next_review: '2026-11-03', user_id: 'private' }],
   my_flags: [{ id: reportId, page: '/learn/study-skills', item_id: null, item_version_id: null,
     reason: 'confusing', comment: 'Sample report', created_at: when, status: 'private' }],
@@ -103,18 +104,31 @@ describe('loadExport — personal data boundaries', () => {
   });
 });
 
-function supabase(dataset: Record<string, unknown[]>, failure?: { name: string; offset: number }) {
+function supabase(dataset: Record<string, unknown[]>, failure?: { name: string; page: number }, mutate?: () => void) {
   const calls: string[] = [];
+  const requests = new Map<string, number>();
   const query = (name: string) => {
-    const sort: string[] = [];
+    let sortedBy = '';
+    let after: { field: string; value: string } | undefined;
     const q = {
       order(column: string, options: { ascending: boolean }) {
-        sort.push(column + (options.ascending ? '.asc' : '.desc')); return q;
+        expect(options.ascending).toBe(true);
+        sortedBy = column;
+        return q;
       },
+      gt(field: string, value: string) { after = { field, value }; return q; },
       async range(from: number, to: number): Promise<Reply> {
-        calls.push(name + ':' + from + '-' + to + ':' + sort.join(','));
-        if (failure?.name === name && failure.offset === from) return { data: null, error: 'private' };
-        return { data: (dataset[name] ?? []).slice(from, to + 1), error: null };
+        const page = (requests.get(name) ?? 0) + 1;
+        requests.set(name, page);
+        calls.push(name + ':' + from + '-' + to + ':' + sortedBy + (after ? '.gt(' + after.value + ')' : ''));
+        if (failure?.name === name && failure.page === page) return { data: null, error: 'private' };
+        // Simulate a second tab removing an already-read row before page two.
+        if (name === 'review_state' && page === 2 && mutate) mutate();
+        const set = [...(dataset[name] ?? [])] as Record<string, unknown>[];
+        set.sort((a, b) => String(a[sortedBy]).localeCompare(String(b[sortedBy])));
+        const keyset = after;
+        const matching = keyset ? set.filter(r => String(r[keyset.field]) > keyset.value) : set;
+        return { data: matching.slice(from, to + 1), error: null };
       },
     };
     return q;
@@ -130,8 +144,9 @@ function supabase(dataset: Record<string, unknown[]>, failure?: { name: string; 
 
 describe('fromSupabase — no silent row truncation', () => {
   it('loads more than the default 1,000 rows using stable, bounded pages', async () => {
-    const many = { ...rows, attempts: Array(1002).fill(rows.attempts[0]),
-      my_flags: Array(501).fill(rows.my_flags[0]) };
+    const many = { ...rows,
+      attempts: Array.from({ length: 1002 }, (_, i) => ({ ...rows.attempts[0], id: id(i + 1) })),
+      my_flags: Array.from({ length: 501 }, (_, i) => ({ ...rows.my_flags[0], id: id(i + 1) })) };
     const { client, calls } = supabase(many);
     const result = await loadExport(fromSupabase(client));
     expect(result.ok).toBe(true);
@@ -139,16 +154,33 @@ describe('fromSupabase — no silent row truncation', () => {
     expect(result.data.attempts).toHaveLength(1002);
     expect(result.data.reports).toHaveLength(501);
     expect(calls.filter(x => x.startsWith('attempts:'))).toEqual([
-      'attempts:0-499:created_at.desc,id.asc',
-      'attempts:500-999:created_at.desc,id.asc',
-      'attempts:1000-1499:created_at.desc,id.asc',
+      'attempts:0-499:id',
+      'attempts:0-499:id.gt(' + id(500) + ')',
+      'attempts:0-499:id.gt(' + id(1000) + ')',
     ]);
     expect(calls.some(x => x.startsWith('flags:'))).toBe(false);
   });
 
   it('fails the whole export when a later page is unavailable', async () => {
-    const source = { ...rows, attempts: Array(501).fill(rows.attempts[0]) };
-    expect(await loadExport(fromSupabase(supabase(source, { name: 'attempts', offset: 500 }).client))).toEqual(failed);
+    const source = { ...rows,
+      attempts: Array.from({ length: 501 }, (_, i) => ({ ...rows.attempts[0], id: id(i + 1) })) };
+    expect(await loadExport(fromSupabase(supabase(source, { name: 'attempts', page: 2 }).client))).toEqual(failed);
+  });
+
+  it('does not skip retained rows after an earlier review row is deleted between pages', async () => {
+    const reviewRows = Array.from({ length: 502 }, (_, i) => ({ ...rows.review_state[0], item_id: id(i + 1) }));
+    const source = { ...rows, review_state: reviewRows };
+    const { client, calls } = supabase(source, undefined, () => { reviewRows.shift(); });
+    const result = await loadExport(fromSupabase(client));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.reviewRows).toHaveLength(502);
+    expect(result.data.reviewRows?.some(row => row.itemId === id(501))).toBe(true);
+    expect(result.data.reviewRows?.some(row => row.itemId === id(502))).toBe(true);
+    expect(calls.filter(x => x.startsWith('review_state:'))).toEqual([
+      'review_state:0-499:item_id',
+      'review_state:0-499:item_id.gt(' + id(500) + ')',
+    ]);
   });
 
   it('refuses to silently truncate an oversized exam-plan result', async () => {
