@@ -165,6 +165,33 @@ Tell Claude when you're done, or which step didn't match.
 
 ---
 
+## Part K — Supabase for accounts (15 minutes, $0)
+
+Supabase holds student accounts and the database (ROADMAP Task 2). Free plan: two active projects, which is exactly
+ours. A free project pauses after a week without use; the roadmap's daily keep-alive covers that.
+
+1. Open https://supabase.com and click **Start your project** (or **Sign up**). Sign up with **email and password**,
+   using your **business Gmail**, never an address on cueory.app. Use a strong password from your password manager.
+2. Confirm the email Supabase sends you.
+3. Turn on two-factor login at https://supabase.com/dashboard/account/security with an authenticator app. **Add a
+   second, backup authenticator on a different device**: Supabase gives no recovery codes and can't restore an account
+   whose two-factor is lost.
+4. When it asks for an organization, name it `Cueory` and choose the **Free** plan ($0/month). If it ever asks for a
+   card, stop and tell Claude.
+5. Click **New project**:
+   - **Name:** `cueory-staging`.
+   - **Database Password:** click **Generate a password**, copy it, and save it in your password manager as
+     "cueory-staging database".
+   - **Region:** a **West US** region (closest to Arizona).
+   - Leave the other options as they are and click **Create new project**. It takes a minute or two.
+6. Repeat step 5 for `cueory-prod`, with a new generated password and the same region.
+7. Don't paste any password or key into a chat. When the account code is ready, Claude gives you the steps to put the
+   project addresses and keys into GitHub and Cloudflare settings, and to turn on Google sign-in.
+
+You should see both projects, `cueory-staging` and `cueory-prod`, on your Supabase dashboard.
+
+---
+
 ## If a release breaks the live site (2 minutes)
 
 A release is a pull request from `staging` into `main`. If the live site looks wrong after one, put the previous
