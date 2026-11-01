@@ -288,7 +288,7 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   without it. With the taller sections, the carousel's auto-advance now pauses only while a mouse rests on the cards or
   their buttons (or keyboard focus is inside), not anywhere over the section, which on a computer would have stopped it
   for good. Study screens are unchanged. Reason: Christian's request.
-- **D-54** Social links (Christian's change request, 2026-10-31, 1:15 pm). The footer and the bottom of the ☰ panel link
+- **D-54** (Addresses updated by D-65.) Social links (Christian's change request, 2026-10-31, 1:15 pm). The footer and the bottom of the ☰ panel link
   to Cueory's profiles, each as its platform's official one-color mark, opening in a new tab with `rel="noopener
   noreferrer"` and named for screen readers ("cueory on Instagram (opens in a new tab)"). The addresses live in
   `src/config/site.ts` (`socials`), and only filled-in ones show: Instagram, TikTok and YouTube (the defaults Christian
@@ -391,3 +391,9 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   connected the launch-updates panel says only "signups open soon."; the line about the emails comes with the form, so
   small grey lines never stack. The space between sections was already about 144 px on desktops, inside the 96 to
   160 px asked for, so it stays. Reason: Christian's request for a calmer page that looks expensive.
+- **D-65** Social profiles confirmed by Christian (2026-11-01): Instagram @cueory.app (not @cueory, so the earlier
+  instagram.com/cueory link was wrong and is fixed before release #37 goes live), TikTok @cueory, YouTube @cueory, X
+  @cueory, Pinterest cueoryapp and the Facebook page he linked. All six now show, each as its platform's one-color mark
+  from the pinned Simple Icons (Pinterest added; no new package). Only profile addresses are kept in
+  `src/config/site.ts`; account emails and passwords never go in the repository (a unit test checks the settings for
+  them). Reason: Christian's confirmation on the chat, 2026-11-01.
