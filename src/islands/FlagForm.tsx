@@ -88,7 +88,7 @@ function ReportForm({ page, itemId, itemVersion, signedIn, send }: Props) {
           this report includes this page's address ({page}){itemId !== undefined ? `, item ${itemId}` : ''}{itemVersion !== undefined ? `, version ${itemVersion}` : ''}.
         </p>
         {problemText('page')}{problemText('itemId')}{problemText('itemVersion')}
-        <button type="submit" disabled={pending} className={`${control} mt-4 bg-button text-on-button`}>{pending ? 'sending…' : 'send'}</button>
+        <button type="submit" aria-disabled={pending} className={`${control} mt-4 bg-button text-on-button aria-disabled:opacity-50`}>{pending ? 'sending…' : 'send'}</button>
       </form>}
       <button type="button" className={`${control} mt-3`} onClick={close}>close</button>
     </div>}
