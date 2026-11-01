@@ -222,6 +222,23 @@ describe('marketing background (D-41)', () => {
   ☰ side panel, account menu and the glassy hero button (D-46). They are see-through glass, so text is checked on the
   glass mixed over the worst page color behind it: the lightest point for light text, the darkest for dark text.
 */
+describe('home page polish (D-62)', () => {
+  it('gives frosted panels a 16 px radius and one soft shadow, and the glassy button a smaller one', () => {
+    expect(daytimeCss).toMatch(/--radius-xl:\s*1rem;/);
+    const shadow = (name: string) => new RegExp(`--${name}:\\s*([^;]+);`).exec(daytimeCss)![1]!;
+    // One layer: no comma outside the color's own parentheses.
+    for (const name of ['shadow-soft', 'shadow-button']) expect(shadow(name).replace(/\([^)]*\)/g, '')).not.toContain(',');
+    const blur = (value: string) => Number(/\s(\d+)px\s+rgb/.exec(value)![1]);
+    expect(blur(shadow('shadow-button'))).toBeLessThan(blur(shadow('shadow-soft')));
+  });
+
+  it('lets a section rise between 8 and 12 px as it fades in', () => {
+    const rise = Number(/--rise-reveal:\s*([\d.]+)rem;/.exec(daytimeCss)![1]) * 16;
+    expect(rise).toBeGreaterThanOrEqual(8);
+    expect(rise).toBeLessThanOrEqual(12);
+  });
+});
+
 describe('glass button and side panel (D-46)', () => {
   const toHex = (rgb: number[]) => `#${rgb.map((c) => Math.round(c).toString(16).padStart(2, '0')).join('')}`;
   const mix = (top: string, alpha: number, bottom: string) => {
