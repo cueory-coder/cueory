@@ -92,5 +92,9 @@ const searchTitle = isHome ? 'home' : title;
     </main>
     <SiteFooter />
     {showPromo && <PromoPanel />}
+    <!-- Offline copies of pages (ROADMAP Task 5): registers /sw.js after the page has loaded, in a built site only. -->
+    <script>
+      import '../scripts/offline';
+    </script>
   </body>
 </html>
