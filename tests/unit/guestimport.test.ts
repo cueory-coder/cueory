@@ -5,12 +5,12 @@ import type { Progress } from '../../src/scripts/progress';
 
 const TODAY = '2026-11-01';
 const YESTERDAY = '2026-10-31';
-const NEXT_KNOWN = '2026-11-04'; // today + 3 (STEPS[1])
+const NEXT_KNOWN = '2026-11-04'; // today + 3 (nextReview after one 'knew')
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-function knownSet(...ids: string[]): ReadonlySet<string> {
-  return new Set(ids);
+function idMap(...pairs: [string, string][]): ReadonlyMap<string, string> {
+  return new Map(pairs);
 }
 
 function progressWith(decks: Progress['decks']): Progress {
@@ -20,17 +20,18 @@ function progressWith(decks: Progress['decks']): Progress {
 // ── empty progress ────────────────────────────────────────────────────────────
 
 describe('empty progress', () => {
-  it('returns empty rows and skipped', () => {
-    const { rows, skipped } = importRows(emptyProgress(), new Set(), TODAY);
-    expect(rows).toHaveLength(0);
-    expect(skipped).toHaveLength(0);
+  it('returns empty rows, starred and skipped', () => {
+    const result = importRows(emptyProgress(), new Map(), TODAY);
+    expect(result.rows).toHaveLength(0);
+    expect(result.starred).toHaveLength(0);
+    expect(result.skipped).toHaveLength(0);
   });
 
-  it('returns empty rows when knownIds is empty but decks have cards', () => {
+  it('returns empty rows when idMap is empty but decks have cards', () => {
     const progress = progressWith({ deck1: { know: ['card-a'], learning: [], starred: [] } });
-    const { rows, skipped } = importRows(progress, new Set(), TODAY);
-    expect(rows).toHaveLength(0);
-    expect(skipped).toEqual(['card-a']);
+    const result = importRows(progress, new Map(), TODAY);
+    expect(result.rows).toHaveLength(0);
+    expect(result.skipped).toEqual(['card-a']);
   });
 });
 
@@ -40,25 +41,22 @@ describe('mixed deck', () => {
   const progress = progressWith({
     deck1: { know: ['card-know'], learning: ['card-learn'], starred: ['card-know'] },
   });
-  const known = knownSet('card-know', 'card-learn');
+  const map = idMap(['card-know', 'uuid-know'], ['card-learn', 'uuid-learn']);
 
   it('returns two rows', () => {
-    const { rows } = importRows(progress, known, TODAY);
-    expect(rows).toHaveLength(2);
+    expect(importRows(progress, map, TODAY).rows).toHaveLength(2);
   });
 
-  it('"know" card: level 1, last_reviewed today, next_review today+3', () => {
-    const { rows } = importRows(progress, known, TODAY);
-    const row = rows.find((r) => r.item_id === 'card-know');
+  it('"know" row: level 1, last_reviewed today, next_review today+3', () => {
+    const row = importRows(progress, map, TODAY).rows.find(r => r.item_id === 'uuid-know');
     expect(row).toBeDefined();
     expect(row!.level).toBe(1);
     expect(row!.last_reviewed).toBe(TODAY);
     expect(row!.next_review).toBe(NEXT_KNOWN);
   });
 
-  it('"learning" card: level 0, last_reviewed yesterday, next_review today', () => {
-    const { rows } = importRows(progress, known, TODAY);
-    const row = rows.find((r) => r.item_id === 'card-learn');
+  it('"learning" row: level 0, last_reviewed yesterday, next_review today', () => {
+    const row = importRows(progress, map, TODAY).rows.find(r => r.item_id === 'uuid-learn');
     expect(row).toBeDefined();
     expect(row!.level).toBe(0);
     expect(row!.last_reviewed).toBe(YESTERDAY);
@@ -66,90 +64,125 @@ describe('mixed deck', () => {
   });
 
   it('next_review > last_reviewed for all rows (migration constraint)', () => {
-    const { rows } = importRows(progress, known, TODAY);
-    for (const row of rows) {
+    for (const row of importRows(progress, map, TODAY).rows) {
       expect(row.next_review > row.last_reviewed).toBe(true);
     }
   });
 
-  it('star flag is true on the "know" card', () => {
-    const { rows } = importRows(progress, known, TODAY);
-    const row = rows.find((r) => r.item_id === 'card-know');
-    expect(row!.starred).toBe(true);
+  it('starred uuid appears in starred list', () => {
+    const result = importRows(progress, map, TODAY);
+    expect(result.starred).toContain('uuid-know');
+    expect(result.starred).not.toContain('uuid-learn');
   });
 
-  it('star flag is false on the unstarred "learning" card', () => {
-    const { rows } = importRows(progress, known, TODAY);
-    const row = rows.find((r) => r.item_id === 'card-learn');
-    expect(row!.starred).toBe(false);
-  });
-
-  it('skipped is empty when all ids are known', () => {
-    const { skipped } = importRows(progress, known, TODAY);
-    expect(skipped).toHaveLength(0);
+  it('skipped is empty when all ids are mapped', () => {
+    expect(importRows(progress, map, TODAY).skipped).toHaveLength(0);
   });
 });
 
 // ── unknown card ids ──────────────────────────────────────────────────────────
 
 describe('unknown card ids', () => {
-  it('cards not in knownIds go into skipped, not rows', () => {
+  it('cards not in idMap go into skipped, not rows', () => {
     const progress = progressWith({
       deck1: { know: ['card-a', 'card-b'], learning: ['card-c'], starred: [] },
     });
-    const { rows, skipped } = importRows(progress, knownSet('card-a'), TODAY);
-    expect(rows).toHaveLength(1);
-    expect(rows[0]!.item_id).toBe('card-a');
-    expect(skipped).toContain('card-b');
-    expect(skipped).toContain('card-c');
+    const result = importRows(progress, idMap(['card-a', 'uuid-a']), TODAY);
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]!.item_id).toBe('uuid-a');
+    expect(result.skipped).toContain('card-b');
+    expect(result.skipped).toContain('card-c');
   });
 
   it('unknown starred-only cards also land in skipped', () => {
-    const progress = progressWith({
-      deck1: { know: [], learning: [], starred: ['card-s'] },
-    });
-    const { rows, skipped } = importRows(progress, new Set(), TODAY);
-    expect(rows).toHaveLength(0);
-    expect(skipped).toContain('card-s');
+    const progress = progressWith({ deck1: { know: [], learning: [], starred: ['card-s'] } });
+    const result = importRows(progress, new Map(), TODAY);
+    expect(result.rows).toHaveLength(0);
+    expect(result.skipped).toContain('card-s');
   });
 });
 
 // ── starred-only cards ────────────────────────────────────────────────────────
 
 describe('starred-only cards', () => {
-  it('a card in starred but neither pile gets a row due today (level 0)', () => {
-    const progress = progressWith({
-      deck1: { know: [], learning: [], starred: ['card-star'] },
-    });
-    const { rows, skipped } = importRows(progress, knownSet('card-star'), TODAY);
-    expect(rows).toHaveLength(1);
-    expect(skipped).toHaveLength(0);
-    const row = rows[0]!;
-    expect(row.item_id).toBe('card-star');
+  it('a card in starred but neither pile gets a level-0 row due today', () => {
+    const progress = progressWith({ deck1: { know: [], learning: [], starred: ['card-star'] } });
+    const result = importRows(progress, idMap(['card-star', 'uuid-star']), TODAY);
+    expect(result.rows).toHaveLength(1);
+    expect(result.skipped).toHaveLength(0);
+    const row = result.rows[0]!;
+    expect(row.item_id).toBe('uuid-star');
     expect(row.level).toBe(0);
     expect(row.last_reviewed).toBe(YESTERDAY);
     expect(row.next_review).toBe(TODAY);
-    expect(row.starred).toBe(true);
+    expect(result.starred).toContain('uuid-star');
   });
 
-  it('a card in know AND starred is not duplicated', () => {
-    const progress = progressWith({
-      deck1: { know: ['card-x'], learning: [], starred: ['card-x'] },
-    });
-    const { rows } = importRows(progress, knownSet('card-x'), TODAY);
-    expect(rows).toHaveLength(1);
-    expect(rows[0]!.level).toBe(1);
-    expect(rows[0]!.starred).toBe(true);
+  it('a card in know AND starred is not duplicated; appears in starred list', () => {
+    const progress = progressWith({ deck1: { know: ['card-x'], learning: [], starred: ['card-x'] } });
+    const result = importRows(progress, idMap(['card-x', 'uuid-x']), TODAY);
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]!.level).toBe(1);
+    expect(result.starred).toContain('uuid-x');
   });
 
-  it('a card in learning AND starred is not duplicated', () => {
+  it('a card in learning AND starred is not duplicated; appears in starred list', () => {
+    const progress = progressWith({ deck1: { know: [], learning: ['card-y'], starred: ['card-y'] } });
+    const result = importRows(progress, idMap(['card-y', 'uuid-y']), TODAY);
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]!.level).toBe(0);
+    expect(result.starred).toContain('uuid-y');
+  });
+});
+
+// ── cross-deck deduplication ──────────────────────────────────────────────────
+
+describe('cross-deck deduplication', () => {
+  it('the same card in two decks produces one row at the higher level', () => {
     const progress = progressWith({
-      deck1: { know: [], learning: ['card-y'], starred: ['card-y'] },
+      deck1: { know: [], learning: ['card-x'], starred: [] },
+      deck2: { know: ['card-x'], learning: [], starred: [] },
     });
-    const { rows } = importRows(progress, knownSet('card-y'), TODAY);
-    expect(rows).toHaveLength(1);
-    expect(rows[0]!.level).toBe(0);
-    expect(rows[0]!.starred).toBe(true);
+    const result = importRows(progress, idMap(['card-x', 'uuid-x']), TODAY);
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]!.level).toBe(1); // know wins over learning
+  });
+});
+
+// ── invalid shapes ────────────────────────────────────────────────────────────
+
+describe('invalid deck shapes (graceful fallback)', () => {
+  it('non-array pile is treated as empty', () => {
+    const progress = progressWith({
+      deck1: { know: 'not-an-array' as unknown as string[], learning: [], starred: [] },
+    });
+    const result = importRows(progress, new Map(), TODAY);
+    expect(result.rows).toHaveLength(0);
+  });
+
+  it('null starred is treated as empty', () => {
+    const progress = progressWith({
+      deck1: { know: ['card-a'], learning: [], starred: null as unknown as string[] },
+    });
+    const result = importRows(progress, idMap(['card-a', 'uuid-a']), TODAY);
+    expect(result.rows).toHaveLength(1);
+    expect(result.starred).toHaveLength(0);
+  });
+});
+
+// ── today validation ──────────────────────────────────────────────────────────
+
+describe('today validation', () => {
+  it('throws on garbage today', () => {
+    expect(() => importRows(emptyProgress(), new Map(), 'garbage')).toThrow();
+  });
+
+  it('throws on a rolled-over date like 2026-02-31', () => {
+    expect(() => importRows(emptyProgress(), new Map(), '2026-02-31')).toThrow();
+  });
+
+  it('accepts a valid date without throwing', () => {
+    expect(() => importRows(emptyProgress(), new Map(), TODAY)).not.toThrow();
   });
 });
 
@@ -159,49 +192,45 @@ describe('pinned today', () => {
   const progress = progressWith({
     deck1: { know: ['c-know'], learning: ['c-learn'], starred: ['c-star'] },
   });
-  const known = knownSet('c-know', 'c-learn', 'c-star');
+  const map = idMap(['c-know', 'u-know'], ['c-learn', 'u-learn'], ['c-star', 'u-star']);
 
   it('know: next_review is pinned_today + 3', () => {
-    const { rows } = importRows(progress, known, '2024-03-15');
-    const row = rows.find((r) => r.item_id === 'c-know');
+    const row = importRows(progress, map, '2024-03-15').rows.find(r => r.item_id === 'u-know');
     expect(row!.last_reviewed).toBe('2024-03-15');
     expect(row!.next_review).toBe('2024-03-18');
   });
 
-  it('learning: next_review equals pinned today, last is yesterday', () => {
-    const { rows } = importRows(progress, known, '2024-03-15');
-    const row = rows.find((r) => r.item_id === 'c-learn');
+  it('learning: next_review equals pinned today', () => {
+    const row = importRows(progress, map, '2024-03-15').rows.find(r => r.item_id === 'u-learn');
     expect(row!.last_reviewed).toBe('2024-03-14');
     expect(row!.next_review).toBe('2024-03-15');
   });
 
   it('correctly crosses a month boundary', () => {
-    const { rows } = importRows(
-      progressWith({ d: { know: ['x'], learning: [], starred: [] } }),
-      knownSet('x'),
-      '2024-01-30',
-    );
-    expect(rows[0]!.next_review).toBe('2024-02-02');
+    const p = progressWith({ d: { know: ['x'], learning: [], starred: [] } });
+    const row = importRows(p, idMap(['x', 'u']), '2024-01-30').rows[0]!;
+    expect(row.next_review).toBe('2024-02-02');
   });
 
   it('correctly crosses a year boundary', () => {
-    const { rows } = importRows(
-      progressWith({ d: { know: ['x'], learning: [], starred: [] } }),
-      knownSet('x'),
-      '2024-12-30',
-    );
-    expect(rows[0]!.next_review).toBe('2025-01-02');
+    const p = progressWith({ d: { know: ['x'], learning: [], starred: [] } });
+    const row = importRows(p, idMap(['x', 'u']), '2024-12-30').rows[0]!;
+    expect(row.next_review).toBe('2025-01-02');
   });
 });
 
 // ── row shape ─────────────────────────────────────────────────────────────────
 
 describe('row shape', () => {
-  it('each row has exactly the five expected fields', () => {
+  it('each row has exactly the four database columns', () => {
     const progress = progressWith({ d: { know: ['c'], learning: [], starred: [] } });
-    const { rows } = importRows(progress, knownSet('c'), TODAY);
-    expect(Object.keys(rows[0]!).sort()).toEqual([
-      'item_id', 'last_reviewed', 'level', 'next_review', 'starred',
-    ]);
+    const { rows } = importRows(progress, idMap(['c', 'uuid-c']), TODAY);
+    expect(Object.keys(rows[0]!).sort()).toEqual(['item_id', 'last_reviewed', 'level', 'next_review']);
+  });
+
+  it('rows contain uuids from idMap, not card slugs', () => {
+    const progress = progressWith({ d: { know: ['my-card'], learning: [], starred: [] } });
+    const { rows } = importRows(progress, idMap(['my-card', '550e8400-e29b-41d4-a716-446655440000']), TODAY);
+    expect(rows[0]!.item_id).toBe('550e8400-e29b-41d4-a716-446655440000');
   });
 });
