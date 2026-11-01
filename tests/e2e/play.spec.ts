@@ -632,9 +632,9 @@ test.describe('daily games: private stats (D-76)', () => {
     await other.getByRole('button', { name: 'forget all my stats' }).click();
     await other.close();
 
-    // Panel loads; the forgotten round must not reappear when turning stats on.
+    // Panel loads with stats on (forgetAll keeps the key, just empties results).
+    // The pre-load round must not reappear — the panel shows on but empty.
     release();
-    await toggle(page).click();
     await expect(toggle(page)).toHaveAttribute('aria-checked', 'true');
     await expect(pulseStats(page)).toContainText('not played yet.');
     expect(JSON.parse((await kept(page))!).results).toEqual([]);
