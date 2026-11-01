@@ -145,6 +145,10 @@ Merged into `staging` tonight (pulse and sort were already live; the rest reache
 - Christian's decisions (D-80): the 3D atlas is BodyParts3D; OpenStax is link-only; releases stay manual.
 
 ## In review
+- Task 2, database step 5, the last (Task C6, D-88, stacked on #104): `flags` and `submit_flag`, with 44 database
+  tests. A signed-in student can send a "Flag or comment" report (5 an hour, 20 a day); the reports table is closed to
+  every website role and is read only in the locked `/admin` inbox (not built yet). It is signed-in only, which needs
+  Christian's confirmation (D-88). It edits `supabase/`, so it waits for him. Not pushed yet: waiting for #104 to merge.
 - Task 2, database step 4 (Task C6, D-87): `review_state` and `exam_plans`, with 47 database tests. Each student reads and
   writes only their own spaced-review progress and exam dates; the database refuses impossible values. It edits
   `supabase/`, so it waits for Christian. **Steps 1 to 3 are in `staging`** (#90, #92 and #94): concepts, sources and
