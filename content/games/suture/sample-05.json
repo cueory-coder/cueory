@@ -1,0 +1,100 @@
+{
+  "status": "sample",
+  "grid": [
+    "MONTH",
+    "WLIGY",
+    "EEKUE",
+    "DBCFA",
+    "AYPVR"
+  ],
+  "words": [
+    {
+      "cue": "about four weeks",
+      "answer": "MONTH",
+      "path": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          0,
+          3
+        ],
+        [
+          0,
+          4
+        ]
+      ]
+    },
+    {
+      "cue": "seven days",
+      "answer": "WEEK",
+      "path": [
+        [
+          1,
+          0
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ],
+        [
+          2,
+          2
+        ]
+      ]
+    },
+    {
+      "cue": "twelve months",
+      "answer": "YEAR",
+      "path": [
+        [
+          1,
+          4
+        ],
+        [
+          2,
+          4
+        ],
+        [
+          3,
+          4
+        ],
+        [
+          4,
+          4
+        ]
+      ]
+    },
+    {
+      "cue": "from morning to night",
+      "answer": "DAY",
+      "path": [
+        [
+          3,
+          0
+        ],
+        [
+          4,
+          0
+        ],
+        [
+          4,
+          1
+        ]
+      ]
+    }
+  ]
+}

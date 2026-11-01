@@ -143,11 +143,18 @@ function step(state: CuewordState, direction: Direction, delta: -1 | 1): Cueword
 
 export function type(state: CuewordState, letter: string): CuewordState {
   if (!/^[a-z]$/i.test(letter) || isSolved(state)) return state;
-  if (state.cued.includes(state.cell)) return state;
-  const entries = [...state.entries], checks = [...state.checks];
-  entries[state.cell] = letter.toUpperCase();
-  checks[state.cell] = undefined;
-  return step({ ...state, entries, checks }, state.direction, 1);
+  // A cued letter is locked. Typing on one moves on and types into the next open cell in the same direction, so the
+  // letter is never dropped (the director's review of #51); at the end of the row or column, nothing changes.
+  let at = state;
+  while (at.cued.includes(at.cell)) {
+    const next = step(at, at.direction, 1);
+    if (next.cell === at.cell) return state;
+    at = next;
+  }
+  const entries = [...at.entries], checks = [...at.checks];
+  entries[at.cell] = letter.toUpperCase();
+  checks[at.cell] = undefined;
+  return step({ ...at, entries, checks }, at.direction, 1);
 }
 
 export function erase(state: CuewordState): CuewordState {

@@ -90,6 +90,16 @@ export function editDistance(left: string, right: string): number {
   return distance[a.length]![b.length]!;
 }
 
+/**
+ * Whether a key press in the answer field should check the answer. Enter does, except while the visitor is composing
+ * text with an input method (Japanese, Chinese or Korean keyboards, for example), where Enter only confirms the word
+ * being written. Browsers can report `isComposing` as false on the last key of a composition but still give key code
+ * 229, so both are checked (MDN, "keydown events with IME").
+ */
+export function isCheckKey(press: { key: string; isComposing: boolean; keyCode: number }): boolean {
+  return press.key === 'Enter' && !press.isComposing && press.keyCode !== 229;
+}
+
 export function checkAnswer(typed: string, answer: string): AnswerResult {
   const given = normalizeAnswer(typed);
   const expected = normalizeAnswer(answer);
