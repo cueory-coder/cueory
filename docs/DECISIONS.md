@@ -449,3 +449,8 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   - **Next:** Christian picks final names later, after a screen.
 
   Reason: avoid launching under names others have filed for related goods.
+- **D-67** A guard for D-66: a unit test (`tests/unit/game-names.test.ts`) reads every page, component and island and
+  fails when one shows a game's internal id (`pulse`, `cueword`, `triage`, `suture`) as words, or types a game's name
+  into a share line ("cueory sort, …") instead of reading it with `gameName()`. Ids used as ids (content folders,
+  class names, test ids, imports) and comments are left alone. Reason: the names will change again, and builders work
+  in parallel, so a forgotten old name should fail CI instead of reaching a page.
