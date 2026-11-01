@@ -221,7 +221,8 @@ Merged into `staging`; the database one by the director on Christian's behalf (D
 ## In review
 - Task 47: flag inbox uses the real flags UUID columns and paired handling status/date; in review.
 - Open pull requests add their own lines here. Waiting now: study modes on pages (#77, held for Christian's choice
-  below), the review-clip exporter (#111, Tasks C7 and C10), the offline service worker (#135, Task C12, held for the
+  below), the review-clip exporter (#111, Tasks C7 and C10, latest `85f2930` — CSS url() quoting fix and pump heading
+  crop, awaiting CI + independent peer review), the offline service worker (#135, Task C12, held for the
   lead's fix), Release browser tests (#55) and the release into `main` (#132, for Christian).
 
 ## Queued (Christian's change requests on issue #4, in his order)
