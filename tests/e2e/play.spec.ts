@@ -96,6 +96,20 @@ test.describe('daily games: pulse (D-61)', () => {
   });
 });
 
+test.describe('daily games on the home page (D-61)', () => {
+  test('a calm section after "ways to study" leads to today\'s game', async ({ page }) => {
+    await page.goto('/');
+    const headings = await page.getByRole('heading', { level: 2 }).allTextContents();
+    expect(headings.indexOf('daily games')).toBe(headings.indexOf('ways to study') + 1);
+    const link = page.getByTestId('games-link');
+    await expect(link).toHaveText("play today's pulse");
+    await expect(link).toHaveAttribute('href', '/play');
+    await link.click();
+    await expect(page).toHaveURL(/\/play$/);
+    await expect(page.getByRole('heading', { level: 1, name: 'daily games' })).toBeVisible();
+  });
+});
+
 test.describe('daily games on a narrow phone', () => {
   test('at 320 px nothing scrolls sideways, and every letter button and guessed letter stays on screen', async ({
     page,

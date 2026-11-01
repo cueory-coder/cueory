@@ -84,7 +84,7 @@ Last updated: 2026-11-01
   slides down from the top after 5 seconds or halfway down the page, with "join the launch list", "support us while we
   build" and the social marks; once shown, it stays away for 30 days. Now on brand v1.0's colors.
 - Daily games, first part (D-61): `/play` with pulse, playable with labeled sample puzzles, and cueword, triage and
-  suture listed as coming soon; a link in the ☰ panel. It adds sample puzzles under `content/`, so it waits for
+  suture listed as coming soon; a link in the ☰ panel and a section on the home page after "ways to study". It adds sample puzzles under `content/`, so it waits for
   Christian's merge. How real puzzles reach the browser one day at a time is proposed in D-61 for Christian.
 
 ## Queued (Christian's change requests on issue #4, in his order)

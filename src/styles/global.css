@@ -179,6 +179,13 @@
     --scene-cross: 292deg;
   }
 
+  /* Daily games (D-61): Ivory, the folds steeper, light from the upper left. */
+  .scene-play {
+    --scene-light: 14% 6%;
+    --scene-angle: 196deg;
+    --scene-cross: 344deg;
+  }
+
   /* Launch updates: Ivory again, gentler folds, light from below on the left. The last scene fades into the footer. */
   .scene-low {
     --scene-light: 24% 100%;

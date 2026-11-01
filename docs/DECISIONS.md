@@ -383,8 +383,8 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   an endless merry-go-round that is never empty, and a calmer, less templated page.
 - **D-61** Daily games start with pulse on `/play` (Christian's request, 2026-10-31, 6:40 pm, item 4 of the lead's note
   on issue #4). `/play` lists the four games under working names kept in `src/config/games.ts` (pulse, cueword, triage,
-  suture), so a rename is one line; the ☰ panel links to it, and the home page section follows once brand v1.0 is in
-  (`index.astro` is held for it). pulse is playable now with ten labeled sample puzzles of everyday words
+  suture), so a rename is one line; the ☰ panel links to it, and the home page has a calm section of its own right
+  after "ways to study" (a silk scene, `scene-play`: the heading, one line and "play today's pulse"). pulse is playable now with ten labeled sample puzzles of everyday words
   (`content/games/pulse/`, checked by the content config). Its own rules: the word runs five to seven letters; there are
   seven beats; a guess spends one, and the day's cue spends one (never the last); each letter is marked in place
   (filled, ●), elsewhere in the word (ringed, ○) or not in it (plain, ·), in words for screen readers too, never by color

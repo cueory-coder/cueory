@@ -802,7 +802,7 @@ test.describe('silk scenes down the home page (D-53)', () => {
         };
       }),
     );
-    expect(scenes.map((scene) => scene.kind)).toEqual(['scene-hero', 'scene-tint', 'scene-low']);
+    expect(scenes.map((scene) => scene.kind)).toEqual(['scene-hero', 'scene-tint', 'scene-play', 'scene-low']);
     for (const scene of scenes) expect(scene).toMatchObject({ drawn: true, behind: '-20', fades: true });
 
     // Calm, not a template (D-60): no numbered labels, no figure caption, no rhythm line.
@@ -843,7 +843,7 @@ test.describe('silk scenes down the home page (D-53)', () => {
       }
       return { bands: bands.length, hits };
     });
-    expect(covered.bands).toBe(3);
+    expect(covered.bands).toBe(4);
     expect(covered.hits).toEqual([]);
   });
 });
