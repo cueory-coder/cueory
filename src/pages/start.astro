@@ -1,0 +1,21 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Onboarding from '../islands/Onboarding';
+---
+
+<Layout title="get started" promo={false} description="Two optional questions so cueory can pace your reviews. Answers stay on your device.">
+  <div class="mx-auto max-w-prose pt-8">
+    <h1 class="text-2xl">get started</h1>
+    <p class="mt-3 text-ink-soft">
+      two optional questions. your answers stay in this browser and are never sent to cueory.
+    </p>
+
+    <div class="mt-10">
+      {/* client:only: the answers are read from and saved to this browser, so there is nothing to pre-render. */}
+      <Onboarding client:only="react" />
+      <noscript>
+        <p>these questions need javascript turned on. you can still <a href="/learn/study-skills">start studying</a> without them.</p>
+      </noscript>
+    </div>
+  </div>
+</Layout>

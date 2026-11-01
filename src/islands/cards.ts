@@ -6,6 +6,7 @@
  * Cards are referred to by their index in the deck.
  */
 
+import { legacyStarsKey, loadDeckStars, saveDeckStars } from '../scripts/progress';
 import type { KeyValueStorage } from '../scripts/storage';
 
 export type Pile = 'know' | 'learning';
@@ -134,28 +135,17 @@ export function starredIndexes(cards: readonly { id: string }[], starred: Readon
 }
 
 /**
- * Stars are kept in the browser's local storage, one entry per deck, and never sent to us (D-37). The value is a JSON
- * list of card ids. If storage is missing or blocked, stars last until the page is closed.
+ * Stars are kept on this device in the guest-progress record (src/scripts/progress.ts, D-69), never sent to us. Stars
+ * saved before D-69 under one key per deck are still read, and moved into the record the next time stars change. If
+ * storage is missing or blocked, stars last until the page is closed.
  */
-export const starsStorageKey = (deckId: string) => `cueory-stars-${deckId}`;
+export const starsStorageKey = legacyStarsKey;
 
 /** Saved stars for a deck. Anything unreadable is ignored, and so are ids of cards no longer in the deck. */
 export function loadStars(storage: KeyValueStorage | undefined, deckId: string, cardIds: readonly string[]): Set<string> {
-  try {
-    const saved: unknown = JSON.parse(storage?.getItem(starsStorageKey(deckId)) ?? '[]');
-    if (!Array.isArray(saved)) return new Set();
-    const known = new Set(cardIds);
-    return new Set(saved.filter((id): id is string => typeof id === 'string' && known.has(id)));
-  } catch {
-    return new Set();
-  }
+  return loadDeckStars(storage, deckId, cardIds);
 }
 
 export function saveStars(storage: KeyValueStorage | undefined, deckId: string, starred: ReadonlySet<string>): void {
-  try {
-    if (starred.size === 0) storage?.removeItem(starsStorageKey(deckId));
-    else storage?.setItem(starsStorageKey(deckId), JSON.stringify([...starred].sort()));
-  } catch {
-    // Not remembered; the stars still work until the page is closed.
-  }
+  saveDeckStars(storage, deckId, starred);
 }

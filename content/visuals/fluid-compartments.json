@@ -12,7 +12,21 @@
     { "id": "transcellular", "text": "transcellular fluid", "source": "orn-15-2-transcellular" },
     { "id": "icf-share", "text": "60% of the volume of body fluids", "source": "orn-15-2-icf-share" },
     { "id": "icf-electrolyte", "text": "most abundant electrolyte: potassium", "source": "orn-15-2-icf-potassium" },
-    { "id": "ecf-electrolyte", "text": "most abundant electrolyte: sodium", "source": "orn-15-2-ecf-sodium" }
+    { "id": "ecf-electrolyte", "text": "most abundant electrolyte: sodium", "source": "orn-15-2-ecf-sodium" },
+    { "id": "icf-short", "text": "ICF", "source": "orn-15-2-icf" },
+    { "id": "ecf-short", "text": "ECF", "source": "orn-15-2-ecf" },
+    { "id": "icf-protein", "text": "protein", "source": "orn-15-2-icf" },
+    { "id": "icf-water", "text": "water", "source": "orn-15-2-icf" },
+    { "id": "icf-electrolytes", "text": "electrolytes", "source": "orn-15-2-icf" },
+    { "id": "icf-solutes", "text": "solutes", "source": "orn-15-2-icf" },
+    { "id": "blood-rbc", "text": "red blood cells", "source": "orn-15-2-intravascular" },
+    { "id": "blood-wbc", "text": "white blood cells", "source": "orn-15-2-intravascular" },
+    { "id": "blood-plasma", "text": "plasma", "source": "orn-15-2-intravascular" },
+    { "id": "blood-platelets", "text": "platelets", "source": "orn-15-2-intravascular" },
+    { "id": "area-cerebrospinal", "text": "cerebrospinal", "source": "orn-15-2-transcellular" },
+    { "id": "area-synovial", "text": "synovial", "source": "orn-15-2-transcellular" },
+    { "id": "area-intrapleural", "text": "intrapleural", "source": "orn-15-2-transcellular" },
+    { "id": "area-gi", "text": "gastrointestinal system", "source": "orn-15-2-transcellular" }
   ],
   "depictions": [
     {
