@@ -579,8 +579,11 @@ const count = studyModes.length;
           const items = [...dialog.querySelectorAll<HTMLElement>('a[href]:not([hidden]), button:not([hidden])')].filter(
             (item) => !item.classList.contains('invisible'),
           );
-          const target = wrapFocus(items.indexOf(document.activeElement as HTMLElement), items.length, event.shiftKey);
-          if (target !== undefined) {
+          const index = items.indexOf(document.activeElement as HTMLElement);
+          // Safari's own Tab skips links and buttons unless the visitor changed its setting, which would carry focus
+          // out of the preview; so every Tab step is taken here, one item at a time, in every browser.
+          const target = wrapFocus(index, items.length, event.shiftKey) ?? index + (event.shiftKey ? -1 : 1);
+          if (items.length > 0) {
             event.preventDefault();
             items[target]?.focus();
           }
