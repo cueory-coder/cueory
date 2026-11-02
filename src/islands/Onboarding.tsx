@@ -4,21 +4,33 @@ import { browserStorage } from '../scripts/storage';
 
 const primaryButton = 'min-h-11 rounded-pill bg-button px-5 py-2.5 text-on-button hover:bg-button-hover';
 const quietButton = 'min-h-11 rounded-pill px-3 py-2.5 text-ink-soft underline';
+const TOTAL_QUESTIONS = 2;
 
 /**
- * Two optional setup questions (D-69): which course, and the exam date. Every question can be left blank, and "skip"
- * saves nothing but "done". Answers stay in this browser (src/scripts/progress.ts). Lowercase voice (D-47).
- * Rendered only in the browser (client:only); the page explains this without JavaScript.
+ * D-69's two optional answers, shown one question per screen (Task 108).
+ * Navigation is local UI state. Only finishing writes cueory-progress, and
+ * "skip for now" re-reads the current storage record to prevent restoring
+ * answers forgotten in another tab.
  */
 export default function Onboarding() {
   const [storage] = useState(browserStorage);
   const [saved] = useState(() => readProgress(storage).onboarding);
   const [course, setCourse] = useState<string>(saved.course ?? '');
   const [examDate, setExamDate] = useState(saved.examDate ?? '');
+  const [step, setStep] = useState<0 | 1>(0);
   const [dateProblem, setDateProblem] = useState('');
   const [result, setResult] = useState<'saved' | 'skipped' | 'not-kept' | null>(null);
   const resultRef = useRef<HTMLDivElement>(null);
+  const courseLegendRef = useRef<HTMLLegendElement>(null);
+  const dateHeadingRef = useRef<HTMLHeadingElement>(null);
   const dateRef = useRef<HTMLInputElement>(null);
+
+  const focusQuestion = (next: 0 | 1) => {
+    setStep(next);
+    requestAnimationFrame(() => {
+      (next === 0 ? courseLegendRef.current : dateHeadingRef.current)?.focus();
+    });
+  };
 
   const finish = (answers: { course: string; examDate: string }, outcome: 'saved' | 'skipped') => {
     const kept = saveProgress(storage, withOnboarding(readProgress(storage), answers));
@@ -26,8 +38,7 @@ export default function Onboarding() {
     requestAnimationFrame(() => resultRef.current?.focus());
   };
 
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
+  const saveAnswers = () => {
     if (examDate && !isExamDate(examDate)) {
       setDateProblem('that date doesn’t look right. use the date picker, or leave it blank.');
       dateRef.current?.focus();
@@ -35,6 +46,31 @@ export default function Onboarding() {
     }
     setDateProblem('');
     finish({ course, examDate }, 'saved');
+  };
+
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (step === 0) focusQuestion(1);
+    else saveAnswers();
+  };
+
+  const skipQuestion = () => {
+    if (step === 0) {
+      // Only this answer is cleared. The exam-date answer stays in state.
+      setCourse('');
+      focusQuestion(1);
+    } else {
+      setExamDate('');
+      setDateProblem('');
+      finish({ course, examDate: '' }, 'saved');
+    }
+  };
+
+  const skipForNow = () => {
+    // Read when clicked, not when the form mounted. A second tab may have
+    // forgotten all progress while this screen stayed open.
+    const fresh = readProgress(storage).onboarding;
+    finish({ course: fresh.course ?? '', examDate: fresh.examDate ?? '' }, 'skipped');
   };
 
   if (result) {
@@ -60,74 +96,117 @@ export default function Onboarding() {
   }
 
   return (
-    <form onSubmit={submit} noValidate className="space-y-section">
-      <fieldset>
-        <legend className="text-lg">which course are you studying for?</legend>
-        <p className="mt-1 text-sm text-ink-soft">optional.</p>
-        <div className="mt-4 flex flex-col gap-2">
-          {[...COURSES, { id: '', label: 'not sure yet' }].map((option) => (
-            <label key={option.id || 'none'} className="flex min-h-11 items-center gap-3">
-              <input
-                type="radio"
-                name="course"
-                value={option.id}
-                checked={course === option.id}
-                onChange={() => setCourse(option.id)}
-                className="size-4 accent-button"
-              />
-              {option.label}
-            </label>
+    <form onSubmit={submit} noValidate className="space-y-stack">
+      <div className="flex flex-col gap-3">
+        <p className="text-sm font-medium text-ink-soft" aria-live="polite" data-testid="setup-step">
+          question {step + 1} of {TOTAL_QUESTIONS}
+        </p>
+        <div aria-hidden="true" className="flex items-center gap-2">
+          {[0, 1].map((index) => (
+            <span
+              key={index}
+              className={`block size-3 rounded-pill ${step === index ? 'bg-ink' : 'bg-soft'}`}
+            />
           ))}
         </div>
-      </fieldset>
-
-      <div>
-        <label htmlFor="exam-date" className="text-lg">when is your exam?</label>
-        <p id="exam-date-help" className="mt-1 text-sm text-ink-soft">
-          optional. later, reviews will be paced to this date.
-        </p>
-        <input
-          ref={dateRef}
-          id="exam-date"
-          type="date"
-          min="2000-01-01"
-          max="2100-12-31"
-          value={examDate}
-          onChange={(event) => setExamDate(event.currentTarget.value)}
-          aria-describedby={dateProblem ? 'exam-date-help exam-date-problem' : 'exam-date-help'}
-          aria-invalid={dateProblem ? true : undefined}
-          className="mt-3 block min-h-11 rounded-md border border-control bg-page px-3 text-ink"
-        />
-        {dateProblem && <p id="exam-date-problem" className="mt-2 text-sm">{dateProblem}</p>}
-        {examDate && (
-          <button
-            type="button"
-            onClick={() => {
-              setExamDate('');
-              // This button disappears once the date is empty, so focus goes back to the date field.
-              dateRef.current?.focus();
-            }}
-            className={`${quietButton} mt-2`}
-          >
-            clear the date
-          </button>
-        )}
       </div>
 
-      <div className="flex flex-wrap gap-3">
-        <button type="submit" className={primaryButton}>save my answers</button>
-        <button
-          type="button"
-          onClick={() => {
-            // Re-read storage at click time so a cross-tab forget is not undone by stale mount-time answers.
-            const fresh = readProgress(storage).onboarding;
-            finish({ course: fresh.course ?? '', examDate: fresh.examDate ?? '' }, 'skipped');
+      {step === 0 ? (
+        <fieldset
+          className="space-y-4"
+          onKeyDown={(event) => {
+            // Enter advances from a selected radio. Arrow keys continue to
+            // change the selection using the browser's normal radio behavior.
+            if (event.key === 'Enter' && event.target instanceof HTMLInputElement && event.target.type === 'radio') {
+              event.preventDefault();
+              focusQuestion(1);
+            }
           }}
-          className={quietButton}
         >
-          skip for now
+          <legend ref={courseLegendRef} tabIndex={-1} className="text-xl font-medium">
+            which course are you studying for?
+          </legend>
+          <p className="text-sm text-ink-soft">optional.</p>
+          <div className="grid gap-3">
+            {[...COURSES, { id: '', label: 'not sure yet' }].map((option) => (
+              <label
+                key={option.id || 'none'}
+                className={`flex min-h-14 cursor-pointer items-center gap-4 rounded-xl border p-4 ${
+                  course === option.id ? 'border-button bg-surface' : 'border-control bg-page'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="course"
+                  value={option.id}
+                  checked={course === option.id}
+                  onChange={() => setCourse(option.id)}
+                  className="size-5 accent-button"
+                />
+                <span className="font-medium">{option.label}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      ) : (
+        <section className="space-y-4" aria-labelledby="exam-question">
+          <h2 ref={dateHeadingRef} tabIndex={-1} id="exam-question" className="text-xl font-medium">
+            when is your exam?
+          </h2>
+          <p id="exam-date-help" className="text-sm text-ink-soft">
+            optional. later, reviews will be paced to this date.
+          </p>
+          <input
+            ref={dateRef}
+            id="exam-date"
+            type="date"
+            min="2000-01-01"
+            max="2100-12-31"
+            value={examDate}
+            onChange={(event) => { setExamDate(event.currentTarget.value); setDateProblem(''); }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                saveAnswers();
+              }
+            }}
+            aria-labelledby="exam-question"
+            aria-describedby={dateProblem ? 'exam-date-help exam-date-problem' : 'exam-date-help'}
+            aria-invalid={dateProblem ? true : undefined}
+            className="block min-h-14 w-full rounded-xl border border-control bg-page px-4 text-ink"
+          />
+          {dateProblem && <p id="exam-date-problem" className="text-sm" role="alert">{dateProblem}</p>}
+          {examDate && (
+            <button
+              type="button"
+              onClick={() => {
+                setExamDate('');
+                setDateProblem('');
+                // This button disappears after clearing; restore focus to the date field.
+                dateRef.current?.focus();
+              }}
+              className={quietButton}
+            >
+              clear the date
+            </button>
+          )}
+        </section>
+      )}
+
+      <div className="flex flex-wrap items-center gap-3">
+        {step === 0 ? (
+          <a href="/" className={quietButton}>back</a>
+        ) : (
+          <button type="button" onClick={() => focusQuestion(0)} className={quietButton}>back</button>
+        )}
+        <button type="button" onClick={skipQuestion} className={quietButton}>skip</button>
+        <button type="submit" className={primaryButton}>
+          {step === 0 ? 'continue' : 'save my answers'}
         </button>
       </div>
+      <button type="button" onClick={skipForNow} className={`${quietButton} block`}>
+        skip for now
+      </button>
     </form>
   );
 }
