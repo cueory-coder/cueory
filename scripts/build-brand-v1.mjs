@@ -39,8 +39,7 @@ const PAIRINGS = {
 
 /**
  * The approved families the site uses (guide §3.4) and the widths we serve: they cover the sizes on the site at 1x to
- * 3x, and none is wider than the artwork in its source. The cruet alone is not exported yet: its files draw it only
- * about 135 px wide, too small to compare or to scale up, and the site has no use for it yet (guide §8.2 ideas).
+ * 3x, and none is wider than the artwork in its source (the script stops if one would be: nothing is scaled up).
  */
 const FAMILIES = [
   {
@@ -60,6 +59,19 @@ const FAMILIES = [
     // The dark file draws the emblem only 348 px wide; the light file draws the same emblem 1,824 px wide. Both
     // palettes use the light file's drawing (only the color changes, guide §4.5), so the icons stay sharp.
     drawing: 'light',
+  },
+  {
+    name: 'cruet',
+    role: 'The cruet alone: a small supporting mark, never the only identifier (pillo game mark, Task 138)',
+    sources: { light: 'cueory_cruet_light_logo.png', dark: 'cueory_cruet_dark_logo.png' },
+    // Its files draw it only about 135 px wide, so the widest copy stays under that. pillo shows it about 10 to 13 px
+    // wide, so these cover 1x to 3x and more.
+    widths: [32, 64, 128],
+    // The two files are not the same drawing: the dark file draws the handle as one thick loop and stripes the neck
+    // (about 74% overlap), while the light file matches the cruet in the approved emblem. Both palettes use the light
+    // file's drawing (only the color changes, guide §4.5), and the script checks it against the emblem's cruet instead.
+    drawing: 'light',
+    sameAs: { file: 'cueory_letter_Light_logo.png', part: 'the cruet in the approved emblem (all but the c)' },
   },
 ];
 
@@ -132,6 +144,42 @@ function boundingBox({ amount, width, height }) {
   }
   if (right < 0) throw new Error('no artwork found');
   return { left, top, width: right - left + 1, height: bottom - top + 1 };
+}
+
+/** The emblem's cruet: its ink without the largest connected shape, which is the c. */
+function withoutLargestShape(cover) {
+  const { width, height, amount } = cover;
+  const label = new Int32Array(width * height).fill(-1);
+  const sizes = [];
+  const stack = [];
+  for (let start = 0; start < amount.length; start += 1) {
+    if (amount[start] <= 0 || label[start] >= 0) continue;
+    const id = sizes.length;
+    let size = 0;
+    label[start] = id;
+    stack.push(start);
+    while (stack.length > 0) {
+      const p = stack.pop();
+      size += 1;
+      const x = p % width;
+      const y = (p - x) / width;
+      for (let dy = -1; dy <= 1; dy += 1) {
+        for (let dx = -1; dx <= 1; dx += 1) {
+          const xx = x + dx;
+          const yy = y + dy;
+          if (xx < 0 || yy < 0 || xx >= width || yy >= height) continue;
+          const q = yy * width + xx;
+          if (amount[q] > 0 && label[q] < 0) {
+            label[q] = id;
+            stack.push(q);
+          }
+        }
+      }
+    }
+    sizes.push(size);
+  }
+  const largest = sizes.indexOf(Math.max(...sizes));
+  return { ...cover, amount: amount.map((v, p) => (label[p] === largest ? 0 : v)) };
 }
 
 /** The ink as one brand color with coverage as transparency, cropped to the artwork, as a sharp image. */
@@ -224,6 +272,9 @@ async function overlap(a, b) {
   return best;
 }
 
+/** The coverage map a family's drawing comes from (both palettes use it when the family names one). */
+const drawnFrom = (family, light, dark) => ((family.drawing ?? 'light') === 'light' ? light : dark);
+
 const checkOnly = process.argv.includes('--check');
 const manifest = {
   brand: 'cueory',
@@ -255,14 +306,20 @@ for (const family of FAMILIES) {
   const dark = await coverage(family.sources.dark, PAIRINGS.dark);
   const lightBox = boundingBox(light);
   const darkBox = boundingBox(dark);
-  const same = await overlap(light, dark);
+  const darkFile = await overlap(light, dark);
+  // Usually the other palette's file is the check. A family with sameAs is checked against approved artwork instead.
+  const reference = family.sameAs
+    ? withoutLargestShape(await coverage(family.sameAs.file, PAIRINGS.light))
+    : undefined;
+  const same = reference ? await overlap(drawnFrom(family, light, dark), reference) : darkFile;
   const aspect = (box) => (box.width / box.height).toFixed(3);
   const touches = (box, cover) =>
     box.left === 0 || box.top === 0 || box.left + box.width === cover.width || box.top + box.height === cover.height;
   console.log(
     `${family.name}: light ${lightBox.width}x${lightBox.height} (aspect ${aspect(lightBox)}${touches(lightBox, light) ? ', TOUCHES EDGE' : ''}), ` +
       `dark ${darkBox.width}x${darkBox.height} (aspect ${aspect(darkBox)}${touches(darkBox, dark) ? ', TOUCHES EDGE' : ''}), ` +
-      `same geometry ${(same * 100).toFixed(1)}%`,
+      `same geometry ${(darkFile * 100).toFixed(1)}%` +
+      (reference ? `; ${family.drawing} drawing vs ${family.sameAs.part}: ${(same * 100).toFixed(1)}%` : ''),
   );
   if (same < SAME_DRAWING) {
     throw new Error(`${family.name}: the Daytime and Evening files are different drawings; ask Christian (guide §2.1)`);
@@ -280,6 +337,10 @@ for (const family of FAMILIES) {
     sources: family.sources,
     drawing: family.drawing ? `both palettes from ${family.sources[family.drawing]}` : 'each palette from its own file',
     overlap: Number(same.toFixed(3)),
+    ...(family.sameAs && {
+      overlapWith: `${family.sameAs.part}, ${family.sameAs.file}`,
+      darkFileOverlap: Number(darkFile.toFixed(3)),
+    }),
     files: {},
   };
   for (const mode of ['light', 'dark']) {

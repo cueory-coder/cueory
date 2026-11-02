@@ -1,0 +1,55 @@
+---
+/**
+ * pillo's game mark (Task 138, Christian's approval 2026-11-02): the name "pillo" in Bodoni Moda with the brand cruet
+ * at its top right, as in the approved mockup (docs/screenshots/approved-2026-11-01/pillo-logo.jpg). The name is the
+ * text, so screen readers and the heading read "pillo"; the cruet is decorative, a supporting mark that is never the
+ * only identifier (brand guide §3.4, §11).
+ *
+ * The cruet is Christian's artwork, built by scripts/build-brand-v1.mjs (never redrawn): Espresso art in the Daytime
+ * palette, Ivory art in the Evening palette. Both are in the page and global.css (.logo-day, .logo-evening) shows the
+ * one that matches, as in Wordmark.astro. Its size comes from the name's font size (tokens.css, --pillo-cruet).
+ */
+interface Props {
+  /** The game's name, from src/config/games.ts. */
+  name: string;
+  /** How wide the cruet shows, so the browser picks the right file (the img `sizes` attribute). */
+  sizes?: string;
+}
+
+const art = { name: 'cruet', widths: [32, 64, 128], width: 128, height: 116 } as const;
+const { name, sizes = '0.875rem' } = Astro.props;
+const path = (mode: 'light' | 'dark', width: number) => `/brand/v1/${art.name}-${mode}-${width}.png`;
+const srcset = (mode: 'light' | 'dark') => art.widths.map((width) => `${path(mode, width)} ${width}w`).join(', ');
+---
+
+<span class="inline-flex items-start" data-testid="pillo-title">
+  {name}
+  <span
+    class="logo ms-(--pillo-cruet-gap) mt-(--pillo-cruet-rise) w-(--pillo-cruet) shrink-0"
+    aria-hidden="true"
+    data-testid="pillo-cruet"
+  >
+    <img
+      class="logo-day"
+      src={path('light', art.widths[0])}
+      srcset={srcset('light')}
+      sizes={sizes}
+      width={art.width}
+      height={art.height}
+      alt=""
+      decoding="async"
+      draggable="false"
+    />
+    <img
+      class="logo-evening"
+      src={path('dark', art.widths[0])}
+      srcset={srcset('dark')}
+      sizes={sizes}
+      width={art.width}
+      height={art.height}
+      alt=""
+      decoding="async"
+      draggable="false"
+    />
+  </span>
+</span>

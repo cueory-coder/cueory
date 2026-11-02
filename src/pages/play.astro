@@ -11,6 +11,7 @@ import TriageGame from '../islands/TriageGame';
 import CuewordToday from '../islands/CuewordToday';
 import SutureToday from '../islands/SutureToday';
 import GameStatsPanel from '../islands/GameStatsPanel';
+import PilloTitle from '../components/PilloTitle.astro';
 import { parsePuzzle } from '../islands/cueword';
 import { parsePuzzle as parseWordPath } from '../islands/suture';
 import { dailyGames } from '../config/games';
@@ -56,7 +57,7 @@ const later = dailyGames.filter((game) => !game.ready);
     </p>
 
     <section class="mt-12" aria-labelledby="pulse-heading">
-      <h2 id="pulse-heading" class="text-2xl font-medium">{pulse.name}</h2>
+      <h2 id="pulse-heading" class="display text-2xl sm:text-3xl"><PilloTitle name={pulse.name} /></h2>
       <p class="mt-2 text-ink-soft">{pulse.line}</p>
       <p class="mt-1 text-sm text-ink-soft" data-testid="sample-note">today's word is a sample.</p>
       <div class="mt-6">
