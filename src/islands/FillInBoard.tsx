@@ -1,7 +1,10 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { attachResumeLifecycle, clearResume, readResume, saveResume, type ResumeDraft, type ResumeSnapshot } from '../scripts/resume';
+import { browserStorage } from '../scripts/storage';
+import ResumePrompt from './ResumePrompt';
 import {
   answerCurrent, currentIndex, isCheckKey, nextItem, normalizeAnswer, parseItems, sentenceParts, showHint,
-  startFillIn, summary, type FillInItem,
+  startFillIn, summary, type FillInItem, type FillInState,
 } from './fillin';
 
 interface Props { items: FillInItem[] }
@@ -9,6 +12,89 @@ interface Props { items: FillInItem[] }
 const primaryButton =
   'min-h-11 rounded-pill bg-button px-5 py-2.5 text-on-button hover:bg-button-hover disabled:opacity-50';
 const secondaryButton = 'min-h-11 rounded-pill border border-control px-5 py-2.5 text-ink disabled:opacity-50';
+const FILL_IN_PAGE = '/learn/study-skills/fill-in';
+
+/** Sample content IDs can themselves reveal the blank's answer. Store opaque positions instead. */
+const itemKey = (index: number) => `item-${index}`;
+type Attempts = Record<string, string[]>;
+
+/** Only typed submissions and whether the student used a hint are saved. */
+function fillInDraft(items: readonly FillInItem[], state: FillInState, attempts: Attempts, moves: number): ResumeDraft | null {
+  if (!items.length) return null;
+  const index = currentIndex(state) ?? items.length - 1;
+  return {
+    tool: 'fill-in', page: FILL_IN_PAGE, step: `advance-${moves}`,
+    itemIndex: index, ...(state.done ? {} : { itemId: itemKey(index) }),
+    totalItems: items.length,
+    answers: Object.fromEntries(Object.entries(attempts).map(([key, entries]) => [key, [...entries]])),
+    timer: null, phase: state.done ? 'results' : 'working',
+  };
+}
+
+/**
+ * Replay only the student's typed submissions through the existing rules. Never
+ * trust a saved verdict, sentence, answer key, item ID or arbitrary engine state.
+ * Multiple attempts on the same item also support close spelling and later rounds.
+ */
+function restoreFillIn(items: readonly FillInItem[], snapshot: ResumeSnapshot): {
+  state: FillInState; typed: string; attempts: Attempts; moves: number;
+} | null {
+  if (snapshot.tool !== 'fill-in' || snapshot.page !== FILL_IN_PAGE || snapshot.module !== undefined ||
+      snapshot.timer !== null || !items.length || snapshot.totalItems !== items.length) return null;
+  const marker = /^advance-(0|[1-9]\d*)$/.exec(snapshot.step ?? '');
+  if (!marker) return null;
+  const moves = Number(marker[1]);
+  if (!Number.isSafeInteger(moves) || moves > 2000) return null;
+
+  const attempts: Attempts = {};
+  let count = 0;
+  for (const [key, submitted] of Object.entries(snapshot.answers)) {
+    const match = /^item-(0|[1-9]\d*)$/.exec(key);
+    if (!match || Number(match[1]) >= items.length || !Array.isArray(submitted)) return null;
+    const entries: string[] = [];
+    for (const raw of submitted) {
+      if (typeof raw !== 'string' || !/^[nh]:/.test(raw) ||
+          normalizeAnswer(raw.slice(2)) === '' || [...raw].length > 500) return null;
+      entries.push(raw);
+      if (++count > 1000) return null;
+    }
+    if (!entries.length) return null;
+    attempts[key] = entries;
+  }
+
+  let state = startFillIn(items);
+  const used = new Map<string, number>();
+  let advancesLeft = moves;
+  let typed = '';
+  let operations = 0;
+  while (!state.done && ++operations <= 3000) {
+    const current = currentIndex(state);
+    if (current === undefined) return null;
+    const key = itemKey(current);
+    const entries = attempts[key] ?? [];
+    let offset = used.get(key) ?? 0;
+    while (offset < entries.length && state.result !== 'right' && state.result !== 'wrong') {
+      const attempt = entries[offset++]!;
+      if (attempt.startsWith('h:')) state = showHint(state);
+      const checked = answerCurrent(state, items, attempt.slice(2));
+      if (checked === state) return null;
+      state = checked;
+      typed = attempt.slice(2);
+    }
+    used.set(key, offset);
+    if (advancesLeft === 0) break;
+    if (state.result !== 'right' && state.result !== 'wrong') return null;
+    state = nextItem(state);
+    advancesLeft--;
+    typed = '';
+  }
+  if (operations > 3000 || advancesLeft !== 0) return null;
+  if (Object.entries(attempts).some(([key, entries]) => used.get(key) !== entries.length)) return null;
+  const expected = fillInDraft(items, state, attempts, moves);
+  if (!expected || expected.itemIndex !== snapshot.itemIndex || expected.itemId !== snapshot.itemId ||
+      expected.phase !== snapshot.phase) return null;
+  return { state, typed, attempts, moves };
+}
 
 /** The key starts a fresh session when a parent replaces the items. */
 export default function FillInBoard(props: Props) {
@@ -20,6 +106,13 @@ function Session({ items: suppliedItems }: Props) {
   const [state, setState] = useState(() => startFillIn(items));
   const [typed, setTyped] = useState('');
   const [focusInput, setFocusInput] = useState(0);
+  const [resumePending, setResumePending] = useState(() => {
+    const saved = readResume(browserStorage());
+    return saved?.tool === 'fill-in' && saved.page === FILL_IN_PAGE;
+  });
+  const attempts = useRef<Attempts>({});
+  const moves = useRef(0);
+  const latestDraft = useRef<ResumeDraft | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const nextButton = useRef<HTMLButtonElement>(null);
   const end = useRef<HTMLDivElement>(null);
@@ -29,16 +122,33 @@ function Session({ items: suppliedItems }: Props) {
   const parts = item ? sentenceParts(item.sentence) : undefined;
   const answered = state.result === 'right' || state.result === 'wrong';
 
+  // Do not overwrite a different mode's save merely by visiting this page.
+  useEffect(() => attachResumeLifecycle(browserStorage(), () => latestDraft.current), []);
+
   useEffect(() => {
     if (state.done) end.current?.focus();
     else if (answered) nextButton.current?.focus();
     else if (focusInput > 0) input.current?.focus();
   }, [answered, focusInput, state.done]);
 
+  const persist = (next: FillInState) => {
+    const draft = fillInDraft(items, next, attempts.current, moves.current);
+    if (!draft) return;
+    latestDraft.current = draft;
+    saveResume(browserStorage(), draft);
+  };
+
   const check = () => {
-    if (!parts || normalizeAnswer(typed) === '' || answered) return;
+    if (index === undefined || !parts || normalizeAnswer(typed) === '' || answered) return;
     const next = answerCurrent(state, items, typed);
+    if (next === state) return;
+    const key = itemKey(index);
+    attempts.current = {
+      ...attempts.current,
+      [key]: [...(attempts.current[key] ?? []), `${state.hinted ? 'h' : 'n'}:${typed}`],
+    };
     setState(next);
+    persist(next);
     if (next.result === 'close') setFocusInput((request) => request + 1);
   };
 
@@ -48,8 +158,38 @@ function Session({ items: suppliedItems }: Props) {
   };
 
   const advance = () => {
-    setState((previous) => nextItem(previous));
+    const next = nextItem(state);
+    if (next === state) return;
+    moves.current++;
+    setState(next);
+    persist(next);
     setTyped('');
+    setFocusInput((request) => request + 1);
+  };
+
+  const startOver = () => {
+    attempts.current = {};
+    moves.current = 0;
+    latestDraft.current = null;
+    clearResume(browserStorage());
+    setState(startFillIn(items));
+    setTyped('');
+    setResumePending(false);
+    setFocusInput((request) => request + 1);
+  };
+
+  const continueSaved = (snapshot: ResumeSnapshot) => {
+    const saved = restoreFillIn(items, snapshot);
+    if (!saved) {
+      startOver();
+      return;
+    }
+    attempts.current = saved.attempts;
+    moves.current = saved.moves;
+    latestDraft.current = fillInDraft(items, saved.state, saved.attempts, saved.moves);
+    setState(saved.state);
+    setTyped(saved.typed);
+    setResumePending(false);
     setFocusInput((request) => request + 1);
   };
 
@@ -59,61 +199,77 @@ function Session({ items: suppliedItems }: Props) {
     : state.result === 'close' ? 'almost. check the spelling.'
       : state.result === 'wrong' && parts ? `the word was ${parts.answer}.` : '';
   const message = resultMessage || hintMessage;
-
-  if (state.done) {
-    return (
-      <div ref={end} tabIndex={-1}>
-        <p className="text-lg font-medium">{summary(state)}</p>
-      </div>
-    );
-  }
-
-  if (!item || !parts) return null;
+  const previous = items.flatMap((_, position) =>
+    (attempts.current[itemKey(position)] ?? []).map((attempt, n) => ({
+      key: `${position}-${n}`, position: position + 1, word: attempt.slice(2),
+    })));
 
   return (
     <div className="text-ink">
-      <p className="text-sm text-ink-soft">
-        round {state.roundNumber} · item {state.pos + 1} of {state.round.length}
-      </p>
-      <p id={`${id}-sentence`} className="mt-4 text-xl">
-        {parts.before}
-        <span aria-hidden="true" className="border-b border-control px-3">_____</span>
-        <span className="sr-only">blank</span>
-        {parts.after}
-      </p>
-
-      <div className="mt-6">
-        <label htmlFor={`${id}-answer`} className="block text-sm font-medium">the missing word</label>
-        <input
-          ref={input}
-          id={`${id}-answer`}
-          value={typed}
-          readOnly={answered}
-          // The sentence describes the field, so moving to the next item reads the new sentence too (Codex on #56).
-          aria-describedby={message ? `${id}-sentence ${id}-message` : `${id}-sentence`}
-          onChange={(event) => setTyped(event.currentTarget.value)}
-          onKeyDown={(event) => {
-            // Not while an input method is still composing the word (Codex on #56).
-            if (isCheckKey({ key: event.key, isComposing: event.nativeEvent.isComposing, keyCode: event.keyCode })) {
-              event.preventDefault();
-              check();
-            }
-          }}
-          className="mt-2 min-h-11 w-full rounded-md border border-control bg-surface px-4 py-2.5 text-ink"
-          autoComplete="off"
-        />
-      </div>
-
-      <p id={`${id}-message`} className="mt-4 min-h-6" aria-live="polite" aria-atomic="true">{message}</p>
-
-      <div className="mt-4 flex flex-wrap gap-3">
-        {answered ? (
-          <button ref={nextButton} type="button" className={primaryButton} onClick={advance}>next</button>
-        ) : (
+      <ResumePrompt page={FILL_IN_PAGE} onContinue={continueSaved} onStartOver={startOver} />
+      <div inert={resumePending} data-testid="fill-in-session">
+        {state.done ? (
+          <div ref={end} tabIndex={-1}>
+            <p className="text-lg font-medium">{summary(state)}</p>
+          </div>
+        ) : item && parts ? (
           <>
-            <button type="button" className={primaryButton} disabled={normalizeAnswer(typed) === ''} onClick={check}>check</button>
-            <button type="button" className={secondaryButton} disabled={state.hinted} onClick={hint}>hint</button>
+            <p className="text-sm text-ink-soft">
+              round {state.roundNumber} · item {state.pos + 1} of {state.round.length}
+            </p>
+            <p id={`${id}-sentence`} className="mt-4 text-xl">
+              {parts.before}
+              <span aria-hidden="true" className="border-b border-control px-3">_____</span>
+              <span className="sr-only">blank</span>
+              {parts.after}
+            </p>
+
+            <div className="mt-6">
+              <label htmlFor={`${id}-answer`} className="block text-sm font-medium">the missing word</label>
+              <input
+                ref={input}
+                id={`${id}-answer`}
+                value={typed}
+                readOnly={answered}
+                // The sentence describes the field, so moving to the next item reads the new sentence too (Codex on #56).
+                aria-describedby={message ? `${id}-sentence ${id}-message` : `${id}-sentence`}
+                onChange={(event) => setTyped(event.currentTarget.value)}
+                onKeyDown={(event) => {
+                  // Not while an input method is still composing the word (Codex on #56).
+                  if (isCheckKey({ key: event.key, isComposing: event.nativeEvent.isComposing, keyCode: event.keyCode })) {
+                    event.preventDefault();
+                    check();
+                  }
+                }}
+                className="mt-2 min-h-11 w-full rounded-md border border-control bg-surface px-4 py-2.5 text-ink"
+                autoComplete="off"
+              />
+            </div>
+
+            <p id={`${id}-message`} className="mt-4 min-h-6" aria-live="polite" aria-atomic="true">{message}</p>
+
+            <div className="mt-4 flex flex-wrap gap-3">
+              {answered ? (
+                <button ref={nextButton} type="button" className={primaryButton} onClick={advance}>next</button>
+              ) : (
+                <>
+                  <button type="button" className={primaryButton} disabled={normalizeAnswer(typed) === ''} onClick={check}>check</button>
+                  <button type="button" className={secondaryButton} disabled={state.hinted} onClick={hint}>hint</button>
+                </>
+              )}
+            </div>
           </>
+        ) : null}
+
+        {previous.length > 0 && (
+          <section className="mt-6" aria-labelledby={`${id}-submitted`}>
+            <h2 id={`${id}-submitted`} className="text-sm font-medium">your submitted answers</h2>
+            <ol className="mt-2 space-y-1 text-sm text-ink-soft">
+              {previous.map(({ key, position, word }) => (
+                <li key={key}>item {position}: {word}</li>
+              ))}
+            </ol>
+          </section>
         )}
       </div>
     </div>
