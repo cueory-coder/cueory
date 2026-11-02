@@ -1492,7 +1492,7 @@ html:has(dialog.mode-preview[open]) {
 .flip-back { transform: rotateY(180deg); }
 .flip-inner.is-flipped { transform: rotateY(180deg); }
 @media (prefers-reduced-motion: reduce) {
-  .flip-inner { transition: none; }
+  .flip-inner { transition: none !important; }
   .flip-inner:not(.is-flipped) .flip-back { opacity: 0; }
   .flip-inner.is-flipped .flip-face { opacity: 0; }
 }

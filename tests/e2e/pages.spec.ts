@@ -111,7 +111,7 @@ test('cards can be sorted with the keyboard, and "Still learning" cards come bac
 test('starred cards are remembered in this browser and can be studied on their own', async ({ page }) => {
   await page.goto('/learn/study-skills/cards');
   const star = page.getByRole('button', { name: 'Star', exact: true });
-  const onlyStarred = page.getByRole('checkbox', { name: /Only starred cards/ });
+  const onlyStarred = page.getByRole('checkbox', { name: /Starred/ });
   await expect(star).toHaveAttribute('aria-pressed', 'false');
   await expect(onlyStarred).toBeDisabled();
 
@@ -120,7 +120,7 @@ test('starred cards are remembered in this browser and can be studied on their o
   await star.focus();
   await page.keyboard.press('Space'); // star card 2
   await expect(star).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByRole('checkbox', { name: 'Only starred cards (1)' })).toBeEnabled();
+  await expect(page.getByRole('checkbox', { name: /Starred.*1/ })).toBeEnabled();
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('cueory-progress') ?? '{}'));
   expect(saved.decks['study-skills-01'].starred).toEqual(['ss01-c02']);
 
@@ -136,7 +136,7 @@ test('starred cards are remembered in this browser and can be studied on their o
   // Removing the last star turns "Only starred cards" off; the next start uses every card again.
   await star.click();
   await expect(star).toHaveAttribute('aria-pressed', 'false');
-  await expect(page.getByRole('checkbox', { name: 'Only starred cards (0)' })).not.toBeChecked();
+  await expect(page.getByRole('checkbox', { name: /Starred.*0/ })).not.toBeChecked();
   expect(await page.evaluate(() => localStorage.getItem('cueory-stars-study-skills-01'))).toBeNull();
   await page.getByRole('button', { name: 'Show answer' }).click();
   await page.getByRole('button', { name: 'Know it' }).click();
@@ -146,7 +146,7 @@ test('starred cards are remembered in this browser and can be studied on their o
 
 test('shuffle keeps every card in the round exactly once', async ({ page }) => {
   await page.goto('/learn/study-skills/cards');
-  await page.getByRole('checkbox', { name: 'Shuffle' }).check();
+  await page.getByRole('checkbox', { name: /Shuffle/ }).check();
   const fronts: string[] = [];
   for (let i = 0; i < 3; i++) {
     fronts.push((await page.getByTestId('card-text').textContent()) ?? '');

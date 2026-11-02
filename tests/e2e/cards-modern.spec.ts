@@ -138,7 +138,7 @@ test('dismiss button hides the keyboard hint', async ({ page }) => {
 
 test('Shuffle checkbox toggles shuffle mode', async ({ page }) => {
   await page.goto(DECK_URL);
-  const cb = page.getByRole('checkbox', { name: 'Shuffle' });
+  const cb = page.getByRole('checkbox', { name: /Shuffle/ });
   await expect(cb).not.toBeChecked();
   await cb.check();
   await expect(cb).toBeChecked();
