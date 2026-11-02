@@ -1484,7 +1484,7 @@ html:has(dialog.mode-preview[open]) {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  overflow: auto;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   justify-content: center;

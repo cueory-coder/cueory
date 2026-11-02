@@ -39,32 +39,32 @@ test('"Show question" button flips back', async ({ page }) => {
 
 test('Space flips the card', async ({ page }) => {
   await page.goto(DECK_URL);
-  await page.locator('[aria-live]').focus();
+  await page.getByRole('region', { name: /Question/ }).focus();
   await page.keyboard.press('Space');
   await expect(page.getByRole('region', { name: /Answer/ })).toBeVisible();
 });
 
 test('1 sorts as "know it" when answer is showing', async ({ page }) => {
   await page.goto(DECK_URL);
-  await page.locator('[aria-live]').focus();
+  await page.getByRole('region', { name: /Question/ }).focus();
   await page.keyboard.press('Space'); // flip to answer
-  const before = await page.getByText(/Know: \d+/).textContent();
+  const before = await page.getByText(/Know it: \d+/).textContent();
   await page.keyboard.press('1');
-  await expect(page.getByText(/Know: \d+/)).not.toHaveText(before ?? '');
+  await expect(page.getByText(/Know it: \d+/)).not.toHaveText(before ?? '');
 });
 
 test('2 sorts as "still learning" when answer is showing', async ({ page }) => {
   await page.goto(DECK_URL);
-  await page.locator('[aria-live]').focus();
+  await page.getByRole('region', { name: /Question/ }).focus();
   await page.keyboard.press('Space');
-  const before = await page.getByText(/Learning: \d+/).textContent();
+  const before = await page.getByText(/Still learning: \d+/).textContent();
   await page.keyboard.press('2');
-  await expect(page.getByText(/Learning: \d+/)).not.toHaveText(before ?? '');
+  await expect(page.getByText(/Still learning: \d+/)).not.toHaveText(before ?? '');
 });
 
 test('S toggles the star', async ({ page }) => {
   await page.goto(DECK_URL);
-  await page.locator('[aria-live]').focus();
+  await page.getByRole('region', { name: /Question/ }).focus();
   const btn = page.getByRole('button', { name: /Star/ });
   const before = await btn.getAttribute('aria-pressed');
   await page.keyboard.press('s');
@@ -74,7 +74,7 @@ test('S toggles the star', async ({ page }) => {
 
 test('← key goes back when pos > 0', async ({ page }) => {
   await page.goto(DECK_URL);
-  await page.locator('[aria-live]').focus();
+  await page.getByRole('region', { name: /Question/ }).focus();
   // Advance once: flip then sort as "know it"
   await page.keyboard.press('Space');
   await page.keyboard.press('1');
@@ -85,7 +85,7 @@ test('← key goes back when pos > 0', async ({ page }) => {
 
 test('→ key flips the card when on question side', async ({ page }) => {
   await page.goto(DECK_URL);
-  await page.locator('[aria-live]').focus();
+  await page.getByRole('region', { name: /Question/ }).focus();
   await page.keyboard.press('ArrowRight');
   await expect(page.getByRole('region', { name: /Answer/ })).toBeVisible();
 });
