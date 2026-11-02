@@ -1,0 +1,1 @@
+status: Task 84, sticky reading header (#182): a frosted header tucks away on downward scroll, comes back on upward scroll, stays visible during keyboard focus, an open menu or reduced motion, and reserves scroll clearance so focused controls never sit under it.

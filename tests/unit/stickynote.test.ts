@@ -4,6 +4,7 @@ import {
   LAST_WELCOME_STORAGE_KEY,
   PHOTO_COUNT,
   VISIT_STORAGE_KEY,
+  closeBreakNote,
   decideNote,
   emptyVisit,
   nextPhoto,
@@ -16,6 +17,7 @@ import {
   type Busy,
   type NoteInput,
 } from '../../src/islands/stickynote';
+import { remainingMs, startBreaks, tick, turnOn, type BreakState } from '../../src/islands/breaks';
 import type { KeyValueStorage } from '../../src/scripts/storage';
 
 const idle: Busy = {
@@ -283,5 +285,105 @@ describe('glove note: the visit\'s memory', () => {
   it('records nothing for a decision to show nothing', () => {
     const visit = { shown: ['welcome' as const], lastPhoto: 2 };
     expect(recordShown(visit, { show: false })).toBe(visit);
+  });
+});
+
+describe('closeBreakNote', () => {
+  const MINUTE_MS = 60_000;
+  const SNOOZE_MS = 5 * MINUTE_MS;
+
+  /** A timer in 'break due' status. */
+  function breakDueTimer(): BreakState {
+    const t0 = 0;
+    // turnOn starts focusing; advance past focus period so tick transitions to 'break due'
+    const on = turnOn(startBreaks(), t0);
+    const focusMs = on.settings.focusMinutes * MINUTE_MS;
+    return tick(on, t0 + focusMs + 1);
+  }
+
+  it('snoozes a break-due timer: status becomes focusing and remainingMs is 5 minutes', () => {
+    const now = 1000;
+    const timer = breakDueTimer();
+    expect(timer.status).toBe('break due');
+    const after = closeBreakNote(timer, now);
+    expect(after.status).toBe('focusing');
+    expect(after.endsAt).toBe(now + SNOOZE_MS);
+    expect(remainingMs(after, now)).toBe(SNOOZE_MS);
+  });
+
+  it('after snooze, decideNote shows no break note for 5 minutes then shows one again', () => {
+    const now = 1000;
+    const snoozed = closeBreakNote(breakDueTimer(), now);
+    const baseInput = (secondsIdle: number, timerState: BreakState): NoteInput => ({
+      visit: emptyVisit(),
+      remembered: true,
+      page: 'study',
+      secondsOnScreen: 60,
+      scrollFraction: 0,
+      activeStudyMinutes: 30,
+      secondsIdle,
+      atStepEnd: false,
+      busy: { typing: false, dragging: false, midQuestion: false, menuOpen: false, previewOpen: false, accountMenuOpen: false },
+      timerOn: true,
+      timerBreakDue: timerState.status === 'break due',
+      noteOnScreen: null,
+      joinedLaunchList: false,
+      hasAccount: false,
+      lastWelcome: null,
+      random: () => 0,
+    });
+
+    // At +1s and +4m59s the snoozed timer is still focusing — no break note
+    const at1s = tick(snoozed, now + 1_000);
+    expect(decideNote(baseInput(3, at1s))).toEqual({ show: false });
+
+    const at4m59s = tick(snoozed, now + (SNOOZE_MS - 1_000));
+    expect(decideNote(baseInput(3, at4m59s))).toEqual({ show: false });
+
+    // At exactly +5 min the timer transitions to 'break due' — break note appears
+    const at5m = tick(snoozed, now + SNOOZE_MS);
+    expect(at5m.status).toBe('break due');
+    expect(decideNote(baseInput(3, at5m))).toMatchObject({ show: true, kind: 'break' });
+  });
+
+  it('returns the same state unchanged for off, focusing, on-break and paused timers', () => {
+    const now = 0;
+    const off = startBreaks();
+    const focusing = turnOn(startBreaks(), now);
+    const onBreak: BreakState = { ...focusing, status: 'on break', endsAt: now + 5 * MINUTE_MS };
+    const paused: BreakState = { ...focusing, status: 'paused', endsAt: null, pausedFrom: 'focusing', pausedRemainingMs: MINUTE_MS };
+    expect(closeBreakNote(off, now)).toBe(off);
+    expect(closeBreakNote(focusing, now)).toBe(focusing);
+    expect(closeBreakNote(onBreak, now)).toBe(onBreak);
+    expect(closeBreakNote(paused, now)).toBe(paused);
+  });
+
+  it('with the timer off, the 25-minute once-a-visit rule still holds after a close', () => {
+    const off = startBreaks();
+    // closeBreakNote on an off timer returns it unchanged
+    const after = closeBreakNote(off, 0);
+    expect(after).toBe(off);
+    // The 25-minute rule still fires normally
+    const input: NoteInput = {
+      visit: emptyVisit(),
+      remembered: true,
+      page: 'study',
+      secondsOnScreen: 60,
+      scrollFraction: 0,
+      activeStudyMinutes: BREAK_AFTER_MINUTES,
+      secondsIdle: 3,
+      atStepEnd: false,
+      busy: { typing: false, dragging: false, midQuestion: false, menuOpen: false, previewOpen: false, accountMenuOpen: false },
+      timerOn: false,
+      timerBreakDue: false,
+      noteOnScreen: null,
+      joinedLaunchList: false,
+      hasAccount: false,
+      lastWelcome: null,
+      random: () => 0,
+    };
+    expect(decideNote(input)).toMatchObject({ show: true, kind: 'break' });
+    // ...and only once a visit: after a break note has been shown, the same input shows nothing
+    expect(decideNote({ ...input, visit: { ...emptyVisit(), shown: ['break'] } })).toEqual({ show: false });
   });
 });

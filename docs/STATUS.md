@@ -247,12 +247,14 @@ Merged into `staging`:
 ## In review
 - Task 108, guided onboarding (#189): two optional setup questions on separate accessible screens with preserved device-local progress, in review.
 - Task 74, accessibility sweep (#157): full-site keyboard and axe audit, with segmented-date regression coverage, awaiting exact-head CI and Codex review.
-- Open pull requests add their own lines here. Waiting now: Release browser tests (#55).
+- Open pull requests write their line in their own file under `docs/status/in-review/` (see its README); the director
+  moves them here in batches. Older pull requests still add their own lines here. Waiting now: Release browser tests (#55).
 - Task 78, flashcards modern (D-pending): 3D flip card, progress bar, segmented study controls, keyboard
   shortcuts, full axe + tab-order accessibility. PR [#162](https://github.com/lilchristxan/Cueory/pull/162).
   Repair 5 (2026-11-02): add .check({ force: true }) to onlyStarred in starred-cards test (sr-only checkbox
   times out in phone emulation). Out-of-scope finding: /learn/study-skills/label-it fails Tab-reachability
-  audit at the staging merge commit only — React-hydration race condition, not caused by task-78 CSS. Repair 5 pushed; CI re-triggered 2026-11-02.
+  audit at the staging merge commit only — React-hydration race condition, not caused by task-78 CSS.
+- Task 81, study-skills hub (#195): seven illustrated study options with accessible direct links, preserving the existing lesson reader and draft-content notice.
 - Task 111, reminder choices preview (#191): non-sending phone and email choices open only after a completed review and a deliberate tap, with keyboard/privacy checks while real opt-in and delivery remain future work.
 - Task 106, review-reminder email (#185): non-sending branded HTML, plain-text alternative and noindex sample preview, awaiting CI and Codex review.
 - Task 105, quiet result marks (#188): official emblem and real Cueory page address appear only on completed pulse, sort and crossword result cards and the progress summary; answer areas and printing stay clear.
@@ -266,6 +268,7 @@ Merged into `staging`:
 - Glove photos and the Kalam font (#163): Christian’s nine glove colors cut out as WebP files, and the handwriting he
   picked. Files only; the glove note (Task 70) uses them and stays off until he checks it.
 - Task 99, Lato body font (#172): Lato for body and interface text, line spacing at least 1.5, plain accent line under the home headline. Waits for Christian (it edits CLAUDE.md).
+- Task 67, server-checked questions (#194): injected authenticated check_answer path with version/refusal validation and sample behavior preserved, awaiting CI, lead review and Christian’s approval.
 - Task 55, Supabase client (#156): Supabase’s sign-in library, loaded only on pages that need an account; the security policy gains the project address only when accounts are on. Waits for Christian (sign-in and security policy).
 - Task 58, signed-in account corner (#186): initials avatar and account actions from the student’s own session, with no client load before idle and the accounts-off menu unchanged.
 
