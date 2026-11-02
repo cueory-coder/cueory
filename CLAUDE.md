@@ -114,6 +114,8 @@ screens stay plain: nothing decorative, no texture behind lesson text, and no ma
   public before it works.
 - Every page uses `Layout.astro` so it gets the building notice, header, footer and skip link.
 - Astro dev server: `npx astro dev --background` (stop with `astro dev stop`).
-- Update `docs/STATUS.md` and, when a decision is made, `docs/DECISIONS.md` in the same pull request.
+- Add a status note in the same pull request: a new file `docs/status/in-review/<branch-with-dashes>.md` with the STATUS
+  line and any `D-pending` decision. The director moves notes into `docs/STATUS.md` and `docs/DECISIONS.md` in batches,
+  so parallel pull requests never clash on those two files.
 - Daily puzzles (Task 7) use original names, rules and visual design. Never the names Wordle, Connections or NYT,
   and never a copy of their look or rules.
