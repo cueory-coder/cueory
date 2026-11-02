@@ -1,0 +1,1 @@
+status: Task 91, loading and empty states (#170): reusable skeletons (lines, card, ring; one hidden "loading" message per group, still under reduced motion) and an empty state with an optional icon and action, shown on the noindex /preview/states page; not wired into other pages yet.
