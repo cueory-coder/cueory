@@ -68,8 +68,9 @@ Read [CLAUDE.md](CLAUDE.md) (project rules) and [SECURITY.md](SECURITY.md) first
 - Right/wrong is never shown by color alone (word or icon too). Text contrast meets WCAG AA.
 
 ### Design and content
-- Daily puzzles (Task 7) use original names, rules and look. Never the names Wordle, Connections or NYT, and never a
-  copy of their design. This is a Blocker.
+- Daily puzzles (Task 7) use original names and look. Never the names Wordle, Connections or NYT, and never a copy of
+  their design, colors or colored-square shares. Rules are original too, except pillo, which uses the classic
+  guess-the-word rules by Christian's choice (Task 113, CLAUDE.md). This is a Blocker.
 - Components use design tokens from `src/styles/tokens.css`, never raw colors, fonts or spacing values.
 - Only exact brand colors from `docs/BRAND.md`; Lato for body, interface, buttons and study-screen text (line spacing at
   least 1.5), Bodoni Moda only for marketing headings (D-41). Accent lines are plain upright Lato, never italic or
