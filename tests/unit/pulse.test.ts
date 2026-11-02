@@ -2,11 +2,10 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { dailyGames, forbiddenGameWords } from '../../src/config/games';
 import {
-  BEATS,
-  beatsLeft,
-  canTakeCue,
   cleanGuess,
   dayNumber,
+  GUESSES,
+  guessesLeft,
   guessInWords,
   guessProblem,
   letterMarks,
@@ -16,13 +15,11 @@ import {
   puzzleForDay,
   shareText,
   startPulse,
-  takeCue,
 } from '../../src/islands/pulse';
 
-describe('daily games (D-61)', () => {
-  it("lists the four games under Christian's final names (D-64), lowercase, with pulse and triage playable", () => {
-    // Plain names for now (D-66): trademark filings exist for cueword, triage and suture. The ids stay.
-    expect(dailyGames.map((game) => game.name)).toEqual(['pulse', 'crossword', 'sort', 'word path']);
+describe('daily games (task-114)', () => {
+  it("lists the four games with pillo's new name, lowercase, all playable", () => {
+    expect(dailyGames.map((game) => game.name)).toEqual(['pillo', 'crossword', 'sort', 'word path']);
     expect(dailyGames.map((game) => game.id)).toEqual(['pulse', 'cueword', 'triage', 'suture']);
     expect(dailyGames.filter((game) => game.ready).map((game) => game.id)).toEqual(['pulse', 'cueword', 'triage', 'suture']);
     for (const game of dailyGames) {
@@ -54,7 +51,7 @@ describe('daily games (D-61)', () => {
     expect(named(files[0]!.split('forbiddenGameWords')[0]!)).toEqual([]);
   });
 
-  it('keeps pulse puzzles as labeled samples with everyday words, five to seven letters each', () => {
+  it('keeps pulse puzzles as labeled samples with five-letter words', () => {
     const folder = new URL('../../content/games/pulse/', import.meta.url);
     const files = readdirSync(folder).filter((name) => name.endsWith('.json'));
     expect(files.length).toBeGreaterThanOrEqual(7);
@@ -62,16 +59,17 @@ describe('daily games (D-61)', () => {
       const puzzle = JSON.parse(readFileSync(new URL(name, folder), 'utf8'));
       expect(name).toMatch(/^sample-\d{2}\.json$/);
       expect(puzzle.status).toBe('sample');
-      expect(puzzle.word).toMatch(/^[a-z]{5,7}$/);
-      expect(puzzle.cue).toBe(puzzle.cue.toLowerCase());
+      // pillo uses five-letter words (task-114); puzzles retain a cue field for content compatibility
+      expect(puzzle.word).toMatch(/^[a-z]{5}$/);
     }
   });
 });
 
-describe('pulse (D-61)', () => {
+describe('pillo (task-114)', () => {
   it('marks letters in place, elsewhere in the word, or not in it', () => {
-    expect(markGuess('planet', 'garden')).toEqual(['absent', 'absent', 'elsewhere', 'elsewhere', 'here', 'absent']);
-    expect(markGuess('garden', 'garden')).toEqual(Array(6).fill('here'));
+    // notes vs tones: o(1)=here, e(3)=here, s(4)=here; n and t are elsewhere.
+    expect(markGuess('notes', 'tones')).toEqual(['elsewhere', 'here', 'elsewhere', 'here', 'here']);
+    expect(markGuess('tones', 'tones')).toEqual(Array(5).fill('here'));
   });
 
   it('never gives a doubled letter more marks than the word has copies', () => {
@@ -83,36 +81,24 @@ describe('pulse (D-61)', () => {
     expect(markGuess('allot', 'hello')).toEqual(['absent', 'elsewhere', 'here', 'elsewhere', 'absent']);
   });
 
-  it('has seven beats: each guess spends one, and so does the cue', () => {
-    expect(BEATS).toBe(7);
-    let state = startPulse('garden');
-    expect(beatsLeft(state)).toBe(7);
-    state = playGuess(state, 'planet');
-    expect(beatsLeft(state)).toBe(6);
-    state = takeCue(state);
-    expect(state.cueUsed).toBe(true);
-    expect(beatsLeft(state)).toBe(5);
-    // Only one cue.
-    expect(takeCue(state)).toBe(state);
-  });
-
-  it('never lets the cue take the last beat, and ends when the beats run out', () => {
-    let state = startPulse('garden');
-    for (const word of ['planet', 'carton', 'pillow', 'candle', 'lemons', 'basket']) state = playGuess(state, word);
-    expect(beatsLeft(state)).toBe(1);
-    expect(canTakeCue(state)).toBe(false);
-    state = playGuess(state, 'orange');
+  it('has six guesses and ends when they run out', () => {
+    expect(GUESSES).toBe(6);
+    let state = startPulse('tones');
+    expect(guessesLeft(state)).toBe(6);
+    state = playGuess(state, 'stone');
+    expect(guessesLeft(state)).toBe(5);
+    for (const word of ['crane', 'black', 'drips', 'vapor', 'jumpy']) state = playGuess(state, word);
     expect(state.status).toBe('out');
-    expect(playGuess(state, 'garden')).toBe(state);
+    expect(playGuess(state, 'tones')).toBe(state);
   });
 
   it('is solved by the word itself, and a guess that is the wrong length or not letters changes nothing', () => {
-    let state = startPulse('garden');
-    expect(playGuess(state, 'gard')).toBe(state);
-    expect(guessProblem('gard', 6)).toBe('the word has 6 letters.');
-    expect(guessProblem('gard3n', 6)).toBe('use letters only.');
-    expect(cleanGuess(' Gar-den ')).toBe('garden');
-    state = playGuess(state, 'GARDEN');
+    let state = startPulse('tones');
+    expect(playGuess(state, 'tone')).toBe(state);
+    expect(guessProblem('tone', 5)).toBe('the word has 5 letters.');
+    expect(guessProblem('t0nes', 5)).toBe('use letters only.');
+    expect(cleanGuess(' Ton-es ')).toBe('tones');
+    state = playGuess(state, 'TONES');
     expect(state.status).toBe('solved');
   });
 
@@ -125,24 +111,26 @@ describe('pulse (D-61)', () => {
   });
 
   it('keeps the best mark each letter has had, for the letter buttons', () => {
-    const state = playGuess(playGuess(startPulse('garden'), 'planet'), 'carton');
+    // notes: o=here, e=here, s=here, n=elsewhere, t=elsewhere
+    // crane (vs tones): c=absent, r=absent, a=absent, n=elsewhere, e=elsewhere
+    // combined: o=here, e=here (here beats elsewhere), s=here, n=elsewhere, c=absent
+    const state = playGuess(playGuess(startPulse('tones'), 'notes'), 'crane');
     const marks = letterMarks(state.guesses);
-    expect(marks.get('a')).toBe('here');
-    expect(marks.get('n')).toBe('here');
-    expect(marks.get('p')).toBe('absent');
+    expect(marks.get('o')).toBe('here');
+    expect(marks.get('e')).toBe('here');
+    expect(marks.get('c')).toBe('absent');
     expect(marks.has('z')).toBe(false);
   });
 
   it('shares the result as plain words: no colored squares, no grid', () => {
-    let state = playGuess(startPulse('garden'), 'planet');
-    state = takeCue(state);
-    state = playGuess(state, 'garden');
+    let state = playGuess(startPulse('tones'), 'stone');
+    state = playGuess(state, 'tones');
     const line = shareText(state, 'sun 1 nov');
-    expect(line).toBe('cueory pulse, sun 1 nov: solved in 3 of 7 beats, with the cue.');
+    expect(line).toBe('cueory pillo, sun 1 nov: solved in 2 of 6.');
     expect(line).toMatch(/^[\x20-\x7e]+$/);
-    let lost = startPulse('lemon');
-    for (let i = 0; i < 7; i++) lost = playGuess(lost, 'apple');
-    expect(shareText(lost, 'sun 1 nov')).toBe('cueory pulse, sun 1 nov: not solved this time.');
+    let lost = startPulse('tones');
+    for (let i = 0; i < 6; i++) lost = playGuess(lost, 'crane');
+    expect(shareText(lost, 'sun 1 nov')).toBe('cueory pillo, sun 1 nov: not solved.');
   });
 
   it("picks one sample a day from the visitor's own date, going round the list", () => {

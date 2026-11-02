@@ -1,20 +1,19 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import {
-  beatsLeft,
-  BEATS,
-  canTakeCue,
   cleanGuess,
   dayNumber,
+  GUESSES,
+  guessesLeft,
   guessInWords,
   guessProblem,
   letterMarks,
   MARK_SYMBOL,
   MARK_WORDS,
+  markGuess,
   playGuess,
   puzzleForDay,
   shareText,
   startPulse,
-  takeCue,
   type Mark,
   type PulseState,
 } from './pulse';
@@ -28,18 +27,44 @@ interface Puzzle {
 }
 
 interface Props {
-  /** Sample puzzles (D-61): the page picks one for the visitor's own date. */
+  /** Sample puzzles: the page picks one for the visitor's own date. */
   puzzles: Puzzle[];
 }
 
 const KEY_ROWS = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
 const primaryButton = 'rounded-pill bg-button px-5 py-2.5 text-on-button hover:bg-button-hover';
 
+function PillCell({
+  letter,
+  mark,
+  isActive,
+  isFocus,
+}: {
+  letter?: string;
+  mark?: Mark;
+  isActive?: boolean;
+  isFocus?: boolean;
+}) {
+  let cellClass = 'pillo-cell';
+  if (mark === 'here') cellClass += ' pillo-here';
+  else if (mark === 'elsewhere') cellClass += ' pillo-elsewhere';
+  else if (mark === 'absent') cellClass += ' pillo-absent';
+  else if (isActive && letter) cellClass += ' pillo-typed';
+  else if (isActive && isFocus) cellClass += ' pillo-focus';
+  else cellClass += ' pillo-empty';
+
+  return (
+    <div className={cellClass} aria-hidden="true">
+      {letter && <span className="pillo-letter">{letter.toUpperCase()}</span>}
+      {mark && <span className="pillo-symbol">{MARK_SYMBOL[mark]}</span>}
+    </div>
+  );
+}
+
 /**
- * pulse (D-61): guess the word of the day. Type a guess in the field (or tap the letters below) and press guess; each
- * letter is then marked in place, elsewhere in the word, or not in the word, by a symbol and in words for screen
- * readers, never by color alone. The cue spends one beat. Rendered only in the browser (client:only); without
- * JavaScript the page shows its <noscript> note instead.
+ * pillo (task-114): guess the word of the day. Six tries, five-letter words.
+ * Letters are marked in place (●), elsewhere (○), or not in the word (·) — never by color alone.
+ * Rendered only in the browser (client:only); without JavaScript the page shows its <noscript> note.
  */
 export default function PulseGame({ puzzles }: Props) {
   const today = useMemo(() => new Date(), []);
@@ -53,8 +78,6 @@ export default function PulseGame({ puzzles }: Props) {
   const result = useRef<HTMLDivElement>(null);
   const reported = useRef(false);
 
-  // When the game ends, focus moves to the result so it is read out, and the share button is next. The round is also
-  // reported once, for the stats panel, which keeps it only if the student has turned stats on (D-76).
   useEffect(() => {
     if (state.status === 'playing') return;
     result.current?.focus();
@@ -64,7 +87,7 @@ export default function PulseGame({ puzzles }: Props) {
       game: 'pulse',
       day: localDay(today),
       solved: state.status === 'solved',
-      tries: BEATS - beatsLeft(state),
+      tries: GUESSES - guessesLeft(state),
     });
   }, [state.status]);
 
@@ -72,6 +95,8 @@ export default function PulseGame({ puzzles }: Props) {
   const length = state.answer.length;
   const marks = letterMarks(state.guesses);
   const playing = state.status === 'playing';
+  const currentRow = state.guesses.length;
+  const left = guessesLeft(state);
 
   const submit = (event?: FormEvent) => {
     event?.preventDefault();
@@ -79,6 +104,7 @@ export default function PulseGame({ puzzles }: Props) {
     const why = guessProblem(word, length);
     if (why) {
       setProblem(why);
+      field.current?.focus({ preventScroll: true });
       return;
     }
     const next = playGuess(state, word);
@@ -90,8 +116,8 @@ export default function PulseGame({ puzzles }: Props) {
       next.status === 'solved'
         ? ' solved.'
         : next.status === 'out'
-          ? ` out of beats. the word was ${next.answer}.`
-          : ` ${beatsLeft(next)} beats left.`;
+          ? ` out of guesses. the word was ${next.answer}.`
+          : ` ${guessesLeft(next)} ${guessesLeft(next) === 1 ? 'guess' : 'guesses'} left.`;
     setSaid(`${guessInWords(last)}${end}`);
     field.current?.focus({ preventScroll: true });
   };
@@ -100,12 +126,14 @@ export default function PulseGame({ puzzles }: Props) {
     if (!playing) return;
     setText((current) => cleanGuess(current + letter).slice(0, length));
     setProblem('');
+    field.current?.focus({ preventScroll: true });
   };
 
-  const cue = () => {
-    const next = takeCue(state);
-    setState(next);
-    setSaid(`cue: ${puzzle.cue} ${beatsLeft(next)} beats left.`);
+  const tapDelete = () => {
+    if (!playing) return;
+    setText((current) => current.slice(0, -1));
+    setProblem('');
+    field.current?.focus({ preventScroll: true });
   };
 
   const share = async () => {
@@ -120,73 +148,110 @@ export default function PulseGame({ puzzles }: Props) {
 
   const keyLabel = (letter: string, mark: Mark | undefined) => (mark ? `${letter}, ${MARK_WORDS[mark]}` : letter);
 
+  // Build the 6×5 board: committed rows, the current typing row, then empty rows.
+  const rows = Array.from({ length: GUESSES }, (_, rowIdx) => {
+    const committed = state.guesses[rowIdx];
+    if (committed) {
+      return { type: 'committed' as const, guess: committed };
+    }
+    if (rowIdx === currentRow && playing) {
+      return { type: 'active' as const, text };
+    }
+    return { type: 'empty' as const };
+  });
+
   return (
-    <div className="pulse" data-testid="pulse">
-      <p className="text-sm text-ink-soft">
-        a {length}-letter word · {beatsLeft(state)} of {BEATS} beats left
+    <div className="pillo" data-testid="pulse">
+      {/* Guesses-left strip */}
+      <div className="pillo-strip" aria-label={`${left} of ${GUESSES} guesses left`}>
+        {Array.from({ length: GUESSES }, (_, i) => (
+          <div key={i} className={`pillo-pip${i < GUESSES - left ? ' pillo-pip-used' : ''}`} aria-hidden="true" />
+        ))}
+        <span className="sr-only">{left} of {GUESSES} guesses left</span>
+      </div>
+
+      <p className="mt-2 text-sm text-ink-soft" aria-live="polite">
+        {playing
+          ? `guess ${currentRow + 1} of ${GUESSES}`
+          : state.status === 'solved'
+            ? 'solved!'
+            : `the word was ${state.answer}`}
       </p>
 
-      <ol className="pulse-board mt-4" aria-label="your guesses">
-        {state.guesses.map((guess, row) => (
-          <li key={row} className="pulse-row" aria-label={`guess ${row + 1}: ${guess.word}. ${guessInWords(guess)}`}>
-            {Array.from(guess.word, (letter, i) => (
-              <span key={i} className={`pulse-letter pulse-${guess.marks[i]}`} aria-hidden="true">
-                <span className="pulse-char">{letter}</span>
-                <span className="pulse-symbol">{MARK_SYMBOL[guess.marks[i]!]}</span>
-              </span>
-            ))}
-          </li>
-        ))}
-      </ol>
+      {/* Blister-pack board */}
+      <div className="pillo-board mt-4" aria-label="your guesses" role="group">
+        {rows.map((row, rowIdx) => {
+          if (row.type === 'committed') {
+            return (
+              <div
+                key={rowIdx}
+                className="pillo-row"
+                role="listitem"
+                aria-label={`guess ${rowIdx + 1}: ${row.guess.word}. ${guessInWords(row.guess)}`}
+              >
+                {Array.from(row.guess.word, (letter, i) => (
+                  <PillCell key={i} letter={letter} mark={row.guess.marks[i]} />
+                ))}
+              </div>
+            );
+          }
+          if (row.type === 'active') {
+            const typedLetters = Array.from({ length }, (_, i) => row.text[i] ?? '');
+            return (
+              <div key={rowIdx} className="pillo-row pillo-row-active" aria-hidden="true">
+                {typedLetters.map((letter, i) => (
+                  <PillCell
+                    key={i}
+                    letter={letter}
+                    isActive
+                    isFocus={i === row.text.length && i < length}
+                  />
+                ))}
+              </div>
+            );
+          }
+          return (
+            <div key={rowIdx} className="pillo-row" aria-hidden="true">
+              {Array.from({ length }, (_, i) => <PillCell key={i} />)}
+            </div>
+          );
+        })}
+      </div>
 
       <p className="mt-3 text-sm text-ink-soft">
-        {MARK_SYMBOL.here} in place · {MARK_SYMBOL.elsewhere} elsewhere in the word · {MARK_SYMBOL.absent} not in the word
+        {MARK_SYMBOL.here} in place · {MARK_SYMBOL.elsewhere} elsewhere · {MARK_SYMBOL.absent} not in the word
       </p>
 
-      {state.cueUsed && (
-        <p className="pulse-cue mt-4" data-testid="pulse-cue">
-          <span className="font-medium">cue:</span> {puzzle.cue}
-        </p>
-      )}
-
       {playing ? (
-        <form className="mt-6 flex flex-wrap items-end gap-3" onSubmit={submit} noValidate>
-          <div className="flex flex-col gap-1">
-            <label htmlFor="pulse-guess" className="text-sm text-ink-soft">
-              your guess
-            </label>
-            <input
-              id="pulse-guess"
-              ref={field}
-              className="pulse-field rounded-md border border-control bg-page px-4 py-3 text-ink"
-              value={text}
-              onChange={(event) => {
-                setText(cleanGuess(event.target.value).slice(0, length));
-                setProblem('');
-              }}
-              maxLength={length}
-              autoComplete="off"
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-              aria-describedby={problem ? 'pulse-problem' : undefined}
-              aria-invalid={problem ? true : undefined}
-            />
-          </div>
-          <button type="submit" className={primaryButton}>
-            guess
-          </button>
-          <button type="button" className="pulse-cue-button" onClick={cue} disabled={!canTakeCue(state)}>
-            {state.cueUsed ? 'cue taken' : 'spend a beat on the cue'}
-          </button>
+        <form className="mt-4" onSubmit={submit} noValidate>
+          {/* Visually hidden input: captures keyboard on desktop; on-screen keyboard adds letters directly */}
+          <label className="sr-only" htmlFor="pillo-guess">type your guess</label>
+          <input
+            id="pillo-guess"
+            ref={field}
+            className="pillo-hidden-field"
+            value={text}
+            onChange={(event) => {
+              setText(cleanGuess(event.target.value).slice(0, length));
+              setProblem('');
+            }}
+            maxLength={length}
+            autoComplete="off"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            aria-describedby={problem ? 'pillo-problem' : 'pillo-hint'}
+            aria-invalid={problem ? true : undefined}
+          />
+          <p id="pillo-hint" className="sr-only">type a {length}-letter word and press enter to guess</p>
           {problem && (
-            <p id="pulse-problem" className="w-full text-sm text-ink">
+            <p id="pillo-problem" className="mt-2 text-sm text-ink" role="alert">
               {problem}
             </p>
           )}
         </form>
       ) : (
-        <div ref={result} tabIndex={-1} className="pulse-result mt-6" data-testid="pulse-result">
+        <div ref={result} tabIndex={-1} className="pillo-result mt-6" data-testid="pulse-result">
           <p className="text-lg font-medium">
             {state.status === 'solved' ? 'solved.' : `the word was ${state.answer}.`}
           </p>
@@ -200,23 +265,25 @@ export default function PulseGame({ puzzles }: Props) {
         </div>
       )}
 
+      {/* On-screen keyboard */}
       {playing && (
-        <div className="pulse-keys mt-6" role="group" aria-label="letters">
+        <div className="pillo-keys mt-6" role="group" aria-label="letters">
           {KEY_ROWS.map((row) => (
-            <div key={row} className="pulse-key-row">
+            <div key={row} className="pillo-key-row">
               {Array.from(row, (letter) => {
                 const mark = marks.get(letter);
                 return (
                   <button
                     key={letter}
                     type="button"
-                    className={`pulse-key${mark ? ` pulse-${mark}` : ''}`}
+                    className={`pillo-key${mark ? ` pillo-${mark}` : ''}`}
                     aria-label={keyLabel(letter, mark)}
                     onClick={() => tapLetter(letter)}
+                    tabIndex={-1}
                   >
-                    <span aria-hidden="true">{letter}</span>
+                    <span aria-hidden="true">{letter.toUpperCase()}</span>
                     {mark && (
-                      <span className="pulse-key-symbol" aria-hidden="true">
+                      <span className="pillo-key-symbol" aria-hidden="true">
                         {MARK_SYMBOL[mark]}
                       </span>
                     )}
@@ -225,15 +292,23 @@ export default function PulseGame({ puzzles }: Props) {
               })}
             </div>
           ))}
-          <div className="pulse-key-row">
+          <div className="pillo-key-row">
             <button
               type="button"
-              className="pulse-key pulse-key-wide"
-              onClick={() => setText((current) => current.slice(0, -1))}
+              className="pillo-key pillo-key-wide"
+              aria-label="delete last letter"
+              onClick={tapDelete}
+              tabIndex={-1}
             >
-              delete
+              ⌫
             </button>
-            <button type="button" className="pulse-key pulse-key-wide" onClick={() => submit()}>
+            <button
+              type="button"
+              className="pillo-key pillo-key-wide"
+              aria-label="submit guess"
+              onClick={() => submit()}
+              tabIndex={-1}
+            >
               enter
             </button>
           </div>

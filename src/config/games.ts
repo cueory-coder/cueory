@@ -20,8 +20,8 @@ export interface DailyGame {
 export const dailyGames: readonly DailyGame[] = [
   {
     id: 'pulse',
-    name: 'pulse',
-    line: 'guess the word of the day in seven beats. a guess spends a beat, and so does the cue.',
+    name: 'pillo',
+    line: 'guess the five-letter word in six tries. each letter is marked in place, elsewhere or not in it.',
     ready: true,
   },
   {
