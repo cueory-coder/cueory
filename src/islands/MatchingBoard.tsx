@@ -1,4 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { attachResumeLifecycle, clearResume, readResume, saveResume, type ResumeDraft, type ResumeSnapshot } from '../scripts/resume';
+import { browserStorage } from '../scripts/storage';
+import ResumePrompt from './ResumePrompt';
 import {
   hasNextRound,
   isPicked,
@@ -19,6 +22,60 @@ interface Props {
 
 const primaryButton = 'min-h-11 rounded-pill bg-button px-5 py-2.5 text-on-button hover:bg-button-hover press';
 
+const MATCHING_PAGE = '/learn/study-skills/matching';
+
+/** The matching engine uses deck indices, not exposed card text, as its identifiers. */
+function matchingDraft(state: MatchState): ResumeDraft | null {
+  const total = state.terms.length;
+  if (!total) return null;
+  return {
+    tool: 'matching', page: MATCHING_PAGE, step: `round-${state.roundNumber}`,
+    itemIndex: Math.min(matchedCount(state), total - 1), totalItems: total,
+    // Store only the term/meaning IDs the student successfully paired, in attempt order.
+    answers: Object.fromEntries(state.matchedTerms.map((term, i) =>
+      [`term-${term}`, `meaning-${state.matchedMeanings[i]}`])),
+    timer: null,
+    phase: isRoundOver(state) && !hasNextRound(state) ? 'results' : 'working',
+  };
+}
+
+/** Replay saved *student* pairs through the existing engine; reject stale or altered records. */
+function restoreMatching(cards: readonly MatchCard[], snapshot: ResumeSnapshot): MatchState | null {
+  if (snapshot.tool !== 'matching' || snapshot.page !== MATCHING_PAGE) return null;
+  const match = /^round-([1-9]\d*)$/.exec(snapshot.step ?? '');
+  if (!match) return null;
+  const roundNumber = Number(match[1]);
+  let state = startMatching(cards);
+  if (roundNumber > state.rounds.length || !Number.isSafeInteger(roundNumber)) return null;
+
+  // Earlier rounds are complete if the student reached a later one. The engine's
+  // own transitions preserve its duplicate-card and round-size rules.
+  for (let round = 1; round < roundNumber; round++) {
+    for (const index of state.terms) {
+      state = pick(state, 'term', index);
+      state = pick(state, 'meaning', index);
+    }
+    state = nextRound(state);
+  }
+  if (snapshot.totalItems !== state.terms.length || !state.terms.length) return null;
+  for (const [termId, meaningId] of Object.entries(snapshot.answers)) {
+    const term = /^term-(\d+)$/.exec(termId);
+    const meaning = typeof meaningId === 'string' ? /^meaning-(\d+)$/.exec(meaningId) : null;
+    if (!term || !meaning) return null;
+    const termIndex = Number(term[1]);
+    const meaningIndex = Number(meaning[1]);
+    if (!state.terms.includes(termIndex) || !state.meanings.includes(meaningIndex)) return null;
+    state = pick(state, 'term', termIndex);
+    state = pick(state, 'meaning', meaningIndex);
+    if (!state.last?.correct) return null;
+  }
+  const draft = matchingDraft(state);
+  if (!draft || draft.itemIndex !== snapshot.itemIndex ||
+      draft.phase !== snapshot.phase || Object.keys(draft.answers).length !== Object.keys(snapshot.answers).length) return null;
+  // Restoring is not a new match and must not trigger a success animation.
+  return { ...state, last: null };
+}
+
 /** A tick, so a matched item never depends on color alone. */
 function TickIcon() {
   return (
@@ -36,10 +93,19 @@ function TickIcon() {
  */
 export default function MatchingBoard({ cards }: Props) {
   const [state, setState] = useState<MatchState>(() => startMatching(cards));
+  const [resumePending, setResumePending] = useState(() => {
+    const stored = readResume(browserStorage());
+    return stored?.tool === 'matching' && stored.page === MATCHING_PAGE;
+  });
   const [focusRequest, setFocusRequest] = useState(0);
   const statusRef = useRef<HTMLDivElement>(null);
   const progressFill = useRef<HTMLDivElement>(null);
   const itemButtons = useRef(new Map<string, HTMLButtonElement>());
+  const latestDraft = useRef<ResumeDraft | null>(null);
+
+  // The lifecycle callback must stay null until the student actually makes or
+  // restores progress, so visiting another study mode cannot overwrite its save.
+  useEffect(() => attachResumeLifecycle(browserStorage(), () => latestDraft.current), []);
 
   // A new round moves keyboard focus to the top of the board; picking items leaves focus where it is.
   useEffect(() => {
@@ -53,6 +119,27 @@ export default function MatchingBoard({ cards }: Props) {
   useLayoutEffect(() => {
     progressFill.current?.style.setProperty('--progress', String(total ? matched / total : 0));
   }, [matched, total]);
+
+  // Flush a confirmed match before paint, so immediately leaving the page still
+  // remembers it. Incorrect attempts and unconfirmed selections are never saved.
+  useLayoutEffect(() => {
+    if (!state.last?.correct) return;
+    const draft = matchingDraft(state);
+    if (draft) {
+      latestDraft.current = draft;
+      saveResume(browserStorage(), draft);
+    }
+  }, [state.last]);
+
+  // Advancing to a new round resets the round's progress in the saved snapshot.
+  useLayoutEffect(() => {
+    if (state.roundNumber === 1 || !latestDraft.current) return;
+    const draft = matchingDraft(state);
+    if (draft) {
+      latestDraft.current = draft;
+      saveResume(browserStorage(), draft);
+    }
+  }, [state.roundNumber]);
 
   // Animate only the two newly matched tiles; do not move/remove them or disturb keyboard focus.
   useEffect(() => {
@@ -79,6 +166,24 @@ export default function MatchingBoard({ cards }: Props) {
   const newRound = (next: (s: MatchState) => MatchState) => {
     setState(next);
     setFocusRequest((n) => n + 1);
+  };
+
+  const restart = () => {
+    setResumePending(false);
+    latestDraft.current = null;
+    clearResume(browserStorage());
+    newRound(() => startMatching(cards));
+  };
+
+  const continueSaved = (snapshot: ResumeSnapshot) => {
+    const restored = restoreMatching(cards, snapshot);
+    if (!restored) {
+      restart();
+      return;
+    }
+    latestDraft.current = matchingDraft(restored);
+    setResumePending(false);
+    newRound(() => restored);
   };
 
   const over = isRoundOver(state);
@@ -128,6 +233,9 @@ export default function MatchingBoard({ cards }: Props) {
 
   return (
     <div>
+      <ResumePrompt page={MATCHING_PAGE} onContinue={continueSaved} onStartOver={restart} />
+      {/* An existing saved session needs an explicit continue/start-over choice. */}
+      <div inert={resumePending}>
       <div ref={statusRef} tabIndex={-1}>
         <p className="text-sm text-ink-soft">
           {roundCount(state) > 1 ? `Round ${state.roundNumber} of ${roundCount(state)} · ` : ''}
@@ -171,7 +279,7 @@ export default function MatchingBoard({ cards }: Props) {
               Next round
             </button>
           ) : (
-            <button type="button" onClick={() => newRound(() => startMatching(cards))} className={primaryButton}>
+            <button type="button" onClick={restart} className={primaryButton}>
               Play again
             </button>
           )}
@@ -181,6 +289,7 @@ export default function MatchingBoard({ cards }: Props) {
       <p className="mt-section text-sm text-ink-soft">
         Pick a term, then the meaning that goes with it, in either order. There is no timer.
       </p>
+      </div>
     </div>
   );
 }
