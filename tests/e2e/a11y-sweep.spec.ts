@@ -36,7 +36,7 @@ const axeTags = ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'];
 
 async function tabAudit(page: Page): Promise<string[]> {
   const problems: string[] = [];
-  const selector = 'a[href], button, input, select, textarea, [tabindex]';
+  const selector = 'a[href], button, input, select, textarea, [tabindex], details > summary:first-of-type';
 
   // Save each element's UNFOCUSED appearance. A permanent outline must not
   // count as a keyboard focus indicator if it looks identical when focused.

@@ -29,9 +29,12 @@ test('onboarding answers are saved on this device and shown on the progress page
   test.slow(); // several accessibility scans in one flow
   await page.goto('/start');
   await expect(page.locator('h1')).toHaveText('get started');
+  await expect(page.getByTestId('setup-step')).toHaveText('question 1 of 2');
   await axe(page);
 
   await page.getByRole('radio', { name: 'med-surg i' }).check();
+  await page.getByRole('button', { name: 'continue', exact: true }).click();
+  await expect(page.getByTestId('setup-step')).toHaveText('question 2 of 2');
   await page.getByLabel('when is your exam?').fill('2027-05-12');
   await page.getByRole('button', { name: 'save my answers' }).click();
   await expect(page.locator(':focus')).toContainText('saved on this device.');
@@ -43,9 +46,10 @@ test('onboarding answers are saved on this device and shown on the progress page
   await expect(page.getByText('exam: may 12, 2027')).toBeVisible();
   await axe(page);
 
-  // The answers come back pre-filled to change.
+  // The answers come back pre-filled on their own screens.
   await page.getByRole('link', { name: 'change your answers' }).click();
   await expect(page.getByRole('radio', { name: 'med-surg i' })).toBeChecked();
+  await page.getByRole('button', { name: 'continue', exact: true }).click();
   await expect(page.getByLabel('when is your exam?')).toHaveValue('2027-05-12');
 });
 
@@ -57,6 +61,7 @@ test('onboarding can be skipped, and skipping keeps earlier answers', async ({ p
 
   await page.goto('/start');
   await page.getByRole('radio', { name: 'fundamentals' }).check();
+  await page.getByRole('button', { name: 'continue', exact: true }).click();
   await page.getByRole('button', { name: 'save my answers' }).click();
   await page.goto('/start');
   await page.getByRole('button', { name: 'skip for now' }).click();
@@ -64,9 +69,10 @@ test('onboarding can be skipped, and skipping keeps earlier answers', async ({ p
 });
 
 test('skipping after another tab forgets does not restore the stale answers (Codex on #74)', async ({ page, context }) => {
-  // Set up: save a course in this tab, then come back to the form.
+  // Set up: save a course in this tab, then come back to the first question.
   await page.goto('/start');
   await page.getByRole('radio', { name: 'fundamentals' }).check();
+  await page.getByRole('button', { name: 'continue', exact: true }).click();
   await page.getByRole('button', { name: 'save my answers' }).click();
   await page.goto('/start');
 
@@ -78,13 +84,14 @@ test('skipping after another tab forgets does not restore the stale answers (Cod
   await expect(other.getByText('done. your progress is no longer saved on this device.')).toBeVisible();
   await other.close();
 
-  // Skip in this tab must not bring back the forgotten course.
+  // Skip must use the current storage, not the old mounted course answer.
   await page.getByRole('button', { name: 'skip for now' }).click();
   expect((await saved(page)).onboarding).toEqual({ course: null, examDate: null, done: true });
 });
 
 test('"clear the date" empties the date and puts focus back on it (Codex on #74)', async ({ page }) => {
   await page.goto('/start');
+  await page.getByRole('button', { name: 'continue', exact: true }).click();
   const date = page.getByLabel('when is your exam?');
   await date.fill('2027-05-12');
   const clear = page.getByRole('button', { name: 'clear the date' });
@@ -101,6 +108,8 @@ test('onboarding works with the keyboard alone', async ({ page }) => {
   await first.focus();
   await page.keyboard.press('ArrowDown'); // med-surg i
   await expect(page.getByRole('radio', { name: 'med-surg i' })).toBeChecked();
+  await page.keyboard.press('Enter'); // continue to the next question
+  await expect(page.getByTestId('setup-step')).toHaveText('question 2 of 2');
   await page.getByRole('button', { name: 'save my answers' }).focus();
   await page.keyboard.press('Enter');
   await expect(page.locator(':focus')).toContainText('saved on this device.');
