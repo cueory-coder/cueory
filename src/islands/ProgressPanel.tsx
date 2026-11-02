@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   COURSES,
-  deckProgress,
   emptyProgress,
   examDateWords,
   exportProgress,
@@ -12,6 +11,8 @@ import {
 } from '../scripts/progress';
 import { browserStorage } from '../scripts/storage';
 import { readResume } from '../scripts/resume';
+import ProgressRing from './ProgressRing';
+import { examCountdown, progressView } from './progressview';
 
 interface Deck {
   id: string;
@@ -59,18 +60,8 @@ export default function ProgressPanel({ decks }: Props) {
   }, [storage]);
 
   const { course, examDate, done } = progress.onboarding;
-  // Decks no longer on the site still show, so the page lists everything that's kept.
-  const retired = Object.keys(progress.decks)
-    .filter((id) => !decks.some((deck) => deck.id === id))
-    .map((id) => ({ id, title: `a deck no longer on the site (${id})`, cardIds: null }));
-  const deckLines = [...decks, ...retired].flatMap((deck) => {
-    const known = deck.cardIds ? new Set(deck.cardIds) : null;
-    const saved = deckProgress(progress, deck.id);
-    const count = (ids: string[]) => ids.filter((id) => !known || known.has(id)).length;
-    const [know, learning, starred] = [count(saved.know), count(saved.learning), count(saved.starred)];
-    if (!know && !learning && !starred) return [];
-    return [{ id: deck.id, title: deck.title, text: `${know} know it · ${learning} still learning · ${plural(starred, 'star', 'stars')}` }];
-  });
+  const view = progressView(progress, decks);
+  const countdown = examCountdown(examDate, localDay(new Date()));
 
   const download = () => {
     // Read what's saved right now, not what this page showed when it opened.
@@ -109,7 +100,7 @@ export default function ProgressPanel({ decks }: Props) {
 
   return (
     <div>
-      <section aria-labelledby="answers-heading">
+      <section aria-labelledby="answers-heading" className="rounded-xl border border-line bg-surface p-5">
         <h2 id="answers-heading" className="text-xl">your setup answers</h2>
         {course || examDate ? (
           <ul className="mt-3 space-y-1">
@@ -119,6 +110,7 @@ export default function ProgressPanel({ decks }: Props) {
         ) : (
           <p className="mt-3 text-ink-soft">{done ? 'you skipped these.' : 'you haven’t answered them yet.'}</p>
         )}
+        {countdown && <p className="mt-3 text-ink-soft">{countdown}</p>}
         <p className="mt-3">
           <a href="/start">{course || examDate ? 'change your answers' : 'answer two quick questions'}</a>
         </p>
@@ -126,18 +118,53 @@ export default function ProgressPanel({ decks }: Props) {
 
       <section aria-labelledby="decks-heading" className="mt-section">
         <h2 id="decks-heading" className="text-xl">card decks</h2>
-        {deckLines.length ? (
-          <ul className="mt-3 space-y-2">
-            {deckLines.map((line) => (
-              <li key={line.id}>
-                <span className="block">{line.title}</span>
-                <span className="block text-sm text-ink-soft">{line.text}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
+        {!view.hasSavedDecks && (
           <p className="mt-3 text-ink-soft">nothing saved yet. piles and stars from card decks show up here.</p>
         )}
+        {view.overall.total > 0 && (
+          <div className="mt-4 rounded-xl border border-line bg-surface p-5">
+            <h3 className="text-lg">across current decks</h3>
+            <div className="mt-3 flex items-center gap-4">
+              <ProgressRing
+                label="overall card progress"
+                know={view.overall.know}
+                learning={view.overall.learning}
+                notStarted={view.overall.notStarted}
+              />
+              <p className="text-sm text-ink-soft">
+                {view.overall.know} know it · {view.overall.learning} still learning · {view.overall.notStarted} not started
+              </p>
+            </div>
+          </div>
+        )}
+        <ul className="mt-4 grid gap-4 sm:grid-cols-2">
+          {view.decks.map((line) => (
+            <li key={line.id} className="rounded-xl border border-line p-5">
+              <h3 className="text-lg">{line.title}</h3>
+              <div className="mt-3 flex items-center gap-4">
+                {line.notStarted !== null && (
+                  <ProgressRing
+                    label={line.title}
+                    know={line.know}
+                    learning={line.learning}
+                    notStarted={line.notStarted}
+                  />
+                )}
+                <div>
+                  <span className="block text-sm text-ink-soft">
+                    {line.know} know it · {line.learning} still learning · {plural(line.starred, 'star', 'stars')}
+                  </span>
+                  <span className="mt-1 block text-sm text-ink-soft">
+                    {line.notStarted === null ? 'not started: unknown for this retired deck' : <>{line.notStarted} not started</>}
+                  </span>
+                </div>
+              </div>
+              {!line.retired && (
+                <a href="/learn" className="mt-3 inline-flex min-h-11 items-center underline">study now</a>
+              )}
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section aria-labelledby="yours-heading" className="mt-section">

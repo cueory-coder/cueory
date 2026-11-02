@@ -10,11 +10,11 @@ if (!deck) {
 const { title, cards, status } = deck.data;
 ---
 
-<Layout title={title} description="Cards for lesson 1 of How to study for nursing school." variant="study">
+<Layout title={title} description="cards for lesson 1 of How to study for nursing school." variant="study">
   <div class="mx-auto max-w-prose pt-8">
-    <p class="text-sm text-ink-soft">How to study for nursing school · Lesson 1 cards</p>
+    <p class="text-sm text-ink-soft">How to study for nursing school · lesson 1 cards</p>
     <h1 class="mt-3 text-2xl">{title}</h1>
-    {status === 'placeholder' && <p class="mt-3 text-sm text-ink-soft">These cards are placeholders.</p>}
+    {status === 'placeholder' && <p class="mt-3 text-sm text-ink-soft">these cards are placeholders.</p>}
 
     <div class="mt-10">
       {/* client:only: nothing is pre-rendered, so without JavaScript only the full list below shows. */}
@@ -34,8 +34,8 @@ const { title, cards, status } = deck.data;
     </div>
 
     <ul class="mt-section space-y-2 text-sm">
-      <li><a href="/learn/study-skills/learn-mode">Learn these cards in Learn mode</a></li>
-      <li><a href="/learn/study-skills">Back to the lesson</a></li>
+      <li><a href="/learn/study-skills/learn-mode">learn these cards in learn mode</a></li>
+      <li><a href="/learn/study-skills">back to the lesson</a></li>
     </ul>
   </div>
 </Layout>

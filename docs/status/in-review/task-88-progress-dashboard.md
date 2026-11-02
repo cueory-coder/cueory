@@ -1,0 +1,1 @@
+status: Task 88, progress dashboard: shows current card-deck know it, still learning and not-started counts with accessible rings and an exam-date countdown; retired saved decks remain visible without made-up completion totals, and download and forget behavior stays unchanged.

@@ -14,6 +14,7 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "check-batch": "node scripts/check_batch.ts",
+    "import-batch": "node scripts/import_batch.ts",
     "verify": "npm run check && npm run build && npm test && npm run test:e2e"
   },
   "dependencies": {

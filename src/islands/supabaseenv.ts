@@ -26,8 +26,9 @@ export type SupabaseSettings = SupabaseEnabled | SupabaseDisabled;
  * - no port (only a local address keeps its port)
  * - a single subdomain under supabase.co with a 20-char lowercase alphanum ref
  * - no path, query string or fragment
+ * Exported so the batch importer (scripts/import_batch.ts) checks a project address exactly the same way.
  */
-function validateUrl(raw: string | undefined): string | null {
+export function validateUrl(raw: string | undefined): string | null {
   if (!raw || raw.trim() === '') return null;
   const value = raw.trim();
   let parsed: URL;
