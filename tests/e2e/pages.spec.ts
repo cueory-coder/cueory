@@ -1021,14 +1021,15 @@ test.describe('study-mode preview (D-51)', () => {
     const preview = page.getByRole('dialog', { name: 'cards' });
     await expect(preview).toBeVisible();
     await expect(preview.getByRole('heading', { level: 2, name: 'cards' })).toBeVisible();
-    await expect(preview.locator('[data-mode-preview-more]')).toContainText('flip a card to check yourself');
+    // Its feature rows wait behind the ⓘ beside the name (Christian, 2026-11-02).
+    await expect(preview.getByRole('button', { name: 'more about cards' })).toHaveAttribute('aria-expanded', 'false');
     await expect(preview.getByRole('link', { name: 'start cards' })).toHaveAttribute('href', '/learn/study-skills/cards');
-    await expect(preview.getByRole('link', { name: 'create your free account to save progress' })).toHaveAttribute(
+    await expect(preview.getByRole('link', { name: 'create your free account', exact: true })).toHaveAttribute(
       'href',
       '/#signup',
     );
     await expect(preview.getByRole('button', { name: 'close preview' })).toBeFocused();
-    // The same bottle, with its label, stands in the preview, beside its four feature rows.
+    // The same bottle, with its label, stands in the preview; its four feature rows are behind the ⓘ.
     await expect(preview.locator('[data-mode-preview-vial] .vial-name')).toHaveText('cards');
     await expect(preview.locator('[data-mode-preview-features="cards"] li')).toHaveCount(4);
     await expect

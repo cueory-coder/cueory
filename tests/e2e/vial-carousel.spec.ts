@@ -34,7 +34,7 @@ async function showRing(page: Page) {
     .toMatch(/^(none|0px)$/);
 }
 
-test('every vial is a blank bottle with its label in live text: name, "best for" and time, read aloud in full', async ({
+test('every vial is a blank bottle with its label in live text: name and time, with "best for" read aloud too', async ({
   page,
 }) => {
   await showRing(page);
@@ -43,9 +43,10 @@ test('every vial is a blank bottle with its label in live text: name, "best for"
     // The bottle image has a blank label (public/vials/README.txt); the words are text in the page.
     await expect(card.locator('img.vial-img')).toHaveAttribute('src', `/vials/vial-${mode.vial}.webp`);
     await expect(card.locator('img.vial-img')).toHaveAttribute('alt', '');
-    await expect(card.locator('.vial-kicker')).toHaveText('study method:');
+    // Nothing on the label restates what the name and the section heading say (Christian, 2026-11-02).
+    await expect(card.locator('.vial-kicker')).toHaveCount(0);
     await expect(card.locator('.vial-name')).toHaveText(mode.name);
-    await expect(card.locator('.vial-meta')).toHaveText(`best for${mode.bestFor}time${mode.time} min`);
+    await expect(card.locator('.vial-meta')).toHaveText(`time${mode.time} min`);
     // The logo is Christian's artwork, not typed.
     await expect(card.locator('img.vial-logo')).toHaveAttribute('src', '/brand/v1/logo-full-light-480.png');
   }
@@ -63,13 +64,12 @@ test('no medication wording anywhere on the vials or in their preview', async ({
   for (const mode of studyModes) expect(mode.features.map((feature) => feature.text).join(' ')).not.toMatch(banned);
 });
 
-test('the dots and the caption follow the vial in front; the dot is a pill, not only a color', async ({ page }) => {
+test('the dots follow the vial in front, with no caption repeating its name; the dot is a pill, not only a color', async ({ page }) => {
   await showRing(page);
   const on = () => section(page).locator('[data-modes-dot][data-on]');
   await expect(on()).toHaveCount(1);
-  await expect(section(page).locator('[data-modes-caption]')).toHaveText('video · watch the short lesson video');
+  await expect(section(page).locator('[data-modes-caption]')).toHaveCount(0);
   await section(page).getByRole('button', { name: 'next study mode' }).click();
-  await expect(section(page).locator('[data-modes-caption]')).toHaveText('cards · flip through the key ideas');
   const widths = () =>
     section(page)
       .locator('[data-modes-dot]')
@@ -153,6 +153,9 @@ test('Enter on the vial in front grows that same bottle into the preview, in two
 
   const preview = page.getByRole('dialog', { name: 'video' });
   await expect(preview).toBeVisible();
+  // The feature rows wait behind the ⓘ beside the name.
+  await expect(preview.locator('[data-mode-preview-features="video"]')).toBeHidden();
+  await preview.getByRole('button', { name: 'more about video' }).click();
   await expect(preview.locator('[data-mode-preview-features="video"] li')).toHaveText([
     'a short video for each lesson',
     'starts with one tap on its cover',
@@ -160,10 +163,13 @@ test('Enter on the vial in front grows that same bottle into the preview, in two
     'read-along text in the lesson',
   ]);
   await expect(preview.getByText('coming soon')).toBeVisible();
-  await expect(preview.getByRole('link', { name: 'create your free account to save progress' })).toBeVisible();
+  await expect(preview.getByRole('link', { name: 'create your free account', exact: true })).toBeVisible();
   const axe = await new AxeBuilder({ page }).include('#mode-preview').withTags(axeTags).analyze();
   expect(axe.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
 
+  // The ⓘ has focus, so the first Escape closes it and the second the preview.
+  await page.keyboard.press('Escape');
+  await expect(preview.locator('[data-mode-preview-features="video"]')).toBeHidden();
   await page.keyboard.press('Escape');
   await expect(page.locator('#mode-preview')).toBeHidden();
   await expect(front).toBeFocused();
@@ -235,4 +241,58 @@ test('the vials pass axe', async ({ page }) => {
   await showRing(page);
   const axe = await new AxeBuilder({ page }).include('#ways-to-study').withTags(axeTags).analyze();
   expect(axe.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+});
+
+test('the ⓘ in the preview opens and closes by keyboard, says whether it is open, and passes axe', async ({ page }) => {
+  await showRing(page);
+  await section(page).locator('#mode-video [data-mode-open]').click();
+  const preview = page.getByRole('dialog', { name: 'video' });
+  await expect(preview.getByRole('button', { name: 'close preview' })).toBeFocused();
+  await expect
+    .poll(() => page.evaluate(() => document.querySelector('[data-mode-preview]')!.getAnimations({ subtree: true }).length))
+    .toBe(0);
+  const info = preview.getByRole('button', { name: 'more about video' });
+  const rows = preview.locator('[data-mode-preview-features="video"]');
+  await expect(info).toHaveAttribute('aria-expanded', 'false');
+  await expect(info).toHaveAttribute('aria-controls', 'mode-preview-info');
+  await expect(rows).toBeHidden();
+  // The tap target is at least 44 px, though the icon is small.
+  const box = await info.boundingBox();
+  expect(box!.width).toBeGreaterThanOrEqual(44);
+  expect(box!.height).toBeGreaterThanOrEqual(44);
+
+  // Tab reaches it straight after the close button; Enter opens it, Space closes it.
+  await page.keyboard.press('Tab');
+  await expect(info).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(info).toHaveAttribute('aria-expanded', 'true');
+  await expect(rows).toBeVisible();
+  const axe = await new AxeBuilder({ page }).include('#mode-preview').withTags(axeTags).analyze();
+  expect(axe.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+  await page.keyboard.press('Space');
+  await expect(info).toHaveAttribute('aria-expanded', 'false');
+  await expect(rows).toBeHidden();
+
+  // Escape closes the ⓘ first and leaves the preview open; a second Escape closes the preview.
+  await page.keyboard.press('Space');
+  await expect(rows).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(info).toHaveAttribute('aria-expanded', 'false');
+  await expect(rows).toBeHidden();
+  await expect(info).toBeFocused();
+  await expect(page.locator('#mode-preview')).toBeVisible();
+
+  // The next method gets its own name, closed again.
+  await info.click();
+  await expect(info).toHaveAttribute('aria-expanded', 'true');
+  await preview.getByRole('button', { name: 'next study mode' }).click();
+  const cardsInfo = page.getByRole('dialog', { name: 'cards' }).getByRole('button', { name: 'more about cards' });
+  await expect(cardsInfo).toHaveAttribute('aria-expanded', 'false');
+  await cardsInfo.click();
+  await expect(page.locator('[data-mode-preview-features="cards"]')).toBeVisible();
+  await expect(page.locator('[data-mode-preview-features="video"]')).toBeHidden();
+
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#mode-preview')).toBeHidden();
 });

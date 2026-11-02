@@ -781,7 +781,7 @@ html:has(dialog.menu-panel[open]) {
     --vial-preview-width: calc(var(--container-mode-preview) * 1.75); /* the two-column preview, 784 px */
     --vial-glide: 700ms cubic-bezier(0.22, 0.8, 0.24, 1); /* RING_MS and RING_EASING in src/scripts/carousel.ts */
     --vial-hover: 220ms var(--ease-soft);             /* brand bar for hover: 200 to 240 ms */
-    --tracking-kicker: 0.24em;                        /* "ways to study" and "study method:" */
+    --tracking-kicker: 0.24em;                        /* "ways to study" */
     /* The label's words: Espresso by day, Charcoal in the evening. Both dark, because the label is cream in both. */
     --vial-ink: var(--color-on-panel-button);
   }
@@ -1032,11 +1032,6 @@ html:has(dialog.menu-panel[open]) {
     pointer-events: none;
   }
 
-  .vial-kicker {
-    font-size: 4.1cqi;
-    letter-spacing: var(--tracking-kicker);
-  }
-
   .vial-name {
     inline-size: 66%;
     margin-block-start: 1.5cqi;
@@ -1097,7 +1092,7 @@ html:has(dialog.menu-panel[open]) {
     visibility: hidden;
   }
 
-  /* Under the stage: the arrows (on phones, either side of the dots), the dots and one caption line. */
+  /* Under the stage: the arrows (on phones, either side of the dots) and the dots. */
   .modes-controls {
     display: flex;
     align-items: center;
@@ -1125,14 +1120,6 @@ html:has(dialog.menu-panel[open]) {
   .modes-dot[data-on] {
     inline-size: calc(var(--spacing) * 6);
     background-color: var(--color-ink);
-  }
-
-  .modes-caption {
-    margin-block-start: calc(var(--spacing) * 3);
-    min-block-size: calc(var(--text-sm) * 1.5);
-    font-size: var(--text-sm);
-    text-align: center;
-    color: var(--color-ink);
   }
 
   @media (width >= 40rem) {
@@ -1911,10 +1898,10 @@ html:has(dialog.menu-panel[open]) {
     background-color: var(--color-ink);
   }
 
+  /* The feature rows, inside the preview's ⓘ panel. */
   .mode-features {
     display: grid;
-    gap: calc(var(--spacing) * 2.5);
-    margin-block-start: calc(var(--spacing) * 5);
+    gap: calc(var(--spacing) * 2);
   }
 
   .mode-features[hidden] {

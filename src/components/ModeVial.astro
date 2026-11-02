@@ -1,8 +1,9 @@
 ---
 /**
  * One study method's vial for the "ways to study" ring on the home page (Task 109): Christian's bottle with a blank
- * label (public/vials/), and over the label, as live text, "study method:", the method's name, a short rule and its
- * "best for" and "time" lines from src/config/modes.ts. The logo runs down the label's right edge: Christian's
+ * label (public/vials/), and over the label, as live text, the method's name, a short rule and its "time" line from
+ * src/config/modes.ts. Its "best for" is read aloud only (the summary below): the visible label keeps just what the
+ * name doesn't say (Christian, 2026-11-02). The logo runs down the label's right edge: Christian's
  * Espresso artwork (public/brand/v1/), turned on its side and otherwise unchanged. A faint shading layer under the
  * words makes them sit on the curved glass. No dose, "mg/ml" or medicine wording anywhere: it is a study tool.
  *
@@ -35,7 +36,6 @@ const { mode, summaryId } = Astro.props;
   <span class="vial-curve" aria-hidden="true"></span>
   <span class="vial-shine" aria-hidden="true"></span>
   <div class="vial-label">
-    <p class="vial-kicker">study method:</p>
     <h3 class="vial-name">{mode.name}</h3>
     <span class="vial-rule" aria-hidden="true"></span>
     <img
@@ -49,7 +49,6 @@ const { mode, summaryId } = Astro.props;
       draggable="false"
     />
     <div class="vial-meta" aria-hidden="true">
-      <span>best for</span><span>{mode.bestFor}</span>
       <span>time</span><span>{shortTime(mode.time)}</span>
     </div>
     <p class="sr-only" id={summaryId}>{vialSummary(mode.bestFor, mode.time)}</p>

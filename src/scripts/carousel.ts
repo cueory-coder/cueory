@@ -229,12 +229,7 @@ export function shortTime(minutes: number): string {
   return `${minutes} min`;
 }
 
-/** The label's two lines as a screen reader hears them: "best for recall, about 5 minutes". */
+/** The vial as a screen reader hears it, after its name: "best for recall, about 5 minutes". */
 export function vialSummary(bestFor: string, minutes: number): string {
   return `best for ${bestFor}, about ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
-}
-
-/** The one caption line under the pedestal: "cards · flip through the key ideas". */
-export function captionLine(name: string, text: string): string {
-  return `${name} · ${text.replace(/\.$/, '')}`;
 }

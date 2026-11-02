@@ -5,7 +5,6 @@ import { studyModes } from '../../src/config/modes';
 import {
   AUTO_ADVANCE_MS,
   canAutoAdvance,
-  captionLine,
   clipAround,
   flipFrom,
   glides,
@@ -192,14 +191,6 @@ describe('"ways to study" merry-go-round (D-50, D-60)', () => {
 });
 
 describe('the study-mode preview (D-51)', () => {
-  it('gives every mode two plain lines for the preview, in the lowercase voice', () => {
-    for (const mode of studyModes) {
-      expect(mode.more.length, mode.id).toBeGreaterThan(mode.text.length);
-      expect(mode.more, mode.id).toBe(mode.more.toLowerCase());
-      expect(mode.more.endsWith('.'), mode.id).toBe(true);
-    }
-  });
-
   it('starts the panel exactly over the card it grows from: same middle, same size', () => {
     const card = { left: 100, top: 300, width: 320, height: 480 };
     const panel = { left: 50, top: 100, width: 448, height: 640 };
@@ -265,7 +256,6 @@ describe('the vials (Task 109)', () => {
     expect(shortTime(5)).toBe('5 min');
     expect(vialSummary('recall', 5)).toBe('best for recall, about 5 minutes');
     expect(vialSummary('watch', 1)).toBe('best for watch, about 1 minute');
-    expect(captionLine('cards', 'flip through the key ideas.')).toBe('cards · flip through the key ideas');
   });
 
   it('gives every method four short feature rows that describe the tool, never scores or results', () => {
@@ -283,7 +273,7 @@ describe('the vials (Task 109)', () => {
 
   it('never uses medication wording in the words on the vials or in their preview', () => {
     // The rendered page is checked too (tests/e2e/vial-carousel.spec.ts).
-    const words = studyModes.flatMap((mode) => [mode.name, mode.text, mode.more, mode.bestFor, ...mode.features.map((f) => f.text)]);
+    const words = studyModes.flatMap((mode) => [mode.name, mode.text, mode.bestFor, ...mode.features.map((f) => f.text)]);
     for (const text of words) {
       expect(text).not.toMatch(/\bdose\b|\bdosage\b|mg\/ml|\bmg\b|\bml\b|wellness shot|prescription|\brx\b/i);
     }

@@ -1,9 +1,9 @@
 ---
 /**
  * "ways to study" on the home page (D-50, D-60), drawn as Christian's vials (Task 109, the prototype he approved on
- * 2026-11-01: docs/screenshots/approved-2026-11-01/vial-carousel-*). A small "ways to study" heading, the serif line
- * and one plain line, then the eleven vials standing in a shallow arc on a soft pedestal, with the arrows, the dots and
- * one caption line under it.
+ * 2026-11-01: docs/screenshots/approved-2026-11-01/vial-carousel-*). A small "ways to study" heading and the serif
+ * line, then the eleven vials standing in a shallow arc on a soft pedestal, with the arrows and the dots under it. No
+ * caption repeats the vial's name (Christian, 2026-11-02: no description that only restates its label).
  *
  * Without JavaScript it still works: the vials are a row that scrolls sideways and snaps each vial to the middle, each
  * with its link (or "coming soon") under it. The script turns the row into the ring: the vial in front is the largest
@@ -15,21 +15,21 @@
  * Screen readers hear only the vial where the ring comes to rest.
  *
  * The preview (D-51): the same bottle grows from its place in the ring toward the middle of the screen while the page
- * darkens, then the cream panel opens around it with the method's name, two plain lines, four feature rows, "start …"
- * (or "coming soon") and the free-account link: two columns on wider screens, stacked on phones. It is a native modal
+ * darkens, then the cream panel opens around it with the method's name and its ⓘ (the four feature rows, shown only
+ * when asked: src/components/InfoTip.astro), "start …" (or "coming soon") and the free-account link: two columns on wider screens, stacked on phones. It is a native modal
  * <dialog>. Close it with the X, Escape, a tap on the darkened page or a swipe down; it closes back into its vial and
  * focus returns there. Previous and next inside move through the methods in the ring's order, and the ring behind
  * follows. With a mouse, the vial in front lifts a little and its glass brightens under the pointer or keyboard focus.
  */
 import { studyModes, type StudyFeatureIcon } from '../config/modes';
 import { accountHref } from '../config/site';
-import { captionLine } from '../scripts/carousel';
+import InfoTip from './InfoTip.astro';
 import ModeVial from './ModeVial.astro';
 
 const count = studyModes.length;
 const first = studyModes[0]!;
 
-/** The feature rows' outline icons: plain strokes in the text color, 24 × 24. Decorative: the row's words say it. */
+/** The feature rows' outline icons (in the preview's ⓘ): plain strokes in the text color, 24 × 24. Decorative. */
 const icons: Record<StudyFeatureIcon, string> = {
   play: 'M8.5 6.5v11l9-5.5z',
   tap: 'M9 11V5.5a1.5 1.5 0 013 0V11m0-1.5a1.5 1.5 0 013 0V12m0-1a1.5 1.5 0 013 0v3.5a5.5 5.5 0 01-5.5 5.5h-1A5.5 5.5 0 016 16l-1.5-3a1.5 1.5 0 012.6-1.5L9 14',
@@ -63,7 +63,6 @@ const icons: Record<StudyFeatureIcon, string> = {
   <div class="mx-auto max-w-page px-gutter text-center">
     <h2 id="modes-heading" class="modes-kicker">ways to study</h2>
     <p class="display mt-2 text-title sm:text-title-lg">one lesson, eleven ways in</p>
-    <p class="mt-2 text-ink-soft">pick the method that fits your brain today.</p>
   </div>
 
   <div class="vial-stage mt-8">
@@ -91,9 +90,7 @@ const icons: Record<StudyFeatureIcon, string> = {
             aria-label={`${index + 1} of ${count}`}
             data-mode-card
             data-name={mode.name}
-            data-more={mode.more}
             data-href={mode.link?.href}
-            data-caption={captionLine(mode.name, mode.text)}
           >
             <button
               type="button"
@@ -134,8 +131,6 @@ const icons: Record<StudyFeatureIcon, string> = {
           </svg>
         </button>
       </div>
-      <!-- The vials say the same in words, so screen readers skip this line. -->
-      <p class="modes-caption" aria-hidden="true" data-modes-caption>{captionLine(first.name, first.text)}</p>
       <div class="mt-3 flex justify-center">
         <button type="button" class="corner-button" aria-label="pause the slideshow" data-modes-pause>
           <svg viewBox="0 0 24 24" class="size-6" aria-hidden="true" focusable="false" data-icon-pause>
@@ -166,30 +161,32 @@ const icons: Record<StudyFeatureIcon, string> = {
       <!-- The same bottle as in the ring, copied in when the preview opens. Decoration: the words beside it say it. -->
       <div class="mode-preview-bottle" aria-hidden="true" data-mode-preview-vial></div>
       <div class="mode-preview-details" data-mode-preview-fade>
-        <p class="modes-kicker">study method:</p>
         <span class="mode-preview-rule" aria-hidden="true"></span>
-        <h2 id="mode-preview-title" class="display mt-3 text-title" data-mode-preview-title></h2>
-        <p class="mt-3 text-ink-soft" data-mode-preview-more></p>
-        {
-          studyModes.map((mode) => (
-            <ul class="mode-features" hidden data-mode-preview-features={mode.id}>
-              {mode.features.map((feature) => (
-                <li>
-                  <svg viewBox="0 0 24 24" class="mode-feature-icon" aria-hidden="true" focusable="false">
-                    <path d={icons[feature.icon]} fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                  </svg>
-                  <span>{feature.text}</span>
-                </li>
-              ))}
-            </ul>
-          ))
-        }
+        <div class="mt-3 flex flex-wrap items-center gap-x-1">
+          <h2 id="mode-preview-title" class="display text-title" data-mode-preview-title></h2>
+          <InfoTip id="mode-preview-info" label={first.name}>
+            {
+              studyModes.map((mode) => (
+                <ul class="mode-features" hidden data-mode-preview-features={mode.id}>
+                  {mode.features.map((feature) => (
+                    <li>
+                      <svg viewBox="0 0 24 24" class="mode-feature-icon" aria-hidden="true" focusable="false">
+                        <path d={icons[feature.icon]} fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                      </svg>
+                      <span>{feature.text}</span>
+                    </li>
+                  ))}
+                </ul>
+              ))
+            }
+          </InfoTip>
+        </div>
         <div class="mt-7 flex flex-col items-start gap-4">
           <a href="/" class="glass-button" data-mode-preview-try>
             <span data-mode-preview-try-label>start</span><span aria-hidden="true"> →</span>
           </a>
           <p class="mode-soon" data-mode-preview-soon>coming soon</p>
-          <a href={accountHref} class="text-sm text-ink-soft hover:text-ink">create your free account to save progress</a>
+          <a href={accountHref} class="text-sm text-ink-soft hover:text-ink">create your free account</a>
         </div>
         <div class="mt-7 flex gap-3">
           <button type="button" class="corner-button" aria-label="previous study mode" data-mode-preview-prev>
@@ -229,6 +226,7 @@ const icons: Record<StudyFeatureIcon, string> = {
     swipeTurn,
     wrap,
   } from '../scripts/carousel';
+  import { relabelInfoTip } from '../scripts/infotip';
   import { isCloseKey, wrapFocus } from '../scripts/menu';
 
   const root = document.querySelector<HTMLElement>('[data-modes]');
@@ -240,7 +238,6 @@ const icons: Record<StudyFeatureIcon, string> = {
     const live = root.querySelector<HTMLElement>('[data-modes-live]');
     const pauseButton = root.querySelector<HTMLButtonElement>('[data-modes-pause]');
     const dots = [...root.querySelectorAll<HTMLElement>('[data-modes-dot]')];
-    const caption = root.querySelector<HTMLElement>('[data-modes-caption]');
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
     const state = {
@@ -295,7 +292,6 @@ const icons: Record<StudyFeatureIcon, string> = {
         for (const link of card.querySelectorAll('a')) link.tabIndex = -1;
       });
       dots.forEach((dot, index) => dot.toggleAttribute('data-on', index === active));
-      if (caption) caption.textContent = cards[active]!.dataset.caption ?? '';
     };
 
     /**
@@ -498,7 +494,7 @@ const icons: Record<StudyFeatureIcon, string> = {
     if (dialog && panel && scrim && bottle && surface && typeof dialog.showModal === 'function') {
       const fades = [...dialog.querySelectorAll<HTMLElement>('[data-mode-preview-fade]')];
       const title = dialog.querySelector<HTMLElement>('[data-mode-preview-title]');
-      const more = dialog.querySelector<HTMLElement>('[data-mode-preview-more]');
+      const info = dialog.querySelector<HTMLElement>('[data-infotip]');
       const tryLink = dialog.querySelector<HTMLAnchorElement>('[data-mode-preview-try]');
       const tryLabel = dialog.querySelector<HTMLElement>('[data-mode-preview-try-label]');
       const soon = dialog.querySelector<HTMLElement>('[data-mode-preview-soon]');
@@ -519,7 +515,7 @@ const icons: Record<StudyFeatureIcon, string> = {
         cards.forEach((card, at) => card.toggleAttribute('data-lent', at === index));
       };
 
-      /** Puts a mode's bottle, name, lines, feature rows and link into the panel. */
+      /** Puts a mode's bottle, name, feature rows (behind the ⓘ) and link into the panel. */
       const fill = (index: number) => {
         shown = index;
         const card = cards[index]!;
@@ -527,7 +523,7 @@ const icons: Record<StudyFeatureIcon, string> = {
         for (const item of copy.querySelectorAll('[id]')) item.removeAttribute('id');
         bottle.replaceChildren(copy);
         if (title) title.textContent = card.dataset.name ?? '';
-        if (more) more.textContent = card.dataset.more ?? '';
+        if (info) relabelInfoTip(info, card.dataset.name ?? '');
         const id = card.id.replace(/^mode-/, '');
         for (const list of features) list.hidden = list.dataset.modePreviewFeatures !== id;
         const href = card.dataset.href;
