@@ -18,6 +18,20 @@ const FILL_IN_PAGE = '/learn/study-skills/fill-in';
 const itemKey = (index: number) => `item-${index}`;
 type Attempts = Record<string, string[]>;
 
+/** The resume format keeps at most 50 entries per item (`answerValue` in src/scripts/resume.ts). */
+const MAX_HISTORY = 50;
+
+/**
+ * Add one submission to an item's history. A close answer leaves the item open, so the close tries in a row before
+ * it matter to replay only while the item is still open: when a right or wrong answer ends that try, they are dropped,
+ * and while it stays open only the latest close try is kept (it carries the typed text and the hint flag). The
+ * history is then one entry per finished round plus at most one open close try, so earlier rounds are never evicted.
+ */
+function appendAttempt(history: readonly string[], entry: string, previousWasClose: boolean): string[] {
+  const kept = previousWasClose ? history.slice(0, -1) : [...history];
+  return [...kept, entry];
+}
+
 /** Only typed submissions and whether the student used a hint are saved. */
 function fillInDraft(items: readonly FillInItem[], state: FillInState, attempts: Attempts, moves: number): ResumeDraft | null {
   if (!items.length) return null;
@@ -111,6 +125,8 @@ function Session({ items: suppliedItems }: Props) {
     return saved?.tool === 'fill-in' && saved.page === FILL_IN_PAGE;
   });
   const attempts = useRef<Attempts>({});
+  // The item whose last saved entry is a close try that is still open (a hint in between doesn't close it).
+  const openClose = useRef<string | null>(null);
   const moves = useRef(0);
   const latestDraft = useRef<ResumeDraft | null>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -134,6 +150,12 @@ function Session({ items: suppliedItems }: Props) {
   const persist = (next: FillInState) => {
     const draft = fillInDraft(items, next, attempts.current, moves.current);
     if (!draft) return;
+    if (Object.values(attempts.current).some((entries) => entries.length > MAX_HISTORY)) {
+      // Too many rounds on one item to save in a form replay can trust: stop saving rather than keep a broken save.
+      latestDraft.current = null;
+      clearResume(browserStorage());
+      return;
+    }
     latestDraft.current = draft;
     saveResume(browserStorage(), draft);
   };
@@ -145,11 +167,11 @@ function Session({ items: suppliedItems }: Props) {
     const next = answerCurrent(state, items, submitted);
     if (next === state) return;
     const key = itemKey(index);
-    const history = attempts.current[key] ?? [];
     attempts.current = {
       ...attempts.current,
-      [key]: [...history.slice(-49), `${state.hinted ? 'h' : 'n'}:${submitted}`],
+      [key]: appendAttempt(attempts.current[key] ?? [], `${state.hinted ? 'h' : 'n'}:${submitted}`, openClose.current === key),
     };
+    openClose.current = next.result === 'close' ? key : null;
     if (submitted !== typed) setTyped(submitted);
     setState(next);
     persist(next);
@@ -173,6 +195,7 @@ function Session({ items: suppliedItems }: Props) {
 
   const startOver = () => {
     attempts.current = {};
+    openClose.current = null;
     moves.current = 0;
     latestDraft.current = null;
     clearResume(browserStorage());
@@ -189,6 +212,8 @@ function Session({ items: suppliedItems }: Props) {
       return;
     }
     attempts.current = saved.attempts;
+    openClose.current = saved.state.result === 'close' && saved.state.done === false
+      ? itemKey(currentIndex(saved.state) ?? -1) : null;
     moves.current = saved.moves;
     latestDraft.current = fillInDraft(items, saved.state, saved.attempts, saved.moves);
     setState(saved.state);

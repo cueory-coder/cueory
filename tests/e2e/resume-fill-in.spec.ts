@@ -163,7 +163,7 @@ test('blocked local storage never blocks studying and cannot show a false resume
 });
 
 
-test('keeps only the latest 50 retries so later answers still resume (Codex on #219)', async ({ page }) => {
+test('51 close tries keep one open entry, and the right answer replaces it (Codex on #219)', async ({ page }) => {
   const board = await open(page);
   await submit(page, 'honey');
   await board.getByRole('button', { name: 'next' }).click();
@@ -176,16 +176,41 @@ test('keeps only the latest 50 retries so later answers still resume (Codex on #
     await expect(board.getByText('almost. check the spelling.')).toBeVisible();
   }
   let saved = await page.evaluate(() => JSON.parse(localStorage.getItem('cueory-resume') ?? 'null'));
-  expect(saved.answers['item-2']).toHaveLength(50);
-  expect(saved.answers['item-2'].every((answer: string) => answer === 'n:pnecil')).toBe(true);
+  expect(saved.answers['item-2']).toEqual(['n:pnecil']);
   await field.fill('pencil');
   await field.press('Enter');
   await expect(board.getByRole('button', { name: 'next' })).toBeVisible();
   await board.getByRole('button', { name: 'next' }).click();
   saved = await page.evaluate(() => JSON.parse(localStorage.getItem('cueory-resume') ?? 'null'));
-  expect(saved.answers['item-2']).toHaveLength(50);
+  expect(saved.answers['item-2']).toEqual(['n:pencil']);
   await page.reload();
   await page.getByRole('button', { name: 'continue question 4' }).click();
   await expect(board.getByText('round 1 · item 4 of 4')).toBeVisible();
   await expect(board.getByRole('region', { name: 'your submitted answers' })).toContainText('item 3: pencil');
+});
+
+test('close tries in a later round keep the earlier round that brought the item back (Codex on #219)', async ({ page }) => {
+  const board = await open(page);
+  await submit(page, 'wrong');
+  await board.getByRole('button', { name: 'next' }).click();
+  for (const value of ['days', 'pencil', 'umbrella']) {
+    await submit(page, value);
+    await board.getByRole('button', { name: 'next' }).click();
+  }
+  await expect(board.getByText('round 2 · item 1 of 1')).toBeVisible();
+  const field = board.getByRole('textbox', { name: 'the missing word' });
+  for (let attempt = 0; attempt < 51; attempt++) {
+    await field.fill('hnoey');
+    await field.press('Enter');
+    await expect(board.getByText('almost. check the spelling.')).toBeVisible();
+  }
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('cueory-resume') ?? 'null'));
+  expect(saved.answers['item-0']).toEqual(['n:wrong', 'n:hnoey']);
+  await page.reload();
+  await page.getByRole('button', { name: 'continue question 1' }).click();
+  await expect(board.getByText('round 2 · item 1 of 1')).toBeVisible();
+  await expect(board.getByText('almost. check the spelling.')).toBeVisible();
+  await submit(page, 'honey');
+  await board.getByRole('button', { name: 'next' }).click();
+  await expect(board.getByText('all 4 recalled in 2 rounds.')).toBeVisible();
 });
