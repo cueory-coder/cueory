@@ -30,8 +30,9 @@ test.beforeAll(async () => {
 test.afterAll(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
 test('times the clip by the selected diagram alone, despite an endless spinner and a longer animation nearby', async ({}, info) => {
-  // The exporter starts its own browser, so one run is enough.
-  test.skip(info.project.name !== 'desktop', 'runs once, on the desktop project');
+  // The exporter starts its own Chromium (scripts/export-frames.ts), whatever the project's engine, so one run is enough;
+  // the WebKit and Firefox job doesn't install Chromium.
+  test.skip(info.project.name !== 'desktop', 'the exporter always launches its own Chromium: runs once, on the desktop project');
   test.setTimeout(60_000);
   const out = await mkdtemp(join(tmpdir(), 'export-frames-'));
   try {
