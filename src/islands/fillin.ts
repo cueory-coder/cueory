@@ -1,4 +1,5 @@
 /** Pure rules for the fill-in recall study mode (ROADMAP Task 4). */
+import { MAX_ANSWER_TEXT } from '../scripts/resume';
 
 export interface FillInItem {
   id: string;
@@ -60,6 +61,18 @@ export function parseItems(data: unknown): FillInItem[] {
     seen.add(value.id);
     return { id: value.id, sentence: value.sentence };
   });
+}
+
+/**
+ * A saved attempt is `n:` or `h:` plus the typed text, and the resume format caps
+ * each string at MAX_ANSWER_TEXT characters. Bound what the student can submit so
+ * one long answer can never make every later save fail (Codex on #219).
+ */
+export const MAX_TYPED = MAX_ANSWER_TEXT - 2;
+// Control characters the resume parser rejects; a text field can still receive them by paste.
+const UNSAVEABLE = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g;
+export function boundTyped(value: string): string {
+  return Array.from(value.replace(UNSAVEABLE, '')).slice(0, MAX_TYPED).join('');
 }
 
 /** Case, repeated whitespace and punctuation at the end do not change an answer. */
