@@ -81,7 +81,7 @@ test('lesson can be stepped through with the keyboard', async ({ page }) => {
 
 test('cards can be sorted with the keyboard, and "Still learning" cards come back next round', async ({ page }) => {
   await page.goto('/learn/study-skills');
-  await page.getByRole('link', { name: 'Practice this lesson with cards' }).click();
+  await page.getByRole('link', { name: 'practice this lesson with cards' }).click();
   await expect(page).toHaveURL(/\/learn\/study-skills\/cards$/);
   await expect(page.getByText('Card 1 of 3 · Know it: 0 · Still learning: 0')).toBeVisible();
   await expect(page.getByText('Question', { exact: true })).toBeVisible();
@@ -177,7 +177,7 @@ test('Learn mode brings back what you miss until you know every card', async ({ 
     'Placeholder card 3, front.': { back: 'Placeholder card 3, back.' },
   };
   await page.goto('/learn/study-skills');
-  await page.getByRole('link', { name: "Learn this lesson's cards in Learn mode" }).click();
+  await page.getByRole('link', { name: "learn this lesson's cards in learn mode" }).click();
   await expect(page).toHaveURL(/\/learn\/study-skills\/learn-mode$/);
   await expect(page.getByText('Mastered 0 of 3')).toBeVisible();
 
@@ -240,7 +240,7 @@ test('Learn mode brings back what you miss until you know every card', async ({ 
 
 test('Matching pairs terms with meanings by keyboard, counting misses', async ({ page }) => {
   await page.goto('/learn/study-skills');
-  await page.getByRole('link', { name: "Match this lesson's terms and meanings" }).click();
+  await page.getByRole('link', { name: "match this lesson's terms and meanings" }).click();
   await expect(page).toHaveURL(/\/learn\/study-skills\/matching$/);
   await expect(page.getByText('Matched 0 of 3 · Misses: 0')).toBeVisible();
 
@@ -311,7 +311,7 @@ test.describe('without JavaScript', () => {
     await expect(page.getByRole('button')).toHaveCount(0);
     // Playwright's text matching skips <noscript>, so these use CSS.
     await expect(page.locator('noscript p')).toHaveText(
-      'Learn mode needs JavaScript. You can read every card and its answer on the cards page.',
+      'learn mode needs JavaScript. you can read every card and its answer on the cards page.',
     );
     await page.locator('noscript a[href="/learn/study-skills/cards"]').click();
     await expect(page).toHaveURL(/\/learn\/study-skills\/cards$/);
@@ -322,7 +322,7 @@ test.describe('without JavaScript', () => {
     await expect(page.getByRole('button')).toHaveCount(0);
     // Playwright's text matching skips <noscript>, so these use CSS.
     await expect(page.locator('noscript p')).toHaveText(
-      'Matching needs JavaScript. You can read every card and its answer on the cards page.',
+      'matching needs JavaScript. you can read every card and its answer on the cards page.',
     );
     await page.locator('noscript a[href="/learn/study-skills/cards"]').click();
     await expect(page).toHaveURL(/\/learn\/study-skills\/cards$/);
