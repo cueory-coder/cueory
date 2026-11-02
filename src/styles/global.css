@@ -1513,15 +1513,6 @@ html:has(dialog.mode-preview[open]) {
   100% { opacity: 0; transform: none; }
 }
 
-@keyframes enter-rise {
-  from { opacity: 0; translate: 0 0.5rem; }
-  to   { opacity: 1; translate: 0 0; }
-}
-.enter { animation: enter-rise var(--duration-base, 240ms) var(--ease-soft, cubic-bezier(0.4, 0, 0.2, 1)) both; }
-@media (prefers-reduced-motion: reduce) { .enter { animation: none; } }
-.press:active { scale: 0.98; }
-@media (prefers-reduced-motion: reduce) { .press:active { scale: 1; } }
-
 /*
   ============================================================
   Batch-2 utility classes (Task 77): motion, depth, and the

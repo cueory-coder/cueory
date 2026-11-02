@@ -249,25 +249,23 @@ Merged into `staging`:
 - Task 74, accessibility sweep (#157): full-site keyboard and axe audit, with segmented-date regression coverage, awaiting exact-head CI and Codex review.
 - Open pull requests write their line in their own file under `docs/status/in-review/` (see its README); the director
   moves them here in batches. Older pull requests still add their own lines here. Waiting now: Release browser tests (#55).
-- Task 78, flashcards modern (D-pending): 3D flip card, progress bar, segmented study controls, keyboard shortcuts. PR [#162](https://github.com/lilchristxan/Cueory/pull/162). Repair 5 (sr-only checkbox force:true) merged staging, CI running.
-- Task 79, learn mode modern (D-pending): progress bar, step labels, choice list, typed field, reduced-motion. PR [#167](https://github.com/lilchristxan/Cueory/pull/167). Staging merge pending.
 - Task 81, study-skills hub (#195): seven illustrated study options with accessible direct links, preserving the existing lesson reader and draft-content notice.
 - Task 111, reminder choices preview (#191): non-sending phone and email choices open only after a completed review and a deliberate tap, with keyboard/privacy checks while real opt-in and delivery remain future work.
 - Task 106, review-reminder email (#185): non-sending branded HTML, plain-text alternative and noindex sample preview, awaiting CI and Codex review.
 - Task 105, quiet result marks (#188): official emblem and real Cueory page address appear only on completed pulse, sort and crossword result cards and the progress summary; answer areas and printing stay clear.
 - Task 56, account screens (#164): Google and email/password screens now use Task 55’s shared client, with accounts-off and retry handling. Callback, profile-name persistence and verified recovery remain held for their integration owner and Christian’s approval.
 - Task 100, points, streaks and achievements (#180): deterministic local-only rewards with weekly free passes and test coverage, awaiting CI and Codex review.
-- Task 110 start, cruet loading animation (#184): the four layers cut from Christian’s emblem and the lead’s working prototype in `docs/prototypes/`; the island comes next.
-- Vial images for the ways-to-study carousel (Task 109, files only): ten blank-label vials from Christian’s own AI-made image; the carousel task uses them.
+- Task 110 start, cruet loading animation (#184): the four layers cut from Christian's emblem and the lead's working prototype in `docs/prototypes/`; the island comes next.
+- Vial images for the ways-to-study carousel (Task 109, files only): ten blank-label vials from Christian's own AI-made image; the carousel task uses them.
 - Task 95, modern sample questions page (#174): passed full CI and Codex review, merged into `staging` and awaiting the next production release.
-- Task 73, break-idea sharing proposal (#177): private submissions, moderation, reporting, export and account-deletion safeguards proposed for Christian’s decisions.
-- Approved designs (#178): Christian’s approved mockups saved in `docs/screenshots/approved-2026-11-01/` for the builders.
-- Glove photos and the Kalam font (#163): Christian’s nine glove colors cut out as WebP files, and the handwriting he
+- Task 73, break-idea sharing proposal (#177): private submissions, moderation, reporting, export and account-deletion safeguards proposed for Christian's decisions.
+- Approved designs (#178): Christian's approved mockups saved in `docs/screenshots/approved-2026-11-01/` for the builders.
+- Glove photos and the Kalam font (#163): Christian's nine glove colors cut out as WebP files, and the handwriting he
   picked. Files only; the glove note (Task 70) uses them and stays off until he checks it.
 - Task 99, Lato body font (#172): Lato for body and interface text, line spacing at least 1.5, plain accent line under the home headline. Waits for Christian (it edits CLAUDE.md).
-- Task 67, server-checked questions (#194): injected authenticated check_answer path with version/refusal validation and sample behavior preserved, awaiting CI, lead review and Christian’s approval.
-- Task 55, Supabase client (#156): Supabase’s sign-in library, loaded only on pages that need an account; the security policy gains the project address only when accounts are on. Waits for Christian (sign-in and security policy).
-- Task 58, signed-in account corner (#186): initials avatar and account actions from the student’s own session, with no client load before idle and the accounts-off menu unchanged.
+- Task 67, server-checked questions (#194): injected authenticated check_answer path with version/refusal validation and sample behavior preserved, awaiting CI, lead review and Christian's approval.
+- Task 55, Supabase client (#156): Supabase's sign-in library, loaded only on pages that need an account; the security policy gains the project address only when accounts are on. Waits for Christian (sign-in and security policy).
+- Task 58, signed-in account corner (#186): initials avatar and account actions from the student's own session, with no client load before idle and the accounts-off menu unchanged.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
