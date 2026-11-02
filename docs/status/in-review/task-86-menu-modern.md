@@ -1,0 +1,1 @@
+status: Task 86, menu grouping and reduced-motion polish: the side panel groups links under study, play and about, marks privacy and terms as the current page, and removes the slide when reduced motion is requested.
