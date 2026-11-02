@@ -150,6 +150,12 @@
   --focus-width: 3px;
   --focus-offset: 3px;
 
+  /* ---------- Share sheet (Task 103) ---------- */
+  --container-share-card: min(64vw, 17.5rem); /* one card style in the share sheet: most of a phone, 280px elsewhere */
+  --aspect-share-card: 1200 / 630;  /* the shared card images (Open Graph size) */
+  --size-share-icon: 3.125rem;      /* the round share buttons: 50px circles */
+  --border-share-icon: 1.5px;       /* the Espresso ring around each share button */
+
   /* ---------- Word path board (Task 97) ---------- */
   --border-board: 2.5px;        /* the frame around the word search grid (Christian's design, 2026-11-01) */
 
