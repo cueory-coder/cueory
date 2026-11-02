@@ -3,12 +3,15 @@
  * The actual deletion is handled by the server; this module describes what will go and validates the
  * typed confirmation before the caller fires the request.
  */
+import { BREAK_STORAGE_KEY } from '../scripts/breakstore';
+import { NOTE_SOUND_STORAGE_KEY } from '../scripts/notesound';
 import { legacyStarsKey, PROGRESS_STORAGE_KEY, type Progress } from '../scripts/progress';
 import { PROMO_STORAGE_KEY } from '../scripts/promo';
 import { THEME_STORAGE_KEY } from '../scripts/theme';
 import type { KeyValueStorage } from '../scripts/storage';
 import { STATS_STORAGE_KEY } from './gameresults';
 import { GUEST_IMPORT_MARKER_PREFIX } from './guestimportrun';
+import { LAST_WELCOME_STORAGE_KEY, VISIT_STORAGE_KEY } from './stickynote';
 import { RESUME_STORAGE_KEY } from '../scripts/resume';
 import type { ExportData } from './exportdata';
 
@@ -83,12 +86,15 @@ export function confirmState(typed: string): string | null {
 
 // ── Browser-storage keys to clear ────────────────────────────────────────────
 
+/** Iterable localStorage key names with separate keys for this tab's sessionStorage. */
+export type DeletionStorageKeys = string[] & { readonly sessionKeys: readonly string[] };
+
 /**
- * Snapshot the keys to clear, including every legacy stars key, even for retired decks.
- * The caller supplies browser storage and removes these keys after the server confirms deletion.
- * This function reads key names only; it never changes storage. Unlistable storage is an error, not a complete list.
+ * Plan cleanup only after the server confirms account deletion. This reads key names, never removes data.
+ * Include every legacy stars key, even for retired decks, and all account-specific guest-import markers.
+ * The caller signs out and removes the auth key separately. Unlistable localStorage is an error.
  */
-export function afterDeletion(storage: KeyValueStorage | undefined): string[] {
+export function afterDeletion(storage: KeyValueStorage | undefined): DeletionStorageKeys {
   if (!storage || typeof storage.length !== 'number' || !Number.isSafeInteger(storage.length) || storage.length < 0 || typeof storage.key !== 'function') {
     throw new Error('browser storage must support listing its keys before cleanup.');
   }
@@ -98,6 +104,8 @@ export function afterDeletion(storage: KeyValueStorage | undefined): string[] {
     THEME_STORAGE_KEY,
     STATS_STORAGE_KEY,
     RESUME_STORAGE_KEY,
+    LAST_WELCOME_STORAGE_KEY,
+    NOTE_SOUND_STORAGE_KEY,
   ]);
   const prefix = legacyStarsKey('');
   const length = storage.length;
@@ -105,5 +113,5 @@ export function afterDeletion(storage: KeyValueStorage | undefined): string[] {
     const key = storage.key(index);
     if (key?.startsWith(prefix) || key?.startsWith(GUEST_IMPORT_MARKER_PREFIX)) keys.add(key);
   }
-  return [...keys];
+  return Object.assign([...keys], { sessionKeys: [VISIT_STORAGE_KEY, BREAK_STORAGE_KEY] });
 }

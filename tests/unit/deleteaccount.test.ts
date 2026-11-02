@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { deletionSummary, confirmState, afterDeletion } from '../../src/islands/deleteaccount';
 import { GUEST_IMPORT_MARKER_PREFIX } from '../../src/islands/guestimportrun';
 import { RESUME_STORAGE_KEY } from '../../src/scripts/resume';
+import { BREAK_STORAGE_KEY } from '../../src/scripts/breakstore';
+import { NOTE_SOUND_STORAGE_KEY } from '../../src/scripts/notesound';
+import { LAST_WELCOME_STORAGE_KEY, VISIT_STORAGE_KEY } from '../../src/islands/stickynote';
+import { AUTH_STORAGE_KEY } from '../../src/islands/supabaseclient';
 import type { ExportData } from '../../src/islands/exportdata';
 import {
   emptyProgress, forgetProgress, legacyStarsKey, loadDeckStars, migrateLegacyStars, PROGRESS_STORAGE_KEY,
@@ -206,6 +210,22 @@ describe('afterDeletion', () => {
     expect(afterDeletion(new MemoryStorage())).toContain(RESUME_STORAGE_KEY);
   });
 
+  it('includes both persistent glove-note preferences', () => {
+    const keys = afterDeletion(new MemoryStorage());
+    expect(keys).toContain(LAST_WELCOME_STORAGE_KEY);
+    expect(keys).toContain(NOTE_SOUND_STORAGE_KEY);
+  });
+
+  it('separates tab-only keys and leaves the auth key to Task 59', () => {
+    const keys = afterDeletion(new MemoryStorage());
+    expect(keys.sessionKeys).toEqual([VISIT_STORAGE_KEY, BREAK_STORAGE_KEY]);
+    expect(new Set(keys.sessionKeys).size).toBe(keys.sessionKeys.length);
+    expect(keys).not.toContain(VISIT_STORAGE_KEY);
+    expect(keys).not.toContain(BREAK_STORAGE_KEY);
+    expect(keys).not.toContain(AUTH_STORAGE_KEY);
+    expect(keys.sessionKeys).not.toContain(AUTH_STORAGE_KEY);
+  });
+
   it('includes every guest-import marker, and nothing else that merely looks similar', () => {
     const storage = new MemoryStorage();
     storage.setItem(`${GUEST_IMPORT_MARKER_PREFIX}abc`, '1');
@@ -310,7 +330,9 @@ describe('legacy browser data in the cleanup plan', () => {
     storage.setItem(legacyStarsKey('sample-retired'), JSON.stringify(['sample-retired-card']));
     storage.setItem(legacyStarsKey('retired.deck'), 'sample: unreadable legacy value');
     saveProgress(storage, withPile(emptyProgress(), 'sample-live', 'sample-card', 'know'));
-    for (const key of [PROMO_STORAGE_KEY, THEME_STORAGE_KEY, STATS_STORAGE_KEY]) storage.setItem(key, 'sample');
+    for (const key of [PROMO_STORAGE_KEY, THEME_STORAGE_KEY, STATS_STORAGE_KEY, LAST_WELCOME_STORAGE_KEY, NOTE_SOUND_STORAGE_KEY]) {
+      storage.setItem(key, 'sample');
+    }
     storage.setItem('sample-other-app', 'sample: keep');
     const before = [...storage.values];
 
@@ -322,6 +344,26 @@ describe('legacy browser data in the cleanup plan', () => {
     expect([...loadDeckStars(storage, 'sample-live', ['sample-card'])]).toEqual([]);
     expect([...loadDeckStars(storage, 'sample-retired', ['sample-retired-card'])]).toEqual([]);
     expect(migrateLegacyStars(storage)).toEqual(emptyProgress());
+  });
+
+  it('can clear both storage areas only after deletion succeeds, leaving unrelated keys alone', () => {
+    const local = new MemoryStorage();
+    const session = new MemoryStorage();
+    local.setItem(NOTE_SOUND_STORAGE_KEY, 'off');
+    local.setItem('unrelated-local', 'keep');
+    session.setItem(VISIT_STORAGE_KEY, 'sample');
+    session.setItem(BREAK_STORAGE_KEY, 'sample');
+    session.setItem('unrelated-session', 'keep');
+    const plan = afterDeletion(local);
+    expect(local.getItem(NOTE_SOUND_STORAGE_KEY)).toBe('off');
+    expect(session.getItem(VISIT_STORAGE_KEY)).toBe('sample');
+    for (const key of plan) local.removeItem(key);
+    for (const key of plan.sessionKeys) session.removeItem(key);
+    expect(local.getItem(NOTE_SOUND_STORAGE_KEY)).toBeNull();
+    expect(session.getItem(VISIT_STORAGE_KEY)).toBeNull();
+    expect(session.getItem(BREAK_STORAGE_KEY)).toBeNull();
+    expect(local.getItem('unrelated-local')).toBe('keep');
+    expect(session.getItem('unrelated-session')).toBe('keep');
   });
 
   it('discovers the same legacy namespace as forgetProgress without deleting unrelated names', () => {
