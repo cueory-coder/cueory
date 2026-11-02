@@ -26,10 +26,10 @@ test('no game result mark appears while a student is answering', async ({ page }
   await expect(page.getByRole('list', { name: 'terms to sort' })).toBeVisible();
 });
 
-test('pulse completion adds the unobtrusive original-art mark inside the result only', async ({ page }) => {
+test('pillo completion adds the unobtrusive original-art mark inside the result only', async ({ page }) => {
   await page.goto('/play');
-  await page.getByTestId('pulse').getByLabel('your guess', { exact: true }).fill('garden');
-  await page.getByTestId('pulse').getByRole('button', { name: 'guess', exact: true }).click();
+  await page.getByTestId('pulse').getByLabel('your guess', { exact: true }).fill('grace');
+  await page.getByTestId('pulse').getByRole('button', { name: 'enter', exact: true }).click();
   const result = page.getByTestId('pulse-result');
   await expect(result).toBeFocused();
   await expect(result.getByTestId('result-brand-mark')).toHaveText('cueory.app/play');

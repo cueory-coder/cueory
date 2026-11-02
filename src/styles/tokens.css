@@ -102,7 +102,6 @@
   --tracking-label: 0.02em;     /* small label above the home headline */
   --tracking-display: -0.025em; /* serif display headings (brand spec) */
   --tracking-menu: 0.04em;      /* ☰ side panel links: medium Inter, slightly wide */
-  --tracking-guess: 0.2em;      /* letters typed into pulse's guess field, spaced like its letters (D-61) */
 
   /* ---------- Spacing ---------- */
   --spacing: 0.25rem;           /* base unit: p-4 = 4 × 0.25rem = 1rem */
@@ -154,6 +153,52 @@
   /* ---------- Word path board (Task 97) ---------- */
   --border-board: 2.5px;        /* the frame around the word search grid (Christian's design, 2026-11-01) */
 
+  /* ---------- pillo, the blister-pack word game on /play (Task 114) ----------
+     Pill colors by mark (letters on them also carry ● ○ ·, so color is never the only signal). Evening values are in
+     the two Evening copies below; tests/unit/pulse.test.ts checks every letter on its pill for AA contrast. */
+  --color-pillo-here: #3e2c23;          /* Espresso — in place */
+  --color-on-pillo-here: #f9f5ef;       /* Ivory */
+  --color-pillo-elsewhere: #d3b7a1;     /* Taupe    — in the word, somewhere else */
+  --color-on-pillo-elsewhere: #3e2c23;  /* Espresso */
+  --color-pillo-absent: #f9f5ef;        /* Ivory    — not in the word */
+  --color-on-pillo-absent: #6b5243;     /* Bronze   — the faded letter */
+  --color-pillo-typed: #f9f5ef;         /* Ivory    — the row being typed */
+  --color-on-pillo-typed: #3e2c23;      /* Espresso */
+  --color-pillo-key: #eadccf;           /* Linen    — a letter key with no mark yet */
+  --color-on-pillo-key: #3e2c23;        /* Espresso */
+  --color-pillo-ring: #3e2c23;          /* Espresso — the next empty pocket's ring and a marked key's rim */
+  --pillo-hatch-width: 1px;             /* the foil's cross-hatch line */
+  --pillo-hatch-gap: 5px;               /* the foil's cross-hatch spacing */
+  --border-pillo-key: 1px;              /* the rim around a pill key */
+  --pillo-press-offset: 1px;            /* how far a pill key sinks while pressed */
+  --border-pillo-perforation: 1px;      /* the dashed perforations between pockets */
+  --border-pillo-legend: 1px;           /* the "how to play" panel's rim */
+  --color-pillo-foil: #f9f5ef;          /* Ivory    — the foil's base ... */
+  --color-pillo-foil-tint: #6b5243;     /* Bronze   — ... greyed with this (strength: --pillo-foil-mix) */
+  --color-pillo-hatch: #3e2c23;         /* Espresso — the foil's fine cross-hatch */
+  --color-pillo-gloss: #f9f5ef;         /* Ivory    — the shine on a pill */
+  --pillo-board: 32rem;                 /* the widest the blister pack grows (512 px) */
+  --pillo-pocket: 3rem;                 /* a pocket's height on phones (48 px), so the pills stay capsules */
+  --pillo-pocket-lg: 4rem;              /* a pocket's height from 640 px wide (64 px) */
+  --pillo-pill-inset: 0.3125rem;        /* space between a pocket's edge and its pill */
+  --pillo-letter: 1.25rem;              /* the capital letter on a pill (phones) */
+  --pillo-letter-lg: 1.875rem;
+  --pillo-mark: 0.625rem;               /* the ● ○ · under a letter */
+  --pillo-letter-lift: -0.3125rem;      /* a guessed letter moves up this much to make room for its mark */
+  --pillo-mark-drop: -0.125rem;         /* the mark's line sits this far into the pill's bottom edge */
+  --pillo-key: 3rem;                    /* letter key height (48 px, above the 44 px minimum) */
+  --pillo-key-max: 2.75rem;             /* a letter key's widest */
+  --pillo-key-wide: 4.25rem;            /* ⌫ and enter, at their widest */
+  --pillo-key-wide-share: 1.5;          /* ⌫ and enter take about one and a half letters' room in a narrow row */
+  --pillo-strip-pill: 0.875rem;         /* a pill in the guesses-left strip */
+  --pillo-strip-height: 1.75rem;
+  --pillo-swatch: 2.75rem;              /* the sample pills in "how to play" */
+  --pillo-ring: 2px;                    /* the next empty pocket's ring */
+  --pillo-pop: 0.9;                     /* a typed pill grows from this size (never under reduced motion) */
+  --shadow-pillo-pack: 0 1px 2px rgb(var(--shadow-tint) / 0.12), 0 14px 30px rgb(var(--shadow-tint) / 0.16);
+  --shadow-pillo-pocket: inset 0 2px 4px rgb(var(--shadow-tint) / 0.2), inset 0 -1px 1px rgb(var(--shadow-tint) / 0.06);
+  --shadow-pillo-pill: 0 2px 3px rgb(var(--shadow-tint) / 0.28), inset 0 -3px 4px rgb(var(--shadow-tint) / 0.14);
+
   /* ---------- Motion (D-41 brand bar: 150–400 ms, soft not bouncy, always off under reduced-motion) ---------- */
   --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);     /* gentle UI transitions */
   --ease-emphasis: cubic-bezier(0.2, 0, 0, 1);   /* snappier entrances */
@@ -199,6 +244,12 @@
   --panel-rgb: 62 44 35;        /* Espresso */
   --panel-alpha: 0.92;
   --scrim-alpha: 0.35;          /* the dimmed page behind the open side panel (Espresso shadow tint) */
+  /* pillo (Task 114): how much tint greys the foil, and how much of their color the frosted pills and keys show. */
+  --pillo-foil-mix: 16%;
+  --pillo-hatch-mix: 7%;
+  --pillo-absent-mix: 100%;
+  --pillo-key-mix: 100%;
+  --pillo-gloss-mix: 70%;
 }
 
 /*
@@ -246,6 +297,27 @@
     --panel-rgb: 28 25 23;        /* Charcoal */
     --panel-alpha: 0.9;
     --scrim-alpha: 0.55;
+    /* pillo (Task 114): darker foil, frosted Ivory "not in the word" pills, foil-grey keys. */
+    --color-pillo-here: #3a2d24;          /* Walnut */
+    --color-on-pillo-here: #f9f5ef;       /* Ivory */
+    --color-pillo-elsewhere: #cbb8a4;     /* Sand */
+    --color-on-pillo-elsewhere: #1c1917;  /* Charcoal */
+    --color-pillo-absent: #f9f5ef;        /* Ivory, frosted over the foil (--pillo-absent-mix) */
+    --color-on-pillo-absent: #f9f5ef;     /* Ivory */
+    --color-pillo-typed: #f9f5ef;         /* Ivory */
+    --color-on-pillo-typed: #1c1917;      /* Charcoal */
+    --color-pillo-key: #cbb8a4;           /* Sand, over the foil grey (--pillo-key-mix) */
+    --color-on-pillo-key: #f9f5ef;        /* Ivory */
+    --color-pillo-ring: #f9f5ef;          /* Ivory */
+    --color-pillo-foil: #1c1917;          /* Charcoal */
+    --color-pillo-foil-tint: #cbb8a4;     /* Sand */
+    --color-pillo-hatch: #f9f5ef;         /* Ivory */
+    --color-pillo-gloss: #f9f5ef;         /* Ivory */
+    --pillo-foil-mix: 30%;
+    --pillo-hatch-mix: 6%;
+    --pillo-absent-mix: 20%;
+    --pillo-key-mix: 25%;
+    --pillo-gloss-mix: 45%;
     /* Evening: --shadow-tint is Charcoal (darker), so raise opacity for visible depth. */
     --shadow-card: 0 1px 3px rgb(var(--shadow-tint) / 0.18), 0 4px 12px rgb(var(--shadow-tint) / 0.28);
     --shadow-card-hover: 0 2px 8px rgb(var(--shadow-tint) / 0.28), 0 12px 28px rgb(var(--shadow-tint) / 0.40);
@@ -290,6 +362,27 @@
   --panel-rgb: 28 25 23;        /* Charcoal */
   --panel-alpha: 0.9;
   --scrim-alpha: 0.55;
+  /* pillo (Task 114): darker foil, frosted Ivory "not in the word" pills, foil-grey keys. */
+  --color-pillo-here: #3a2d24;          /* Walnut */
+  --color-on-pillo-here: #f9f5ef;       /* Ivory */
+  --color-pillo-elsewhere: #cbb8a4;     /* Sand */
+  --color-on-pillo-elsewhere: #1c1917;  /* Charcoal */
+  --color-pillo-absent: #f9f5ef;        /* Ivory, frosted over the foil (--pillo-absent-mix) */
+  --color-on-pillo-absent: #f9f5ef;     /* Ivory */
+  --color-pillo-typed: #f9f5ef;         /* Ivory */
+  --color-on-pillo-typed: #1c1917;      /* Charcoal */
+  --color-pillo-key: #cbb8a4;           /* Sand, over the foil grey (--pillo-key-mix) */
+  --color-on-pillo-key: #f9f5ef;        /* Ivory */
+  --color-pillo-ring: #f9f5ef;          /* Ivory */
+  --color-pillo-foil: #1c1917;          /* Charcoal */
+  --color-pillo-foil-tint: #cbb8a4;     /* Sand */
+  --color-pillo-hatch: #f9f5ef;         /* Ivory */
+  --color-pillo-gloss: #f9f5ef;         /* Ivory */
+  --pillo-foil-mix: 30%;
+  --pillo-hatch-mix: 6%;
+  --pillo-absent-mix: 20%;
+  --pillo-key-mix: 25%;
+  --pillo-gloss-mix: 45%;
   /* Evening: --shadow-tint is Charcoal (darker), so raise opacity for visible depth. */
   --shadow-card: 0 1px 3px rgb(var(--shadow-tint) / 0.18), 0 4px 12px rgb(var(--shadow-tint) / 0.28);
   --shadow-card-hover: 0 2px 8px rgb(var(--shadow-tint) / 0.28), 0 12px 28px rgb(var(--shadow-tint) / 0.40);

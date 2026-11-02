@@ -20,7 +20,7 @@ export interface RoundResult {
   /** The day of the puzzle that was played, in the visitor's own time zone, written YYYY-MM-DD. */
   day: string;
   solved: boolean;
-  /** Beats for pulse, slips for sort, cues for the crossword and loose stitches for word path. */
+  /** Guesses for pillo, slips for sort, cues for the crossword and loose stitches for word path. */
   tries: number;
 }
 
@@ -122,14 +122,14 @@ export function deleteStats(storage: KeyValueStorage | undefined): boolean {
 
 /** What each game counts as a try, in the words its own rules use. */
 const TRIES: Record<GameId, { one: string; many: string }> = {
-  pulse: { one: 'beat', many: 'beats' },
+  pulse: { one: 'guess', many: 'guesses' },
   triage: { one: 'slip', many: 'slips' },
   cueword: { one: 'cue', many: 'cues' },
   suture: { one: 'loose stitch', many: 'loose stitches' },
 };
 
 /**
- * How many tries each recorded round took, in words, fewest first: "2 beats on 1 day, 3 beats on 2 days."
+ * How many tries each recorded round took, in words, fewest first: "2 guesses on 1 day, 3 guesses on 2 days."
  * Empty when nothing is recorded.
  */
 export function triesInWords(game: GameId, counts: Readonly<Record<number, number>>): string {

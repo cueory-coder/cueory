@@ -76,14 +76,14 @@ describe('acceptPuzzle — valid', () => {
     expect(result.game).toBe('suture');
   });
 
-  it('accepts pulse words of minimum length (5)', () => {
+  it('accepts pulse words of exactly 5 letters (task-114: pillo uses only five-letter words)', () => {
     const result = acceptPuzzle({ game: 'pulse', date: TODAY, puzzle: { word: 'lungs', cue: 'sample: breathe' } }, TODAY);
     expect(result.ok).toBe(true);
   });
 
-  it('accepts pulse words of maximum length (7)', () => {
-    const result = acceptPuzzle({ game: 'pulse', date: TODAY, puzzle: { word: 'systems', cue: 'sample: organs' } }, TODAY);
-    expect(result.ok).toBe(true);
+  it('pulse: refuses a six-letter word (task-114: pillo requires exactly five letters)', () => {
+    const result = acceptPuzzle({ game: 'pulse', date: TODAY, puzzle: { word: 'system', cue: 'sample: organs' } }, TODAY);
+    expect(result.ok).toBe(false);
   });
 });
 
