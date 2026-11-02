@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { cardKeyAction } from './cardkeys';
-import { deckProgress, migrateLegacyStars, PROGRESS_STORAGE_KEY, readProgress, saveSort, type Pile } from '../scripts/progress';
+import { migrateLegacyStars, pileOf, PROGRESS_STORAGE_KEY, readProgress, saveSort, type Pile } from '../scripts/progress';
 import { browserStorage, type KeyValueStorage } from '../scripts/storage';
-import { attachResumeLifecycle, clearResume, readResume, saveResume, type ResumeDraft, type ResumeSnapshot } from '../scripts/resume';
+import {
+  attachResumeLifecycle, clearResume, readResume, saveResume, type ResumeAnswer, type ResumeDraft, type ResumeSnapshot,
+} from '../scripts/resume';
 import ResumePrompt from './ResumePrompt';
 import {
   back,
@@ -31,15 +33,41 @@ interface Card {
 
 const RESUME_PAGE = '/learn/study-skills/cards';
 
-/** Only the student's marks and IDs; never the front or back of a card. */
+/**
+ * The round's own card order is saved under this answers key, so a later round is never rebuilt from piles that Back
+ * or another sort changed since (Codex on #221). Card IDs are [a-z0-9-] (content.config.ts), so "_" can't clash.
+ */
+const ROUND_KEY = 'round_ids';
+// resume.ts allows at most 50 strings of 500 characters in one answer; the IDs are packed space-separated into chunks.
+const CHUNK_TEXT = 500;
+const MAX_CHUNKS = 50;
+
+function packIds(ids: readonly string[]): string[] | null {
+  const chunks: string[] = [];
+  let chunk = '';
+  for (const id of ids) {
+    if (!id || id.length > CHUNK_TEXT) return null;
+    if (chunk && chunk.length + 1 + id.length > CHUNK_TEXT) {
+      chunks.push(chunk);
+      chunk = id;
+    } else chunk = chunk ? `${chunk} ${id}` : id;
+  }
+  if (chunk) chunks.push(chunk);
+  return chunks.length <= MAX_CHUNKS ? chunks : null;
+}
+
+/** Only the student's marks and the public sample card IDs; never the front or back of a card. */
 function draftOf(state: CardsState, cards: readonly Card[], deckId: string, shuffle: boolean, starredOnly: boolean): ResumeDraft | null {
   if (!state.round.length) return null;
   const finished = isRoundOver(state);
   const itemIndex = finished ? state.round.length - 1 : state.pos;
-  const itemId = cards[state.round[itemIndex]!]?.id;
-  if (!itemId) return null;
-  const answers = Object.fromEntries(state.round.slice(0, state.pos).map((index, i) =>
-    [cards[index]!.id, state.marks[i]!])) as Record<string, Pile>;
+  const roundIds = state.round.map((index) => cards[index]?.id ?? '');
+  const itemId = roundIds[itemIndex];
+  const packed = packIds(roundIds);
+  if (!itemId || !packed) return null;
+  const answers: Record<string, ResumeAnswer> = Object.fromEntries(
+    roundIds.slice(0, state.pos).map((id, i) => [id, state.marks[i]!]));
+  answers[ROUND_KEY] = packed;
   return {
     tool: 'cards', page: RESUME_PAGE, module: deckId,
     step: `r${state.roundNumber}-s${shuffle ? 1 : 0}-t${starredOnly ? 1 : 0}`,
@@ -48,9 +76,17 @@ function draftOf(state: CardsState, cards: readonly Card[], deckId: string, shuf
   };
 }
 
-/** No shuffle seed exists: anchor to the exact card ID; only future cards may reshuffle. */
-function restoreFrom(snapshot: ResumeSnapshot, deckId: string, cards: readonly Card[],
-  starred: ReadonlySet<string>, storage: KeyValueStorage | undefined
+/**
+ * "Forget my progress" in another tab removes the piles. A deck that missed that tab's storage event must not write
+ * the forgotten marks back, so it saves only while every marked card still has a saved pile (Codex on #221).
+ */
+function marksStillSaved(storage: KeyValueStorage | undefined, deckId: string, draft: ResumeDraft): boolean {
+  const progress = readProgress(storage);
+  return Object.keys(draft.answers).every((id) => id === ROUND_KEY || pileOf(progress, deckId, id) !== null);
+}
+
+/** Rebuilds the exact round from its saved card IDs; the marks must match the round's first cards, in order. */
+function restoreFrom(snapshot: ResumeSnapshot, deckId: string, cards: readonly Card[]
 ): { state: CardsState; shuffle: boolean; starredOnly: boolean } | null {
   if (snapshot.tool !== 'cards' || snapshot.page !== RESUME_PAGE || snapshot.module !== deckId) return null;
   const flags = /^r([1-9]\d*)-s([01])-t([01])$/.exec(snapshot.step ?? '');
@@ -60,27 +96,20 @@ function restoreFrom(snapshot: ResumeSnapshot, deckId: string, cards: readonly C
   const shuffle = flags[2] === '1', starredOnly = flags[3] === '1';
   const byId = new Map(cards.map((card, i) => [card.id, i]));
   if (byId.size !== cards.length) return null;
-  const pairs = Object.entries(snapshot.answers);
-  if (pairs.some(([id, value]) => !byId.has(id) || (value !== 'know' && value !== 'learning'))) return null;
-  const prefix = pairs.map(([id]) => byId.get(id)!);
-  const currentIndex = snapshot.itemId === undefined ? undefined : byId.get(snapshot.itemId);
-  if (currentIndex === undefined) return null;
+  const { [ROUND_KEY]: packed, ...marks } = snapshot.answers;
+  if (!Array.isArray(packed) || !packed.length) return null;
+  const roundIds = packed.join(' ').split(' ');
+  if (roundIds.length !== snapshot.totalItems || new Set(roundIds).size !== roundIds.length) return null;
+  const round = roundIds.map((id) => byId.get(id));
+  if (round.some((index) => index === undefined)) return null;
+  const pairs = Object.entries(marks);
+  if (pairs.some(([, value]) => value !== 'know' && value !== 'learning')) return null;
   const finished = snapshot.phase === 'results';
-  if (finished ? (pairs.length !== snapshot.totalItems || snapshot.itemIndex !== snapshot.totalItems - 1 ||
-    prefix[prefix.length - 1] !== currentIndex) : (pairs.length !== snapshot.itemIndex || prefix.includes(currentIndex))) return null;
-  const included = new Set([...prefix, currentIndex]);
-  const eligible = roundNumber === 1
-    ? (starredOnly && starred.size ? starredIndexes(cards, starred) : cards.map((_, i) => i))
-    : (() => {
-        const learning = new Set(deckProgress(readProgress(storage), deckId).learning);
-        return cards.flatMap((card, i) => learning.has(card.id) ? [i] : []);
-      })();
-  const needed = snapshot.totalItems - prefix.length - (finished ? 0 : 1);
-  const rest = order(eligible.filter(i => !included.has(i)), shuffle);
-  if (needed < 0 || rest.length < needed) return null;
-  const round = [...prefix, ...(finished ? [] : [currentIndex]), ...rest.slice(0, needed)];
+  if (finished && snapshot.itemIndex !== roundIds.length - 1) return null;
+  if (pairs.length !== (finished ? roundIds.length : snapshot.itemIndex)) return null;
+  if (pairs.some(([id], i) => id !== roundIds[i]) || snapshot.itemId !== roundIds[snapshot.itemIndex]) return null;
   return { shuffle, starredOnly, state: {
-    round, pos: finished ? round.length : prefix.length, flipped: false,
+    round: round as number[], pos: pairs.length, flipped: false,
     marks: pairs.map(([, pile]) => pile as Pile), roundNumber, touched: true,
   } };
 }
@@ -178,9 +207,12 @@ export default function CardDeck({ deckId, cards }: Props) {
   const fillRef = useRef<HTMLDivElement>(null);
   const draftRef = useRef<ResumeDraft | null>(null);
   draftRef.current = !resumePending && hasAnswered ? draftOf(state, cards, deckId, shuffle, starredOnly) : null;
-  useEffect(() => attachResumeLifecycle(storage, () => draftRef.current), [storage]);
+  useEffect(() => attachResumeLifecycle(storage, () => {
+    const draft = draftRef.current;
+    return draft && marksStillSaved(storage, deckId, draft) ? draft : null;
+  }), [storage, deckId]);
   useEffect(() => {
-    if (draftRef.current) saveResume(storage, draftRef.current);
+    if (draftRef.current && marksStillSaved(storage, deckId, draftRef.current)) saveResume(storage, draftRef.current);
   }, [storage, state, deckId, shuffle, starredOnly, hasAnswered, resumePending]);
 
   useEffect(() => {
@@ -191,16 +223,19 @@ export default function CardDeck({ deckId, cards }: Props) {
   // this list holds the sorts made in the current round, newest last.
   const sorts = useRef<{ cardId: string; previous: Pile | null }[]>([]);
 
-  // "Forget my progress" in another tab removes the record. An open deck must not write its old stars or undo history
-  // back, so on that deletion it drops both (Codex on #74).
+  // "Forget my progress" in another tab removes the record and the saved place. An open deck must not write its old
+  // stars or undo history back, so on that deletion it drops both and the stale resume offer (Codex on #74). This
+  // round's forgotten marks are never saved again either: see marksStillSaved (Codex on #221).
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
       if (event.storageArea !== window.localStorage) return;
       const wiped = event.key === null || (event.key === PROGRESS_STORAGE_KEY && event.newValue === null);
       if (!wiped) return;
       sorts.current = [];
+      draftRef.current = null;
       setStarred(new Set());
       setStarredOnly(false);
+      setResumePending(false);
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
@@ -375,7 +410,7 @@ export default function CardDeck({ deckId, cards }: Props) {
   const resumeChoice = resumePending && (
     <div className="mb-stack">
       <ResumePrompt page={RESUME_PAGE} onContinue={snapshot => {
-        const saved = restoreFrom(snapshot, deckId, cards, starred, storage);
+        const saved = restoreFrom(snapshot, deckId, cards);
         sorts.current = [];
         if (saved) {
           setState(saved.state);

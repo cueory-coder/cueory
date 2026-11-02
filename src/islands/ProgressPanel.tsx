@@ -167,7 +167,7 @@ export default function ProgressPanel({ decks }: Props) {
         {confirming && (
           <div role="group" aria-labelledby="forget-question" className="mt-stack rounded-md border border-line bg-surface p-4">
             <p id="forget-question">
-              forget your setup answers, piles and stars on this device? this can’t be undone. your light or dark pick stays.
+              forget your setup answers, piles, stars and where you stopped studying on this device? this can’t be undone. your light or dark pick stays.
             </p>
             <div className="mt-3 flex flex-wrap gap-3">
               <button ref={confirmRef} type="button" onClick={forget} className={primaryButton}>
