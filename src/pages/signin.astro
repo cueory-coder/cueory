@@ -1,0 +1,22 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Wordmark from '../components/Wordmark.astro';
+import SignIn from '../islands/SignIn';
+---
+
+<Layout title="sign in" description="Sign in to your cueory account." variant="study" noindex promo={false}>
+  <section class="mx-auto max-w-110 py-section font-body leading-relaxed" aria-labelledby="signin-heading">
+    <div class="rounded-lg border border-line bg-page p-6 sm:p-8">
+      <div class="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-pill bg-surface">
+        <Wordmark variant="emblem" class="w-10" sizes="2.5rem" />
+      </div>
+      <h1 id="signin-heading" class="text-center font-display text-accent-lg leading-relaxed">
+        welcome back to
+        <Wordmark label="cueory" class="mx-auto mt-2 block w-42.5" sizes="10.625rem" />
+      </h1>
+      <p class="mt-4 text-center text-ink-soft">sign in to pick up where you left off.</p>
+      <div class="mt-6"><SignIn client:load /></div>
+      <noscript><p class="mt-4">sign-in needs javascript. you can still browse the study materials.</p></noscript>
+    </div>
+  </section>
+</Layout>

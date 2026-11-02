@@ -251,6 +251,7 @@ Merged into `staging`:
 - Task 111, reminder choices preview (#191): non-sending phone and email choices open only after a completed review and a deliberate tap, with keyboard/privacy checks while real opt-in and delivery remain future work.
 - Task 106, review-reminder email (#185): non-sending branded HTML, plain-text alternative and noindex sample preview, awaiting CI and Codex review.
 - Task 105, quiet result marks (#188): official emblem and real Cueory page address appear only on completed pulse, sort and crossword result cards and the progress summary; answer areas and printing stay clear.
+- Task 56, account screens (#164): Google and email/password screens now use Task 55’s shared client, with accounts-off and retry handling. Callback, profile-name persistence and verified recovery remain held for their integration owner and Christian’s approval.
 - Task 100, points, streaks and achievements (#180): deterministic local-only rewards with weekly free passes and test coverage, awaiting CI and Codex review.
 - Task 110 start, cruet loading animation (#184): the four layers cut from Christian's emblem and the lead's working prototype in `docs/prototypes/`; the island comes next.
 - Task 95, modern sample questions page (#174): passed full CI and Codex review, merged into `staging` and awaiting the next production release.
