@@ -5,11 +5,13 @@
  * Error messages are read verbatim from the migrations:
  *   check_answer:  supabase/migrations/20261101100000_attempts_and_check_answer.sql
  *   submit_flag:   supabase/migrations/20261101120000_flags_and_submit_flag.sql (PR #110)
+ *   delete_my_account: Task 60's migration (branch task-60/delete-my-account-rpc); its only refusal is
+ *                      'sign in to delete your account' (errcode 28000).
  *
  * Never echoes raw database text, SQL, table names or error codes to a student.
  */
 
-export type RpcFunction = 'check_answer' | 'submit_flag';
+export type RpcFunction = 'check_answer' | 'submit_flag' | 'delete_my_account';
 
 interface DbError {
   /** PostgreSQL error message (the string after `raise exception`). */
@@ -65,6 +67,11 @@ export function studentMessage(fn: RpcFunction, error: unknown): string {
     if (msg === 'that is a lot of reports; please try again later') {
       return "you've sent a lot of reports recently — please try again later.";
     }
+  }
+
+  if (fn === 'delete_my_account') {
+    // Task 60 (branch task-60/delete-my-account-rpc)
+    if (msg === 'sign in to delete your account') return 'please sign in again to delete your account.';
   }
 
   return 'something went wrong — please try again.';
