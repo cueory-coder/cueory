@@ -9,7 +9,15 @@ This is a plain-English plan for the features that let Cueory students compete, 
 ## 1. Leaderboard (next, after accounts land)
 
 ### What it does
-Students who opt in appear on a weekly board and an all-time board ranked by points. Points come from game results already recorded in the database (you have the rounds table from the results work). A server-side RPC reads those results and computes the score — students never submit a score directly, so nobody can type in a number.
+Students who opt in appear on a weekly board and an all-time board ranked by points.
+
+### What has to exist first: results the server checked itself
+Today, game results are kept only in the student's browser (`src/islands/gameresults.ts`), and `src/islands/rewards.ts` says plainly that those are not proof for public rankings. A browser can report any result it likes, so a board built on them could be faked. Before any leaderboard:
+- **The server checks every answer.** The server hands out the day's puzzle and checks each guess or found word, the same way real questions are already checked by `check_answer`. The browser never gets the answer and never reports its own score.
+- **The server records each round.** A database table, protected by row-level security, stores the rounds the server checked, linked to the student's account.
+- **Points come only from those records.** A server-side function adds them up for the board, so nobody can type in a number.
+
+This is real database and security work (new tables, policies and functions), so it waits for your approval like any other database change.
 
 ### Privacy design
 - **Opt-in only.** A student is invisible on any board until they choose to appear.
@@ -23,6 +31,7 @@ Students who opt in appear on a weekly board and an all-time board ranked by poi
 - Streak bonuses can come later once Task 100's streak logic is merged (it lives in `rewards.ts`).
 
 ### Decisions you need to make
+- [ ] Are you OK building server-checked game rounds first (database work that needs your approval)?
 - [ ] What is the daily point cap? (10? 20? Unlimited for now?)
 - [ ] Do you want a school field on the opt-in form, or keep it display-name only to start?
 - [ ] Should the all-time board show "top 10" or "top 100"?
