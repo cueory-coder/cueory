@@ -249,9 +249,10 @@ Merged into `staging`:
 - Task 74, accessibility sweep (#157): full-site keyboard and axe audit, with segmented-date regression coverage, awaiting exact-head CI and Codex review.
 - Open pull requests add their own lines here. Waiting now: Release browser tests (#55).
 - Task 78, flashcards modern (D-pending): 3D flip card, progress bar, segmented study controls, keyboard
-  shortcuts, full axe + tab-order accessibility. Head `7f1bd22`. PR [#162](https://github.com/lilchristxan/Cueory/pull/162).
-  Repair 4: CSS @layer base reopen so .flip-inner !important wins over * !important; pages.spec.ts star test
-  uses /^Star/ + keyboard 's'; shuffle .check({ force: true }) for sr-only. Awaiting CI.
+  shortcuts, full axe + tab-order accessibility. PR [#162](https://github.com/lilchristxan/Cueory/pull/162).
+  Repair 5 (2026-11-02): add .check({ force: true }) to onlyStarred in starred-cards test (sr-only checkbox
+  times out in phone emulation). Out-of-scope finding: /learn/study-skills/label-it fails Tab-reachability
+  audit at the staging merge commit only — React-hydration race condition, not caused by task-78 CSS. HEAD awaiting CI.
 - Task 111, reminder choices preview (#191): non-sending phone and email choices open only after a completed review and a deliberate tap, with keyboard/privacy checks while real opt-in and delivery remain future work.
 - Task 106, review-reminder email (#185): non-sending branded HTML, plain-text alternative and noindex sample preview, awaiting CI and Codex review.
 - Task 105, quiet result marks (#188): official emblem and real Cueory page address appear only on completed pulse, sort and crossword result cards and the progress summary; answer areas and printing stay clear.

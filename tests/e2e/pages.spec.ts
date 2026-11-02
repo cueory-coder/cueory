@@ -128,7 +128,7 @@ test('starred cards are remembered in this browser and can be studied on their o
   expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
 
   await page.reload();
-  await onlyStarred.check();
+  await onlyStarred.check({ force: true });
   await expect(page.getByText('Card 1 of 1 · Know it: 0 · Still learning: 0')).toBeVisible();
   await expect(page.getByText('Placeholder card 2, front.')).toBeVisible();
   await expect(star).toHaveAttribute('aria-pressed', 'true');
