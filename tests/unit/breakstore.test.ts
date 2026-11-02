@@ -151,6 +151,17 @@ describe('break timer across study pages (sessionStorage)', () => {
   it('refuses to write a malformed state rather than poisoning storage', () => {
     const storage = memory();
     expect(writeBreakState(storage, { ...startBreaks(), status: 'focusing' } as BreakState)).toBe(false);
+    expect(writeBreakState(storage, startBreaks(settings), Number.NaN)).toBe(false);
+    expect(writeBreakState(storage, startBreaks(settings), -1)).toBe(false);
     expect(storage.values.size).toBe(0);
+  });
+
+  it('uses the save time the caller passes and stores only the known timer fields', () => {
+    const storage = memory();
+    const state = turnOn(startBreaks(settings), NOW - 5 * MINUTE);
+    const withExtra = { ...state, note: 'not a timer field' } as BreakState;
+    expect(writeBreakState(storage, withExtra, NOW - 5 * MINUTE)).toBe(true);
+    expect(JSON.parse(storage.getItem(BREAK_STORAGE_KEY)!)).toEqual({ version: 1, savedAt: NOW - 5 * MINUTE, state });
+    expect(readBreakState(storage, NOW)).toEqual(state);
   });
 });

@@ -83,13 +83,16 @@ export function readBreakState(storage: KeyValueStorage | undefined, now: number
   }
 }
 
-/** Snapshot the timer into sessionStorage. A blocked browser is a normal, non-throwing failure. */
-export function writeBreakState(storage: KeyValueStorage | undefined, state: BreakState): boolean {
-  if (!storage || !parseBreakState(state)) return false;
+/**
+ * Snapshot the timer into sessionStorage. A blocked browser is a normal, non-throwing failure. `now` is the save time
+ * (the caller's clock, like every break timer function); only the checked copy of the state is stored.
+ */
+export function writeBreakState(storage: KeyValueStorage | undefined, state: BreakState, now: number = Date.now()): boolean {
+  if (!storage || !finiteNonnegative(now)) return false;
   try {
-    const savedAt = Date.now();
-    if (!finiteNonnegative(savedAt)) return false;
-    storage.setItem(BREAK_STORAGE_KEY, JSON.stringify({ version: BREAK_STORAGE_VERSION, savedAt, state }));
+    const checked = parseBreakState(state);
+    if (!checked) return false;
+    storage.setItem(BREAK_STORAGE_KEY, JSON.stringify({ version: BREAK_STORAGE_VERSION, savedAt: now, state: checked }));
     return true;
   } catch {
     return false;
