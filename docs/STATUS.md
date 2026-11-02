@@ -249,7 +249,7 @@ Merged into `staging`:
 - Task 78, flashcards modern (D-pending): flip animation, progress bar, CSP-safe style via global.css, axe-clean. Head `c29a57b`. PR [#162](https://github.com/lilchristxan/Cueory/pull/162). CI repair committed `c29a57b`, awaiting CI.
 - Task 79, learn mode modern (D-pending): progress bar, step labels, choice list, typed field, reduced-motion. Head `de27025`. PR [#167](https://github.com/lilchristxan/Cueory/pull/167). CI repair (CSP .enter/.press moved to global.css) committed `de27025`, awaiting CI.
 - Task 64, share page (D-pending): PR [#181](https://github.com/lilchristxan/Cueory/pull/181). MERGEABLE, waiting for Christian.
-- Task 103, share achievements (D-pending): static share cards (scene/ivory/bronze-coin) per tool group in `public/share/`, `ShareSheet.tsx` island with swipeable style picker and Web Share API / X / copy-link buttons, build script, unit and e2e tests. Head `bb0fc51`. PR [#190](https://github.com/lilchristxan/Cueory/pull/190). Awaiting CI.
+- Task 103, share achievements (D-pending): static share cards (scene/ivory/bronze-coin) per tool group in `public/share/`, `ShareSheet.tsx` island with swipeable style picker and Web Share API / X / copy-link buttons, build script, unit and e2e tests. Head `057ce23`. PR [#190](https://github.com/lilchristxan/Cueory/pull/190). CI repair (game-name guard: use `gameName()` in preview label) committed `057ce23`, awaiting CI.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
