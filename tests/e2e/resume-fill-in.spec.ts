@@ -167,23 +167,25 @@ test('keeps only the latest 50 retries so later answers still resume (Codex on #
   const board = await open(page);
   await submit(page, 'honey');
   await board.getByRole('button', { name: 'next' }).click();
+  await submit(page, 'days');
+  await board.getByRole('button', { name: 'next' }).click();
   const field = board.getByRole('textbox', { name: 'the missing word' });
   for (let attempt = 0; attempt < 51; attempt++) {
     await field.fill('pnecil');
     await field.press('Enter');
-    if (attempt < 50) await expect(board.getByText('almost. check the spelling.')).toBeVisible();
+    await expect(board.getByText('almost. check the spelling.')).toBeVisible();
   }
   let saved = await page.evaluate(() => JSON.parse(localStorage.getItem('cueory-resume') ?? 'null'));
-  expect(saved.answers['item-1']).toHaveLength(50);
-  expect(saved.answers['item-1'].every((answer: string) => answer === 'n:pnecil')).toBe(true);
-  await field.fill('days');
+  expect(saved.answers['item-2']).toHaveLength(50);
+  expect(saved.answers['item-2'].every((answer: string) => answer === 'n:pnecil')).toBe(true);
+  await field.fill('pencil');
   await field.press('Enter');
   await expect(board.getByRole('button', { name: 'next' })).toBeVisible();
   await board.getByRole('button', { name: 'next' }).click();
   saved = await page.evaluate(() => JSON.parse(localStorage.getItem('cueory-resume') ?? 'null'));
-  expect(saved.answers['item-1']).toHaveLength(50);
+  expect(saved.answers['item-2']).toHaveLength(50);
   await page.reload();
-  await page.getByRole('button', { name: 'continue question 3' }).click();
-  await expect(board.getByText('round 1 · item 3 of 4')).toBeVisible();
-  await expect(board.getByRole('region', { name: 'your submitted answers' })).toContainText('item 2: days');
+  await page.getByRole('button', { name: 'continue question 4' }).click();
+  await expect(board.getByText('round 1 · item 4 of 4')).toBeVisible();
+  await expect(board.getByRole('region', { name: 'your submitted answers' })).toContainText('item 3: pencil');
 });
