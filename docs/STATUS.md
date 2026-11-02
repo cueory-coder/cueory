@@ -246,6 +246,9 @@ Merged into `staging`:
 
 ## In review
 - Open pull requests add their own lines here. Waiting now: Release browser tests (#55).
+- Task 78, flashcards modern (D-pending): 3D flip card, progress bar, segmented study controls, keyboard
+  shortcuts, full axe + tab-order accessibility. Head `9503e8b`. PR [#162](https://github.com/lilchristxan/Cueory/pull/162).
+  CI repair 2 (overflow:hidden, strict-mode locator, tally text regex) committed `9503e8b`, awaiting CI.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
