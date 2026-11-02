@@ -271,6 +271,7 @@ Merged into `staging`:
    now first: brand v1.0 (the lead's branch), then the home page polish pass, then the rest of daily games (the home
    page section, pulse and sort are in `staging`; the crossword and word path are in review).
 - Task 61, private student export loader (#169): safely reads an account's own saved data for download, with CI verified and lead/Codex review plus Christian's approval required.
+- Task 77, motion and depth foundation (#153): shared tokens and classes for lift, press, card flip, progress bars, loading shimmer, entrances, segmented controls and page transitions, all off with reduced motion. Finished by the lead; the vial carousel, palettes and scenes build on it.
 
 ## Visuals kit (Task 6, D-56)
 Targets: first visuals by about 14 November, the full kit by about 12 December ([plan](VISUALS.md)).
