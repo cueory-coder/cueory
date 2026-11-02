@@ -82,6 +82,7 @@ declare
   event jsonb;
   event_at timestamptz;
   n_events integer;
+  n_new integer;
   n_stored integer;
   uuid_shape constant text := '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
   time_shape constant text :=
@@ -158,13 +159,27 @@ begin
     end if;
   end loop;
 
-  -- The limits, per person, counted from the table itself by the database's clock. The whole batch must fit. The lock
-  -- keeps two quick calls from both slipping under them.
+  -- The limits, per person, counted from the table itself by the database's clock. The lock keeps two quick calls
+  -- from both slipping under them, and nothing else writes this person's events while it is held.
   perform pg_advisory_xact_lock(hashtextextended('study_events:' || uid::text, 0));
-  if (select count(*) from public.study_events s
-        where s.user_id = uid and s.created_at > now() - interval '1 hour') + n_events > hourly_limit
-     or (select count(*) from public.study_events s
-        where s.user_id = uid and s.created_at > now() - interval '1 day') + n_events > daily_limit then
+  -- Only events that would really be stored count: not already stored under study_events_once, and each one once
+  -- within the batch. Times are compared as timestamptz values, so the same moment written with another offset or
+  -- fewer decimals is the same event. A retried batch that was already stored is then told 0, even at the limit.
+  select count(*) into n_new
+  from (
+    select distinct (e ->> 'at')::timestamptz as at, (e ->> 'version_id')::uuid as version_id, e ->> 'kind' as kind
+    from jsonb_array_elements(record_study_events.events) e
+  ) b
+  where not exists (
+    select 1 from public.study_events s
+    where s.user_id = uid and s.at = b.at and s.item_version_id = b.version_id and s.kind = b.kind
+  );
+  -- Every new event must fit.
+  if n_new > 0 and (
+       (select count(*) from public.study_events s
+          where s.user_id = uid and s.created_at > now() - interval '1 hour') + n_new > hourly_limit
+       or (select count(*) from public.study_events s
+          where s.user_id = uid and s.created_at > now() - interval '1 day') + n_new > daily_limit) then
     raise exception 'too many study events recorded recently; try again later' using errcode = '54000';
   end if;
 

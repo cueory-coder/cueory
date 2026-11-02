@@ -4,13 +4,14 @@
 -- local database; the students and rows below exist only inside this test.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(62);
+select plan(68);
 
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-000000000001', 'one@example.com'),
   ('00000000-0000-4000-8000-000000000002', 'two@example.com'),
   ('00000000-0000-4000-8000-000000000003', 'three@example.com'),
-  ('00000000-0000-4000-8000-000000000004', 'four@example.com');
+  ('00000000-0000-4000-8000-000000000004', 'four@example.com'),
+  ('00000000-0000-4000-8000-000000000005', 'five@example.com');
 
 insert into public.concepts (id, slug, title, published) values
   ('00000000-0000-4000-8000-0000000000c1', 'sample-concept', 'sample concept', true);
@@ -393,6 +394,15 @@ select throws_ok(
   '54000', 'too many study events recorded recently; try again later', 'the 601st event in an hour is refused'
 );
 select results_eq(
+  $$ select public.record_study_events((
+       select jsonb_agg(jsonb_build_object(
+         'item_id', '00000000-0000-4000-8000-0000000000e1', 'version_id', '00000000-0000-4000-8000-0000000000f1',
+         'kind', 'skipped', 'ms_on_item', n,
+         'at', to_char((now() - make_interval(secs => n)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')))
+       from generate_series(1, 10) n)) $$,
+  $$ values (0) $$, 'at the hourly limit, a retry of a batch that was already stored is told 0, not refused'
+);
+select results_eq(
   $$ select count(*)::int from public.study_events $$, $$ values (600) $$,
   'student two reads only their own 600 events, none of student one''s'
 );
@@ -431,6 +441,84 @@ select throws_ok(
        "version_id": "00000000-0000-4000-8000-0000000000f1", "kind": "answered", "ms_on_item": 1, "at": "@t"}]$j$,
        '@t', current_setting('t.m1'))::jsonb) $$,
   '54000', 'too many study events recorded recently; try again later', 'the 2,001st event in a day is refused'
+);
+
+-- ---- Only new events count toward the limits. Student five has 1,979 events stored 3 hours ago (answered, one
+-- second apart), so 21 more reach the daily 2,000.
+reset role;
+insert into public.study_events (user_id, item_id, item_version_id, kind, ms_on_item, at, created_at)
+  select '00000000-0000-4000-8000-000000000005', '00000000-0000-4000-8000-0000000000e1',
+         '00000000-0000-4000-8000-0000000000f1', 'answered', 1, now() - interval '3 hours' - make_interval(secs => n),
+         now() - interval '3 hours'
+  from generate_series(1, 1979) n;
+set local role authenticated;
+set local "request.jwt.claims" to '{"sub": "00000000-0000-4000-8000-000000000005", "role": "authenticated"}';
+set local "request.jwt.claim.sub" to '00000000-0000-4000-8000-000000000005';
+-- 30 already stored and 20 new: the whole batch is 50 more than 1,979, but only the 20 new count.
+select results_eq(
+  $$ select public.record_study_events((
+       select jsonb_agg(e) from (
+         select jsonb_build_object(
+           'item_id', '00000000-0000-4000-8000-0000000000e1', 'version_id', '00000000-0000-4000-8000-0000000000f1',
+           'kind', 'answered', 'ms_on_item', 1,
+           'at', to_char((now() - interval '3 hours' - make_interval(secs => n)) at time zone 'utc',
+                         'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')) e
+         from generate_series(1, 30) n
+         union all
+         select jsonb_build_object(
+           'item_id', '00000000-0000-4000-8000-0000000000e1', 'version_id', '00000000-0000-4000-8000-0000000000f1',
+           'kind', 'skipped', 'ms_on_item', n,
+           'at', to_char((now() - make_interval(secs => n)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'))
+         from generate_series(1, 20) n) b)) $$,
+  $$ values (20) $$, 'a mixed batch whose new events fit the quota left stores the new ones'
+);
+-- One new event sent twice, the second time with +00:00 instead of Z: it is one event, and it is the 2,000th.
+select results_eq(
+  $$ select public.record_study_events((
+       select jsonb_agg(jsonb_build_object(
+         'item_id', '00000000-0000-4000-8000-0000000000e2', 'version_id', '00000000-0000-4000-8000-0000000000f2',
+         'kind', 'answered', 'ms_on_item', 7,
+         'at', to_char((now() - interval '1 minute') at time zone 'utc', f)))
+       from unnest(array['YYYY-MM-DD"T"HH24:MI:SS.US"Z"', 'YYYY-MM-DD"T"HH24:MI:SS.US"+00:00"']) f)) $$,
+  $$ values (1) $$, 'the same new event twice in one batch counts once, whatever offset its time is written with'
+);
+select results_eq(
+  $$ select public.record_study_events((
+       select jsonb_agg(e) from (
+         select jsonb_build_object(
+           'item_id', '00000000-0000-4000-8000-0000000000e1', 'version_id', '00000000-0000-4000-8000-0000000000f1',
+           'kind', 'answered', 'ms_on_item', 1,
+           'at', to_char((now() - interval '3 hours' - make_interval(secs => n)) at time zone 'utc',
+                         'YYYY-MM-DD"T"HH24:MI:SS.US"+00:00"')) e
+         from generate_series(1, 30) n
+         union all
+         select jsonb_build_object(
+           'item_id', '00000000-0000-4000-8000-0000000000e1', 'version_id', '00000000-0000-4000-8000-0000000000f1',
+           'kind', 'skipped', 'ms_on_item', n,
+           'at', to_char((now() - make_interval(secs => n)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'))
+         from generate_series(1, 20) n) b)) $$,
+  $$ values (0) $$, 'at the daily limit, a retry of a fully stored batch is told 0, not refused'
+);
+select throws_ok(
+  $$ select public.record_study_events((
+       select jsonb_agg(e) from (
+         select jsonb_build_object(
+           'item_id', '00000000-0000-4000-8000-0000000000e1', 'version_id', '00000000-0000-4000-8000-0000000000f1',
+           'kind', 'answered', 'ms_on_item', 1,
+           'at', to_char((now() - interval '3 hours' - make_interval(secs => n)) at time zone 'utc',
+                         'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')) e
+         from generate_series(1, 49) n
+         union all
+         select jsonb_build_object(
+           'item_id', '00000000-0000-4000-8000-0000000000e2', 'version_id', '00000000-0000-4000-8000-0000000000f2',
+           'kind', 'skipped', 'ms_on_item', 1,
+           'at', to_char((now() - interval '2 minutes') at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'))) b)) $$,
+  '54000', 'too many study events recorded recently; try again later',
+  'at the limit, a batch with even one new event is refused whole, however much of it was already stored'
+);
+select results_eq(
+  $$ select count(*)::int from public.study_events $$, $$ values (2000) $$,
+  'student five has exactly 2,000 events: every new one stored once, nothing from the refused batch'
 );
 
 -- ---- A student who has recorded nothing sees nothing (student four's only row is the owner's restored one).

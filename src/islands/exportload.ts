@@ -8,8 +8,12 @@
  * The caller adds browser-only progress, game stats and onboarding, and may
  * add the signed-in email from Auth. profiles does not store an email address.
  * No partial export is returned when any read or row shape fails.
+ *
+ * study_events has no cap: it is read page by page and each checked page is
+ * written straight into StudyEventPages, so a long history never sits in memory
+ * as one array of rows. Download the result with exportJsonBlob / exportCsvBlobs.
  */
-import type { ExportData } from './exportdata';
+import { StudyEventPages, type ExportData } from './exportdata';
 
 export type ExportTable = 'profiles' | 'attempts' | 'exam_plans' | 'review_state' | 'study_events';
 
@@ -18,8 +22,13 @@ interface ReadResult {
   error?: unknown;
 }
 
+type WholeTable = Exclude<ExportTable, 'study_events'>;
+
 export interface ExportReader {
-  select(table: ExportTable, columns: string): PromiseLike<ReadResult>;
+  /** Every row of a small, capped table in one result. */
+  select(table: WholeTable, columns: string): PromiseLike<ReadResult>;
+  /** study_events, one page at a time, in a stable order. */
+  selectPages(table: 'study_events', columns: string): AsyncIterable<ReadResult>;
   rpc(name: 'my_flags'): PromiseLike<ReadResult>;
 }
 
@@ -30,13 +39,12 @@ export type ExportLoadResult =
 const ERROR_MESSAGE = "we couldn't load all your saved data. please try again.";
 const PAGE_SIZE = 500;
 
-/** ExportData's caps. Refuse oversize sets instead of quietly dropping rows. */
+/** ExportData's caps. Refuse oversize sets instead of quietly dropping rows. study_events has none (see above). */
 const LIMITS = {
   profiles: 1,
   attempts: 50_000,
   exam_plans: 10,
   review_state: 50_000,
-  study_events: 200_000,
   my_flags: 10_000,
 } as const;
 
@@ -173,7 +181,7 @@ function entries<T>(data: unknown, map: (value: Record<string, unknown>) => T): 
   return data.map((value: unknown) => map(row(value)));
 }
 
-async function fetchRows(reader: ExportReader, table: ExportTable): Promise<unknown> {
+async function fetchRows(reader: ExportReader, table: WholeTable): Promise<unknown> {
   const reply = await reader.select(table, COLUMNS[table]);
   if (!reply || reply.error != null || !Array.isArray(reply.data)) throw new Error('export read failed');
   if (reply.data.length > LIMITS[table]) throw new Error('export is too large');
@@ -224,7 +232,12 @@ export async function loadExport(reader: ExportReader): Promise<ExportLoadResult
         nextReview: calendarDay(r, 'next_review'),
       };
     });
-    const studyEvents = entries(await fetchRows(reader, 'study_events'), studyEvent);
+    // Each page is checked strictly (one bad row refuses the export) and written out before the next is read.
+    const studyEvents = new StudyEventPages();
+    for await (const page of reader.selectPages('study_events', COLUMNS.study_events)) {
+      if (!page || page.error != null || !Array.isArray(page.data)) throw new Error('export read failed');
+      studyEvents.add(entries(page.data, studyEvent));
+    }
     const reply = await reader.rpc('my_flags');
     if (!reply || reply.error != null || !Array.isArray(reply.data) || reply.data.length > LIMITS.my_flags) {
       throw new Error('report export read failed');
@@ -268,14 +281,14 @@ const CURSOR_COLUMN: Record<ExportTable | 'my_flags', string | null> = {
 };
 
 /**
- * Read a whole set in stable key order. Unlike offset pagination, deleting a previously
+ * Read a set page by page in stable key order. Unlike offset pagination, deleting a previously
  * read row while the export runs cannot move a later row past the next page's cursor.
  * A keyset cursor is read only from the database's UUID primary key and is never exported,
  * except my_flags' public report id. New writes while reading are not a database snapshot.
+ * The cursor must rise strictly on every row, so reading always ends. A failed read is
+ * yielded as an error page and ends the set.
  */
-async function allPages(makeQuery: () => SupabaseQuery, which: ExportTable | 'my_flags'): Promise<ReadResult> {
-  const results: unknown[] = [];
-  const cap = LIMITS[which];
+async function* pages(makeQuery: () => SupabaseQuery, which: ExportTable | 'my_flags'): AsyncGenerator<ReadResult> {
   const key = CURSOR_COLUMN[which];
   let cursor: string | null = null;
   for (;;) {
@@ -283,25 +296,36 @@ async function allPages(makeQuery: () => SupabaseQuery, which: ExportTable | 'my
     query = query.order(key ?? 'created_at', { ascending: true });
     if (key !== null && cursor !== null) query = query.gt(key, cursor);
     const reply = await query.range(0, PAGE_SIZE - 1);
-    if (!reply || reply.error != null || !Array.isArray(reply.data)) return { data: null, error: 'read failed' };
-    if (results.length + reply.data.length > cap) return { data: null, error: 'too many rows' };
+    if (!reply || reply.error != null || !Array.isArray(reply.data)) { yield { data: null, error: 'read failed' }; return; }
     if (key !== null) {
       for (const entry of reply.data) {
         const next = uuid(row(entry), key);
-        if (cursor !== null && next <= cursor) return { data: null, error: 'invalid cursor ordering' };
+        if (cursor !== null && next <= cursor) { yield { data: null, error: 'invalid cursor ordering' }; return; }
         cursor = next;
       }
     }
-    results.push(...reply.data);
-    if (reply.data.length < PAGE_SIZE) return { data: results, error: null };
-    if (key === null) return { data: null, error: 'too many profiles' };
+    yield { data: reply.data, error: null };
+    if (reply.data.length < PAGE_SIZE) return;
+    if (key === null) { yield { data: null, error: 'too many profiles' }; return; }
   }
+}
+
+/** Read a whole capped set, refusing it if it passes its cap. */
+async function allPages(makeQuery: () => SupabaseQuery, which: WholeTable | 'my_flags'): Promise<ReadResult> {
+  const results: unknown[] = [];
+  for await (const page of pages(makeQuery, which)) {
+    if (page.error != null || !Array.isArray(page.data)) return { data: null, error: page.error };
+    if (results.length + page.data.length > LIMITS[which]) return { data: null, error: 'too many rows' };
+    results.push(...page.data);
+  }
+  return { data: results, error: null };
 }
 
 /** Uses only the tables and RPC explicitly allowed by Task 61 (and study_events, Task 140). */
 export function fromSupabase(client: SupabaseExportClient): ExportReader {
   return {
     select: (table, columns) => allPages(() => client.from(table).select(columns), table),
+    selectPages: (table, columns) => pages(() => client.from(table).select(columns), table),
     rpc: (name) => allPages(() => client.rpc(name), name),
   };
 }

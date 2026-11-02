@@ -6,7 +6,7 @@ import { BREAK_STORAGE_KEY } from '../../src/scripts/breakstore';
 import { NOTE_SOUND_STORAGE_KEY } from '../../src/scripts/notesound';
 import { LAST_WELCOME_STORAGE_KEY, VISIT_STORAGE_KEY } from '../../src/islands/stickynote';
 import { AUTH_STORAGE_KEY } from '../../src/islands/supabaseclient';
-import type { ExportData } from '../../src/islands/exportdata';
+import { StudyEventPages, type ExportData, type StudyEventRow } from '../../src/islands/exportdata';
 import {
   emptyProgress, forgetProgress, legacyStarsKey, loadDeckStars, migrateLegacyStars, PROGRESS_STORAGE_KEY,
   saveProgress, withOnboarding, withPile, withStars,
@@ -393,7 +393,7 @@ describe('legacy browser data in the cleanup plan', () => {
 });
 
 describe('study history in the deletion summary (Task 140)', () => {
-  const event: NonNullable<ExportData['studyEvents']>[number] = Object.freeze({
+  const event: StudyEventRow = Object.freeze({
     itemId: '00000000-0000-4000-8000-000000000001', itemVersionId: '00000000-0000-4000-8000-000000000002',
     kind: 'marked', msOnItem: 4200, mark: 'know', at: '2026-11-01T00:00:00Z', createdAt: '2026-11-01T00:00:01Z',
   });
@@ -406,5 +406,13 @@ describe('study history in the deletion summary (Task 140)', () => {
 
   it.each([{}, { studyEvents: [] }] satisfies ExportData[])('omits study history when absent or empty: %j', data => {
     expect(deletionSummary(data)).toEqual([]);
+  });
+
+  it('counts a history read page by page, as loadExport supplies it', () => {
+    const pages = new StudyEventPages();
+    pages.add([event, event]);
+    pages.add([{ ...event, kind: 'skipped', mark: null }]);
+    expect(deletionSummary({ studyEvents: pages })).toEqual(['3 study history entries']);
+    expect(deletionSummary({ studyEvents: new StudyEventPages() })).toEqual([]);
   });
 });

@@ -67,9 +67,10 @@ export function deletionSummary(data: ExportData): string[] {
   if (data.examPlans?.length) lines.push(`${data.examPlans.length} exam date${data.examPlans.length === 1 ? '' : 's'}`);
   if (data.reviewRows?.length) lines.push(`${data.reviewRows.length} account review schedule${data.reviewRows.length === 1 ? '' : 's'}`);
   if (data.reports?.length) lines.push(`${data.reports.length} report${data.reports.length === 1 ? '' : 's'}`);
-  if (data.studyEvents?.length) {
-    lines.push(`${data.studyEvents.length} study history entr${data.studyEvents.length === 1 ? 'y' : 'ies'}`);
-  }
+  // loadExport supplies the history as pages, which know their count; a short list can also be passed as rows.
+  const events = data.studyEvents;
+  const eventCount = events === undefined ? 0 : 'count' in events ? events.count : events.length;
+  if (eventCount) lines.push(`${eventCount} study history entr${eventCount === 1 ? 'y' : 'ies'}`);
 
   return lines;
 }
