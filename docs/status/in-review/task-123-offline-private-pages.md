@@ -1,0 +1,1 @@
+status: Task 123, offline private-page regression tests: account, authentication, preview and private routes and token queries are refused, while home and lesson pages remain eligible and the worker excludes /play and all query strings.
