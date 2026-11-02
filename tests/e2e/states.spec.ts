@@ -57,6 +57,11 @@ test.describe('Task 91: loading and empty states', () => {
   test('both palettes have readable states and no accessibility violations', async ({ page }) => {
     await page.goto(preview);
     const backgrounds: string[] = [];
+    // The theme switch lives in the footer's links panel (Task 85): open it first.
+    const toggle = page.getByRole('contentinfo').locator('[data-footer-toggle]');
+    await toggle.scrollIntoViewIfNeeded();
+    if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
     for (const choice of ['Light', 'Dark']) {
       await page.getByRole('radio', { name: choice }).check();
       const bg = await page.locator('[data-empty-state]').first().evaluate((node) => getComputedStyle(node).backgroundColor);
