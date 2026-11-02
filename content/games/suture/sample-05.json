@@ -1,100 +1,31 @@
 {
   "status": "sample",
+  "theme": "at the beach",
   "grid": [
-    "MONTH",
-    "WLIGY",
-    "EEKUE",
-    "DBCFA",
-    "AYPVR"
+    "BMBTSEAGULL",
+    "LCBAHLEWOTA",
+    "MOEHPLLEHSM",
+    "DOSNFTIDENY",
+    "WLAUOIPIERL",
+    "GENSWUJWAVE",
+    "MRDSEFRWPJH",
+    "NRBUBTEKCUB",
+    "RDYRYAYPJOV",
+    "LUJFELPETIK",
+    "HEOCMDUPDSB"
   ],
   "words": [
-    {
-      "cue": "about four weeks",
-      "answer": "MONTH",
-      "path": [
-        [
-          0,
-          0
-        ],
-        [
-          0,
-          1
-        ],
-        [
-          0,
-          2
-        ],
-        [
-          0,
-          3
-        ],
-        [
-          0,
-          4
-        ]
-      ]
-    },
-    {
-      "cue": "seven days",
-      "answer": "WEEK",
-      "path": [
-        [
-          1,
-          0
-        ],
-        [
-          2,
-          0
-        ],
-        [
-          2,
-          1
-        ],
-        [
-          2,
-          2
-        ]
-      ]
-    },
-    {
-      "cue": "twelve months",
-      "answer": "YEAR",
-      "path": [
-        [
-          1,
-          4
-        ],
-        [
-          2,
-          4
-        ],
-        [
-          3,
-          4
-        ],
-        [
-          4,
-          4
-        ]
-      ]
-    },
-    {
-      "cue": "from morning to night",
-      "answer": "DAY",
-      "path": [
-        [
-          3,
-          0
-        ],
-        [
-          4,
-          0
-        ],
-        [
-          4,
-          1
-        ]
-      ]
-    }
+    { "answer": "BUCKET", "path": [[7,10],[7,9],[7,8],[7,7],[7,6],[7,5]] },
+    { "answer": "COOLER", "path": [[1,1],[2,1],[3,1],[4,1],[5,1],[6,1]] },
+    { "answer": "KITE", "path": [[9,10],[9,9],[9,8],[9,7]] },
+    { "answer": "PIER", "path": [[4,6],[4,7],[4,8],[4,9]] },
+    { "answer": "SAND", "path": [[3,2],[4,2],[5,2],[6,2]] },
+    { "answer": "SEAGULL", "path": [[0,4],[0,5],[0,6],[0,7],[0,8],[0,9],[0,10]] },
+    { "answer": "SHELL", "path": [[2,9],[2,8],[2,7],[2,6],[2,5]] },
+    { "answer": "SUNHAT", "path": [[5,3],[4,3],[3,3],[2,3],[1,3],[0,3]] },
+    { "answer": "SURF", "path": [[6,3],[7,3],[8,3],[9,3]] },
+    { "answer": "TIDE", "path": [[3,5],[3,6],[3,7],[3,8]] },
+    { "answer": "TOWEL", "path": [[1,9],[1,8],[1,7],[1,6],[1,5]] },
+    { "answer": "WAVE", "path": [[5,7],[5,8],[5,9],[5,10]] }
   ]
 }

@@ -151,6 +151,9 @@
   --focus-width: 3px;
   --focus-offset: 3px;
 
+  /* ---------- Word path board (Task 97) ---------- */
+  --border-board: 2.5px;        /* the frame around the word search grid (Christian's design, 2026-11-01) */
+
   /* ---------- Motion (D-41 brand bar: 150–400 ms, soft not bouncy, always off under reduced-motion) ---------- */
   --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);     /* gentle UI transitions */
   --ease-emphasis: cubic-bezier(0.2, 0, 0, 1);   /* snappier entrances */
