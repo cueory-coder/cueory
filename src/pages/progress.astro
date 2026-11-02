@@ -2,6 +2,7 @@
 import { getCollection } from 'astro:content';
 import Layout from '../layouts/Layout.astro';
 import ProgressPanel from '../islands/ProgressPanel';
+import GuestImportOffer from '../islands/GuestImportOffer';
 import BrandMark from '../components/BrandMark.astro';
 
 const decks = (await getCollection('cards'))
@@ -22,6 +23,8 @@ const decks = (await getCollection('cards'))
     </p>
 
     <div class="mt-10">
+      {/* Sign-in lands here by default; the offer shows only to a signed-in student with progress to bring in. */}
+      <GuestImportOffer client:only="react" />
       {/* client:only: progress lives in this browser, so there is nothing to pre-render. */}
       <ProgressPanel client:only="react" decks={decks} />
       <noscript>
