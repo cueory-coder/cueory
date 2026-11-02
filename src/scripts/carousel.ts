@@ -1,27 +1,43 @@
 /**
- * The "ways to study" merry-go-round on the home page (D-50, D-60). Pure helpers, kept apart from the page script so
- * they can be unit tested (tests/unit/carousel.test.ts).
+ * The "ways to study" merry-go-round on the home page (D-50, D-60), drawn as Christian's vials since Task 109. Pure
+ * helpers, kept apart from the page script so they can be unit tested (tests/unit/carousel.test.ts).
  *
- * Without JavaScript the cards are a row that scrolls sideways and snaps each card to the middle. The script turns
- * the row into an endless merry-go-round: one card in front, its neighbours on both sides stepping back (smaller,
- * turned slightly away, quieter), and next after the last card is the first again. It adds the arrows, the arrow
- * keys, swipes, a tap on a side card to bring it to the middle, and a gentle auto-advance.
+ * Without JavaScript the vials are a row that scrolls sideways and snaps each vial to the middle. The script turns
+ * the row into an endless ring in a shallow arc on a pedestal: one vial in front, the others stepping back on both
+ * sides (smaller, further back, a little higher and dimmer), and next after the last vial is the first again. It adds
+ * the arrows, the arrow keys, swipes, a tap on a side vial to bring it to the front, and a gentle auto-advance.
  */
 
-/** Time each card stays in the middle before the next one comes in, when nobody is using the carousel. */
+/** Time each vial stays in front before the next one comes in, when nobody is using the carousel. */
 export const AUTO_ADVANCE_MS = 6000;
 
-/** How long one turn of the merry-go-round takes (brand guide §7.3: 180 to 280 ms, easing out). */
-export const RING_MS = 240;
+/**
+ * How long one turn of the ring takes: the approved prototype's 700 ms glide (the lead approved it on 2026-11-02, as
+ * long as reduced motion turns it off, which it does: global.css).
+ */
+export const RING_MS = 700;
 
-/** The row counts as resting once it hasn't turned for a little longer than one turn. */
+/** The glide's easing, from the approved prototype: fast at first, settling softly. */
+export const RING_EASING = 'cubic-bezier(0.22, 0.8, 0.24, 1)';
+
+/** The ring counts as resting once it hasn't turned for a little longer than one turn. */
 export const REST_MS = RING_MS + 60;
 
-/** How much smaller each card is than the one in front of it: 1 in the middle, then 0.88, then 0.76. */
-export const STEP_BACK = 0.12;
+/** How far apart the vials stand, in vial widths (they overlap a little, so they read as one group). */
+export const SPREAD = 0.78;
 
-/** How far each side card is turned away, in degrees. */
-export const TURN_DEG = 10;
+/** Each step out squeezes the spacing a little more: the arc. */
+export const SQUEEZE = 0.05;
+
+/** How much smaller each vial is than the one in front of it: 1 in front, then 0.87, 0.74, 0.61 and 0.48. */
+export const STEP_BACK = 0.13;
+
+/** How much dimmer and greyer each vial is per step out: the selected vial is the brightest. */
+export const DIM = 0.05;
+export const DESATURATE = 0.06;
+
+/** Vials further than this from the front are hidden (with eleven vials, the one straight behind). */
+export const FARTHEST_SHOWN = 4;
 
 /** The next or previous card, wrapping from the last card to the first and back. */
 export function wrap(index: number, count: number): number {
@@ -39,48 +55,57 @@ export function ringOffset(index: number, active: number, count: number): number
   return wrap(index - active + half, count) - half;
 }
 
-/** Where a card sits on the merry-go-round. The styles in global.css draw it from these numbers. */
+/** Where a vial stands on the ring. The styles in global.css draw it from these numbers. */
 export interface RingPlace {
-  /** How many cards it is from the middle: 0 in the middle. */
+  /** How many vials it is from the front: 0 in front. */
   distance: number;
-  /** -1 to the left of the middle, 1 to the right, 0 in the middle. */
+  /** -1 to the left of the front vial, 1 to the right, 0 in front. */
   side: -1 | 0 | 1;
-  /** Its size: 1 in the middle, then 0.88 and 0.76, stepping back. */
-  scale: number;
-  /**
-   * How far sideways its middle is from the middle of the row, in card widths. Together with `gaps` (how many of the
-   * gaps between cards lie in between), neighbours sit side by side, edge to edge with a gap, never on top of each other.
-   */
+  /** How far sideways its middle is from the middle of the ring, in vial widths. */
   shift: number;
-  gaps: number;
-  /** How far it is turned away from the middle, in degrees: 0 in the middle and with reduced motion. */
-  turn: number;
-  /** Which card is drawn on top: the middle one, then its neighbours, then theirs. */
+  /** How far up it stands, in steps of 5 px (--vial-step-rise): the square of its distance, so the row curves. */
+  rise: number;
+  /** How far back it stands, in steps of 90 px (--vial-step-depth). */
+  depth: number;
+  /** Its size: 1 in front, then 0.87, 0.74, 0.61 and 0.48. */
+  scale: number;
+  /** The glass's brightness and color strength: 1 in front, a little less per step out. */
+  bright: number;
+  saturate: number;
+  /** Which vial is drawn on top: the front one, then its neighbours, then theirs. */
   layer: number;
+  /** Whether it shows at all: four on each side of the front vial. */
+  shown: boolean;
 }
 
 const round = (n: number) => Math.round(n * 1000) / 1000 + 0;
 
-export function ringPlace(offset: number, reducedMotion = false): RingPlace {
+/**
+ * The approved prototype's arc (Task 109): with o the vial's offset from the front one, it stands o × 0.78 × (1 −
+ * |o| × 0.05) vial widths to the side, o² × 5 px higher and |o| × 90 px further back, at 1 − |o| × 0.13 of its size,
+ * 5% dimmer and 6% greyer per step.
+ */
+export function ringPlace(offset: number): RingPlace {
   const distance = Math.abs(offset);
   const side = offset === 0 ? 0 : offset < 0 ? -1 : 1;
-  // Card k is 1 - k × STEP_BACK wide; the middles of two cards next to each other are half of each one's width apart.
-  const widths = distance - (STEP_BACK / 2) * distance * distance;
   return {
     distance,
     side,
-    scale: round(Math.max(0.4, 1 - STEP_BACK * distance)),
-    shift: round(side * widths),
-    gaps: side * distance,
-    turn: reducedMotion ? 0 : side * TURN_DEG,
-    layer: Math.max(0, 10 - distance),
+    shift: round(offset * SPREAD * (1 - distance * SQUEEZE)),
+    rise: distance * distance,
+    depth: distance,
+    scale: round(Math.max(0.3, 1 - STEP_BACK * distance)),
+    bright: round(1 - DIM * distance),
+    saturate: round(1 - DESATURATE * distance),
+    layer: Math.max(0, 20 - distance),
+    shown: distance <= FARTHEST_SHOWN,
   };
 }
 
 /**
- * Whether a card glides to its new place or simply appears there. A turn of one or two cards glides; a card going
- * round the back of the merry-go-round, or a jump of several cards (Home, End), switches at once instead of sweeping
- * across the row.
+ * Whether a vial glides to its new place or simply appears there. A turn of one or two vials glides; a vial going
+ * round the back of the ring, or a jump of several vials (Home, End), switches at once instead of sweeping across the
+ * row.
  */
 export function glides(fromOffset: number, toOffset: number): boolean {
   return Math.abs(toOffset - fromOffset) <= 2;
@@ -107,7 +132,7 @@ export function swipeTurn(dx: number, dy: number): -1 | 0 | 1 {
   return dx < 0 ? 1 : -1;
 }
 
-/** What the screen reader hears where the merry-go-round comes to rest: "matching, 5 of 11". */
+/** What the screen reader hears where the ring comes to rest: "matching, 5 of 11". */
 export function slideAnnouncement(name: string, index: number, count: number): string {
   return `${name}, ${index + 1} of ${count}`;
 }
@@ -151,9 +176,9 @@ export interface Box {
 }
 
 /**
- * The grow-into-preview animation (D-51) moves the preview panel so it starts exactly over the card it came from:
- * this is the move and the stretch that put the panel's box (`to`) onto the card's box (`from`). Animating from it to
- * no transform makes the panel grow out of the card; the reverse shrinks it back in.
+ * The grow-into-preview animation (D-51, Task 109) moves the preview's big vial so it starts exactly over the vial it
+ * came from: this is the move and the stretch that put the big vial's box (`to`) onto the small one's box (`from`).
+ * Animating from it to no transform makes the same bottle grow out of the ring; the reverse shrinks it back in.
  */
 export function flipFrom(from: Box, to: Box): string {
   if (to.width <= 0 || to.height <= 0) return 'none';
@@ -172,11 +197,44 @@ export function isSwipeDown(dx: number, dy: number): boolean {
   return dy >= SWIPE_CLOSE_PX && Math.abs(dx) < dy;
 }
 
-/** How long the preview takes to grow out of its card, or to shrink back into it. */
+/**
+ * How long the preview takes to grow out of its vial, or to shrink back into it: the bottle moves in the first half
+ * (PREVIEW_SPLIT), the panel opens around it and its words fade in during the second. Closing runs it backwards.
+ */
 export const PREVIEW_MS = 320;
+
+/** Where the preview's two stages meet, as a share of PREVIEW_MS: 160 ms of 320. */
+export const PREVIEW_SPLIT = 0.5;
+
+/**
+ * The panel behind the big vial starts as a box around the bottle and opens to its full size: the clip that shows
+ * only the bottle's box (`bottle`) of the panel's box (`panel`), with the panel's rounded corners.
+ */
+export function clipAround(bottle: Box, panel: Box, radius: string): string {
+  const top = round(Math.max(0, bottle.top - panel.top));
+  const left = round(Math.max(0, bottle.left - panel.left));
+  const bottom = round(Math.max(0, panel.top + panel.height - (bottle.top + bottle.height)));
+  const right = round(Math.max(0, panel.left + panel.width - (bottle.left + bottle.width)));
+  return `inset(${top}px ${right}px ${bottom}px ${left}px round ${radius})`;
+}
 
 /** Fast at first, then settling gently: the grow and shrink of the preview. */
 export const PREVIEW_EASING = 'cubic-bezier(0.2, 0.8, 0.2, 1)';
 
 /** The small sideways nudge when previous or next changes the mode inside the preview. */
 export const STEP_MS = 200;
+
+/** The label's time line as printed on the vial: "5 min". */
+export function shortTime(minutes: number): string {
+  return `${minutes} min`;
+}
+
+/** The label's two lines as a screen reader hears them: "best for recall, about 5 minutes". */
+export function vialSummary(bestFor: string, minutes: number): string {
+  return `best for ${bestFor}, about ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
+}
+
+/** The one caption line under the pedestal: "cards · flip through the key ideas". */
+export function captionLine(name: string, text: string): string {
+  return `${name} · ${text.replace(/\.$/, '')}`;
+}

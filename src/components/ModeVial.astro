@@ -1,0 +1,58 @@
+---
+/**
+ * One study method's vial for the "ways to study" ring on the home page (Task 109): Christian's bottle with a blank
+ * label (public/vials/), and over the label, as live text, "study method:", the method's name, a short rule and its
+ * "best for" and "time" lines from src/config/modes.ts. The logo runs down the label's right edge: Christian's
+ * Espresso artwork (public/brand/v1/), turned on its side and otherwise unchanged. A faint shading layer under the
+ * words makes them sit on the curved glass. No dose, "mg/ml" or medicine wording anywhere: it is a study tool.
+ *
+ * The label is cream in both palettes, so its words are always dark (global.css, --vial-ink). The bottle image, the
+ * shading, the shine and the shadow are decoration; the words are what screen readers read.
+ */
+import type { StudyMode } from '../config/modes';
+import { shortTime, vialSummary } from '../scripts/carousel';
+
+interface Props {
+  mode: StudyMode;
+  /** The id of the hidden summary ("best for recall, about 5 minutes"), for the preview button's description. */
+  summaryId?: string;
+}
+
+const { mode, summaryId } = Astro.props;
+---
+
+<div class="vial" data-vial>
+  <img
+    class="vial-img"
+    src={`/vials/vial-${mode.vial}.webp`}
+    width="225"
+    height="475"
+    alt=""
+    loading="lazy"
+    decoding="async"
+    draggable="false"
+  />
+  <span class="vial-curve" aria-hidden="true"></span>
+  <span class="vial-shine" aria-hidden="true"></span>
+  <div class="vial-label">
+    <p class="vial-kicker">study method:</p>
+    <h3 class="vial-name">{mode.name}</h3>
+    <span class="vial-rule" aria-hidden="true"></span>
+    <img
+      class="vial-logo"
+      src="/brand/v1/logo-full-light-480.png"
+      width="480"
+      height="151"
+      alt=""
+      loading="lazy"
+      decoding="async"
+      draggable="false"
+    />
+    <div class="vial-meta" aria-hidden="true">
+      <span>best for</span><span>{mode.bestFor}</span>
+      <span>time</span><span>{shortTime(mode.time)}</span>
+    </div>
+    <p class="sr-only" id={summaryId}>{vialSummary(mode.bestFor, mode.time)}</p>
+  </div>
+  <span class="vial-shadow" aria-hidden="true"></span>
+</div>

@@ -1,22 +1,29 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { existsSync } from 'node:fs';
 import { studyModes } from '../../src/config/modes';
 import {
   AUTO_ADVANCE_MS,
   canAutoAdvance,
+  captionLine,
+  clipAround,
   flipFrom,
   glides,
   isSwipeDown,
   keyTarget,
   PREVIEW_MS,
+  PREVIEW_SPLIT,
   REST_MS,
+  RING_EASING,
   RING_MS,
   ringOffset,
   ringPlace,
   slideAnnouncement,
   SWIPE_CLOSE_PX,
   SWIPE_TURN_PX,
+  shortTime,
   swipeTurn,
+  vialSummary,
   wrap,
   type MotionState,
 } from '../../src/scripts/carousel';
@@ -76,21 +83,46 @@ describe('"ways to study" merry-go-round (D-50, D-60)', () => {
     expect(ringOffset(3, 0, 0)).toBe(0);
   });
 
-  it('steps the neighbours back: smaller, turned away round the ring, edge to edge, the middle card on top', () => {
-    expect(ringPlace(0)).toEqual({ distance: 0, side: 0, scale: 1, shift: 0, gaps: 0, turn: 0, layer: 10 });
-    expect(ringPlace(1)).toEqual({ distance: 1, side: 1, scale: 0.88, shift: 0.94, gaps: 1, turn: 10, layer: 9 });
-    expect(ringPlace(-1)).toEqual({ distance: 1, side: -1, scale: 0.88, shift: -0.94, gaps: -1, turn: -10, layer: 9 });
-    expect(ringPlace(2)).toMatchObject({ scale: 0.76, shift: 1.76, gaps: 2, turn: 10, layer: 8 });
-    // Edge to edge: the space between two middles is half of each card's width, plus one gap.
-    for (const d of [1, 2, 3]) {
+  it("stands the vials in the approved prototype's arc: smaller, higher, further back and dimmer, the front one on top", () => {
+    // Task 109: x = o × 0.78 × (1 − |o| × 0.05) vial widths, o² × 5 px up, |o| × 90 px back, scale 1 − |o| × 0.13,
+    // brightness 1 − 0.05 |o|, saturation 1 − 0.06 |o|, hidden beyond 4.
+    expect(ringPlace(0)).toEqual({
+      distance: 0,
+      side: 0,
+      shift: 0,
+      rise: 0,
+      depth: 0,
+      scale: 1,
+      bright: 1,
+      saturate: 1,
+      layer: 20,
+      shown: true,
+    });
+    expect(ringPlace(1)).toEqual({
+      distance: 1,
+      side: 1,
+      shift: 0.741,
+      rise: 1,
+      depth: 1,
+      scale: 0.87,
+      bright: 0.95,
+      saturate: 0.94,
+      layer: 19,
+      shown: true,
+    });
+    expect(ringPlace(-1)).toMatchObject({ side: -1, shift: -0.741, rise: 1, scale: 0.87, layer: 19 });
+    expect(ringPlace(2)).toMatchObject({ shift: 1.404, rise: 4, depth: 2, scale: 0.74, bright: 0.9, saturate: 0.88 });
+    expect(ringPlace(-4)).toMatchObject({ shift: -2.496, rise: 16, depth: 4, scale: 0.48, shown: true });
+    expect(ringPlace(5).shown).toBe(false);
+    // Each step out stands further from the middle, and is smaller and dimmer than the one before.
+    for (const d of [1, 2, 3, 4]) {
       const inner = ringPlace(d - 1);
       const outer = ringPlace(d);
-      expect(outer.shift - inner.shift).toBeCloseTo((inner.scale + outer.scale) / 2, 3);
-      expect(outer.gaps - inner.gaps).toBe(1);
+      expect(outer.shift).toBeGreaterThan(inner.shift);
+      expect(outer.scale).toBeLessThan(inner.scale);
+      expect(outer.bright).toBeLessThan(inner.bright);
+      expect(outer.layer).toBeLessThan(inner.layer);
     }
-    // With reduced motion the side cards face forward.
-    expect(ringPlace(1, true).turn).toBe(0);
-    expect(ringPlace(-2, true).turn).toBe(0);
   });
 
   it('glides a turn of one or two cards, and switches at once round the back or for a long jump', () => {
@@ -129,13 +161,18 @@ describe('"ways to study" merry-go-round (D-50, D-60)', () => {
     expect(swipeTurn(0, -200)).toBe(0);
   });
 
-  it('turns quickly, easing out, and the styles use the same timing', () => {
-    expect(RING_MS).toBeGreaterThanOrEqual(180);
-    expect(RING_MS).toBeLessThanOrEqual(280);
+  it("glides in the approved prototype's 700 ms, easing out, and the styles use the same timing", () => {
+    // Task 109: the lead approved the prototype's 700 ms on 2026-11-02, as long as reduced motion turns it off.
+    expect(RING_MS).toBe(700);
+    expect(RING_EASING).toBe('cubic-bezier(0.22, 0.8, 0.24, 1)');
     expect(REST_MS).toBeGreaterThan(RING_MS);
     const css = readFileSync(new URL('../../src/styles/global.css', import.meta.url), 'utf8');
     const rule = css.match(/\.modes\[data-ring\] \.mode-card \{([^}]*)\}/)?.[1] ?? '';
-    expect(rule).toContain(`transform ${RING_MS}ms cubic-bezier(0.2, 0.8, 0.2, 1)`);
+    expect(rule).toContain(`transform ${RING_MS}ms ${RING_EASING}`);
+    expect(css).toContain(`--vial-glide: ${RING_MS}ms ${RING_EASING};`);
+    // ...and reduced motion turns it off.
+    const reduced = [...css.matchAll(/@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/g)].map((m) => m[1]).join('\n');
+    expect(reduced).toMatch(/\.modes\[data-ring\] \.mode-card,[^{]*\{\s*transition: none;/);
   });
 
   it('announces the card in the middle by name and position', () => {
@@ -185,8 +222,70 @@ describe('the study-mode preview (D-51)', () => {
     expect(isSwipeDown(-150, 120)).toBe(false);
   });
 
-  it('grows and shrinks quickly enough to feel direct', () => {
-    expect(PREVIEW_MS).toBeGreaterThanOrEqual(200);
-    expect(PREVIEW_MS).toBeLessThanOrEqual(400);
+  it('grows and shrinks quickly enough to feel direct: the bottle in the first 160 ms, the panel in the next', () => {
+    expect(PREVIEW_MS).toBe(320);
+    expect(PREVIEW_MS * PREVIEW_SPLIT).toBe(160);
+  });
+
+  it('starts the panel as a box around the bottle', () => {
+    const panel = { left: 100, top: 50, width: 800, height: 500 };
+    const bottle = { left: 148, top: 98, width: 200, height: 420 };
+    expect(clipAround(bottle, panel, '16px')).toBe('inset(48px 552px 32px 48px round 16px)');
+    expect(clipAround(panel, panel, '16px')).toBe('inset(0px 0px 0px 0px round 16px)');
+  });
+});
+
+describe('the vials (Task 109)', () => {
+  const vialFiles = new URL('../../public/vials/', import.meta.url);
+
+  it('gives every method its own vial image, the 3:38 pm mapping, and keeps the spare one unused', () => {
+    expect(Object.fromEntries(studyModes.map((mode) => [mode.id, mode.vial]))).toEqual({
+      video: 'video-lessons',
+      cards: 'flashcards',
+      learn: 'learn-mode',
+      'fill-in': 'fill-in',
+      matching: 'matching',
+      organizer: 'organizer',
+      questions: 'questions',
+      review: 'spaced-review',
+      'label-it': 'label-it',
+      'adaptive-quiz': 'adaptive-quiz',
+      'level-test': 'level-test',
+    });
+    for (const mode of studyModes) expect(existsSync(new URL(`vial-${mode.vial}.webp`, vialFiles)), mode.vial).toBe(true);
+    expect(new Set(studyModes.map((mode) => mode.vial)).size).toBe(studyModes.length);
+  });
+
+  it('labels each vial with short lowercase "best for" and "time" lines, read aloud in full', () => {
+    for (const mode of studyModes) {
+      expect(mode.bestFor, mode.id).toBe(mode.bestFor.toLowerCase());
+      expect(mode.bestFor.split(' ').length, mode.id).toBeLessThanOrEqual(2);
+      expect(Number.isInteger(mode.time) && mode.time > 0, mode.id).toBe(true);
+    }
+    expect(shortTime(5)).toBe('5 min');
+    expect(vialSummary('recall', 5)).toBe('best for recall, about 5 minutes');
+    expect(vialSummary('watch', 1)).toBe('best for watch, about 1 minute');
+    expect(captionLine('cards', 'flip through the key ideas.')).toBe('cards · flip through the key ideas');
+  });
+
+  it('gives every method four short feature rows that describe the tool, never scores or results', () => {
+    for (const mode of studyModes) {
+      expect(mode.features, mode.id).toHaveLength(4);
+      for (const feature of mode.features) {
+        expect(feature.text, mode.id).toBe(feature.text.toLowerCase());
+        expect(feature.text.length, mode.id).toBeLessThanOrEqual(44);
+        // The one mention of scores says the level test never predicts one.
+        if (feature.text === 'never predicts an exam score') continue;
+        expect(feature.text, mode.id).not.toMatch(/score|pass|guarantee|improve|grade|percent|result/);
+      }
+    }
+  });
+
+  it('never uses medication wording in the words on the vials or in their preview', () => {
+    // The rendered page is checked too (tests/e2e/vial-carousel.spec.ts).
+    const words = studyModes.flatMap((mode) => [mode.name, mode.text, mode.more, mode.bestFor, ...mode.features.map((f) => f.text)]);
+    for (const text of words) {
+      expect(text).not.toMatch(/\bdose\b|\bdosage\b|mg\/ml|\bmg\b|\bml\b|wellness shot|prescription|\brx\b/i);
+    }
   });
 });
