@@ -1,0 +1,1 @@
+status: Task 80, modern matching and organizer study boards: token-based soft cards, selected text, matched-item settle animation, accessible progress, tidy destination chips, and keyboard/phone/desktop regression tests; locally prepared, awaiting full project verification and director-approved PR.
