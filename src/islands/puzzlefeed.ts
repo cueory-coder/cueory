@@ -7,7 +7,6 @@
  */
 import { parsePuzzle as parseCueword, type CuewordPuzzle } from './cueword';
 import { parsePuzzle as parseSuture, type SuturePuzzle } from './suture';
-import { BEATS } from './pulse';
 import type { TriagePuzzle } from './triage';
 
 const GAME_IDS = ['pulse', 'cueword', 'triage', 'suture'] as const;
@@ -34,8 +33,8 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 function checkPulse(puzzle: unknown): PulsePuzzle | string {
   if (!isRecord(puzzle)) return 'the puzzle must be an object.';
   const { word, cue } = puzzle;
-  if (typeof word !== 'string' || !/^[a-z]{5,7}$/.test(word)) {
-    return `the word must be ${BEATS - 2} to ${BEATS} lowercase letters.`;
+  if (typeof word !== 'string' || !/^[a-z]{5}$/.test(word)) {
+    return 'the word must be 5 lowercase letters.';
   }
   if (typeof cue !== 'string' || !cue.trim()) return 'the cue must be a non-empty string.';
   return { word, cue };

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import {
   cleanGuess,
   dayNumber,
@@ -9,7 +9,6 @@ import {
   letterMarks,
   MARK_SYMBOL,
   MARK_WORDS,
-  markGuess,
   playGuess,
   puzzleForDay,
   shareText,
