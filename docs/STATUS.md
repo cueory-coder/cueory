@@ -249,7 +249,6 @@ Merged into `staging`:
 - Task 74, accessibility sweep (#157): full-site keyboard and axe audit, with segmented-date regression coverage, awaiting exact-head CI and Codex review.
 - Open pull requests add their own lines here. Waiting now: Release browser tests (#55).
 - Task 106, review-reminder email (#185): non-sending branded HTML, plain-text alternative and noindex sample preview, awaiting CI and Codex review.
-- Task 58, signed-in account corner (#186): initials avatar and account actions from the student's own session, with no client load before idle and the accounts-off menu unchanged.
 - Task 105, quiet result marks (#188): official emblem and real Cueory page address appear only on completed pulse, sort and crossword result cards and the progress summary; answer areas and printing stay clear.
 - Task 100, points, streaks and achievements (#180): deterministic local-only rewards with weekly free passes and test coverage, awaiting CI and Codex review.
 - Task 110 start, cruet loading animation (#184): the four layers cut from Christian's emblem and the lead's working prototype in `docs/prototypes/`; the island comes next.
@@ -260,6 +259,7 @@ Merged into `staging`:
   picked. Files only; the glove note (Task 70) uses them and stays off until he checks it.
 - Task 99, Lato body font (#172): Lato for body and interface text, line spacing at least 1.5, plain accent line under the home headline. Waits for Christian (it edits CLAUDE.md).
 - Task 55, Supabase client (#156): Supabase's sign-in library, loaded only on pages that need an account; the security policy gains the project address only when accounts are on. Waits for Christian (sign-in and security policy).
+- Task 58, signed-in account corner (#186): initials avatar and account actions from the student's own session, with no client load before idle and the accounts-off menu unchanged.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
