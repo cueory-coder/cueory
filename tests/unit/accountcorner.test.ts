@@ -111,7 +111,7 @@ describe('idle account loading with injected dependencies', () => {
     expect(readProfile).not.toHaveBeenCalled();
   });
 
-  it('uses the signed-in user's id to query only their own profile', async () => {
+  it('uses the signed-in user id to query only their own profile', async () => {
     const readClient = vi.fn(async () => ({}));
     const readSession = vi.fn(async () => session);
     const readProfile = vi.fn(async () => ({ display_name: 'Sara Valdez' }));

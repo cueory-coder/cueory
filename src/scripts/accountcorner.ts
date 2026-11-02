@@ -90,7 +90,7 @@ export async function loadCorner(
   }
   if (client === null) return cornerView(signedOut, null, false);
 
-  let session = signedOut;
+  let session: SessionState = signedOut;
   try {
     session = await getSession();
   } catch {

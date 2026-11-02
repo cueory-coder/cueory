@@ -100,10 +100,10 @@ const items = [
     function showCorner(view: CornerView) {
       if (!view.accountsEnabled) return; // Preserve the exact accounts-off menu.
 
-      icon.classList.toggle('hidden', view.account.signedIn);
-      initials.hidden = !view.account.signedIn;
-      initials.textContent = view.initials ?? '';
-      message.textContent = '';
+      icon!.classList.toggle('hidden', view.account.signedIn);
+      initials!.hidden = !view.account.signedIn;
+      initials!.textContent = view.initials ?? '';
+      message!.textContent = '';
 
       const rows = view.items.map((item) => {
         const li = document.createElement('li');
@@ -133,10 +133,10 @@ const items = [
         li.append(control);
         return li;
       });
-      items.replaceChildren(...rows);
+      items!.replaceChildren(...rows);
     }
 
-    toggle.addEventListener('click', () => setOpen(menu.hidden));
+    toggle.addEventListener('click', () => setOpen(menu.hidden !== false));
     document.addEventListener('keydown', (event) => {
       if (isCloseKey(event.key) && !menu.hidden) {
         event.preventDefault();
@@ -187,7 +187,7 @@ const items = [
     if ('requestIdleCallback' in window) {
       window.requestIdleCallback(() => { void hydrate(); }, { timeout: 2500 });
     } else {
-      window.setTimeout(() => { void hydrate(); }, 100);
+      setTimeout(() => { void hydrate(); }, 100);
     }
   }
 </script>
