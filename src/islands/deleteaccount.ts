@@ -8,6 +8,8 @@ import { PROMO_STORAGE_KEY } from '../scripts/promo';
 import { THEME_STORAGE_KEY } from '../scripts/theme';
 import type { KeyValueStorage } from '../scripts/storage';
 import { STATS_STORAGE_KEY } from './gameresults';
+import { GUEST_IMPORT_MARKER_PREFIX } from './guestimportrun';
+import { RESUME_STORAGE_KEY } from '../scripts/resume';
 import type { ExportData } from './exportdata';
 
 // Keep the download and confirmation contracts together, including the actual saved Progress record.
@@ -95,12 +97,13 @@ export function afterDeletion(storage: KeyValueStorage | undefined): string[] {
     PROMO_STORAGE_KEY,
     THEME_STORAGE_KEY,
     STATS_STORAGE_KEY,
+    RESUME_STORAGE_KEY,
   ]);
   const prefix = legacyStarsKey('');
   const length = storage.length;
   for (let index = 0; index < length; index++) {
     const key = storage.key(index);
-    if (key?.startsWith(prefix)) keys.add(key);
+    if (key?.startsWith(prefix) || key?.startsWith(GUEST_IMPORT_MARKER_PREFIX)) keys.add(key);
   }
   return [...keys];
 }
