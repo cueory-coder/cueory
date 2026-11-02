@@ -11,6 +11,7 @@ import {
   migrateLegacyStars,
 } from '../scripts/progress';
 import { browserStorage } from '../scripts/storage';
+import { readResume } from '../scripts/resume';
 
 interface Deck {
   id: string;
@@ -104,7 +105,7 @@ export default function ProgressPanel({ decks }: Props) {
     );
   }
 
-  const empty = isEmptyProgress(progress);
+  const empty = isEmptyProgress(progress) && readResume(storage) === null;
 
   return (
     <div>
