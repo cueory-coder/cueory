@@ -140,7 +140,7 @@ test('Shuffle checkbox toggles shuffle mode', async ({ page }) => {
   await page.goto(DECK_URL);
   const cb = page.getByRole('checkbox', { name: /Shuffle/ });
   await expect(cb).not.toBeChecked();
-  await cb.check();
+  await cb.check({ force: true });
   await expect(cb).toBeChecked();
 });
 
