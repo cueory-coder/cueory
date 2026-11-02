@@ -248,7 +248,9 @@ export default function CardDeck({ deckId, cards }: Props) {
   // invisible, so a tap anywhere on it toggles it (the ThemePicker pattern). An "on" segment fills in and shows a check
   // mark, so the state never depends on color.
   const optionClass = 'segmented-option relative has-disabled:cursor-not-allowed has-disabled:opacity-50';
-  const optionInput = 'absolute inset-0 cursor-pointer opacity-0 focus-visible:outline-hidden disabled:cursor-not-allowed';
+  // The checkbox covers its whole segment but draws nothing itself except the shared keyboard focus ring, so the
+  // focused element shows its own outline (Task 74 sweep).
+  const optionInput = 'absolute inset-0 cursor-pointer appearance-none rounded-pill bg-transparent disabled:cursor-not-allowed';
   const options = (
     <div className="segmented" role="group" aria-label="Study options">
       <label className={optionClass}>
@@ -333,6 +335,8 @@ export default function CardDeck({ deckId, cards }: Props) {
         instead of turning the card. The status line below is the deck's one live region.
       */}
       <div
+        // A new card gets a fresh flip container, so the back never animates in with the next card's answer.
+        key={`${state.roundNumber}:${state.pos}:${card.id}`}
         ref={faceRef}
         role="region"
         aria-label={state.flipped ? 'Answer' : 'Question'}
