@@ -269,6 +269,7 @@ Merged into `staging`:
 3. Christian's 31 Oct evening requests ([the lead's note on issue #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6551841155)),
    now first: brand v1.0 (the lead's branch), then the home page polish pass, then the rest of daily games (the home
    page section, pulse and sort are in `staging`; the crossword and word path are in review).
+- Task 61, private student export loader (#169): safely reads an account's own saved data for download, with CI verified and lead/Codex review plus Christian's approval required.
 
 ## Visuals kit (Task 6, D-56)
 Targets: first visuals by about 14 November, the full kit by about 12 December ([plan](VISUALS.md)).
