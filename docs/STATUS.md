@@ -245,7 +245,7 @@ Merged into `staging`:
   `check_answer` contract test against the real request helper (#142, Task 48).
 
 ## In review
-- Task 103, share achievements (D-pending): static share cards (scene/ivory/bronze-coin) per tool group in `public/share/`, `ShareSheet.tsx` island with swipeable style picker and Web Share API / X / copy-link buttons, build script, unit and e2e tests. Head `bb0fc51`. In review.
+- Task 103, share achievements (D-pending): static share cards (scene/ivory/bronze-coin) per tool group in `public/share/`, `ShareSheet.tsx` island with swipeable style picker and Web Share API / X / copy-link buttons, build script, unit and e2e tests. Head `057ce23`. PR [#190](https://github.com/lilchristxan/Cueory/pull/190). CI repair (game-name guard: gameName() in preview) committed `057ce23`, awaiting CI.
 - Task 74, accessibility sweep (#157): full-site keyboard and axe audit, with segmented-date regression coverage, awaiting exact-head CI and Codex review.
 - Open pull requests add their own lines here. Waiting now: Release browser tests (#55).
 - Task 105, quiet result marks (#188): official emblem and real Cueory page address appear only on completed pulse, sort and crossword result cards and the progress summary; answer areas and printing stay clear.
