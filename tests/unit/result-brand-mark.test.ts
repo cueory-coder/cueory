@@ -12,6 +12,8 @@ describe('quiet result brand mark', () => {
     expect(html).toContain('data-testid="result-brand-mark"');
     expect(html).toContain('aria-hidden="true"');
     expect(html).toContain('print:hidden');
+    // Watermarks must stay readable and the emblem must keep its exact approved color.
+    expect(html).not.toContain('opacity-50');
     expect(html).toContain('cueory.app' + path);
     expect(html).toContain('/brand/v1/emblem-light-96.png');
     expect(html).toContain('/brand/v1/emblem-dark-96.png');
@@ -27,6 +29,7 @@ describe('quiet result brand mark', () => {
     expect(astro).toContain('<Wordmark variant="emblem"');
     expect(astro).toContain('aria-hidden="true"');
     expect(astro).toContain('print:hidden');
+    expect(astro).not.toContain('opacity-50');
     expect(astro).not.toContain('<img');
   });
 

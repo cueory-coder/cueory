@@ -14,7 +14,7 @@ export default function ResultBrandMark({ path }: Props) {
     <span
       data-testid="result-brand-mark"
       aria-hidden="true"
-      className="mt-4 inline-flex select-none items-center gap-2 opacity-50 print:hidden"
+      className="mt-4 inline-flex select-none items-center gap-2 print:hidden"
     >
       <span className="logo block w-3.5 shrink-0">
         <img
