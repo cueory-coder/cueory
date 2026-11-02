@@ -26,8 +26,13 @@ test('the hub uses seven canonical modes and preserves every existing destinatio
     expect(mode?.link?.href).toBeTruthy();
     const tile = grid.locator('[data-mode-tile="' + id + '"]');
     await expect(tile.getByRole('heading', { level: 3 })).toHaveText(mode!.name);
-    await expect(tile.locator('p')).toHaveText(mode!.text);
-    await expect(tile.locator('svg[aria-hidden="true"]')).toHaveCount(1);
+    // The mode's line waits behind the ⓘ beside its name (Christian, 2026-11-02).
+    await expect(tile.locator('p')).toHaveCount(0);
+    const info = tile.getByRole('button', { name: `more about ${mode!.name}` });
+    await expect(info).toHaveAttribute('aria-expanded', 'false');
+    await expect(tile.locator('[data-infotip-panel]')).toBeHidden();
+    await expect(tile.locator('[data-infotip-panel]')).toHaveText(mode!.text);
+    await expect(tile.locator('.mode-art svg[aria-hidden="true"]')).toHaveCount(1);
     const link = tile.getByRole('link', { name: oldLinkLabels[id] });
     await expect(link).toHaveAttribute('href', mode!.link!.href);
     const target = await page.request.get(mode!.link!.href);
@@ -55,7 +60,13 @@ test('keyboard navigation follows the visual order of the seven modes', async ({
   for (let index = 0; index < modeOrder.length; index++) {
     await expect(links.nth(index)).toBeFocused();
     await expect(links.nth(index)).toContainText(oldLinkLabels[modeOrder[index]]!);
-    if (index + 1 < modeOrder.length) await page.keyboard.press('Tab');
+    if (index + 1 < modeOrder.length) {
+      // Each tile's ⓘ, beside its name, comes before its link.
+      await page.keyboard.press('Tab');
+      const next = studyModes.find((mode) => mode.id === modeOrder[index + 1])!;
+      await expect(page.getByRole('button', { name: `more about ${next.name}` })).toBeFocused();
+      await page.keyboard.press('Tab');
+    }
   }
 });
 
