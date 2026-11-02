@@ -1,24 +1,18 @@
 ---
-// Light / Dark / Follow device switch (brand spec section 9). Hidden until its script runs, so visitors without
-// JavaScript simply follow their device setting.
+// Light / Dark / Follow device switch (brand spec section 9), in the footer's links panel. Hidden until its script
+// runs, so visitors without JavaScript simply follow their device setting.
 //
-// The three radio inputs live inside a .segmented pill. They are still real <input type="radio"> elements, so the
-// control works without JavaScript and is fully keyboard-navigable. .segmented styles come from global.css (Task 77);
-// the scoped <style> below provides equivalent layout until that merge lands.
+// A .segmented pill (global.css, Task 77) of three real <input type="radio"> elements, so arrow keys move between
+// them and each keeps its name (Light, Dark, Follow device). Each input covers its whole segment, invisible, so a tap
+// anywhere on the segment picks it; the segment shows the focus ring (.segmented-option:focus-within). Every option
+// shows a word as well as its icon, so the icon is never the only label.
 const options = [
   {
     value: 'light',
     label: 'light',
     icon: `<svg viewBox="0 0 24 24" class="size-4" aria-hidden="true" focusable="false">
       <circle cx="12" cy="12" r="4" fill="currentColor"/>
-      <line x1="12" y1="2" x2="12" y2="5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      <line x1="12" y1="19" x2="12" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      <line x1="4.22" y1="4.22" x2="6.34" y2="6.34" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      <line x1="17.66" y1="17.66" x2="19.78" y2="19.78" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      <line x1="2" y1="12" x2="5" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      <line x1="19" y1="12" x2="22" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      <line x1="4.22" y1="19.78" x2="6.34" y2="17.66" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      <line x1="17.66" y1="6.34" x2="19.78" y2="4.22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
     </svg>`,
   },
   {
@@ -30,7 +24,7 @@ const options = [
   },
   {
     value: 'device',
-    label: 'auto',
+    label: 'follow device',
     icon: `<svg viewBox="0 0 24 24" class="size-4" aria-hidden="true" focusable="false">
       <rect x="5" y="2" width="14" height="20" rx="2" stroke="currentColor" stroke-width="2" fill="none"/>
       <circle cx="12" cy="17" r="1" fill="currentColor"/>
@@ -40,12 +34,12 @@ const options = [
 ---
 
 <fieldset data-theme-picker hidden>
-  <legend class="sr-only">theme</legend>
+  <legend class="mb-2">theme</legend>
   <div class="segmented">
     {
       options.map((option) => (
-        <label class="segmented-option">
-          <input type="radio" name="theme" value={option.value} class="sr-only" />
+        <label class="segmented-option relative">
+          <input type="radio" name="theme" value={option.value} class="absolute inset-0 cursor-pointer opacity-0 focus-visible:outline-hidden" />
           <Fragment set:html={option.icon} />
           <span>{option.label}</span>
         </label>
@@ -53,56 +47,6 @@ const options = [
     }
   </div>
 </fieldset>
-
-<style>
-  /* Scoped segmented-pill layout — mirrors the Task 77 global classes until they land in staging. */
-  fieldset {
-    border: none;
-    padding: 0;
-    margin: 0;
-  }
-
-  .segmented {
-    display: inline-flex;
-    align-items: center;
-    border: 1px solid var(--color-control);
-    border-radius: 9999px;
-    padding: 2px;
-    background: var(--color-surface);
-  }
-
-  .segmented-option {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.375rem;
-    padding: 0.375rem 0.75rem;
-    border-radius: 9999px;
-    cursor: pointer;
-    font-size: var(--text-sm);
-    color: var(--color-ink-soft);
-    min-height: 2.75rem;
-    user-select: none;
-    transition: background-color 200ms ease, color 200ms ease;
-  }
-
-  .segmented-option:has(:checked) {
-    background-color: var(--color-ink);
-    color: var(--color-on-button);
-  }
-
-  .segmented-option:focus-within {
-    outline: 2px solid var(--color-focus);
-    outline-offset: 2px;
-    border-radius: 9999px;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .segmented-option {
-      transition: none;
-    }
-  }
-</style>
 
 <script>
   import { applyChoice, browserStorage, isThemeChoice, readChoice, saveChoice } from '../scripts/theme';

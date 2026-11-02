@@ -11,6 +11,8 @@ for (const theme of ['light', 'dark'] as const) {
   test(`the reading preview shows a comfortable layout and labeled callouts in ${theme} mode`, async ({ page }) => {
     const response = await page.goto('/preview/prose');
     expect(response?.status()).toBe(200);
+    // The theme switch is in the footer's links panel, behind its chevron (Task 85).
+    await page.getByRole('button', { name: 'more links', exact: true }).click();
     await page.getByRole('radio', { name: theme, exact: true }).check();
     await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
 
