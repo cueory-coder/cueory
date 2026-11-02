@@ -1,0 +1,1 @@
+status: Task 127, indexing audit (#PR): a new spec checks that every preview, auth, setup, progress and /breaks page is noindex, that lessons, games and public pages are indexable, that robots.txt allows the site, and that no noindex page is in a sitemap if one is built. /start is a known gap (test.fixme).
