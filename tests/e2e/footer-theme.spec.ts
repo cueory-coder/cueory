@@ -38,7 +38,7 @@ test.describe('footer bar', () => {
       ),
     ).toBe(true);
 
-    const flag = footer.getByRole('link', { name: 'flag or comment', exact: true });
+    const flag = footer.getByRole('button', { name: 'flag or comment', exact: true });
     const home = footer.getByRole('link', { name: 'cueory, home', exact: true });
     const more = footer.getByRole('button', { name: 'more links', exact: true });
     await expect(flag).toBeVisible();
@@ -72,17 +72,16 @@ test.describe('footer bar', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 
-  test('every page has exactly one "flag or comment", which emails the contact address about that page', async ({
-    page,
-  }) => {
+  test('every page has exactly one "flag or comment", in the footer, and it opens the report form', async ({ page }) => {
     for (const path of ['/', '/privacy', '/support']) {
       await page.goto(path);
-      const flags = page.getByRole('link', { name: 'flag or comment', exact: true });
+      const flags = page.getByRole('button', { name: 'flag or comment', exact: true });
       await expect(flags).toHaveCount(1);
-      await expect(flags).toHaveAttribute(
-        'href',
-        `mailto:hello@cueory.app?subject=${encodeURIComponent(`flag or comment: ${path}`)}`,
-      );
+      await expect(page.getByRole('link', { name: 'flag or comment', exact: true })).toHaveCount(0);
+      await expect(footerOf(page).getByRole('button', { name: 'flag or comment', exact: true })).toBeVisible();
+      await flags.click();
+      await expect(flags).toHaveAttribute('aria-expanded', 'true');
+      await expect(page.getByTestId('flag-form')).toContainText('a free account is needed to send a report');
     }
   });
 
@@ -139,7 +138,9 @@ test.describe('footer without JavaScript', () => {
     const footer = footerOf(page);
     await expect(footer.locator('#site-footer-panel')).toBeVisible();
     await expect(footer.getByRole('link', { name: 'terms', exact: true })).toBeVisible();
-    await expect(footer.getByRole('link', { name: 'flag or comment', exact: true })).toBeVisible();
+    const flag = footer.getByRole('link', { name: 'flag or comment', exact: true });
+    await expect(flag).toBeVisible();
+    await expect(flag).toHaveAttribute('href', `mailto:hello@cueory.app?subject=${encodeURIComponent('flag or comment: /privacy')}`);
     await expect(chevron(page)).toBeHidden();
     expect((await chevron(page).evaluate((el) => el.getBoundingClientRect().width))).toBeGreaterThan(0);
   });
@@ -169,7 +170,11 @@ test.describe('footer theme picker', () => {
   test('a tap anywhere on a segment picks it', async ({ page }) => {
     await page.goto('/');
     await openFooterLinks(page);
-    await page.getByRole('group', { name: 'Theme' }).locator('label', { hasText: 'dark' }).click({ position: { x: 4, y: 4 } });
+    // Tap near the left edge at mid-height: a corner point lies outside the pill's rounded shape, where newer
+    // Chromium hit-testing (CI) lands on the group instead of the segment.
+    const segment = page.getByRole('group', { name: 'Theme' }).locator('label', { hasText: 'dark' });
+    const box = (await segment.boundingBox())!;
+    await segment.click({ position: { x: Math.min(10, box.width / 4), y: box.height / 2 } });
     await expect(page.getByRole('radio', { name: 'Dark' })).toBeChecked();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   });

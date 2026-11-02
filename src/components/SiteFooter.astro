@@ -8,21 +8,24 @@
  * Without JavaScript the panel is simply open and the chevron stays hidden (its space is kept). The panel comes after
  * the bar in the page, so keyboard focus goes chevron → panel, and `flex-col-reverse` draws it above the bar.
  *
- * The flag opens an email to the contact address until Task 64's flag form (FlagMount, #181) is in staging; then it
- * becomes that form's trigger. `hideFlag` hides it during sharpening rounds and timed review.
+ * The flag opens Task 64's flag form (FlagMount) in a panel above the bar; without JavaScript it is an email link to the
+ * contact address that names the page. One flag per page (Task 115). `hideFlag` hides it during sharpening rounds and timed review.
  */
 import SocialLinks from './SocialLinks.astro';
 import ThemePicker from './ThemePicker.astro';
 import Wordmark from './Wordmark.astro';
 import { footerLinks, site } from '../config/site';
+import FlagMount from '../islands/FlagMount';
 import { FOOTER_TOGGLE_LABELS, flagMailto } from '../scripts/footer';
 
 interface Props {
   /** Sharpening rounds and timed review: no flag while the clock runs. */
   hideFlag?: boolean;
+  /** Item context for the flag form, passed down from the layout. */
+  flagItem?: { itemId: string; itemVersionId: string };
 }
 
-const { hideFlag = false } = Astro.props;
+const { hideFlag = false, flagItem } = Astro.props;
 const year = new Date().getFullYear();
 const barButton =
   'inline-flex size-12 items-center justify-center rounded-pill text-ink hover:bg-surface';
@@ -31,23 +34,33 @@ const barButton =
 <footer class="mt-section flex flex-col-reverse border-t border-line" data-site-footer>
   <div class="mx-auto grid h-14 w-full max-w-page grid-cols-3 items-center px-gutter">
     {
-      !hideFlag && site.contactEmail && (
-        <a
-          href={flagMailto(site.contactEmail, Astro.url.pathname)}
-          class:list={[barButton, 'col-start-1 justify-self-start']}
-          aria-label="flag or comment"
-          data-footer-flag
-        >
-          <svg viewBox="0 0 24 24" class="size-6" aria-hidden="true" focusable="false">
-            <path
-              d="M5 21V4M5 4h12l-3 4.5 3 4.5H5"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.6"
-              stroke-linecap="round"
-              stroke-linejoin="round"></path>
-          </svg>
-        </a>
+      !hideFlag && (
+        <div class="col-start-1 justify-self-start" data-footer-flag>
+          <FlagMount
+            client:only="react"
+            page={Astro.url.pathname}
+            itemId={flagItem?.itemId}
+            itemVersionId={flagItem?.itemVersionId}
+            variant="icon"
+          >
+            <a
+              slot="fallback"
+              href={flagMailto(site.contactEmail, Astro.url.pathname)}
+              class={barButton}
+              aria-label="flag or comment"
+            >
+              <svg viewBox="0 0 24 24" class="size-6" aria-hidden="true" focusable="false">
+                <path
+                  d="M5 21V4M5 4h12l-3 4.5 3 4.5H5"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"></path>
+              </svg>
+            </a>
+          </FlagMount>
+        </div>
       )
     }
 

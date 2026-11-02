@@ -1,7 +1,6 @@
 ---
 import '../styles/global.css';
 import BuildingNotice from '../components/BuildingNotice.astro';
-import FlagCorner from '../components/FlagCorner.astro';
 import PromoPanel from '../components/PromoPanel.astro';
 import SiteFooter from '../components/SiteFooter.astro';
 import SiteHeader from '../components/SiteHeader.astro';
@@ -94,9 +93,8 @@ const searchTitle = isHome ? 'home' : title;
       data-pagefind-meta={noindex ? undefined : `title:${searchTitle}`}
     >
       <slot />
-      {!hideFlag && <FlagCorner page={Astro.url.pathname} flagItem={flagItem} />}
     </main>
-    <SiteFooter />
+    <SiteFooter hideFlag={hideFlag} flagItem={flagItem} />
     {showPromo && <PromoPanel />}
     <!--
       Offline copies of pages (ROADMAP Task 5): an external file (built from src/scripts/offline.ts) that registers

@@ -8,6 +8,8 @@ interface Props {
   itemVersionId?: string;
   signedIn: boolean;
   send: (report: FlagReport) => Promise<'sent' | 'too-many' | 'failed'>;
+  /** 'icon': the footer's flag icon opens the form in a panel above the bar (Task 115). */
+  variant?: 'text' | 'icon';
 }
 const control = 'min-h-11 min-w-11 rounded-md border border-control px-4 py-2 text-ink disabled:opacity-50';
 
@@ -27,7 +29,8 @@ export function SignedOutReportHelp() {
   </p>;
 }
 
-function ReportForm({ page, itemId, itemVersionId, signedIn, send }: Props) {
+function ReportForm({ page, itemId, itemVersionId, signedIn, send, variant = 'text' }: Props) {
+  const icon = variant === 'icon';
   const id = useId();
   const panelId = `${id}-panel`, commentId = `${id}-comment`, countId = `${id}-count`;
   const [open, setOpen] = useState(false);
@@ -70,12 +73,21 @@ function ReportForm({ page, itemId, itemVersionId, signedIn, send }: Props) {
     } else setAnnouncement(result === 'too-many' ? "you've sent a few reports this hour. please try again later." : "it didn't send. please try again.");
   };
 
-  return <div className="max-w-full text-ink" data-testid="flag-form">
-    <button ref={trigger} type="button" className={control} aria-expanded={open} aria-controls={panelId}
+  return <div className={icon ? 'relative text-ink' : 'max-w-full text-ink'} data-testid="flag-form">
+    <button ref={trigger} type="button" aria-expanded={open} aria-controls={panelId}
+      className={icon ? 'inline-flex size-12 items-center justify-center rounded-pill text-ink hover:bg-surface' : control}
+      aria-label={icon ? 'flag or comment' : undefined}
       onClick={() => { if (open) close(); else { setAnnouncement(''); setProblems([]); isOpen.current = true; setOpen(true); } }}>
-      flag or comment
+      {icon
+        ? <svg viewBox="0 0 24 24" className="size-6" aria-hidden="true" focusable="false">
+            <path d="M5 21V4M5 4h12l-3 4.5 3 4.5H5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        : 'flag or comment'}
     </button>
-    {open && <div ref={panel} id={panelId} tabIndex={-1} className="mt-3 rounded-md border border-line bg-page p-4"
+    {open && <div ref={panel} id={panelId} tabIndex={-1}
+      className={icon
+        ? 'absolute bottom-full left-0 z-10 mb-2 max-h-96 w-flag-panel overflow-y-auto rounded-md border border-line bg-page p-4 shadow-lift'
+        : 'mt-3 rounded-md border border-line bg-page p-4'}
       onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); } }}>
       {!signedIn ? <SignedOutReportHelp /> : <form noValidate onSubmit={event => { event.preventDefault(); void submit(); }}>
         <fieldset disabled={pending} aria-describedby={error('reason') ? errorId('reason') : undefined}>
@@ -104,6 +116,7 @@ function ReportForm({ page, itemId, itemVersionId, signedIn, send }: Props) {
       </form>}
       <button type="button" className={`${control} mt-3`} onClick={close}>close</button>
     </div>}
-    <p aria-live="polite" aria-atomic="true" className="mt-2 text-sm" data-testid="flag-result">{announcement}</p>
+    <p aria-live="polite" aria-atomic="true" data-testid="flag-result"
+      className={!icon ? 'mt-2 text-sm' : announcement && !open ? 'absolute bottom-full left-0 mb-2 w-flag-panel rounded-md border border-line bg-page px-3 py-2 text-sm' : 'sr-only'}>{announcement}</p>
   </div>;
 }

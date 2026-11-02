@@ -26,16 +26,23 @@ for (const { name, url } of pages) {
   test(`flag button is present and keyboard-operable on ${name}`, async ({ page }) => {
     await page.goto(url);
     const btn = page.getByRole('button', { name: 'flag or comment', exact: true });
+    await expect(btn).toHaveCount(1);
     await expect(btn).toBeVisible();
 
     // Keyboard: Tab to the button, press Enter to open the form.
     await btn.focus();
     await page.keyboard.press('Enter');
 
-    // Signed out: the form panel opens and shows the sign-in message.
+    // Signed out: the panel opens above the footer bar and offers the email fallback (Task 63).
+    await expect(btn).toHaveAttribute('aria-expanded', 'true');
     const panel = page.getByTestId('flag-form');
-    await expect(panel).toBeVisible();
-    await expect(panel).toContainText('sign in to send a report');
+    await expect(panel).toContainText('a free account is needed to send a report');
+    await expect(panel.getByRole('link', { name: 'hello@cueory.app' })).toBeVisible();
+
+    // Escape closes it and returns focus to the flag.
+    await page.keyboard.press('Escape');
+    await expect(btn).toHaveAttribute('aria-expanded', 'false');
+    await expect(btn).toBeFocused();
   });
 
   test(`axe passes on ${name}`, async ({ page }) => {
@@ -54,4 +61,4 @@ test('flag button passes axe with form open', async ({ page }) => {
 
 // D-pending (Task 64): hideFlag hides the button during sharpening / timed review.
 // Full behavioral test added when those pages exist (Task 4e / sharpening not yet built).
-// The hideFlag prop is wired: Layout.astro passes it to FlagCorner; !hideFlag gates rendering.
+// The hideFlag prop is wired: Layout.astro passes it to SiteFooter; !hideFlag gates the footer flag (Task 115).
