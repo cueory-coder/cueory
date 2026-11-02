@@ -23,6 +23,7 @@ const noindexPages = [
   '/reset-password',
   '/signin',
   '/signup',
+  '/start',
   '/subscribed',
   '/progress',
   '/breaks', // until Christian approves its sample ideas
@@ -30,7 +31,6 @@ const noindexPages = [
 
 // Known gaps: pages that should be noindex but aren't yet. Listed on issue #11 for their owners; never fixed here.
 const knownGaps: Record<string, string> = {
-  '/start': 'onboarding setup page: no noindex yet (owner: whoever next touches /start; the director assigns it)',
 };
 
 const indexablePages = [
