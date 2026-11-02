@@ -34,6 +34,26 @@ const pages = [...new Set(builtPages())].sort();
 const missingPage = '/a11y-sweep-page-does-not-exist';
 const axeTags = ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'];
 
+/**
+ * Task 129: wait until every Astro island has hydrated (Astro removes `ssr` from an `astro-island` once it has), and
+ * until the page's own requests have settled, so the Tab audit's snapshot sees the same controls the Tab walk meets.
+ * Islands that render only in the browser (learn mode, questions, Label it) can otherwise appear after the snapshot.
+ * Fails with the route rather than passing silently. Pages with no islands return at once.
+ */
+async function waitForIslands(page: Page, route: string): Promise<void> {
+  try {
+    await page.waitForFunction(() => document.querySelectorAll('astro-island[ssr]').length === 0, undefined, {
+      timeout: 10_000,
+    });
+  } catch {
+    throw new Error(`${route}: islands did not finish loading within 10 s`);
+  }
+  // Questions and Label it fetch their sample JSON after hydrating; let those requests finish too.
+  await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {
+    throw new Error(`${route}: network requests did not settle within 10 s`);
+  });
+}
+
 async function tabAudit(page: Page): Promise<string[]> {
   const problems: string[] = [];
   const selector = 'a[href], button, input, select, textarea, [tabindex], details > summary:first-of-type';
@@ -183,6 +203,7 @@ test.describe('Task 74: full-site accessibility sweep', () => {
 
       const problems: string[] = [];
       const response = await page.goto(route);
+      await waitForIslands(page, route);
       const expectedStatus = route === missingPage ? 404 : 200;
       if (response?.status() !== expectedStatus) {
         problems.push(`HTTP status: expected ${expectedStatus}, received ${response?.status() ?? 'none'}`);
@@ -209,6 +230,7 @@ test.describe('Task 74: full-site accessibility sweep', () => {
       // Reset navigation after the skip-link check, so the tab sweep starts
       // at the first interactive element rather than halfway down the page.
       await page.goto(route);
+      await waitForIslands(page, route);
       problems.push(...await tabAudit(page));
 
       const results = await new AxeBuilder({ page }).withTags(axeTags).analyze();

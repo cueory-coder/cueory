@@ -1,0 +1,1 @@
+status: Task 129, the accessibility sweep waits for islands (#PR): the Tab audit takes its snapshot only after every island has hydrated and the page's requests have settled, removing the "Tab did not reach … eligible controls" flake on learn mode, questions and Label it.
