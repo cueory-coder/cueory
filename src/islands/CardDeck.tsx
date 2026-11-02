@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { cardKeyAction } from './cardkeys';
-import { migrateLegacyStars, PROGRESS_STORAGE_KEY, saveSort, type Pile } from '../scripts/progress';
-import { browserStorage } from '../scripts/storage';
+import { deckProgress, migrateLegacyStars, PROGRESS_STORAGE_KEY, readProgress, saveSort, type Pile } from '../scripts/progress';
+import { browserStorage, type KeyValueStorage } from '../scripts/storage';
+import { attachResumeLifecycle, clearResume, readResume, saveResume, type ResumeDraft, type ResumeSnapshot } from '../scripts/resume';
+import ResumePrompt from './ResumePrompt';
 import {
   back,
   counts,
@@ -25,6 +27,62 @@ interface Card {
   id: string;
   front: string;
   back: string;
+}
+
+const RESUME_PAGE = '/learn/study-skills/cards';
+
+/** Only the student's marks and IDs; never the front or back of a card. */
+function draftOf(state: CardsState, cards: readonly Card[], deckId: string, shuffle: boolean, starredOnly: boolean): ResumeDraft | null {
+  if (!state.round.length) return null;
+  const finished = isRoundOver(state);
+  const itemIndex = finished ? state.round.length - 1 : state.pos;
+  const itemId = cards[state.round[itemIndex]!]?.id;
+  if (!itemId) return null;
+  const answers = Object.fromEntries(state.round.slice(0, state.pos).map((index, i) =>
+    [cards[index]!.id, state.marks[i]!])) as Record<string, Pile>;
+  return {
+    tool: 'cards', page: RESUME_PAGE, module: deckId,
+    step: `r${state.roundNumber}-s${shuffle ? 1 : 0}-t${starredOnly ? 1 : 0}`,
+    itemIndex, itemId, totalItems: state.round.length, answers, timer: null,
+    phase: finished ? 'results' : 'working',
+  };
+}
+
+/** No shuffle seed exists: anchor to the exact card ID; only future cards may reshuffle. */
+function restoreFrom(snapshot: ResumeSnapshot, deckId: string, cards: readonly Card[],
+  starred: ReadonlySet<string>, storage: KeyValueStorage | undefined
+): { state: CardsState; shuffle: boolean; starredOnly: boolean } | null {
+  if (snapshot.tool !== 'cards' || snapshot.page !== RESUME_PAGE || snapshot.module !== deckId) return null;
+  const flags = /^r([1-9]\d*)-s([01])-t([01])$/.exec(snapshot.step ?? '');
+  if (!flags || !cards.length || snapshot.totalItems > cards.length) return null;
+  const roundNumber = Number(flags[1]);
+  if (!Number.isSafeInteger(roundNumber) || roundNumber > 9999) return null;
+  const shuffle = flags[2] === '1', starredOnly = flags[3] === '1';
+  const byId = new Map(cards.map((card, i) => [card.id, i]));
+  if (byId.size !== cards.length) return null;
+  const pairs = Object.entries(snapshot.answers);
+  if (pairs.some(([id, value]) => !byId.has(id) || (value !== 'know' && value !== 'learning'))) return null;
+  const prefix = pairs.map(([id]) => byId.get(id)!);
+  const currentIndex = snapshot.itemId === undefined ? undefined : byId.get(snapshot.itemId);
+  if (currentIndex === undefined) return null;
+  const finished = snapshot.phase === 'results';
+  if (finished ? (pairs.length !== snapshot.totalItems || snapshot.itemIndex !== snapshot.totalItems - 1 ||
+    prefix[prefix.length - 1] !== currentIndex) : (pairs.length !== snapshot.itemIndex || prefix.includes(currentIndex))) return null;
+  const included = new Set([...prefix, currentIndex]);
+  const eligible = roundNumber === 1
+    ? (starredOnly && starred.size ? starredIndexes(cards, starred) : cards.map((_, i) => i))
+    : (() => {
+        const learning = new Set(deckProgress(readProgress(storage), deckId).learning);
+        return cards.flatMap((card, i) => learning.has(card.id) ? [i] : []);
+      })();
+  const needed = snapshot.totalItems - prefix.length - (finished ? 0 : 1);
+  const rest = order(eligible.filter(i => !included.has(i)), shuffle);
+  if (needed < 0 || rest.length < needed) return null;
+  const round = [...prefix, ...(finished ? [] : [currentIndex]), ...rest.slice(0, needed)];
+  return { shuffle, starredOnly, state: {
+    round, pos: finished ? round.length : prefix.length, flipped: false,
+    marks: pairs.map(([, pile]) => pile as Pile), roundNumber, touched: true,
+  } };
 }
 
 interface Props {
@@ -107,12 +165,23 @@ export default function CardDeck({ deckId, cards }: Props) {
   const [shuffle, setShuffle] = useState(false);
   const [starredOnly, setStarredOnly] = useState(false);
   const [state, setState] = useState<CardsState>(() => start(allCards));
+  const [hasAnswered, setHasAnswered] = useState(false);
+  const [resumePending, setResumePending] = useState(() => {
+    const saved = readResume(storage);
+    return saved?.tool === 'cards' && saved.page === RESUME_PAGE && saved.module === deckId;
+  });
   // Study actions move keyboard focus to the card; changing an option doesn't.
   const [focusRequest, setFocusRequest] = useState(0);
   const [keysHint, setKeysHint] = useState(true);
   const rootRef = useRef<HTMLDivElement>(null);
   const faceRef = useRef<HTMLDivElement>(null);
   const fillRef = useRef<HTMLDivElement>(null);
+  const draftRef = useRef<ResumeDraft | null>(null);
+  draftRef.current = !resumePending && hasAnswered ? draftOf(state, cards, deckId, shuffle, starredOnly) : null;
+  useEffect(() => attachResumeLifecycle(storage, () => draftRef.current), [storage]);
+  useEffect(() => {
+    if (draftRef.current) saveResume(storage, draftRef.current);
+  }, [storage, state, deckId, shuffle, starredOnly, hasAnswered, resumePending]);
 
   useEffect(() => {
     if (focusRequest > 0) faceRef.current?.focus();
@@ -148,10 +217,14 @@ export default function CardDeck({ deckId, cards }: Props) {
     const cardId = cards[index]!.id;
     sorts.current.push({ cardId, previous: saveSort(storage, deckId, cardId, pile) });
     act(pile === 'know' ? knowIt : stillLearning);
+    setHasAnswered(true);
+    setResumePending(false); // sorting instead of answering the offer starts fresh; this save replaces the old one
   };
 
   const goBack = () => {
     const undone = state.pos > 0 ? sorts.current.pop() : undefined;
+    // A card sorted before a reload (or before another tab forgot the progress) has no undo entry: Back still moves to
+    // it and takes it out of this round's tally, and its saved pile changes only when the student sorts it again.
     if (undone) saveSort(storage, deckId, undone.cardId, undone.previous);
     act(back);
   };
@@ -164,7 +237,11 @@ export default function CardDeck({ deckId, cards }: Props) {
   const cardsToStudy = (onlyStarred: boolean) =>
     order(onlyStarred && starred.size > 0 ? starredIndexes(cards, starred) : allCards, shuffle);
 
-  const startOver = () => newRound(() => start(cardsToStudy(starredOnly)));
+  const startOver = () => {
+    clearResume(storage);
+    setHasAnswered(false);
+    newRound(() => start(cardsToStudy(starredOnly)));
+  };
 
   const changeShuffle = (on: boolean) => {
     setShuffle(on);
@@ -293,9 +370,44 @@ export default function CardDeck({ deckId, cards }: Props) {
 
   const tally = counts(state);
 
+  // A saved place is offered above the deck, never instead of it: the deck stays usable, and sorting a card starts
+  // fresh (its own save replaces the old one), so ignoring the offer never blocks studying.
+  const resumeChoice = resumePending && (
+    <div className="mb-stack">
+      <ResumePrompt page={RESUME_PAGE} onContinue={snapshot => {
+        const saved = restoreFrom(snapshot, deckId, cards, starred, storage);
+        sorts.current = [];
+        if (saved) {
+          setState(saved.state);
+          setShuffle(saved.shuffle);
+          setStarredOnly(saved.starredOnly);
+          setHasAnswered(true);
+        } else {
+          clearResume(storage);
+          setState(start(allCards));
+          setShuffle(false);
+          setStarredOnly(false);
+          setHasAnswered(false);
+        }
+        setResumePending(false);
+        setFocusRequest(n => n + 1);
+      }} onStartOver={() => {
+        sorts.current = [];
+        setState(start(allCards));
+        setShuffle(false);
+        setStarredOnly(false);
+        setHasAnswered(false);
+        setResumePending(false);
+        setFocusRequest(n => n + 1);
+      }} />
+    </div>
+  );
+
   if (roundOver) {
     const allKnown = tally.learning === 0;
     return (
+      <>
+      {resumeChoice}
       <div ref={rootRef}>
         {options}
         {progressBar(`Round ${state.roundNumber} done`)}
@@ -316,6 +428,7 @@ export default function CardDeck({ deckId, cards }: Props) {
           </button>
         </div>
       </div>
+      </>
     );
   }
 
@@ -326,6 +439,8 @@ export default function CardDeck({ deckId, cards }: Props) {
   const face = 'col-start-1 row-start-1 flex min-h-56 flex-col justify-center rounded-xl border border-line bg-surface px-6 py-10 shadow-card sm:px-10';
 
   return (
+    <>
+    {resumeChoice}
     <div ref={rootRef}>
       {options}
 
@@ -438,5 +553,6 @@ export default function CardDeck({ deckId, cards }: Props) {
         Your piles and stars are saved in this browser only. <a href="/progress">See or clear them</a>.
       </p>
     </div>
+    </>
   );
 }
