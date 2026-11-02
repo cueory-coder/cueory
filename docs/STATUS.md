@@ -245,8 +245,11 @@ Merged into `staging`:
   `check_answer` contract test against the real request helper (#142, Task 48).
 
 ## In review
+- Task 108, guided onboarding (#189): two optional setup questions on separate accessible screens with preserved device-local progress, in review.
 - Task 74, accessibility sweep (#157): full-site keyboard and axe audit, with segmented-date regression coverage, awaiting exact-head CI and Codex review.
 - Open pull requests add their own lines here. Waiting now: Release browser tests (#55).
+- Task 106, review-reminder email (#185): non-sending branded HTML, plain-text alternative and noindex sample preview, awaiting CI and Codex review.
+- Task 105, quiet result marks (#188): official emblem and real Cueory page address appear only on completed pulse, sort and crossword result cards and the progress summary; answer areas and printing stay clear.
 - Task 61, private student export loader (#169): safely reads an account's own saved data for download, with CI verified and lead/Codex review plus Christian's approval required.
 - Task 100, points, streaks and achievements (#180): deterministic local-only rewards with weekly free passes and test coverage, awaiting CI and Codex review.
 - Task 110 start, cruet loading animation (#184): the four layers cut from Christian's emblem and the lead's working prototype in `docs/prototypes/`; the island comes next.

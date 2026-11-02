@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { dayLabel } from './daily';
 import { localDay, reportRound } from './gameresults';
+import ResultBrandMark from './ResultBrandMark';
 import {
   checkAll, checkWord, currentWord, emptyState, erase, isSolved, move, nextWord, numbering,
   parsePuzzle, previousWord, revealCue, selectCell, shareLine, toggleDirection, type, words,
@@ -191,6 +192,7 @@ function Board({ puzzle, name }: Props) {
           <p className="mt-2">{shared}</p>
           <button type="button" className={`${button} mt-3`} onClick={share}>copy my result</button>
           {copied && <p className="mt-2 text-sm text-ink-soft" aria-live="polite">{copied}</p>}
+          <ResultBrandMark path="/play" />
         </div>
       )}
       <p className="mt-3 text-sm text-ink-soft" aria-live="polite" aria-atomic="true" data-testid="cueword-live">{said}</p>
