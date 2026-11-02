@@ -249,6 +249,7 @@ Merged into `staging`:
 - Task 74, accessibility sweep (#157): full-site keyboard and axe audit, with segmented-date regression coverage, awaiting exact-head CI and Codex review.
 - Open pull requests write their line in their own file under `docs/status/in-review/` (see its README); the director
   moves them here in batches. Older pull requests still add their own lines here. Waiting now: Release browser tests (#55).
+- Task 81, study-skills hub (#195): seven illustrated study options with accessible direct links, preserving the existing lesson reader and draft-content notice.
 - Task 111, reminder choices preview (#191): non-sending phone and email choices open only after a completed review and a deliberate tap, with keyboard/privacy checks while real opt-in and delivery remain future work.
 - Task 106, review-reminder email (#185): non-sending branded HTML, plain-text alternative and noindex sample preview, awaiting CI and Codex review.
 - Task 105, quiet result marks (#188): official emblem and real Cueory page address appear only on completed pulse, sort and crossword result cards and the progress summary; answer areas and printing stay clear.
