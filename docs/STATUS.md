@@ -245,15 +245,22 @@ Merged into `staging`:
   `check_answer` contract test against the real request helper (#142, Task 48).
 
 ## In review
+- Task 74, accessibility sweep (#157): full-site keyboard and axe audit, with segmented-date regression coverage, awaiting exact-head CI and Codex review.
 - Open pull requests add their own lines here. Waiting now: Release browser tests (#55).
 - In review ([#181](https://github.com/lilchristxan/Cueory/pull/181)): Task 64, "flag or comment" on every page
-  (head `e588f32`, all 7 CI checks green): `FlagCorner.astro` and `FlagMount.tsx` added to `Layout.astro` so every
+  (head `9996ff3`, CI running): `FlagCorner.astro` and `FlagMount.tsx` added to `Layout.astro` so every
   page has a quiet reporting button; `client:only="react"` so no static HTML with JS off; `hideFlag` prop
   (D-pending, Task 64) suppresses the button during sharpening/timed review; stubs for Task 55 auth and Task 63 send.
+- Task 105, quiet result marks (#188): official emblem and real Cueory page address appear only on completed pulse, sort and crossword result cards and the progress summary; answer areas and printing stay clear.
+- Task 100, points, streaks and achievements (#180): deterministic local-only rewards with weekly free passes and test coverage, awaiting CI and Codex review.
+- Task 110 start, cruet loading animation (#184): the four layers cut from Christian's emblem and the lead's working prototype in `docs/prototypes/`; the island comes next.
 - Task 95, modern sample questions page (#174): passed full CI and Codex review, merged into `staging` and awaiting the next production release.
 - Task 73, break-idea sharing proposal (#177): private submissions, moderation, reporting, export and account-deletion safeguards proposed for Christian's decisions.
+- Approved designs (#178): Christian's approved mockups saved in `docs/screenshots/approved-2026-11-01/` for the builders.
 - Glove photos and the Kalam font (#163): Christian's nine glove colors cut out as WebP files, and the handwriting he
   picked. Files only; the glove note (Task 70) uses them and stays off until he checks it.
+- Task 99, Lato body font (#172): Lato for body and interface text, line spacing at least 1.5, plain accent line under the home headline. Waits for Christian (it edits CLAUDE.md).
+- Task 55, Supabase client (#156): Supabase's sign-in library, loaded only on pages that need an account; the security policy gains the project address only when accounts are on. Waits for Christian (sign-in and security policy).
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
