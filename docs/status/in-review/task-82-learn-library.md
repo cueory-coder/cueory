@@ -1,0 +1,1 @@
+status: Task 82, course library (#175): /learn shows the open study-skills sample with on-device progress, then every planned med-surg I unit from the curriculum map (unit and topic titles only, each marked coming soon) in keyboard-friendly expandable cards.

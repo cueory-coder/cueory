@@ -45,8 +45,12 @@ Colors are applied in `src/styles/tokens.css`. The logo is shown by `src/compone
 
 ## Typography
 - **Logo:** the artwork above. Bodoni Moda Medium is only a reference for its letter style (guide §5.1).
-- **Body text, UI, buttons, and headings on study screens:** Inter (guide §5.2). Live-text motto: Inter Medium.
-- **Marketing headings and their italic accent line:** Bodoni Moda Medium (D-41). The fonts are self-hosted Latin
+- **Body text, UI, buttons, and headings on study screens:** Lato, regular and bold (Christian, 2026-11-01; replaces
+  Inter from guide §5.2). Self-hosted Latin files in `public/fonts/`, SIL Open Font License. Live-text motto: Lato Bold.
+- **Line spacing:** at least 1.5 for every text style set in Lato (Christian, 2026-11-01).
+- **Marketing headings:** Bodoni Moda Medium (D-41). **Accent lines** under them (for example "cueory makes studying
+  simpler.") are plain upright Lato in Bronze, never italic or script (Christian, 2026-11-01: the italic serif was hard to
+  read). The fonts are self-hosted Latin
   files in `public/fonts/`, under the SIL Open Font License. Serif is for the logo and selected editorial emphasis
   only (guide §5.3).
 
@@ -79,7 +83,7 @@ This covers the marketing pages only: home, support, the legal pages and 404. St
 - **Home hero (D-46, D-55):** full first screen, centered, top to bottom:
   1. the logo;
   2. the Bodoni headline "nursing school is hard enough." on one line at every width;
-  3. the italic accent line "cueory makes studying simpler.";
+  3. the accent line "cueory makes studying simpler." (plain Lato);
   4. one glassy pill button, "create your free account";
   5. one small line under it.
 

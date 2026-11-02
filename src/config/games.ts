@@ -2,9 +2,11 @@
  * The daily games on /play (D-61), in the lowercase brand voice (D-47), shown together as "cueory games". The names
  * shown to visitors live only here, so a rename is one line. For now they are plain names (D-66): a trademark screen
  * found live US filings for cueword, triage and suture, so Christian chose plain names until he picks final ones.
- * The ids stay as they are: they are only used inside the code and the content folders. Each game has original rules
- * and an original look (CLAUDE.md): never the name, the colors, the tile grid or the colored-square shares of another
- * word game.
+ * Christian named the word game pillo (Task 114); its id stays pulse. The ids stay as they are: they are only used
+ * inside the code and the content folders. Each game has an original look (CLAUDE.md): never the name, the colors,
+ * the tile grid or the colored-square shares of another word game. Rules are original too, with one exception
+ * Christian chose (Task 113): pillo uses the classic guess-the-word rules, a five-letter word and six guesses, on its
+ * own blister-pack board with brand-color pills, a symbol on every letter and a one-line share.
  */
 export interface DailyGame {
   /** Inside the code only; never shown. */
@@ -20,8 +22,8 @@ export interface DailyGame {
 export const dailyGames: readonly DailyGame[] = [
   {
     id: 'pulse',
-    name: 'pulse',
-    line: 'guess the word of the day in seven beats. a guess spends a beat, and so does the cue.',
+    name: 'pillo',
+    line: 'guess the five-letter word in six tries. each guess marks every letter: in place, elsewhere in the word, or not in it.',
     ready: true,
   },
   {

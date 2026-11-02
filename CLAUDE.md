@@ -69,8 +69,9 @@ task-N/feature ──PR──▶ staging ──PR──▶ main
 
 ## Design
 
-Follow [docs/BRAND.md](docs/BRAND.md): only the exact brand colors (Daytime and Evening palettes), Inter for body and
-interface text, Bodoni Moda only for marketing headings and their italic accent line (D-41), and the lowercase "cueory"
+Follow [docs/BRAND.md](docs/BRAND.md): only the exact brand colors (Daytime and Evening palettes), Lato for body and
+interface text (line spacing at least 1.5), Bodoni Moda only for marketing headings (D-41; accent lines under them are plain upright Lato, never
+italic or script), and the lowercase "cueory"
 logo, which is Christian's PNG artwork (brand v1.0, D-55): never retyped in a font, traced, redrawn, embossed, shadowed
 or recolored. Dark mode uses the Evening palette: it follows the device unless the visitor picks Light or Dark in the
 footer.
@@ -113,6 +114,10 @@ screens stay plain: nothing decorative, no texture behind lesson text, and no ma
   public before it works.
 - Every page uses `Layout.astro` so it gets the building notice, header, footer and skip link.
 - Astro dev server: `npx astro dev --background` (stop with `astro dev stop`).
-- Update `docs/STATUS.md` and, when a decision is made, `docs/DECISIONS.md` in the same pull request.
-- Daily puzzles (Task 7) use original names, rules and visual design. Never the names Wordle, Connections or NYT,
-  and never a copy of their look or rules.
+- Add a status note in the same pull request: a new file `docs/status/in-review/<branch-with-dashes>.md` with the STATUS
+  line and any `D-pending` decision. The director moves notes into `docs/STATUS.md` and `docs/DECISIONS.md` in batches,
+  so parallel pull requests never clash on those two files.
+- Daily puzzles (Task 7) use original names and visual design. Never the names Wordle, Connections or NYT, and never
+  a copy of their look, colors or colored-square shares. Rules are original too, with one exception Christian chose
+  (Task 113): pillo uses the classic guess-the-word rules (a five-letter word, six guesses), with its own blister-pack
+  look, brand colors, symbols on every letter and a plain one-line share.

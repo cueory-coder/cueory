@@ -127,6 +127,9 @@ test.describe('Task 94: full-site Evening palette audit', () => {
       }
 
       const darkChoice = page.locator('footer [data-theme-picker] input[type="radio"][value="dark"]');
+      // The theme switch is in the footer's links panel, behind its chevron (Task 85).
+      const footerLinks = page.locator('footer [data-footer-toggle]');
+      if ((await footerLinks.getAttribute('aria-expanded')) === 'false') await footerLinks.click();
       if ((await darkChoice.count()) !== 1) {
         findings.push('footer: missing Dark theme radio');
       } else {

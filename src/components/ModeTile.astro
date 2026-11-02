@@ -1,0 +1,45 @@
+---
+/**
+ * Task 81 lesson-hub tile. Display copy and destinations come from modes.ts.
+ * Keep the full, visible action-link wording for keyboard users and legacy tests.
+ */
+import ModeIllustration from './ModeIllustration.astro';
+import type { StudyMode } from '../config/modes';
+
+interface Props {
+  mode: StudyMode;
+  linkLabel: string;
+}
+
+const { mode, linkLabel } = Astro.props;
+const href = mode.link?.href;
+if (!href) throw new Error('Only available study modes may be linked from the lesson hub.');
+---
+
+<article
+  class="study-mode-tile lift flex h-full min-w-0 flex-col rounded-xl border border-line bg-surface p-3 sm:p-5"
+  data-mode-tile={mode.id}
+>
+  <div class="mode-art mb-3 overflow-hidden" aria-hidden="true">
+    <ModeIllustration mode={mode.id} />
+  </div>
+  <h3 class="text-lg font-semibold">{mode.name}</h3>
+  <p class="mt-2 flex-1 text-sm text-ink-soft">{mode.text}</p>
+  <a
+    href={href}
+    class="mt-4 inline-flex min-h-11 items-center rounded-md border border-control px-3 py-2 text-sm font-medium text-ink no-underline hover:bg-page focus-visible:bg-page"
+  >
+    <span class="min-w-0">{linkLabel}</span>
+    <span class="ml-2 shrink-0" aria-hidden="true">→</span>
+  </a>
+</article>
+
+<style>
+  .study-mode-tile {
+    box-shadow: var(--shadow-card, var(--shadow-soft));
+  }
+
+  .study-mode-tile:focus-within {
+    box-shadow: var(--shadow-card-hover, var(--shadow-soft));
+  }
+</style>

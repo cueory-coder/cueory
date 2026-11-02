@@ -1,0 +1,1 @@
+status: Task 101, studying together plan (#176): `docs/TOGETHER.md` lays out leaderboards, profiles and badges, silent focus rooms, text chat and camera rooms, with a decision checklist for each step before any code starts.

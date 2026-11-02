@@ -93,7 +93,7 @@ This step adds a text chat channel inside focus rooms. It is where the engineeri
 
 ### What you need before this can launch
 - **Moderation.** Every text channel needs someone reading reports and acting on them. That person is you, at least at first. If Cueory grows to 100 students sending 20 messages a day, that is 2,000 messages you are responsible for.
-- **Age.** If any of your users are under 18, you are subject to COPPA (US) or similar laws depending on where they study. A text channel between students requires a clear age gate or a school agreement. The simplest answer is a hard "you must be 18" checkbox at sign-up; the harder answer is verifying school email domains.
+- **Age.** COPPA, the US children's privacy law, applies to sites aimed at children **under 13**, or that knowingly collect personal information from children under 13 ([FTC: COPPA](https://www.ftc.gov/legal-library/browse/rules/childrens-online-privacy-protection-rule-coppa)). Students aged 13 to 17 don't bring Cueory under COPPA, and nursing students are almost always adults. A text channel where adults and minors could talk is still a separate policy question, with its own rules outside the US. Decide on an age policy before chat launches: for example, a "you must be 18 or older to use chat" confirmation, or school email domains. Have a lawyer check that policy before launch.
 - **Reporting.** You need a way to receive reports and a policy for what happens when someone is reported. Start simple: a report sends you an email, and you decide.
 - **Your time.** Budget at least an hour a week for moderation when this goes live, more during exam season.
 
@@ -110,16 +110,16 @@ This step adds a text chat channel inside focus rooms. It is where the engineeri
 Camera rooms let students see each other while they study, like a virtual library table. This is the most engaging feature and the most expensive.
 
 ### What it costs
-Video is not free at scale. Options:
+Video is not free at scale. Prices change often, so **check each official pricing page on the day you decide.** What those pages showed on 2026-11-02:
 
-| Provider | Free tier | Paid |
+| Provider | What the official page shows (checked 2026-11-02) | Pricing page |
 |---|---|---|
-| Daily.co | 1,000 participant-minutes/month free | ~$0.004/participant-minute after |
-| Twilio Video | No free tier | ~$0.004/participant-minute |
-| Whereby | 2,000 participant-minutes/month free | Starting $6.99/month |
-| Livekit (self-hosted) | Free software | You pay the server (≈$20–50/month) |
+| Daily | 10,000 free minutes every month, then usage-based pricing | [daily.co/pricing/video-sdk](https://www.daily.co/pricing/video-sdk/) |
+| Whereby Embedded | Free "Explore" plan up to 2,000 participant minutes a month; paid plans above that | [whereby.com/information/embedded/pricing](https://whereby.com/information/embedded/pricing) |
+| LiveKit | Open-source server, free to self-host (you pay for your own server); LiveKit Cloud has a free "Build" plan and paid plans | [livekit.io/pricing](https://livekit.io/pricing) |
+| Twilio Video | Usage-based; its pricing model changed more than once in 2026, so read the page carefully | [twilio.com/en-us/video/pricing](https://www.twilio.com/en-us/video/pricing) |
 
-At 10 students watching each other for 25 minutes, that is 250 participant-minutes, or about $1. At 100 students that is $10 per study session. During finals week with 500 students in rooms for 3 hours each, that is around $360 for one week.
+**How to estimate:** participant-minutes = students in a room × minutes in the room. For example, 10 students for 25 minutes is 250 participant-minutes. Compare a month's total with the free allowance, then multiply anything above it by that provider's current rate. Finals week, with hundreds of students in rooms for hours, will go far past every free allowance.
 
 **The $0 budget rule** (your rule from CLAUDE.md) means no video feature can launch without your explicit written OK, a budget allocation, and a chosen provider. This is the one step in this entire plan that definitely costs money at any meaningful scale.
 
