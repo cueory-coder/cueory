@@ -31,7 +31,7 @@ const C = {
   bronze: '#6b5243',
   espresso: '#3e2c23',
   walnut: '#231911',
-  wine: '#4a0e0e',
+  wine: '#59171b',
   studyGreen: '#051f20',
   coinDeep: '#7d6249',
   coinMid: '#b89473',
