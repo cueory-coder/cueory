@@ -170,7 +170,11 @@ test.describe('footer theme picker', () => {
   test('a tap anywhere on a segment picks it', async ({ page }) => {
     await page.goto('/');
     await openFooterLinks(page);
-    await page.getByRole('group', { name: 'Theme' }).locator('label', { hasText: 'dark' }).click({ position: { x: 4, y: 4 } });
+    // Tap near the left edge at mid-height: a corner point lies outside the pill's rounded shape, where newer
+    // Chromium hit-testing (CI) lands on the group instead of the segment.
+    const segment = page.getByRole('group', { name: 'Theme' }).locator('label', { hasText: 'dark' });
+    const box = (await segment.boundingBox())!;
+    await segment.click({ position: { x: Math.min(10, box.width / 4), y: box.height / 2 } });
     await expect(page.getByRole('radio', { name: 'Dark' })).toBeChecked();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   });

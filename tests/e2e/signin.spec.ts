@@ -12,7 +12,10 @@ for (const [path, heading, title] of [
   test('renders a plain, unindexed page with a working launch-updates link', async ({ page }) => {
     const errors: string[] = [];
     const remoteRequests: string[] = [];
-    page.on('pageerror', error => errors.push(error.message));
+    // Chromium rejects the cross-page view transition's promise when following the /#signup link mid-transition;
+    // the navigation itself succeeds (checked below). Any other page error still fails the test.
+    const abortedViewTransition = /^Transition was aborted because of invalid state\. ViewTransition opt-in disabled$/;
+    page.on('pageerror', error => { if (!abortedViewTransition.test(error.message)) errors.push(error.message); });
     page.on('request', request => {
       const url = new URL(request.url());
       if (/supabase|accounts\.google/.test(url.hostname)) remoteRequests.push(request.url());
