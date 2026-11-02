@@ -5,21 +5,23 @@ import {
 } from './questions';
 import { answerErrorMessage, remoteChecker, type RemoteQuestions } from './questionsremote';
 
-type Props = { questions: Question[] } & (
+/** `onCurrent` hears the id of the question on screen (undefined once the set is finished), e.g. for the flag form. */
+type OnCurrent = (questionId: string | undefined) => void;
+type Props = { questions: Question[]; onCurrent?: OnCurrent } & (
   { check: Checker; remote?: undefined } |
   { remote: RemoteQuestions; check?: never }
 );
-interface SessionProps { questions: Question[]; check: Checker }
+interface SessionProps { questions: Question[]; check: Checker; onCurrent?: OnCurrent }
 const button = 'min-h-11 rounded-pill bg-button px-5 py-2.5 text-on-button hover:bg-button-hover';
 
 /** A new set gets a fresh session, including when props change while a check is pending. */
 export default function QuestionsPlayer(props: Props) {
-  if (props.remote !== undefined) return <RemotePlayer questions={props.questions} remote={props.remote} />;
-  return <Session key={JSON.stringify(props.questions)} questions={props.questions} check={props.check} />;
+  if (props.remote !== undefined) return <RemotePlayer questions={props.questions} remote={props.remote} onCurrent={props.onCurrent} />;
+  return <Session key={JSON.stringify(props.questions)} questions={props.questions} check={props.check} onCurrent={props.onCurrent} />;
 }
 
 /** Keep remote stable for a session; replace it on account or transport changes to discard prior feedback. */
-function RemotePlayer({ questions, remote }: { questions: Question[]; remote: RemoteQuestions }) {
+function RemotePlayer({ questions, remote, onCurrent }: { questions: Question[]; remote: RemoteQuestions; onCurrent?: OnCurrent }) {
   const [source, setSource] = useState({ remote, revision: 0 });
   if (source.remote !== remote) setSource({ remote, revision: source.revision + 1 });
   const contentKey = JSON.stringify([questions, remote.versions]);
@@ -32,10 +34,10 @@ function RemotePlayer({ questions, remote }: { questions: Question[]; remote: Re
     return <p>a free account is needed for real questions. <a className="underline underline-offset-4" href="/signin">sign in</a></p>;
   }
   if (!prepared) return <p role="alert">these questions did not load correctly. please reload the page.</p>;
-  return <Session key={`${source.revision}:${contentKey}`} questions={questions} check={prepared} />;
+  return <Session key={`${source.revision}:${contentKey}`} questions={questions} check={prepared} onCurrent={onCurrent} />;
 }
 
-function Session({ questions, check }: SessionProps) {
+function Session({ questions, check, onCurrent }: SessionProps) {
   const [state, setState] = useState(() => startQuestions(questions));
   const [waiting, setWaiting] = useState(false);
   const [error, setError] = useState('');
@@ -57,6 +59,8 @@ function Session({ questions, check }: SessionProps) {
     setError('');
     return () => { request.current++; };
   }, [check]);
+  const currentId = question?.id;
+  useEffect(() => { onCurrent?.(currentId); }, [currentId, onCurrent]);
   // Start reading above the choice marks and rationales; the live region announces the verdict.
   useEffect(() => { if (answer) stem.current?.focus(); }, [answer]);
   useEffect(() => {
