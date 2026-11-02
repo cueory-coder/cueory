@@ -1125,7 +1125,7 @@ html:has(dialog.menu-panel[open]) {
     position: relative;
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    border-block-end: 1px dashed var(--pillo-perforation);
+    border-block-end: var(--border-pillo-perforation) dashed var(--pillo-perforation);
   }
 
   .pillo-row-last {
@@ -1137,7 +1137,7 @@ html:has(dialog.menu-panel[open]) {
     place-items: stretch;
     block-size: var(--pillo-pocket);
     padding: var(--pillo-pill-inset);
-    border-inline-end: 1px dashed var(--pillo-perforation);
+    border-inline-end: var(--border-pillo-perforation) dashed var(--pillo-perforation);
   }
 
   .pillo-pocket:last-of-type {
@@ -1346,9 +1346,11 @@ html:has(dialog.menu-panel[open]) {
     border-radius: var(--radius-pill);
   }
 
+  /* ⌫ and enter grow like the letters but about one and a half times as wide, up to --pillo-key-wide, so on a 320 px
+     phone the bottom row's letters keep the same spacing as the other rows (WCAG 2.5.8). */
   .pillo-key-wide {
-    flex: 0 1 var(--pillo-key-wide);
-    max-inline-size: none;
+    flex: var(--pillo-key-wide-share) 1 0;
+    max-inline-size: var(--pillo-key-wide);
   }
 
   .pillo-key.pillo-here {
@@ -1379,7 +1381,7 @@ html:has(dialog.menu-panel[open]) {
   .pillo-legend {
     max-inline-size: var(--pillo-board);
     padding: calc(var(--spacing) * 5);
-    border: 1px solid var(--color-line);
+    border: var(--border-pillo-legend) solid var(--color-line);
     border-radius: var(--radius-lg);
   }
 

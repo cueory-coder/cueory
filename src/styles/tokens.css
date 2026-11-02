@@ -171,6 +171,8 @@
   --pillo-hatch-gap: 5px;               /* the foil's cross-hatch spacing */
   --border-pillo-key: 1px;              /* the rim around a pill key */
   --pillo-press-offset: 1px;            /* how far a pill key sinks while pressed */
+  --border-pillo-perforation: 1px;      /* the dashed perforations between pockets */
+  --border-pillo-legend: 1px;           /* the "how to play" panel's rim */
   --color-pillo-foil: #f9f5ef;          /* Ivory    — the foil's base ... */
   --color-pillo-foil-tint: #6b5243;     /* Bronze   — ... greyed with this (strength: --pillo-foil-mix) */
   --color-pillo-hatch: #3e2c23;         /* Espresso — the foil's fine cross-hatch */
@@ -186,7 +188,8 @@
   --pillo-mark-drop: -0.125rem;         /* the mark's line sits this far into the pill's bottom edge */
   --pillo-key: 3rem;                    /* letter key height (48 px, above the 44 px minimum) */
   --pillo-key-max: 2.75rem;             /* a letter key's widest */
-  --pillo-key-wide: 4.25rem;            /* ⌫ and enter */
+  --pillo-key-wide: 4.25rem;            /* ⌫ and enter, at their widest */
+  --pillo-key-wide-share: 1.5;          /* ⌫ and enter take about one and a half letters' room in a narrow row */
   --pillo-strip-pill: 0.875rem;         /* a pill in the guesses-left strip */
   --pillo-strip-height: 1.75rem;
   --pillo-swatch: 2.75rem;              /* the sample pills in "how to play" */

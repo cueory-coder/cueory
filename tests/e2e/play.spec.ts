@@ -184,15 +184,18 @@ test.describe('daily games on a narrow phone', () => {
         .filter((box) => box.left < 0 || box.right > window.innerWidth).length,
     );
     expect(outside).toBe(0);
-    // Every key keeps a 44 px height, and their middles stay at least 24 px apart (WCAG 2.5.8).
-    const keys = await page.locator('.pillo-key-row').first().locator('.pillo-key').evaluateAll((els) =>
-      els.map((el) => el.getBoundingClientRect()),
-    );
+    // Every key keeps a 44 px height, and in every row their middles stay at least 24 px apart (WCAG 2.5.8).
     for (const key of await page.locator('.pillo-key').evaluateAll((els) => els.map((el) => el.getBoundingClientRect()))) {
       expect(key.height).toBeGreaterThanOrEqual(44);
     }
-    for (let i = 1; i < keys.length; i++) {
-      expect(keys[i]!.left + keys[i]!.width / 2 - (keys[i - 1]!.left + keys[i - 1]!.width / 2)).toBeGreaterThanOrEqual(24);
+    const rows = await page.locator('.pillo-key-row').evaluateAll((rowEls) =>
+      rowEls.map((row) => [...row.querySelectorAll('.pillo-key')].map((el) => el.getBoundingClientRect())),
+    );
+    expect(rows.length).toBe(3);
+    for (const keys of rows) {
+      for (let i = 1; i < keys.length; i++) {
+        expect(keys[i]!.left + keys[i]!.width / 2 - (keys[i - 1]!.left + keys[i - 1]!.width / 2)).toBeGreaterThanOrEqual(24);
+      }
     }
   });
 
