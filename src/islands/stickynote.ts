@@ -9,7 +9,8 @@
  *   has joined or has an account), supporting our mission, a break idea; never the same as last visit's.
  * - Break notes: study pages only, at a pause (3 seconds without interaction, or the end of a question set or step),
  *   never mid-answer. With the break timer off: one after 25 minutes of active study, once per visit. With it on: when
- *   the timer says a break is due (its own snooze and skip decide the rest, #67).
+ *   the timer says a break is due (its own snooze and skip decide the rest, #67). Closing a break note while the timer
+ *   says a break is due snoozes it (the timer's own 5 minutes).
  * - Never on `/start`, the signup thank-you page, `/admin` or `/privacy` (page kind `never`), and never while the
  *   visitor is typing, dragging, mid-question, or has the ☰ panel, a preview or the account menu open.
  * - One note on screen at a time; a break note may replace a welcome note, never the other way round. Once a note of
@@ -18,6 +19,7 @@
  * - A browser that can't remember (session storage missing or blocked) gets at most one note per page load.
  */
 import type { KeyValueStorage } from '../scripts/storage';
+import { type BreakState, snooze } from './breaks';
 
 export type NoteKind = 'welcome' | 'break';
 export type WelcomeContent = 'launch-list' | 'mission' | 'break-idea';
@@ -241,4 +243,12 @@ export function writeLastWelcome(storage: KeyValueStorage | undefined, content: 
   } catch {
     return false;
   }
+}
+
+/**
+ * Returns the timer state after closing a break note. When the timer is in `break due`, it snoozes (5 minutes of
+ * focus time) so the note does not re-appear at the next pause. All other statuses are returned unchanged.
+ */
+export function closeBreakNote(timer: BreakState, now: number): BreakState {
+  return timer.status === 'break due' ? snooze(timer, now) : timer;
 }
