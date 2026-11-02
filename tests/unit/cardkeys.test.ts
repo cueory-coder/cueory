@@ -73,6 +73,36 @@ describe('cardKeyAction', () => {
     expect(cardKeyAction({ key: '1', metaKey: false, ctrlKey: false, altKey: true, target: null })).toBeNull();
   });
 
+  it('Space on a focused button, link or summary → null, so Space still presses it', () => {
+    expect(cardKeyAction(inField(' ', 'BUTTON'))).toBeNull();
+    expect(cardKeyAction(inField(' ', 'A'))).toBeNull();
+    expect(cardKeyAction(inField(' ', 'SUMMARY'))).toBeNull();
+    expect(cardKeyAction(inField(' ', 'button'))).toBeNull();
+  });
+
+  it('Space on the card itself (a div) → flip', () => {
+    expect(cardKeyAction(inField(' ', 'DIV'))).toBe('flip');
+  });
+
+  it('other shortcuts still work while a button has focus', () => {
+    expect(cardKeyAction(inField('1', 'BUTTON'))).toBe('know');
+    expect(cardKeyAction(inField('2', 'BUTTON'))).toBe('learning');
+    expect(cardKeyAction(inField('s', 'BUTTON'))).toBe('star');
+    expect(cardKeyAction(inField('ArrowRight', 'BUTTON'))).toBe('advance');
+  });
+
+  it('1, 2 and S while typing in a field → null', () => {
+    expect(cardKeyAction(inField('1', 'INPUT'))).toBeNull();
+    expect(cardKeyAction(inField('2', 'TEXTAREA'))).toBeNull();
+    expect(cardKeyAction(inField('s', 'INPUT'))).toBeNull();
+    expect(cardKeyAction(editable('S'))).toBeNull();
+  });
+
+  it('a held-down key repeating → null', () => {
+    expect(cardKeyAction({ ...basic(' '), repeat: true })).toBeNull();
+    expect(cardKeyAction({ ...basic('1'), repeat: true })).toBeNull();
+  });
+
   it('target null → does not throw', () => {
     expect(() => cardKeyAction({ key: ' ', target: null })).not.toThrow();
   });

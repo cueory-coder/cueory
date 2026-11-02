@@ -75,7 +75,7 @@ describe('makeSend for submit_flag', () => {
 describe('signed-out report help', () => {
   it('shows the configured email address as a mailto link without a send button', () => {
     const html = renderToStaticMarkup(createElement(SignedOutReportHelp));
-    expect(html).toContain('sign in to send a report');
+    expect(html).toContain('a free account is needed');
     expect(html).toContain('href="mailto:' + site.contactEmail + '"');
     expect(html).toContain(site.contactEmail);
     expect(html).not.toMatch(/<button\b/i);

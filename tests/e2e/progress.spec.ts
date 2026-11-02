@@ -169,7 +169,7 @@ test('card piles and stars show on the progress page; download and forget work',
 test('stars saved before D-69 still show, and move into the record when they change', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('cueory-stars-study-skills-01', '["ss01-c01"]'));
   await page.goto('/learn/study-skills/cards');
-  const star = page.getByRole('button', { name: /^Star/ });
+  const star = page.getByRole('button', { name: 'Star', exact: true });
   await expect(star).toHaveAttribute('aria-pressed', 'true');
   await star.click();
   expect(await page.evaluate(() => localStorage.getItem('cueory-stars-study-skills-01'))).toBeNull();

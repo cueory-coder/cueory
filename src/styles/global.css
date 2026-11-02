@@ -1513,36 +1513,6 @@ html:has(dialog.mode-preview[open]) {
   100% { opacity: 0; transform: none; }
 }
 
-/* 3D flip card (CardDeck.tsx, Task 78). perspective keeps the parent; inner holds the transform. */
-.flip { perspective: 800px; }
-.flip-inner {
-  position: relative;
-  transform-style: preserve-3d;
-  transition: transform var(--duration-slow, 400ms) var(--ease-soft, cubic-bezier(0.4, 0, 0.2, 1));
-}
-.flip-face,
-.flip-back {
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-.flip-back { transform: rotateY(180deg); }
-.flip-inner.is-flipped { transform: rotateY(180deg); }
-@layer base {
-  @media (prefers-reduced-motion: reduce) {
-    .flip-inner { transition: none !important; }
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .flip-inner:not(.is-flipped) .flip-back { opacity: 0; }
-  .flip-inner.is-flipped .flip-face { opacity: 0; }
-}
 /*
   ============================================================
   Batch-2 utility classes (Task 77): motion, depth, and the
