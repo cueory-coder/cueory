@@ -1,4 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
+import { attachResumeLifecycle, clearResume, readResume, saveResume, type ResumeDraft, type ResumeSnapshot } from '../scripts/resume';
+import { browserStorage } from '../scripts/storage';
+import ResumePrompt from './ResumePrompt';
 import { canCheck, check, isDone, parseSet, placeItem, resultInWords, startOrganizer, summary, type OrganizerSet } from './organizer';
 
 interface Props { set: OrganizerSet }
@@ -7,9 +10,48 @@ const control = 'min-h-11 min-w-11 rounded-md border border-control bg-page px-4
 const card = `${control} shadow-card lift press`;
 const chip = 'min-h-11 min-w-11 rounded-pill border border-control bg-surface px-4 py-2 text-ink lift press';
 
+const ORGANIZER_PAGE = '/learn/study-skills/organizer';
+
+/** Save only placements the student submitted and the checker locked. */
+function organizerDraft(state: ReturnType<typeof startOrganizer>, set: OrganizerSet): ResumeDraft {
+  return {
+    tool: 'organizer', page: ORGANIZER_PAGE, module: set.id, step: `checks-${state.tries}`,
+    itemIndex: Math.min(state.locked.length, set.items.length - 1), totalItems: set.items.length,
+    answers: Object.fromEntries(state.locked.map(id => [id, state.positions[id]!])),
+    timer: null, phase: isDone(state) ? 'results' : 'working',
+  };
+}
+
+/** Recheck each saved student placement using the same rule as the live board. */
+function restoreOrganizer(set: OrganizerSet, seed: number, snapshot: ResumeSnapshot) {
+  if (snapshot.tool !== 'organizer' || snapshot.page !== ORGANIZER_PAGE ||
+      snapshot.module !== set.id || snapshot.totalItems !== set.items.length) return null;
+  const matched = /^checks-([1-9]\d*)$/.exec(snapshot.step ?? '');
+  if (!matched) return null;
+  const attempts = Number(matched[1]);
+  if (!Number.isSafeInteger(attempts) || attempts > 10000) return null;
+  let state = startOrganizer(set, seed);
+  for (const [id, group] of Object.entries(snapshot.answers)) {
+    if (typeof group !== 'string' || !set.items.some(item => item.id === id) ||
+        !set.groups.some(candidate => candidate.id === group)) return null;
+    state = placeItem(state, id, group);
+    state = check(state, set);
+    if (!state.locked.includes(id)) return null;
+  }
+  const restored = { ...state, tries: attempts, last: null };
+  const draft = organizerDraft(restored, set);
+  if (draft.itemIndex !== snapshot.itemIndex || draft.phase !== snapshot.phase ||
+      Object.keys(draft.answers).length !== Object.keys(snapshot.answers).length) return null;
+  return restored;
+}
+
 function Board({ set }: Props) {
   const seed = useRef(Date.now() >>> 0);
   const [state, setState] = useState(() => startOrganizer(set, seed.current));
+  const [resumePending, setResumePending] = useState(() => {
+    const stored = readResume(browserStorage());
+    return stored?.tool === 'organizer' && stored.page === ORGANIZER_PAGE;
+  });
   const [picked, setPicked] = useState<string>();
   const [said, setSaid] = useState('');
   const [hovered, setHovered] = useState<string>();
@@ -20,6 +62,8 @@ function Board({ set }: Props) {
   const itemButtons = useRef(new Map<string, HTMLButtonElement>());
   const previousLocked = useRef<string[]>([]);
   const progressFill = useRef<HTMLDivElement>(null);
+  const latestDraft = useRef<ResumeDraft | null>(null);
+  useEffect(() => attachResumeLifecycle(browserStorage(), () => latestDraft.current), []);
   const firstGroup = useRef<HTMLButtonElement>(null);
   const result = useRef<HTMLDivElement>(null);
   const help = useId();
@@ -141,12 +185,47 @@ function Board({ set }: Props) {
   });
 
   const restart = () => {
+    setResumePending(false);
+    latestDraft.current = null;
+    clearResume(browserStorage());
+    previousLocked.current = [];
     const next = startOrganizer(set, ++seed.current);
     focusItem.current = next.order[0];
     setState(next); setPicked(undefined); setSaid('all items are back in the tray.');
   };
 
+  const continueSaved = (snapshot: ResumeSnapshot) => {
+    const restored = restoreOrganizer(set, seed.current, snapshot);
+    if (!restored) {
+      restart();
+      return;
+    }
+    // Restoring already checked placements is not a new check or animation.
+    previousLocked.current = restored.locked;
+    latestDraft.current = organizerDraft(restored, set);
+    setResumePending(false);
+    focusItem.current = undefined;
+    setState(restored);
+    setPicked(undefined);
+    setSaid(`${restored.locked.length} of ${set.items.length} sorted items restored.`);
+  };
+
+  const checkAndSave = () => {
+    const next = check(state, set);
+    setState(next);
+    setPicked(undefined);
+    setSaid(resultInWords(next));
+    if (next !== state) {
+      const draft = organizerDraft(next, set);
+      latestDraft.current = draft;
+      saveResume(browserStorage(), draft);
+    }
+  };
+
   return <section aria-label="organizer" data-testid="organizer">
+    <ResumePrompt page={ORGANIZER_PAGE} onContinue={continueSaved} onStartOver={restart} />
+    {/* Keep the board inactive until a saved session is continued or discarded. */}
+    <div inert={resumePending}>
     <h2 className="text-lg font-medium">{set.title}</h2>
     <p id={help} className="mt-2 text-sm text-ink-soft">pick an item, then a group or the tray. on an item, press 1 to {set.groups.length} for a group, or 0 for the tray. you can also drag with a mouse. check when you are ready.</p>
     <p className="mt-4 text-sm text-ink-soft">{state.locked.length} of {set.items.length} sorted correctly</p>
@@ -168,12 +247,13 @@ function Board({ set }: Props) {
         <ul className="mt-3 flex min-w-0 flex-col gap-2" aria-label={group.name}>{itemsAt(group.id)}</ul>
       </div>)}
     </div>
-    {!done && <button type="button" className={`${control} press mt-4 disabled:opacity-50`} disabled={!canCheck(state)} onClick={() => { const next = check(state, set); setState(next); setPicked(undefined); setSaid(resultInWords(next)); }}>check</button>}
+    {!done && <button type="button" className={`${control} press mt-4 disabled:opacity-50`} disabled={!canCheck(state)} onClick={checkAndSave}>check</button>}
     <p className="mt-3 text-sm text-ink-soft" aria-live="polite" aria-atomic="true" data-testid="organizer-live">{said}</p>
     {done && <div ref={result} tabIndex={-1} className="mt-4 rounded-md border border-control p-4" data-testid="organizer-result">
       <p className="font-medium">{summary(state)}</p>
       <button type="button" className={`${control} press mt-3`} onClick={restart}>sort again</button>
     </div>}
+    </div>
   </section>;
 }
 
