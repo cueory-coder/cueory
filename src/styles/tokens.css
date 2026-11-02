@@ -161,6 +161,17 @@
   /* Built from --shadow-tint (Espresso in Daytime), like the existing marketing shadows. */
   --shadow-card: 0 1px 3px rgb(var(--shadow-tint) / 0.06), 0 4px 12px rgb(var(--shadow-tint) / 0.08);
   --shadow-card-hover: 0 2px 8px rgb(var(--shadow-tint) / 0.08), 0 12px 28px rgb(var(--shadow-tint) / 0.14);
+
+  /* ---------- Motion and control sizes (Task 77; used by the shared motion classes in global.css) ---------- */
+  --lift-rise: 0.125rem;              /* .lift: how far a card rises on hover or focus */
+  --enter-rise: 0.5rem;               /* .enter: how far content rises as it appears */
+  --flip-perspective: 75rem;          /* .flip: depth of the 3D card flip */
+  --progress-height: 0.375rem;        /* .progress-track */
+  --segmented-inset: 0.125rem;        /* .segmented: space between the pill and its options */
+  --segmented-gap: 0.375rem;          /* .segmented: space between options */
+  --segmented-pad-y: 0.375rem;        /* .segmented-option */
+  --segmented-pad-x: 0.875rem;        /* .segmented-option */
+  --tap-min: 2.75rem;                 /* 44 px minimum tap target */
 }
 
 /* Strengths and images for the marketing background (D-41). Daytime values; the Evening ones are below. */
