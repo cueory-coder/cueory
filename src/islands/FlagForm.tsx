@@ -1,21 +1,33 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { site } from '../config/site';
+import type { SendResult } from './flagsend';
 import { charactersLeft, checkReport, REASONS, reasonInWords, type FlagProblem, type FlagReport, type Reason } from './flag';
 
 interface Props {
   page: string;
   itemId?: string;
   itemVersionId?: string;
-  signedIn: boolean;
-  send: (report: FlagReport) => Promise<'sent' | 'too-many' | 'failed'>;
+  /** null while the browser's session is still being checked. */
+  signedIn: boolean | null;
+  send: (report: FlagReport) => Promise<SendResult>;
+  /** Called when the student opens the form, so a session check that hasn't started yet starts now. */
+  onOpen?: () => void;
   /** 'icon': the footer's flag icon opens the form in a panel above the bar (Task 115). */
   variant?: 'text' | 'icon';
 }
 const control = 'min-h-11 min-w-11 rounded-md border border-control px-4 py-2 text-ink disabled:opacity-50';
 
-/** A changed page, item or account starts a fresh form before it can render another report's draft. */
+/**
+ * A changed page, item or account starts a fresh form before it can render another report's draft. The first session
+ * check finishing (null to signed in or out) is not a change of account, so a panel opened while it ran stays open.
+ */
 export default function FlagForm(props: Props) {
-  return <ReportForm key={JSON.stringify([props.page, props.itemId, props.itemVersionId, props.signedIn])} {...props} />;
+  const account = useRef<{ known: boolean | null; changes: number }>({ known: null, changes: 0 });
+  if (props.signedIn !== null) {
+    if (account.current.known !== null && account.current.known !== props.signedIn) account.current.changes += 1;
+    account.current.known = props.signedIn;
+  }
+  return <ReportForm key={JSON.stringify([props.page, props.itemId, props.itemVersionId, account.current.changes])} {...props} />;
 }
 
 
@@ -29,7 +41,7 @@ export function SignedOutReportHelp() {
   </p>;
 }
 
-function ReportForm({ page, itemId, itemVersionId, signedIn, send, variant = 'text' }: Props) {
+function ReportForm({ page, itemId, itemVersionId, signedIn, send, onOpen, variant = 'text' }: Props) {
   const icon = variant === 'icon';
   const id = useId();
   const panelId = `${id}-panel`, commentId = `${id}-comment`, countId = `${id}-count`;
@@ -62,7 +74,7 @@ function ReportForm({ page, itemId, itemVersionId, signedIn, send, variant = 'te
     const checked = checkReport({ page, itemId, itemVersionId, reason, comment });
     if (!checked.ok) { setProblems(checked.problems); return; }
     setProblems([]); setAnnouncement(''); busy.current = true; setPending(true);
-    let result: 'sent' | 'too-many' | 'failed';
+    let result: SendResult;
     try { result = await send(checked.report); } catch { result = 'failed'; }
     if (!mounted.current) return;
     busy.current = false; setPending(false);
@@ -70,14 +82,15 @@ function ReportForm({ page, itemId, itemVersionId, signedIn, send, variant = 'te
       setReason(undefined); setComment(''); setProblems([]);
       setAnnouncement('thank you. your report is in.');
       if (isOpen.current) close();
-    } else setAnnouncement(result === 'too-many' ? "you've sent a few reports this hour. please try again later." : "it didn't send. please try again.");
+    } else if (typeof result === 'object') setAnnouncement(result.message);
+    else setAnnouncement(result === 'too-many' ? "you've sent a few reports this hour. please try again later." : "it didn't send. please try again.");
   };
 
   return <div className={icon ? 'relative text-ink' : 'max-w-full text-ink'} data-testid="flag-form">
     <button ref={trigger} type="button" aria-expanded={open} aria-controls={panelId}
       className={icon ? 'inline-flex size-12 items-center justify-center rounded-pill text-ink hover:bg-surface' : control}
       aria-label={icon ? 'flag or comment' : undefined}
-      onClick={() => { if (open) close(); else { setAnnouncement(''); setProblems([]); isOpen.current = true; setOpen(true); } }}>
+      onClick={() => { if (open) close(); else { setAnnouncement(''); setProblems([]); isOpen.current = true; setOpen(true); onOpen?.(); } }}>
       {icon
         ? <svg viewBox="0 0 24 24" className="size-6" aria-hidden="true" focusable="false">
             <path d="M5 21V4M5 4h12l-3 4.5 3 4.5H5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
@@ -89,7 +102,7 @@ function ReportForm({ page, itemId, itemVersionId, signedIn, send, variant = 'te
         ? 'absolute bottom-full left-0 z-10 mb-2 max-h-96 w-flag-panel overflow-y-auto rounded-md border border-line bg-page p-4 shadow-lift'
         : 'mt-3 rounded-md border border-line bg-page p-4'}
       onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); } }}>
-      {!signedIn ? <SignedOutReportHelp /> : <form noValidate onSubmit={event => { event.preventDefault(); void submit(); }}>
+      {signedIn === null ? <p className="text-ink">checking your account…</p> : !signedIn ? <SignedOutReportHelp /> : <form noValidate onSubmit={event => { event.preventDefault(); void submit(); }}>
         <fieldset disabled={pending} aria-describedby={error('reason') ? errorId('reason') : undefined}>
           <legend className="font-medium">what's wrong?</legend>
           <div className="mt-2 grid gap-2">
@@ -112,6 +125,8 @@ function ReportForm({ page, itemId, itemVersionId, signedIn, send, variant = 'te
           this report includes this page's address ({page}){itemId !== undefined ? `, item ${itemId}` : ''}{itemVersionId !== undefined ? `, version ${itemVersionId}` : ''}.
         </p>
         {problemText('page')}{problemText('itemId')}{problemText('itemVersionId')}
+        {/* The footer's live line is screen-reader only while its panel is open, so a refusal is also shown here. */}
+        {icon && announcement && <p aria-hidden="true" className="mt-4 text-sm text-ink" data-testid="flag-visible-result">{announcement}</p>}
         <button type="submit" aria-disabled={pending} className={`${control} mt-4 bg-button text-on-button aria-disabled:opacity-50`}>{pending ? 'sending…' : 'send'}</button>
       </form>}
       <button type="button" className={`${control} mt-3`} onClick={close}>close</button>
