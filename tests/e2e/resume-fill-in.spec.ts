@@ -108,11 +108,14 @@ test('an almost-correct attempt is saved as a student submission and can be retr
   await field.fill('pnecil');
   await field.press('Enter');
   await expect(board.getByText('almost. check the spelling.')).toBeVisible();
+  let saved = await page.evaluate(() => JSON.parse(localStorage.getItem('cueory-resume') ?? 'null'));
+  expect(saved.answers['item-2']).toEqual(['n:pnecil']);
   await field.fill('pencil');
   await field.press('Enter');
   await expect(board.getByRole('button', { name: 'next' })).toBeVisible();
-  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('cueory-resume') ?? 'null'));
-  expect(saved.answers['item-2']).toEqual(['n:pnecil', 'n:pencil']);
+  // The right answer ends the open try, so it replaces the close try before it.
+  saved = await page.evaluate(() => JSON.parse(localStorage.getItem('cueory-resume') ?? 'null'));
+  expect(saved.answers['item-2']).toEqual(['n:pencil']);
   await page.reload();
   await page.getByRole('button', { name: 'continue question 3' }).click();
   await expect(board.getByRole('textbox', { name: 'the missing word' })).toHaveValue('pencil');
