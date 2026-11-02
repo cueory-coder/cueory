@@ -55,11 +55,12 @@ const openModeCount = studyModes.filter((mode) => mode.link).length;
               id="library-progress"
               class="library-progress block w-full"
               data-testid="library-progress-bar"
+              data-library-progress-bar
               data-card-ids={cardIds}
               value="0"
               max={cardCount || 1}
             ></progress>
-            <output class="mt-2 block text-sm text-ink-soft" for="library-progress" data-testid="library-progress-text">
+            <output class="mt-2 block text-sm text-ink-soft" for="library-progress" data-testid="library-progress-text" data-library-progress-text>
               0 of {cardCount} cards studied on this device
             </output>
           </div>

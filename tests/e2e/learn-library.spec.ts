@@ -55,6 +55,29 @@ test('the library uses actual device progress, not a sample percentage from the 
   await expect(page.getByTestId('library-progress-bar')).toHaveJSProperty('max', cards.length);
 });
 
+
+test('progress refreshes after another tab saves and forgets its cards', async ({ page, context }) => {
+  await page.goto('/learn');
+  const progress = page.getByTestId('library-progress-text');
+  await expect(progress).toHaveText('0 of ' + deck.cards.length + ' cards studied on this device');
+
+  const other = await context.newPage();
+  await other.goto('/learn/study-skills');
+  await other.evaluate((ids: string[]) => {
+    localStorage.setItem('cueory-progress', JSON.stringify({
+      version: 1, onboarding: { course: null, examDate: null, done: false },
+      decks: { 'study-skills-01': { know: [ids[0]], learning: [ids[1]], starred: [] } },
+    }));
+  }, deck.cards.map(card => card.id));
+  await expect(progress).toHaveText('2 of ' + deck.cards.length + ' cards studied on this device');
+  await expect(page.getByTestId('library-progress-bar')).toHaveJSProperty('value', 2);
+
+  await other.evaluate(() => localStorage.removeItem('cueory-progress'));
+  await expect(progress).toHaveText('0 of ' + deck.cards.length + ' cards studied on this device');
+  await expect(page.getByTestId('library-progress-bar')).toHaveJSProperty('value', 0);
+  await other.close();
+});
+
 test('the course index keeps internal planning notes and statuses out of the page', async ({ page }) => {
   await page.goto('/learn');
   const text = await page.locator('main').textContent() ?? '';

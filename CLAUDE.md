@@ -69,8 +69,9 @@ task-N/feature ──PR──▶ staging ──PR──▶ main
 
 ## Design
 
-Follow [docs/BRAND.md](docs/BRAND.md): only the exact brand colors (Daytime and Evening palettes), Inter for body and
-interface text, Bodoni Moda only for marketing headings and their italic accent line (D-41), and the lowercase "cueory"
+Follow [docs/BRAND.md](docs/BRAND.md): only the exact brand colors (Daytime and Evening palettes), Lato for body and
+interface text (line spacing at least 1.5), Bodoni Moda only for marketing headings (D-41; accent lines under them are plain upright Lato, never
+italic or script), and the lowercase "cueory"
 logo, which is Christian's PNG artwork (brand v1.0, D-55): never retyped in a font, traced, redrawn, embossed, shadowed
 or recolored. Dark mode uses the Evening palette: it follows the device unless the visitor picks Light or Dark in the
 footer.
