@@ -119,6 +119,33 @@ test('an almost-correct attempt is saved as a student submission and can be retr
   await expect(board.getByRole('button', { name: 'next' })).toBeVisible();
 });
 
+test('a 600-character answer is bounded, still saves, and later answers still resume (Codex on #219)', async ({ page }) => {
+  const board = await open(page);
+  const field = board.getByRole('textbox', { name: 'the missing word' });
+  await expect(field).toHaveAttribute('maxlength', '498');
+  // Bypass the field's own limit, as a script or unusual input method could, to test the defensive cut.
+  await field.evaluate((node) => {
+    const input = node as HTMLInputElement;
+    input.removeAttribute('maxlength');
+  });
+  await field.fill('x'.repeat(600));
+  await field.press('Enter');
+  await expect(board.getByRole('button', { name: 'next' })).toBeVisible();
+  await expect(field).toHaveValue('x'.repeat(498));
+  let saved = await page.evaluate(() => JSON.parse(localStorage.getItem('cueory-resume') ?? 'null'));
+  expect(saved.answers['item-0']).toEqual([`n:${'x'.repeat(498)}`]);
+  await board.getByRole('button', { name: 'next' }).click();
+  await submit(page, 'days');
+  await board.getByRole('button', { name: 'next' }).click();
+  saved = await page.evaluate(() => JSON.parse(localStorage.getItem('cueory-resume') ?? 'null'));
+  expect(saved).toMatchObject({ itemIndex: 2, step: 'advance-2', answers: { 'item-1': ['n:days'] } });
+
+  await page.reload();
+  await page.getByRole('button', { name: 'continue question 3' }).click();
+  await expect(board.getByText('round 1 · item 3 of 4')).toBeVisible();
+  await expect(board.getByRole('region', { name: 'your submitted answers' })).toContainText('item 2: days');
+});
+
 test('blocked local storage never blocks studying and cannot show a false resume prompt', async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(window, 'localStorage', {

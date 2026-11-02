@@ -3,8 +3,8 @@ import { attachResumeLifecycle, clearResume, readResume, saveResume, type Resume
 import { browserStorage } from '../scripts/storage';
 import ResumePrompt from './ResumePrompt';
 import {
-  answerCurrent, currentIndex, isCheckKey, nextItem, normalizeAnswer, parseItems, sentenceParts, showHint,
-  startFillIn, summary, type FillInItem, type FillInState,
+  answerCurrent, boundTyped, currentIndex, isCheckKey, nextItem, normalizeAnswer, parseItems, sentenceParts, showHint,
+  MAX_TYPED, startFillIn, summary, type FillInItem, type FillInState,
 } from './fillin';
 
 interface Props { items: FillInItem[] }
@@ -54,7 +54,7 @@ function restoreFillIn(items: readonly FillInItem[], snapshot: ResumeSnapshot): 
     const entries: string[] = [];
     for (const raw of submitted) {
       if (typeof raw !== 'string' || !/^[nh]:/.test(raw) ||
-          normalizeAnswer(raw.slice(2)) === '' || [...raw].length > 500) return null;
+          normalizeAnswer(raw.slice(2)) === '' || boundTyped(raw.slice(2)) !== raw.slice(2)) return null;
       entries.push(raw);
       if (++count > 1000) return null;
     }
@@ -139,14 +139,17 @@ function Session({ items: suppliedItems }: Props) {
   };
 
   const check = () => {
-    if (index === undefined || !parts || normalizeAnswer(typed) === '' || answered) return;
-    const next = answerCurrent(state, items, typed);
+    // Check exactly the text that will be saved, so a resumed replay reaches the same verdict.
+    const submitted = boundTyped(typed);
+    if (index === undefined || !parts || normalizeAnswer(submitted) === '' || answered) return;
+    const next = answerCurrent(state, items, submitted);
     if (next === state) return;
     const key = itemKey(index);
     attempts.current = {
       ...attempts.current,
-      [key]: [...(attempts.current[key] ?? []), `${state.hinted ? 'h' : 'n'}:${typed}`],
+      [key]: [...(attempts.current[key] ?? []), `${state.hinted ? 'h' : 'n'}:${submitted}`],
     };
+    if (submitted !== typed) setTyped(submitted);
     setState(next);
     persist(next);
     if (next.result === 'close') setFocusInput((request) => request + 1);
@@ -233,7 +236,8 @@ function Session({ items: suppliedItems }: Props) {
                 readOnly={answered}
                 // The sentence describes the field, so moving to the next item reads the new sentence too (Codex on #56).
                 aria-describedby={message ? `${id}-sentence ${id}-message` : `${id}-sentence`}
-                onChange={(event) => setTyped(event.currentTarget.value)}
+                maxLength={MAX_TYPED}
+                onChange={(event) => setTyped(boundTyped(event.currentTarget.value))}
                 onKeyDown={(event) => {
                   // Not while an input method is still composing the word (Codex on #56).
                   if (isCheckKey({ key: event.key, isComposing: event.nativeEvent.isComposing, keyCode: event.keyCode })) {
