@@ -1,18 +1,41 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   canCheck, choiceMarks, currentQuestion, currentResult, MARKS, next, pick, recordResult,
   retryMissed, startQuestions, summary, type Checker, type Question,
 } from './questions';
+import { answerErrorMessage, remoteChecker, type RemoteQuestions } from './questionsremote';
 
-interface Props { questions: Question[]; check: Checker }
+type Props = { questions: Question[] } & (
+  { check: Checker; remote?: undefined } |
+  { remote: RemoteQuestions; check?: never }
+);
+interface SessionProps { questions: Question[]; check: Checker }
 const button = 'min-h-11 rounded-pill bg-button px-5 py-2.5 text-on-button hover:bg-button-hover';
 
 /** A new set gets a fresh session, including when props change while a check is pending. */
 export default function QuestionsPlayer(props: Props) {
-  return <Session key={JSON.stringify(props.questions)} {...props} />;
+  if (props.remote !== undefined) return <RemotePlayer questions={props.questions} remote={props.remote} />;
+  return <Session key={JSON.stringify(props.questions)} questions={props.questions} check={props.check} />;
 }
 
-function Session({ questions, check }: Props) {
+/** Keep remote stable for a session; replace it on account or transport changes to discard prior feedback. */
+function RemotePlayer({ questions, remote }: { questions: Question[]; remote: RemoteQuestions }) {
+  const [source, setSource] = useState({ remote, revision: 0 });
+  if (source.remote !== remote) setSource({ remote, revision: source.revision + 1 });
+  const contentKey = JSON.stringify([questions, remote.versions]);
+  const prepared = useMemo(() => {
+    if (remote.signedIn !== true) return undefined;
+    try { return remoteChecker(questions, remote); }
+    catch { return undefined; }
+  }, [contentKey, remote, remote.signedIn]);
+  if (remote.signedIn !== true) {
+    return <p>a free account is needed for real questions. <a className="underline underline-offset-4" href="/signin">sign in</a></p>;
+  }
+  if (!prepared) return <p role="alert">these questions did not load correctly. please reload the page.</p>;
+  return <Session key={`${source.revision}:${contentKey}`} questions={questions} check={prepared} />;
+}
+
+function Session({ questions, check }: SessionProps) {
   const [state, setState] = useState(() => startQuestions(questions));
   const [waiting, setWaiting] = useState(false);
   const [error, setError] = useState('');
@@ -53,8 +76,8 @@ function Session({ questions, check }: Props) {
       // Validate before updating state so a malformed response follows the same retry path as a rejected promise.
       const checkedState = recordResult(state, checked);
       setState(checkedState);
-    } catch {
-      if (token === request.current) setError("couldn't check that answer. try again.");
+    } catch (error) {
+      if (token === request.current) setError(answerErrorMessage(error));
     } finally {
       if (token === request.current) {
         inFlight.current = false;

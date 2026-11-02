@@ -1,0 +1,25 @@
+{
+  "sample": true,
+  "ideas": [
+    { "id": "window", "text": "look out the window for a moment" },
+    { "id": "water-bottle", "text": "refill your water bottle" },
+    { "id": "one-song", "text": "listen to one song you like" },
+    { "id": "desk", "text": "tidy one small corner of your desk" },
+    { "id": "doodle", "text": "doodle something on scrap paper" },
+    { "id": "bookmark", "text": "make a bookmark from a spare piece of paper" },
+    { "id": "plant", "text": "take a look at a nearby plant" },
+    { "id": "pencils", "text": "sharpen a pencil or sort your pens" },
+    { "id": "favorite-photo", "text": "look at a favorite photo" },
+    { "id": "short-walk", "text": "take a short walk around your room" },
+    { "id": "stretch", "text": "take a moment for a gentle stretch" },
+    { "id": "playlist", "text": "pick a song for your next break" },
+    { "id": "paper-fold", "text": "fold a piece of paper into a little fan" },
+    { "id": "book-page", "text": "read a page of a book just for fun" },
+    { "id": "hello", "text": "send a quick hello to a friend" },
+    { "id": "snack", "text": "choose a snack for later" },
+    { "id": "notebook", "text": "decorate the corner of a notebook page" },
+    { "id": "clouds", "text": "see what shapes you can spot in the clouds" },
+    { "id": "put-away", "text": "put one thing back where it belongs" },
+    { "id": "quiet-moment", "text": "close your notebook for a quiet moment" }
+  ]
+}

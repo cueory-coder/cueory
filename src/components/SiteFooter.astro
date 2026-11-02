@@ -1,32 +1,143 @@
 ---
+/**
+ * The footer (Task 85, Christian's final shape, 2026-11-01): one slim bar at the end of every page, never fixed or
+ * sticky. Bottom-left: a flag icon ("flag or comment"). Center: the small logo, a link home. Bottom-right: a chevron
+ * that opens the links panel above the bar (the motto, footer links, social links, contact email, copyright and the
+ * theme switch).
+ *
+ * Without JavaScript the panel is simply open and the chevron stays hidden (its space is kept). The panel comes after
+ * the bar in the page, so keyboard focus goes chevron → panel, and `flex-col-reverse` draws it above the bar.
+ *
+ * The flag opens Task 64's flag form (FlagMount) in a panel above the bar; without JavaScript it is an email link to the
+ * contact address that names the page. One flag per page (Task 115). `hideFlag` hides it during sharpening rounds and timed review.
+ */
 import SocialLinks from './SocialLinks.astro';
 import ThemePicker from './ThemePicker.astro';
+import Wordmark from './Wordmark.astro';
 import { footerLinks, site } from '../config/site';
+import FlagMount from '../islands/FlagMount';
+import { FOOTER_TOGGLE_LABELS, flagMailto } from '../scripts/footer';
 
+interface Props {
+  /** Sharpening rounds and timed review: no flag while the clock runs. */
+  hideFlag?: boolean;
+  /** Item context for the flag form, passed down from the layout. */
+  flagItem?: { itemId: string; itemVersionId: string };
+}
+
+const { hideFlag = false, flagItem } = Astro.props;
 const year = new Date().getFullYear();
+const barButton =
+  'inline-flex size-12 items-center justify-center rounded-pill text-ink hover:bg-surface';
 ---
 
-<footer class="mt-section border-t border-line">
-  <div class="mx-auto flex w-full max-w-page flex-col gap-4 px-gutter py-8 text-sm text-ink-soft sm:flex-row sm:items-center sm:justify-between">
-    <div class="flex flex-col gap-1">
-      <p class="font-medium text-ink">{site.tagline}</p>
-      <p>© {year} {site.wordmarkName}. study help, not medical advice.</p>
-      {site.contactEmail && <p><a href={`mailto:${site.contactEmail}`} class="text-ink-soft hover:text-ink">{site.contactEmail}</a></p>}
-      <SocialLinks />
+<footer class="mt-section flex flex-col-reverse border-t border-line" data-site-footer>
+  <div class="mx-auto grid h-14 w-full max-w-page grid-cols-3 items-center px-gutter">
+    {
+      !hideFlag && (
+        <div class="col-start-1 justify-self-start" data-footer-flag>
+          <FlagMount
+            client:only="react"
+            page={Astro.url.pathname}
+            itemId={flagItem?.itemId}
+            itemVersionId={flagItem?.itemVersionId}
+            variant="icon"
+          >
+            <a
+              slot="fallback"
+              href={flagMailto(site.contactEmail, Astro.url.pathname)}
+              class={barButton}
+              aria-label="flag or comment"
+            >
+              <svg viewBox="0 0 24 24" class="size-6" aria-hidden="true" focusable="false">
+                <path
+                  d="M5 21V4M5 4h12l-3 4.5 3 4.5H5"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"></path>
+              </svg>
+            </a>
+          </FlagMount>
+        </div>
+      )
+    }
+
+    <a
+      href="/"
+      class="col-start-2 inline-flex min-h-12 items-center justify-self-center px-1 text-ink"
+      aria-label={`${site.wordmarkName}, home`}
+    >
+      <Wordmark class="w-16.5" sizes="4.125rem" />
+    </a>
+
+    <button
+      type="button"
+      class:list={[barButton, 'group invisible col-start-3 justify-self-end']}
+      aria-label={FOOTER_TOGGLE_LABELS.open}
+      aria-expanded="true"
+      aria-controls="site-footer-panel"
+      data-footer-toggle
+    >
+      <!-- Points up while the panel is closed (it opens above), down while it is open. -->
+      <svg
+        viewBox="0 0 24 24"
+        class="size-6 transition-transform duration-(--duration-base) ease-(--ease-soft) group-aria-expanded:rotate-180 motion-reduce:transition-none"
+        aria-hidden="true"
+        focusable="false"
+      >
+        <path d="M6 15l6-6 6 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
+        ></path>
+      </svg>
+    </button>
+  </div>
+
+  <div id="site-footer-panel" class="border-b border-line" data-footer-panel>
+    <div
+      class="mx-auto flex w-full max-w-page flex-col gap-6 px-gutter py-8 text-sm text-ink-soft sm:flex-row sm:items-start sm:justify-between"
+    >
+      <div class="flex flex-col gap-2">
+        <p class="font-bold text-ink">{site.tagline}</p>
+        <nav aria-label="footer">
+          <ul class="flex flex-wrap gap-x-5 gap-y-2">
+            {
+              footerLinks.map((link) => (
+                <li>
+                  <a href={link.href} class="text-ink-soft hover:text-ink">
+                    {link.label}
+                  </a>
+                </li>
+              ))
+            }
+          </ul>
+        </nav>
+        <SocialLinks />
+        {
+          site.contactEmail && (
+            <p>
+              <a href={`mailto:${site.contactEmail}`} class="text-ink-soft hover:text-ink">
+                {site.contactEmail}
+              </a>
+            </p>
+          )
+        }
+        <p>© {year} {site.wordmarkName}. study help, not medical advice.</p>
+      </div>
       <ThemePicker />
     </div>
-    <nav aria-label="footer">
-      <ul class="flex flex-wrap gap-x-5 gap-y-2">
-        {
-          footerLinks.map((link) => (
-            <li>
-              <a href={link.href} class="text-ink-soft hover:text-ink">
-                {link.label}
-              </a>
-            </li>
-          ))
-        }
-      </ul>
-    </nav>
   </div>
 </footer>
+
+<script>
+  import { isFooterPanelOpen, setFooterPanel } from '../scripts/footer';
+
+  const toggle = document.querySelector<HTMLButtonElement>('[data-footer-toggle]');
+  const panel = document.querySelector<HTMLElement>('[data-footer-panel]');
+
+  if (toggle && panel) {
+    setFooterPanel(toggle, panel, false);
+    toggle.addEventListener('click', () => setFooterPanel(toggle, panel, !isFooterPanelOpen(toggle)));
+    toggle.classList.remove('invisible');
+  }
+</script>
