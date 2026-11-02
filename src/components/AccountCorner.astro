@@ -1,17 +1,16 @@
 ---
 /**
- * The account corner (top-right on every page, D-46). Signed out: a person icon that opens a small menu with
- * "create free account" and "sign in". Until accounts exist (ROADMAP Task 2) both say "coming soon" and go to the
- * launch-updates signup. Task 2 swaps the icon for a round avatar with the student's initials and a menu with their
- * name, school, "see profile", "account settings" and "sign out".
+ * The account button in the header (D-46). Without JS it stays hidden, and
+ * without configured accounts its signed-out menu is unchanged: both links
+ * lead to launch updates and say "coming soon".
  *
- * The menu opens and closes with the button, Escape, or a tap anywhere else; Escape returns focus to the button.
- * Without JavaScript the button stays hidden (its space is kept, so nothing moves).
+ * After idle, an enabled Supabase client may show the student's initials,
+ * own profile name, and account actions. Task 84 owns the surrounding header.
  */
 import { accountHref } from '../config/site';
 
 interface Props {
-  /** Study screens: the same button, without the frosted circle. */
+  /** Study screens: the same button without the frosted circle. */
   quiet?: boolean;
 }
 
@@ -31,14 +30,15 @@ const items = [
     aria-controls="account-menu"
     data-account-toggle
   >
-    <svg viewBox="0 0 24 24" class="size-6" aria-hidden="true" focusable="false">
+    <svg viewBox="0 0 24 24" class="size-6" aria-hidden="true" focusable="false" data-account-icon>
       <circle cx="12" cy="8.5" r="3.75" fill="none" stroke="currentColor" stroke-width="1.6"></circle>
       <path d="M4.75 19.5c1.2-3.6 4-5.25 7.25-5.25s6.05 1.65 7.25 5.25" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
     </svg>
+    <span class="font-body text-base font-semibold" data-account-initials aria-hidden="true" hidden></span>
   </button>
 
   <div id="account-menu" class="account-menu" hidden data-testid="account-menu">
-    <ul class="flex flex-col">
+    <ul class="flex flex-col" data-account-items>
       {
         items.map((item) => (
           <li>
@@ -50,25 +50,93 @@ const items = [
         ))
       }
     </ul>
+    <p class="px-3 text-sm text-panel-ink-soft" role="status" aria-live="polite" data-account-message></p>
   </div>
 </div>
 
 <script>
   import { isCloseKey } from '../scripts/menu';
+  import type { CornerView } from '../scripts/accountcorner';
 
   const corner = document.querySelector<HTMLElement>('[data-account]');
   const toggle = corner?.querySelector<HTMLButtonElement>('[data-account-toggle]');
   const menu = corner?.querySelector<HTMLElement>('#account-menu');
+  const icon = toggle?.querySelector<SVGSVGElement>('[data-account-icon]');
+  const initials = toggle?.querySelector<HTMLElement>('[data-account-initials]');
+  const items = menu?.querySelector<HTMLUListElement>('[data-account-items]');
+  const message = menu?.querySelector<HTMLElement>('[data-account-message]');
 
-  if (corner && toggle && menu) {
+  if (corner && toggle && menu && icon && initials && items && message) {
+    let pending: CornerView | null = null;
+
+    // Keep a link's keyboard focus intact if auth finishes while the menu is open.
     const setOpen = (open: boolean) => {
       menu.hidden = !open;
       toggle.setAttribute('aria-expanded', String(open));
+      if (!open && pending) {
+        const next = pending;
+        pending = null;
+        showCorner(next);
+      }
     };
 
-    toggle.addEventListener('click', () => setOpen(menu.hidden !== false));
+    const signOut = async (button: HTMLButtonElement) => {
+      button.disabled = true;
+      message.textContent = 'signing out…';
+      try {
+        const { getSupabase } = await import('../islands/supabaseclient');
+        const client = await getSupabase();
+        if (!client) throw new Error('accounts unavailable');
+        // Local scope signs out only this device, not every session the student has.
+        const { error } = await client.auth.signOut({ scope: 'local' });
+        if (error) throw error;
+        window.location.reload();
+      } catch {
+        button.disabled = false;
+        message.textContent = 'sign out did not work. please try again.';
+      }
+    };
 
-    // On the whole page, because some browsers (Safari) don't focus a button when it is clicked.
+    function showCorner(view: CornerView) {
+      if (!view.accountsEnabled) return; // Preserve the exact accounts-off menu.
+
+      icon.classList.toggle('hidden', view.account.signedIn);
+      initials.hidden = !view.account.signedIn;
+      initials.textContent = view.initials ?? '';
+      message.textContent = '';
+
+      const rows = view.items.map((item) => {
+        const li = document.createElement('li');
+        let control: HTMLElement;
+        if (item.id === 'sign-out') {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.classList.add('w-full', 'text-left');
+          button.addEventListener('click', () => { void signOut(button); });
+          control = button;
+        } else if (item.href) {
+          const link = document.createElement('a');
+          link.href = item.href;
+          control = link;
+        } else {
+          // Profile name and school are information, never fake links.
+          control = document.createElement('span');
+        }
+        control.classList.add('account-link');
+        control.textContent = item.label; // Untrusted profile text must never become HTML.
+        if (item.note) {
+          const note = document.createElement('span');
+          note.className = 'menu-note';
+          note.textContent = item.note;
+          control.append(note);
+        }
+        li.append(control);
+        return li;
+      });
+      items.replaceChildren(...rows);
+    }
+
+    toggle.addEventListener('click', () => setOpen(menu.hidden));
     document.addEventListener('keydown', (event) => {
       if (isCloseKey(event.key) && !menu.hidden) {
         event.preventDefault();
@@ -76,8 +144,6 @@ const items = [
         toggle.focus();
       }
     });
-
-    // A tap or click anywhere else, or focus moving away, closes it.
     document.addEventListener('click', (event) => {
       if (!menu.hidden && !corner.contains(event.target as Node)) setOpen(false);
     });
@@ -85,9 +151,43 @@ const items = [
       const next = event.relatedTarget as Node | null;
       if (!menu.hidden && next && !corner.contains(next)) setOpen(false);
     });
-
-    for (const link of menu.querySelectorAll('a')) link.addEventListener('click', () => setOpen(false));
+    menu.addEventListener('click', (event) => {
+      if (event.target instanceof Element && event.target.closest('a')) setOpen(false);
+    });
 
     toggle.classList.remove('invisible');
+
+    // No Supabase module or package is loaded before the browser becomes idle.
+    const hydrate = async () => {
+      try {
+        const [{ loadCorner }, { getSupabase, getSessionState }] = await Promise.all([
+          import('../scripts/accountcorner'),
+          import('../islands/supabaseclient'),
+        ]);
+        const view = await loadCorner(getSupabase, getSessionState, async (userId) => {
+          const client = await getSupabase();
+          if (!client) return null;
+          // RLS allows only the signed-in student's own profile row.
+          // School is not stored in this table yet; don't fabricate it.
+          const { data, error } = await client
+            .from('profiles')
+            .select('display_name')
+            .eq('id', userId)
+            .maybeSingle();
+          return error || !data ? null : { display_name: data.display_name };
+        });
+        if (!view.accountsEnabled) return;
+        if (menu.hidden) showCorner(view);
+        else pending = view;
+      } catch {
+        // Private storage or an unavailable network must not break the menu.
+      }
+    };
+
+    if ('requestIdleCallback' in window) {
+      window.requestIdleCallback(() => { void hydrate(); }, { timeout: 2500 });
+    } else {
+      window.setTimeout(() => { void hydrate(); }, 100);
+    }
   }
 </script>
