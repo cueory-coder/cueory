@@ -1,6 +1,49 @@
 @import "tailwindcss";
 @import "./tokens.css";
-@import "@fontsource-variable/inter";
+
+/*
+  Lato (SIL Open Font License, public/fonts/lato-OFL.txt) for body text, interface and buttons (Christian,
+  2026-11-01). Latin subset, self-hosted, regular and bold with italics. font-display: swap so text always shows.
+*/
+@font-face {
+  font-family: "Lato";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/lato-latin-400-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Lato";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/lato-latin-400-italic.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Lato";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/lato-latin-700-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Lato";
+  font-style: italic;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/lato-latin-700-italic.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
 
 /*
   Bodoni Moda (SIL Open Font License, public/fonts/bodoni-moda-OFL.txt) for marketing headings only (D-41).
@@ -1470,14 +1513,297 @@ html:has(dialog.mode-preview[open]) {
   100% { opacity: 0; transform: none; }
 }
 
-/* Word path (suture, D-71): design tokens */
-:root { --suture-grid-border: 2.5px; }
+/*
+  ============================================================
+  Batch-2 utility classes (Task 77): motion, depth, and the
+  segmented control. All animations are off under
+  prefers-reduced-motion: reduce.
+  ============================================================
+*/
 
-/* Word path (suture, D-71): wrong-pick shake */
-@keyframes suture-shake {
-  0%, 100% { translate: 0 0; }
-  25% { translate: -4px 0; }
-  75% { translate: 4px 0; }
+/*
+  .lift — a card or button that rises 2 px and gains a deeper shadow on
+  hover / focus-visible. Apply to any interactive surface.
+*/
+@layer components {
+  .lift {
+    transition:
+      translate var(--duration-base) var(--ease-soft),
+      box-shadow var(--duration-base) var(--ease-soft);
+  }
+
+  .lift:hover,
+  .lift:focus-visible {
+    translate: 0 calc(var(--lift-rise) * -1);
+    box-shadow: var(--shadow-card-hover);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .lift:hover,
+    .lift:focus-visible {
+      translate: none;
+    }
+  }
 }
-.suture-shake { animation: suture-shake 300ms ease-in-out; }
-@media (prefers-reduced-motion: reduce) { .suture-shake { animation: none; } }
+
+/*
+  .press — scales slightly on :active so buttons feel physical.
+*/
+@layer components {
+  .press {
+    transition: scale var(--duration-fast) var(--ease-soft);
+  }
+
+  .press:active {
+    scale: 0.98;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .press:active {
+      scale: none;
+    }
+  }
+}
+
+/*
+  .flip — a 3D card that flips on .is-flipped. The outer .flip sets the
+  perspective; .flip-inner rotates; .flip-face and .flip-back are the two
+  sides. Under reduced motion the flip becomes a crossfade so the content
+  still changes without any 3D transform.
+*/
+@layer components {
+  .flip {
+    perspective: var(--flip-perspective);
+  }
+
+  .flip-inner {
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform var(--duration-slow) var(--ease-soft);
+  }
+
+  .flip.is-flipped .flip-inner {
+    transform: rotateY(180deg);
+  }
+
+  .flip-face,
+  .flip-back {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+
+  .flip-back {
+    position: absolute;
+    inset: 0;
+    transform: rotateY(180deg);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .flip-inner {
+      transform-style: flat;
+      transition: none;
+    }
+
+    .flip.is-flipped .flip-inner {
+      transform: none;
+    }
+
+    .flip-face {
+      transition: opacity var(--duration-base) var(--ease-soft);
+    }
+
+    .flip.is-flipped .flip-face {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .flip-back {
+      transform: none;
+      backface-visibility: visible;
+      -webkit-backface-visibility: visible;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--duration-base) var(--ease-soft);
+    }
+
+    .flip.is-flipped .flip-back {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  }
+}
+
+/*
+  .progress-track / .progress-fill — a rounded progress bar.
+
+  The fill's width is controlled by a CSS custom property --progress (0 to 1)
+  using transform: scaleX(), with transform-origin: left. JavaScript sets this
+  with element.style.setProperty('--progress', value) on the .progress-fill
+  element itself, which is how the existing carousel (--ring-shift etc.) works.
+  This avoids a width: N% inline style while keeping CSP-compatible rendering.
+
+  For a purely server-rendered initial value, add a data-progress attribute and
+  a tiny inline script that calls setProperty once; the component that uses this
+  pattern can supply the nonce-hashed script.
+*/
+@layer components {
+  .progress-track {
+    height: var(--progress-height);
+    border-radius: var(--radius-pill);
+    background-color: var(--color-surface);
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: var(--radius-pill);
+    background-color: var(--color-ink);
+    transform-origin: left center;
+    transform: scaleX(var(--progress, 0));
+    transition: transform var(--duration-base) var(--ease-soft);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .progress-fill {
+      transition: none;
+    }
+  }
+}
+
+/*
+  .skeleton — a soft shimmer placeholder shown while content loads. Under
+  reduced motion the pulse stops and the block is shown as a static tinted box.
+*/
+@layer components {
+  @keyframes skeleton-pulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+  }
+
+  .skeleton {
+    border-radius: var(--radius-md);
+    background-color: var(--color-surface);
+    animation: skeleton-pulse 1.6s var(--ease-soft) infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton {
+      animation: none;
+      opacity: 0.7;
+    }
+  }
+}
+
+/*
+  .enter — fade and rise 8 px on first paint. Applied once by a script; nothing
+  depends on it, and it is always off under reduced motion.
+*/
+@layer components {
+  @keyframes enter-rise {
+    from {
+      opacity: 0;
+      translate: 0 var(--enter-rise);
+    }
+    to {
+      opacity: 1;
+      translate: none;
+    }
+  }
+
+  .enter {
+    animation: enter-rise var(--duration-slow) var(--ease-emphasis) both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .enter {
+      animation: none;
+    }
+  }
+}
+
+/*
+  .segmented / .segmented-option — a pill-shaped segmented control.
+
+  Each .segmented-option wraps a visually hidden <input type="radio"> so the
+  control works without JavaScript and is fully keyboard-navigable with arrow
+  keys. The selected option is highlighted via :has(:checked).
+*/
+@layer components {
+  .segmented {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--segmented-inset);
+    border: 1px solid var(--color-control);
+    border-radius: var(--radius-pill);
+    background-color: var(--color-surface);
+  }
+
+  .segmented-option {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--segmented-gap);
+    padding: var(--segmented-pad-y) var(--segmented-pad-x);
+    min-height: var(--tap-min);
+    border-radius: var(--radius-pill);
+    cursor: pointer;
+    color: var(--color-ink-soft);
+    font-size: var(--text-sm);
+    user-select: none;
+    transition:
+      background-color var(--duration-fast) var(--ease-soft),
+      color var(--duration-fast) var(--ease-soft);
+  }
+
+  .segmented-option:has(:checked) {
+    background-color: var(--color-ink);
+    color: var(--color-on-button);
+  }
+
+  .segmented-option:focus-within {
+    outline: var(--focus-width) solid var(--color-focus);
+    outline-offset: var(--focus-offset);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .segmented-option {
+      transition: none;
+    }
+  }
+}
+
+/*
+  Cross-document view transitions: a short fade between pages. Reduced-motion
+  users get none (the @starting-style / overlay approach is modern but safe —
+  browsers that don't support @view-transition ignore this block entirely).
+*/
+@view-transition {
+  navigation: auto;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root) {
+    animation: view-fade-out var(--duration-fast) var(--ease-soft) both;
+  }
+
+  ::view-transition-new(root) {
+    animation: view-fade-in var(--duration-fast) var(--ease-soft) both;
+  }
+
+  @keyframes view-fade-out {
+    to { opacity: 0; }
+  }
+
+  @keyframes view-fade-in {
+    from { opacity: 0; }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-image-pair(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}

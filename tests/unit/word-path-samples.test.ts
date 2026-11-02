@@ -2,46 +2,35 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parsePuzzle } from '../../src/islands/suture';
 
-/** Every way to spell a word along straight-line touching cells (up, down, left, right), each cell once. */
-function paths(grid: string[], word: string): number {
-  let count = 0;
-  const walk = (row: number, col: number, i: number, used: Set<string>) => {
-    if (grid[row]?.[col] !== word[i]) return;
-    if (i === word.length - 1) {
-      count++;
-      return;
-    }
-    for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
-      const key = `${row + dr},${col + dc}`;
-      if (!used.has(key)) walk(row + dr, col + dc, i + 1, new Set(used).add(key));
-    }
-  };
-  grid.forEach((line, row) => [...line].forEach((_, col) => walk(row, col, 0, new Set([`${row},${col}`]))));
-  return count;
+/** How many times a word can be picked in the grid: every row and column, read either way. */
+function places(grid: string[], word: string): number {
+  const lines = [...grid, ...[...grid[0]!].map((_, col) => grid.map((row) => row[col]).join(''))];
+  const count = (line: string) => [...line].filter((_, i) => line.startsWith(word, i)).length;
+  return lines.reduce((sum, line) => sum + count(line) + count([...line].reverse().join('')), 0);
 }
 
-describe('word path samples (D-71)', () => {
-  it("keeps every sample labeled, passes the game's own rules, and hides each word along one path only", () => {
-    const folder = new URL('../../content/games/suture/', import.meta.url);
-    const files = readdirSync(folder).filter((name) => name.endsWith('.json'));
+describe('word path samples (D-71, Task 97)', () => {
+  const folder = new URL('../../content/games/suture/', import.meta.url);
+  const files = readdirSync(folder).filter((name) => name.endsWith('.json'));
+
+  it('has at least five labeled samples', () => {
     expect(files.length).toBeGreaterThanOrEqual(5);
-    for (const name of files) {
-      const data = JSON.parse(readFileSync(new URL(name, folder), 'utf8'));
-      expect(name).toMatch(/^sample-\d{2}\.json$/);
-      expect(data.status).toBe('sample');
-      const puzzle = parsePuzzle({ id: name.replace('.json', ''), sample: true, grid: data.grid, words: data.words, theme: data.theme });
-      for (const word of puzzle.words) {
-        // cue is now optional; only validate lowercase when present
-        if (word.cue !== undefined) {
-          expect(word.cue).toBe(word.cue.toLowerCase());
-        }
-        // theme is optional but must be ≤60 chars when present
-        if (puzzle.theme !== undefined) {
-          expect(puzzle.theme.length).toBeLessThanOrEqual(60);
-        }
-        // One path only, so a correct trace of the word is never refused for taking another route.
-        expect(paths(puzzle.grid, word.answer)).toBe(1);
-      }
+    for (const name of files) expect(name).toMatch(/^sample-\d{2}\.json$/);
+  });
+
+  it.each(files)("%s is themed, passes the game's own rules, and hides each word in one place only", (name) => {
+    const data = JSON.parse(readFileSync(new URL(name, folder), 'utf8'));
+    expect(data.status).toBe('sample');
+    expect(typeof data.theme).toBe('string');
+    expect(data.theme).toBe(data.theme.toLowerCase());
+    const puzzle = parsePuzzle({ id: name.replace('.json', ''), sample: true, theme: data.theme, grid: data.grid, words: data.words });
+    expect(puzzle.theme!.length).toBeLessThanOrEqual(60);
+    expect(puzzle.grid).toHaveLength(11);
+    expect(puzzle.grid[0]).toHaveLength(11);
+    for (const word of puzzle.words) {
+      // One place only, so a student who picks the word where they see it is never told it is wrong.
+      expect(places(puzzle.grid, word.answer)).toBe(1);
+      if (word.cue !== undefined) expect(word.cue).toBe(word.cue.toLowerCase());
     }
   });
 });

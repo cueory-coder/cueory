@@ -1,0 +1,78 @@
+---
+import Layout from '../../layouts/Layout.astro';
+
+// Sample data only. There is no sender, recipient or live unsubscribe endpoint on this page.
+// The production email is in emails/review-reminder.html, not in this preview's CSS.
+const example = {
+  count: 6,
+  module: 'module 1',
+  minutes: 8,
+  reviewUrl: '/learn/study-skills/cards',
+} as const;
+
+const plainText = [
+  '6 cards are ready',
+  '',
+  'module 1 · about 8 minutes',
+  '',
+  'a few cards are ready for another look. pick up when you have a moment.',
+  '',
+  'review now: (sample study link)',
+  '',
+  'you chose to receive study reminders.',
+  'unsubscribe from reminders: (link required before sending)',
+  '(verified physical mailing address required before sending)',
+].join('\n');
+---
+
+<Layout
+  title="review reminder preview"
+  description="A noindex sample of the future review-reminder email. No message is sent."
+  noindex
+  promo={false}
+>
+  <article class="mx-auto max-w-prose space-y-8 pb-16 pt-8">
+    <header class="space-y-3">
+      <h1 class="font-display text-3xl text-ink">review reminder preview</h1>
+      <p class="text-ink-soft">sample only. this page does not send an email or collect an address.</p>
+      <p class="text-sm text-ink-soft">
+        email clients use a fixed ivory background and web-safe font fallbacks.
+        the page preview follows your selected site theme.
+      </p>
+    </header>
+
+    <section aria-label="sample review reminder email" data-testid="review-email-card" class="rounded-xl border border-line bg-page p-6 sm:p-10">
+      <p class="mb-5 text-sm tracking-wide text-ink-soft">study reminder</p>
+      <h2 class="font-display text-3xl text-ink">{example.count} cards are ready</h2>
+      <p class="mt-4 text-ink-soft">{example.module} · about {example.minutes} minutes</p>
+      <p class="mt-5 text-ink">a few cards are ready for another look. pick up when you have a moment.</p>
+      <a
+        class="mt-7 inline-flex min-h-11 items-center rounded-full bg-button px-7 py-3 font-bold text-on-button focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+        href={example.reviewUrl}
+      >review now</a>
+      <div class="mt-9 border-t border-line pt-5 text-sm text-ink-soft">
+        <p>
+          you chose to receive study reminders.
+          <a href="#preview-unsubscribe" class="underline underline-offset-4">unsubscribe from reminders</a>.
+        </p>
+        <p class="mt-3">verified physical mailing address required before sending.</p>
+      </div>
+    </section>
+
+    <details class="rounded-xl border border-line bg-surface p-5">
+      <summary class="cursor-pointer font-bold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus">plain-text version</summary>
+      <pre class="mt-4 whitespace-pre-wrap break-words font-body text-sm text-ink">{plainText}</pre>
+    </details>
+
+    <section id="preview-unsubscribe" aria-labelledby="preview-notes-title" class="space-y-3 text-sm text-ink-soft">
+      <h2 id="preview-notes-title" class="text-lg font-bold text-ink">before sending</h2>
+      <p>
+        this is a design preview, not a working unsubscribe page. a future sender must verify reminder opt-in,
+        substitute a working opt-out link and a valid mailing address, and provide the plain-text alternative.
+      </p>
+      <p>
+        there are no email recipients, tracking pixels, external email images, click tracking or sending controls here.
+      </p>
+    </section>
+  </article>
+</Layout>

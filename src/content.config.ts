@@ -256,13 +256,14 @@ const cueword = defineCollection({
 /**
  * Word path (internal id suture, D-71): sample puzzles, one JSON file each in /content/games/suture. The shape is checked
  * here; /play also runs each one through the game's own parsePuzzle at build time.
- * Task 97: grid up to 11×11, up to 20 words, answer up to 11 letters, cue optional, theme optional (≤60 chars).
+ * Task 97: each sample is a themed word search. The theme (its title) is required here; the grid is up to 11 by 11; a
+ * word's cue is optional, since the words themselves are the list the student sees.
  */
 const suture = defineCollection({
   loader: glob({ base: './content/games/suture', pattern: '**/*.json' }),
   schema: z.object({
     status: z.literal('sample'),
-    theme: z.string().min(1).max(60).optional(),
+    theme: z.string().trim().min(1).max(60),
     grid: z.array(z.string().regex(/^[A-Z]{3,11}$/, 'a word path row is 3 to 11 capital letters')).min(3).max(11),
     words: z
       .array(

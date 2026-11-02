@@ -1,252 +1,213 @@
 import { describe, expect, it } from 'vitest';
-import { cellLabel, clearTrace, foundWord, isDone, parsePuzzle, pathBetween, shareLine, startSuture, stitch, tapCell, traceInWords, wordsLeft, type Cell, type SuturePuzzle, type SutureState } from '../../src/islands/suture';
+import {
+  cellLabel, clearPick, foundWord, isDone, moveCursor, outcomeInWords, parsePuzzle, pathBetween, pick, selection, shareLine,
+  startSuture, wordsLeft, type Cell, type SuturePuzzle, type SutureState,
+} from '../../src/islands/suture';
 
-// Straight-line puzzle (word search format).
-const puzzle: SuturePuzzle = {
-  id: 'everyday', sample: true, theme: 'study break',
-  grid: ['WATERZ', 'ZZZZZZ', 'STRETCHZZ'.slice(0, 6), 'ZZZZZZ', 'WALKZZ', 'MUSICZ'],
-  words: [
-    { answer: 'WATER',   path: [[0,0],[0,1],[0,2],[0,3],[0,4]] },
-    { answer: 'WALK',    path: [[4,0],[4,1],[4,2],[4,3]] },
-    { answer: 'MUSIC',   path: [[5,0],[5,1],[5,2],[5,3],[5,4]] },
-  ],
-};
-
-// Simpler 4-row puzzle for basic state tests.
+// A small themed word search: CAT left to right, DOG right to left, SUN top to bottom.
 const small: SuturePuzzle = {
-  id: 'small', sample: true,
-  grid: ['CATX', 'DOGY', 'SUNZ', 'ZZZZ'],
+  id: 'small', sample: true, theme: 'everyday things',
+  grid: ['CATS', 'GODU', 'XYZN', 'QRST'],
   words: [
-    { answer: 'CAT', path: [[0,0],[0,1],[0,2]] },
-    { answer: 'DOG', path: [[1,0],[1,1],[1,2]] },
-    { answer: 'SUN', path: [[2,0],[2,1],[2,2]] },
+    { answer: 'CAT', path: [[0, 0], [0, 1], [0, 2]] },
+    { answer: 'DOG', path: [[1, 2], [1, 1], [1, 0]] },
+    { answer: 'SUN', path: [[0, 3], [1, 3], [2, 3]] },
   ],
 };
 const copy = () => structuredClone(small);
+const pickAll = (state: SutureState, cells: Cell[]) =>
+  cells.reduce((current, cell) => pick(current, small, cell).state, state);
 
 describe('pathBetween', () => {
-  it('returns a horizontal path left to right', () => {
-    expect(pathBetween([0, 0], [0, 2])).toEqual([[0,0],[0,1],[0,2]]);
+  it('runs left, right, up and down, both ends included', () => {
+    expect(pathBetween([0, 0], [0, 2])).toEqual([[0, 0], [0, 1], [0, 2]]);
+    expect(pathBetween([0, 2], [0, 0])).toEqual([[0, 2], [0, 1], [0, 0]]);
+    expect(pathBetween([0, 0], [2, 0])).toEqual([[0, 0], [1, 0], [2, 0]]);
+    expect(pathBetween([2, 1], [0, 1])).toEqual([[2, 1], [1, 1], [0, 1]]);
+    expect(pathBetween([1, 1], [1, 1])).toEqual([[1, 1]]);
   });
-  it('returns a horizontal path right to left', () => {
-    expect(pathBetween([0, 2], [0, 0])).toEqual([[0,2],[0,1],[0,0]]);
-  });
-  it('returns a vertical path top to bottom', () => {
-    expect(pathBetween([0, 0], [2, 0])).toEqual([[0,0],[1,0],[2,0]]);
-  });
-  it('returns null for diagonal', () => {
+  it('has no diagonal or bent lines', () => {
+    expect(pathBetween([0, 0], [2, 2])).toBeNull();
     expect(pathBetween([0, 0], [2, 1])).toBeNull();
-    expect(pathBetween([1, 1], [3, 3])).toBeNull();
-  });
-  it('returns a single-cell path when from === to', () => {
-    expect(pathBetween([1, 1], [1, 1])).toEqual([[1,1]]);
   });
 });
 
-describe('word-path validation', () => {
-  it('parses a clean puzzle with theme and no cues, and copies its arrays', () => {
+describe('parsePuzzle', () => {
+  it('accepts the new shape: a theme, words without cues, and copies its arrays', () => {
     const input = copy();
     const parsed = parsePuzzle(input);
-    expect(parsed.id).toBe('small');
-    expect(parsed.theme).toBeUndefined();
+    expect(parsed.theme).toBe('everyday things');
+    expect(parsed.words.map((word) => word.answer)).toEqual(['CAT', 'DOG', 'SUN']);
+    expect(parsed.words[0]).not.toHaveProperty('cue');
     parsed.grid[0] = 'XXXX';
-    expect(input.grid[0]).toBe('CATX');
+    parsed.words[0]!.path[0]![0] = 3;
+    expect(input.grid[0]).toBe('CATS');
+    expect(input.words[0]!.path[0]).toEqual([0, 0]);
   });
-  it('parses a puzzle with optional theme', () => {
-    const withTheme = parsePuzzle({ ...copy(), theme: 'study break' });
-    expect(withTheme.theme).toBe('study break');
+  it('still accepts an older file: cues on every word and no theme', () => {
+    const { theme: _theme, ...old } = copy();
+    const parsed = parsePuzzle({ ...old, words: old.words.map((word) => ({ ...word, cue: '  a pet  ' })) });
+    expect(parsed).not.toHaveProperty('theme');
+    expect(parsed.words[0]!.cue).toBe('a pet');
   });
-  it.each([null, [], {}, { ...copy(), sample: 'yes' }, { ...copy(), id: '' }])('rejects missing metadata %j', (data) => {
+  it('accepts a full 11 by 11 grid', () => {
+    const grid = ['CATSXXXXXXX', 'GODUXXXXXXX', 'XYZNXXXXXXX', ...Array.from({ length: 8 }, () => 'XXXXXXXXXXX')];
+    expect(parsePuzzle({ ...copy(), grid }).grid).toHaveLength(11);
+    expect(() => parsePuzzle({ ...copy(), grid: [...grid, 'XXXXXXXXXXX'] })).toThrow('3 to 11 rows');
+    expect(() => parsePuzzle({ ...copy(), grid: grid.map((row) => `${row}X`) })).toThrow('3 to 11 letters');
+  });
+  it('trims the theme and refuses one over 60 characters or blank', () => {
+    expect(parsePuzzle({ ...copy(), theme: '  study break  ' }).theme).toBe('study break');
+    expect(parsePuzzle({ ...copy(), theme: 'a'.repeat(60) }).theme).toHaveLength(60);
+    expect(() => parsePuzzle({ ...copy(), theme: 'a'.repeat(61) })).toThrow('at most 60 characters');
+    expect(() => parsePuzzle({ ...copy(), theme: '   ' })).toThrow('theme');
+    expect(() => parsePuzzle({ ...copy(), theme: 7 })).toThrow('theme');
+  });
+  it.each([null, [], {}, { ...copy(), sample: 'yes' }, { ...copy(), id: '' }])('refuses missing details %j', (data) => {
     expect(() => parsePuzzle(data)).toThrow();
   });
-  it('rejects a theme over 60 characters', () => {
-    expect(() => parsePuzzle({ ...copy(), theme: 'a'.repeat(61) })).toThrow(/60 characters/);
+  it('refuses a word that is not in the grid where its path says', () => {
+    const data = copy();
+    data.words[0] = { answer: 'COT', path: [[0, 0], [0, 1], [0, 2]] };
+    expect(() => parsePuzzle(data)).toThrow('does not spell');
   });
-  it('rejects bad grid sizes, uneven rows and nonletters', () => {
-    expect(() => parsePuzzle({ ...copy(), grid: ['CAT', 'DOG'] })).toThrow(/rows/);
-    expect(() => parsePuzzle({ ...copy(), grid: Array(12).fill('CATR') })).toThrow(/rows/);
-    expect(() => parsePuzzle({ ...copy(), grid: ['CATX', 'DOG', 'SUNZ', 'ZZZZ'] })).toThrow(/equal/);
-    expect(() => parsePuzzle({ ...copy(), grid: ['C@TX', 'DOGY', 'SUNZ', 'ZZZZ'] })).toThrow(/uppercase/);
+  it('refuses a path that leaves the grid or has the wrong length', () => {
+    const outside = copy();
+    outside.words[0] = { answer: 'CAT', path: [[0, 2], [0, 3], [0, 4]] };
+    expect(() => parsePuzzle(outside)).toThrow('leaves the grid');
+    const short = copy();
+    short.words[0] = { answer: 'CAT', path: [[0, 0], [0, 1]] };
+    expect(() => parsePuzzle(short)).toThrow('one cell per letter');
   });
-  it('accepts grids up to 11 × 11', () => {
-    const big = parsePuzzle({
-      id: 'big', sample: false,
-      grid: Array(11).fill('ABCDEFGHIJK'),
-      words: [
-        { answer: 'ABCDEFGHIJK', path: Array.from({ length: 11 }, (_, i) => [0, i]) },
-        { answer: 'ABC', path: [[1,0],[1,1],[1,2]] },
-        { answer: 'DEF', path: [[2,3],[2,4],[2,5]] },
-      ],
-    });
-    expect(big.grid.length).toBe(11);
+  it('refuses diagonal, bent and gapped paths', () => {
+    const diagonal = { ...copy(), grid: ['CATS', 'GADU', 'XYTN', 'QRST'] };
+    diagonal.words = [{ answer: 'CAT', path: [[0, 0], [1, 1], [2, 2]] }, ...copy().words.slice(1)];
+    expect(() => parsePuzzle(diagonal)).toThrow('straight line');
+    const bent = { ...copy(), grid: ['CATS', 'XODU', 'XYZN', 'QRST'] };
+    bent.words = [{ answer: 'CAT', path: [[0, 0], [0, 1], [0, 2]] }, { answer: 'DOX', path: [[1, 2], [1, 1], [1, 0]] }, { answer: 'SUN', path: [[0, 3], [1, 3], [2, 3]] }];
+    expect(parsePuzzle(bent).words).toHaveLength(3);
+    bent.words[1] = { answer: 'DOY', path: [[1, 2], [1, 1], [2, 1]] };
+    expect(() => parsePuzzle(bent)).toThrow('straight line');
+    const gapped = copy();
+    gapped.words[0] = { answer: 'CTS', path: [[0, 0], [0, 2], [0, 3]] };
+    expect(() => parsePuzzle(gapped)).toThrow('straight line');
   });
-  it('rejects turning (non-straight) paths', () => {
-    const bad = copy();
-    // L-shaped path: down then right — not a straight line
-    bad.words[0] = { answer: 'CAT', path: [[0,0],[1,0],[1,1]] };
-    expect(() => parsePuzzle(bad)).toThrow(/straight line/);
+  it('refuses two words on one letter, bad letters and bad word counts', () => {
+    const shared = copy();
+    shared.words[2] = { answer: 'TSU', path: [[0, 2], [0, 3], [1, 3]] };
+    expect(() => parsePuzzle(shared)).toThrow();
+    expect(() => parsePuzzle({ ...copy(), grid: ['cats', 'GODU', 'XYZN', 'QRST'] })).toThrow('capital letters');
+    expect(() => parsePuzzle({ ...copy(), grid: ['CATS', 'GOD', 'XYZN', 'QRST'] })).toThrow('equal lengths');
+    expect(() => parsePuzzle({ ...copy(), words: copy().words.slice(0, 2) })).toThrow('3 to 20 words');
+    expect(() => parsePuzzle({ ...copy(), words: [...copy().words, { answer: 'AT', path: [[0, 1], [0, 2]] }] })).toThrow();
   });
-  it('rejects diagonal path cells', () => {
-    const bad = copy();
-    bad.words[0] = { answer: 'CAT', path: [[0,0],[1,1],[2,2]] };
-    expect(() => parsePuzzle(bad)).toThrow(/diagonally/);
-  });
-  it('requires 3 to 20 words with 3 to 11 letters', () => {
-    expect(() => parsePuzzle({ ...copy(), words: small.words.slice(0, 2) })).toThrow(/3 to 20/);
-    const bad = copy(); bad.words[0] = { ...bad.words[0]!, answer: 'AT', path: [[0,0],[0,1]] };
-    expect(() => parsePuzzle(bad)).toThrow(/3 to 11/);
-  });
-  it('accepts optional cue when present and rejects empty cue', () => {
-    const withCue = parsePuzzle({ ...copy(), words: copy().words.map((w) => ({ ...w, cue: 'a hint' })) });
-    expect(withCue.words[0]!.cue).toBe('a hint');
-    const bad = copy(); bad.words[0] = { ...bad.words[0]!, cue: '' };
-    expect(() => parsePuzzle(bad)).toThrow(/cue/);
-  });
-  it('rejects a word not in the grid or off its path', () => {
-    const bad = copy();
-    bad.words[0] = { answer: 'CAT', path: [[0,0],[0,1],[0,3]] };
-    expect(() => parsePuzzle(bad)).toThrow();
+  it('refuses a blank or very long cue', () => {
+    const blank = copy();
+    blank.words[0] = { ...blank.words[0]!, cue: '  ' };
+    expect(() => parsePuzzle(blank)).toThrow('cue');
+    const long = copy();
+    long.words[0] = { ...long.words[0]!, cue: 'a'.repeat(121) };
+    expect(() => parsePuzzle(long)).toThrow('cue');
   });
 });
 
-describe('tapCell', () => {
-  it('sets anchor on first tap', () => {
-    const s = startSuture(small);
-    const next = tapCell(s, small, [0, 0]);
-    expect(next.anchor).toEqual([0, 0]);
-    expect(next.cursor).toEqual([0, 0]);
+describe('picking the first and last letter', () => {
+  it('finds a word from its first letter to its last, or the other way round', () => {
+    let state = startSuture(small);
+    const first = pick(state, small, [0, 0]);
+    expect(first.outcome).toEqual({ kind: 'first' });
+    expect(first.state.anchor).toEqual([0, 0]);
+    const last = pick(first.state, small, [0, 2]);
+    expect(last.outcome).toEqual({ kind: 'found', word: 1 });
+    expect(last.state.found).toEqual([0]);
+    expect(last.state.anchor).toBeNull();
+    state = pickAll(last.state, [[1, 0], [1, 2]]);
+    expect(state.found).toEqual([0, 1]);
+    expect(wordsLeft(state)).toBe(1);
   });
-  it('updates cursor on second tap', () => {
-    let s = tapCell(startSuture(small), small, [0, 0]);
-    s = tapCell(s, small, [0, 2]);
-    expect(s.anchor).toEqual([0, 0]);
-    expect(s.cursor).toEqual([0, 2]);
+  it('counts a wrong pick, straight or diagonal, as a miss and clears the pick', () => {
+    const start = startSuture(small);
+    const straight = pick(pick(start, small, [3, 0]).state, small, [3, 3]);
+    expect(straight.outcome).toEqual({ kind: 'miss', straight: true });
+    expect(straight.state.misses).toBe(1);
+    expect(straight.state.anchor).toBeNull();
+    const diagonal = pick(pick(straight.state, small, [0, 0]).state, small, [2, 2]);
+    expect(diagonal.outcome).toEqual({ kind: 'miss', straight: false });
+    expect(diagonal.state.misses).toBe(2);
+    // Part of a word is not the word.
+    expect(pick(pick(start, small, [0, 0]).state, small, [0, 1]).outcome.kind).toBe('miss');
   });
-  it('clears anchor when tapping the anchor cell again', () => {
-    let s = tapCell(startSuture(small), small, [0, 0]);
-    s = tapCell(s, small, [0, 0]);
-    expect(s.anchor).toBeNull();
-    expect(s.cursor).toBeNull();
+  it('clears the pick when the first letter is picked again, and through clearPick', () => {
+    const first = pick(startSuture(small), small, [0, 0]).state;
+    const again = pick(first, small, [0, 0]);
+    expect(again.outcome).toEqual({ kind: 'cleared' });
+    expect(again.state.anchor).toBeNull();
+    expect(clearPick(first).anchor).toBeNull();
+    const idle = startSuture(small);
+    expect(clearPick(idle)).toBe(idle);
   });
-  it('ignores taps on found word cells', () => {
-    let s = startSuture(small);
-    s = tapCell(s, small, [0, 0]);
-    s = tapCell(s, small, [0, 2]);
-    s = stitch(s, small).state;
-    const before = s;
-    expect(tapCell(s, small, [0, 1])).toBe(before);
+  it('ignores a found letter as a first pick, a cell off the grid, and anything once done', () => {
+    const found = pickAll(startSuture(small), [[0, 0], [0, 2]]);
+    expect(pick(found, small, [0, 1])).toEqual({ state: found, outcome: { kind: 'ignored' } });
+    expect(pick(found, small, [9, 9]).outcome.kind).toBe('ignored');
+    expect(pick(found, small, [0.5, 1] as Cell).outcome.kind).toBe('ignored');
+    const done = pickAll(found, [[1, 0], [1, 2], [2, 3], [0, 3]]);
+    expect(isDone(done)).toBe(true);
+    expect(pick(done, small, [3, 0])).toEqual({ state: done, outcome: { kind: 'ignored' } });
   });
-  it('ignores taps after the puzzle is done', () => {
-    let s = startSuture(small);
-    for (const word of small.words) {
-      s = tapCell(s, small, word.path[0]!);
-      s = tapCell(s, small, word.path.at(-1)!);
-      s = stitch(s, small).state;
-    }
-    expect(isDone(s)).toBe(true);
-    expect(tapCell(s, small, [0, 0])).toBe(s);
-  });
-});
-
-describe('stitch', () => {
-  it('finds a word stitched forward', () => {
-    let s = tapCell(startSuture(small), small, [0, 0]);
-    s = tapCell(s, small, [0, 2]);
-    const result = stitch(s, small);
-    expect(result.found).toBe(true);
-    expect(result.word).toBe(1);
-    expect(result.state.found).toEqual([0]);
-    expect(result.state.anchor).toBeNull();
-  });
-  it('finds a word stitched in reverse', () => {
-    let s = tapCell(startSuture(small), small, [0, 2]);
-    s = tapCell(s, small, [0, 0]);
-    const result = stitch(s, small);
-    expect(result.found).toBe(true);
-    expect(result.word).toBe(1);
-  });
-  it('registers a loose stitch on a non-matching path', () => {
-    let s = tapCell(startSuture(small), small, [0, 0]);
-    s = tapCell(s, small, [0, 1]);
-    const result = stitch(s, small);
-    expect(result.found).toBe(false);
-    expect(result.state.looseStitches).toBe(1);
-    expect(result.state.anchor).toBeNull();
-  });
-  it('registers a loose stitch on a diagonal selection', () => {
-    let s = tapCell(startSuture(small), small, [0, 0]);
-    s = { ...s, cursor: [2, 2] as Cell };
-    const result = stitch(s, small);
-    expect(result.found).toBe(false);
-    expect(result.state.looseStitches).toBe(1);
-  });
-  it('does nothing when no anchor is set', () => {
-    const s = startSuture(small);
-    expect(stitch(s, small).state).toBe(s);
-    expect(stitch(s, small).found).toBe(false);
-  });
-  it('finishes only after all words', () => {
-    let s = startSuture(small);
-    expect(isDone(s)).toBe(false);
-    for (const word of small.words) {
-      s = tapCell(s, small, word.path[0]!);
-      s = tapCell(s, small, word.path.at(-1)!);
-      s = stitch(s, small).state;
-    }
-    expect(isDone(s)).toBe(true);
-    expect(wordsLeft(s)).toBe(0);
+  it('never finds a word twice', () => {
+    const once = pickAll(startSuture(small), [[0, 0], [0, 2]]);
+    const twice = pick(pick(once, small, [3, 0]).state, small, [3, 0]);
+    expect(twice.state.found).toEqual([0]);
   });
 });
 
-describe('clearTrace', () => {
-  it('clears anchor and cursor', () => {
-    let s = tapCell(startSuture(small), small, [0, 0]);
-    s = tapCell(s, small, [0, 2]);
-    expect(clearTrace(s).anchor).toBeNull();
-    expect(clearTrace(s).cursor).toBeNull();
+describe('highlight as the student goes', () => {
+  it('highlights the straight line from the first letter to the cursor', () => {
+    const first = pick(startSuture(small), small, [0, 0]).state;
+    expect(selection(first)).toEqual([[0, 0]]);
+    const moved = moveCursor(first, small, [0, 2]);
+    expect(selection(moved)).toEqual([[0, 0], [0, 1], [0, 2]]);
+    expect(selection(moveCursor(first, small, [2, 2]))).toEqual([[0, 0]]);
   });
-  it('returns the same reference when nothing is selected', () => {
-    const s = startSuture(small);
-    expect(clearTrace(s)).toBe(s);
-  });
-});
-
-describe('foundWord and cellLabel', () => {
-  it('labels coordinates, letters, selection state and found-word numbers', () => {
-    let s = tapCell(startSuture(small), small, [0, 0]);
-    s = tapCell(s, small, [0, 2]);
-    expect(cellLabel(s, small, [0, 0])).toContain('selected first');
-    expect(cellLabel(s, small, [0, 1])).toContain('highlighted');
-    s = stitch(s, small).state;
-    expect(cellLabel(s, small, [0, 1])).toContain('in word 1');
-    expect(foundWord(s, small, [0, 1])).toBe(1);
-    expect(foundWord(s, small, [1, 0])).toBeUndefined();
-  });
-  it('traceInWords shows the active selection path', () => {
-    let s = tapCell(startSuture(small), small, [0, 0]);
-    s = tapCell(s, small, [0, 2]);
-    expect(traceInWords(s, small)).toBe('selected: c, a, t.');
-    expect(traceInWords(startSuture(small), small)).toBe('no letters selected.');
+  it('does nothing without a first letter, off the grid, or on the same cell', () => {
+    const idle = startSuture(small);
+    expect(moveCursor(idle, small, [1, 1])).toBe(idle);
+    expect(selection(idle)).toEqual([]);
+    const first = pick(idle, small, [0, 0]).state;
+    expect(moveCursor(first, small, [7, 7])).toBe(first);
+    expect(moveCursor(first, small, [0, 0])).toBe(first);
   });
 });
 
-describe('shareLine', () => {
-  it('shares a configured name in one plain line, never a grid or squares', () => {
-    let s = startSuture(small);
-    for (const word of small.words) {
-      s = tapCell(s, small, word.path[0]!);
-      s = tapCell(s, small, word.path.at(-1)!);
-      s = stitch(s, small).state;
-    }
-    const line = shareLine(s, 'SUN\n1 NOV', 'sample word path');
-    expect(line).toBe('cueory sample word path, sun 1 nov: stitched 3 of 3 words with 0 loose stitches.');
-    expect(line).not.toMatch(/[\n\r■-◿]|🟩|🟨/u);
+describe('words for screen readers and the live line', () => {
+  it('labels each letter with its place, its letter and its state', () => {
+    const start = startSuture(small);
+    expect(cellLabel(start, small, [0, 0])).toBe('row 1, column 1, C');
+    const first = pick(start, small, [0, 0]).state;
+    expect(cellLabel(first, small, [0, 0])).toBe('row 1, column 1, C, first letter picked');
+    const found = pick(first, small, [0, 2]).state;
+    expect(cellLabel(found, small, [0, 1])).toBe('row 1, column 2, A, found: cat');
+    expect(foundWord(found, small, [0, 1])).toBe(1);
+    expect(foundWord(found, small, [1, 1])).toBeUndefined();
   });
-  it('uses singular "stitch" when looseStitches is 1', () => {
-    let s = startSuture(small);
-    s = tapCell(s, small, [0, 0]);
-    s = tapCell(s, small, [0, 1]);
-    s = stitch(s, small).state; // loose stitch
-    expect(shareLine(s, 'nov', 'game')).toContain('1 loose stitch.');
+  it('says each outcome in words, never by color alone', () => {
+    const first = pick(startSuture(small), small, [0, 0]);
+    expect(outcomeInWords(first.state, small, first.outcome)).toBe('first letter: c. now pick the last letter.');
+    const found = pick(first.state, small, [0, 2]);
+    expect(outcomeInWords(found.state, small, found.outcome)).toBe('found: cat, 1 of 3.');
+    const miss = pick(pick(found.state, small, [3, 0]).state, small, [3, 3]);
+    expect(outcomeInWords(miss.state, small, miss.outcome)).toBe('not a word in this puzzle.');
+    const diagonal = pick(pick(found.state, small, [3, 0]).state, small, [2, 1]);
+    expect(outcomeInWords(diagonal.state, small, diagonal.outcome)).toBe('not a word in this puzzle. words run up, down, left or right.');
+    expect(outcomeInWords(first.state, small, { kind: 'cleared' })).toBe('pick cleared.');
+    const almost = pickAll(found.state, [[1, 0], [1, 2], [2, 3]]);
+    const last = pick(almost, small, [0, 3]);
+    expect(outcomeInWords(last.state, small, last.outcome)).toBe('found: sun, 3 of 3. all words found.');
+  });
+  it('shares the result as one plain sentence', () => {
+    const done = pickAll(startSuture(small), [[3, 0], [3, 3], [0, 0], [0, 2], [1, 0], [1, 2], [0, 3], [2, 3]]);
+    expect(shareLine(done, 'Sun 1 Nov', 'Word  Path')).toBe('cueory word path, sun 1 nov: found 3 of 3 words with 1 wrong pick.');
+    expect(shareLine(startSuture(small), 'sun 1 nov', 'word path')).toBe('cueory word path, sun 1 nov: found 0 of 3 words with 0 wrong picks.');
   });
 });
