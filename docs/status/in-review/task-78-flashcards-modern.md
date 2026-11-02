@@ -1,0 +1,1 @@
+status: Task 78, flashcards modern (#162): card flip, star toggle and learn-mode controls rebuilt as React islands with Tailwind v4 tokens; full keyboard and accessibility coverage, phone and desktop browser tests.
