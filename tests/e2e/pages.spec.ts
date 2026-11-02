@@ -194,7 +194,7 @@ test('Learn mode brings back what you miss until you know every card', async ({ 
       const pick = missedOnce ? card.back : answers.find((a) => a !== card.back)!;
       await page.getByRole('button', { name: pick, exact: true }).click();
       await expect(page.getByText(missedOnce ? 'Correct.' : 'Not quite.')).toBeVisible();
-      if (!missedOnce) await expect(page.getByText('The answer', { exact: true })).toBeVisible();
+      if (!missedOnce) await expect(page.getByText('Correct answer', { exact: true })).toBeVisible();
       missedOnce = true;
       await page.getByRole('button', { name: 'Continue' }).click();
     } else if (step === 'Fill in the blank') {

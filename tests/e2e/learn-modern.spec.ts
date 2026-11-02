@@ -61,10 +61,10 @@ test('correct answer feedback has text not just color', async ({ page }) => {
   // Click any button to trigger feedback; check feedback has words
   await firstAnswer.click();
   // Feedback must include text: "Correct." or "Not quite." (never color-only)
-  const feedbackText = await page.locator('[aria-live]').textContent();
+  const feedbackText = await page.locator('[data-testid="learn-card"]').textContent();
   expect(feedbackText).toMatch(/Correct\.|Not quite\./);
   // The result icon aria-hidden should be accompanied by text
-  await expect(page.locator('[aria-live]').getByText(/Correct\.|Not quite\./)).toBeVisible();
+  await expect(page.locator('[data-testid="learn-card"]').getByText(/Correct\.|Not quite\./)).toBeVisible();
   void firstText; // suppress unused warning
 });
 
@@ -76,9 +76,9 @@ test('wrong answer shows the correct answer in text', async ({ page }) => {
   // Click the first answer (may be wrong)
   await page.getByRole('list', { name: 'Answers' }).getByRole('button').first().click();
   // If not correct, should show "The answer: ..." text
-  const liveText = await page.locator('[aria-live]').textContent();
+  const liveText = await page.locator('[data-testid="learn-card"]').textContent();
   if (/Not quite/.test(liveText ?? '')) {
-    await expect(page.locator('[aria-live]').getByText(/The answer:/)).toBeVisible();
+    await expect(page.locator('[data-testid="learn-card"]').getByText(/The answer:/)).toBeVisible();
   }
 });
 
@@ -167,7 +167,7 @@ test.describe('keyboard-only round at three sizes', () => {
           for (let i = 0; i < count; i++) {
             await choices.nth(i).focus();
             await page.keyboard.press('Enter');
-            const feedback = page.locator('[aria-live]').getByText(/Correct\.|Not quite\./);
+            const feedback = page.locator('[data-testid="learn-card"]').getByText(/Correct\.|Not quite\./);
             if (await feedback.isVisible()) {
               found = true;
               if (await page.getByText('Not quite.').isVisible()) {

@@ -145,6 +145,7 @@ export default function LearnSession({ cards }: Props) {
         ref={cardRef}
         tabIndex={-1}
         aria-live="polite"
+        data-testid="learn-card"
         className="enter mt-stack rounded-xl border border-line bg-surface px-8 py-10"
         style={{ boxShadow: 'var(--shadow-card)' }}
       >
