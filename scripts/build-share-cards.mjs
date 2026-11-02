@@ -49,12 +49,15 @@ const GROUPS = [
 
 /** The official logo: Ivory art on dark cards, Espresso art on the ivory card. */
 const LOGO = {
-  ivory: 'public/brand/v1/logo-full-dark-480.png',
-  espresso: 'public/brand/v1/logo-full-light-480.png',
+  ivory: 'public/brand/v1/logo-full-dark-960.png',
+  espresso: 'public/brand/v1/logo-full-light-960.png',
 };
 /** Each file's one ink color (BRAND.md: Ivory art and Espresso art). */
 const LOGO_INK = { ivory: [249, 245, 239], espresso: [62, 44, 35] };
-const LOGO_WIDTH = 240; // half of the 480px web copy; at least 96px (AGENTS.md) and the header size (BRAND.md)
+// The cards are previewed at about 280px wide (--container-share-card), so the logo is 36% of the card: about 101px
+// there, never under the 96px minimum (AGENTS.md), and 432px on the full 1200px card.
+const LOGO_WIDTH = 432;
+const LOGO_HEIGHT = Math.round((151 * LOGO_WIDTH) / 480); // the full logo's proportions (480 x 151 web copy)
 const LOGO_LEFT = 72;
 const LOGO_TOP = 64;
 
@@ -92,7 +95,7 @@ function card(group, style) {
     return {
       logo: 'espresso',
       css: `body { background: ${C.ivory}; color: ${C.espresso}; }
-        .rule { position: absolute; left: ${LOGO_LEFT}px; top: 196px; width: 96px; height: 2px; background: ${C.taupe}; }
+        .rule { position: absolute; left: ${LOGO_LEFT}px; top: ${LOGO_TOP + LOGO_HEIGHT + 32}px; width: 96px; height: 2px; background: ${C.taupe}; }
         h1 { position: absolute; left: ${LOGO_LEFT}px; bottom: 150px; font-size: 136px; }
         p { position: absolute; left: ${LOGO_LEFT}px; bottom: 84px; font-size: 32px; color: ${C.bronze}; }`,
       body: `<div class="rule"></div><h1 class="serif">${group.name}</h1><p>${MOTTO}</p>`,
@@ -101,14 +104,14 @@ function card(group, style) {
   return {
     logo: 'ivory',
     css: `body { background: ${C.walnut}; color: ${C.ivory}; }
-      .glow { position: absolute; left: ${W / 2 - 230}px; top: 40px; width: 460px; height: 460px; border-radius: 50%; background: ${C.coinDeep}; opacity: 0.12; }
-      .coin { position: absolute; left: ${W / 2 - 170}px; top: 100px; width: 340px; height: 340px; border-radius: 50%;
+      .glow { position: absolute; left: ${W / 2 - 230 + 140}px; top: 40px; width: 460px; height: 460px; border-radius: 50%; background: ${C.coinDeep}; opacity: 0.12; }
+      .coin { position: absolute; left: ${W / 2 - 170 + 140}px; top: 100px; width: 340px; height: 340px; border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
         background: radial-gradient(circle at 38% 32%, ${C.coinLight} 0%, ${C.coinMid} 45%, ${C.coinDeep} 100%);
         box-shadow: inset 0 -10px 28px rgb(35 25 17 / 0.45), inset 0 8px 18px rgb(249 245 239 / 0.25), 0 14px 40px rgb(0 0 0 / 0.45);
         border: 6px solid rgb(226 198 162 / 0.6); }
       .coin span { font-size: 168px; color: ${C.espresso}; line-height: 1; padding-bottom: 12px; }
-      p { position: absolute; left: 0; right: 0; top: 476px; text-align: center; font-size: 40px; font-weight: 700; }`,
+      p { position: absolute; left: 280px; right: 0; top: 476px; text-align: center; font-size: 40px; font-weight: 700; }`,
     body: `<div class="glow"></div><div class="coin"><span class="serif">${group.glyph}</span></div><p>${group.name}</p>`,
   };
 }

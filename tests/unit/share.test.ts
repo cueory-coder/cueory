@@ -116,8 +116,8 @@ describe('card images', () => {
 
   it('builds the cards from the official logo files, never typing the name in a font', () => {
     const script = read('scripts/build-share-cards.mjs');
-    expect(script).toContain('public/brand/v1/logo-full-dark-480.png');
-    expect(script).toContain('public/brand/v1/logo-full-light-480.png');
+    expect(script).toContain('public/brand/v1/logo-full-dark-960.png');
+    expect(script).toContain('public/brand/v1/logo-full-light-960.png');
     expect(script).not.toMatch(/>\s*cueory\s*</i);
     expect(script).not.toMatch(/opacity[^;\n]*logo|logo[^;\n]*opacity/i);
   });
