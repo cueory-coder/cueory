@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { dayLabel } from './daily';
 import { localDay, reportRound } from './gameresults';
+import ResultBrandMark from './ResultBrandMark';
 import { dayNumber, puzzleForDay } from './pulse';
 import {
   answerInWords,
@@ -209,6 +210,7 @@ export default function TriageGame({ puzzles }: Props) {
           </button>
           {copied && <p className="mt-2 text-sm text-ink-soft">{copied}</p>}
           <p className="mt-4 text-sm text-ink-soft">a new puzzle comes tomorrow.</p>
+          <ResultBrandMark path="/play" />
         </div>
       )}
 
