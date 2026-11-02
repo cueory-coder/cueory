@@ -17,6 +17,12 @@ const FILL_IN_PAGE = '/learn/study-skills/fill-in';
 /** Sample content IDs can themselves reveal the blank's answer. Store opaque positions instead. */
 const itemKey = (index: number) => `item-${index}`;
 type Attempts = Record<string, string[]>;
+const HINT_KEY = 'hint';
+
+/** The open item has a hint showing and no answer checked since. */
+function openHint(state: FillInState): boolean {
+  return !state.done && state.hinted && state.result === null && currentIndex(state) !== undefined;
+}
 
 /** The resume format keeps at most 50 entries per item (`answerValue` in src/scripts/resume.ts). */
 const MAX_HISTORY = 50;
@@ -40,7 +46,11 @@ function fillInDraft(items: readonly FillInItem[], state: FillInState, attempts:
     tool: 'fill-in', page: FILL_IN_PAGE, step: `advance-${moves}`,
     itemIndex: index, ...(state.done ? {} : { itemId: itemKey(index) }),
     totalItems: items.length,
-    answers: Object.fromEntries(Object.entries(attempts).map(([key, entries]) => [key, [...entries]])),
+    answers: {
+      ...Object.fromEntries(Object.entries(attempts).map(([key, entries]) => [key, [...entries]])),
+      // A hint taken before any answer on the open item: kept so a reload can't drop the repeat round it costs.
+      ...(openHint(state) ? { [HINT_KEY]: itemKey(index) } : {}),
+    },
     timer: null, phase: state.done ? 'results' : 'working',
   };
 }
@@ -62,7 +72,13 @@ function restoreFillIn(items: readonly FillInItem[], snapshot: ResumeSnapshot): 
 
   const attempts: Attempts = {};
   let count = 0;
+  let pendingHint: string | undefined;
   for (const [key, submitted] of Object.entries(snapshot.answers)) {
+    if (key === HINT_KEY) {
+      if (typeof submitted !== 'string' || !/^item-(0|[1-9]\d*)$/.test(submitted)) return null;
+      pendingHint = submitted;
+      continue;
+    }
     const match = /^item-(0|[1-9]\d*)$/.exec(key);
     if (!match || Number(match[1]) >= items.length || !Array.isArray(submitted)) return null;
     const entries: string[] = [];
@@ -104,6 +120,12 @@ function restoreFillIn(items: readonly FillInItem[], snapshot: ResumeSnapshot): 
   }
   if (operations > 3000 || advancesLeft !== 0) return null;
   if (Object.entries(attempts).some(([key, entries]) => used.get(key) !== entries.length)) return null;
+  if (pendingHint !== undefined) {
+    const current = currentIndex(state);
+    if (state.done || current === undefined || itemKey(current) !== pendingHint ||
+        state.result === 'right' || state.result === 'wrong') return null;
+    if (!state.hinted || state.result !== null) state = showHint(state);
+  }
   const expected = fillInDraft(items, state, attempts, moves);
   if (!expected || expected.itemIndex !== snapshot.itemIndex || expected.itemId !== snapshot.itemId ||
       expected.phase !== snapshot.phase) return null;
@@ -179,7 +201,9 @@ function Session({ items: suppliedItems }: Props) {
   };
 
   const hint = () => {
-    setState((previous) => showHint(previous));
+    const next = showHint(state);
+    setState(next);
+    if (next !== state) persist(next);
     setFocusInput((request) => request + 1);
   };
 

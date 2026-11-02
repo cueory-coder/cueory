@@ -217,3 +217,22 @@ test('close tries in a later round keep the earlier round that brought the item 
   await board.getByRole('button', { name: 'next' }).click();
   await expect(board.getByText('all 4 recalled in 2 rounds.')).toBeVisible();
 });
+
+test('a hint taken before answering survives a reload and still repeats the item (Codex on #219)', async ({ page }) => {
+  const board = await open(page);
+  await submit(page, 'honey');
+  await board.getByRole('button', { name: 'next' }).click();
+  await board.getByRole('button', { name: 'hint' }).click();
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('cueory-resume') ?? 'null'));
+  expect(saved.answers.hint).toBe('item-1');
+  expect(saved.answers['item-1']).toBeUndefined();
+  await page.reload();
+  await page.getByRole('button', { name: 'continue question 2' }).click();
+  await expect(board.getByText('round 1 · item 2 of 4')).toBeVisible();
+  await expect(board.getByText('starts with d.')).toBeVisible();
+  for (const value of ['days', 'pencil', 'umbrella']) {
+    await submit(page, value);
+    await board.getByRole('button', { name: 'next' }).click();
+  }
+  await expect(board.getByText('round 2 · item 1 of 1')).toBeVisible();
+});
