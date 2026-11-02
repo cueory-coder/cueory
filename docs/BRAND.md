@@ -25,14 +25,20 @@ Colors are applied in `src/styles/tokens.css`. The logo is shown by `src/compone
 - **Web copies:** `public/brand/v1/` holds copies built from them by `node scripts/build-brand-v1.mjs`:
   - the full logo and the emblem, in Espresso and in Ivory, on transparent backgrounds, cropped to the artwork, at a
     few widths;
+  - the cruet alone (`cruet-light-*` and `cruet-dark-*`, 32, 64 and 128px wide), the same way (Task 138);
   - browser and home-screen icons (the emblem on Ivory).
 
   The script never redraws anything. It reads how much ink covers each pixel and writes that ink in one exact brand
   color, so the logo sits on silk without a box, and the cruet's empty top half stays empty.
 - **Same drawing in both palettes (guide §4.5).** The full logo and the emblem use the light file's drawing in both
   palettes. The dark files are the same drawings (the script checks the overlap), but the full logo's dark file has
-  stair-stepped edges and the emblem's dark file is only 348px wide. The cruet alone is not on the site yet; its files
-  draw it only about 135px wide.
+  stair-stepped edges and the emblem's dark file is only 348px wide.
+- **The cruet alone (Task 138).** Its files draw it only about 135px wide, so no copy is wider than 128px and nothing is
+  scaled up. Its dark file is a coarser drawing (one thick handle, a striped neck), so both palettes use the light
+  file's drawing, which the script checks against the cruet in the approved emblem. It is used in one place: pillo's
+  game mark on /play (`src/components/PilloTitle.astro`), at the top right of the name "pillo" set in Bodoni Moda, as
+  in Christian's approved mockup. It is a supporting mark next to the name, never the only identifier: the name is
+  the text and the cruet is decorative (empty alt text).
 - **Tests:** `tests/unit/brand.test.ts` fails if a source or web copy changes without rebuilding, or if any pixel
   drifts from the exact colors.
 - **Sizes (guide §3.5):**

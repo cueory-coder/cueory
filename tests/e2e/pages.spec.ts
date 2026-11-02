@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { socials } from '../../src/config/site';
+import { isDesktopOfEachEngine } from './projects';
 
 // The once-only promo panel (D-59) slides down after 5 seconds and takes keyboard focus, which would interrupt these
 // tests part-way, so every page here starts as if it had already been shown. tests/e2e/promo.spec.ts tests the panel.
@@ -534,6 +535,9 @@ test.describe('marketing look (D-41)', () => {
 
   test('nothing on the home page jumps while it loads', async ({ page }) => {
     await page.goto('/', { waitUntil: 'load' });
+    // Only Chromium measures layout shift today; elsewhere the count would be an empty zero, so say so instead.
+    const measured = await page.evaluate(() => PerformanceObserver.supportedEntryTypes.includes('layout-shift'));
+    test.skip(!measured, 'this browser does not report layout-shift entries (Chromium runs it on every pull request)');
     await page.evaluate(() => document.fonts.ready);
     const shift = await page.evaluate(
       () =>
@@ -595,9 +599,12 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
           .map((card) => (card as HTMLElement).dataset.name),
       );
 
+  /** True when the window is wide enough for two cards on each side (64rem, src/styles/global.css), in any project. */
+  const wide = (page: Page) => page.evaluate(() => window.matchMedia('(min-width: 64rem)').matches);
+
   test('the card in the middle has neighbours on both sides, and the arrows, keys and side cards turn it, endlessly', async ({
     page,
-  }, testInfo) => {
+  }) => {
     await page.goto('/');
     await section(page).scrollIntoViewIfNeeded();
     await expect(page.getByRole('heading', { name: 'ways to study' })).toBeVisible();
@@ -605,7 +612,7 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
     await expect
       .poll(() => onScreen(page))
       .toEqual(
-        testInfo.project.name === 'desktop'
+        (await wide(page))
           ? ['adaptive quiz', 'level test', 'video', 'cards', 'learn']
           : ['level test', 'video', 'cards'],
       );
@@ -652,7 +659,7 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
 
   test("neighbours step back, smaller, turned away and quieter, but no card's words are ever faded", async ({
     page,
-  }, testInfo) => {
+  }) => {
     await page.goto('/');
     await section(page).scrollIntoViewIfNeeded();
     await section(page).getByRole('button', { name: 'next study mode' }).click();
@@ -673,7 +680,8 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
     expect([front.turn, near.turn, left.turn]).toEqual(['0', '10', '-10']);
     expect(near.heading).not.toBe(front.heading);
     expect(near.shadow).toBe('none');
-    if (testInfo.project.name === 'desktop') {
+    // The second card out shows only on wide windows.
+    if (await wide(page)) {
       const far = await look('fill-in');
       expect(far.width / front.width).toBeGreaterThan(0.6);
       expect(far.width / front.width).toBeLessThan(0.78);
@@ -727,32 +735,76 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
 
   test('a sideways swipe turns it one card each way; a short or mostly up-and-down one does not', async ({
     page,
+    browserName,
   }, testInfo) => {
     test.skip(!testInfo.project.use.hasTouch, 'a touch-screen gesture');
     await page.goto('/');
     await section(page).scrollIntoViewIfNeeded();
-    const cdp = await page.context().newCDPSession(page);
-    const swipe = async (dx: number, dy = 0) => {
+    const centre = async () => {
       const box = (await page.getByRole('group', { name: 'study mode cards' }).boundingBox())!;
-      const x = Math.round(box.x + box.width / 2);
-      const y = Math.round(box.y + box.height / 2);
+      return { x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height / 2) };
+    };
+    /**
+     * Every engine: the pointer events a finger sends (down, six moves, up), dispatched on whatever is under it.
+     * Playwright can only tap, not drag, a finger in WebKit and Firefox, so this is how Safari's engine is tested. Some
+     * browsers also report a tap where a swipe ends, so a swipe that turns the cards is followed by that click too,
+     * and it must not count as a tap on a card.
+     */
+    const dispatchedSwipe = async (dx: number, dy = 0) => {
+      const { x, y } = await centre();
+      await page.evaluate(
+        ({ x, y, dx, dy }) => {
+          const target = document.elementFromPoint(x, y)!;
+          const send = (type: string, step: number) =>
+            target.dispatchEvent(
+              new PointerEvent(type, {
+                pointerId: 7,
+                pointerType: 'touch',
+                isPrimary: true,
+                bubbles: true,
+                cancelable: true,
+                composed: true,
+                clientX: x + (dx * step) / 6,
+                clientY: y + (dy * step) / 6,
+              }),
+            );
+          send('pointerdown', 0);
+          for (let step = 1; step <= 6; step++) send('pointermove', step);
+          send('pointerup', 6);
+          if (Math.abs(dx) >= 100 && Math.abs(dx) > Math.abs(dy)) {
+            target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, composed: true, clientX: x + dx, clientY: y + dy }));
+          }
+        },
+        { x, y, dx, dy },
+      );
+    };
+    /** Chromium only, on top of that: the browser's own touch input (DevTools protocol), so its touch-action handling is exercised too. */
+    const realSwipe = async (dx: number, dy = 0) => {
+      const cdp = await page.context().newCDPSession(page);
+      const { x, y } = await centre();
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
       for (let step = 1; step <= 6; step++) {
         const point = { x: Math.round(x + (dx * step) / 6), y: Math.round(y + (dy * step) / 6) };
         await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [point] });
       }
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      await cdp.detach();
     };
-    await swipe(-120);
-    await expect.poll(() => middleCard(page)).toBe('cards');
-    await swipe(120);
-    await expect.poll(() => middleCard(page)).toBe('video');
-    await swipe(-30);
-    await swipe(-30, 160);
-    await page.waitForTimeout(500);
-    expect(await middleCard(page)).toBe('video');
-    // A swipe is never a tap: no preview opened on the way.
-    await expect(page.locator('#mode-preview')).toBeHidden();
+    const swipes = browserName === 'chromium' ? [dispatchedSwipe, realSwipe] : [dispatchedSwipe];
+    for (const swipe of swipes) {
+      await swipe(-120);
+      await expect.poll(() => middleCard(page)).toBe('cards');
+      await swipe(120);
+      await expect.poll(() => middleCard(page)).toBe('video');
+      await swipe(-30);
+      await swipe(-30, 160);
+      await page.waitForTimeout(500);
+      expect(await middleCard(page)).toBe('video');
+      // A swipe is never a tap: no preview opened on the way.
+      await expect(page.locator('#mode-preview')).toBeHidden();
+      // The vertical swipe may have scrolled the page (real touch input does); bring the cards back for the next round.
+      await section(page).scrollIntoViewIfNeeded();
+    }
   });
 
   test('each card links to its mode when it is open, and says "coming soon" otherwise', async ({ page }) => {
@@ -828,7 +880,7 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
   test('auto-advance moves on after about six seconds, pauses on the cards, and stops once the visitor takes over', async ({
     page,
   }, testInfo) => {
-    test.skip(testInfo.project.name !== 'desktop', 'one size is enough for a timing test');
+    test.skip(!isDesktopOfEachEngine(testInfo), 'a timing test that rests a mouse on the cards: once per engine, at desktop size');
     test.slow();
     await page.goto('/');
     await section(page).scrollIntoViewIfNeeded();
@@ -1064,12 +1116,14 @@ test.describe('study-mode preview (D-51)', () => {
   test('a swipe down closes it on touch screens, a short one does not', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.use.hasTouch, 'a touch-screen gesture');
     await openPreview(page, 'video');
-    const swipe = (distance: number) =>
-      page.locator('[data-mode-preview-panel]').evaluate((panel, down) => {
-        const touch = (y: number) => new Touch({ identifier: 1, target: panel, clientX: 200, clientY: y });
-        panel.dispatchEvent(new TouchEvent('touchstart', { touches: [touch(300)], changedTouches: [touch(300)], bubbles: true }));
-        panel.dispatchEvent(new TouchEvent('touchend', { touches: [], changedTouches: [touch(300 + down)], bubbles: true }));
-      }, distance);
+    // Playwright builds the touch points in each engine's own way (WebKit has no Touch constructor, so it uses
+    // document.createTouch there), so the same swipe runs in Chromium and Safari's engine.
+    const panel = page.locator('[data-mode-preview-panel]');
+    const swipe = async (distance: number) => {
+      const start = { identifier: 1, clientX: 200, clientY: 300 };
+      await panel.dispatchEvent('touchstart', { touches: [start], targetTouches: [start], changedTouches: [start] });
+      await panel.dispatchEvent('touchend', { touches: [], targetTouches: [], changedTouches: [{ ...start, clientY: 300 + distance }] });
+    };
     await swipe(40);
     await page.waitForTimeout(500);
     await expect(dialog(page)).toBeVisible();
@@ -1081,7 +1135,7 @@ test.describe('study-mode preview (D-51)', () => {
   test('with a mouse, the card in the middle grows a little under the pointer, and side cards stay as they are', async ({
     page,
   }, testInfo) => {
-    test.skip(testInfo.project.name !== 'desktop', 'hover needs a mouse');
+    test.skip(!isDesktopOfEachEngine(testInfo), 'hover needs a mouse');
     await page.goto('/');
     await page.locator('#ways-to-study').scrollIntoViewIfNeeded();
     const card = page.locator('#mode-video');

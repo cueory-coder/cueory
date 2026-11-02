@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import { readdirSync } from 'node:fs';
 import { join, relative, resolve, sep } from 'node:path';
+import { isEveningProject, sizeOf } from './projects';
 
 /**
  * Task 94: audit the Evening palette on EVERY built page.
@@ -92,8 +93,8 @@ test.describe('Task 94: full-site Evening palette audit', () => {
       // D-48 phone and desktop. Tablet is covered by Task 74; the existing
       // phone-evening project would duplicate this explicitly forced-dark run.
       test.skip(
-        testInfo.project.name !== 'phone' && testInfo.project.name !== 'desktop',
-        'Task 94 runs once at phone size and once at desktop size',
+        sizeOf(testInfo) === 'tablet' || isEveningProject(testInfo),
+        'Task 94 runs once at phone size and once at desktop size in each engine',
       );
 
       await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' });
