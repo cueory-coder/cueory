@@ -35,7 +35,7 @@ const wordPathSamples = (await getCollection('suture'))
   .sort((a, b) => a.id.localeCompare(b.id))
   .map(({ id, data }) => {
     try {
-      return parseWordPath({ id, sample: true, grid: data.grid, words: data.words });
+      return parseWordPath({ id, sample: true, theme: data.theme, grid: data.grid, words: data.words });
     } catch (error) {
       throw new Error(`content/games/suture/${id}.json: ${(error as Error).message}`);
     }

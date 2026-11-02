@@ -1,0 +1,27 @@
+---
+import Layout from '../layouts/Layout.astro';
+import BreakIdeasList from '../islands/BreakIdeasList';
+import { parseIdeas } from '../islands/breakideas';
+import data from '../../content/breaks/ideas.json';
+
+// The sample marker belongs to the content envelope. Keep parseIdeas' exact schema unchanged.
+if (data.sample !== true) throw new Error('break ideas must remain labeled samples until content approval.');
+const ideas = parseIdeas({ ideas: data.ideas });
+---
+
+<Layout title="break ideas" description="Everyday sample ideas for a pause between study sessions."
+  variant="study" noindex promo={false}>
+  <div class="mx-auto max-w-5xl space-y-8 py-section font-body leading-relaxed" data-pagefind-ignore>
+    <header>
+      <p class="text-sm text-ink-soft">sample ideas · awaiting content approval</p>
+      <h1 class="mt-2 text-3xl font-bold leading-relaxed">break ideas</h1>
+      <p class="mt-4">a few everyday ways to pause between study sessions. pick what suits your space.</p>
+    </header>
+    <BreakIdeasList ideas={ideas} client:load />
+    <noscript><p>all the ideas are listed here. turn on javascript to shuffle them or choose one at random.</p></noscript>
+    <p class="text-ink-soft">sharing your own idea is coming with free accounts. for now, you can browse these samples.</p>
+    <a href="/learn/study-skills" class="inline-flex min-h-11 items-center rounded-pill border border-control px-5 py-2.5 text-ink">
+      back to study skills
+    </a>
+  </div>
+</Layout>
