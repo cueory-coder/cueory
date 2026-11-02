@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { deletionSummary, confirmState, afterDeletion } from '../../src/islands/deleteaccount';
+import { GUEST_IMPORT_MARKER_PREFIX } from '../../src/islands/guestimportrun';
+import { RESUME_STORAGE_KEY } from '../../src/scripts/resume';
 import type { ExportData } from '../../src/islands/exportdata';
 import {
   emptyProgress, forgetProgress, legacyStarsKey, loadDeckStars, migrateLegacyStars, PROGRESS_STORAGE_KEY,
@@ -198,6 +200,21 @@ describe('afterDeletion', () => {
 
   it('includes the game stats storage key', () => {
     expect(afterDeletion(new MemoryStorage())).toContain(STATS_STORAGE_KEY);
+  });
+
+  it('includes the study resume key (Task 104)', () => {
+    expect(afterDeletion(new MemoryStorage())).toContain(RESUME_STORAGE_KEY);
+  });
+
+  it('includes every guest-import marker, and nothing else that merely looks similar', () => {
+    const storage = new MemoryStorage();
+    storage.setItem(`${GUEST_IMPORT_MARKER_PREFIX}abc`, '1');
+    storage.setItem(`${GUEST_IMPORT_MARKER_PREFIX}def`, '1');
+    storage.setItem('not-cueory-guest-imported:abc', '1');
+    const keys = afterDeletion(storage);
+    expect(keys).toContain(`${GUEST_IMPORT_MARKER_PREFIX}abc`);
+    expect(keys).toContain(`${GUEST_IMPORT_MARKER_PREFIX}def`);
+    expect(keys).not.toContain('not-cueory-guest-imported:abc');
   });
 
   it('has no duplicates', () => {

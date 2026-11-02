@@ -10,6 +10,7 @@ import { VISIT_STORAGE_KEY, LAST_WELCOME_STORAGE_KEY } from '../../src/islands/s
 import { NOTE_SOUND_STORAGE_KEY } from '../../src/scripts/notesound';
 import { THEME_STORAGE_KEY } from '../../src/scripts/theme';
 import { PROMO_STORAGE_KEY } from '../../src/scripts/promo';
+import { RESUME_STORAGE_KEY } from '../../src/scripts/resume';
 
 const privacyPath = fileURLToPath(new URL('../../dist/privacy.html', import.meta.url));
 
@@ -32,6 +33,7 @@ describe.skipIf(!existsSync(privacyPath))('privacy page browser storage disclosu
     NOTE_SOUND_STORAGE_KEY,
     THEME_STORAGE_KEY,
     PROMO_STORAGE_KEY,
+    RESUME_STORAGE_KEY,
   ])('includes the exported browser key %s in built markup', (key) => {
     expect(visibleCodeKeys(privacyHtml())).toContain(key);
   });

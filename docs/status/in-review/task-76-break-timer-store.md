@@ -1,0 +1,1 @@
+status: Task 76, break timer between study pages (#154): the break timer is kept for the browser tab in session storage (key `cueory-break-timer`), so moving between lesson pages doesn't restart it; old, broken or blocked saves start it off. Logic only; nothing visible changes. The new key goes on the privacy page (Task 72).

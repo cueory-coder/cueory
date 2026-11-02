@@ -1,0 +1,26 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import ReminderOptIn from '../../islands/ReminderOptIn';
+---
+
+<Layout title="reminder choices preview" description="A non-sending preview of review reminder choices."
+  variant="study" noindex promo={false}>
+  <div class="mx-auto max-w-110 space-y-8 py-section font-body leading-relaxed" data-pagefind-ignore>
+    <header>
+      <p class="text-sm text-ink-soft">design preview</p>
+      <h1 class="mt-2 text-2xl font-bold leading-relaxed">review reminders</h1>
+      <p class="mt-4">sample states only. this page cannot turn on reminders or send notifications or email.</p>
+    </header>
+    <section class="rounded-lg border border-line bg-page p-6" aria-labelledby="active-heading" data-testid="active-review">
+      <h2 id="active-heading" class="text-lg font-bold">during a review</h2>
+      <p class="mt-2">the reminder option stays hidden while the student is reviewing.</p>
+      <ReminderOptIn reviewCompleted={false} client:load />
+    </section>
+    <section class="rounded-lg border border-line bg-page p-6" aria-labelledby="complete-heading" data-testid="completed-review">
+      <h2 id="complete-heading" class="text-lg font-bold">after a completed review</h2>
+      <p class="mt-2 mb-6">the student can choose whether to explore reminders.</p>
+      <ReminderOptIn reviewCompleted={true} client:load />
+    </section>
+    <noscript><p>turn on javascript to try the reminder choices. no reminder is enabled.</p></noscript>
+  </div>
+</Layout>
