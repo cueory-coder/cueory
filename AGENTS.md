@@ -87,7 +87,11 @@ Read [CLAUDE.md](CLAUDE.md) (project rules) and [SECURITY.md](SECURITY.md) first
 
 ### Process
 - Pull request is small and on one topic, and targets `staging` (only `staging` → `main` pull requests target `main`).
-- `docs/STATUS.md` is updated.
+- The pull request adds its own status note: one new file, `docs/status/in-review/<branch name with / as ->.md`, with
+  one plain-English line for STATUS and, if it makes a decision, one `D-pending` line for DECISIONS. Feature pull
+  requests don't edit `docs/STATUS.md` or `docs/DECISIONS.md` directly; the director moves the notes into them (and
+  numbers the decisions) in its docs batch, which is how so many parallel pull requests avoid clashing (Christian,
+  2026-11-01). A pull request that already edits `docs/STATUS.md` directly is also fine.
 - Nothing reaches `main` without first being on the locked staging site.
 
 ## Sensitive areas (Christian approves)
