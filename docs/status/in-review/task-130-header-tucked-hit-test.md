@@ -1,0 +1,1 @@
+status: Task 130, tucked sticky headers no longer intercept page taps, keyboard focus brings navigation back, and reduced-motion users keep header links clickable; new phone and desktop regression tests cover those cases.
