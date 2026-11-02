@@ -98,25 +98,7 @@ export default function CardDeck({ deckId, cards }: Props) {
     if (focusRequest > 0) faceRef.current?.focus();
   }, [focusRequest]);
 
-  // Inject the 3D flip CSS so the .flip/.flip-inner/.flip-face/.flip-back classes work before
-  // Task 77's global.css is in staging. Once merged, this becomes harmless duplication.
-  useEffect(() => {
-    const id = 'cueory-card-flip';
-    if (document.getElementById(id)) return;
-    const el = document.createElement('style');
-    el.id = id;
-    el.textContent = [
-      '.flip{perspective:800px}',
-      '.flip-inner{position:relative;transform-style:preserve-3d;transition:transform var(--duration-slow,400ms) var(--ease-soft,cubic-bezier(0.4,0,0.2,1))}',
-      '.flip-face,.flip-back{backface-visibility:hidden;-webkit-backface-visibility:hidden;position:absolute;inset:0;border-radius:inherit;overflow:auto;display:flex;flex-direction:column;justify-content:center}',
-      '.flip-back{transform:rotateY(180deg)}',
-      '.flip-inner.is-flipped{transform:rotateY(180deg)}',
-      '@media(prefers-reduced-motion:reduce){.flip-inner{transition:none}}',
-      '@media(prefers-reduced-motion:reduce){.flip-inner:not(.is-flipped) .flip-back{opacity:0}}',
-      '@media(prefers-reduced-motion:reduce){.flip-inner.is-flipped .flip-face{opacity:0}}',
-    ].join('\n');
-    document.head.appendChild(el);
-  }, []);
+  // The 3D flip CSS (.flip, .flip-inner, .flip-face, .flip-back) lives in src/styles/global.css (Task 78).
 
   // Each "Know it" or "Still learning" is saved on this device (D-69). "Back" puts the card's previous pile back, so
   // this list holds the sorts made in the current round, newest last.
@@ -291,7 +273,8 @@ export default function CardDeck({ deckId, cards }: Props) {
       {/* 3D flip card — both faces always in DOM for the CSS perspective transform */}
       <div
         ref={faceRef}
-        tabIndex={-1}
+        role="region"
+        tabIndex={0}
         aria-live="polite"
         className="flip mt-stack rounded-xl"
         style={{ boxShadow: 'var(--shadow-card)', cursor: 'pointer', minHeight: '14rem' }}
@@ -326,7 +309,7 @@ export default function CardDeck({ deckId, cards }: Props) {
       </div>
 
       <div className="mt-stack flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-ink-soft">{position} · Know: {tally.know} · Learning: {tally.learning}</p>
+        <p className="text-sm text-ink-soft">{position} · Know it: {tally.know} · Still learning: {tally.learning}</p>
         <button
           type="button"
           aria-pressed={isStarred}
