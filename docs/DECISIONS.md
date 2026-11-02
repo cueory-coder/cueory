@@ -1007,3 +1007,8 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   Reason: Christian's change request.
 
 - **D-pending (Task 100)** Add points, weekly free-pass game streaks, and one-time achievements for completed daily games and study sessions, with no live leaderboard yet. Reason: Christian requested streaks, accomplishments and player rankings on 2026-11-01; public rankings must be opt-in and checked on the server in a later task.
+
+- **D-pending (Task 105)** Add a small, decorative mark using Cueory's approved emblem and an actual site address to share-worthy finished results, never over questions or answer lists, and hide it in print. Reason: Christian requested quiet branding that is already visible in screenshots without screenshot detection.
+
+- **D-pending (Task 111)** Offer optional phone or email review reminders only after a completed review and an explicit student action, with no permission request or saved consent in the current preview. Reason: Christian requested phone reminders, with design and opt-in UI only until account and server integration is assigned.
+- **D-pending (Task 56)** Sign-in uses Google or email and password, with email links reserved for confirmation and password recovery, replacing D-73’s magic-link backup. Reason: Christian’s 1 November change, relayed by the director in issue #11 at 2:00 pm Phoenix.
