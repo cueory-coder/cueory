@@ -204,6 +204,11 @@
   --shadow-pillo-pack: 0 1px 2px rgb(var(--shadow-tint) / 0.12), 0 14px 30px rgb(var(--shadow-tint) / 0.16);
   --shadow-pillo-pocket: inset 0 2px 4px rgb(var(--shadow-tint) / 0.2), inset 0 -1px 1px rgb(var(--shadow-tint) / 0.06);
   --shadow-pillo-pill: 0 2px 3px rgb(var(--shadow-tint) / 0.28), inset 0 -3px 4px rgb(var(--shadow-tint) / 0.14);
+  /* pillo's game mark (Task 138): its name in Bodoni Moda with the brand cruet (public/brand/v1/cruet-*) at its top
+     right, as in Christian's approved mockup. In em, so the cruet keeps its size next to the name at any font size. */
+  --pillo-cruet: 0.3em;                 /* the cruet's width; its height is about a third of the l's */
+  --pillo-cruet-gap: 0.06em;            /* space between the final o and the cruet */
+  --pillo-cruet-rise: 0.28em;           /* how far below the top of the name's line the cruet's top sits */
 
   /* ---------- Motion (D-41 brand bar: 150–400 ms, soft not bouncy, always off under reduced-motion) ---------- */
   --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);     /* gentle UI transitions */

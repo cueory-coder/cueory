@@ -166,6 +166,61 @@
           "sha256": "701eacd139cdd6b601a8f5e580139369cdfcfc2b276c2f19fb3ca08835829430"
         }
       }
+    },
+    "cruet": {
+      "role": "The cruet alone: a small supporting mark, never the only identifier (pillo game mark, Task 138)",
+      "sources": {
+        "light": "cueory_cruet_light_logo.png",
+        "dark": "cueory_cruet_dark_logo.png"
+      },
+      "drawing": "both palettes from cueory_cruet_light_logo.png",
+      "overlap": 0.873,
+      "overlapWith": "the cruet in the approved emblem (all but the c), cueory_letter_Light_logo.png",
+      "darkFileOverlap": 0.743,
+      "files": {
+        "cruet-light-32.png": {
+          "mode": "light",
+          "color": "#3E2C23",
+          "width": 32,
+          "height": 29,
+          "sha256": "0de1f144277146f7c399074bcc6f147f702c329cd386f3619125cf7ce16f7b70"
+        },
+        "cruet-light-64.png": {
+          "mode": "light",
+          "color": "#3E2C23",
+          "width": 64,
+          "height": 58,
+          "sha256": "a02ec73dfdf4a54b87eaea7ab1fe82a23f567572a63b22d1ffd3841f0424687b"
+        },
+        "cruet-light-128.png": {
+          "mode": "light",
+          "color": "#3E2C23",
+          "width": 128,
+          "height": 116,
+          "sha256": "4702ec73bf1f38a03e9e8e6346899662ec7b0a69c4c69f4592561f0072ac36c5"
+        },
+        "cruet-dark-32.png": {
+          "mode": "dark",
+          "color": "#F9F5EF",
+          "width": 32,
+          "height": 29,
+          "sha256": "2d3f9d0e49730ff94a96f8894746c7ed76fe6db7482943a798958a48058070be"
+        },
+        "cruet-dark-64.png": {
+          "mode": "dark",
+          "color": "#F9F5EF",
+          "width": 64,
+          "height": 58,
+          "sha256": "d8e76f687fc50c6da40b759e4991690d497175f3f6764ef0a385a187a3be4dd1"
+        },
+        "cruet-dark-128.png": {
+          "mode": "dark",
+          "color": "#F9F5EF",
+          "width": 128,
+          "height": 116,
+          "sha256": "32303d19ac41919ab95133972598f2e0bc8c04d216530a54c774bd6428c6eb21"
+        }
+      }
     }
   },
   "icons": {
