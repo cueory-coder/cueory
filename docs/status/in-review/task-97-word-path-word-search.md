@@ -1,1 +1,0 @@
-status: Task 97, word path as a themed word search (#173): an 11 × 11 bordered grid titled by the puzzle's theme, words listed in three columns and crossed off when found, picked by tapping a word's first and last letter or by keyboard, with everyday sample themes; real diagnosis-themed puzzles wait for Christian's reviewed content.
