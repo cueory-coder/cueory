@@ -140,6 +140,8 @@ export function createStudyEventQueue(options: StudyEventQueueOptions): StudyEve
   }
 
   function beginItem(itemId: string, versionId: string): boolean {
+    // A bad next item must not leave a previous item active.
+    active = null;
     if (signedOut || !UUID.test(itemId) || !UUID.test(versionId)) return false;
     const tick = elapsedNow();
     if (!Number.isFinite(tick)) return false;

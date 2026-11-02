@@ -62,6 +62,9 @@ describe('Task 146: private study-event shape and visible time', () => {
     expect(raw('viewed')).toBeNull();
     expect(f.queue.state().pending).toBe(0);
     expect(f.queue.record('marked', 'know')?.mark).toBe('know');
+    // Switching to a bad item must not attribute its actions to the prior item.
+    expect(f.queue.beginItem('bad-next-item', VERSION)).toBe(false);
+    expect(f.queue.record('answered')).toBeNull();
   });
 
   it('excludes time while hidden, including when first opened hidden, and resets between actions', () => {
