@@ -99,6 +99,28 @@ describe('resume snapshot persistence', () => {
     expect(parseResume(JSON.stringify({ ...parsed, answerKey: 'a' }), NOW)).toBeNull();
   });
 
+  it('rejects malformed timer status without throwing or accepting a coerced array', () => {
+    const storage = memory();
+    expect(saveResume(storage, draft(), NOW)).toBe(true);
+    const record = JSON.parse(storage.getItem(RESUME_STORAGE_KEY)!);
+    for (const status of [
+      ['running'],
+      { toString: null },
+      { valueOf: 'paused' },
+      null,
+      5,
+      '',
+      'unknown',
+    ]) {
+      const raw = JSON.stringify({
+        ...record,
+        timer: { status, elapsedMs: 1000, durationMs: 5000 },
+      });
+      expect(() => parseResume(raw, NOW)).not.toThrow();
+      expect(parseResume(raw, NOW)).toBeNull();
+    }
+  });
+
   it('refuses off-site and unsafe resume destinations without writing storage', () => {
     const bad = [
       'https://example.com', '//example.com', '/../../admin',

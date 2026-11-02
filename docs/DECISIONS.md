@@ -1007,3 +1007,5 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
   Reason: Christian's change request.
 
 - **D-pending (Task 100)** Add points, weekly free-pass game streaks, and one-time achievements for completed daily games and study sessions, with no live leaderboard yet. Reason: Christian requested streaks, accomplishments and player rankings on 2026-11-01; public rankings must be opt-in and checked on the server in a later task.
+
+- **D-pending (Task 104)** Save an on-device study snapshot after each step and on pagehide/hidden visibility, let students return to the exact item and submitted answers within 14 days, and never resume an active timed sharpening round (only its results). Sync across devices later after accounts are approved. Reason: Christian requested crash-safe continue and resume on 2026-11-01.

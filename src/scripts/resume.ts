@@ -93,7 +93,8 @@ function validTimer(value: unknown): value is ResumeTimer | null {
   if (value === null) return true;
   if (!object(value)) return false;
   if (Object.keys(value).some(key => !['status', 'elapsedMs', 'durationMs'].includes(key))) return false;
-  return ['off', 'running', 'paused'].includes(String(value.status)) &&
+  return typeof value.status === 'string' &&
+    ['off', 'running', 'paused'].includes(value.status) &&
     integer(value.elapsedMs, 0, MAX_TIMER_MS) &&
     integer(value.durationMs, 0, MAX_TIMER_MS) &&
     (value.status === 'off' || value.durationMs > 0);
