@@ -1,0 +1,1 @@
+status: Task 54, break note snooze (#151): closing a break note while the break timer says a break is due snoozes the timer for its own 5 minutes, so the note doesn't come back at the next pause. Logic only; nothing visible changes.

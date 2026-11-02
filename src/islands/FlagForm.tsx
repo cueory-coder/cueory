@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { site } from '../config/site';
 import { charactersLeft, checkReport, REASONS, reasonInWords, type FlagProblem, type FlagReport, type Reason } from './flag';
 
 interface Props {
@@ -13,6 +14,17 @@ const control = 'min-h-11 min-w-11 rounded-md border border-control px-4 py-2 te
 /** A changed page, item or account starts a fresh form before it can render another report's draft. */
 export default function FlagForm(props: Props) {
   return <ReportForm key={JSON.stringify([props.page, props.itemId, props.itemVersionId, props.signedIn])} {...props} />;
+}
+
+
+/** A signed-out student can still report a problem by email while accounts are being set up. */
+export function SignedOutReportHelp() {
+  return <p className="text-ink">
+    a free account is needed to send a report. you can email us at{' '}
+    <a href={`mailto:${site.contactEmail}`} className="underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2">
+      {site.contactEmail}
+    </a> instead.
+  </p>;
 }
 
 function ReportForm({ page, itemId, itemVersionId, signedIn, send }: Props) {
@@ -65,7 +77,7 @@ function ReportForm({ page, itemId, itemVersionId, signedIn, send }: Props) {
     </button>
     {open && <div ref={panel} id={panelId} tabIndex={-1} className="mt-3 rounded-md border border-line bg-page p-4"
       onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); } }}>
-      {!signedIn ? <p>sign in to send a report. accounts are coming soon.</p> : <form noValidate onSubmit={event => { event.preventDefault(); void submit(); }}>
+      {!signedIn ? <SignedOutReportHelp /> : <form noValidate onSubmit={event => { event.preventDefault(); void submit(); }}>
         <fieldset disabled={pending} aria-describedby={error('reason') ? errorId('reason') : undefined}>
           <legend className="font-medium">what's wrong?</legend>
           <div className="mt-2 grid gap-2">
