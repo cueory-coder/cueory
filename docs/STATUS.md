@@ -245,7 +245,7 @@ Merged into `staging`:
   `check_answer` contract test against the real request helper (#142, Task 48).
 
 ## In review
-- Task 103, share achievements (D-pending): static share cards (scene/ivory/bronze-coin) per tool group in `public/share/`, `ShareSheet.tsx` island with swipeable style picker and Web Share API / X / copy-link buttons, build script, unit and e2e tests. PR [#190](https://github.com/lilchristxan/Cueory/pull/190). Repair 2: touch-action:pan-x on card row (prevents phone-emulation vertical scroll interception) + share-sheet.spec.ts scopes radio count to main only. Awaiting CI.
+- Task 103, share achievements (D-pending): static share cards (scene/ivory/bronze-coin) per tool group in `public/share/`, `ShareSheet.tsx` island with swipeable style picker and Web Share API / X / copy-link buttons, build script, unit and e2e tests. PR [#190](https://github.com/lilchristxan/Cueory/pull/190). Repair 2: touch-action:pan-x on card row + share-sheet.spec.ts radio scope. Repair 3 (2026-11-02): add .check({ force: true }) to footer dark-radio check in dark-mode.spec.ts (radio resolves but click action times out in phone emulation). HEAD awaiting CI.
 - Task 108, guided onboarding (#189): two optional setup questions on separate accessible screens with preserved device-local progress, in review.
 - Task 74, accessibility sweep (#157): full-site keyboard and axe audit, with segmented-date regression coverage, awaiting exact-head CI and Codex review.
 - Open pull requests add their own lines here. Waiting now: Release browser tests (#55).
