@@ -1,2 +1,2 @@
-status: Task 112, status notes per pull request (#this): each pull request writes its STATUS line in its own file under docs/status/in-review/, so parallel pull requests stop clashing. Waits for Christian (rule files).
+status: Task 112, status notes per pull request (#192): each pull request writes its STATUS line in its own file under docs/status/in-review/, so parallel pull requests stop clashing. Waits for Christian (rule files).
 decision: D-pending (Task 112) Pull requests put their STATUS and decision lines in their own note file; the director batches them into STATUS.md and DECISIONS.md. Reason: Christian, 2026-11-01; every pull request was editing the same STATUS lines and conflicting.
