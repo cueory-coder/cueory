@@ -1109,8 +1109,8 @@ html:has(dialog.menu-panel[open]) {
     background-color: var(--pillo-foil-color);
     background-image:
       linear-gradient(135deg, var(--pillo-gloss-color), transparent 45%),
-      repeating-linear-gradient(45deg, var(--pillo-hatch-color) 0 1px, transparent 1px 5px),
-      repeating-linear-gradient(-45deg, var(--pillo-hatch-color) 0 1px, transparent 1px 5px);
+      repeating-linear-gradient(45deg, var(--pillo-hatch-color) 0 var(--pillo-hatch-width), transparent var(--pillo-hatch-width) var(--pillo-hatch-gap)),
+      repeating-linear-gradient(-45deg, var(--pillo-hatch-color) 0 var(--pillo-hatch-width), transparent var(--pillo-hatch-width) var(--pillo-hatch-gap));
   }
 
   .pillo-pack {

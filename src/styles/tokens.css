@@ -167,6 +167,8 @@
   --color-pillo-key: #eadccf;           /* Linen    — a letter key with no mark yet */
   --color-on-pillo-key: #3e2c23;        /* Espresso */
   --color-pillo-ring: #3e2c23;          /* Espresso — the next empty pocket's ring and a marked key's rim */
+  --pillo-hatch-width: 1px;             /* the foil's cross-hatch line */
+  --pillo-hatch-gap: 5px;               /* the foil's cross-hatch spacing */
   --color-pillo-foil: #f9f5ef;          /* Ivory    — the foil's base ... */
   --color-pillo-foil-tint: #6b5243;     /* Bronze   — ... greyed with this (strength: --pillo-foil-mix) */
   --color-pillo-hatch: #3e2c23;         /* Espresso — the foil's fine cross-hatch */
