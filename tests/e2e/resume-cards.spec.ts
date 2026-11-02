@@ -183,3 +183,18 @@ test('forgetting progress on the progress page also forgets the saved place (Cod
   await expect(page.getByTestId('flashcard')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'pick up where you left off?' })).toHaveCount(0);
 });
+
+
+test('forget stays available after undoing the only card sort (Codex on #221)', async ({ page }) => {
+  await page.goto(URL);
+  await rate(page, 'Know it');
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
+  expect(await page.evaluate(() => localStorage.getItem('cueory-resume'))).toBeNull();
+
+  await page.goto('/progress');
+  const forget = page.getByRole('button', { name: 'forget my progress on this device' });
+  await expect(forget).toBeEnabled();
+  await forget.click();
+  await page.getByRole('button', { name: 'yes, forget it' }).click();
+  await expect(page.getByText('done. your progress is no longer saved on this device.')).toBeVisible();
+});
