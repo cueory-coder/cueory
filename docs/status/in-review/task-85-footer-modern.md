@@ -1,0 +1,2 @@
+status: Task 85, footer and theme switch (#152): the footer is one slim bar at the end of every page (flag, small logo home, chevron); the chevron opens the links, socials, copyright and the light / dark / follow device pill above it.
+decision: D-pending (Task 85) The footer is a slim bar (about 56 px, never fixed) with only a flag icon bottom-left, the 66 px logo linking home in the middle and a chevron bottom-right that opens the links panel; without JavaScript the panel is open. Reason: Christian, 2026-11-01, 2:55 pm (issue #11).

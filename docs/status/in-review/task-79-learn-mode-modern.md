@@ -1,0 +1,1 @@
+status: Task 79, learn mode modern (#167): slim progress bar, each prompt on a soft card that rises in after each step, large answer buttons marked with a tick or cross plus words, a roomy typed field, and a calm summary card with "start again" and "back to the lesson"; keyboard-only, axe and reduced-motion tests at three sizes.

@@ -122,6 +122,7 @@
   --drop-mode-card: 1rem;       /* how much lower a neighbouring card sits, per card away from the middle */
   --zoom-mode-card: 1.04;       /* a "ways to study" card under the mouse or keyboard focus grows this much (D-51) */
   --container-mode-preview: 28rem; /* the study-mode preview panel (D-51) */
+  --container-flag-panel: min(calc(100vw - 2rem), 28rem); /* the flag form, opened from the footer's flag icon */
   --nudge-mode-preview: 1rem;   /* how far the preview slides in when previous or next changes the mode (D-51) */
   --container-promo: 24rem;     /* the once-only promo panel at the top of marketing pages (D-59) */
 
@@ -149,6 +150,32 @@
   /* ---------- Focus ---------- */
   --focus-width: 3px;
   --focus-offset: 3px;
+
+  /* ---------- Word path board (Task 97) ---------- */
+  --border-board: 2.5px;        /* the frame around the word search grid (Christian's design, 2026-11-01) */
+
+  /* ---------- Motion (D-41 brand bar: 150–400 ms, soft not bouncy, always off under reduced-motion) ---------- */
+  --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);     /* gentle UI transitions */
+  --ease-emphasis: cubic-bezier(0.2, 0, 0, 1);   /* snappier entrances */
+  --duration-fast: 150ms;                         /* micro-interactions */
+  --duration-base: 240ms;                         /* most transitions */
+  --duration-slow: 400ms;                         /* larger motions */
+
+  /* ---------- Depth (interactive elements: cards, lift, hover) ---------- */
+  /* Built from --shadow-tint (Espresso in Daytime), like the existing marketing shadows. */
+  --shadow-card: 0 1px 3px rgb(var(--shadow-tint) / 0.06), 0 4px 12px rgb(var(--shadow-tint) / 0.08);
+  --shadow-card-hover: 0 2px 8px rgb(var(--shadow-tint) / 0.08), 0 12px 28px rgb(var(--shadow-tint) / 0.14);
+
+  /* ---------- Motion and control sizes (Task 77; used by the shared motion classes in global.css) ---------- */
+  --lift-rise: 0.125rem;              /* .lift: how far a card rises on hover or focus */
+  --enter-rise: 0.5rem;               /* .enter: how far content rises as it appears */
+  --flip-perspective: 75rem;          /* .flip: depth of the 3D card flip */
+  --progress-height: 0.375rem;        /* .progress-track */
+  --segmented-inset: 0.125rem;        /* .segmented: space between the pill and its options */
+  --segmented-gap: 0.375rem;          /* .segmented: space between options */
+  --segmented-pad-y: 0.375rem;        /* .segmented-option */
+  --segmented-pad-x: 0.875rem;        /* .segmented-option */
+  --tap-min: 2.75rem;                 /* 44 px minimum tap target */
 }
 
 /* Strengths and images for the marketing background (D-41). Daytime values; the Evening ones are below. */
@@ -219,6 +246,9 @@
     --panel-rgb: 28 25 23;        /* Charcoal */
     --panel-alpha: 0.9;
     --scrim-alpha: 0.55;
+    /* Evening: --shadow-tint is Charcoal (darker), so raise opacity for visible depth. */
+    --shadow-card: 0 1px 3px rgb(var(--shadow-tint) / 0.18), 0 4px 12px rgb(var(--shadow-tint) / 0.28);
+    --shadow-card-hover: 0 2px 8px rgb(var(--shadow-tint) / 0.28), 0 12px 28px rgb(var(--shadow-tint) / 0.40);
   }
 }
 
@@ -260,4 +290,7 @@
   --panel-rgb: 28 25 23;        /* Charcoal */
   --panel-alpha: 0.9;
   --scrim-alpha: 0.55;
+  /* Evening: --shadow-tint is Charcoal (darker), so raise opacity for visible depth. */
+  --shadow-card: 0 1px 3px rgb(var(--shadow-tint) / 0.18), 0 4px 12px rgb(var(--shadow-tint) / 0.28);
+  --shadow-card-hover: 0 2px 8px rgb(var(--shadow-tint) / 0.28), 0 12px 28px rgb(var(--shadow-tint) / 0.40);
 }
