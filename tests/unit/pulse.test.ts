@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { dailyGames, forbiddenGameWords } from '../../src/config/games';
+import { contrastRatio, parseHex, readColorTokens } from './contrast';
 import {
   cleanGuess,
   dayNumber,
@@ -11,10 +12,12 @@ import {
   letterMarks,
   MARK_SYMBOL,
   markGuess,
+  playablePuzzles,
   playGuess,
   puzzleForDay,
   shareText,
   startPulse,
+  WORD_LENGTH,
 } from '../../src/islands/pulse';
 
 describe('daily games (task-114)', () => {
@@ -126,11 +129,18 @@ describe('pillo (task-114)', () => {
     let state = playGuess(startPulse('tones'), 'stone');
     state = playGuess(state, 'tones');
     const line = shareText(state, 'sun 1 nov');
-    expect(line).toBe('cueory pillo, sun 1 nov: solved in 2 of 6.');
+    expect(line).toBe('cueory pillo, sun 1 nov: solved in 2 of 6');
+    // One plain line: printable ASCII only, so no colored squares or emoji can slip in.
     expect(line).toMatch(/^[\x20-\x7e]+$/);
     let lost = startPulse('tones');
     for (let i = 0; i < 6; i++) lost = playGuess(lost, 'crane');
-    expect(shareText(lost, 'sun 1 nov')).toBe('cueory pillo, sun 1 nov: not solved.');
+    expect(shareText(lost, 'sun 1 nov')).toBe('cueory pillo, sun 1 nov: not solved this time');
+  });
+
+  it('plays only five-letter words, skipping any sample that breaks the rule', () => {
+    expect(WORD_LENGTH).toBe(5);
+    const puzzles = [{ word: 'grace' }, { word: 'garden' }, { word: 'Lemon' }, { word: 'music' }];
+    expect(playablePuzzles(puzzles)).toEqual([{ word: 'grace' }, { word: 'music' }]);
   });
 
   it("picks one sample a day from the visitor's own date, going round the list", () => {
@@ -143,5 +153,67 @@ describe('pillo (task-114)', () => {
     expect(puzzleForDay(list, 4)).toBe('b');
     expect(puzzleForDay(list, -1)).toBe('c');
     expect(puzzleForDay([], 3)).toBeUndefined();
+  });
+});
+
+/*
+  The blister pack's colors (tokens.css, "pillo"). Pills, keys and the foil are brand colors, some mixed in sRGB as the
+  CSS color-mix() in global.css does, and every letter must stay readable (WCAG AA) on its pill or key in both palettes.
+*/
+describe('pillo colors (Task 114)', () => {
+  const css = readFileSync(new URL('../../src/styles/tokens.css', import.meta.url), 'utf8');
+  const [daytimeCss, eveningCss] = css.split('@media (prefers-color-scheme: dark)') as [string, string];
+  const [eveningDeviceCss, eveningPickedCss] = eveningCss.split(':root[data-theme="dark"]') as [string, string];
+  const percent = (chunk: string, name: string) => Number(new RegExp(`--${name}:\\s*([\\d.]+)%`).exec(chunk)![1]) / 100;
+  const mix = (top: string, amount: number, bottom: string) => {
+    const [t, b] = [parseHex(top), parseHex(bottom)];
+    return `#${t.map((c, i) => Math.round(amount * c + (1 - amount) * b[i]!).toString(16).padStart(2, '0')).join('')}`;
+  };
+  const palette = (chunk: string, base: Record<string, string> = {}) => {
+    const c = { ...base, ...readColorTokens(chunk) };
+    const foil = mix(c['pillo-foil-tint']!, percent(chunk, 'pillo-foil-mix'), c['pillo-foil']!);
+    return {
+      c,
+      foil,
+      absent: mix(c['pillo-absent']!, percent(chunk, 'pillo-absent-mix'), foil),
+      key: mix(c['pillo-key']!, percent(chunk, 'pillo-key-mix'), foil),
+    };
+  };
+  const day = palette(daytimeCss);
+  const evening = palette(eveningDeviceCss, readColorTokens(daytimeCss));
+  const brand = {
+    daytime: ['#f9f5ef', '#eadccf', '#d3b7a1', '#8b6f5b', '#3e2c23', '#6b5243'],
+    evening: ['#1c1917', '#3a2d24', '#6b5243', '#cbb8a4', '#f9f5ef'],
+  };
+
+  it.each([
+    ['daytime', day, brand.daytime],
+    ['evening', evening, brand.evening],
+  ] as const)('%s: every pill, key and foil color is a brand color', (_name, { c }, allowed) => {
+    const pillo = Object.entries(c).filter(([token]) => token.includes('pillo'));
+    expect(pillo.length).toBeGreaterThanOrEqual(15);
+    for (const [token, hex] of pillo) expect(allowed, `--color-${token}`).toContain(hex.toLowerCase());
+  });
+
+  it('keeps both Evening copies the same', () => {
+    const pick = (chunk: string) => chunk.match(/--(color-)?(on-)?pillo-[\w-]+:[^;]+;/g);
+    expect(pick(eveningPickedCss)).toEqual(pick(eveningDeviceCss));
+  });
+
+  it.each([
+    ['daytime', day],
+    ['evening', evening],
+  ] as const)('%s: every letter is readable on its pill or key (AA), and the next pocket ring shows (3:1)', (_name, p) => {
+    const { c } = p;
+    const pairs: Array<[string, string, string, number]> = [
+      ['in place', c['on-pillo-here']!, c['pillo-here']!, 4.5],
+      ['elsewhere', c['on-pillo-elsewhere']!, c['pillo-elsewhere']!, 4.5],
+      ['not in the word', c['on-pillo-absent']!, p.absent, 4.5],
+      ['typed', c['on-pillo-typed']!, c['pillo-typed']!, 4.5],
+      ['plain key', c['on-pillo-key']!, p.key, 4.5],
+      ['key not in the word', c['ink-soft']!, c.page!, 4.5],
+      ['next pocket ring', c['pillo-ring']!, p.foil, 3],
+    ];
+    for (const [what, fg, bg, min] of pairs) expect(contrastRatio(fg, bg), what).toBeGreaterThanOrEqual(min);
   });
 });

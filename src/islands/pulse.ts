@@ -7,8 +7,16 @@
  */
 import { gameName } from '../config/games';
 
-/** Maximum number of guesses allowed. */
+/** Guesses a day. */
 export const GUESSES = 6;
+
+/** Every word of the day has exactly this many letters. */
+export const WORD_LENGTH = 5;
+
+/** Only puzzles whose word fits the rules (five lowercase letters) can be played; any other is skipped. */
+export function playablePuzzles<T extends { word: string }>(puzzles: readonly T[]): T[] {
+  return puzzles.filter((puzzle) => new RegExp(`^[a-z]{${WORD_LENGTH}}$`).test(puzzle.word));
+}
 
 /** How a letter of a guess compares with the word. */
 export type Mark = 'here' | 'elsewhere' | 'absent';
@@ -111,13 +119,12 @@ export function letterMarks(guesses: readonly Guess[]): Map<string, Mark> {
 }
 
 /**
- * What "share" copies: plain words, no colored squares and no grid.
- * "cueory pillo, sun 1 nov: solved in 3 of 6"
+ * What "share" copies: one plain line, with no colored squares and no grid. "cueory pillo, sun 1 nov: solved in 3 of 6"
  */
 export function shareText(state: PulseState, day: string): string {
   const used = GUESSES - guessesLeft(state);
-  const result = state.status === 'solved' ? `solved in ${used} of ${GUESSES}` : `not solved`;
-  return `cueory ${gameName('pulse')}, ${day}: ${result}.`;
+  const result = state.status === 'solved' ? `solved in ${used} of ${GUESSES}` : 'not solved this time';
+  return `cueory ${gameName('pulse')}, ${day}: ${result}`;
 }
 
 /** Days from 1 November 2026 to a calendar date, in the visitor's own time zone. */

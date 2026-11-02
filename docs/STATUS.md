@@ -245,11 +245,6 @@ Merged into `staging`:
   `check_answer` contract test against the real request helper (#142, Task 48).
 
 ## In review
-- Task 114, pillo blister-pack word game (in progress on `task-114/pulse-blister`): renames pulse to pillo in
-  `src/config/games.ts`, rewrites game rules (five-letter words, six guesses, no cue), replaces the board and
-  on-screen keyboard with a blister-pack pill design, updates ten sample puzzles to five-letter words, and updates
-  all unit tests. CSS in `global.css` replaced with `.pillo-*` classes. Repair 1 (2026-11-02): fix
-  `BEATS` import in puzzlefeed.ts and remove unused imports in PulseGame.tsx. CI re-running.
 - Task 108, guided onboarding (#189): two optional setup questions on separate accessible screens with preserved device-local progress, in review.
 - Task 74, accessibility sweep (#157): full-site keyboard and axe audit, with segmented-date regression coverage, awaiting exact-head CI and Codex review.
 - Open pull requests write their line in their own file under `docs/status/in-review/` (see its README); the director
