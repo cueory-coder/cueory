@@ -149,7 +149,7 @@ export default function Onboarding() {
           </div>
         </fieldset>
       ) : (
-        <section className="space-y-4" aria-labelledby="exam-question">
+        <section className="space-y-4">
           <h2 ref={dateHeadingRef} tabIndex={-1} id="exam-question" className="text-xl font-medium">
             when is your exam?
           </h2>
