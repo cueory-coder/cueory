@@ -17,9 +17,14 @@ test('review-reminder preview is sample-only, keyboard-accessible and unindexed'
   await expect(card.getByRole('link', { name: 'unsubscribe from reminders' })).toHaveAttribute('href', '#preview-unsubscribe');
   await expect(card.getByText('verified physical mailing address required before sending.')).toBeVisible();
 
-  const alternative = page.getByText('plain-text version', { exact: true });
-  await alternative.focus();
-  await page.keyboard.press('Enter');
+  // Keyboard traversal must reach both links. The plain-text alternative is
+  // always visible, avoiding an extra disclosure focus stop in the site-wide sweep.
+  const unsubscribe = card.getByRole('link', { name: 'unsubscribe from reminders' });
+  await review.focus();
+  await expect(review).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(unsubscribe).toBeFocused();
+  await expect(page.getByRole('heading', { level: 2, name: 'plain-text version' })).toBeVisible();
   await expect(page.getByText('review now: (sample study link)', { exact: false })).toBeVisible();
 
   const audit = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
