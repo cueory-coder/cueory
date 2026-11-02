@@ -2,7 +2,7 @@
 # The rest of the Content-Security-Policy is a <meta> tag Astro writes on each
 # page (see astro.config.mjs). frame-ancestors only works as a header.
 /*
-  Content-Security-Policy: frame-ancestors 'none'; object-src 'none'; base-uri 'self'; upgrade-insecure-requests
+  Content-Security-Policy: frame-ancestors 'none'; frame-src https://www.youtube-nocookie.com; object-src 'none'; base-uri 'self'; upgrade-insecure-requests
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY

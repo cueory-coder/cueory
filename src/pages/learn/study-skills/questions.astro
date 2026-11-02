@@ -1,0 +1,83 @@
+---
+import { getEntry } from 'astro:content';
+import Layout from '../../../layouts/Layout.astro';
+import QuestionsSample from '../../../islands/QuestionsSample';
+
+const lesson = await getEntry('lessons', 'study-skills-01');
+if (!lesson) {
+  throw new Error('Lesson file content/lessons/study-skills-01.json is missing.');
+}
+---
+
+<Layout
+  title="questions: lesson 1"
+  description="practice questions with rationales for lesson 1 of how to study for nursing school."
+  variant="study"
+>
+  <div class="mx-auto w-full max-w-prose py-section">
+    <header class="space-y-3">
+      <p class="text-sm font-medium text-ink-soft" data-testid="questions-lesson-name">{lesson.data.title}</p>
+      <h1 class="text-2xl">questions</h1>
+      <p class="text-ink-soft">
+        pick your answer and check it. then you see why each choice is right or not.
+      </p>
+    </header>
+
+    <div class="mt-6">
+      <p
+        class="inline-flex max-w-full items-center rounded-pill border border-line bg-surface px-4 py-2 text-sm font-medium text-ink"
+        data-testid="questions-sample-note"
+      >
+        these are labeled samples
+      </p>
+      <p class="mt-3 text-sm text-ink-soft">
+        these are sample questions with everyday answers. the lesson's own questions come later.
+      </p>
+    </div>
+
+    <section
+      class="question-surface mt-8 rounded-lg border border-line bg-page p-5 sm:p-8"
+      aria-label="sample question practice"
+      data-testid="question-surface"
+    >
+      <div data-testid="questions">
+        {/* Only the address is in HTML. The public sample questions load after the page, never as island props. */}
+        <QuestionsSample client:only="react" src="/learn/study-skills/questions/study-skills-01.json" />
+        <noscript>
+          <p>
+            questions need JavaScript. you can still read the lesson on the
+            <a href="/learn/study-skills">lesson page</a>.
+          </p>
+        </noscript>
+      </div>
+    </section>
+
+    <nav aria-label="more ways to study" class="mt-section border-t border-line pt-6">
+      <ul class="flex flex-wrap gap-3 text-sm">
+        <li>
+          <a
+            href="/learn/study-skills"
+            class="inline-flex min-h-11 items-center rounded-pill border border-control px-5 py-3 text-ink no-underline hover:bg-surface focus-visible:bg-surface"
+          >
+            back to lesson
+          </a>
+        </li>
+        <li>
+          <a
+            href="/learn/study-skills/learn-mode"
+            class="inline-flex min-h-11 items-center rounded-pill border border-control px-5 py-3 text-ink no-underline hover:bg-surface focus-visible:bg-surface"
+          >
+            try learn mode
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</Layout>
+
+<style is:global>
+  /* Task 77 owns the shared shadow token. Until it lands, use the existing soft shadow rather than a raw value. */
+  .question-surface {
+    box-shadow: var(--shadow-card, var(--shadow-soft));
+  }
+</style>

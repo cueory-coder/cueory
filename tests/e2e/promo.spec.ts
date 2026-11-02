@@ -45,9 +45,10 @@ test.describe('once-only promo panel (D-59)', () => {
     expect(await headline.boundingBox()).toEqual(before);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
-    // The launch list (until accounts exist), the tip page in a new tab, and every target at least 44 px.
+    // The launch list (until accounts exist), the supporting-our-mission page in a new tab, and every target at least
+    // 44 px.
     const join = panel.getByRole('link', { name: 'join the launch list' });
-    const support = panel.getByRole('link', { name: 'support us while we build (opens in a new tab)' });
+    const support = panel.getByRole('link', { name: 'supporting our mission (opens in a new tab)' });
     await expect(join).toHaveAttribute('href', '/#signup');
     await expect(support).toHaveAttribute('href', 'https://ko-fi.com/cueory');
     await expect(support).toHaveAttribute('target', '_blank');
@@ -147,14 +148,14 @@ test.describe('once-only promo panel (D-59)', () => {
   });
 
   test('a link that opens a new tab closes the panel, and focus comes back where it was', async ({ page }) => {
-    // Nothing leaves the test machine: the tip page's address is answered with an error.
+    // Nothing leaves the test machine: the supporting-our-mission page's address is answered with an error.
     await page.context().route(/ko-fi\.com/, (route) => route.abort());
     await page.goto('/');
     const hero = page.getByRole('link', { name: 'create your free account' });
     await hero.focus();
     await wait(page, 5_500);
     const popup = page.waitForEvent('popup');
-    await promoPanel(page).getByRole('link', { name: /support us while we build/ }).click();
+    await promoPanel(page).getByRole('link', { name: /supporting our mission/ }).click();
     await (await popup).close();
     await wait(page, 500);
     await expect(promoPanel(page)).toBeHidden();

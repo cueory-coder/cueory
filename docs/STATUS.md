@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-11-01
+Last updated: 2026-11-01 (Task 42)
 
 ## Done
 - Static site: Astro + React islands + TypeScript + Tailwind, static output, tested at phone and desktop sizes.
@@ -174,12 +174,94 @@ Merged into `staging`; the database ones by the director on Christian's behalf (
   - what the offline cache may keep (#112, Task 32);
   - study events with nothing personal in them (#114, Task 33), with no analytics script yet.
 
+## Done (director, 2026-11-01, 4–5 am Phoenix)
+Merged into `staging` (#115 by the director on Christian's behalf, D-89, with the lead's review). Helpers' logic, not on
+a page yet:
+- the batch importer refuses an item whose hash is missing or doesn't match, and needs every choice's rationale (#115,
+  Task 28); the checker is being brought in line with it (Task C8);
+- the flag-name fix for item versions (#117, Task 26);
+- guest progress turned into review rows for when an account is created (#113, Task 31);
+- the review queue from database rows (#118, Task 34);
+- the flag inbox model for `/admin` (#120, Task 35);
+- the curriculum lesson map read in build order (#119, Task 36);
+- display-name checks in the browser that match the database (#121, Task 37);
+- plain words for the database's refusals (#122, Task 38);
+- which visuals a lesson may show: approved ones with a drawing, never drafts (#123, Task 39).
+
+## Done (director, 2026-11-01, 5–6 am Phoenix)
+Merged into `staging`; the ones touching the content security policy, accounts or a package by the director on
+Christian's behalf (D-89), each with the lead's review:
+- Lesson videos (#97, Task C3, D-82): a click-to-play cover; nothing loads from YouTube before the tap, one tap loads
+  the player and starts the video, and only `published` videos show (the placeholder stays a draft). `/privacy` names
+  YouTube. Needs Christian's check on a real iPhone (below).
+- The 3D body viewer shell (#98, Task C4, D-83): `three` loads only after a tap; a placeholder model in bone, muscle and
+  skin layers, keyboard controls, and a test that keeps model files under 3 MB. The real model will be BodyParts3D.
+- Export-my-data (#95, Task 19, D-91) covers everything stored about a student, including attempts, exam dates and
+  review rows, as JSON and CSV. Not on a page yet.
+- The Supabase settings reader (#101, Task 22), the daily puzzle checker (#108, Task 30), and the batch checker matching
+  the importer (#125, Task C8, D-90).
+- Visuals kit helpers, not on a page yet: the review sheet for Christian (#126, Task 40), "no rights record, no image"
+  (#128, Task 41) and credits for a lesson page (#127, Task 42).
+
+## Done (director, 2026-11-01, 6–8 am Phoenix)
+Merged into `staging`; the database one by the director on Christian's behalf (D-89), with the lead's review:
+- Task 2, database step 5, the last (#110, Task C6 and C11, D-88): `flags`, `submit_flag` and `my_flags`, with 52
+  database tests. A signed-in student can send a "Flag or comment" report (5 an hour, 20 a day); the reports table is
+  closed to every website role and read only in the locked `/admin` inbox (not built yet); a student reads only their
+  own reports through `my_flags()`, and export-my-data includes them. Steps 1 to 5 are all in `staging`; nothing
+  reaches `cueory-staging` or `cueory-prod` until Christian applies migrations himself.
+- Delete-account checks (#105, Tasks 25 and 44): what will be deleted, in plain words, including saved progress, an
+  email-only account and old starred cards; and the reports count (#134, Task 45). Pure logic, not on a page yet.
+- Visuals on lesson pages (#129, Task C9): approved drawings with each book's credit once; none show while every
+  drawing is a draft.
+- The review-sheet script (#131, Task 43) writes Christian's draft review sheets outside the repository, with a test
+  fix for macOS (#133).
+- Browser tests for `/start` (#136, Task 46): answers saved and restored, keyboard, focus, accessibility, clearing.
+
+## Done (2026-11-01, 8–9 am Phoenix)
+- **Live site:** Christian merged release [#132](https://github.com/lilchristxan/Cueory/pull/132) into `main` at about
+  8:30 am: all four daily games on `/play`, private game stats, onboarding and progress saved on the device, the study
+  modes on pages, and `/privacy` naming YouTube. Its checks and the production build passed.
+- Study modes on pages (#77, Task C1), merged by Christian with "Ok" just before the release: fill-in, organizer, label
+  it and questions for the study-skills lesson, on labeled everyday samples whose answers are in the browser (D-92).
+- Offline copies of pages (#135, Task C12, D-93), merged by the director on Christian's behalf (D-89) with the lead's
+  review: an opened lesson opens again with no connection; `/play`, `/admin`, `/progress`, `/start`, data files and
+  query strings are never kept. Off switch: `offline.enabled` in `src/config/site.ts` (docs/OFFLINE.md).
+- Helpers' logic: the `/admin` flag inbox uses the real `flags` rows (#138, Task 47), and tests check that the browser
+  helpers and the database functions agree on arguments, error messages and the export's report fields (#139, Task 48).
+  The `check_answer` request (#140, Task 49) checks the item, version and letters before sending anything, through a
+  transport the page will supply once accounts are on.
+
+## Done (director, 2026-11-01, 9–11 am Phoenix)
+Merged into `staging`:
+- "Tip" becomes **supporting our mission** (#147, Task C13, D-94): `/support` shows Christian's two mission lines
+  exactly, with a "support our mission" button; the promo panel's link says "supporting our mission".
+- The glove-note logic (D-94), with nothing visible until Christian's photos and recordings arrive:
+  - when a note may appear (#148, Task 50);
+  - checked and shuffled break ideas of up to 60 characters (#144, Task 51);
+  - level writing fitted inside the palm (#145, Task 52);
+  - when a glove sound may play, and its remembered on/off switch (#146, Task 53).
+- The review-clip exporter for Christian's private review of the drawings (#111, Tasks C7 and C10), and the
+  `check_answer` contract test against the real request helper (#142, Task 48).
+
 ## In review
-- Open pull requests add their own lines here. Waiting now: study modes on pages (#77), export-my-data (#95, Task 19),
-  lesson videos (#97, Task C3), the 3D viewer shell (#98, Task C4), the Supabase settings reader (#101, Task 22),
-  delete-account checks (#105, Task 25), the daily puzzle checker (#108), database step 5, flags and `submit_flag`
-  (#110), the review-clip exporter (#111, Task C7), guest progress into an account (#113, Task 31) and Release browser
-  tests (#55).
+- Task 108, guided onboarding (#189): two optional setup questions on separate accessible screens with preserved device-local progress, in review.
+- Task 74, accessibility sweep (#157): full-site keyboard and axe audit, with segmented-date regression coverage, awaiting exact-head CI and Codex review.
+- Open pull requests add their own lines here. Waiting now: Release browser tests (#55).
+- Task 111, reminder choices preview (#191): non-sending phone and email choices open only after a completed review and a deliberate tap, with keyboard/privacy checks while real opt-in and delivery remain future work.
+- Task 106, review-reminder email (#185): non-sending branded HTML, plain-text alternative and noindex sample preview, awaiting CI and Codex review.
+- Task 105, quiet result marks (#188): official emblem and real Cueory page address appear only on completed pulse, sort and crossword result cards and the progress summary; answer areas and printing stay clear.
+- Task 56, account screens (#164): Google and email/password screens now use Task 55’s shared client, with accounts-off and retry handling. Callback, profile-name persistence and verified recovery remain held for their integration owner and Christian’s approval.
+- Task 100, points, streaks and achievements (#180): deterministic local-only rewards with weekly free passes and test coverage, awaiting CI and Codex review.
+- Task 110 start, cruet loading animation (#184): the four layers cut from Christian's emblem and the lead's working prototype in `docs/prototypes/`; the island comes next.
+- Task 95, modern sample questions page (#174): passed full CI and Codex review, merged into `staging` and awaiting the next production release.
+- Task 73, break-idea sharing proposal (#177): private submissions, moderation, reporting, export and account-deletion safeguards proposed for Christian's decisions.
+- Approved designs (#178): Christian's approved mockups saved in `docs/screenshots/approved-2026-11-01/` for the builders.
+- Glove photos and the Kalam font (#163): Christian's nine glove colors cut out as WebP files, and the handwriting he
+  picked. Files only; the glove note (Task 70) uses them and stays off until he checks it.
+- Task 99, Lato body font (#172): Lato for body and interface text, line spacing at least 1.5, plain accent line under the home headline. Waits for Christian (it edits CLAUDE.md).
+- Task 55, Supabase client (#156): Supabase's sign-in library, loaded only on pages that need an account; the security policy gains the project address only when accounts are on. Waits for Christian (sign-in and security policy).
+- Task 58, signed-in account corner (#186): initials avatar and account actions from the student's own session, with no client load before idle and the accounts-off menu unchanged.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
@@ -187,6 +269,7 @@ Merged into `staging`; the database ones by the director on Christian's behalf (
 3. Christian's 31 Oct evening requests ([the lead's note on issue #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6551841155)),
    now first: brand v1.0 (the lead's branch), then the home page polish pass, then the rest of daily games (the home
    page section, pulse and sort are in `staging`; the crossword and word path are in review).
+- Task 61, private student export loader (#169): safely reads an account's own saved data for download, with CI verified and lead/Codex review plus Christian's approval required.
 
 ## Visuals kit (Task 6, D-56)
 Targets: first visuals by about 14 November, the full kit by about 12 December ([plan](VISUALS.md)).
@@ -204,8 +287,12 @@ Targets: first visuals by about 14 November, the full kit by about 12 December (
 - In `staging`: the first batch's words (D-72), approved by Christian: the source files for body fluid compartments,
   osmosis and fluid shifts, and the sodium-potassium pump, every label quoted from Open RN *Nursing Fundamentals 2e*
   15.2.
-- Next: the three drawings (Task C5), made only from those files. The 3D viewer adds three.js, so it waits for
-  Christian's merge; its models come from BodyParts3D (D-80).
+- In `staging` ([#98](https://github.com/lilchristxan/Cueory/pull/98)): 3D body viewer shell (D-83). Lazy-loads
+  `three` on tap, renders a placeholder model grouped into bone / muscle / skin layers with OrbitControls. On-demand
+  rendering (battery), keyboard controls (arrow keys / +−), dark-mode background tokens, reduced-motion support.
+  Preview page has `noindex`. Real model will be BodyParts3D (D-80). `three` 0.187; a unit test caps model files
+  under `public/` at 3 MB.
+- Next: the three drawings (Task C5), made only from those files.
 
 ## Planning
 - [Med-surg lesson map](curriculum/README.md) ([#31](https://github.com/lilchristxan/Cueory/pull/31)): the master
@@ -217,9 +304,19 @@ Targets: first visuals by about 14 November, the full kit by about 12 December (
 - **Signup form** shows "signups open soon" until the Kit form exists (SETUP.md, Part I).
 
 ## Needs Christian's hands
+- [x] Release #132 merged into the live site by Christian on 2026-11-01, about 8:30 am Phoenix.
+- [ ] Lesson videos (#97, live but unlinked): the iPhone check needs a real video. When your first lesson video is on
+  Cueory's YouTube channel, send its link; then on a real iPhone, tap its cover once on the staging site and the video
+  should start right away. Until then `/learn/video-sample` only shows the cover and the player loading.
+- [x] Glove-note pop-ups: Christian sent his glove image (made with an AI image tool) on 2026-11-01 and chose nine
+  colors, Kalam handwriting and all text inside the palm (#163, Task 70). Still to come: two short sounds, a glove snap
+  and a stretch, if he wants sound.
+- [x] Study modes on pages (#77): merged by Christian with "Ok" on 2026-11-01, read as allowing labeled everyday
+  samples with their answers in the browser (D-92). If that reading is wrong, say so and the questions page comes off.
 - [ ] Real questions need a free account (D-86): `check_answer` reveals the key after one try, so signed-out visitors
   can't use it (a limit needs an identity, and a CAPTCHA would load a third-party script). Guests keep the sample modes.
-  Reply "ok" to keep it this way, or ask for a CAPTCHA exception.
+  Reply "ok" to keep it this way, or ask for a CAPTCHA exception. The same goes for "Flag or comment" reports (D-88):
+  signed-in only, so the limits have someone to apply to.
 - [x] Daily report (#4) and task list (#11) locked so only collaborators can comment (D-79), done by Christian on
   2026-11-01.
 - [x] Private vulnerability reporting turned on (D-79), done by Christian on 2026-11-01.

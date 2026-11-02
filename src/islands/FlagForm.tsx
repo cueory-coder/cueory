@@ -4,7 +4,7 @@ import { charactersLeft, checkReport, REASONS, reasonInWords, type FlagProblem, 
 interface Props {
   page: string;
   itemId?: string;
-  itemVersion?: number;
+  itemVersionId?: string;
   signedIn: boolean;
   send: (report: FlagReport) => Promise<'sent' | 'too-many' | 'failed'>;
 }
@@ -12,10 +12,10 @@ const control = 'min-h-11 min-w-11 rounded-md border border-control px-4 py-2 te
 
 /** A changed page, item or account starts a fresh form before it can render another report's draft. */
 export default function FlagForm(props: Props) {
-  return <ReportForm key={JSON.stringify([props.page, props.itemId, props.itemVersion, props.signedIn])} {...props} />;
+  return <ReportForm key={JSON.stringify([props.page, props.itemId, props.itemVersionId, props.signedIn])} {...props} />;
 }
 
-function ReportForm({ page, itemId, itemVersion, signedIn, send }: Props) {
+function ReportForm({ page, itemId, itemVersionId, signedIn, send }: Props) {
   const id = useId();
   const panelId = `${id}-panel`, commentId = `${id}-comment`, countId = `${id}-count`;
   const [open, setOpen] = useState(false);
@@ -44,7 +44,7 @@ function ReportForm({ page, itemId, itemVersion, signedIn, send }: Props) {
 
   const submit = async () => {
     if (busy.current || !signedIn) return;
-    const checked = checkReport({ page, itemId, itemVersion, reason, comment });
+    const checked = checkReport({ page, itemId, itemVersionId, reason, comment });
     if (!checked.ok) { setProblems(checked.problems); return; }
     setProblems([]); setAnnouncement(''); busy.current = true; setPending(true);
     let result: 'sent' | 'too-many' | 'failed';
@@ -84,10 +84,10 @@ function ReportForm({ page, itemId, itemVersion, signedIn, send }: Props) {
         <p id={countId} className="mt-2 text-sm text-ink-soft">{charactersLeft(comment).toLocaleString('en-US')} characters left</p>
         {problemText('comment')}
         <p ref={context} tabIndex={-1} className="mt-4 break-all text-sm text-ink-soft"
-          aria-describedby={(['page', 'itemId', 'itemVersion'] as const).filter(field => error(field)).map(errorId).join(' ') || undefined}>
-          this report includes this page's address ({page}){itemId !== undefined ? `, item ${itemId}` : ''}{itemVersion !== undefined ? `, version ${itemVersion}` : ''}.
+          aria-describedby={(['page', 'itemId', 'itemVersionId'] as const).filter(field => error(field)).map(errorId).join(' ') || undefined}>
+          this report includes this page's address ({page}){itemId !== undefined ? `, item ${itemId}` : ''}{itemVersionId !== undefined ? `, version ${itemVersionId}` : ''}.
         </p>
-        {problemText('page')}{problemText('itemId')}{problemText('itemVersion')}
+        {problemText('page')}{problemText('itemId')}{problemText('itemVersionId')}
         <button type="submit" aria-disabled={pending} className={`${control} mt-4 bg-button text-on-button aria-disabled:opacity-50`}>{pending ? 'sending…' : 'send'}</button>
       </form>}
       <button type="button" className={`${control} mt-3`} onClick={close}>close</button>

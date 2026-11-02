@@ -1,11 +1,206 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import Prose from '../components/Prose.astro';
+
+const quickLinks = [
+  { href: '/', label: 'home' },
+  // The existing lesson hub works today; /learn is being built in a separate director task.
+  { href: '/learn/study-skills', label: 'learn' },
+  { href: '/play', label: 'play' },
+] as const;
 ---
 
-<Layout title="page not found" noindex>
-  <Prose>
-    <h1>we couldn't find that page</h1>
-    <p><a href="/">Go to the home page</a></p>
-  </Prose>
+<Layout
+  title="page not found"
+  description="this page isn't here. search cueory or find your way back to studying."
+  noindex
+  promo={false}
+>
+  <section class="mx-auto max-w-prose py-section" aria-labelledby="not-found-title">
+    <div class="mb-8 space-y-3 text-center">
+      <p class="text-sm font-medium tracking-label text-ink-soft">404 · page not found</p>
+      <h1 id="not-found-title" class="font-display text-title text-ink sm:text-title-lg">that page isn't here.</h1>
+      <p class="text-ink-soft">try searching cueory, or choose somewhere else to go.</p>
+    </div>
+
+    <div class="veil p-6 sm:p-10">
+      <div role="search" aria-label="search cueory" data-404-search>
+        <label for="not-found-search" class="block text-sm font-medium text-ink">search cueory</label>
+        <div class="relative mt-3">
+          <input
+            id="not-found-search"
+            type="search"
+            class="min-h-11 w-full rounded-pill border border-control bg-page px-5 py-3 pr-12 text-base text-ink placeholder:text-ink-soft"
+            placeholder="what are you looking for?"
+            autocomplete="off"
+            spellcheck="false"
+            enterkeyhint="search"
+            aria-describedby="not-found-search-status"
+            aria-controls="not-found-search-results"
+            data-404-input
+          />
+          <svg
+            viewBox="0 0 24 24"
+            class="pointer-events-none absolute right-4 top-1/2 size-5 -translate-y-1/2 text-ink-soft"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" stroke-width="1.6"></circle>
+            <path d="M15 15l5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
+          </svg>
+        </div>
+        <p
+          id="not-found-search-status"
+          class="mt-2 text-sm text-ink-soft"
+          aria-live="polite"
+          role="status"
+          data-404-status
+        ></p>
+        <ul
+          id="not-found-search-results"
+          class="mt-3 space-y-1"
+          aria-label="search results"
+          data-404-results
+          hidden
+        ></ul>
+        <noscript><p class="mt-3 text-sm text-ink-soft">search needs JavaScript. the links below still work.</p></noscript>
+      </div>
+
+      <nav aria-label="other places to go" class="mt-8">
+        <p class="text-sm font-medium text-ink-soft">or go straight to</p>
+        <ul class="mt-3 grid gap-3 sm:grid-cols-3">
+          {
+            quickLinks.map((link) => (
+              <li>
+                <a
+                  href={link.href}
+                  class="flex min-h-11 items-center justify-center rounded-pill border border-control px-5 py-3 text-ink no-underline hover:bg-surface focus-visible:bg-surface"
+                >
+                  {link.label}
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </nav>
+    </div>
+  </section>
 </Layout>
+
+<script>
+  // Reuse the same local Pagefind index and safe text rendering as the site menu (D-49).
+  // This only loads the search index after a visitor focuses the search field.
+  import { cleanUrl, excerptParts, keepFocus, MAX_RESULTS, moveFocus, PAGEFIND_URL, statusText } from '../scripts/search';
+
+  interface PagefindResult {
+    url: string;
+    excerpt: string;
+    meta: { title?: string };
+  }
+
+  interface Pagefind {
+    options(options: Record<string, unknown>): Promise<void>;
+    init(): Promise<void> | void;
+    debouncedSearch(term: string): Promise<{ results: { data(): Promise<PagefindResult> }[] } | null>;
+  }
+
+  const root = document.querySelector<HTMLElement>('[data-404-search]');
+  const input = root?.querySelector<HTMLInputElement>('[data-404-input]');
+  const status = root?.querySelector<HTMLElement>('[data-404-status]');
+  const list = root?.querySelector<HTMLUListElement>('[data-404-results]');
+
+  if (root && input && status && list) {
+    let pagefind: Promise<Pagefind> | undefined;
+    const load = () => {
+      pagefind ??= (async () => {
+        const url: string = PAGEFIND_URL;
+        const module = (await import(/* @vite-ignore */ url)) as Pagefind;
+        // The site CSP deliberately disallows workers that use blob: URLs.
+        await module.options({ noWorker: true });
+        await module.init();
+        return module;
+      })();
+      return pagefind;
+    };
+
+    const links = () => [...list.querySelectorAll<HTMLAnchorElement>('a')];
+    let latest = 0;
+
+    const render = (results: PagefindResult[]) => {
+      const focused = links().indexOf(document.activeElement as HTMLAnchorElement);
+      list.replaceChildren(
+        ...results.map((result) => {
+          const item = document.createElement('li');
+          const link = document.createElement('a');
+          link.className = 'block min-h-11 rounded-lg px-4 py-2 text-ink no-underline hover:bg-surface focus-visible:bg-surface';
+          link.href = cleanUrl(result.url);
+
+          const title = document.createElement('span');
+          title.className = 'block font-medium';
+          title.textContent = result.meta.title ?? cleanUrl(result.url);
+
+          const excerpt = document.createElement('span');
+          excerpt.className = 'block text-sm text-ink-soft';
+          for (const part of excerptParts(result.excerpt)) {
+            if (part.mark) {
+              const mark = document.createElement('mark');
+              mark.className = 'bg-transparent font-semibold text-ink';
+              mark.textContent = part.text;
+              excerpt.append(mark);
+            } else {
+              excerpt.append(part.text);
+            }
+          }
+          link.append(title, excerpt);
+          item.append(link);
+          return item;
+        }),
+      );
+
+      list.hidden = results.length === 0;
+      if (focused !== -1) {
+        const target = keepFocus(focused, results.length);
+        if (target === -1) input.focus();
+        else links()[target]?.focus();
+      }
+    };
+
+    input.addEventListener('focus', () => {
+      load().catch(() => undefined);
+    });
+
+    input.addEventListener('input', async () => {
+      const term = input.value;
+      const run = ++latest;
+      if (term.trim() === '') {
+        render([]);
+        status.textContent = '';
+        return;
+      }
+      status.textContent = 'searching…';
+      try {
+        const search = await (await load()).debouncedSearch(term);
+        if (search === null || run !== latest) return;
+        const shown = await Promise.all(search.results.slice(0, MAX_RESULTS).map((entry) => entry.data()));
+        if (run !== latest) return;
+        render(shown);
+        status.textContent = statusText(term, search.results.length, shown.length);
+      } catch {
+        if (run !== latest) return;
+        render([]);
+        status.textContent = 'search isn’t available right now. the links below still work.';
+      }
+    });
+
+    // Keep keyboard navigation consistent with the search in the menu.
+    root.addEventListener('keydown', (event) => {
+      const items = links();
+      const index = items.indexOf(document.activeElement as HTMLAnchorElement);
+      if (index === -1 && document.activeElement !== input) return;
+      const target = moveFocus(index, items.length, event.key);
+      if (target === undefined) return;
+      event.preventDefault();
+      if (target === -1) input.focus();
+      else items[target]?.focus();
+    });
+  }
+</script>

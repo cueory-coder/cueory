@@ -46,15 +46,17 @@
   --color-panel-ink: #f9f5ef;   /* Ivory    — text on the Espresso glass panel */
   --color-panel-ink-soft: #d3b7a1; /* Taupe — notes and small links on the panel */
   --color-on-panel-button: #3e2c23; /* Espresso — text on the light pill button in a dark panel (D-59) */
+  --color-player: #3e2c23;      /* Espresso — behind the lesson video player (D-82) */
 
   /* ---------- Fonts ---------- */
-  --font-body: "Inter Variable", system-ui, -apple-system, "Segoe UI", sans-serif; /* headings, body, UI, buttons */
+  --font-body: "Lato", system-ui, -apple-system, "Segoe UI", sans-serif; /* headings, body, UI, buttons */
   /* Marketing headings and the italic accent line only (brand spec section 4; D-41). Self-hosted in public/fonts. */
   --font-display: "Bodoni Moda", "Bodoni 72", Didot, Georgia, serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
   /* The logo is Christian's PNG artwork (Wordmark.astro, public/brand/v1/), never typed in a font (D-55). */
 
-  /* ---------- Type scale (mobile first; large and readable) ---------- */
+  /* ---------- Type scale (mobile first; large and readable) ----------
+     Every text style set in Lato has a line height of at least 1.5 (Christian, 2026-11-01). */
   --text-sm: 0.9375rem;
   --text-sm--line-height: 1.5;
   --text-base: 1.125rem;
@@ -62,11 +64,11 @@
   --text-lg: 1.3125rem;
   --text-lg--line-height: 1.55;
   --text-xl: 1.625rem;
-  --text-xl--line-height: 1.3;
+  --text-xl--line-height: 1.5;
   --text-2xl: 2.125rem;
-  --text-2xl--line-height: 1.15;
+  --text-2xl--line-height: 1.5;
   --text-3xl: 2.75rem;
-  --text-3xl--line-height: 1.08;
+  --text-3xl--line-height: 1.5;
   --text-hero: 3.5rem;          /* home page headline on wider screens */
   --text-hero--line-height: 1.05;
   --text-display: 2.75rem;      /* marketing hero headline on phones (44px) */
@@ -85,9 +87,9 @@
   --text-title-lg: 3rem;        /* marketing page title on wider screens (48px) */
   --text-title-lg--line-height: 1.12;
   --text-accent: 1.375rem;      /* italic serif accent line under a headline */
-  --text-accent--line-height: 1.35;
+  --text-accent--line-height: 1.5;
   --text-accent-lg: 1.75rem;
-  --text-accent-lg--line-height: 1.3;
+  --text-accent-lg--line-height: 1.5;
   /* Labels inside the visuals kit's SVG drawings (D-81). In an SVG these sizes are drawing units, so they scale with
      the drawing: on a 320px phone a 15-unit label shows at about 13px. */
   --text-diagram-note: 13px;
@@ -213,6 +215,7 @@
     --color-panel-ink: #f9f5ef;   /* Ivory */
     --color-panel-ink-soft: #cbb8a4; /* Sand */
     --color-on-panel-button: #1c1917; /* Charcoal */
+    --color-player: #1c1917;      /* Charcoal */
     --shadow-tint: 28 25 23;      /* Charcoal */
     --silk-fold-rgb: 58 45 36;    /* Walnut */
     --silk-fold-alpha: 0.7;
@@ -256,6 +259,7 @@
   --color-panel-ink: #f9f5ef;   /* Ivory */
   --color-panel-ink-soft: #cbb8a4; /* Sand */
   --color-on-panel-button: #1c1917; /* Charcoal */
+  --color-player: #1c1917;      /* Charcoal */
   --shadow-tint: 28 25 23;      /* Charcoal */
   --silk-fold-rgb: 58 45 36;    /* Walnut */
   --silk-fold-alpha: 0.7;

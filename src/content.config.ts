@@ -1,7 +1,11 @@
 import { defineCollection } from 'astro:content';
 import { glob } from 'astro/loaders';
 import { z } from 'astro/zod';
+import { sentenceParts } from './islands/fillin';
+import { parseSet as parseLabelSet } from './islands/labelit';
+import { sampleChecker, type SampleItem } from './islands/questions';
 import { visualProblems } from './visuals/sources';
+import { videoSchema } from './videos/schema';
 
 /**
  * Lessons are content, not code: they live as JSON files in /content/lessons.
@@ -97,6 +101,141 @@ const triage = defineCollection({
 });
 
 /**
+ * Organizer sets (ROADMAP Task 4): one JSON file per lesson in /content/organizer, sorted with OrganizerBoard. The rules
+ * match parseSet in src/islands/organizer.ts: 2 to 4 groups, 4 to 12 items, unique ids, every item in a real group.
+ * Until reviewed batches exist (Task 2 and 3), a set is an everyday "sample" and the page says so; no clinical facts.
+ */
+const organizerId = z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'an id is lowercase letters, digits and dashes');
+const organizer = defineCollection({
+  loader: glob({ base: './content/organizer', pattern: '*.json' }),
+  schema: z
+    .object({
+      lesson: z.string().regex(/^[a-z0-9-]+$/),
+      status: z.literal('sample'),
+      title: z.string().min(1).max(200),
+      groups: z
+        .array(z.object({ id: organizerId.refine((id) => id !== 'tray', 'tray is reserved for unsorted items'), name: z.string().min(1).max(200) }))
+        .min(2)
+        .max(4),
+      items: z.array(z.object({ id: organizerId, text: z.string().min(1).max(1000), group: organizerId })).min(4).max(12),
+    })
+    .superRefine(({ groups, items }, context) => {
+      const groupIds = new Set(groups.map((group) => group.id));
+      if (groupIds.size !== groups.length) context.addIssue({ code: 'custom', path: ['groups'], message: 'a group id is repeated' });
+      if (new Set(items.map((item) => item.id)).size !== items.length) {
+        context.addIssue({ code: 'custom', path: ['items'], message: 'an item id is repeated' });
+      }
+      for (const item of items) {
+        if (!groupIds.has(item.group)) {
+          context.addIssue({ code: 'custom', path: ['items'], message: `item "${item.id}" names a group that does not exist` });
+        }
+      }
+    }),
+});
+
+/**
+ * Fill-in sets (ROADMAP Task 4): one JSON file per lesson in /content/fill-in, played with FillInBoard. Each sentence
+ * wraps its one missing word in double brackets, checked with the same sentenceParts as the board. Until reviewed
+ * batches exist, a set is an everyday "sample" and the page says so; no clinical facts.
+ */
+const fillIn = defineCollection({
+  loader: glob({ base: './content/fill-in', pattern: '*.json' }),
+  schema: z
+    .object({
+      lesson: z.string().regex(/^[a-z0-9-]+$/),
+      status: z.literal('sample'),
+      items: z
+        .array(
+          z.object({
+            id: z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'an id is lowercase letters, digits and dashes'),
+            sentence: z.string().min(1).max(400),
+          }),
+        )
+        .min(1)
+        .max(30),
+    })
+    .superRefine(({ items }, context) => {
+      if (new Set(items.map((item) => item.id)).size !== items.length) {
+        context.addIssue({ code: 'custom', path: ['items'], message: 'an item id is repeated' });
+      }
+      items.forEach((item, i) => {
+        try {
+          sentenceParts(item.sentence);
+        } catch (error) {
+          context.addIssue({ code: 'custom', path: ['items', i, 'sentence'], message: (error as Error).message });
+        }
+      });
+    }),
+});
+
+/**
+ * "label it" sets (ROADMAP Task 4c): one JSON file per lesson in /content/label-it, checked with the board's own
+ * parseSet (boxes inside the image, unique ids, label text, and an image credit: no credit, no image). The page never
+ * puts this file in its HTML; a static endpoint serves it and the board fetches it after the page loads.
+ * Until reviewed images with rights records exist (Task 2), a set is an everyday "sample" drawn for Cueory.
+ */
+const labelIt = defineCollection({
+  loader: glob({ base: './content/label-it', pattern: '*.json' }),
+  schema: z
+    .object({
+      lesson: z.string().regex(/^[a-z0-9-]+$/),
+      status: z.literal('sample'),
+      image: z.object({
+        src: z.string().regex(/^\/[\w\-./]+\.(svg|png|webp|jpg)$/, 'the image is a file on this site, starting with /'),
+        alt: z.string().min(1).max(300),
+        width: z.number().positive(),
+        height: z.number().positive(),
+        credit: z.string().min(1).max(300),
+      }),
+      labels: z.array(z.object({ id: z.string(), text: z.string(), x: z.number(), y: z.number(), w: z.number(), h: z.number() })),
+    })
+    .superRefine((data, context) => {
+      try {
+        parseLabelSet({ id: 'check', image: data.image, labels: data.labels });
+      } catch (error) {
+        context.addIssue({ code: 'custom', path: ['labels'], message: (error as Error).message });
+      }
+    }),
+});
+
+/**
+ * Sample questions (ROADMAP Task 4, D-33, D-45): one JSON file per lesson in /content/questions, with everyday
+ * questions only. Their keys and rationales are for the sample checker; real questions never go in this repository:
+ * their keys stay in the database and are checked by check_answer (Task 2). Checked with the player's own
+ * sampleChecker, which refuses anything that isn't marked "sample".
+ */
+const choiceId = z.enum(['a', 'b', 'c', 'd', 'e']);
+const questions = defineCollection({
+  loader: glob({ base: './content/questions', pattern: '*.json' }),
+  schema: z
+    .object({
+      lesson: z.string().regex(/^[a-z0-9-]+$/),
+      status: z.literal('sample'),
+      items: z
+        .array(
+          z.object({
+            id: z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'an id is lowercase letters, digits and dashes'),
+            status: z.literal('sample'),
+            type: z.enum(['single', 'sata']),
+            stem: z.string().min(1).max(400),
+            choices: z.array(z.object({ id: choiceId, text: z.string().min(1).max(300) })).min(2).max(5),
+            key: z.array(choiceId).min(1),
+            rationales: z.partialRecord(choiceId, z.string().min(1).max(400)),
+          }),
+        )
+        .min(1)
+        .max(30),
+    })
+    .superRefine(({ items }, context) => {
+      try {
+        sampleChecker(items as SampleItem[]);
+      } catch (error) {
+        context.addIssue({ code: 'custom', path: ['items'], message: (error as Error).message });
+      }
+    }),
+});
+
+/**
  * The small crossword (internal id cueword, D-70): sample puzzles, one JSON file each in /content/games/cueword. The
  * shape is checked here; /play also runs each one through the game's own parsePuzzle at build time, so a clue that
  * doesn't match a word stops the build with a plain message.
@@ -174,4 +313,13 @@ const visuals = defineCollection({
     }),
 });
 
-export const collections = { lessons, cards, pulse, triage, cueword, suture, visuals };
+/**
+ * Lesson videos (D-82): one JSON file per video in /content/videos. The videoId is a YouTube video id
+ * (or a clearly labeled placeholder). A video appears on the lesson page only when its status is 'published'.
+ */
+const videos = defineCollection({
+  loader: glob({ base: './content/videos', pattern: '**/*.json' }),
+  schema: videoSchema,
+});
+
+export const collections = { lessons, cards, pulse, triage, cueword, suture, organizer, 'fill-in': fillIn, 'label-it': labelIt, questions, visuals, videos };

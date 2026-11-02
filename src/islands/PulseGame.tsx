@@ -20,6 +20,7 @@ import {
 } from './pulse';
 import { dayLabel } from './daily';
 import { localDay, reportRound } from './gameresults';
+import ResultBrandMark from './ResultBrandMark';
 
 interface Puzzle {
   word: string;
@@ -195,6 +196,7 @@ export default function PulseGame({ puzzles }: Props) {
           </button>
           {copied && <p className="mt-2 text-sm text-ink-soft">{copied}</p>}
           <p className="mt-4 text-sm text-ink-soft">a new word comes tomorrow.</p>
+          <ResultBrandMark path="/play" />
         </div>
       )}
 

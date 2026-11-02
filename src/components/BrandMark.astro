@@ -1,0 +1,22 @@
+---
+/**
+ * Quiet credit for a share-worthy result. It is not a button or a second heading.
+ * The mark uses Christian's approved emblem through Wordmark, never redrawn artwork.
+ * In React-only game result cards, ResultBrandMark.tsx uses the same approved PNGs.
+ */
+import Wordmark from './Wordmark.astro';
+
+interface Props {
+  /** Only real, existing site destinations may be printed on a result. */
+  path: '/play' | '/progress';
+}
+const { path } = Astro.props;
+---
+<span
+  data-testid="result-brand-mark"
+  class="mt-4 inline-flex select-none items-center gap-2 print:hidden"
+  aria-hidden="true"
+>
+  <Wordmark variant="emblem" sizes="0.875rem" class="w-3.5 shrink-0" />
+  <span class="font-body text-sm leading-relaxed text-ink">cueory.app{path}</span>
+</span>

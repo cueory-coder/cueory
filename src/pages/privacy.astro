@@ -20,7 +20,10 @@ import { newsletter, promo, site } from '../config/site';
       {site.name} has no accounts yet. You can read lessons without giving us anything. Nothing you do on a lesson is
       sent to us.
     </p>
-    <p>If you pick Light or Dark at the bottom of a page, your browser remembers that on your device. It never reaches us.</p>
+    <p>
+      If you pick Light or Dark at the bottom of a page, your browser remembers that choice as
+      <code>cueory-theme</code> on this device. It never reaches us.
+    </p>
 
     <h2>Your progress on this device</h2>
     <p>
@@ -32,13 +35,17 @@ import { newsletter, promo, site } from '../config/site';
       <li>for each card deck, which cards you sorted into "know it" or "still learning", and which you starred.</li>
     </ul>
     <p>
+      The saved setup answers, card piles and stars are stored as <code>cueory-progress</code> in your browser's local
+      storage. This isn't an account, and it stays on the device you're using.
+    </p>
+    <p>
       On <a href="/progress">your progress page</a> you can see all of it, download a copy, or forget it on this device.
       Clearing this site's data in your browser also removes it.
     </p>
     <p>
       On your first visit, a small panel about the launch list may slide down from the top of the page. Your browser
-      remembers on your device that it showed you the panel, so it stays away for {promo.rememberDays} days. That isn't a
-      cookie, and it never reaches us.
+      remembers on your device that it showed you the panel, using <code>cueory-promo-seen</code>, so it stays away for
+      {promo.rememberDays} days. That isn't a cookie, and it never reaches us.
     </p>
     <p>
       On <a href="/play">daily games</a> you can turn on stats. They're off unless you do. When they're on, your browser
@@ -47,11 +54,49 @@ import { newsletter, promo, site } from '../config/site';
       streaks. "Forget", or turning stats off, deletes it.
     </p>
 
+    <p>
+      To let the lessons open without a connection, your browser may keep copies of the pages you visit (lessons
+      and the home page; daily games are never kept) and of the site's own files, on your device. That is a normal browser feature, the
+      copies never leave your device, and nothing about your answers or progress is in them. Clearing this site's data
+      in your browser removes them.
+    </p>
+
+    <h2>Features that are still being built</h2>
+    <p>
+      The following features are not available on the live site yet. Their browser storage is listed here before
+      they launch, so you know what they will remember.
+    </p>
+    <ul>
+      <li>
+        <code>cueory-glove-note</code>: when this feature is on, it will remember which glove notes have appeared
+        during a visit in this browser tab.
+      </li>
+      <li>
+        <code>cueory-glove-note-welcome</code>: when this feature is on, it will remember the previous welcome note
+        on this device, so the next visit can show a different one.
+      </li>
+      <li>
+        <code>cueory-note-sound</code>: when this feature is on, it will remember whether you switched glove-note
+        sounds on or off, on this device.
+      </li>
+      <li>
+        <code>cueory-break-timer</code>: when this feature is on, it will remember your break timer's current state
+        in this browser tab, for up to two hours.
+      </li>
+    </ul>
+
     <h2>Launch-updates emails</h2>
     <p>
       If you sign up for launch updates, your email address is stored by {newsletter.provider}, the service that sends
       those emails for us. You'll get a confirmation email first, and every email has an unsubscribe link. We use your
       address only for {site.name} updates.
+    </p>
+
+    <h2>Lesson videos</h2>
+    <p>
+      Some lessons include a video. The video doesn't load until you tap play. When you do, it loads from
+      <code>youtube-nocookie.com</code>, YouTube's reduced-tracking domain. YouTube may still set cookies or record
+      that the video was played. Nothing plays automatically.
     </p>
 
     <h2>Visit statistics</h2>
@@ -60,7 +105,7 @@ import { newsletter, promo, site } from '../config/site';
     </p>
 
     <h2>When accounts arrive</h2>
-    <p>Accounts are coming later. When they do, this page will be updated first. We plan to store only:</p>
+    <p>Accounts are not open yet. If you choose to create one when they arrive, we plan to store only:</p>
     <ul>
       <li>Your email address, so you can sign in.</li>
       <li>A display name, if you choose one.</li>
@@ -68,14 +113,33 @@ import { newsletter, promo, site } from '../config/site';
       <li>Your study progress: what you've studied, your answers, and when to review next.</li>
     </ul>
     <p>
-      Your account page will have one button that deletes your account and everything linked to it, and one that
-      downloads a copy of your data.
+      If you choose Google sign-in, you will be sent to Google to complete sign-in. Once accounts are on, the browser
+      will keep your sign-in session under <code>cueory-auth</code>. That is different from the study progress kept
+      on your device today.
+    </p>
+    <p>
+      If you choose to bring your saved guest progress into an account, the browser will use
+      <code>{'cueory-guest-imported:<id>'}</code> to remember that it has already imported for that account. Here,
+      <code>{'<id>'}</code> stands for that account's identifier, not a public name.
+    </p>
+    <p>
+      When account controls launch, the <code>/account</code> page will let you download your account data and
+      request deletion of your account and linked study data. That page and those controls are not available yet.
+      Today, <a href="/progress">your progress page</a> lets you download or delete the progress stored on this device.
     </p>
 
     <h2>Who handles data for us</h2>
     <ul>
       <li>Cloudflare hosts the website and counts visits.</li>
       <li>{newsletter.provider} stores newsletter signups and sends launch-update emails.</li>
+      <li>
+        When accounts open, Supabase will handle saved account and study data. Google will handle Google sign-in if
+        you choose it.
+      </li>
+      <li>
+        YouTube plays lesson videos. Nothing loads from YouTube until you tap play, and it may set cookies once a video
+        plays.
+      </li>
     </ul>
 
     <h2>Questions</h2>
