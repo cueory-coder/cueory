@@ -5,6 +5,7 @@ interface Props {
   page: string;
   itemId?: string;
   itemVersionId?: string;
+  variant?: 'text' | 'icon';
 }
 
 /** Stub until Task 63's makeSend is available. */
@@ -15,7 +16,7 @@ const stubSend = async (_report: FlagReport): Promise<'sent' | 'too-many' | 'fai
  * signedIn uses Task 55's getSessionState() once available (stub: false).
  * send uses Task 63's makeSend once available (stub: always 'failed').
  */
-export default function FlagMount({ page, itemId, itemVersionId }: Props) {
+export default function FlagMount({ page, itemId, itemVersionId, variant }: Props) {
   return (
     <FlagForm
       page={page}
@@ -23,6 +24,7 @@ export default function FlagMount({ page, itemId, itemVersionId }: Props) {
       itemVersionId={itemVersionId}
       signedIn={false}
       send={stubSend}
+      variant={variant}
     />
   );
 }
