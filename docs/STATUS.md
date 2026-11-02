@@ -252,7 +252,7 @@ Merged into `staging`:
   shortcuts, full axe + tab-order accessibility. PR [#162](https://github.com/lilchristxan/Cueory/pull/162).
   Repair 5 (2026-11-02): add .check({ force: true }) to onlyStarred in starred-cards test (sr-only checkbox
   times out in phone emulation). Out-of-scope finding: /learn/study-skills/label-it fails Tab-reachability
-  audit at the staging merge commit only — React-hydration race condition, not caused by task-78 CSS. HEAD awaiting CI.
+  audit at the staging merge commit only — React-hydration race condition, not caused by task-78 CSS. Repair 5 pushed; CI re-triggered 2026-11-02.
 - Task 111, reminder choices preview (#191): non-sending phone and email choices open only after a completed review and a deliberate tap, with keyboard/privacy checks while real opt-in and delivery remain future work.
 - Task 106, review-reminder email (#185): non-sending branded HTML, plain-text alternative and noindex sample preview, awaiting CI and Codex review.
 - Task 105, quiet result marks (#188): official emblem and real Cueory page address appear only on completed pulse, sort and crossword result cards and the progress summary; answer areas and printing stay clear.
