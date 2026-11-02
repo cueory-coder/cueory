@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { cacheable, cacheName } from '../../src/scripts/offlineplan';
+import { strategyFor } from '../../src/scripts/swlogic';
 
 const ORIGIN = 'https://cueory.app';
 
@@ -94,6 +95,62 @@ describe('offline URL policy for GET requests', () => {
     expect(cacheable('', ORIGIN)).toBe(false);
     expect(cacheable(null as unknown as string, ORIGIN)).toBe(false);
     expect(cacheable('/play', null as unknown as string)).toBe(false);
+  });
+});
+
+/** Task 123: account pages and auth URLs never enter offline storage. */
+describe('private and account-page offline exclusions', () => {
+  it.each([
+    '/signin', '/signin/', '/signup', '/signup/',
+    '/reset-password', '/reset-password/',
+    '/auth/callback', '/auth/callback?code=sample', '/auth/callback#access_token=sample',
+    '/account', '/account/settings', '/admin/flags',
+    '/preview/lesson', '/preview/share', '/preview/brand',
+    '/start', '/progress', '/breaks',
+  ])('refuses a private, account or preview page: %s', url => {
+    expect(cacheable(url, ORIGIN)).toBe(false);
+    expect(strategyFor({ method: 'GET', url }, ORIGIN)).toBeNull();
+  });
+
+  it.each([
+    '/?token=sample', '/?%74oken=sample', '/?code=sample',
+    '/play?access_token=sample', '/play/?refresh_token=sample',
+    '/learn/study-skills/cards?token_hash=sample',
+    '/learn/study-skills/cards?%61pi_key=sample',
+    '/_astro/app.abc123.js?id_token=sample',
+    '/brand/v1/logo.png?key=sample',
+    '/fonts/inter.woff2?code=sample',
+  ])('refuses token-bearing queries even on otherwise allowed URLs: %s', url => {
+    expect(cacheable(url, ORIGIN)).toBe(false);
+    expect(strategyFor({ method: 'GET', url }, ORIGIN)).toBeNull();
+  });
+
+  it.each([
+    '/learn/study-skills', '/learn/study-skills/cards',
+    '/learn/study-skills/learn-mode', '/learn/study-skills/questions',
+  ])('allows public lesson pages through the network-first worker strategy: %s', url => {
+    expect(cacheable(url, ORIGIN)).toBe(true);
+    expect(strategyFor({ method: 'GET', url }, ORIGIN)).toBe('network-first');
+  });
+
+  it('keeps home offline but never saves the daily puzzle page', () => {
+    expect(cacheable('/', ORIGIN)).toBe(true);
+    expect(strategyFor({ method: 'GET', url: '/' }, ORIGIN)).toBe('network-first');
+
+    // cacheable() is a URL allowlist, not the worker's final storage decision.
+    // swlogic.ts excludes /play because its HTML includes today's puzzles.
+    expect(cacheable('/play', ORIGIN)).toBe(true);
+    expect(cacheable('/play/', ORIGIN)).toBe(true);
+    expect(strategyFor({ method: 'GET', url: '/play' }, ORIGIN)).toBeNull();
+    expect(strategyFor({ method: 'GET', url: '/play/' }, ORIGIN)).toBeNull();
+  });
+
+  it.each([
+    '/?source=sample', '/play?mode=daily',
+    '/learn/study-skills/?view=cards', '/_astro/app.abc123.js?v=1',
+  ])('never caches a URL with any query, even one without a token: %s', url => {
+    // The worker rejects all query strings, including those allowed by cacheable().
+    expect(strategyFor({ method: 'GET', url }, ORIGIN)).toBeNull();
   });
 });
 
