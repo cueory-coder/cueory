@@ -71,8 +71,9 @@ Read [CLAUDE.md](CLAUDE.md) (project rules) and [SECURITY.md](SECURITY.md) first
 - Daily puzzles (Task 7) use original names, rules and look. Never the names Wordle, Connections or NYT, and never a
   copy of their design. This is a Blocker.
 - Components use design tokens from `src/styles/tokens.css`, never raw colors, fonts or spacing values.
-- Only exact brand colors from `docs/BRAND.md`; Inter for text, Bodoni Moda only for marketing headings (D-41); the
-  logo stays lowercase "cueory", never retyped in another font, never narrower than 96px.
+- Only exact brand colors from `docs/BRAND.md`; Lato for body, interface, buttons and study-screen text (line spacing at
+  least 1.5), Bodoni Moda only for marketing headings (D-41). Accent lines are plain upright Lato, never italic or
+  script. The logo stays lowercase "cueory", never retyped in another font, never narrower than 96px.
 - Study screens stay plain: no texture, embossing or frosted panels behind lesson or question text (D-41). Text on
   marketing backgrounds must pass the worst-case contrast tests in `tests/unit/tokens.test.ts`.
 - Content (lessons, items, cards, scripts) lives in the database, or in `/content` as labeled samples and approved
