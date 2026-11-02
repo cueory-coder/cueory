@@ -3,7 +3,10 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import SignIn, { type SignInAuth } from '../../src/islands/SignIn';
 import ResetPassword from '../../src/islands/ResetPassword';
+import { getSupabase } from '../../src/islands/supabaseclient';
 import { callbackUrl, changePassword, checkEmail, checkPassword, performAuthAction, resendSeconds, safeNext, signInMessage } from '../../src/islands/signin';
+
+vi.mock('../../src/islands/supabaseclient', () => ({ getSupabase: vi.fn() }));
 
 describe('checkEmail', () => {
   it.each(['student@example.test', '  student@example.test  ', 'student+notes@school.example.test'])('accepts %j', value => {
@@ -185,6 +188,13 @@ describe('feedback countdown', () => {
 });
 
 describe('account screen rendering', () => {
+  it.each(['signin', 'signup'] as const)('waits for browser hydration before loading the %s client', mode => {
+    const html = renderToStaticMarkup(createElement(SignIn, { mode }));
+    expect(html).toContain('opening sign-in');
+    expect(html).not.toContain('<form');
+    expect(html).not.toContain('<input');
+    expect(getSupabase).not.toHaveBeenCalled();
+  });
   it.each(['signin', 'signup'] as const)('keeps %s controls closed with accounts off', mode => {
     const html = renderToStaticMarkup(createElement(SignIn, { auth: null, mode }));
     expect(html).toContain(signInMessage('unavailable'));

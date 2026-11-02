@@ -74,7 +74,7 @@ for (const [path, heading, title] of [
 });
 
 // Browser-only component fixture. It is intercepted by Playwright, never written into dist or shipped.
-// Real components + built CSS, injected fake auth, no accounts, credentials, or provider network traffic.
+// Real components + built CSS. Only the shared client module is replaced, with no provider traffic.
 let fixtureCode: string;
 let fixtureCss: string;
 test.beforeAll(async () => {
@@ -89,6 +89,8 @@ test.beforeAll(async () => {
       import ResetPassword from './src/islands/ResetPassword.tsx';
       const params = new URLSearchParams(location.search);
       window.authCalls = [];
+      window.clientLoads = 0;
+      window.clientGate = new Promise(resolve => { window.releaseClient = resolve; });
       const call = async name => {
         window.authCalls.push(name);
         await new Promise(resolve => setTimeout(resolve, 150));
@@ -97,17 +99,34 @@ test.beforeAll(async () => {
       const auth = {
         signUp: () => call('signup'),
         signInWithOAuth: () => call('google'),
-        signInWithPassword: () => call('signin'),
+        signInWithPassword() {
+          if (this !== auth) throw new Error('auth receiver was lost');
+          return call('signin');
+        },
         resetPasswordForEmail: () => call('forgot'),
         updateUser: () => call('update'),
       };
+      window.fixtureAuth = auth;
+      const supplied = params.get('client') === 'injected' ? auth : params.get('client') === 'null' ? null : undefined;
       createRoot(document.getElementById('fixture')).render(params.get('mode') === 'reset'
         ? <ResetPassword auth={auth} recoveryReady={!params.has('unverified')} />
-        : <SignIn auth={auth} mode={params.get('mode') === 'signup' ? 'signup' : 'signin'} />);
+        : <SignIn auth={supplied} mode={params.get('mode') === 'signup' ? 'signup' : 'signin'} />);
     `, resolveDir: process.cwd(), loader: 'tsx' },
     bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic',
     resolveExtensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
     define: { 'process.env.NODE_ENV': '"production"' },
+    plugins: [{ name: 'fixture-client', setup(builder) {
+      builder.onResolve({ filter: /\/supabaseclient(?:\.ts)?$/ }, () => ({ path: 'client', namespace: 'fixture' }));
+      builder.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({ contents: `
+        export async function getSupabase() {
+          const params = new URLSearchParams(location.search);
+          window.clientLoads += 1;
+          if (params.has('deferred')) await window.clientGate;
+          if (params.has('load-fails') && window.clientLoads === 1) throw new Error('provider-private-detail');
+          return params.get('client') === 'off' ? null : { auth: window.fixtureAuth };
+        }
+      `, loader: 'js' }));
+    } }],
   });
   fixtureCode = result.outputFiles[0].text;
 });
@@ -124,7 +143,48 @@ async function fixture(page: Page, query: string) {
 const fakePassword = 'x'.repeat(12);
 const calls = (page: Page) => page.evaluate(() => (window as unknown as { authCalls: string[] }).authCalls);
 
-test.describe('enabled account components with injected auth', () => {
+test.describe('shared client loading', () => {
+  test('keeps controls closed until the configured client is ready', async ({ page }) => {
+    await fixture(page, 'mode=signin&deferred=1');
+    await expect(page.getByRole('status')).toHaveText('opening sign-in…');
+    await expect(page.locator('input')).toHaveCount(0);
+    expect(await calls(page)).toEqual([]);
+    await page.evaluate(() => (window as unknown as { releaseClient: () => void }).releaseClient());
+    await expect(page.getByLabel('email', { exact: true })).toBeVisible();
+    expect(await page.evaluate(() => (window as unknown as { clientLoads: number }).clientLoads)).toBe(1);
+  });
+
+  test('returns to the accounts-off screen when the shared client is unconfigured', async ({ page }) => {
+    await fixture(page, 'mode=signup&client=off');
+    await expect(page.getByTestId('signin-unavailable')).toBeVisible();
+    await expect(page.locator('input')).toHaveCount(0);
+    expect(await calls(page)).toEqual([]);
+    expect(await page.evaluate(() => (window as unknown as { clientLoads: number }).clientLoads)).toBe(1);
+  });
+
+  test('scrubs client-load errors and lets the student retry', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await fixture(page, 'mode=signin&load-fails=1');
+    await expect(page.getByRole('alert')).toHaveText('sign-in could not load. please try again.');
+    await expect(page.locator('input')).toHaveCount(0);
+    await expect(page.locator('body')).not.toContainText('provider-private-detail');
+    expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze()).violations).toEqual([]);
+    await page.getByRole('button', { name: 'try again', exact: true }).click();
+    await expect(page.getByLabel('email', { exact: true })).toBeVisible();
+    expect(await page.evaluate(() => (window as unknown as { clientLoads: number }).clientLoads)).toBe(2);
+    expect(errors).toEqual([]);
+  });
+
+  for (const client of ['null', 'injected']) test(`explicit ${client} bypasses the loader`, async ({ page }) => {
+    await fixture(page, `mode=signin&client=${client}&load-fails=1`);
+    if (client === 'null') await expect(page.getByTestId('signin-unavailable')).toBeVisible();
+    else await expect(page.getByLabel('email', { exact: true })).toBeVisible();
+    expect(await page.evaluate(() => (window as unknown as { clientLoads: number }).clientLoads)).toBe(0);
+  });
+});
+
+test.describe('enabled account components with fake shared auth', () => {
   test('signup initials, validation, show/hide, duplicate guard and cooldown work', async ({ page }) => {
     await fixture(page, 'mode=signup');
     await page.getByRole('button', { name: 'create account', exact: true }).click();
@@ -155,6 +215,7 @@ test.describe('enabled account components with injected auth', () => {
     await page.getByLabel('password', { exact: true }).fill(fakePassword);
     await page.getByRole('button', { name: 'sign in', exact: true }).click();
     await expect(page.getByRole('status')).toHaveText("that email and password don't match.");
+    expect(await calls(page)).toEqual(['signin']);
     await expect(page.getByLabel('password', { exact: true })).toHaveValue('');
     await expect(page.locator('body')).not.toContainText('provider-private-detail');
   });

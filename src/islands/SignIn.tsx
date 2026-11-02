@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { initialsFor } from './account';
+import { getSupabase } from './supabaseclient';
 import { performAuthAction, resendSeconds, safeNext, signInMessage, type AuthAction, type SignInAuth } from './signin.ts';
 export type { SignInAuth } from './signin.ts';
 
@@ -58,9 +59,14 @@ function Divider() {
 
 interface Props { auth?: SignInAuth | null; mode?: 'signin' | 'signup'; children?: ReactNode }
 
-// The allowed accounts-off stub stays until Task 55 lands in staging. Its owner supplies the single client.
-export default function SignIn({ auth = null, mode = 'signin', children }: Props) {
+// An omitted client uses Task 55's shared singleton after hydration. Explicit null keeps accounts off.
+export default function SignIn({ auth: suppliedAuth, mode = 'signin', children }: Props) {
   const id = useId();
+  const [clientState, setClientState] = useState<
+    { kind: 'loading' | 'unavailable' | 'failed' } | { kind: 'ready'; auth: SignInAuth }
+  >({ kind: 'loading' });
+  const [attempt, setAttempt] = useState(0);
+  const auth = suppliedAuth === undefined ? clientState.kind === 'ready' ? clientState.auth : null : suppliedAuth;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -74,6 +80,19 @@ export default function SignIn({ auth = null, mode = 'signin', children }: Props
   const deadline = useRef(0);
   const mounted = useRef(false);
   const form = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (suppliedAuth !== undefined) return;
+    let active = true;
+    setClientState({ kind: 'loading' });
+    void getSupabase().then(client => {
+      // Keep the auth object intact: its methods rely on their receiver.
+      if (active) setClientState(client ? { kind: 'ready', auth: client.auth } : { kind: 'unavailable' });
+    }).catch(() => {
+      if (active) setClientState({ kind: 'failed' });
+    });
+    return () => { active = false; };
+  }, [suppliedAuth, attempt]);
 
   useEffect(() => {
     mounted.current = true;
@@ -128,7 +147,12 @@ export default function SignIn({ auth = null, mode = 'signin', children }: Props
 
   return <div className="font-body leading-relaxed">
     {children}
-    {!auth ? <AccountsUnavailable /> : <>
+    {suppliedAuth === undefined && clientState.kind === 'loading' ? <p role="status">opening sign-in…</p>
+      : suppliedAuth === undefined && clientState.kind === 'failed' ? <div>
+        <p role="alert">sign-in could not load. please try again.</p>
+        <button type="button" className={`${authButton} mt-4 bg-button text-on-button hover:bg-button-hover`}
+          onClick={() => { setClientState({ kind: 'loading' }); setAttempt(value => value + 1); }}>try again</button>
+      </div> : !auth ? <AccountsUnavailable /> : <>
       {mode === 'signup' && <div className="mb-8 text-center">
         <a href={`#${id}-form`} className={`${authButton} bg-button text-on-button hover:bg-button-hover`}
           onClick={() => form.current?.querySelector('input')?.focus()}>create your free account</a>

@@ -4,7 +4,7 @@ import { changePassword, checkPassword, signInMessage, type ResetPasswordAuth } 
 
 interface Props { auth?: ResetPasswordAuth | null; recoveryReady?: boolean }
 
-// Fail closed until Tasks 55/57 provide the authenticated recovery handoff. URL flags are never proof.
+// Fail closed until Task 57 supplies a verified recovery handoff. The shared client alone is not proof.
 export default function ResetPassword({ auth = null, recoveryReady = false }: Props) {
   const id = useId();
   const [password, setPassword] = useState('');
