@@ -259,6 +259,7 @@ Merged into `staging`:
 - Glove photos and the Kalam font (#163): Christian's nine glove colors cut out as WebP files, and the handwriting he
   picked. Files only; the glove note (Task 70) uses them and stays off until he checks it.
 - Task 99, Lato body font (#172): Lato for body and interface text, line spacing at least 1.5, plain accent line under the home headline. Waits for Christian (it edits CLAUDE.md).
+- Task 67, server-checked questions (#194): injected authenticated check_answer path with version/refusal validation and sample behavior preserved, awaiting CI, lead review and Christian's approval.
 - Task 55, Supabase client (#156): Supabase's sign-in library, loaded only on pages that need an account; the security policy gains the project address only when accounts are on. Waits for Christian (sign-in and security policy).
 
 ## Queued (Christian's change requests on issue #4, in his order)
