@@ -145,9 +145,10 @@ function Session({ items: suppliedItems }: Props) {
     const next = answerCurrent(state, items, submitted);
     if (next === state) return;
     const key = itemKey(index);
+    const history = attempts.current[key] ?? [];
     attempts.current = {
       ...attempts.current,
-      [key]: [...(attempts.current[key] ?? []), `${state.hinted ? 'h' : 'n'}:${submitted}`],
+      [key]: [...history.slice(-49), `${state.hinted ? 'h' : 'n'}:${submitted}`],
     };
     if (submitted !== typed) setTyped(submitted);
     setState(next);
