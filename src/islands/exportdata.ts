@@ -6,10 +6,12 @@
  * tables `attempts`, `exam_plans` and `review_state` (supabase/migrations 20261101100000 and 20261101110000), and
  * reports holds the student's own "Flag or comment" reports as the database function `my_flags()` returns them (D-88):
  * never the admin fields (user, status, handled time), which are dropped by name like any other unknown field.
+ * studyEvents mirrors the student's own rows in `study_events` (supabase/migrations/20261102100000, Task 140).
  * Each section has a strict schema: unknown fields are dropped and listed by NAME in `dropped` (never by value), and a
  * bad field reports the field and its row. The database rows never carry a user id, an answer key or a rationale, and
  * if a caller passes one it is dropped like any other unknown field. In CSV, `picked` letters are joined with ";".
- * Row caps: attempts and reviewRows keep their first 50,000 rows, examPlans its first 10 and reports its first 10,000; the rest is reported in
+ * Row caps: attempts and reviewRows keep their first 50,000 rows, examPlans its first 10, reports its first 10,000 and
+ * studyEvents its first 200,000; the rest is reported in
  * `dropped` as `<section>[<cap>+]`.
  */
 import { dailyGames } from '../config/games';
@@ -32,6 +34,10 @@ export interface ExportData {
   /** The student's own "Flag or comment" reports, as `my_flags()` returns them. */
   reports?: readonly {
     id: string; page: string; itemId: string | null; itemVersionId: string | null; reason: string; comment: string | null; createdAt: string;
+  }[];
+  /** The student's own `study_events` rows: what they did with each question, how long it was on screen, and when. */
+  studyEvents?: readonly {
+    itemId: string; itemVersionId: string; kind: string; msOnItem: number; mark: string | null; at: string; createdAt: string;
   }[];
 }
 export interface CsvFile { fileName: string; text: string }
@@ -95,13 +101,25 @@ const reportSchema: Schema = {
   id: uuid, page: sitePath, itemId: value => value === null || uuid(value), itemVersionId: value => value === null || uuid(value),
   reason: value => typeof value === 'string' && reportReasons.includes(value), comment: reportComment, createdAt: date,
 };
+/** The database's own rules for a study event (study_events in 20261102100000_study_events.sql). */
+const studyEventKinds = ['answered', 'marked', 'skipped'];
+const studyEventMarks = ['know', 'learning'];
+const studyEventSchema: Schema = {
+  itemId: uuid, itemVersionId: uuid,
+  kind: value => typeof value === 'string' && studyEventKinds.includes(value),
+  msOnItem: value => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 && value <= 1_800_000,
+  mark: value => value === null || (typeof value === 'string' && studyEventMarks.includes(value)),
+  at: date, createdAt: date,
+};
 const reviewRowSchema: Schema = { itemId: uuid, level, lastReviewed: day, nextReview: day };
 const reviewSchema: Schema = { id: value => text(value) && !!(value as string).trim(), nextDueDate: day, interval: whole };
 const gameSchema: Schema = {
   game: value => dailyGames.some(game => game.id === value), day, solved: bool, tries: whole,
 };
-const sections = ['profile', 'onboarding', 'progress', 'reviewState', 'gameStats', 'attempts', 'examPlans', 'reviewRows', 'reports'] as const;
-const rowCaps: Partial<Record<Section, number>> = { attempts: 50_000, examPlans: 10, reviewRows: 50_000, reports: 10_000 };
+const sections = ['profile', 'onboarding', 'progress', 'reviewState', 'gameStats', 'attempts', 'examPlans', 'reviewRows', 'reports', 'studyEvents'] as const;
+const rowCaps: Partial<Record<Section, number>> = {
+  attempts: 50_000, examPlans: 10, reviewRows: 50_000, reports: 10_000, studyEvents: 200_000,
+};
 type Section = typeof sections[number];
 interface GuestSnapshot {
   version: typeof PROGRESS_VERSION;
@@ -118,6 +136,7 @@ interface Sections {
   examPlans: Row[];
   reviewRows: Row[];
   reports: Row[];
+  studyEvents: Row[];
 }
 const guestId = /^[a-z0-9-]{1,64}$/;
 const piles = ['know', 'learning', 'starred'] as const;
@@ -229,6 +248,11 @@ function prepare(data: unknown): { data: Sections; dropped: string[] } {
   for (const row of examPlans) row.createdAt = utcDate(row.createdAt)!;
   const reports = listSection('reports', reportSchema);
   for (const row of reports) row.createdAt = utcDate(row.createdAt)!;
+  const studyEvents = listSection('studyEvents', studyEventSchema);
+  for (const row of studyEvents) {
+    row.at = utcDate(row.at)!;
+    row.createdAt = utcDate(row.createdAt)!;
+  }
   return {
     data: {
       profile,
@@ -240,6 +264,7 @@ function prepare(data: unknown): { data: Sections; dropped: string[] } {
       examPlans,
       reviewRows: listSection('reviewRows', reviewRowSchema),
       reports,
+      studyEvents,
     },
     dropped: [...dropped].sort(),
   };
@@ -292,6 +317,7 @@ export function exportCsv(data: unknown): CsvFile[] {
     { fileName: 'examPlans.csv', text: csv(Object.keys(examPlanSchema), clean.data.examPlans) },
     { fileName: 'reviewRows.csv', text: csv(Object.keys(reviewRowSchema), clean.data.reviewRows) },
     { fileName: 'reports.csv', text: csv(Object.keys(reportSchema), clean.data.reports) },
+    { fileName: 'studyEvents.csv', text: csv(Object.keys(studyEventSchema), clean.data.studyEvents) },
     { fileName: 'dropped.csv', text: csv(['dropped'], clean.dropped.map(dropped => ({ dropped }))) },
   ];
 }

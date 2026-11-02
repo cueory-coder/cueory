@@ -12,12 +12,19 @@ const fields = {
   attempts: 'id,item_version_id,picked,correct,created_at',
   exam_plans: 'id,course,exam_date,created_at',
   review_state: 'item_id,level,last_reviewed,next_review',
+  study_events: 'id,item_id,item_version_id,kind,ms_on_item,mark,at,created_at',
 } as const;
 const rows = {
   profiles: [{ display_name: 'Sample', created_at: when, user_id: 'private' }],
   attempts: [{ id: id(1), item_version_id: versionId, picked: ['a', 'c'], correct: true, created_at: when, user_id: 'private' }],
   exam_plans: [{ id: id(2), course: 'med-surg-1', exam_date: '2026-12-15', created_at: when }],
   review_state: [{ item_id: itemId, level: 2, last_reviewed: '2026-10-30', next_review: '2026-11-03', user_id: 'private' }],
+  study_events: [
+    { id: id(3), item_id: itemId, item_version_id: versionId, kind: 'marked', ms_on_item: 4200, mark: 'learning',
+      at: '2026-11-01T07:59:58.5+00:00', created_at: when, user_id: 'private' },
+    { id: id(4), item_id: itemId, item_version_id: versionId, kind: 'answered', ms_on_item: 0, mark: null,
+      at: when, created_at: when, user_id: 'private' },
+  ],
   my_flags: [{ id: reportId, page: '/learn/study-skills', item_id: null, item_version_id: null,
     reason: 'confusing', comment: 'Sample report', created_at: when, status: 'private' }],
 };
@@ -40,7 +47,7 @@ function reader(overrides: Partial<Record<Source, Reply | Error>> = {}) {
 }
 
 describe('loadExport — personal data boundaries', () => {
-  it('maps the four owned tables and my_flags with no extra fields or lost records', async () => {
+  it('maps the five owned tables and my_flags with no extra fields or lost records', async () => {
     const { db, calls } = reader();
     const result = await loadExport(db);
     expect(result.ok).toBe(true);
@@ -52,26 +59,33 @@ describe('loadExport — personal data boundaries', () => {
       reviewRows: [{ itemId, level: 2, lastReviewed: '2026-10-30', nextReview: '2026-11-03' }],
       reports: [{ id: reportId, page: '/learn/study-skills', itemId: null, itemVersionId: null,
         reason: 'confusing', comment: 'Sample report', createdAt: when }],
+      studyEvents: [
+        { itemId, itemVersionId: versionId, kind: 'marked', msOnItem: 4200, mark: 'learning',
+          at: '2026-11-01T07:59:58.5+00:00', createdAt: when },
+        { itemId, itemVersionId: versionId, kind: 'answered', msOnItem: 0, mark: null, at: when, createdAt: when },
+      ],
     });
     const exported = JSON.parse(exportJson(result.data, when));
     expect(exported.dropped).toEqual([]);
     expect(exported.attempts).toEqual(result.data.attempts);
     expect(exported.reports).toEqual(result.data.reports);
+    expect(exported.studyEvents.map((row: { at: string }) => row.at)).toEqual(['2026-11-01T07:59:58.500Z', when]);
     expect(JSON.stringify(result.data)).not.toContain('private');
     expect(calls).toEqual([
       'profiles:' + fields.profiles, 'attempts:' + fields.attempts,
-      'exam_plans:' + fields.exam_plans, 'review_state:' + fields.review_state, 'rpc:my_flags',
+      'exam_plans:' + fields.exam_plans, 'review_state:' + fields.review_state,
+      'study_events:' + fields.study_events, 'rpc:my_flags',
     ]);
   });
 
   it('has empty sections when the account has no rows, without inventing email', async () => {
     const overrides = Object.fromEntries(Object.keys(rows).map(key => [key, { data: [], error: null }]));
     expect(await loadExport(reader(overrides).db)).toEqual({
-      ok: true, data: { profile: {}, attempts: [], examPlans: [], reviewRows: [], reports: [] },
+      ok: true, data: { profile: {}, attempts: [], examPlans: [], reviewRows: [], reports: [], studyEvents: [] },
     });
   });
 
-  it.each(['profiles', 'attempts', 'exam_plans', 'review_state', 'my_flags'] as const)(
+  it.each(['profiles', 'attempts', 'exam_plans', 'review_state', 'study_events', 'my_flags'] as const)(
     'fails closed on a %s refusal without returning any personal data', async table => {
       const response = { data: rows[table], error: { message: 'private SQL error' } };
       expect(await loadExport(reader({ [table]: response }).db)).toEqual(failed);
@@ -90,6 +104,14 @@ describe('loadExport — personal data boundaries', () => {
     ['attempts', { ...rows.attempts[0], created_at: '2026-11-01T24:00:00Z' }],
     ['exam_plans', { ...rows.exam_plans[0], course: 'Med Surg' }],
     ['review_state', { ...rows.review_state[0], next_review: '2026-02-30' }],
+    ['study_events', { ...rows.study_events[0], kind: 'viewed' }],
+    ['study_events', { ...rows.study_events[0], mark: null }],
+    ['study_events', { ...rows.study_events[1], mark: 'know' }],
+    ['study_events', { ...rows.study_events[0], mark: 'maybe' }],
+    ['study_events', { ...rows.study_events[0], ms_on_item: 1_800_001 }],
+    ['study_events', { ...rows.study_events[0], ms_on_item: '4200' }],
+    ['study_events', { ...rows.study_events[0], at: '2026-02-30T08:00:00Z' }],
+    ['study_events', { ...rows.study_events[0], item_version_id: 'private' }],
     ['my_flags', { ...rows.my_flags[0], page: '//outside.example' }],
     ['my_flags', { ...rows.my_flags[0], reason: 'not-allowed' }],
     ['my_flags', { ...rows.my_flags[0], comment: 'x'.repeat(1001) }],
@@ -180,6 +202,19 @@ describe('fromSupabase — no silent row truncation', () => {
     expect(calls.filter(x => x.startsWith('review_state:'))).toEqual([
       'review_state:0-499:item_id',
       'review_state:0-499:item_id.gt(' + id(500) + ')',
+    ]);
+  });
+
+  it('pages study events by their id and reads them only from study_events', async () => {
+    const events = Array.from({ length: 501 }, (_, i) => ({ ...rows.study_events[1], id: id(i + 10) }));
+    const { client, calls } = supabase({ ...rows, study_events: events });
+    const result = await loadExport(fromSupabase(client));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.studyEvents).toHaveLength(501);
+    expect(calls.filter(x => x.startsWith('study_events:'))).toEqual([
+      'study_events:0-499:id',
+      'study_events:0-499:id.gt(' + id(509) + ')',
     ]);
   });
 

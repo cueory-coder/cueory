@@ -1,7 +1,7 @@
 /**
- * Read a signed-in student's own export data (D-86, D-87, D-88).
+ * Read a signed-in student's own export data (D-86, D-87, D-88, Task 140).
  *
- * The database's row-level security restricts the four table reads to the
+ * The database's row-level security restricts the five table reads to the
  * current student. Reports must come from my_flags(), never from flags:
  * that table also contains private moderation fields.
  *
@@ -11,7 +11,7 @@
  */
 import type { ExportData } from './exportdata';
 
-export type ExportTable = 'profiles' | 'attempts' | 'exam_plans' | 'review_state';
+export type ExportTable = 'profiles' | 'attempts' | 'exam_plans' | 'review_state' | 'study_events';
 
 interface ReadResult {
   data: unknown;
@@ -36,6 +36,7 @@ const LIMITS = {
   attempts: 50_000,
   exam_plans: 10,
   review_state: 50_000,
+  study_events: 200_000,
   my_flags: 10_000,
 } as const;
 
@@ -45,6 +46,7 @@ const COLUMNS = {
   attempts: 'id,item_version_id,picked,correct,created_at',
   exam_plans: 'id,course,exam_date,created_at',
   review_state: 'item_id,level,last_reviewed,next_review',
+  study_events: 'id,item_id,item_version_id,kind,ms_on_item,mark,at,created_at',
 } as const;
 
 function row(value: unknown): Record<string, unknown> {
@@ -144,6 +146,28 @@ function reportComment(value: Record<string, unknown>): string | null {
   return v;
 }
 
+/** study_events' own checks: one of three kinds, 0 to 30 minutes, and a mark exactly when the kind is a mark. */
+function studyEvent(value: Record<string, unknown>) {
+  const kind = text(value, 'kind');
+  if (!['answered', 'marked', 'skipped'].includes(kind)) throw new Error('invalid study event kind');
+  const msOnItem = field(value, 'ms_on_item');
+  if (typeof msOnItem !== 'number' || !Number.isSafeInteger(msOnItem) || msOnItem < 0 || msOnItem > 1_800_000) {
+    throw new Error('invalid study event time on item');
+  }
+  const mark = nullableText(value, 'mark');
+  if (mark !== null && !['know', 'learning'].includes(mark)) throw new Error('invalid study event mark');
+  if ((kind === 'marked') !== (mark !== null)) throw new Error('invalid study event mark');
+  return {
+    itemId: uuid(value, 'item_id'),
+    itemVersionId: uuid(value, 'item_version_id'),
+    kind,
+    msOnItem,
+    mark,
+    at: timestamp(value, 'at'),
+    createdAt: timestamp(value, 'created_at'),
+  };
+}
+
 function entries<T>(data: unknown, map: (value: Record<string, unknown>) => T): T[] {
   if (!Array.isArray(data)) throw new Error('invalid export result');
   return data.map((value: unknown) => map(row(value)));
@@ -200,6 +224,7 @@ export async function loadExport(reader: ExportReader): Promise<ExportLoadResult
         nextReview: calendarDay(r, 'next_review'),
       };
     });
+    const studyEvents = entries(await fetchRows(reader, 'study_events'), studyEvent);
     const reply = await reader.rpc('my_flags');
     if (!reply || reply.error != null || !Array.isArray(reply.data) || reply.data.length > LIMITS.my_flags) {
       throw new Error('report export read failed');
@@ -213,7 +238,7 @@ export async function loadExport(reader: ExportReader): Promise<ExportLoadResult
       comment: reportComment(r),
       createdAt: timestamp(r, 'created_at'),
     }));
-    return { ok: true, data: { profile: profiles[0] ?? {}, attempts, examPlans, reviewRows, reports } };
+    return { ok: true, data: { profile: profiles[0] ?? {}, attempts, examPlans, reviewRows, reports, studyEvents } };
   } catch {
     // Never show or log a database error. It could contain another person's data or SQL internals.
     return { ok: false, message: ERROR_MESSAGE };
@@ -238,6 +263,7 @@ const CURSOR_COLUMN: Record<ExportTable | 'my_flags', string | null> = {
   attempts: 'id',
   exam_plans: 'id',
   review_state: 'item_id',
+  study_events: 'id',
   my_flags: 'id',
 };
 
@@ -272,7 +298,7 @@ async function allPages(makeQuery: () => SupabaseQuery, which: ExportTable | 'my
   }
 }
 
-/** Uses only the tables and RPC explicitly allowed by Task 61. */
+/** Uses only the tables and RPC explicitly allowed by Task 61 (and study_events, Task 140). */
 export function fromSupabase(client: SupabaseExportClient): ExportReader {
   return {
     select: (table, columns) => allPages(() => client.from(table).select(columns), table),

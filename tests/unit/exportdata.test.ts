@@ -33,7 +33,7 @@ function sampleGuest() {
 
 describe('JSON export', () => {
   it('round-trips every allowed sample section with a caller-supplied date and format', () => {
-    expect(json(sample)).toEqual({ format: 'cueory-export-1', exportDate, ...sample, attempts: [], examPlans: [], reviewRows: [], reports: [], dropped: [] });
+    expect(json(sample)).toEqual({ format: 'cueory-export-1', exportDate, ...sample, attempts: [], examPlans: [], reviewRows: [], reports: [], studyEvents: [], dropped: [] });
     expect(exportJson(sample, exportDate)).toContain('\n  "profile": {\n    "displayName": "Sample Student",');
   });
 
@@ -144,7 +144,7 @@ describe('JSON export', () => {
       profile: { createdAt: '2026-10-01T12:00:00.000Z', email: 'sample@example.invalid', displayName: 'Sample Student' },
     };
     expect(exportJson(reordered, exportDate)).toBe(exportJson(sample, exportDate));
-    expect(Object.keys(json(sample))).toEqual(['format', 'exportDate', 'profile', 'onboarding', 'progress', 'reviewState', 'gameStats', 'attempts', 'examPlans', 'reviewRows', 'reports', 'dropped']);
+    expect(Object.keys(json(sample))).toEqual(['format', 'exportDate', 'profile', 'onboarding', 'progress', 'reviewState', 'gameStats', 'attempts', 'examPlans', 'reviewRows', 'reports', 'studyEvents', 'dropped']);
   });
 
   it('preserves attempt and history row order, false, zero, null and Unicode', () => {
@@ -162,7 +162,7 @@ describe('JSON export', () => {
 
   it('makes empty sections explicit without inventing profile values or records', () => {
     expect(json({})).toEqual({
-      format: 'cueory-export-1', exportDate, profile: {}, onboarding: {}, progress: [], reviewState: [], gameStats: [], attempts: [], examPlans: [], reviewRows: [], reports: [], dropped: [],
+      format: 'cueory-export-1', exportDate, profile: {}, onboarding: {}, progress: [], reviewState: [], gameStats: [], attempts: [], examPlans: [], reviewRows: [], reports: [], studyEvents: [], dropped: [],
     });
   });
 
@@ -271,7 +271,7 @@ describe('JSON export', () => {
 describe('CSV export', () => {
   it('returns section files in fixed order with RFC 4180 record endings', () => {
     const files = exportCsv(sample);
-    expect(files.map(entry => entry.fileName)).toEqual(['profile.csv', 'onboarding.csv', 'progress.csv', 'reviewState.csv', 'gameStats.csv', 'attempts.csv', 'examPlans.csv', 'reviewRows.csv', 'reports.csv', 'dropped.csv']);
+    expect(files.map(entry => entry.fileName)).toEqual(['profile.csv', 'onboarding.csv', 'progress.csv', 'reviewState.csv', 'gameStats.csv', 'attempts.csv', 'examPlans.csv', 'reviewRows.csv', 'reports.csv', 'studyEvents.csv', 'dropped.csv']);
     expect(files.every(entry => entry.text.endsWith('\r\n'))).toBe(true);
     expect(parseRows(file(sample, 'progress'))).toEqual([
       ['id', 'result', 'date', 'deckId', 'progressVersion', 'course', 'examDate', 'done'],
@@ -314,9 +314,9 @@ describe('CSV export', () => {
 
   it('includes only headers for empty sections and the empty dropped report', () => {
     const files = exportCsv({});
-    expect(files).toHaveLength(10);
+    expect(files).toHaveLength(11);
     expect(files.every(entry => parseRows(entry.text).length === 1)).toBe(true);
-    expect(files[9]).toEqual({ fileName: 'dropped.csv', text: 'dropped\r\n' });
+    expect(files[10]).toEqual({ fileName: 'dropped.csv', text: 'dropped\r\n' });
   });
 
   it('returns fresh files and the same stable output for repeated exports', () => {
@@ -563,5 +563,65 @@ describe('the student\'s own reports (D-88)', () => {
 
   it('refuses a non-array reports section without fabricating rows', () => {
     expect(json({ reports: {} }).dropped).toEqual(['reports']);
+  });
+});
+
+const studyEvent = {
+  itemId: id2, itemVersionId: id1, kind: 'marked', msOnItem: 4200, mark: 'know',
+  at: '2026-11-01T00:59:58.123456-07:00', createdAt: '2026-11-01T08:00:00+00:00',
+};
+
+describe('the student\'s own study events (Task 140)', () => {
+  it('exports them in JSON with UTC times, keeping microseconds, and in a studyEvents.csv file', () => {
+    const skip = { ...studyEvent, kind: 'skipped', mark: null, msOnItem: 0 };
+    const result = json({ studyEvents: [studyEvent, skip] });
+    expect(result.studyEvents).toEqual([
+      { ...studyEvent, at: '2026-11-01T07:59:58.123456Z', createdAt: '2026-11-01T08:00:00.000Z' },
+      { ...skip, at: '2026-11-01T07:59:58.123456Z', createdAt: '2026-11-01T08:00:00.000Z' },
+    ]);
+    expect(result.dropped).toEqual([]);
+    expect(parseRows(file({ studyEvents: [studyEvent, skip] }, 'studyEvents'))).toEqual([
+      ['itemId', 'itemVersionId', 'kind', 'msOnItem', 'mark', 'at', 'createdAt'],
+      [id2, id1, 'marked', '4200', 'know', '2026-11-01T07:59:58.123456Z', '2026-11-01T08:00:00.000Z'],
+      [id2, id1, 'skipped', '0', '', '2026-11-01T07:59:58.123456Z', '2026-11-01T08:00:00.000Z'],
+    ]);
+  });
+
+  it('has only the header unless the caller supplies events', () => {
+    expect(json({}).studyEvents).toEqual([]);
+    expect(file({}, 'studyEvents')).toBe('itemId,itemVersionId,kind,msOnItem,mark,at,createdAt\r\n');
+  });
+
+  it('drops the user id and the row id by name, never by value', () => {
+    const hidden = 'sample: discarded private value';
+    const result = json({ studyEvents: [{ ...studyEvent, userId: hidden, user_id: hidden, id: hidden }] });
+    expect(result.studyEvents).toHaveLength(1);
+    expect(result.dropped).toEqual(['studyEvents[0].id', 'studyEvents[0].userId', 'studyEvents[0].user_id']);
+    expect(JSON.stringify(result) + file({ studyEvents: [{ ...studyEvent, userId: hidden }] }, 'studyEvents')).not.toContain(hidden);
+  });
+
+  it.each([
+    ['itemId', 'sample-item'], ['itemVersionId', null], ['kind', 'viewed'], ['kind', null], ['msOnItem', -1],
+    ['msOnItem', 1_800_001], ['msOnItem', 1.5], ['msOnItem', '100'], ['mark', 'maybe'], ['mark', 5],
+    ['at', 'yesterday'], ['at', '2026-02-30T00:00:00Z'], ['createdAt', null],
+  ])('refuses a study event whose %s is %j', (field, value) => {
+    const result = json({ studyEvents: [{ ...studyEvent, [field]: value }] });
+    expect(result.studyEvents).toEqual([]);
+    expect(result.dropped).toEqual(['studyEvents[0]', `studyEvents[0].${field}`]);
+  });
+
+  it('accepts the limits exactly: 0 and 30 minutes on an item', () => {
+    for (const msOnItem of [0, 1_800_000]) expect(json({ studyEvents: [{ ...studyEvent, msOnItem }] }).studyEvents).toHaveLength(1);
+  });
+
+  it('caps study events at 200,000 rows and reports truncation', () => {
+    const rows = Array.from({ length: 200_001 }, () => studyEvent);
+    const result = json({ studyEvents: rows });
+    expect(result.studyEvents).toHaveLength(200_000);
+    expect(result.dropped).toEqual(['studyEvents[200000+]']);
+  });
+
+  it('refuses a non-array studyEvents section without fabricating rows', () => {
+    expect(json({ studyEvents: {} }).dropped).toEqual(['studyEvents']);
   });
 });

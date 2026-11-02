@@ -391,3 +391,20 @@ describe('legacy browser data in the cleanup plan', () => {
     expect(blocked.getItem(legacyStarsKey('sample-retired'))).toBe('[]');
   });
 });
+
+describe('study history in the deletion summary (Task 140)', () => {
+  const event: NonNullable<ExportData['studyEvents']>[number] = Object.freeze({
+    itemId: '00000000-0000-4000-8000-000000000001', itemVersionId: '00000000-0000-4000-8000-000000000002',
+    kind: 'marked', msOnItem: 4200, mark: 'know', at: '2026-11-01T00:00:00Z', createdAt: '2026-11-01T00:00:01Z',
+  });
+
+  it('counts one entry and many entries in plain words, after reports', () => {
+    expect(deletionSummary({ studyEvents: [event] })).toEqual(['1 study history entry']);
+    expect(deletionSummary({ reports: [], studyEvents: [event, { ...event, kind: 'skipped', mark: null }] }))
+      .toEqual(['2 study history entries']);
+  });
+
+  it.each([{}, { studyEvents: [] }] satisfies ExportData[])('omits study history when absent or empty: %j', data => {
+    expect(deletionSummary(data)).toEqual([]);
+  });
+});
