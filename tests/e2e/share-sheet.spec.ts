@@ -80,3 +80,4 @@ test('noindex: preview/share is not indexed', async ({ page }) => {
   const robots = await page.locator('meta[name="robots"]').getAttribute('content');
   expect(robots).toContain('noindex');
 });
+
