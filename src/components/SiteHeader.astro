@@ -71,6 +71,7 @@ const { quiet = false, overlay = false } = Astro.props;
 
   header.site-header-sticky.is-tucked {
     transform: translateY(-100%);
+    pointer-events: none;
   }
 
   /*
@@ -94,6 +95,10 @@ const { quiet = false, overlay = false } = Astro.props;
     header.site-header-sticky.is-tucked {
       transform: none;
       transition: none;
+    }
+
+    header.site-header-sticky.is-tucked {
+      pointer-events: auto;
     }
   }
 </style>
