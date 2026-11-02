@@ -66,7 +66,12 @@ with `;`.
 | File | Columns |
 | --- | --- |
 | `facts.csv` | `fact_id`, `source_id` (the source the fact comes from). Extra columns, like the fact's text, are allowed. |
-| `sources.csv` | `source_id`, `url` (must start with `https://`). Extra columns, like a title, are allowed. |
+| `sources.csv` | `source_id`, `url` (must start with `https://`). Extra columns, like a title, are allowed. For the importer, a source that isn't in the database yet also needs `title`, `publisher` and `license` (the credit line, for example `CC BY 4.0`). |
+| `concepts.csv` | Optional, read only by the importer: `concept_id`, `title`. Needed for a concept that isn't in the database yet. |
+
+Source and concept ids that go into the database must be lowercase words joined by single dashes (`s-01`,
+`fluid-balance`), at most 80 characters; the importer refuses others rather than change them. Keep each question's
+`item_id` forever and never reuse one for a different question: the importer recognises a question by it.
 
 ### `reviewers/<name>.csv`: one file per reviewer
 
@@ -129,3 +134,53 @@ Warnings appear in the report but don't fail any question:
 
 The result files contain ids and reasons only, never question text. Any cell that a spreadsheet app could mistake for a
 formula is made safe before writing.
+
+## Importing a passed batch
+
+`npm run import-batch` loads the questions on `passed.csv` into Supabase. It checks the batch again first (above),
+and refuses the whole batch if any row on `passed.csv` is refused, so it never imports a failed, pending or edited
+question. **It only shows what it would do unless you add `--apply`.** It prints ids and counts, never question text or
+answers.
+
+What it writes: new `sources` and `concepts` (found again by their id), one `items` row per question, and a version of
+each question in `item_versions` with its `item_choices` and its `item_answers` (the key and each choice's rationale,
+which only that table holds). A question that changed since its last import gets a **new version**; a published version
+is never edited. Running the same command twice changes nothing the second time. Two columns are checked but not
+stored, because the database has no place for them yet: the main `rationale` (each choice has its own) and `fact_ids`.
+Each question may cite one source for now.
+
+Questions are left as unpublished drafts unless you add `--publish`, which makes them (and their sources and concepts)
+visible on the site and retires the version they replace. Publish on the live site only once the "Flag or comment"
+button works there (CLAUDE.md).
+
+The database changes (`supabase/migrations`) must already be applied to the project. The secret key is only ever typed
+into the Terminal window, for that one window: never put it in a file, a message or a command you save.
+
+1. Open Terminal and go to the cueory folder, the one you run `npm run check-batch` in.
+2. Type `export PATH=~/.local/node/bin:$PATH` and press Return.
+3. Check the batch: `npm run check-batch -- content/batches/<folder>`. You should see its summary line, for example
+   `40 passed, 0 failed, 0 pending`.
+4. See what the import would do, without any database: `npm run import-batch -- content/batches/<folder>`. You should
+   see `Checked again: 40 question(s)`, the rows it would write, and `Dry run: nothing was written.`
+5. In Supabase, open **cueory-staging** and click **Connect**. Copy the project URL (`https://….supabase.co`).
+6. In Terminal, type `export SUPABASE_URL=` and paste the URL right after the `=`, then press Return.
+7. In Supabase (still cueory-staging), open **Settings**, then **API Keys**, and copy the **secret key** (it starts
+   with `sb_secret_`).
+8. In Terminal, type `read -rs SUPABASE_SERVICE_ROLE_KEY` and press Return. Paste the key and press Return. Nothing
+   shows while you paste; that is on purpose.
+9. Type `export SUPABASE_SERVICE_ROLE_KEY` and press Return.
+10. Dry run against staging: `npm run import-batch -- content/batches/<folder> --project staging --publish`. Check that
+    the `Project:` line shows the URL from step 5, and read the list: `new question`, `changed: new version 2`, or
+    `unchanged`. You should see `Dry run: nothing was written.`
+11. Write to staging: the same command with `--apply` added at the end. You should see each question `done`, then
+    `Done. Read back from the database: it matches the batch.`
+12. Close the Terminal window. That forgets the key.
+13. Check the questions on the locked staging site.
+14. For the live site, repeat steps 1, 2 and 5 to 10 with **cueory-prod**'s URL and key, using `--project prod` in
+    place of `--project staging`. Then write with `--project prod --publish --apply --yes`. Without `--yes` it
+    refuses to write to the live site's database. Close the Terminal window when it says `Done.`
+
+If it stops with `Stopped while …`, the questions marked `done` above were written and nothing after them was. Fix
+what the message says (or send it to the lead; it never contains the key) and run the same command again: it picks up
+where it stopped. If it says the batch was refused, nothing was written: fix the files, check the batch again and
+start from step 3.
