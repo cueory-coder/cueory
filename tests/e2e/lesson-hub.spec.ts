@@ -4,9 +4,9 @@ import { studyModes } from '../../src/config/modes';
 
 const modeOrder = ['cards', 'learn', 'matching', 'organizer', 'fill-in', 'label-it', 'questions'] as const;
 const oldLinkLabels: Record<(typeof modeOrder)[number], string> = {
-  cards: 'Practice this lesson with cards',
-  learn: "Learn this lesson's cards in Learn mode",
-  matching: "Match this lesson's terms and meanings",
+  cards: 'practice this lesson with cards',
+  learn: "learn this lesson's cards in learn mode",
+  matching: "match this lesson's terms and meanings",
   organizer: 'sort ideas into groups with the organizer',
   'fill-in': 'recall the missing word with fill-in',
   'label-it': "uncover a diagram's labels with label it",
