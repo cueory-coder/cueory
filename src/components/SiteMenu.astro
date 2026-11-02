@@ -247,13 +247,18 @@ const current = currentHref(
 
   const dialog = document.querySelector<HTMLDialogElement>('#site-menu');
   const openButton = document.querySelector<HTMLButtonElement>('[data-menu-open]');
+  const closeButton = dialog?.querySelector<HTMLButtonElement>('[data-menu-close]');
 
-  if (dialog && openButton && typeof dialog.showModal === 'function') {
+  if (dialog && openButton && closeButton && typeof dialog.showModal === 'function') {
     let returnFocus = true;
 
     openButton.addEventListener('click', () => {
       returnFocus = true;
       dialog.showModal();
+      // Focus starts on the close button. Left to itself, the browser focuses the first focusable thing in the panel,
+      // and once the links are taller than the window the panel's own scrolling box counts as one: Chromium would
+      // focus that box, which comes before the close button, instead of a control.
+      closeButton.focus();
       openButton.setAttribute('aria-expanded', 'true');
     });
 
@@ -291,7 +296,7 @@ const current = currentHref(
       if (event.target === dialog) dialog.close();
     });
 
-    dialog.querySelector('[data-menu-close]')?.addEventListener('click', () => dialog.close());
+    closeButton.addEventListener('click', () => dialog.close());
 
     for (const link of dialog.querySelectorAll('a')) {
       link.addEventListener('click', () => {
