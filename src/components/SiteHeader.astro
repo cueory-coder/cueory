@@ -19,9 +19,10 @@ const { quiet = false, overlay = false } = Astro.props;
 ---
 
 <header
+  data-scroll-header={overlay ? undefined : ''}
   class:list={[
     'z-20 flex w-full items-center gap-4 px-gutter py-4',
-    overlay ? 'absolute inset-x-0 top-0' : 'relative',
+    overlay ? 'absolute inset-x-0 top-0' : 'sticky top-0 site-header-sticky',
   ]}
 >
   <!-- ☰ in the top-left corner, the account in the top-right (D-46). -->
@@ -54,3 +55,85 @@ const { quiet = false, overlay = false } = Astro.props;
     <AccountCorner quiet={quiet} />
   </div>
 </header>
+
+<!-- Home keeps its existing absolute hero overlay. All other headers stick above the reading surface. -->
+<style>
+  header.site-header-sticky {
+    /* The page tint stays legible in both palettes. The existing glass opacity and blur are shared tokens. */
+    background-color: var(--color-page);
+    background-color: rgb(from var(--color-page) r g b / var(--panel-alpha));
+    -webkit-backdrop-filter: blur(var(--blur-veil));
+    backdrop-filter: blur(var(--blur-veil));
+    box-shadow: var(--shadow-soft);
+    /* Task 77 supplies these motion tokens; use its documented values until it merges. */
+    transition: transform var(--duration-base, 240ms) var(--ease-soft, ease);
+  }
+
+  header.site-header-sticky.is-tucked {
+    transform: translateY(-100%);
+  }
+
+  /*
+   * Keep scrollIntoView, keyboard focus and in-page links below the sticky home link.
+   * The clearances include the logo, its clear space, py-4 and a little breathing room.
+   * Phone: 28 spacing units (112px); sm and larger: 36 units (144px).
+   * Home's absolute overlay has no data-scroll-header, so it keeps its normal scroll behavior.
+   */
+  :global(html:has([data-scroll-header])) {
+    scroll-padding-top: calc(var(--spacing) * 28);
+  }
+
+  @media (min-width: 40rem) {
+    :global(html:has([data-scroll-header])) {
+      scroll-padding-top: calc(var(--spacing) * 36);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    header.site-header-sticky,
+    header.site-header-sticky.is-tucked {
+      transform: none;
+      transition: none;
+    }
+  }
+</style>
+
+<script>
+  import { nextHeaderState, type HeaderState } from '../scripts/headerscroll';
+
+  const header = document.querySelector<HTMLElement>('[data-scroll-header]');
+  if (header) {
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const menuDialog = header.querySelector<HTMLDialogElement>('#site-menu');
+    const menuButton = header.querySelector<HTMLButtonElement>('[data-menu-open]');
+    const accountButton = header.querySelector<HTMLButtonElement>('[data-account-toggle]');
+    let previous: HeaderState = 'visible';
+    let lastY = Math.max(0, window.scrollY);
+
+    const refresh = () => {
+      const scrollY = Math.max(0, window.scrollY);
+      const focusInside = header.contains(document.activeElement);
+      // Safari may leave a clicked account button unfocused. Its expanded state still keeps the header visible.
+      const menuOpen = menuDialog?.open === true
+        || menuButton?.getAttribute('aria-expanded') === 'true'
+        || accountButton?.getAttribute('aria-expanded') === 'true';
+      previous = reducedMotion.matches
+        ? 'visible'
+        : nextHeaderState(previous, scrollY, lastY, focusInside, menuOpen);
+      header.classList.toggle('is-tucked', previous === 'hidden');
+      lastY = scrollY;
+    };
+
+    window.addEventListener('scroll', refresh, { passive: true });
+    header.addEventListener('focusin', refresh);
+    // Let focus settle on its new target before deciding whether the header may tuck away.
+    header.addEventListener('focusout', () => requestAnimationFrame(refresh));
+    // The menu is a native dialog, which can move focus away from its opening button.
+    menuDialog?.addEventListener('toggle', refresh);
+    menuDialog?.addEventListener('close', refresh);
+    menuButton?.addEventListener('click', () => requestAnimationFrame(refresh));
+    accountButton?.addEventListener('click', () => requestAnimationFrame(refresh));
+    reducedMotion.addEventListener('change', refresh);
+    refresh();
+  }
+</script>
