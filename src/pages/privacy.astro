@@ -39,6 +39,10 @@ import { newsletter, promo, site } from '../config/site';
       storage. This isn't an account, and it stays on the device you're using.
     </p>
     <p>
+      Older per-deck stars can still be saved under <code>{'cueory-stars-<deck>'}</code> until they are moved into
+      <code>cueory-progress</code>.
+    </p>
+    <p>
       On <a href="/progress">your progress page</a> you can see all of it, download a copy, or forget it on this device.
       Clearing this site's data in your browser also removes it.
     </p>
@@ -51,7 +55,8 @@ import { newsletter, promo, site } from '../config/site';
       On <a href="/play">daily games</a> you can turn on stats. They're off unless you do. When they're on, your browser
       keeps, for each game you finish, the day, whether you solved it and how many tries it took. Anything older than 400
       days is deleted the next time you open daily games. It stays on your device and never reaches us, and there are no
-      streaks. "Forget", or turning stats off, deletes it.
+      streaks. "Forget", or turning stats off, deletes it. The storage key for these results is
+      <code>cueory-game-stats</code>.
     </p>
 
     <p>
@@ -131,6 +136,8 @@ import { newsletter, promo, site } from '../config/site';
       When account controls launch, the <code>/account</code> page will let you download your account data and
       request deletion of your account and linked study data. That page and those controls are not available yet.
       Today, <a href="/progress">your progress page</a> lets you download or delete the progress stored on this device.
+      When account deletion becomes available, it will also clear Cueory study progress and settings saved in this
+      browser on this device.
     </p>
 
     <h2>Who handles data for us</h2>

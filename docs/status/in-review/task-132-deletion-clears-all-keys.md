@@ -1,0 +1,1 @@
+status: Task 132, browser account-deletion cleanup plan includes persistent glove and sound preferences plus separate session-only keys, and the privacy page precisely lists game stats and legacy star keys with regression tests.
