@@ -245,11 +245,27 @@ Merged into `staging`:
   `check_answer` contract test against the real request helper (#142, Task 48).
 
 ## In review
+- Task 108, guided onboarding (#189): two optional setup questions on separate accessible screens with preserved device-local progress, in review.
+- Task 74, accessibility sweep (#157): full-site keyboard and axe audit, with segmented-date regression coverage, awaiting exact-head CI and Codex review.
 - Open pull requests add their own lines here. Waiting now: Release browser tests (#55).
 - Task 78, flashcards modern (D-pending): 3D flip card, progress bar, segmented study controls, keyboard
-  shortcuts, full axe + tab-order accessibility. Head `f7956e4`. PR [#162](https://github.com/lilchristxan/Cueory/pull/162).
+  shortcuts, full axe + tab-order accessibility. Head `3d62d29`. PR [#162](https://github.com/lilchristxan/Cueory/pull/162).
   CI repair 3 (transition:none !important, BuildingNotice landmark, regex locators for Shuffle/Starred/Star)
-  committed `f7956e4`, awaiting CI.
+  committed `f7956e4`, merged staging to clear conflicts, awaiting CI.
+- Task 111, reminder choices preview (#191): non-sending phone and email choices open only after a completed review and a deliberate tap, with keyboard/privacy checks while real opt-in and delivery remain future work.
+- Task 106, review-reminder email (#185): non-sending branded HTML, plain-text alternative and noindex sample preview, awaiting CI and Codex review.
+- Task 105, quiet result marks (#188): official emblem and real Cueory page address appear only on completed pulse, sort and crossword result cards and the progress summary; answer areas and printing stay clear.
+- Task 56, account screens (#164): Google and email/password screens now use Task 55’s shared client, with accounts-off and retry handling. Callback, profile-name persistence and verified recovery remain held for their integration owner and Christian’s approval.
+- Task 100, points, streaks and achievements (#180): deterministic local-only rewards with weekly free passes and test coverage, awaiting CI and Codex review.
+- Task 110 start, cruet loading animation (#184): the four layers cut from Christian’s emblem and the lead’s working prototype in `docs/prototypes/`; the island comes next.
+- Task 95, modern sample questions page (#174): passed full CI and Codex review, merged into `staging` and awaiting the next production release.
+- Task 73, break-idea sharing proposal (#177): private submissions, moderation, reporting, export and account-deletion safeguards proposed for Christian’s decisions.
+- Approved designs (#178): Christian’s approved mockups saved in `docs/screenshots/approved-2026-11-01/` for the builders.
+- Glove photos and the Kalam font (#163): Christian’s nine glove colors cut out as WebP files, and the handwriting he
+  picked. Files only; the glove note (Task 70) uses them and stays off until he checks it.
+- Task 99, Lato body font (#172): Lato for body and interface text, line spacing at least 1.5, plain accent line under the home headline. Waits for Christian (it edits CLAUDE.md).
+- Task 55, Supabase client (#156): Supabase’s sign-in library, loaded only on pages that need an account; the security policy gains the project address only when accounts are on. Waits for Christian (sign-in and security policy).
+- Task 58, signed-in account corner (#186): initials avatar and account actions from the student’s own session, with no client load before idle and the accounts-off menu unchanged.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
@@ -295,10 +311,9 @@ Targets: first visuals by about 14 November, the full kit by about 12 December (
 - [ ] Lesson videos (#97, live but unlinked): the iPhone check needs a real video. When your first lesson video is on
   Cueory's YouTube channel, send its link; then on a real iPhone, tap its cover once on the staging site and the video
   should start right away. Until then `/learn/video-sample` only shows the cover and the player loading.
-- [ ] Glove-note pop-ups ([your request on #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6560268260)
-  and its addenda): five photos of your own gloved hand (palm toward the camera, blank palm, the five angles and
-  colors listed there, plain background, no jewelry, cropped at the wrist) and two short recordings, a glove snap and a
-  stretch. Nothing visible changes until they arrive; the logic is being built now (Tasks 50 to 53).
+- [x] Glove-note pop-ups: Christian sent his glove image (made with an AI image tool) on 2026-11-01 and chose nine
+  colors, Kalam handwriting and all text inside the palm (#163, Task 70). Still to come: two short sounds, a glove snap
+  and a stretch, if he wants sound.
 - [x] Study modes on pages (#77): merged by Christian with "Ok" on 2026-11-01, read as allowing labeled everyday
   samples with their answers in the browser (D-92). If that reading is wrong, say so and the questions page comes off.
 - [ ] Real questions need a free account (D-86): `check_answer` reveals the key after one try, so signed-out visitors
