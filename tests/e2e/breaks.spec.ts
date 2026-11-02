@@ -101,7 +101,10 @@ test('all sample ideas remain readable with JavaScript disabled', async ({ brows
     await expect(list(page).getByRole('listitem')).toHaveText(expectedIdeas);
     await expect(showOne(page)).toBeDisabled();
     await expect(shuffle(page)).toBeDisabled();
-    await expect(page.locator('noscript')).toContainText('turn on javascript');
+    // Playwright skips NOSCRIPT in text matching; inspect the actual rendered paragraph.
+    const instructions = page.locator('noscript p');
+    await expect(instructions).toHaveText('all the ideas are listed here. turn on javascript to shuffle them or choose one at random.');
+    await expect(instructions).toBeVisible();
   } finally {
     await context.close();
   }
