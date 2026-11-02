@@ -7,7 +7,7 @@
  */
 import { menuLinks, menuSmallLinks } from '../config/site';
 import SocialLinks from './SocialLinks.astro';
-import { currentHref } from '../scripts/menu';
+import { currentHref, groupMenuLinks } from '../scripts/menu';
 
 interface Props {
   /** Study screens: the same button, without the frosted circle. */
@@ -15,9 +15,10 @@ interface Props {
 }
 
 const { quiet = false } = Astro.props;
+const grouped = groupMenuLinks(menuLinks, menuSmallLinks);
 const current = currentHref(
   Astro.url.pathname,
-  menuLinks.map((link) => link.href),
+  [...menuLinks, ...menuSmallLinks].map((link) => link.href),
 );
 ---
 
@@ -73,16 +74,28 @@ const current = currentHref(
     <nav aria-label="site" class="my-auto py-section">
       <ul class="flex flex-col gap-7">
         {
-          menuLinks.map((link) => (
+          grouped.home.map((link) => (
             <li>
-              <a
-                href={link.href}
-                class="menu-link"
-                aria-current={link.href === current ? 'page' : undefined}
-              >
+              <a href={link.href} class="menu-link" aria-current={link.href === current ? 'page' : undefined}>
                 {link.label}
-                {'note' in link && <span class="menu-note">{link.note}</span>}
               </a>
+            </li>
+          ))
+        }
+        {
+          grouped.sections.map((section) => (
+            <li>
+              <h2 class="menu-section-heading mb-3">{section.heading}</h2>
+              <ul class="flex flex-col gap-3">
+                {section.links.map((link) => (
+                  <li>
+                    <a href={link.href} class="menu-link" aria-current={link.href === current ? 'page' : undefined}>
+                      {link.label}
+                      {link.note && <span class="menu-note">{link.note}</span>}
+                    </a>
+                  </li>
+                ))}
+              </ul>
             </li>
           ))
         }
@@ -92,20 +105,31 @@ const current = currentHref(
     <div class="mb-4">
       <SocialLinks panel />
     </div>
-
-    <ul class="flex gap-6 text-sm">
-      {
-        menuSmallLinks.map((link) => (
-          <li>
-            <a href={link.href} class="menu-small-link">
-              {link.label}
-            </a>
-          </li>
-        ))
-      }
-    </ul>
   </div>
 </dialog>
+
+<style>
+  .menu-section-heading {
+    color: var(--color-panel-ink-soft);
+    font-size: var(--text-sm);
+    line-height: var(--text-sm--line-height);
+    letter-spacing: var(--tracking-menu);
+    font-weight: 700;
+  }
+
+  /* A reduced-motion menu opens at its final position, without a slide. */
+  @media (prefers-reduced-motion: reduce) {
+    dialog:global(.menu-panel) {
+      transition: none;
+    }
+
+    @starting-style {
+      dialog:global(.menu-panel[open]) {
+        transform: none;
+      }
+    }
+  }
+</style>
 
 <script>
   import { isCloseKey, wrapFocus } from '../scripts/menu';
@@ -223,13 +247,18 @@ const current = currentHref(
 
   const dialog = document.querySelector<HTMLDialogElement>('#site-menu');
   const openButton = document.querySelector<HTMLButtonElement>('[data-menu-open]');
+  const closeButton = dialog?.querySelector<HTMLButtonElement>('[data-menu-close]');
 
-  if (dialog && openButton && typeof dialog.showModal === 'function') {
+  if (dialog && openButton && closeButton && typeof dialog.showModal === 'function') {
     let returnFocus = true;
 
     openButton.addEventListener('click', () => {
       returnFocus = true;
       dialog.showModal();
+      // Focus starts on the close button. Left to itself, the browser focuses the first focusable thing in the panel,
+      // and once the links are taller than the window the panel's own scrolling box counts as one: Chromium would
+      // focus that box, which comes before the close button, instead of a control.
+      closeButton.focus();
       openButton.setAttribute('aria-expanded', 'true');
     });
 
@@ -267,7 +296,7 @@ const current = currentHref(
       if (event.target === dialog) dialog.close();
     });
 
-    dialog.querySelector('[data-menu-close]')?.addEventListener('click', () => dialog.close());
+    closeButton.addEventListener('click', () => dialog.close());
 
     for (const link of dialog.querySelectorAll('a')) {
       link.addEventListener('click', () => {

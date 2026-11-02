@@ -28,6 +28,36 @@ function normalise(path: string): string {
   return trimmed === '' ? '/' : trimmed;
 }
 
+/** Menu sections use existing links from the site settings; none are duplicated or dropped. */
+export interface MenuEntry {
+  readonly href: string;
+  readonly label: string;
+  readonly note?: string;
+}
+
+export interface MenuSection {
+  readonly heading: 'study' | 'play' | 'about';
+  readonly links: readonly MenuEntry[];
+}
+
+/** Keep home first, then study, play and about. New primary links default to study so they remain visible. */
+export function groupMenuLinks(
+  main: readonly MenuEntry[],
+  small: readonly MenuEntry[],
+): { home: MenuEntry[]; sections: MenuSection[] } {
+  return {
+    home: main.filter((link) => link.href === '/'),
+    sections: [
+      {
+        heading: 'study',
+        links: main.filter((link) => link.href !== '/' && link.href !== '/play' && link.href !== '/support'),
+      },
+      { heading: 'play', links: main.filter((link) => link.href === '/play') },
+      { heading: 'about', links: [...main.filter((link) => link.href === '/support'), ...small] },
+    ],
+  };
+}
+
 /** Keys that close the side panel and the account menu. */
 export function isCloseKey(key: string): boolean {
   return key === 'Escape' || key === 'Esc';

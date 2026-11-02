@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { menuLinks, menuSmallLinks } from '../../src/config/site';
-import { currentHref, isCloseKey, wrapFocus } from '../../src/scripts/menu';
+import { currentHref, groupMenuLinks, isCloseKey, wrapFocus } from '../../src/scripts/menu';
 
 const hrefs = menuLinks.map((link) => link.href);
 
@@ -23,6 +23,17 @@ describe('side panel current page (D-46)', () => {
     expect(currentHref(path, hrefs)).toBeUndefined();
   });
 
+  it.each([
+    ['/privacy', '/privacy'],
+    ['/privacy/', '/privacy'],
+    ['/privacy.html', '/privacy'],
+    ['/terms', '/terms'],
+    ['/terms/', '/terms'],
+    ['/terms.html', '/terms'],
+  ])('%s marks %s when small links are included', (path, expected) => {
+    expect(currentHref(path, [...menuLinks, ...menuSmallLinks].map((link) => link.href))).toBe(expected);
+  });
+
   it('never marks a link to a spot on a page, and prefers the longest match', () => {
     expect(currentHref('/', ['/#ways-to-study'])).toBeUndefined();
     expect(currentHref('/learn/a/b', ['/learn', '/learn/a'])).toBe('/learn/a');
@@ -35,6 +46,31 @@ describe('side panel links', () => {
       expect(link.label).toBe(link.label.toLowerCase());
       expect(link.href.startsWith('/')).toBe(true);
     }
+  });
+});
+
+describe('side panel groups (Task 86)', () => {
+  const grouped = groupMenuLinks(menuLinks, menuSmallLinks);
+
+  it('shows home, study, play and about in that order', () => {
+    expect(grouped.home.map((link) => link.href)).toEqual(['/']);
+    expect(grouped.sections.map((section) => section.heading)).toEqual(['study', 'play', 'about']);
+    expect(grouped.sections[0]?.links.map((link) => link.href)).toEqual([
+      '/#ways-to-study', '/learn/study-skills', '/progress',
+    ]);
+    expect(grouped.sections[1]?.links.map((link) => link.href)).toEqual(['/play']);
+    expect(grouped.sections[2]?.links.map((link) => link.href)).toEqual([
+      '/support', '/privacy', '/terms',
+    ]);
+  });
+
+  it('shows each configured link exactly once and preserves its URL', () => {
+    const shown = [...grouped.home, ...grouped.sections.flatMap((section) => section.links)]
+      .map((link) => link.href);
+    const configured = [...menuLinks, ...menuSmallLinks].map((link) => link.href);
+    expect(shown).toHaveLength(configured.length);
+    expect(new Set(shown).size).toBe(shown.length);
+    expect([...shown].sort()).toEqual([...configured].sort());
   });
 });
 
