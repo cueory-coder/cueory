@@ -248,6 +248,9 @@ Merged into `staging`:
 - Open pull requests add their own lines here. Waiting now: Release browser tests (#55).
 - In review ([#173](https://github.com/lilchristxan/Cueory/pull/173)): word path → themed word search (D-71).
   Anchor + cursor selection, straight-line-only validated paths, optional theme title, 3-column word list.
+  Repair 1 (2026-11-02): fix theme not forwarded from play.astro wordPathSamples build; fix play.spec.ts GRAPE/LIME
+  cell coordinates (grid is 5×6, GRAPE runs col 6 rows 1–5, LIME runs row 5 cols 2–5); add fixed clock to
+  word-path.spec.ts beforeEach for deterministic puzzle selection. HEAD: awaiting CI.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).

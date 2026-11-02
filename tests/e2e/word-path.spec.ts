@@ -3,9 +3,9 @@ import { expect, test } from '@playwright/test';
 
 test.describe('word path — themed word search', () => {
   test.beforeEach(async ({ page }) => {
+    await page.clock.setFixedTime(new Date('2026-11-01T15:00:00'));
     await page.goto('/play');
-    // Wait for the game component to mount
-    await page.waitForSelector('[data-testid="suture"]');
+    await expect(page.locator('[data-testid="suture"]')).toBeVisible();
   });
 
   test('theme is visible as the puzzle title', async ({ page }) => {

@@ -348,7 +348,7 @@ test.describe('daily games: crossword (D-70)', () => {
 });
 
 test.describe('daily games: word path (D-71)', () => {
-  // 1 November: the first sample. APPLE along the top row; GRAPE from row 2 down and right; LIME from row 4.
+  // 1 November: the first sample. APPLE in row 1 (cols 1–5); GRAPE down col 6 (rows 1–5); LIME in row 5 (cols 2–5).
   const cell = (page: Page, row: number, col: number) =>
     page.getByTestId('suture').getByRole('button', { name: new RegExp(`^row ${row}, column ${col},`) });
   const trace = async (page: Page, cells: [number, number][]) => {
@@ -379,10 +379,10 @@ test.describe('daily games: word path (D-71)', () => {
   });
 
   test('tracing every word solves it, and the result shares as plain words', async ({ page }) => {
-    await trace(page, [[1, 1], [1, 2], [1, 3], [1, 4], [1, 5]]);
+    await trace(page, [[1, 1], [1, 5]]);
     await expect(page.getByTestId('suture-live')).toHaveText('found word 1: apple.');
-    await trace(page, [[2, 1], [3, 1], [3, 2], [3, 3], [3, 4]]);
-    await trace(page, [[4, 1], [5, 1], [5, 2], [5, 3]]);
+    await trace(page, [[1, 6], [5, 6]]);
+    await trace(page, [[5, 2], [5, 5]]);
     const result = page.getByTestId('suture-result');
     await expect(result).toBeFocused();
     await expect(result).toContainText('cueory word path, sun 1 nov: stitched 3 of 3 words with 0 loose stitches.');
