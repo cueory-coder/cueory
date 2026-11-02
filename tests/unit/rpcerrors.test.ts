@@ -9,6 +9,11 @@ describe('check_answer errors', () => {
       .toBe('please sign in to check answers.');
   });
 
+  it('maps the confirm-your-email refusal (Task 169)', () => {
+    expect(studentMessage('check_answer', { message: 'confirm your email to use this' }))
+      .toBe('please confirm your email to check answers — look for the link in your inbox.');
+  });
+
   it('maps the missing-fields refusal', () => {
     expect(studentMessage('check_answer', { message: 'an item, the version you were shown and your choices are needed' }))
       .toBe('something went wrong loading the question — please reload the page.');
@@ -51,6 +56,11 @@ describe('submit_flag errors', () => {
   it('maps the sign-in refusal', () => {
     expect(studentMessage('submit_flag', { message: 'sign in to send a report' }))
       .toBe('please sign in to send a report.');
+  });
+
+  it('maps the confirm-your-email refusal (Task 169)', () => {
+    expect(studentMessage('submit_flag', { message: 'confirm your email to use this' }))
+      .toBe('please confirm your email to send a report — look for the link in your inbox.');
   });
 
   it('maps the bad-page refusal', () => {
@@ -109,6 +119,7 @@ describe('unknown and edge-case errors', () => {
   it('no student message contains SQL, a table name or a raw error code', () => {
     const allMessages = [
       studentMessage('check_answer', { message: 'sign in to check an answer' }),
+      studentMessage('check_answer', { message: 'confirm your email to use this' }),
       studentMessage('check_answer', { message: 'an item, the version you were shown and your choices are needed' }),
       studentMessage('check_answer', { message: 'no such question' }),
       studentMessage('check_answer', { message: 'this question was updated; reload it and answer again' }),
@@ -117,6 +128,7 @@ describe('unknown and edge-case errors', () => {
       studentMessage('check_answer', { message: 'pick one choice' }),
       studentMessage('check_answer', { message: 'too many answers checked this hour; try again later' }),
       studentMessage('submit_flag', { message: 'sign in to send a report' }),
+      studentMessage('submit_flag', { message: 'confirm your email to use this' }),
       studentMessage('submit_flag', { message: 'the page must be an address on this site' }),
       studentMessage('submit_flag', { message: 'pick what is wrong from the list' }),
       studentMessage('submit_flag', { message: 'the comment is up to 1,000 characters of plain text' }),

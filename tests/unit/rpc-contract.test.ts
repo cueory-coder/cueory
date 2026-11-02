@@ -10,15 +10,17 @@ const sql = [
   '20261101100000_attempts_and_check_answer.sql',
   '20261101120000_flags_and_submit_flag.sql',
   '20261102100000_study_events.sql',
+  // Task 169 redefines check_answer, submit_flag and record_study_events; the last definition is the live one.
+  '20261102120000_confirmed_accounts_only.sql',
 ].map(name => readFileSync(new URL(`../../supabase/migrations/${name}`, import.meta.url), 'utf8')).join('\n');
 
 type FunctionName = 'submit_flag' | 'check_answer' | 'my_flags' | 'record_study_events';
 
 /** Read the actual declarations and dollar-quoted bodies, rather than copying their contracts into a fixture. */
 function declaration(name: FunctionName) {
-  const match = new RegExp(
-    `create\\s+function\\s+public\\.${name}\\s*\\(([^)]*)\\)\\s*returns([\\s\\S]*?)as\\s*\\$\\$([\\s\\S]*?)\\$\\$;`, 'i',
-  ).exec(sql);
+  const match = [...sql.matchAll(new RegExp(
+    `create\\s+(?:or\\s+replace\\s+)?function\\s+public\\.${name}\\s*\\(([^)]*)\\)\\s*returns([\\s\\S]*?)as\\s*\\$\\$([\\s\\S]*?)\\$\\$;`, 'gi',
+  ))].at(-1);
   if (!match) throw new Error(`The SQL declaration for ${name} was not found; update the contract reader.`);
   const names = (text: string) => text.replace(/--[^\n]*/g, '').split(',')
     .map(part => part.trim().split(/\s+/)[0]!).filter(Boolean);
@@ -119,6 +121,7 @@ describe('record_study_events contract (Task 140)', () => {
     // A change here is a contract change for the browser recorder: update it in the same pull request.
     expect(declaration('record_study_events').messages).toEqual([
       'sign in to record study activity',
+      'confirm your email to use this',
       'send between 1 and 50 study events',
       'a study event has the wrong shape',
       'a study event time must be between 7 days ago and 5 minutes from now',
