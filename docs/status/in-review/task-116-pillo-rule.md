@@ -1,0 +1,1 @@
+status: Task 116, CLAUDE.md matches the pillo decision (#PR): the daily-puzzle rule now allows pillo's classic guess-the-word rules (Christian's choice, Task 113) while look, name, colors and share stay original.
