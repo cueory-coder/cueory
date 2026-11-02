@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import { isDesktopOfEachEngine } from './projects';
 
 // Task 85: the footer is one slim bar at the end of the page (flag, small logo, chevron); the chevron opens the links
 // panel above it, which holds the motto, links, socials, contact email, copyright and the theme switch.
@@ -209,7 +210,7 @@ test.describe('footer theme picker', () => {
       { name: 'Dark', label: 'evening' },
     ]) {
       test(`axe clean with the links open, ${palette.label} palette, ${size.label} width`, async ({ page }, testInfo) => {
-        test.skip(testInfo.project.name !== 'desktop', 'sets its own sizes, so one project is enough');
+        test.skip(!isDesktopOfEachEngine(testInfo), 'sets its own sizes, so one project per engine is enough');
         await page.setViewportSize({ width: size.width, height: size.height });
         await page.goto('/');
         await openFooterLinks(page);

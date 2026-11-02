@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { readdirSync } from 'node:fs';
 import { join, relative, resolve, sep } from 'node:path';
+import { isEveningProject } from './projects';
 
 /**
  * Task 74: audit every built HTML page, including 404 and preview pages.
@@ -194,7 +195,7 @@ test.describe('Task 74: full-site accessibility sweep', () => {
     test(`${route}: axe, heading, skip link and keyboard focus`, async ({ page }, testInfo) => {
       // Task 94 audits the Evening palette. This test checks precisely the
       // requested three viewports, not a duplicate fourth phone project.
-      test.skip(testInfo.project.name === 'phone-evening', 'Evening palette is Task 94');
+      test.skip(isEveningProject(testInfo), 'Evening palette is Task 94');
       await page.addInitScript(() => {
         // The separate promo tests cover its focus behavior. Suppress it here
         // so a timed popup cannot interrupt a long keyboard traversal.

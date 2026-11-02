@@ -86,12 +86,23 @@ jobs:
           retention-days: 7
 
   engines:
-    # Release pull requests (into main) also run the browser tests in Safari's engine and Firefox (D-48). Every other
-    # pull request skips this job to save the free Actions minutes.
-    name: Browser tests in WebKit and Firefox
-    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    # Release pull requests (into main) also run the browser tests in Safari's engine and Firefox (D-48), one job per
+    # project side by side so each stays well inside its time limit. Every other pull request skips these jobs, which
+    # keeps everyday pull requests fast; drafts wait until they are marked ready for review, as above.
+    name: Browser tests in ${{ matrix.project }}
+    if: github.event_name == 'pull_request' && github.base_ref == 'main' && github.event.pull_request.draft == false
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: webkit-phone
+            browser: webkit
+          - project: webkit-desktop
+            browser: webkit
+          - project: firefox-desktop
+            browser: firefox
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -104,16 +115,19 @@ jobs:
 
       - run: npm ci
       - run: npm run build
-      - run: npx playwright install --with-deps webkit firefox
-      - run: npm run test:e2e -- --project=webkit-phone --project=webkit-desktop --project=firefox-desktop
+      - run: npx playwright install --with-deps "$BROWSER"
+        env:
+          BROWSER: ${{ matrix.browser }}
+      - run: npm run test:e2e -- --project="$PROJECT"
         env:
           ALL_ENGINES: '1'
+          PROJECT: ${{ matrix.project }}
 
       - name: Keep the test report if browser tests fail
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: playwright-report-engines
+          name: playwright-report-${{ matrix.project }}
           path: test-results/
           retention-days: 7
 
