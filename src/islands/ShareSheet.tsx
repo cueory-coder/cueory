@@ -79,7 +79,7 @@ export default function ShareSheet({ tool, siteUrl }: Props) {
           ref={rowRef}
           role="radiogroup"
           aria-labelledby={`${id}-label`}
-          className="flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-p-4 px-4 pb-3 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-p-4 px-4 pb-3 [touch-action:pan-x] [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {SHARE_STYLES.map((s, i) => (
             <CardOption

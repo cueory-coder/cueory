@@ -26,7 +26,7 @@ test('share preview page loads without errors', async ({ page }) => {
 test('share sheet renders three card style options', async ({ page }) => {
   await page.goto('/preview/share');
   // Wait for the React island to hydrate
-  const radios = page.locator('[type="radio"]');
+  const radios = page.locator('main [type="radio"]');
   await expect(radios).toHaveCount(6); // 3 styles × 2 sheet instances on the preview page
   const first = radios.nth(0);
   await expect(first).toBeChecked();
