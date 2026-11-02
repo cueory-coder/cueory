@@ -17,7 +17,7 @@ import {
   type Busy,
   type NoteInput,
 } from '../../src/islands/stickynote';
-import { startBreaks, tick, turnOn, type BreakState } from '../../src/islands/breaks';
+import { remainingMs, startBreaks, tick, turnOn, type BreakState } from '../../src/islands/breaks';
 import type { KeyValueStorage } from '../../src/scripts/storage';
 
 const idle: Busy = {
@@ -308,6 +308,7 @@ describe('closeBreakNote', () => {
     const after = closeBreakNote(timer, now);
     expect(after.status).toBe('focusing');
     expect(after.endsAt).toBe(now + SNOOZE_MS);
+    expect(remainingMs(after, now)).toBe(SNOOZE_MS);
   });
 
   it('after snooze, decideNote shows no break note for 5 minutes then shows one again', () => {
@@ -340,7 +341,7 @@ describe('closeBreakNote', () => {
     expect(decideNote(baseInput(3, at4m59s))).toEqual({ show: false });
 
     // At exactly +5 min the timer transitions to 'break due' — break note appears
-    const at5m = tick(snoozed, now + SNOOZE_MS + 1);
+    const at5m = tick(snoozed, now + SNOOZE_MS);
     expect(at5m.status).toBe('break due');
     expect(decideNote(baseInput(3, at5m))).toMatchObject({ show: true, kind: 'break' });
   });
@@ -382,5 +383,7 @@ describe('closeBreakNote', () => {
       random: () => 0,
     };
     expect(decideNote(input)).toMatchObject({ show: true, kind: 'break' });
+    // ...and only once a visit: after a break note has been shown, the same input shows nothing
+    expect(decideNote({ ...input, visit: { ...emptyVisit(), shown: ['break'] } })).toEqual({ show: false });
   });
 });
