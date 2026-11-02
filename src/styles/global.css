@@ -1,6 +1,49 @@
 @import "tailwindcss";
 @import "./tokens.css";
-@import "@fontsource-variable/inter";
+
+/*
+  Lato (SIL Open Font License, public/fonts/lato-OFL.txt) for body text, interface and buttons (Christian,
+  2026-11-01). Latin subset, self-hosted, regular and bold with italics. font-display: swap so text always shows.
+*/
+@font-face {
+  font-family: "Lato";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/lato-latin-400-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Lato";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/lato-latin-400-italic.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Lato";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/lato-latin-700-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Lato";
+  font-style: italic;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/lato-latin-700-italic.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
 
 /*
   Bodoni Moda (SIL Open Font License, public/fonts/bodoni-moda-OFL.txt) for marketing headings only (D-41).
@@ -1023,156 +1066,351 @@ html:has(dialog.menu-panel[open]) {
 }
 
 /*
-  pulse, the word game on /play (D-61). Each guess is a row of round letters with its mark under each one, as a
-  symbol (● in place, ○ elsewhere in the word, · not in the word) and in words for screen readers, so nothing depends
-  on color. A letter in place is filled, one elsewhere is ringed, and one not in the word is plain and quieter. Brand
-  colors only, and no tile grid.
+  pillo (Task 114), the word game on /play. The board is a foil blister pack: six rows of five pockets with dashed
+  perforations between them. A guessed letter is a glossy capsule pill with a capital letter and its mark under it
+  (● in place, ○ elsewhere in the word, · not in the word), and each guess is also said in words for screen readers,
+  so color is never the only signal. In place is Espresso (Evening: Walnut), elsewhere is Taupe (Evening: Sand), and not
+  in the word is Ivory with a faded Bronze letter (Evening: frosted Ivory). The row being typed shows plain Ivory pills
+  and rings the next empty pocket. Every color, size and shadow is a token (tokens.css, "pillo"); the foil is drawn
+  with gradients, so there is no image file and nothing the content security policy has to allow.
 */
 @layer components {
-  .pulse-board {
+  .pillo {
+    /* The foil's grey: Ivory greyed with Bronze by day, Charcoal lit with Sand in the evening. */
+    --pillo-foil-color: color-mix(in srgb, var(--color-pillo-foil-tint) var(--pillo-foil-mix), var(--color-pillo-foil));
+    --pillo-hatch-color: color-mix(in srgb, var(--color-pillo-hatch) var(--pillo-hatch-mix), transparent);
+    --pillo-gloss-color: color-mix(in srgb, var(--color-pillo-gloss) var(--pillo-gloss-mix), transparent);
+    --pillo-perforation: color-mix(in srgb, var(--color-pillo-hatch) 22%, transparent);
+  }
+
+  .pillo-top {
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
     gap: calc(var(--spacing) * 3);
+    max-inline-size: var(--pillo-board);
   }
 
-  .pulse-board:empty {
-    display: none;
+  .pillo-status {
+    font-size: var(--text-sm);
+    line-height: var(--text-sm--line-height);
+    color: var(--color-ink-soft);
   }
 
-  /* Letters share the row's width, up to 40 px each, so a 7-letter guess fits a 320 px screen on one line. */
-  .pulse-row {
+  .pillo-status strong {
+    font-weight: 700;
+    color: var(--color-ink);
+  }
+
+  /* The foil itself: a fine cross-hatch and a soft sheen over the grey, rounded like a real blister card. */
+  .pillo-pack,
+  .pillo-strip {
+    background-color: var(--pillo-foil-color);
+    background-image:
+      linear-gradient(135deg, var(--pillo-gloss-color), transparent 45%),
+      repeating-linear-gradient(45deg, var(--pillo-hatch-color) 0 var(--pillo-hatch-width), transparent var(--pillo-hatch-width) var(--pillo-hatch-gap)),
+      repeating-linear-gradient(-45deg, var(--pillo-hatch-color) 0 var(--pillo-hatch-width), transparent var(--pillo-hatch-width) var(--pillo-hatch-gap));
+  }
+
+  .pillo-pack {
+    max-inline-size: var(--pillo-board);
+    padding: calc(var(--spacing) * 2);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-pillo-pack);
+  }
+
+  /* One row of five pockets. Dashed perforations run between rows and between pockets. */
+  .pillo-row {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    border-block-end: var(--border-pillo-perforation) dashed var(--pillo-perforation);
+  }
+
+  .pillo-row-last {
+    border-block-end: none;
+  }
+
+  .pillo-pocket {
+    display: grid;
+    place-items: stretch;
+    block-size: var(--pillo-pocket);
+    padding: var(--pillo-pill-inset);
+    border-inline-end: var(--border-pillo-perforation) dashed var(--pillo-perforation);
+  }
+
+  .pillo-pocket:last-of-type {
+    border-inline-end: none;
+  }
+
+  @media (width >= 40rem) {
+    .pillo-pocket {
+      block-size: var(--pillo-pocket-lg);
+    }
+  }
+
+  /* The pill, or the empty pocket where a pill will sit. */
+  .pillo-pill {
+    position: relative;
     display: flex;
-    gap: calc(var(--spacing) * 1.5);
-  }
-
-  .pulse-letter {
-    display: inline-flex;
-    flex: 0 1 calc(var(--spacing) * 10);
     flex-direction: column;
     align-items: center;
-    gap: calc(var(--spacing) * 1);
-    min-inline-size: 0;
-  }
-
-  .pulse-char {
-    display: grid;
-    place-items: center;
-    inline-size: 100%;
-    aspect-ratio: 1;
-    min-block-size: 0;
-    line-height: 1;
-    border: 2px solid transparent;
+    justify-content: center;
     border-radius: var(--radius-pill);
-    font-size: var(--text-lg);
-    font-weight: 500;
-    color: var(--color-ink);
+    line-height: var(--text-sm--line-height);
+    box-shadow: var(--shadow-pillo-pocket);
   }
 
-  .pulse-here .pulse-char {
-    border-color: var(--color-button);
-    color: var(--color-on-button);
-    background-color: var(--color-button);
+  .pillo-pill.pillo-here,
+  .pillo-pill.pillo-elsewhere,
+  .pillo-pill.pillo-absent,
+  .pillo-pill.pillo-typed {
+    box-shadow: var(--shadow-pillo-pill);
   }
 
-  .pulse-elsewhere .pulse-char {
-    border-color: var(--color-ink);
+  /* The gloss: a small highlight at the top left of each filled pill. */
+  .pillo-pill.pillo-here::before,
+  .pillo-pill.pillo-elsewhere::before,
+  .pillo-pill.pillo-absent::before,
+  .pillo-pill.pillo-typed::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background-image: radial-gradient(ellipse 30% 22% at 26% 24%, var(--pillo-gloss-color), transparent);
+    pointer-events: none;
   }
 
-  .pulse-absent .pulse-char {
-    color: var(--color-ink-soft);
+  .pillo-pill.pillo-here {
+    background-color: var(--color-pillo-here);
+    color: var(--color-on-pillo-here);
   }
 
-  .pulse-symbol {
-    font-size: var(--text-sm);
-    line-height: 1;
-    color: var(--color-ink-soft);
+  .pillo-pill.pillo-elsewhere {
+    background-color: var(--color-pillo-elsewhere);
+    color: var(--color-on-pillo-elsewhere);
   }
 
-  .pulse-cue {
-    padding-inline-start: calc(var(--spacing) * 3);
-    border-inline-start: 2px solid var(--color-line);
+  .pillo-pill.pillo-absent {
+    background-color: color-mix(in srgb, var(--color-pillo-absent) var(--pillo-absent-mix), var(--pillo-foil-color));
+    color: var(--color-on-pillo-absent);
   }
 
-  .pulse-field {
-    inline-size: 11ch;
-    font-size: var(--text-lg);
-    letter-spacing: var(--tracking-guess);
+  .pillo-pill.pillo-typed {
+    background-color: var(--color-pillo-typed);
+    color: var(--color-on-pillo-typed);
+    animation: pillo-pop var(--duration-fast) var(--ease-emphasis);
   }
 
-  .pulse-cue-button {
-    min-block-size: calc(var(--spacing) * 11);
-    padding-inline: calc(var(--spacing) * 4);
-    border: 1px dashed var(--color-control);
-    border-radius: var(--radius-pill);
-    color: var(--color-ink);
+  /* The next empty pocket in the row being typed. */
+  .pillo-pill.pillo-next {
+    box-shadow: var(--shadow-pillo-pocket), inset 0 0 0 var(--pillo-ring) var(--color-pillo-ring);
   }
 
-  .pulse-cue-button:disabled {
-    color: var(--color-ink-soft);
-    cursor: default;
+  .pillo-letter {
+    font-size: var(--pillo-letter);
+    font-weight: 700;
+    line-height: var(--text-sm--line-height);
+  }
+
+  @media (width >= 40rem) {
+    .pillo-letter {
+      font-size: var(--pillo-letter-lg);
+    }
+  }
+
+  /* A guessed letter sits a little higher, so its mark fits under it inside the pill. */
+  .pillo-pill:has(.pillo-mark) .pillo-letter {
+    transform: translateY(var(--pillo-letter-lift));
+  }
+
+  .pillo-mark {
+    position: absolute;
+    inset-block-end: var(--pillo-mark-drop);
+    font-size: var(--pillo-mark);
+    line-height: var(--text-sm--line-height);
+  }
+
+  @keyframes pillo-pop {
+    from {
+      transform: scale(var(--pillo-pop));
+    }
   }
 
   /*
-    The letter buttons share each row's width, up to 40 px each and 4 px apart, and on phones they also use the
-    panel's side padding. At 320 px a key is about 23 px wide and 44 px tall, with middles about 27 px apart, so the
-    targets meet WCAG 2.5.8's spacing rule and nothing scrolls sideways (WCAG 1.4.10).
+    The field for typing a guess lies over the row being typed, so a click or tap there types into it and its focus
+    ring is drawn around that row. Its own text is see-through: the pills under it show the letters.
   */
-  .pulse-keys {
+  .pillo-field {
+    position: absolute;
+    inset: 0;
+    inline-size: 100%;
+    block-size: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: transparent;
+    caret-color: transparent;
+    font-size: var(--text-base);
+    line-height: var(--text-sm--line-height);
+    cursor: text;
+  }
+
+  .pillo-field::selection {
+    background: transparent;
+  }
+
+  .pillo-field:focus-visible {
+    outline: var(--focus-width) solid var(--color-focus);
+    outline-offset: var(--focus-offset);
+    border-radius: var(--radius-md);
+  }
+
+  /* Guesses left: a small blister strip of six pills; each guess used leaves an empty pocket. */
+  .pillo-strip {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(var(--spacing) * 1);
+    block-size: var(--pillo-strip-height);
+    padding-inline: calc(var(--spacing) * 1.5);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-pillo-pack);
+  }
+
+  .pillo-strip-pocket {
+    inline-size: var(--pillo-strip-pill);
+    block-size: calc(var(--pillo-strip-height) - var(--spacing) * 2);
+    border-radius: var(--radius-pill);
+    box-shadow: var(--shadow-pillo-pocket);
+  }
+
+  .pillo-strip-pill {
+    background-color: var(--color-pillo-here);
+    box-shadow: var(--shadow-pillo-pill);
+  }
+
+  /*
+    The letter keys: capsules in three rows. Each shows the best mark its letter has had, as a color and its symbol.
+    They share each row's width up to --pillo-key-max, and on phones they also use the panel's side padding. Every key
+    is 48 px tall; at 320 px a letter key is about 25 px wide with middles about 28 px apart (WCAG 2.5.8), and nothing
+    scrolls sideways (WCAG 1.4.10).
+  */
+  .pillo-keys {
     display: flex;
     flex-direction: column;
     gap: calc(var(--spacing) * 2);
+    max-inline-size: var(--pillo-board);
     margin-inline: calc(var(--spacing) * -4);
   }
 
   @media (width >= 40rem) {
-    .pulse-keys {
+    .pillo-keys {
       margin-inline: 0;
     }
   }
 
-  .pulse-key-row {
+  .pillo-key-row {
     display: flex;
     justify-content: center;
     gap: calc(var(--spacing) * 1);
   }
 
-  .pulse-key {
+  .pillo-key {
+    position: relative;
     display: inline-flex;
     flex: 1 1 0;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     min-inline-size: 0;
-    max-inline-size: calc(var(--spacing) * 10);
-    min-block-size: calc(var(--spacing) * 11);
-    border: 1px solid var(--color-control);
-    border-radius: var(--radius-md);
-    line-height: 1.1;
-    color: var(--color-ink);
-    background-color: var(--color-page);
-  }
-
-  .pulse-key-wide {
-    flex: 0 1 calc(var(--spacing) * 24);
-    max-inline-size: none;
-  }
-
-  .pulse-key.pulse-here {
-    border-color: var(--color-button);
-    color: var(--color-on-button);
-    background-color: var(--color-button);
-  }
-
-  .pulse-key.pulse-elsewhere {
-    border: 2px solid var(--color-ink);
-  }
-
-  .pulse-key.pulse-absent {
-    color: var(--color-ink-soft);
-  }
-
-  .pulse-key-symbol {
+    max-inline-size: var(--pillo-key-max);
+    min-block-size: var(--pillo-key);
+    border: var(--border-pillo-key) solid transparent;
+    border-radius: var(--radius-pill);
     font-size: var(--text-sm);
+    font-weight: 700;
+    line-height: var(--text-sm--line-height);
+    color: var(--color-on-pillo-key);
+    background-color: color-mix(in srgb, var(--color-pillo-key) var(--pillo-key-mix), var(--pillo-foil-color));
+    box-shadow: var(--shadow-pillo-pill);
+    transition: transform var(--duration-fast) var(--ease-soft);
+  }
+
+  .pillo-key:active {
+    transform: translateY(var(--pillo-press-offset));
+  }
+
+  .pillo-key:focus-visible {
+    border-radius: var(--radius-pill);
+  }
+
+  /* ⌫ and enter grow like the letters but about one and a half times as wide, up to --pillo-key-wide, so on a 320 px
+     phone the bottom row's letters keep the same spacing as the other rows (WCAG 2.5.8). */
+  .pillo-key-wide {
+    flex: var(--pillo-key-wide-share) 1 0;
+    max-inline-size: var(--pillo-key-wide);
+  }
+
+  .pillo-key.pillo-here {
+    border-color: var(--color-pillo-ring);
+    color: var(--color-on-pillo-here);
+    background-color: var(--color-pillo-here);
+  }
+
+  .pillo-key.pillo-elsewhere {
+    color: var(--color-on-pillo-elsewhere);
+    background-color: var(--color-pillo-elsewhere);
+  }
+
+  /* Not in the word: no fill, a thin edge and a faded letter, so the keys still to try stand out. */
+  .pillo-key.pillo-absent {
+    border-color: var(--color-line);
+    color: var(--color-ink-soft);
+    background-color: var(--color-page);
+    box-shadow: none;
+  }
+
+  .pillo-key-mark {
+    font-size: var(--pillo-mark);
+    line-height: var(--text-sm--line-height);
+  }
+
+  /* "how to play": one sample pill for each mark, with its symbol and its meaning in words. */
+  .pillo-legend {
+    max-inline-size: var(--pillo-board);
+    padding: calc(var(--spacing) * 5);
+    border: var(--border-pillo-legend) solid var(--color-line);
+    border-radius: var(--radius-lg);
+  }
+
+  .pillo-legend-row {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--spacing) * 3);
+  }
+
+  .pillo-legend .pillo-pill {
+    flex: none;
+    inline-size: var(--pillo-swatch);
+    block-size: calc(var(--pillo-swatch) * 0.6);
+  }
+
+  .pillo-legend .pillo-mark {
+    position: static;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pillo-pill.pillo-typed,
+    .pillo-key {
+      animation: none;
+      transition: none;
+    }
+
+    .pillo-key:active {
+      transform: none;
+    }
   }
 }
 
@@ -1468,4 +1706,299 @@ html:has(dialog.mode-preview[open]) {
   0%, 45% { opacity: 0; transform: translateY(8px); }
   55%, 92% { opacity: 1; transform: none; }
   100% { opacity: 0; transform: none; }
+}
+
+/*
+  ============================================================
+  Batch-2 utility classes (Task 77): motion, depth, and the
+  segmented control. All animations are off under
+  prefers-reduced-motion: reduce.
+  ============================================================
+*/
+
+/*
+  .lift — a card or button that rises 2 px and gains a deeper shadow on
+  hover / focus-visible. Apply to any interactive surface.
+*/
+@layer components {
+  .lift {
+    transition:
+      translate var(--duration-base) var(--ease-soft),
+      box-shadow var(--duration-base) var(--ease-soft);
+  }
+
+  .lift:hover,
+  .lift:focus-visible {
+    translate: 0 calc(var(--lift-rise) * -1);
+    box-shadow: var(--shadow-card-hover);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .lift:hover,
+    .lift:focus-visible {
+      translate: none;
+    }
+  }
+}
+
+/*
+  .press — scales slightly on :active so buttons feel physical.
+*/
+@layer components {
+  .press {
+    transition: scale var(--duration-fast) var(--ease-soft);
+  }
+
+  .press:active {
+    scale: 0.98;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .press:active {
+      scale: none;
+    }
+  }
+}
+
+/*
+  .flip — a 3D card that flips on .is-flipped. The outer .flip sets the
+  perspective; .flip-inner rotates; .flip-face and .flip-back are the two
+  sides. Under reduced motion the flip becomes a crossfade so the content
+  still changes without any 3D transform.
+*/
+@layer components {
+  .flip {
+    perspective: var(--flip-perspective);
+  }
+
+  .flip-inner {
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform var(--duration-slow) var(--ease-soft);
+  }
+
+  .flip.is-flipped .flip-inner {
+    transform: rotateY(180deg);
+  }
+
+  .flip-face,
+  .flip-back {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+
+  .flip-back {
+    position: absolute;
+    inset: 0;
+    transform: rotateY(180deg);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .flip-inner {
+      transform-style: flat;
+      transition: none;
+    }
+
+    .flip.is-flipped .flip-inner {
+      transform: none;
+    }
+
+    .flip-face {
+      transition: opacity var(--duration-base) var(--ease-soft);
+    }
+
+    .flip.is-flipped .flip-face {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .flip-back {
+      transform: none;
+      backface-visibility: visible;
+      -webkit-backface-visibility: visible;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--duration-base) var(--ease-soft);
+    }
+
+    .flip.is-flipped .flip-back {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  }
+}
+
+/*
+  .progress-track / .progress-fill — a rounded progress bar.
+
+  The fill's width is controlled by a CSS custom property --progress (0 to 1)
+  using transform: scaleX(), with transform-origin: left. JavaScript sets this
+  with element.style.setProperty('--progress', value) on the .progress-fill
+  element itself, which is how the existing carousel (--ring-shift etc.) works.
+  This avoids a width: N% inline style while keeping CSP-compatible rendering.
+
+  For a purely server-rendered initial value, add a data-progress attribute and
+  a tiny inline script that calls setProperty once; the component that uses this
+  pattern can supply the nonce-hashed script.
+*/
+@layer components {
+  .progress-track {
+    height: var(--progress-height);
+    border-radius: var(--radius-pill);
+    background-color: var(--color-surface);
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: var(--radius-pill);
+    background-color: var(--color-ink);
+    transform-origin: left center;
+    transform: scaleX(var(--progress, 0));
+    transition: transform var(--duration-base) var(--ease-soft);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .progress-fill {
+      transition: none;
+    }
+  }
+}
+
+/*
+  .skeleton — a soft shimmer placeholder shown while content loads. Under
+  reduced motion the pulse stops and the block is shown as a static tinted box.
+*/
+@layer components {
+  @keyframes skeleton-pulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+  }
+
+  .skeleton {
+    border-radius: var(--radius-md);
+    background-color: var(--color-surface);
+    animation: skeleton-pulse 1.6s var(--ease-soft) infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton {
+      animation: none;
+      opacity: 0.7;
+    }
+  }
+}
+
+/*
+  .enter — fade and rise 8 px on first paint. Applied once by a script; nothing
+  depends on it, and it is always off under reduced motion.
+*/
+@layer components {
+  @keyframes enter-rise {
+    from {
+      opacity: 0;
+      translate: 0 var(--enter-rise);
+    }
+    to {
+      opacity: 1;
+      translate: none;
+    }
+  }
+
+  .enter {
+    animation: enter-rise var(--duration-slow) var(--ease-emphasis) both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .enter {
+      animation: none;
+    }
+  }
+}
+
+/*
+  .segmented / .segmented-option — a pill-shaped segmented control.
+
+  Each .segmented-option wraps a visually hidden <input type="radio"> so the
+  control works without JavaScript and is fully keyboard-navigable with arrow
+  keys. The selected option is highlighted via :has(:checked).
+*/
+@layer components {
+  .segmented {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--segmented-inset);
+    border: 1px solid var(--color-control);
+    border-radius: var(--radius-pill);
+    background-color: var(--color-surface);
+  }
+
+  .segmented-option {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--segmented-gap);
+    padding: var(--segmented-pad-y) var(--segmented-pad-x);
+    min-height: var(--tap-min);
+    border-radius: var(--radius-pill);
+    cursor: pointer;
+    color: var(--color-ink-soft);
+    font-size: var(--text-sm);
+    user-select: none;
+    transition:
+      background-color var(--duration-fast) var(--ease-soft),
+      color var(--duration-fast) var(--ease-soft);
+  }
+
+  .segmented-option:has(:checked) {
+    background-color: var(--color-ink);
+    color: var(--color-on-button);
+  }
+
+  .segmented-option:focus-within {
+    outline: var(--focus-width) solid var(--color-focus);
+    outline-offset: var(--focus-offset);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .segmented-option {
+      transition: none;
+    }
+  }
+}
+
+/*
+  Cross-document view transitions: a short fade between pages. Reduced-motion
+  users get none (the @starting-style / overlay approach is modern but safe —
+  browsers that don't support @view-transition ignore this block entirely).
+*/
+@view-transition {
+  navigation: auto;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root) {
+    animation: view-fade-out var(--duration-fast) var(--ease-soft) both;
+  }
+
+  ::view-transition-new(root) {
+    animation: view-fade-in var(--duration-fast) var(--ease-soft) both;
+  }
+
+  @keyframes view-fade-out {
+    to { opacity: 0; }
+  }
+
+  @keyframes view-fade-in {
+    from { opacity: 0; }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-image-pair(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
 }

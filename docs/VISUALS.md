@@ -35,9 +35,10 @@ fluids).
   provide a link to the license, and indicate if changes were made." So every visual that quotes it shows "Words
   adapted from Nursing Fundamentals, 2nd Edition, edited by Kim Ernstmeyer and Elizabeth Christman (WisTech Open), CC
   BY 4.0.", linked to the license. Its figures carry their own licenses, so we cite its text, never copy its pictures.
-- **OpenStax *Anatomy and Physiology 2e* is on hold** (D-57). OpenStax's help page says its books are CC BY-NC-SA
-  (noncommercial, share-alike), not CC BY, and the book's pages say it may not be ingested into AI tools without
-  OpenStax's written permission. It is used only if Christian decides so.
+- **OpenStax *Anatomy and Physiology 2e* is link-only** (D-57, D-80). OpenStax's help page says its books are CC
+  BY-NC-SA (noncommercial, share-alike), not CC BY, and the book's pages say it may not be ingested into AI tools
+  without OpenStax's written permission. So a lesson may link to an OpenStax page as further reading, but we never
+  quote it, copy its figures or feed its pages to an AI tool.
 - Nothing licensed NonCommercial is used anywhere in the kit, because Cueory takes tips and plans videos.
 
 ## Files
@@ -109,8 +110,8 @@ The only allowed book so far is Open RN *Nursing Fundamentals, 2nd Edition*. A n
 
 ## 3D body
 
-- Geometry from a free 3D atlas, exported only for the structures a lesson needs. Which atlas waits for Christian
-  (STATUS):
+- Geometry from BodyParts3D (Christian's choice, D-80), exported only for the structures a lesson needs. The two
+  atlases that were compared:
   - Z-Anatomy (CC BY-SA 4.0): our changed models, and the videos that show them, must be shared under the same
     license. Its README lists two NonCommercial models among its parts (an inner ear and a kidney), which stay out.
   - BodyParts3D, the database Z-Anatomy is built on: CC BY 4.0 since its license page was updated on 27 February 2025,

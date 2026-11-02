@@ -3,9 +3,19 @@ import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { answerLetters, checkBatch, itemType, linkProblem, REVIEWER_ROSTER, type BatchInput } from '../../scripts/check-batch/check.ts';
+import {
+  answerLetters,
+  checkBatch,
+  ITEM_COLUMNS,
+  itemType,
+  KEY_COLUMNS,
+  linkProblem,
+  REVIEWER_ROSTER,
+  type BatchInput,
+} from '../../scripts/check-batch/check.ts';
 import { CsvError, parseCsv, toCsv, type CsvRow } from '../../scripts/check-batch/csv.ts';
 import { failedCsv, passedCsv, pendingCsv, reportMd } from '../../scripts/check-batch/report.ts';
+import { itemHash, parsePassed, type BatchFiles } from '../../scripts/import-batch/parse.ts';
 
 // Made-up placeholder data only: no clinical content belongs in tests (CLAUDE.md rule 5).
 const REVIEWERS = ['claude_sonnet', 'codex', 'gemini', 'gpt1', 'gpt2'];
@@ -21,6 +31,10 @@ function item(n: number, over: Partial<CsvRow> = {}): CsvRow {
     choice_c: 'Option three',
     choice_d: 'Option four',
     rationale: 'Placeholder rationale.',
+    rationale_a: 'Placeholder reason A.',
+    rationale_b: 'Placeholder reason B.',
+    rationale_c: 'Placeholder reason C.',
+    rationale_d: 'Placeholder reason D.',
     fact_ids: 'f1',
     source_ids: 's1',
     ...over,
@@ -167,6 +181,7 @@ describe('checkBatch', () => {
   it('accepts a fifth choice E only on items that fill choice_e', () => {
     const b = batch();
     b.items[0]!.choice_e = 'Option five';
+    b.items[0]!.rationale_e = 'Placeholder reason E.';
     b.key[0]!.answer = 'E';
     for (const r of REVIEWERS) b.reviewers[r]![0]!.answer = 'E';
     for (const it of b.items.slice(1)) it.choice_e = '';
@@ -337,11 +352,11 @@ describe('select-all-that-apply items (D-45)', () => {
 
   it('needs a rationale for every choice', () => {
     expect(reasonsFor(sataBatch({ rationale_b: ' ' }), 'q5')).toEqual([
-      'choice B has no rationale (rationale_b); select-all-that-apply needs one for every choice',
+      'choice B has no rationale (rationale_b); every choice needs one',
     ]);
     const withE = sataBatch({ choice_e: 'Option five' });
     expect(reasonsFor(withE, 'q5')).toEqual([
-      'choice E has no rationale (rationale_e); select-all-that-apply needs one for every choice',
+      'choice E has no rationale (rationale_e); every choice needs one',
     ]);
   });
 
@@ -510,5 +525,114 @@ describe('check_batch command', () => {
     expect(existsSync(join(folder, 'passed.csv'))).toBe(false);
     expect(existsSync(join(folder, 'failed.csv'))).toBe(false);
     expect(readFileSync(join(folder, 'report.md'), 'utf8')).toContain('not checked');
+  });
+});
+
+describe('the checker and the importer agree (Task C8)', () => {
+  /** The item and key files as text, the way the importer receives them. */
+  const filesFor = (input: BatchInput): BatchFiles => {
+    const extra = [...new Set(input.items.flatMap((row) => Object.keys(row)))].filter(
+      (column) => !(ITEM_COLUMNS as readonly string[]).includes(column),
+    );
+    return {
+      itemsCsv: toCsv([...ITEM_COLUMNS, ...extra], input.items),
+      keyCsv: toCsv(KEY_COLUMNS, input.key),
+      recheck: { reviewers: input.reviewers, facts: input.facts, sources: input.sources },
+    };
+  };
+  const passedFor = (input: BatchInput) => passedCsv(checkBatch(input), input);
+
+  it('needs a rationale for every choice on a single-answer question too', () => {
+    const b = batch(4);
+    b.items[0]!.rationale_c = '';
+    expect(reasonsFor(b, 'q1')).toEqual(['choice C has no rationale (rationale_c); every choice needs one']);
+    expect(checkBatch(b).passed.map((r) => r.item_id)).toEqual(['q2', 'q3', 'q4']);
+  });
+
+  it('gives passed.csv a hash column, made by the importer\'s own itemHash', () => {
+    const b = batch(4);
+    const rows = parseCsv(passedFor(b), ['item_id', 'concept_id', 'hash']);
+    expect(rows.map((r) => r.item_id)).toEqual(['q1', 'q2', 'q3', 'q4']);
+    rows.forEach((row, i) => expect(row.hash).toBe(itemHash(b.items[i]!, b.key[i]!)));
+    expect(new Set(rows.map((r) => r.hash)).size).toBe(4);
+  });
+
+  it('round-trips: every item the checker passes comes back from the importer, with its hash accepted', () => {
+    const b = batch(8);
+    b.items[7] = sataItem(8); // a select-all-that-apply item too
+    b.key[7] = { item_id: 'q8', answer: 'A;C' };
+    for (const r of REVIEWERS) b.reviewers[r]![7] = { item_id: 'q8', answer: 'A;C', verdict: 'pass' };
+    const checked = checkBatch(b);
+    expect(checked.passed.map((r) => r.item_id)).toEqual(b.items.map((r) => r.item_id));
+    const parsed = parsePassed(passedFor(b), filesFor(b));
+    expect(parsed.problems).toEqual([]);
+    expect(parsed.items.map((i) => i.id)).toEqual(checked.passed.map((r) => r.item_id));
+    expect(parsed.items[7]).toMatchObject({ type: 'sata', key: ['a', 'c'] });
+    // Every choice came with its rationale.
+    for (const imported of parsed.items) expect(Object.keys(imported.rationales)).toEqual(['a', 'b', 'c', 'd']);
+  });
+
+  it('refuses an item edited after it was checked', () => {
+    const b = batch(4);
+    const passed = passedFor(b);
+    const edits: [string, (x: BatchInput) => void][] = [
+      ['the stem', (x) => (x.items[1]!.stem = 'Placeholder question 2, reworded?')],
+      ['a choice', (x) => (x.items[1]!.choice_a = 'Option one, changed')],
+      ['a choice rationale', (x) => (x.items[1]!.rationale_b = 'Placeholder reason B, changed.')],
+      ['the main rationale', (x) => (x.items[1]!.rationale = 'Placeholder rationale, changed.')],
+      ['the key', (x) => (x.key[1]!.answer = 'C')],
+      ['the sources', (x) => (x.items[1]!.source_ids = 's1;s2')],
+    ];
+    for (const [what, edit] of edits) {
+      const tampered = batch(4);
+      edit(tampered);
+      const parsed = parsePassed(passed, filesFor(tampered));
+      expect(parsed.problems.map((p) => p.row), what).toEqual([3]);
+      expect(parsed.problems[0]!.message, what).toContain('hash does not match');
+      expect(parsed.items.map((i) => i.id), what).toEqual(['q1', 'q3', 'q4']);
+    }
+  });
+
+  it('never passes an item the importer refuses', () => {
+    const mutations: [string, Partial<CsvRow>, string?][] = [
+      ['a missing choice rationale', { rationale_b: '' }],
+      ['a blank choice rationale', { rationale_d: '   ' }],
+      ['a missing main rationale', { rationale: '' }],
+      ['an empty stem', { stem: '' }],
+      ['an empty choice', { choice_c: '' }],
+      ['two choices the same', { choice_b: ' OPTION one ' }],
+      ['an unknown type', { type: 'multiple' }],
+      ['a fifth choice with no rationale', { choice_e: 'Option five' }],
+      ['no source ids', { source_ids: '' }],
+      ['no fact ids', { fact_ids: '' }],
+      ['a malformed concept id', { concept_id: 'bad concept!' }],
+    ];
+    for (const [what, over] of mutations) {
+      const b = batch(4);
+      Object.assign(b.items[0]!, over);
+      const checked = checkBatch(b);
+      expect(checked.passed.map((r) => r.item_id), `checker: ${what}`).not.toContain('q1');
+      // Force the item onto the allowlist with a correct hash; the importer still refuses it.
+      const forced = toCsv(['item_id', 'concept_id', 'hash'], [
+        { item_id: 'q1', concept_id: b.items[0]!.concept_id!, hash: itemHash(b.items[0]!, b.key[0]!) },
+      ]);
+      const parsed = parsePassed(forced, filesFor(b));
+      expect(parsed.items, `importer: ${what}`).toEqual([]);
+      expect(parsed.problems.length, `importer: ${what}`).toBeGreaterThan(0);
+    }
+  });
+
+  it('a key the importer refuses is never passed either', () => {
+    for (const [what, answer] of [['a letter the item does not offer', 'E'], ['no answer', ''], ['two letters on a single item', 'A;B']] as const) {
+      const b = batch(4);
+      b.key[0] = { item_id: 'q1', answer };
+      for (const r of REVIEWERS) b.reviewers[r]![0] = { item_id: 'q1', answer: 'A', verdict: 'pass' };
+      expect(checkBatch(b).passed.map((r) => r.item_id), `checker: ${what}`).not.toContain('q1');
+      const forced = toCsv(['item_id', 'concept_id', 'hash'], [
+        { item_id: 'q1', concept_id: 'c1', hash: itemHash(b.items[0]!, b.key[0]!) },
+      ]);
+      const parsed = parsePassed(forced, filesFor(b));
+      expect(parsed.items, `importer: ${what}`).toEqual([]);
+    }
   });
 });

@@ -1,0 +1,31 @@
+{
+  "status": "sample",
+  "theme": "in the kitchen",
+  "grid": [
+    "OBFLWOBCCUP",
+    "WAYEFORKAUL",
+    "HSELFYAWPAY",
+    "IKRDMFMMROG",
+    "SGFAOVENOUT",
+    "KSILCVOVNEP",
+    "ELTTEKNTTRA",
+    "DVTOASTERJN",
+    "EDTUHBMONYL",
+    "CCBONOOPSNA",
+    "TEPPLATEDYC"
+  ],
+  "words": [
+    { "answer": "APRON", "path": [[1,8],[2,8],[3,8],[4,8],[5,8]] },
+    { "answer": "BOWL", "path": [[0,6],[0,5],[0,4],[0,3]] },
+    { "answer": "CUP", "path": [[0,8],[0,9],[0,10]] },
+    { "answer": "FORK", "path": [[1,4],[1,5],[1,6],[1,7]] },
+    { "answer": "KETTLE", "path": [[6,5],[6,4],[6,3],[6,2],[6,1],[6,0]] },
+    { "answer": "LADLE", "path": [[5,3],[4,3],[3,3],[2,3],[1,3]] },
+    { "answer": "OVEN", "path": [[4,4],[4,5],[4,6],[4,7]] },
+    { "answer": "PAN", "path": [[5,10],[6,10],[7,10]] },
+    { "answer": "PLATE", "path": [[10,3],[10,4],[10,5],[10,6],[10,7]] },
+    { "answer": "SPOON", "path": [[9,8],[9,7],[9,6],[9,5],[9,4]] },
+    { "answer": "TOASTER", "path": [[7,2],[7,3],[7,4],[7,5],[7,6],[7,7],[7,8]] },
+    { "answer": "WHISK", "path": [[1,0],[2,0],[3,0],[4,0],[5,0]] }
+  ]
+}

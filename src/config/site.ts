@@ -19,7 +19,7 @@ export const site = {
   /** Shows "we're still building. more coming soon." on every page. Set to false to remove it. */
   showBuildingNotice: true,
 
-  /** Christian's tip page. Leave empty to hide the button on /support. */
+  /** The supporting-our-mission page (Ko-fi; D-94). Leave empty to hide the button on /support. */
   tipPageUrl: 'https://ko-fi.com/cueory',
 
   /** Shown in the footer and on the privacy page. */
@@ -75,7 +75,7 @@ export const menuLinks = [
   { href: '/#ways-to-study', label: 'ways to study' },
   { href: '/learn/study-skills', label: 'lessons' },
   { href: '/play', label: 'daily games' },
-  { href: accountHref, label: 'my progress', note: 'free account, coming soon' },
+  { href: '/progress', label: 'my progress', note: 'saved on this device' },
   { href: '/support', label: 'support cueory' },
 ] as const;
 
@@ -100,6 +100,15 @@ export const promo = {
   heading: 'welcome to cueory.',
   text: "we're still building. get a few emails about new lessons and the launch.",
   joinLabel: 'join the launch list',
-  /** Goes to the tip page (`site.tipPageUrl`, Ko-fi); hidden when that is empty. */
-  supportLabel: 'support us while we build',
+  /** Goes to the supporting-our-mission page (`site.tipPageUrl`, Ko-fi); hidden when that is empty (D-94). */
+  supportLabel: 'supporting our mission',
 } as const;
+
+/**
+ * Offline copies of pages (ROADMAP Task 5, docs/OFFLINE.md). Set `enabled` to false and deploy to switch it off for
+ * everyone: pages stop registering the service worker, and /sw.js becomes a worker that deletes the saved copies and
+ * removes itself the next time a visitor's browser checks for an update.
+ */
+export const offline = {
+  enabled: true,
+};

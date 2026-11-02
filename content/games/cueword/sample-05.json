@@ -1,0 +1,31 @@
+{
+  "status": "sample",
+  "grid": [
+    "SHIP.",
+    "N..E.",
+    "O..A.",
+    "WEARS"
+  ],
+  "clues": {
+    "across": [
+      {
+        "number": 1,
+        "text": "a very big boat"
+      },
+      {
+        "number": 3,
+        "text": "has on, like a coat or a hat"
+      }
+    ],
+    "down": [
+      {
+        "number": 1,
+        "text": "it falls in winter and is white"
+      },
+      {
+        "number": 2,
+        "text": "a fruit shaped a little like a bell"
+      }
+    ]
+  }
+}

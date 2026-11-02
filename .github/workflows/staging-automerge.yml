@@ -3,8 +3,8 @@
 # requests get the "needs-christian" label instead. Rules: scripts/automerge/decide.ts (DECISIONS.md, D-39).
 #
 # It only reads pull request details through GitHub's API and never checks out or runs pull request code.
-# GitHub starts check_run, issue_comment, workflow_run and workflow_dispatch workflows only from the default
-# branch, so this works once it reaches `main`:
+# GitHub starts check_run, issue_comment, schedule, workflow_run and workflow_dispatch workflows only from the
+# default branch, so this works once it reaches `main`:
 # https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows
 name: Staging auto-merge
 
@@ -19,6 +19,9 @@ on:
   # Codex posted or updated its review summary.
   issue_comment:
     types: [created, edited]
+  # Once an hour, a sweep re-checks every open pull request in case an event above was missed (D-78).
+  schedule:
+    - cron: '17 * * * *'
   # By hand, from the Actions tab. Dry run unless unticked.
   workflow_dispatch:
     inputs:
@@ -34,16 +37,13 @@ on:
 
 permissions: {}
 
-concurrency:
-  group: staging-automerge
-  cancel-in-progress: false
-
 jobs:
   automerge:
     name: Merge clean pull requests into staging
-    # Only start a runner when the event could complete a pull request's checks (saves free Actions minutes).
+    # Only start a runner for the hourly sweep or when the event could complete a pull request's checks.
     # By hand, only the default branch's own copy of this workflow may run (never a feature branch's).
     if: >-
+      github.event_name == 'schedule' ||
       (github.event_name == 'workflow_dispatch' && github.ref_name == github.event.repository.default_branch) ||
       (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request' &&
        github.event.workflow_run.conclusion == 'success') ||
@@ -55,6 +55,11 @@ jobs:
        contains(github.event.comment.body, '"status":"completed"'))
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # One merge pass at a time. The group belongs to the job, not the workflow: on the workflow, a run about to be
+    # skipped (any ordinary comment) took the one waiting place and cancelled a waiting run that mattered (D-78).
+    concurrency:
+      group: staging-automerge
+      cancel-in-progress: false
     permissions:
       contents: write # merge a pull request
       pull-requests: write # merge and label pull requests

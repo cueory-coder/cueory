@@ -54,6 +54,7 @@ export const studyModes: readonly StudyMode[] = [
     name: 'fill-in',
     text: 'recall the missing word.',
     more: 'you read a sentence with one word missing and type the word yourself, so you practice recalling it, not just recognizing it.',
+    link: { href: '/learn/study-skills/fill-in', label: 'try fill-in' },
   },
   {
     id: 'matching',
@@ -67,12 +68,14 @@ export const studyModes: readonly StudyMode[] = [
     name: 'organizer',
     text: 'sort ideas into groups by tapping, typing or dragging.',
     more: 'you sort ideas into the groups they belong to. putting them side by side shows how they relate to each other.',
+    link: { href: '/learn/study-skills/organizer', label: 'try the organizer' },
   },
   {
     id: 'questions',
     name: 'questions',
     text: 'practice questions, each with a rationale.',
     more: 'you answer practice questions, then read why each choice is right or wrong, not just which one was.',
+    link: { href: '/learn/study-skills/questions', label: 'try the questions' },
   },
   {
     id: 'review',
@@ -85,6 +88,7 @@ export const studyModes: readonly StudyMode[] = [
     name: 'label it',
     text: 'uncover the labels on a diagram, one at a time.',
     more: 'the labels on a diagram are covered. you reveal them one at a time, or all at once, and mark each one know it or still learning.',
+    link: { href: '/learn/study-skills/label-it', label: 'try label it' },
   },
   {
     id: 'adaptive-quiz',

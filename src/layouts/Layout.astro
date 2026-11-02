@@ -4,7 +4,7 @@ import BuildingNotice from '../components/BuildingNotice.astro';
 import PromoPanel from '../components/PromoPanel.astro';
 import SiteFooter from '../components/SiteFooter.astro';
 import SiteHeader from '../components/SiteHeader.astro';
-import { promo as promoSettings, site } from '../config/site';
+import { offline, promo as promoSettings, site } from '../config/site';
 import { themeHeadScript } from '../scripts/theme';
 
 interface Props {
@@ -23,9 +23,13 @@ interface Props {
    * because its visitor has just joined); study screens never do.
    */
   promo?: boolean;
+  /** Optional item context forwarded to the flag form (added by Task 64; pages pass this once their item IDs exist). */
+  flagItem?: { itemId: string; itemVersionId: string };
+  /** Hide the flag-or-comment button (D-pending, Task 64): set true during sharpening rounds and timed reviews. */
+  hideFlag?: boolean;
 }
 
-const { title, description = site.description, variant = 'default', noindex = false, promo = true } = Astro.props;
+const { title, description = site.description, variant = 'default', noindex = false, promo = true, flagItem, hideFlag = false } = Astro.props;
 // Browser-tab titles use the lowercase brand voice: "privacy · cueory" (D-47).
 const fullTitle = title === site.name || title === site.wordmarkName ? site.wordmarkName : `${title} · ${site.wordmarkName}`;
 const canonical = new URL(Astro.url.pathname, site.url).href;
@@ -90,7 +94,12 @@ const searchTitle = isHome ? 'home' : title;
     >
       <slot />
     </main>
-    <SiteFooter />
+    <SiteFooter hideFlag={hideFlag} flagItem={flagItem} />
     {showPromo && <PromoPanel />}
+    <!--
+      Offline copies of pages (ROADMAP Task 5): an external file (built from src/scripts/offline.ts) that registers
+      /sw.js after the page has loaded, in a built site only and while `offline.enabled` (src/config/site.ts) is true.
+    -->
+    <script is:inline src="/register-sw.js" defer data-offline={import.meta.env.PROD && offline.enabled ? 'on' : 'off'}></script>
   </body>
 </html>

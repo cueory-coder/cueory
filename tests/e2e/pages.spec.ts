@@ -14,6 +14,14 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+/** The footer's links panel (motto, links, socials, theme switch) is closed until its chevron opens it (Task 85). */
+async function openFooterLinks(page: Page) {
+  const chevron = page.getByRole('contentinfo').locator('[data-footer-toggle]');
+  await expect(chevron).toBeVisible();
+  if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
+  await expect(chevron).toHaveAttribute('aria-expanded', 'true');
+}
+
 /** The name of the card in the middle of the "ways to study" merry-go-round (D-60). */
 const middleCard = (page: Page) =>
   page.locator('#ways-to-study [data-mode-card][data-offset="0"]').getAttribute('data-name');
@@ -24,12 +32,19 @@ const pages = [
   '/learn/study-skills/cards',
   '/learn/study-skills/learn-mode',
   '/learn/study-skills/matching',
+  '/learn/study-skills/organizer',
+  '/learn/study-skills/fill-in',
+  '/learn/study-skills/label-it',
+  '/learn/study-skills/questions',
   '/privacy',
   '/terms',
   '/disclaimer',
   '/support',
   '/subscribed',
   '/play',
+  '/start',
+  '/progress',
+  '/learn/video-sample',
 ];
 
 for (const path of pages) {
@@ -114,7 +129,8 @@ test('starred cards are remembered in this browser and can be studied on their o
   await page.keyboard.press('Space'); // star card 2
   await expect(star).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('checkbox', { name: 'Only starred cards (1)' })).toBeEnabled();
-  expect(await page.evaluate(() => localStorage.getItem('cueory-stars-study-skills-01'))).toBe('["ss01-c02"]');
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('cueory-progress') ?? '{}'));
+  expect(saved.decks['study-skills-01'].starred).toEqual(['ss01-c02']);
 
   const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
   expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
@@ -370,6 +386,7 @@ test.describe('theme switch', () => {
   test('Light, Dark and Follow device change the palette and are remembered', async ({ page }, testInfo) => {
     const deviceIsDark = testInfo.project.use.colorScheme === 'dark';
     await page.goto('/');
+    await openFooterLinks(page);
     const picker = page.getByRole('group', { name: 'Theme' });
     await expect(picker.getByRole('radio', { name: 'Follow device' })).toBeChecked();
     expect(await pageBackground(page)).toBe(deviceIsDark ? charcoal : ivory);
@@ -380,11 +397,14 @@ test.describe('theme switch', () => {
     // The pick carries over to other pages and survives a reload.
     await page.goto('/privacy');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await openFooterLinks(page);
     await expect(page.getByRole('radio', { name: 'Dark' })).toBeChecked();
     expect(await pageBackground(page)).toBe(charcoal);
 
     await page.getByRole('radio', { name: 'Light' }).check();
     expect(await pageBackground(page)).toBe(ivory);
+    // The footer pill's colors ease over 150 ms (Task 77); check contrast once they have settled.
+    await page.waitForFunction(() => document.querySelector('footer')!.getAnimations({ subtree: true }).every((a) => a.playState !== 'running'));
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
     expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
 
@@ -396,6 +416,7 @@ test.describe('theme switch', () => {
 
   test('can be used with the keyboard', async ({ page }) => {
     await page.goto('/');
+    await openFooterLinks(page);
     const followDevice = page.getByRole('radio', { name: 'Follow device' });
     await followDevice.focus();
     await page.keyboard.press('ArrowLeft');
@@ -455,6 +476,7 @@ test.describe('marketing look (D-41)', () => {
       );
     await page.goto('/');
     const hero = page.locator('.scene-hero');
+    await openFooterLinks(page);
     await page.getByRole('radio', { name: 'Light' }).check();
     let images = await shown(hero);
     expect(images).toHaveLength(1);
@@ -741,6 +763,10 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
       cards: ['try the cards', '/learn/study-skills/cards'],
       learn: ['try learn mode', '/learn/study-skills/learn-mode'],
       matching: ['try matching', '/learn/study-skills/matching'],
+      organizer: ['try the organizer', '/learn/study-skills/organizer'],
+      'fill-in': ['try fill-in', '/learn/study-skills/fill-in'],
+      'label-it': ['try label it', '/learn/study-skills/label-it'],
+      questions: ['try the questions', '/learn/study-skills/questions'],
     };
     const modes = [
       ['video', 'video'],
@@ -1278,6 +1304,7 @@ test.describe('social links (D-54)', () => {
     page,
   }) => {
     await page.goto('/privacy');
+    await openFooterLinks(page);
     const footer = page.getByRole('contentinfo');
     const expected = Object.fromEntries(socials.filter((social) => social.href).map((social) => [social.id, social.href]));
     await expect(footer.locator('[data-social]')).toHaveCount(Object.keys(expected).length);
@@ -1309,5 +1336,278 @@ test.describe('without JavaScript, the corners', () => {
     await expect(page.getByRole('button', { name: 'menu', exact: true })).toBeHidden();
     await expect(page.getByRole('button', { name: 'account', exact: true })).toBeHidden();
     await expect(page.getByRole('navigation', { name: 'footer' }).getByRole('link', { name: 'support cueory' })).toBeVisible();
+  });
+});
+
+test.describe('organizer at 320 px', () => {
+  test.use({ viewport: { width: 320, height: 720 } });
+
+  test('sorts by keyboard, number keys and tap; check returns wrong items to the tray', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('console', (msg) => msg.type() === 'error' && errors.push(msg.text()));
+    // The lesson page links here; the test then opens the page itself, because the lesson's reader grows while it
+    // loads and a tap during that shift can land beside the link.
+    await page.goto('/learn/study-skills');
+    await expect(page.getByRole('link', { name: 'sort ideas into groups with the organizer' })).toHaveAttribute(
+      'href',
+      '/learn/study-skills/organizer',
+    );
+    await page.goto('/learn/study-skills/organizer');
+    await expect(page.getByTestId('organizer-sample-note')).toBeVisible();
+
+    const board = page.getByTestId('organizer');
+    const live = page.getByTestId('organizer-live');
+    const item = (name: string) => board.getByRole('button', { name: new RegExp(`^${name}`) });
+    const group = (name: string) => board.getByRole('button', { name });
+    const axe = async () => {
+      const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+      expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    };
+    await axe();
+    await expect(board.getByRole('button', { name: 'check' })).toBeDisabled();
+
+    // Keyboard: pick with Enter, which moves focus to the first group, then place with Enter.
+    await item('apple').focus();
+    await page.keyboard.press('Enter');
+    await expect(group('1. fruit')).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(live).toHaveText('apple moved to fruit.');
+    await expect(board.getByRole('list', { name: 'fruit' }).getByRole('button', { name: /^apple/ })).toBeFocused();
+
+    // Number keys on an item: 2 is the second group. A wrong one on purpose: plum is fruit, not vegetable.
+    await item('carrot').focus();
+    await page.keyboard.press('2');
+    await expect(live).toHaveText('carrot moved to vegetable.');
+    await item('plum').focus();
+    await page.keyboard.press('2');
+    await expect(live).toHaveText('plum moved to vegetable.');
+
+    // Tap: the item, then its group.
+    await item('rice').click();
+    await group('3. grain').click();
+    await expect(live).toHaveText('rice moved to grain.');
+
+    // Nothing is marked until check; the wrong one goes back to the tray, in words.
+    await board.getByRole('button', { name: 'check' }).click();
+    await expect(live).toHaveText('3 right, 1 back in the tray to try again.');
+    await expect(board.getByRole('list', { name: 'tray' }).getByRole('button', { name: /^plum/ })).toContainText(
+      'back in the tray to try again',
+    );
+    await expect(item('apple')).toContainText('✓ right');
+    await expect(item('apple')).toHaveAttribute('aria-disabled', 'true');
+    await axe();
+
+    // Sort the rest by number keys, then check: the summary takes focus.
+    for (const [name, key] of [['plum', '1'], ['pear', '1'], ['spinach', '2'], ['onion', '2'], ['oats', '3']] as const) {
+      await item(name).focus();
+      await page.keyboard.press(key);
+    }
+    await board.getByRole('button', { name: 'check' }).click();
+    await expect(page.getByTestId('organizer-result')).toBeFocused();
+    await expect(page.getByTestId('organizer-result')).toContainText('all 8 sorted in 2 tries.');
+    await axe();
+
+    await board.getByRole('button', { name: 'sort again' }).click();
+    await expect(board.getByRole('list', { name: 'tray' }).getByRole('button')).toHaveCount(8);
+    expect(errors).toEqual([]);
+  });
+});
+
+test.describe('fill-in at 320 px', () => {
+  test.use({ viewport: { width: 320, height: 720 } });
+
+  test('recalls by keyboard: right, a hint, almost, wrong, then a second round of the missed ones', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('console', (msg) => msg.type() === 'error' && errors.push(msg.text()));
+    await page.goto('/learn/study-skills');
+    await expect(page.getByRole('link', { name: 'recall the missing word with fill-in' })).toHaveAttribute(
+      'href',
+      '/learn/study-skills/fill-in',
+    );
+    await page.goto('/learn/study-skills/fill-in');
+    await expect(page.getByTestId('fill-in-sample-note')).toBeVisible();
+
+    const board = page.getByTestId('fill-in');
+    const field = board.getByRole('textbox', { name: 'the missing word' });
+    const next = board.getByRole('button', { name: 'next' });
+    const axe = async () => {
+      const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+      expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    };
+    const answer = async (words: string) => {
+      await field.fill(words);
+      await field.press('Enter');
+    };
+
+    await expect(board.getByText('round 1 · item 1 of 4')).toBeVisible();
+    // The answer is never shown in the sentence.
+    await expect(board.getByText(/Bees make/)).not.toContainText('honey');
+    await axe();
+
+    // Right: focus moves to "next", and Enter moves on with focus back in the field.
+    await answer('Honey.');
+    await expect(board.getByText('right.', { exact: true })).toBeVisible();
+    await expect(next).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(board.getByText('round 1 · item 2 of 4')).toBeVisible();
+    await expect(field).toBeFocused();
+
+    // A hint gives the first letter; a right answer after a hint comes back next round.
+    await board.getByRole('button', { name: 'hint' }).click();
+    await expect(board.getByText('starts with d.')).toBeVisible();
+    await answer('days');
+    await expect(board.getByText("right. you'll see this one again because you used a hint.")).toBeVisible();
+    await next.click();
+
+    // One letter off is "almost", and the field stays open; a wrong answer shows the word.
+    await answer('pencl');
+    await expect(board.getByText('almost. check the spelling.')).toBeVisible();
+    await expect(field).toBeFocused();
+    await answer('pen');
+    await expect(board.getByText('the word was pencil.')).toBeVisible();
+    await axe();
+    await next.click();
+
+    await answer('umbrella');
+    await next.click();
+
+    // Round 2 is only the hinted and the missed ones.
+    await expect(board.getByText('round 2 · item 1 of 2')).toBeVisible();
+    await answer('days');
+    await next.click();
+    await answer('pencil');
+    await next.click();
+    await expect(board.getByText('all 4 recalled in 2 rounds.')).toBeVisible();
+    await axe();
+    expect(errors).toEqual([]);
+  });
+});
+
+test.describe('label it at 320 px', () => {
+  test.use({ viewport: { width: 320, height: 720 } });
+
+  test('uncovers by keyboard and tap, marks each label, and covers only "still learning" again', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('console', (msg) => msg.type() === 'error' && errors.push(msg.text()));
+    await page.goto('/learn/study-skills');
+    await expect(page.getByRole('link', { name: "uncover a diagram's labels with label it" })).toHaveAttribute(
+      'href',
+      '/learn/study-skills/label-it',
+    );
+    await page.goto('/learn/study-skills/label-it');
+    await expect(page.getByTestId('label-it-sample-note')).toBeVisible();
+
+    const board = page.getByTestId('labelit');
+    await expect(board).toBeVisible();
+    const live = page.getByTestId('labelit-live');
+    const status = page.getByTestId('labelit-status');
+    const axe = async () => {
+      const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+      expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    };
+
+    // The drawing loads, with its credit, and nothing in the board names a covered label.
+    await expect.poll(() => board.locator('img').evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+    await expect(board).toContainText('drawing: cueory');
+    await expect(board).not.toContainText(/roof|chimney|window|door/);
+    await expect(status).toHaveText('4 covered · know it: 0 · still learning: 0');
+    await expect(page.getByTestId('cover-1')).toHaveAccessibleName('label 1, covered');
+    await axe();
+
+    // Keyboard on the drawing: the cover keeps focus and says what it was.
+    await page.getByTestId('cover-1').focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('cover-1')).toHaveAccessibleName('label 1: roof');
+    await expect(page.getByTestId('cover-1')).toBeFocused();
+    await expect(live).toHaveText('label 1: roof.');
+
+    // "uncover" in the list hands focus to that label's "know it".
+    await board.getByRole('button', { name: 'uncover label 2' }).click();
+    await expect(board.getByRole('group', { name: 'mark label 2' }).getByRole('button', { name: 'know it' })).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(live).toHaveText('chimney: know it. 3 left to mark.');
+
+    // Tap: reveal all, then mark the rest; roof and door are still learning.
+    await board.getByRole('button', { name: 'reveal all' }).click();
+    for (const [n, mark] of [[1, 'still learning'], [3, 'know it'], [4, 'still learning']] as const) {
+      await board.getByRole('group', { name: `mark label ${n}` }).getByRole('button', { name: mark }).click();
+    }
+    await axe();
+
+    await board.getByRole('button', { name: 'study the 2 still learning' }).click();
+    await expect(status).toHaveText('round 2 · 2 covered · know it: 2 · still learning: 0');
+    await expect(page.getByTestId('cover-1')).toHaveAccessibleName('label 1, covered');
+    await expect(page.getByTestId('cover-4')).toHaveAccessibleName('label 4, covered');
+    await expect(page.getByTestId('cover-2')).toHaveAccessibleName('label 2: chimney');
+    expect(errors).toEqual([]);
+  });
+});
+
+test.describe('questions at 320 px', () => {
+  test.use({ viewport: { width: 320, height: 720 } });
+
+  test('checks single and select-all answers, shows each choice in words with its rationale, and retries the missed', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('console', (msg) => msg.type() === 'error' && errors.push(msg.text()));
+    await page.goto('/learn/study-skills');
+    await expect(page.getByRole('link', { name: 'practice questions with rationales' })).toHaveAttribute(
+      'href',
+      '/learn/study-skills/questions',
+    );
+    await page.goto('/learn/study-skills/questions');
+    await expect(page.getByTestId('questions-sample-note')).toBeVisible();
+
+    const board = page.getByTestId('questions');
+    const check = board.getByRole('button', { name: 'check' });
+    const next = board.getByRole('button', { name: 'next question' });
+    const axe = async () => {
+      const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+      expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    };
+
+    await expect(board.getByText('question 1 of 3')).toBeVisible();
+    await expect(board).not.toContainText('Apples are fruit.');
+    await expect(check).toBeDisabled();
+    await axe();
+
+    // A wrong single answer: the verdict, then every choice marked in words, with its rationale.
+    await board.getByRole('radio', { name: 'a carrot' }).check();
+    await check.click();
+    await expect(board.getByText('not quite.', { exact: true }).first()).toBeVisible();
+    await expect(board.getByRole('group', { name: 'Which of these is a fruit?' })).toContainText(
+      "you picked this, but it's not right",
+    );
+    await expect(board).toContainText("this is right, and you didn't pick it");
+    await expect(board).toContainText('Apples are fruit.');
+    await expect(board).toContainText('Carrots are vegetables.');
+    await axe();
+    await next.click();
+
+    // Select all that apply, by keyboard: Space ticks each box.
+    await expect(board.getByText('question 2 of 3')).toBeVisible();
+    await expect(board.getByText('select all that apply')).toBeVisible();
+    await board.getByRole('checkbox', { name: 'Monday' }).focus();
+    await page.keyboard.press('Space');
+    await board.getByRole('checkbox', { name: 'Friday' }).focus();
+    await page.keyboard.press('Space');
+    await check.focus();
+    await page.keyboard.press('Enter');
+    await expect(board.getByText('right.', { exact: true }).first()).toBeVisible();
+    await next.click();
+
+    await board.getByRole('radio', { name: '60' }).check();
+    await check.click();
+    await next.click();
+
+    await expect(board.getByText('right on 2 of 3.')).toBeVisible();
+    await board.getByRole('button', { name: 'try the missed ones again' }).click();
+    await expect(board.getByText('question 1 of 1')).toBeVisible();
+    await expect(board.getByRole('radio', { name: 'an apple' })).not.toBeChecked();
+    await axe();
+    expect(errors).toEqual([]);
   });
 });

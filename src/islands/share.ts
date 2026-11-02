@@ -1,0 +1,135 @@
+/**
+ * Pure logic for sharing achievements (Task 103, D-pending). Share text, links and card images carry nothing personal:
+ * no name, no email, no score. Game names come only from src/config/games.ts (D-66, D-67).
+ */
+import { dailyGames, gameName, type DailyGame } from '../config/games';
+
+export const SHARE_STYLES = ['scene', 'ivory', 'bronze-coin'] as const;
+export type ShareStyle = (typeof SHARE_STYLES)[number];
+
+export type GameId = DailyGame['id'];
+export const GAME_IDS: readonly GameId[] = dailyGames.map((game) => game.id);
+export type ShareToolId = GameId | 'study';
+
+/** The name a student sees for each card style, like Spotify's share sheet (Christian, 2026-11-01). */
+export const STYLE_LABELS: Record<ShareStyle, string> = {
+  scene: 'scene',
+  ivory: 'editorial',
+  'bronze-coin': 'coin',
+};
+
+/**
+ * Where a share link lands: the exact tool it came from. Games point at their own section of /play, using the heading
+ * ids that page already gives each game; a unit test checks those ids still exist.
+ */
+export const TOOL_PATHS: Record<ShareToolId, string> = {
+  pulse: '/play#pulse-heading',
+  triage: '/play#triage-heading',
+  cueword: '/play#crossword-heading',
+  suture: '/play#word-path-heading',
+  study: '/learn/study-skills',
+};
+
+/** The name used in the share line: a game's visible name from the settings, or the study area. */
+export function toolName(tool: ShareToolId): string {
+  return tool === 'study' ? 'study skills' : gameName(tool);
+}
+
+/** Path to the static card image for a tool and style (built by scripts/build-share-cards.mjs). */
+export function shareImagePath(tool: ShareToolId, style: ShareStyle): string {
+  const group = tool === 'study' ? 'study' : 'games';
+  return `/share/${group}-${style}.png`;
+}
+
+/** The file name a shared card image gets. */
+export function shareFileName(tool: ShareToolId, style: ShareStyle): string {
+  return `cueory-${shareImagePath(tool, style).slice('/share/'.length)}`;
+}
+
+/** Absolute link to the tool, with no tracking parameters. */
+export function buildShareUrl(tool: ShareToolId, siteUrl: string): string {
+  return `${siteUrl.replace(/\/$/, '')}${TOOL_PATHS[tool]}`;
+}
+
+/** The short share line, in the lowercase brand voice for social copy (D-47). Nothing personal. */
+export function buildShareText(tool: ShareToolId): string {
+  return `i'm studying with ${toolName(tool)} on cueory.`;
+}
+
+/** A plain X post link (no SDK, no script): the text and the link as separate parameters. */
+export function xIntentUrl(text: string, url: string): string {
+  return `https://x.com/intent/post?${new URLSearchParams({ text, url })}`;
+}
+
+/** The parts of `navigator` that sharing uses, so tests can pass a stand-in. */
+export interface ShareTarget {
+  share?: (data: ShareData) => Promise<void>;
+  canShare?: (data?: ShareData) => boolean;
+}
+
+/** Whether the Web Share API is there at all (text and link). */
+export function canNativeShare(target: ShareTarget | undefined): boolean {
+  return typeof target?.share === 'function';
+}
+
+/** Whether this browser can share an image file through the Web Share API. */
+export function canShareFiles(target: ShareTarget | undefined): boolean {
+  if (!canNativeShare(target) || typeof target?.canShare !== 'function') return false;
+  try {
+    return target.canShare({ files: [new File([new Uint8Array(1)], 'cueory.png', { type: 'image/png' })] });
+  } catch {
+    return false;
+  }
+}
+
+/** Fetches a card image and turns it into a File for sharing; null if anything goes wrong. */
+export async function loadCardFile(fetcher: typeof fetch, path: string, name: string): Promise<File | null> {
+  try {
+    const response = await fetcher(path);
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    return new File([blob], name, { type: 'image/png' });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * What to hand to navigator.share: the selected card's image with the text and link when the browser can share that
+ * file, otherwise just the text and link.
+ */
+export function buildShareData(
+  target: ShareTarget,
+  base: { title: string; text: string; url: string },
+  file: File | null,
+): ShareData {
+  if (file && target.canShare?.({ files: [file] })) return { ...base, files: [file] };
+  return { ...base };
+}
+
+export type ShareOutcome = 'shared' | 'cancelled' | 'unavailable' | 'failed';
+
+/** Opens the system share sheet. Never throws: closing the sheet is 'cancelled', any other error is 'failed'. */
+export async function runShare(target: ShareTarget, data: ShareData): Promise<ShareOutcome> {
+  if (typeof target.share !== 'function') return 'unavailable';
+  try {
+    await target.share(data);
+    return 'shared';
+  } catch (error) {
+    return (error as { name?: unknown } | null)?.name === 'AbortError' ? 'cancelled' : 'failed';
+  }
+}
+
+/** Instant scrolling when the visitor asked for reduced motion, smooth otherwise. */
+export function scrollBehavior(matchMediaFn: ((query: string) => { matches: boolean }) | undefined): ScrollBehavior {
+  try {
+    return matchMediaFn?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+  } catch {
+    return 'auto';
+  }
+}
+
+/** How far to scroll a row so a card sits in its middle (the row must be the card's offset parent). */
+export function centeredScrollLeft(row: { clientWidth: number }, card: { offsetLeft: number; offsetWidth: number }): number {
+  return Math.max(0, card.offsetLeft - (row.clientWidth - card.offsetWidth) / 2);
+}

@@ -1,15 +1,22 @@
 /**
- * pulse, the word game on /play (D-61). Pure logic, kept apart from the island (PulseGame.tsx) so it can be unit
- * tested (tests/unit/pulse.test.ts).
+ * pillo (task-114): five-letter word game on /play. Pure logic, kept apart from the island (PulseGame.tsx) so it can
+ * be unit tested (tests/unit/pulse.test.ts).
  *
- * Its own rules: the word of the day runs five to seven letters; you have seven beats; each guess spends a beat, and
- * you may spend one beat on the day's cue (a one-line hint) instead of a guess. After each guess every letter is
+ * Rules: the word of the day is always five letters; you have six guesses; no cue. After each guess every letter is
  * marked in words and by a symbol, never by color alone: in its place, in the word somewhere else, or not in it.
  */
 import { gameName } from '../config/games';
 
-/** Guesses and the cue together may use this many beats. */
-export const BEATS = 7;
+/** Guesses a day. */
+export const GUESSES = 6;
+
+/** Every word of the day has exactly this many letters. */
+export const WORD_LENGTH = 5;
+
+/** Only puzzles whose word fits the rules (five lowercase letters) can be played; any other is skipped. */
+export function playablePuzzles<T extends { word: string }>(puzzles: readonly T[]): T[] {
+  return puzzles.filter((puzzle) => new RegExp(`^[a-z]{${WORD_LENGTH}}$`).test(puzzle.word));
+}
 
 /** How a letter of a guess compares with the word. */
 export type Mark = 'here' | 'elsewhere' | 'absent';
@@ -32,17 +39,16 @@ export interface Guess {
 export interface PulseState {
   answer: string;
   guesses: Guess[];
-  cueUsed: boolean;
   status: 'playing' | 'solved' | 'out';
 }
 
 export function startPulse(answer: string): PulseState {
-  return { answer: answer.toLowerCase(), guesses: [], cueUsed: false, status: 'playing' };
+  return { answer: answer.toLowerCase(), guesses: [], status: 'playing' };
 }
 
-/** Beats still to spend: seven, less one per guess, less one if the cue was taken. */
-export function beatsLeft(state: PulseState): number {
-  return BEATS - state.guesses.length - (state.cueUsed ? 1 : 0);
+/** Guesses still available. */
+export function guessesLeft(state: PulseState): number {
+  return GUESSES - state.guesses.length;
 }
 
 /** Lowercases a typed guess and drops anything that isn't a letter. */
@@ -87,16 +93,7 @@ export function playGuess(state: PulseState, text: string): PulseState {
   const guesses = [...state.guesses, { word, marks: markGuess(word, state.answer) }];
   const next = { ...state, guesses };
   if (word === state.answer) return { ...next, status: 'solved' };
-  return beatsLeft(next) <= 0 ? { ...next, status: 'out' } : next;
-}
-
-/** Whether the cue can be taken now: once, while playing, and never with the last beat (that one is for a guess). */
-export function canTakeCue(state: PulseState): boolean {
-  return state.status === 'playing' && !state.cueUsed && beatsLeft(state) > 1;
-}
-
-export function takeCue(state: PulseState): PulseState {
-  return canTakeCue(state) ? { ...state, cueUsed: true } : state;
+  return guessesLeft(next) <= 0 ? { ...next, status: 'out' } : next;
 }
 
 /** One guess in words for screen readers: "s, in place. l, not in the word. …". */
@@ -122,14 +119,12 @@ export function letterMarks(guesses: readonly Guess[]): Map<string, Mark> {
 }
 
 /**
- * What "share" copies: plain words, no colored squares and no grid. "cueory pulse, sat 1 nov: solved in 4 of 7
- * beats, with the cue."
+ * What "share" copies: one plain line, with no colored squares and no grid. "cueory pillo, sun 1 nov: solved in 3 of 6"
  */
 export function shareText(state: PulseState, day: string): string {
-  const used = BEATS - beatsLeft(state);
-  const cue = state.cueUsed ? ', with the cue' : '';
-  const result = state.status === 'solved' ? `solved in ${used} of ${BEATS} beats${cue}` : `not solved this time${cue}`;
-  return `cueory ${gameName('pulse')}, ${day}: ${result}.`;
+  const used = GUESSES - guessesLeft(state);
+  const result = state.status === 'solved' ? `solved in ${used} of ${GUESSES}` : 'not solved this time';
+  return `cueory ${gameName('pulse')}, ${day}: ${result}`;
 }
 
 /** Days from 1 November 2026 to a calendar date, in the visitor's own time zone. */

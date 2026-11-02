@@ -1,0 +1,41 @@
+---
+import { getCollection } from 'astro:content';
+import VisualDiagram from '../visuals/VisualDiagram';
+import { creditsFor } from '../visuals/credits';
+import { visualsForLesson } from '../visuals/forlesson';
+
+interface Props {
+  /** The lesson's id as the visuals' `lessonIds` name it (for example U01-T01-L01). */
+  lessonId: string;
+}
+
+// Visuals name the curriculum lessons they belong to (U01-T01-L02 and so on). The batch-1 drawings belong to the fluids
+// lessons, not to study skills, so the study-skills lesson rightly shows none; no mapping is needed. The credit is shown
+// once below all of them, so each diagram hides its own.
+const { lessonId } = Astro.props;
+const shown = visualsForLesson((await getCollection('visuals')).map((entry) => entry.data), lessonId);
+const credits = creditsFor(shown);
+---
+
+{
+  shown.length > 0 && (
+    <div class="mt-section space-y-section" data-lesson-visuals>
+      {shown.map((visual) => (
+        <div data-visual={visual.id}>
+          <VisualDiagram client:only="react" visual={visual} credit={false} />
+        </div>
+      ))}
+      {credits.length > 0 && (
+        <p class="text-sm text-ink-soft" data-visual-credits>
+          {credits.map((book, index) => (
+            <>
+              {index > 0 && ' '}
+              {book.credit}{' '}
+              <a href={book.licenseUrl} rel="license noopener">the license</a>
+            </>
+          ))}
+        </p>
+      )}
+    </div>
+  )
+}
