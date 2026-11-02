@@ -3,6 +3,7 @@
 import Layout from '../../layouts/Layout.astro';
 import ShareSheet from '../../islands/ShareSheet';
 import { site } from '../../config/site';
+import { gameName } from '../../config/games';
 ---
 
 <Layout
@@ -15,7 +16,7 @@ import { site } from '../../config/site';
     <h1 class="text-xl font-medium text-ink">share sheet preview</h1>
 
     <div class="flex flex-col gap-2">
-      <p class="text-sm text-ink-soft">games (pulse)</p>
+      <p class="text-sm text-ink-soft">games ({gameName('pulse')})</p>
       <div class="rounded-2xl border border-line p-6">
         <ShareSheet tool="pulse" siteUrl={site.url} client:only="react" />
       </div>
