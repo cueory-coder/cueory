@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{CARD_COUNT}} cards are ready</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f9f5ef;color:#3e2c23;font-family:Lato,Arial,Helvetica,sans-serif;font-size:16px;line-height:1.6;">
+  <!--
+    Task 106: template only. Never send before opt-in, tested unsubscribe handling,
+    a verified postal address, and validated + HTML-escaped substitutions exist.
+    Both links must be validated HTTPS destinations. No tracking or remote assets.
+  -->
+  <div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">
+    a few cards are ready for another look.
+  </div>
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-collapse:collapse;background-color:#f9f5ef;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-collapse:collapse;max-width:560px;background-color:#f9f5ef;border:1px solid #d3b7a1;">
+          <tr>
+            <td style="padding:36px 32px 18px;">
+              <p style="margin:0 0 20px;font-family:Lato,Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;letter-spacing:1.2px;color:#6b5243;">study reminder</p>
+              <h1 style="margin:0 0 16px;font-family:'Bodoni Moda',Georgia,'Times New Roman',serif;font-size:34px;line-height:1.2;font-weight:500;color:#3e2c23;">{{CARD_COUNT}} cards are ready</h1>
+              <p style="margin:0 0 20px;font-family:Lato,Arial,Helvetica,sans-serif;font-size:16px;line-height:1.6;color:#6b5243;">{{MODULE_NAME}} · about {{MINUTES}} minutes</p>
+              <p style="margin:0 0 28px;font-family:Lato,Arial,Helvetica,sans-serif;font-size:16px;line-height:1.6;color:#3e2c23;">
+                a few cards are ready for another look. pick up when you have a moment.
+              </p>
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:separate;">
+                <tr>
+                  <td bgcolor="#3e2c23" style="background-color:#3e2c23;border-radius:999px;">
+                    <a href="{{REVIEW_URL}}" style="display:inline-block;padding:14px 26px;font-family:Lato,Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;font-weight:bold;color:#f9f5ef;text-decoration:none;border-radius:999px;">review now</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 32px 32px;border-top:1px solid #d3b7a1;">
+              <p style="margin:0 0 12px;font-family:Lato,Arial,Helvetica,sans-serif;font-size:13px;line-height:1.6;color:#6b5243;">
+                you chose to receive study reminders. <a href="{{UNSUBSCRIBE_URL}}" style="color:#3e2c23;text-decoration:underline;">unsubscribe from reminders</a>.
+              </p>
+              <p style="margin:0;font-family:Lato,Arial,Helvetica,sans-serif;font-size:13px;line-height:1.6;color:#6b5243;">{{PHYSICAL_ADDRESS}}</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+
+<!--
+PLAIN_TEXT_ALTERNATIVE_START
+{{CARD_COUNT}} cards are ready
+
+{{MODULE_NAME}} · about {{MINUTES}} minutes
+
+a few cards are ready for another look. pick up when you have a moment.
+
+review now: {{REVIEW_URL}}
+
+you chose to receive study reminders.
+unsubscribe from reminders: {{UNSUBSCRIBE_URL}}
+{{PHYSICAL_ADDRESS}}
+PLAIN_TEXT_ALTERNATIVE_END
+-->
