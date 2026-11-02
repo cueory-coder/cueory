@@ -14,6 +14,14 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+/** The footer's links panel (motto, links, socials, theme switch) is closed until its chevron opens it (Task 85). */
+async function openFooterLinks(page: Page) {
+  const chevron = page.getByRole('contentinfo').locator('[data-footer-toggle]');
+  await expect(chevron).toBeVisible();
+  if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
+  await expect(chevron).toHaveAttribute('aria-expanded', 'true');
+}
+
 /** The name of the card in the middle of the "ways to study" merry-go-round (D-60). */
 const middleCard = (page: Page) =>
   page.locator('#ways-to-study [data-mode-card][data-offset="0"]').getAttribute('data-name');
@@ -379,6 +387,7 @@ test.describe('theme switch', () => {
   test('Light, Dark and Follow device change the palette and are remembered', async ({ page }, testInfo) => {
     const deviceIsDark = testInfo.project.use.colorScheme === 'dark';
     await page.goto('/');
+    await openFooterLinks(page);
     const picker = page.getByRole('group', { name: 'Theme' });
     await expect(picker.getByRole('radio', { name: 'Follow device' })).toBeChecked();
     expect(await pageBackground(page)).toBe(deviceIsDark ? charcoal : ivory);
@@ -389,11 +398,14 @@ test.describe('theme switch', () => {
     // The pick carries over to other pages and survives a reload.
     await page.goto('/privacy');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await openFooterLinks(page);
     await expect(page.getByRole('radio', { name: 'Dark' })).toBeChecked();
     expect(await pageBackground(page)).toBe(charcoal);
 
     await page.getByRole('radio', { name: 'Light' }).check();
     expect(await pageBackground(page)).toBe(ivory);
+    // The footer pill's colors ease over 150 ms (Task 77); check contrast once they have settled.
+    await page.waitForFunction(() => document.querySelector('footer')!.getAnimations({ subtree: true }).every((a) => a.playState !== 'running'));
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
     expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
 
@@ -405,6 +417,7 @@ test.describe('theme switch', () => {
 
   test('can be used with the keyboard', async ({ page }) => {
     await page.goto('/');
+    await openFooterLinks(page);
     const followDevice = page.getByRole('radio', { name: 'Follow device' });
     await followDevice.focus();
     await page.keyboard.press('ArrowLeft');
@@ -464,6 +477,7 @@ test.describe('marketing look (D-41)', () => {
       );
     await page.goto('/');
     const hero = page.locator('.scene-hero');
+    await openFooterLinks(page);
     await page.getByRole('radio', { name: 'Light' }).check();
     let images = await shown(hero);
     expect(images).toHaveLength(1);
@@ -1288,6 +1302,7 @@ test.describe('social links (D-54)', () => {
     page,
   }) => {
     await page.goto('/privacy');
+    await openFooterLinks(page);
     const footer = page.getByRole('contentinfo');
     const expected = Object.fromEntries(socials.filter((social) => social.href).map((social) => [social.id, social.href]));
     await expect(footer.locator('[data-social]')).toHaveCount(Object.keys(expected).length);

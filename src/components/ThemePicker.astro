@@ -1,21 +1,47 @@
 ---
-// Light / Dark / Follow device switch (brand spec section 9). Hidden until its script runs, so visitors without
-// JavaScript simply follow their device setting.
+// Light / Dark / Follow device switch (brand spec section 9), in the footer's links panel. Hidden until its script
+// runs, so visitors without JavaScript simply follow their device setting.
+//
+// A .segmented pill (global.css, Task 77) of three real <input type="radio"> elements, so arrow keys move between
+// them and each keeps its name (Light, Dark, Follow device). Each input covers its whole segment, invisible, so a tap
+// anywhere on the segment picks it; the segment shows the focus ring (.segmented-option:focus-within). Every option
+// shows a word as well as its icon, so the icon is never the only label.
 const options = [
-  { value: 'light', label: 'light' },
-  { value: 'dark', label: 'dark' },
-  { value: 'device', label: 'follow device' },
+  {
+    value: 'light',
+    label: 'light',
+    icon: `<svg viewBox="0 0 24 24" class="size-4" aria-hidden="true" focusable="false">
+      <circle cx="12" cy="12" r="4" fill="currentColor"/>
+      <path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    </svg>`,
+  },
+  {
+    value: 'dark',
+    label: 'dark',
+    icon: `<svg viewBox="0 0 24 24" class="size-4" aria-hidden="true" focusable="false">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="currentColor"/>
+    </svg>`,
+  },
+  {
+    value: 'device',
+    label: 'follow device',
+    icon: `<svg viewBox="0 0 24 24" class="size-4" aria-hidden="true" focusable="false">
+      <rect x="5" y="2" width="14" height="20" rx="2" stroke="currentColor" stroke-width="2" fill="none"/>
+      <circle cx="12" cy="17" r="1" fill="currentColor"/>
+    </svg>`,
+  },
 ];
 ---
 
 <fieldset data-theme-picker hidden>
-  <legend class="mb-1">theme</legend>
-  <div class="flex flex-wrap gap-x-5">
+  <legend class="mb-2">theme</legend>
+  <div class="segmented">
     {
       options.map((option) => (
-        <label class="inline-flex min-h-11 cursor-pointer items-center gap-2">
-          <input type="radio" name="theme" value={option.value} class="size-5 cursor-pointer accent-ink" />
-          {option.label}
+        <label class="segmented-option relative">
+          <input type="radio" name="theme" value={option.value} class="absolute inset-0 cursor-pointer opacity-0 focus-visible:outline-hidden" />
+          <Fragment set:html={option.icon} />
+          <span>{option.label}</span>
         </label>
       ))
     }
