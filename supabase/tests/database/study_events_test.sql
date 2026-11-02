@@ -407,13 +407,13 @@ select results_eq(
   $$ values (1) $$, 'one student being at the limit does not stop another'
 );
 
--- ---- Older events stop counting toward the hour; the daily cap (5,000) holds.
+-- ---- Older events stop counting toward the hour; the daily cap (2,000) holds.
 reset role;
 insert into public.study_events (user_id, item_id, item_version_id, kind, ms_on_item, at, created_at)
   select '00000000-0000-4000-8000-000000000003', '00000000-0000-4000-8000-0000000000e1',
          '00000000-0000-4000-8000-0000000000f1', 'answered', 1, now() - interval '2 hours' - make_interval(secs => n),
          now() - interval '2 hours'
-  from generate_series(1, 4990) n;
+  from generate_series(1, 1990) n;
 set local role authenticated;
 set local "request.jwt.claims" to '{"sub": "00000000-0000-4000-8000-000000000003", "role": "authenticated"}';
 set local "request.jwt.claim.sub" to '00000000-0000-4000-8000-000000000003';
@@ -430,7 +430,7 @@ select throws_ok(
   $$ select public.record_study_events(replace($j$[{"item_id": "00000000-0000-4000-8000-0000000000e1",
        "version_id": "00000000-0000-4000-8000-0000000000f1", "kind": "answered", "ms_on_item": 1, "at": "@t"}]$j$,
        '@t', current_setting('t.m1'))::jsonb) $$,
-  '54000', 'too many study events recorded recently; try again later', 'the 5,001st event in a day is refused'
+  '54000', 'too many study events recorded recently; try again later', 'the 2,001st event in a day is refused'
 );
 
 -- ---- A student who has recorded nothing sees nothing (student four's only row is the owner's restored one).

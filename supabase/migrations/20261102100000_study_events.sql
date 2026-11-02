@@ -87,7 +87,7 @@ declare
   time_shape constant text :=
     '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}([.][0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$';
   hourly_limit constant integer := 600;
-  daily_limit constant integer := 5000;
+  daily_limit constant integer := 2000;
 begin
   if uid is null then
     raise exception 'sign in to record study activity' using errcode = '28000';
