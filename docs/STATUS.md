@@ -245,6 +245,7 @@ Merged into `staging`:
   `check_answer` contract test against the real request helper (#142, Task 48).
 
 ## In review
+- Task 74, accessibility sweep (#157): full-site keyboard and axe audit, with segmented-date regression coverage, awaiting exact-head CI and Codex review.
 - Open pull requests add their own lines here. Waiting now: Release browser tests (#55).
 - Task 100, points, streaks and achievements (#180): deterministic local-only rewards with weekly free passes and test coverage, awaiting CI and Codex review.
 - Task 110 start, cruet loading animation (#184): the four layers cut from Christian's emblem and the lead's working prototype in `docs/prototypes/`; the island comes next.
