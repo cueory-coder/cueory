@@ -1,1 +1,0 @@
-status: Task 136, AGENTS.md matches the pillo decision (#PR): the daily-puzzle rule Codex reviews against now records the same exception as CLAUDE.md (pillo uses classic guess-the-word rules by Christian's choice); names, look, colors and shares stay original.

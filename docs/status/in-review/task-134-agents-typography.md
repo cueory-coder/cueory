@@ -1,1 +1,0 @@
-status: Task 134, align AGENTS.md typography with the approved brand: Lato for body and interface text with line spacing at least 1.5, Bodoni Moda only for marketing headings, and plain upright Lato accent lines without italic or script.

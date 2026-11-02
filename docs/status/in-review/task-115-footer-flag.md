@@ -1,1 +1,0 @@
-status: Task 115, one flag per page (#200): the footer flag opens the report form in a panel above the bar (an email link without JavaScript), the extra flag under page content is gone, and the flag tests match the signed-out email fallback.
