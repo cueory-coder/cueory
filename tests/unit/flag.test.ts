@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { charactersLeft, checkReport, REASONS, reasonInWords, type FlagReport } from '../../src/islands/flag';
 
-const valid: FlagReport = { page: '/learn/study-skills', itemId: 'sample_1', itemVersion: 1, reason: 'typo', comment: 'a sample note' };
+const SAMPLE_UUID = '00000000-0000-0000-0000-000000000001';
+const valid: FlagReport = { page: '/learn/study-skills', itemId: 'sample_1', itemVersionId: SAMPLE_UUID, reason: 'typo', comment: 'a sample note' };
 
 describe('report fields', () => {
   it('copies a valid report, discards unknown fields and leaves input unchanged', () => {
@@ -27,14 +28,18 @@ describe('report fields', () => {
   it.each(['', 'a'.repeat(81), 'a.b', 'a/b', 'a b', null, 1])('rejects item id %j', itemId => {
     expect(checkReport({ ...valid, itemId })).toEqual({ ok: false, problems: [{ field: 'itemId', message: 'use an item id of 1 to 80 letters, numbers, hyphens or underscores.' }] });
   });
-  it.each([1, 3, Number.MAX_SAFE_INTEGER])('accepts item version %s', itemVersion => expect(checkReport({ ...valid, itemVersion }).ok).toBe(true));
-  it.each([0, -1, 1.5, NaN, Infinity, '1', null, Number.MAX_SAFE_INTEGER + 1])('rejects item version %j', itemVersion => {
-    expect(checkReport({ ...valid, itemVersion })).toEqual({ ok: false, problems: [{ field: 'itemVersion', message: 'use a whole item version of 1 or more.' }] });
+  it.each([
+    '00000000-0000-0000-0000-000000000001',
+    'ffffffff-ffff-ffff-ffff-ffffffffffff',
+    'A1B2C3D4-E5F6-7890-ABCD-EF1234567890',
+  ])('accepts item version id %s', itemVersionId => expect(checkReport({ ...valid, itemVersionId }).ok).toBe(true));
+  it.each(['', 'not-a-uuid', '00000000-0000-0000-0000-00000000000', 1, null])('rejects item version id %j', itemVersionId => {
+    expect(checkReport({ ...valid, itemVersionId })).toEqual({ ok: false, problems: [{ field: 'itemVersionId', message: 'use a valid uuid for the item version.' }] });
   });
   it('collects problems in field order with plain messages', () => {
-    const result = checkReport({ page: '', itemId: '', itemVersion: 0, reason: '', comment: null });
+    const result = checkReport({ page: '', itemId: '', itemVersionId: 'bad', reason: '', comment: null });
     if (result.ok) throw new Error('expected invalid input');
-    expect(result.problems.map(problem => problem.field)).toEqual(['page', 'itemId', 'itemVersion', 'reason', 'comment']);
+    expect(result.problems.map(problem => problem.field)).toEqual(['page', 'itemId', 'itemVersionId', 'reason', 'comment']);
     expect(result.problems.slice(-2)).toEqual([{ field: 'reason', message: 'choose what is wrong.' }, { field: 'comment', message: 'write the comment as text.' }]);
   });
 });

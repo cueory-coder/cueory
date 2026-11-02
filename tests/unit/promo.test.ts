@@ -107,7 +107,7 @@ describe('once-only promo panel (D-59)', () => {
       expect(text).toBe(text.toLowerCase());
     }
     expect(promo.joinLabel).toBe('join the launch list');
-    expect(promo.supportLabel).toBe('support us while we build');
+    expect(promo.supportLabel).toBe('supporting our mission');
     expect(site.tipPageUrl).toBe('https://ko-fi.com/cueory');
   });
 

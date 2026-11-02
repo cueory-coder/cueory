@@ -811,6 +811,41 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
 
   Reason: a drawing can't show more than the approved source says, and a test proves it.
 
+- **D-82** Lesson videos (Task C3, `src/islands/LessonVideo.tsx`). Single-tap rule (follows D-32, D-40): nothing loads
+  from YouTube before the student taps the cover; ONE tap creates the `youtube-nocookie.com` player with autoplay and
+  starts the video, and focus moves to the player. The cover is a self-hosted `thumbnail` image from the video's file,
+  or a drawn placeholder; the "tapping play loads YouTube and its cookies" note and any captions/transcript links show
+  before the tap (ROADMAP Task 4d). The player is at least 200 px tall at every width (YouTube's minimum). Only
+  `published` videos show on a page; drafts and placeholders never render (the study-skills entry stays a draft until
+  Christian supplies a real video). Video files (`content/videos/`, rules in `src/videos/schema.ts`): `videoId` is
+  exactly 11 characters (`[A-Za-z0-9_-]`), caption and transcript links are https or site paths only, `thumbnail` is a
+  site path only. CSP gains `frame-src https://www.youtube-nocookie.com`; `/privacy` lists YouTube. To check on a real
+  iPhone before launch: Safari may drop the tap permission that autoplay needs. Reason: D-32 and D-40.
+
+- **D-83** 3D body viewer shell (Task C4, 2026-11-01, lead review on PR #98).
+  - **Lazy loading:** `three` loads only after the student taps "open the 3D view". Nothing from three.js is in the
+    initial bundle. The tap shows a loading state, then the viewer.
+  - **Placeholder model:** built in code from `THREE.CylinderGeometry` / `SphereGeometry` shapes grouped into three
+    layers (bone, muscle, skin). No file download, no external request. Labeled a placeholder in the UI and credit
+    line. The real model will be BodyParts3D (D-80), CC BY 4.0, added when Christian merges the dependency.
+  - **On-demand rendering:** `needsRender` flag; the render loop skips frames unless controls moved, a layer was
+    toggled, the canvas was resized, or the color scheme changed. Avoids battery drain at idle.
+  - **Keyboard and accessibility:** `tabIndex={0}` on the canvas; arrow keys orbit, +/- zoom; canvas receives focus
+    after open. Layer buttons use `aria-pressed`. Reduced-motion turns off OrbitControls damping.
+  - **Dark mode:** background color reads both `data-theme` and `matchMedia`; mirrors `--color-page` tokens
+    (Ivory `#f9f5ef` light / Charcoal `#1c1917` dark). Color-scheme changes while the viewer is open are handled.
+  - **Preview page:** `noindex` meta tag (not linked from the main nav; excluded from Pagefind).
+  - **Credit:** "Placeholder model (geometric shapes). Real model: BodyParts3D, © The Database Center for Life
+    Science licensed under CC Attribution 4.0 International."
+
+  - **Version and size budget:** `three` is `^0.187.0`, matching `@types/three`. The 3 MB model limit is enforced at
+    build time by `tests/unit/modelbudget.test.ts` (fails if any `.glb` / `.gltf` under `public/` is over 3 MB; passes
+    when none exist). The viewer itself checks only the triangle count, since size cannot be known before download.
+  - **Fix:** the viewer failed to open ("Cannot access before initialization") because `needsRender` was used before
+    its declaration; it is now declared first. Errors during open clean up and show the error state.
+
+  Reason: meets CLAUDE.md rule 6 (keyboard), brand tokens, battery discipline, and BodyParts3D licence from D-80.
+
 - **D-89** Overnight merges into `staging` on Christian's behalf (Christian, 2026-11-01, about 1:00 am Phoenix: "whatever
   can be merged ... merge it on my behalf to avoid bottlenecks", choosing "everything but rules").
   - **What:** during the director's 18-minute check-ins, the director merges held pull requests into `staging`:
@@ -858,3 +893,122 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
     accepted, no plan cap) each failed.
 
   Reason: the director's request on #11 (Task C6), following D-73's schema order.
+
+- **D-88** Task 2's seventh database change: `flags` and `submit_flag` (Task C6, step 5, the last, stacked on D-87).
+  The "Flag or comment" button of D-34, built to D-73's plan and Supabase's "Database Functions" docs (`security
+  definer` with a fixed `search_path`; revoke `execute` from `public` and `anon`).
+  - **`flags` is admin data:** no website role can read or write it, not even a student's own reports. No grants, row-level
+    security on, and an explicit restrictive deny policy for `anon` and `authenticated` (as for the key, D-85). Only the
+    service role (the `/admin` inbox) reads and writes it. A student reads their own reports (for export-my-data, rule 2)
+    only through **`my_flags()`**, a signed-in-only `security definer` function that returns the report's id, page, item,
+    version, reason, comment and time and never the user, status or handled time; chosen over a select policy with column
+    grants so the table stays fully closed and the locked-by-default test keeps one allowed list of functions. A report has the page, the item and version (both
+    or neither), a reason, an optional comment, a status (`open` until Christian marks it `handled`, which needs a date), and
+    belongs to a student; deleting an account deletes its reports.
+  - **`submit_flag(page, item_id, item_version_id, reason, comment)`** is the only way in, for signed-in students only,
+    and it checks everything before writing: the page is a path on this site (`/…`, 200 characters at most, plain URL
+    characters, no space, query, markup or `//`), the reason is one of `wrong-fact`, `typo`, `confusing`, `broken`,
+    `other`, the comment is plain text up to 1,000 characters (blank means none, outer spaces are trimmed), and the
+    item and version come together with the version belonging to the item. Every way of naming a question wrongly gets
+    the same answer ("that question was not found"), so a report can't be used to find which ids exist. It answers with
+    the report's id.
+  - **Limits, per person:** 5 reports an hour and 20 a day, counted from the table, with a per-person advisory lock. The
+    next one gets error 54000. Other students aren't affected, and old reports stop counting.
+  - **Signed-in only, for Christian to confirm** (the same reasoning as `check_answer`, D-86, and D-73): an anonymous
+    report would need a CAPTCHA, and Supabase's (hCaptcha or Cloudflare Turnstile) loads a third-party script, which
+    CLAUDE.md rules out unless he makes an exception. Signed-out visitors see that a free account is needed and are given
+    hello@cueory.app instead (the lead's note on D-77).
+  - **Not built yet:** the `/admin` inbox and the button itself (a form that calls `submit_flag`), and `/privacy` and
+    export-my-data covering what a signed-in student sends. They come with the pages that use these functions.
+  - **Tests:** `supabase/tests/database/flags_test.sql`, 44 checks: grants and policy, signed-out refusal, a valid report
+    with and without an item, the table staying closed even for a student's own reports, every refusal writing
+    nothing, the exact limits (5 an hour, 20 a day, not for other students, not for old reports), the inbox rules and
+    cascade delete. The lockdown test's allowed-function list now names `submit_flag`. Four weakened versions (students
+    may read flags, no limits, a version of another item accepted, other-site pages accepted) each failed.
+
+  Reason: the director's request on #11 (Task C6), following D-73's schema order. This completes that plan's tables and
+  functions.
+
+- **D-90** The batch checker matches the importer (Task C8, the lead's follow-up on #115, Task 3). Three changes, one
+  rule: the checker must never pass an item the importer would refuse, and the importer must never trust that the
+  checker was run.
+  - **A rationale for every choice, on every question.** The checker used to ask for per-choice rationales only on
+    select-all-that-apply questions; the importer (and the database, D-85) require them on all. A single-answer item
+    missing one now fails the check with "choice C has no rationale (rationale_c); every choice needs one".
+  - **The hash.** `passed.csv` carries the `hash` column, made by `itemHash` imported from the importer, not copied, so
+    the two can't drift. (#115 had already wired `passedCsv(result, input)` to do this; this task adds the tests that
+    hold it: a round trip, and a check that every passed row's hash matches the importer's.)
+  - **The importer re-runs `checkBatch`.** `parsePassed` now takes the reviewer files, `facts.csv` and `sources.csv`
+    (`BatchFiles.recheck`) along with the items and key texts, and runs the checker on exactly those files after its own
+    row checks. An item is imported only if the checker passes it now; an item that fails or is waiting on a reviewer is
+    refused with the checker's own reasons; a batch the checker refuses as a whole (a missing reviewer file, a duplicate
+    id) imports nothing. Without the `recheck` input the importer refuses everything, so the safe path is the only one.
+  - **Tests (`tests/unit/check-batch.test.ts`, `import-batch.test.ts`):** the round trip (checker, `passed.csv`,
+    importer, every passed item comes back with its hash accepted, select-all included); one field edited after checking
+    (the stem, a choice, a choice rationale, the main rationale, the key, the sources) is refused; a list of eleven ways
+    to make an item invalid, each seen refused by both the checker and the importer; and seven re-check cases (a reviewer
+    now failing, disagreeing or pending, a broken source link, a missing reviewer file, a duplicate question, no re-check
+    input). With the old checker the new agreement tests fail. Samples only (rule 7): no real questions.
+
+  Reason: the lead's review of #115 and the director's brief for Task C8.
+
+- **D-91** Export-my-data covers everything stored about a student (Task 19, #95; CLAUDE.md rule 2). `exportJson` and
+  `exportCsv` in `src/islands/exportdata.ts` stay pure: no network, no storage; the caller hands over the student's own
+  rows. Besides the profile, setup answers, guest progress, guest review and game history, they now take three sections
+  that mirror the database tables from D-86 and D-87: `attempts` (item version, letters picked, right or wrong, time),
+  `examPlans` (course, exam day, created) and `reviewRows` (the account's `review_state`: question, level 0 to 3, last
+  and next review day). Each has a strict schema: uuids lowercase and well formed, 1 to 5 distinct letters a to e,
+  a course slug of at most 80 characters, real calendar days. No user id, answer key or rationale is ever exported; if
+  one is passed it is dropped and only its name is listed. Caps: 50,000 rows for `attempts` and `reviewRows`, 10 for
+  `examPlans` (the database's cap); anything beyond is reported in `dropped` as `section[cap+]`. Each section also gets
+  a CSV file with the same formula guard and quoting. A fourth section, `reports` (C11), holds the student's own "Flag or comment"
+  reports as `my_flags()` returns them (D-88): id, page (a site path), item, version, reason, comment and time; the admin
+  fields are dropped by name; cap 10,000 rows.
+
+  Reason: the review of #95 found server-side study progress missing from the download.
+
+- **D-92** Study-mode pages ship with labeled everyday samples (Christian, 2026-11-01, about 8:23 am Phoenix). The
+  director had put three choices for #77 in STATUS, because its questions page sends the sample answers to the browser
+  before a student answers, and organizer and fill-in carry theirs in the page. Christian's account commented "Ok" on
+  #77 and merged it, then merged release #132 into `main` at about 8:30 am. Read as the third choice: labeled everyday
+  samples (`sampleChecker`, D-33, D-45) may carry their answers in the browser. Real questions never do: they are
+  checked only by `check_answer` (D-86), and no real question, key or rationale is in this repository (CLAUDE.md
+  rule 7). If that reading is wrong, Christian says so and the questions page comes off until `check_answer` is wired.
+
+  Reason: the hold was Christian's call, and he made it by merging.
+
+- **D-93** Offline copies of pages (ROADMAP Task 5, #135, Task C12, with the lead's review). A service worker keeps
+  lesson pages, the home page and the site's own static files so an opened lesson opens again with no connection. It
+  never keeps `/play` (today's puzzles are inside the page, D-61), `/admin`, `/progress`, `/start`, `/privacy`, data
+  files, addresses with a query string, redirects, errors, or anything marked `no-store` or `private`. Pages ask the
+  network first and fall back to the copy after 4 seconds or on a server error; only hashed `/_astro/` files come from
+  the copy first. Each deploy has its own cache and older ones are deleted. Off switch: `offline.enabled` in
+  `src/config/site.ts`; when it is `false`, pages delete the saved copies before removing the registration, and
+  `/sw.js` becomes a worker that deletes the copies and removes itself (docs/OFFLINE.md). `/privacy` says pages may be
+  kept on the device. The content security policy needs no change: workers fall back to `script-src 'self'`.
+
+  Reason: Task 5 asks for an offline lesson cache, and Task 32's policy says what may be kept.
+
+- **D-94** Glove notes replace the promo panel and the break timer's prompts (Christian, 2026-11-01, 8:51 to 9:35 am
+  Phoenix, relayed by the lead on issue #4; changes D-59 and #67's prompts when built). One pop-up style, centered,
+  with a very light scrim: a real photo of Christian's gloved hand rises into the middle of the screen with the message
+  written level inside the palm in a print-style handwriting font (Patrick Hand until Christian picks), as Sharpie
+  ink on nitrile. Five photos, five colors and angles, never the same twice in a row. At most one welcome note per
+  visit on marketing pages, rotating between the launch list, "supporting our mission" and a break idea; one break
+  note after 25 minutes of active study, at a pause, linking to a new `/breaks` page. Quiet glove sounds, on by
+  default, with a toggle remembered in this browser, only after a touch, never during a video or with reduced
+  motion. "Tip" becomes "supporting our mission" with Christian's two mission lines. Brand exceptions by his order: a
+  gloved hand (a photo, only as the pop-up) and the handwriting font (only on the palm). **No drawn or SVG hand ever
+  ships;** until his photos and recordings arrive, nothing visible changes and the promo panel stays as it is. Break
+  ideas are 1 to 60 characters, plain and non-medical, and Christian approves their wording. Sharing ideas comes after
+  sign-in, with his moderation before anything shows. The logic is Tasks 50 to 53; the component and shared files
+  are the director's.
+
+  Reason: Christian's change request.
+
+- **D-pending (Task 100)** Add points, weekly free-pass game streaks, and one-time achievements for completed daily games and study sessions, with no live leaderboard yet. Reason: Christian requested streaks, accomplishments and player rankings on 2026-11-01; public rankings must be opt-in and checked on the server in a later task.
+
+- **D-pending (Task 105)** Add a small, decorative mark using Cueory's approved emblem and an actual site address to share-worthy finished results, never over questions or answer lists, and hide it in print. Reason: Christian requested quiet branding that is already visible in screenshots without screenshot detection.
+
+- **D-pending (Task 111)** Offer optional phone or email review reminders only after a completed review and an explicit student action, with no permission request or saved consent in the current preview. Reason: Christian requested phone reminders, with design and opt-in UI only until account and server integration is assigned.
+- **D-pending (Task 56)** Sign-in uses Google or email and password, with email links reserved for confirmation and password recovery, replacing D-73’s magic-link backup. Reason: Christian’s 1 November change, relayed by the director in issue #11 at 2:00 pm Phoenix.

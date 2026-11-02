@@ -1,29 +1,57 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import Prose from '../components/Prose.astro';
 import { site } from '../config/site';
+
+// Christian's wording (D-94). Keep the exact lower-case lines and punctuation already approved for this page.
+const missionLines = [
+  'to make studying for nursing school simpler.',
+  'to give nursing students the materials they need to succeed and become great nurses at an affordable price.',
+] as const;
 ---
 
-<Layout title="support cueory" description="Cueory is free. If it helps you, you can leave a tip.">
-  <Prose>
-    <h1>support {site.wordmarkName}</h1>
-    <p>{site.name} is free for every nursing student. If it helped you, a small tip keeps it running.</p>
-    {
-      site.tipPageUrl ? (
-        <p>
-          <a
-            href={site.tipPageUrl}
-            rel="noopener noreferrer"
-            target="_blank"
-            class="inline-block rounded-pill bg-button px-6 py-3 text-on-button no-underline hover:bg-button-hover hover:text-on-button"
-          >
-            Leave a tip (opens in a new tab)
-          </a>
+<Layout
+  title="supporting our mission"
+  description="cueory is free for every nursing student. supporting our mission helps keep it that way."
+>
+  <section class="mx-auto max-w-prose py-section" aria-labelledby="support-heading">
+    <header class="mb-10 text-center">
+      <p class="text-sm text-ink-soft">free study help for nursing students</p>
+      <h1 id="support-heading" class="display mt-4 text-title sm:text-title-lg">supporting our mission</h1>
+    </header>
+
+    <div class="veil p-6 sm:p-10">
+      <ul data-mission aria-label="our mission" class="m-0 flex list-none flex-col gap-8 p-0">
+        {
+          missionLines.map((line) => (
+            <li>
+              <h2 class="display text-xl tracking-display sm:text-2xl">{line}</h2>
+            </li>
+          ))
+        }
+      </ul>
+
+      <div class="mt-10 border-t border-line pt-8">
+        <h2 class="text-lg font-semibold">how your support helps</h2>
+        <p class="mt-3">
+          cueory is free for every nursing student. your support helps us maintain the domain,
+          keep the website available, and build more lessons.
         </p>
-      ) : (
-        <p class="text-ink-soft">The tip page is coming soon.</p>
-      )
-    }
-    <p>Telling a classmate about {site.name} helps just as much.</p>
-  </Prose>
+        {
+          site.tipPageUrl ? (
+            <a
+              href={site.tipPageUrl}
+              rel="noopener noreferrer"
+              target="_blank"
+              class="glass-button mt-8"
+            >
+              support our mission (opens in a new tab)
+            </a>
+          ) : (
+            <p class="mt-6 text-ink-soft">the support link is not available yet.</p>
+          )
+        }
+        <p class="mt-6 text-sm text-ink-soft">thank you for helping us make nursing study simpler.</p>
+      </div>
+    </div>
+  </section>
 </Layout>

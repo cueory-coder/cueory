@@ -12,9 +12,11 @@ interface Props {
   visual: Visual;
   /** Only for the review sheet's screenshots in tests. Pages never set it. */
   allowDraft?: boolean;
+  /** Show this visual's own credit line. A page that shows several visuals sets it false and credits each book once. */
+  credit?: boolean;
 }
 
-export default function VisualDiagram({ visual, allowDraft = false }: Props) {
+export default function VisualDiagram({ visual, allowDraft = false, credit = true }: Props) {
   const drawing = drawings[visual.id];
   if (!drawing || (visual.status !== 'approved' && !allowDraft)) return null;
   const { Component, steps } = drawing;
@@ -35,7 +37,7 @@ export default function VisualDiagram({ visual, allowDraft = false }: Props) {
         {notesFor(visual).map((note) => (
           <p key={note} className="mt-2">{note}</p>
         ))}
-        {creditsFor(visual).map((book) => (
+        {credit && creditsFor(visual).map((book) => (
           <p key={book.book} className="mt-2">
             {book.credit}{' '}
             <a className="underline" href={book.licenseUrl} rel="license noopener">
