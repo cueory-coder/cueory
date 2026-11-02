@@ -81,8 +81,10 @@ function draftOf(state: CardsState, cards: readonly Card[], deckId: string, shuf
  * the forgotten marks back, so it saves only while every marked card still has a saved pile (Codex on #221).
  */
 function marksStillSaved(storage: KeyValueStorage | undefined, deckId: string, draft: ResumeDraft): boolean {
+  const marked = Object.keys(draft.answers).filter((id) => id !== ROUND_KEY);
+  if (!marked.length) return false;
   const progress = readProgress(storage);
-  return Object.keys(draft.answers).every((id) => id === ROUND_KEY || pileOf(progress, deckId, id) !== null);
+  return marked.every((id) => pileOf(progress, deckId, id) !== null);
 }
 
 /** Rebuilds the exact round from its saved card IDs; the marks must match the round's first cards, in order. */
@@ -212,7 +214,10 @@ export default function CardDeck({ deckId, cards }: Props) {
     return draft && marksStillSaved(storage, deckId, draft) ? draft : null;
   }), [storage, deckId]);
   useEffect(() => {
-    if (draftRef.current && marksStillSaved(storage, deckId, draftRef.current)) saveResume(storage, draftRef.current);
+    const draft = draftRef.current;
+    if (!draft) return;
+    if (marksStillSaved(storage, deckId, draft)) saveResume(storage, draft);
+    else clearResume(storage);
   }, [storage, state, deckId, shuffle, starredOnly, hasAnswered, resumePending]);
 
   useEffect(() => {
