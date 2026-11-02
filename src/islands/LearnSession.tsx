@@ -67,21 +67,7 @@ export default function LearnSession({ cards }: Props) {
     if (focusRequest > 0) cardRef.current?.focus();
   }, [focusRequest]);
 
-  // Inject .enter animation and .press effect until Task 77's global.css lands on staging.
-  useEffect(() => {
-    const id = 'cueory-learn-motion';
-    if (document.getElementById(id)) return;
-    const el = document.createElement('style');
-    el.id = id;
-    el.textContent = [
-      '@keyframes enter-rise{from{opacity:0;translate:0 0.5rem}to{opacity:1;translate:0 0}}',
-      '.enter{animation:enter-rise var(--duration-base,240ms) var(--ease-soft,cubic-bezier(0.4,0,0.2,1)) both}',
-      '@media(prefers-reduced-motion:reduce){.enter{animation:none}}',
-      '.press:active{scale:0.98}',
-      '@media(prefers-reduced-motion:reduce){.press:active{scale:1}}',
-    ].join('\n');
-    document.head.appendChild(el);
-  }, []);
+  // .enter and .press live in src/styles/global.css (Task 79).
 
   const act = (next: (s: LearnState) => LearnState) => {
     setState(next);
