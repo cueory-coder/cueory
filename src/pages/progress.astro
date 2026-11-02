@@ -2,6 +2,7 @@
 import { getCollection } from 'astro:content';
 import Layout from '../layouts/Layout.astro';
 import ProgressPanel from '../islands/ProgressPanel';
+import BrandMark from '../components/BrandMark.astro';
 
 const decks = (await getCollection('cards'))
   .map((deck) => ({ id: deck.id, title: deck.data.title, cardIds: deck.data.cards.map((card) => card.id) }))
@@ -26,6 +27,7 @@ const decks = (await getCollection('cards'))
       <noscript>
         <p>this page needs javascript turned on to read what your browser saved.</p>
       </noscript>
+      <BrandMark path="/progress" />
     </div>
   </div>
 </Layout>
