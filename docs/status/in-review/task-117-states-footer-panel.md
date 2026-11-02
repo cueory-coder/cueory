@@ -1,1 +1,1 @@
-status: Task 117, loading-states test opens the footer panel (#202): the theme switch moved into the footer's links panel with #152, so the test opens it first.
+status: Task 117, staging test fixes (#202): the loading-states test opens the footer panel first, the footer "tap anywhere" test taps inside the pill instead of its rounded corner, and the sign-in test ignores only Chromium's harmless aborted-view-transition rejection.
