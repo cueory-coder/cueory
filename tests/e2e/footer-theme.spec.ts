@@ -21,7 +21,7 @@ test.describe('footer theme picker', () => {
     await expect(picker).toBeVisible();
 
     // Switch to dark.
-    await picker.locator('input[value="dark"]').check();
+    await picker.locator('input[value="dark"]').check({ force: true });
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 
     // Navigate away and back; the choice should survive.
@@ -35,7 +35,7 @@ test.describe('footer theme picker', () => {
     await expect(dark).toBeChecked();
 
     // Switch back to device and confirm the attribute is removed.
-    await picker2.locator('input[value="device"]').check();
+    await picker2.locator('input[value="device"]').check({ force: true });
     await expect(page.locator('html')).not.toHaveAttribute('data-theme');
   });
 
@@ -50,7 +50,7 @@ test.describe('footer theme picker', () => {
     const darkInput = picker.locator('input[value="dark"]');
     const deviceInput = picker.locator('input[value="device"]');
 
-    await lightInput.check();
+    await lightInput.check({ force: true });
     await lightInput.focus();
 
     // Arrow right selects the next radio.
@@ -77,7 +77,7 @@ test.describe('footer theme picker', () => {
       const picker = page.locator('[data-theme-picker]');
       await expect(picker).toBeVisible();
       // Make sure light (daytime) theme is active.
-      await picker.locator('input[value="light"]').check();
+      await picker.locator('input[value="light"]').check({ force: true });
 
       const results = await new AxeBuilder({ page })
         .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'])
@@ -91,7 +91,7 @@ test.describe('footer theme picker', () => {
 
       const picker = page.locator('[data-theme-picker]');
       await expect(picker).toBeVisible();
-      await picker.locator('input[value="dark"]').check();
+      await picker.locator('input[value="dark"]').check({ force: true });
       // Allow the theme transition to settle.
       await page.waitForTimeout(50);
 

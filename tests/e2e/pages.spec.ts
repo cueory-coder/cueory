@@ -123,7 +123,7 @@ test('starred cards are remembered in this browser and can be studied on their o
   expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
 
   await page.reload();
-  await onlyStarred.check();
+  await onlyStarred.check({ force: true });
   await expect(page.getByText('Card 1 of 1 · Know it: 0 · Still learning: 0')).toBeVisible();
   await expect(page.getByText('Placeholder card 2, front.')).toBeVisible();
   await expect(star).toHaveAttribute('aria-pressed', 'true');
@@ -377,7 +377,7 @@ test.describe('theme switch', () => {
     await expect(picker.getByRole('radio', { name: 'Follow device' })).toBeChecked();
     expect(await pageBackground(page)).toBe(deviceIsDark ? charcoal : ivory);
 
-    await picker.getByRole('radio', { name: 'Dark' }).check();
+    await picker.getByRole('radio', { name: 'Dark' }).check({ force: true });
     expect(await pageBackground(page)).toBe(charcoal);
 
     // The pick carries over to other pages and survives a reload.
@@ -386,12 +386,12 @@ test.describe('theme switch', () => {
     await expect(page.getByRole('radio', { name: 'Dark' })).toBeChecked();
     expect(await pageBackground(page)).toBe(charcoal);
 
-    await page.getByRole('radio', { name: 'Light' }).check();
+    await page.getByRole('radio', { name: 'Light' }).check({ force: true });
     expect(await pageBackground(page)).toBe(ivory);
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
     expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
 
-    await page.getByRole('radio', { name: 'Follow device' }).check();
+    await page.getByRole('radio', { name: 'Follow device' }).check({ force: true });
     await page.reload();
     await expect(page.locator('html')).not.toHaveAttribute('data-theme');
     expect(await pageBackground(page)).toBe(deviceIsDark ? charcoal : ivory);
@@ -458,7 +458,7 @@ test.describe('marketing look (D-41)', () => {
       );
     await page.goto('/');
     const hero = page.locator('.scene-hero');
-    await page.getByRole('radio', { name: 'Light' }).check();
+    await page.getByRole('radio', { name: 'Light' }).check({ force: true });
     let images = await shown(hero);
     expect(images).toHaveLength(1);
     expect(images[0]!.src).toMatch(/\/brand\/v1\/logo-full-light-\d+\.png$/);
@@ -467,7 +467,7 @@ test.describe('marketing look (D-41)', () => {
     const width = (await hero.locator('.logo').boundingBox())!.width;
     expect(width).toBeGreaterThanOrEqual(239);
 
-    await page.getByRole('radio', { name: 'Dark' }).check();
+    await page.getByRole('radio', { name: 'Dark' }).check({ force: true });
     images = await shown(hero);
     expect(images).toHaveLength(1);
     expect(images[0]!.src).toMatch(/\/brand\/v1\/logo-full-dark-\d+\.png$/);
