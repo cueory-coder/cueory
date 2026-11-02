@@ -70,6 +70,7 @@ async function tabAudit(page: Page): Promise<string[]> {
         outlineStyle: style.outlineStyle,
         outlineWidth: style.outlineWidth,
         outlineColor: style.outlineColor,
+        outlineOffset: style.outlineOffset,
         boxShadow: style.boxShadow,
       }];
     });
@@ -107,7 +108,8 @@ async function tabAudit(page: Page): Promise<string[]> {
       const outlineChanged = !previous ||
         style.outlineStyle !== previous.outlineStyle ||
         style.outlineWidth !== previous.outlineWidth ||
-        style.outlineColor !== previous.outlineColor;
+        style.outlineColor !== previous.outlineColor ||
+        style.outlineOffset !== previous.outlineOffset;
       const shadowChanged = style.boxShadow !== 'none' && style.boxShadow !== previous?.boxShadow;
 
       return {
@@ -142,7 +144,7 @@ async function tabAudit(page: Page): Promise<string[]> {
     // indicator for this SAME input; never excuse a missing first indicator.
     const nativeSegment = focused.index === lastIndex &&
       ['date', 'time', 'datetime-local', 'month', 'week'].includes(focused.inputType ?? '');
-    const hasIndicator = focused.visibleFocus || (nativeSegment && lastVisibleFocus);
+    const hasIndicator: boolean = focused.visibleFocus || (nativeSegment && lastVisibleFocus);
     lastIndex = focused.index;
     lastVisibleFocus = hasIndicator;
 
@@ -280,6 +282,15 @@ test.describe('keyboard traversal regression cases', () => {
     );
     expect((await tabAudit(page)).some((problem) =>
       problem.includes('#always-outlined: keyboard focus has no visible outline'))).toBe(true);
+  });
+
+  test('changing only the outline offset gives a visible keyboard focus indicator', async ({ page }) => {
+    await page.setContent(
+      '<style>button { outline: 2px solid black; outline-offset: 0px; }' +
+      'button:focus-visible { outline-offset: 4px; }</style>' +
+      '<button id="offset-only">offset changes on focus</button><button>next</button>',
+    );
+    expect(await tabAudit(page)).toEqual([]);
   });
 
   test('a transparent focus outline does not count as visible', async ({ page }) => {
