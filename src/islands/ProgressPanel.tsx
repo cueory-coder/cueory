@@ -96,7 +96,9 @@ export default function ProgressPanel({ decks }: Props) {
     );
   }
 
-  const empty = isEmptyProgress(progress) && readResume(storage) === null;
+  // Download has nothing to export without saved progress, but forget also clears a saved study place (Codex on #221).
+  const noProgress = isEmptyProgress(progress);
+  const empty = noProgress && readResume(storage) === null;
 
   return (
     <div>
@@ -173,7 +175,7 @@ export default function ProgressPanel({ decks }: Props) {
           all of this is saved in this browser only. cueory never receives it.
         </p>
         <div className="mt-stack flex flex-wrap gap-3">
-          <button type="button" onClick={download} disabled={empty} className={`${primaryButton} disabled:opacity-50`}>
+          <button type="button" onClick={download} disabled={noProgress} className={`${primaryButton} disabled:opacity-50`}>
             download my progress
           </button>
           {!confirming && (

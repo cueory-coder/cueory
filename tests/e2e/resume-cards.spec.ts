@@ -189,12 +189,19 @@ test('forget stays available after undoing the only card sort (Codex on #221)', 
   await page.goto(URL);
   await rate(page, 'Know it');
   await page.getByRole('button', { name: 'Back', exact: true }).click();
-  expect(await page.evaluate(() => localStorage.getItem('cueory-resume'))).toBeNull();
+  // Undoing the only sort empties the piles, but the saved place (card 1 of round 1) is still kept.
+  expect(await page.evaluate(() => localStorage.getItem('cueory-progress'))).toBeNull();
+  expect(await page.evaluate(() => localStorage.getItem('cueory-resume'))).not.toBeNull();
 
   await page.goto('/progress');
+  await expect(page.getByRole('button', { name: 'download my progress' })).toBeDisabled();
   const forget = page.getByRole('button', { name: 'forget my progress on this device' });
   await expect(forget).toBeEnabled();
   await forget.click();
   await page.getByRole('button', { name: 'yes, forget it' }).click();
   await expect(page.getByText('done. your progress is no longer saved on this device.')).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('cueory-resume'))).toBeNull();
+  await page.goto(URL);
+  await expect(page.getByTestId('flashcard')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'pick up where you left off?' })).toHaveCount(0);
 });
