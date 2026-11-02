@@ -245,12 +245,26 @@ Merged into `staging`:
   `check_answer` contract test against the real request helper (#142, Task 48).
 
 ## In review
-- Open pull requests add their own lines here. Waiting now: Release browser tests (#55).
+- Task 108, guided onboarding (#189): two optional setup questions on separate accessible screens with preserved device-local progress, in review.
+- Task 74, accessibility sweep (#157): full-site keyboard and axe audit, with segmented-date regression coverage, awaiting exact-head CI and Codex review.
+- Open pull requests write their line in their own file under `docs/status/in-review/` (see its README); the director
+  moves them here in batches. Older pull requests still add their own lines here. Waiting now: Release browser tests (#55).
+- Task 111, reminder choices preview (#191): non-sending phone and email choices open only after a completed review and a deliberate tap, with keyboard/privacy checks while real opt-in and delivery remain future work.
+- Task 106, review-reminder email (#185): non-sending branded HTML, plain-text alternative and noindex sample preview, awaiting CI and Codex review.
+- Task 105, quiet result marks (#188): official emblem and real Cueory page address appear only on completed pulse, sort and crossword result cards and the progress summary; answer areas and printing stay clear.
+- Task 56, account screens (#164): Google and email/password screens now use Task 55’s shared client, with accounts-off and retry handling. Callback, profile-name persistence and verified recovery remain held for their integration owner and Christian’s approval.
+- Task 100, points, streaks and achievements (#180): deterministic local-only rewards with weekly free passes and test coverage, awaiting CI and Codex review.
+- Task 110 start, cruet loading animation (#184): the four layers cut from Christian's emblem and the lead's working prototype in `docs/prototypes/`; the island comes next.
+- Vial images for the ways-to-study carousel (Task 109, files only): ten blank-label vials from Christian's own AI-made image; the carousel task uses them.
 - Task 84, sticky reading header (#182): A frosted header tucks on downward scroll, reappears on upward scroll, and stays visible during keyboard or menu use.
 - Task 95, modern sample questions page (#174): passed full CI and Codex review, merged into `staging` and awaiting the next production release.
 - Task 73, break-idea sharing proposal (#177): private submissions, moderation, reporting, export and account-deletion safeguards proposed for Christian's decisions.
+- Approved designs (#178): Christian's approved mockups saved in `docs/screenshots/approved-2026-11-01/` for the builders.
 - Glove photos and the Kalam font (#163): Christian's nine glove colors cut out as WebP files, and the handwriting he
   picked. Files only; the glove note (Task 70) uses them and stays off until he checks it.
+- Task 99, Lato body font (#172): Lato for body and interface text, line spacing at least 1.5, plain accent line under the home headline. Waits for Christian (it edits CLAUDE.md).
+- Task 55, Supabase client (#156): Supabase's sign-in library, loaded only on pages that need an account; the security policy gains the project address only when accounts are on. Waits for Christian (sign-in and security policy).
+- Task 58, signed-in account corner (#186): initials avatar and account actions from the student's own session, with no client load before idle and the accounts-off menu unchanged.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
@@ -258,6 +272,8 @@ Merged into `staging`:
 3. Christian's 31 Oct evening requests ([the lead's note on issue #4](https://github.com/lilchristxan/Cueory/issues/4#issuecomment-6551841155)),
    now first: brand v1.0 (the lead's branch), then the home page polish pass, then the rest of daily games (the home
    page section, pulse and sort are in `staging`; the crossword and word path are in review).
+- Task 61, private student export loader (#169): safely reads an account's own saved data for download, with CI verified and lead/Codex review plus Christian's approval required.
+- Task 77, motion and depth foundation (#153): shared tokens and classes for lift, press, card flip, progress bars, loading shimmer, entrances, segmented controls and page transitions, all off with reduced motion. Finished by the lead; the vial carousel, palettes and scenes build on it.
 
 ## Visuals kit (Task 6, D-56)
 Targets: first visuals by about 14 November, the full kit by about 12 December ([plan](VISUALS.md)).
