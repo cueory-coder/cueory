@@ -261,6 +261,7 @@ Merged into `staging`:
   picked. Files only; the glove note (Task 70) uses them and stays off until he checks it.
 - Task 99, Lato body font (#172): Lato for body and interface text, line spacing at least 1.5, plain accent line under the home headline. Waits for Christian (it edits CLAUDE.md).
 - Task 55, Supabase client (#156): Supabase's sign-in library, loaded only on pages that need an account; the security policy gains the project address only when accounts are on. Waits for Christian (sign-in and security policy).
+- Task 58, signed-in account corner (#186): initials avatar and account actions from the student's own session, with no client load before idle and the accounts-off menu unchanged.
 
 ## Queued (Christian's change requests on issue #4, in his order)
 1. CI: WebKit and Firefox on Release pull requests, plus the device rule in CLAUDE.md (D-48; waits for Christian).
