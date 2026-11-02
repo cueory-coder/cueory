@@ -133,7 +133,7 @@ test.describe('Task 94: full-site Evening palette audit', () => {
       if ((await darkChoice.count()) !== 1) {
         findings.push('footer: missing Dark theme radio');
       } else {
-        await darkChoice.check({ force: true });
+        await darkChoice.check();
         if (!(await darkChoice.isChecked())) findings.push('footer: Dark choice did not remain checked');
       }
 

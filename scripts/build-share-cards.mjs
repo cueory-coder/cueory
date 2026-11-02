@@ -1,138 +1,173 @@
 /**
- * Generates static share card images for Task 103 (D-pending).
+ * Builds the static share card images for Task 103 (D-pending): one 1200×630 PNG per tool group and card style in
+ * public/share/. Nothing personal goes in them.
  *
- * Produces one 1200×630 PNG per (tool-group × style) in public/share/.
- * No personal data. Run from the repository root (sharp is an Astro transitive dep):
+ * - Background and words: drawn by Chromium (Playwright, already a dev dependency) so the self-hosted Lato and
+ *   Bodoni Moda in public/fonts/ are used, the same files the site serves.
+ * - Logo: Christian's official artwork from public/brand/v1/ (BRAND.md), composited on top by sharp. It is never typed
+ *   in a font, traced, recolored, stretched, faded or given an effect: the Ivory file goes on dark cards and the
+ *   Espresso file on the ivory card, scaled to exactly half of the 480px web copy (both sides, so the shape is kept).
+ *
+ * Run from the repository root after `npx playwright install chromium`:
  *
  *   node scripts/build-share-cards.mjs
+ *
+ * SHARE_CARDS_CHROMIUM=/path/to/chrome uses a specific Chromium build instead of Playwright's own.
  */
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
+import { chromium } from '@playwright/test';
 import sharp from 'sharp';
 
 const OUT_DIR = 'public/share';
 const W = 1200;
 const H = 630;
+const STYLES = ['scene', 'ivory', 'bronze-coin'];
 
-const COLORS = {
+/** Brand colors (BRAND.md) and the scene colors Christian chose for share cards (2026-11-01). */
+const C = {
   ivory: '#f9f5ef',
+  sand: '#cbb8a4',
+  taupe: '#d3b7a1',
+  bronze: '#6b5243',
   espresso: '#3e2c23',
   walnut: '#231911',
   wine: '#4a0e0e',
   studyGreen: '#051f20',
-  studyLeaf: '#163832',
-  bronze1: '#7d6249',
-  bronze2: '#b89473',
-  bronze3: '#e2c6a2',
-  soft: '#d3b7a1',
-  line: '#d3b7a1',
+  coinDeep: '#7d6249',
+  coinMid: '#b89473',
+  coinLight: '#e2c6a2',
 };
 
-/** Tool groups: all games share the same card; study gets its own. */
+/** The approved motto, exactly as BRAND.md writes it. */
+const MOTTO = 'by nursing students, for nursing students.';
+
+/** Tool groups: every game shares one set of cards, study skills has its own. */
 const GROUPS = [
-  { id: 'games', scene: COLORS.wine, name: 'daily games', glyph: 'G' },
-  { id: 'study', scene: COLORS.studyGreen, name: 'study skills', glyph: 'S' },
+  { id: 'games', scene: C.wine, name: 'daily games', glyph: 'G' },
+  { id: 'study', scene: C.studyGreen, name: 'study skills', glyph: 'S' },
 ];
 
-/** Build an SVG string for a given group and style. */
-function makeSvg(group, style) {
-  const { scene, name, glyph } = group;
-  if (style === 'scene') return makeSceneCard(scene, name);
-  if (style === 'ivory') return makeIvoryCard(name);
-  return makeBronzeCoinCard(glyph, name);
+/** The official logo: Ivory art on dark cards, Espresso art on the ivory card. */
+const LOGO = {
+  ivory: 'public/brand/v1/logo-full-dark-480.png',
+  espresso: 'public/brand/v1/logo-full-light-480.png',
+};
+/** Each file's one ink color (BRAND.md: Ivory art and Espresso art). */
+const LOGO_INK = { ivory: [249, 245, 239], espresso: [62, 44, 35] };
+const LOGO_WIDTH = 240; // half of the 480px web copy; at least 96px (AGENTS.md) and the header size (BRAND.md)
+const LOGO_LEFT = 72;
+const LOGO_TOP = 64;
+
+const font = (file) => `data:font/woff2;base64,${readFileSync(`public/fonts/${file}`).toString('base64')}`;
+const FONTS = `
+  @font-face { font-family: 'Lato'; font-weight: 400; src: url(${font('lato-latin-400-normal.woff2')}) format('woff2'); }
+  @font-face { font-family: 'Lato'; font-weight: 700; src: url(${font('lato-latin-700-normal.woff2')}) format('woff2'); }
+  @font-face { font-family: 'Bodoni Moda'; font-weight: 400 900; src: url(${font('bodoni-moda-latin-opsz-normal.woff2')}) format('woff2'); }
+`;
+
+const BASE = `
+  * { margin: 0; box-sizing: border-box; }
+  html, body { width: ${W}px; height: ${H}px; overflow: hidden; }
+  body { position: relative; font-family: 'Lato', sans-serif; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+  .serif { font-family: 'Bodoni Moda', serif; font-weight: 500; line-height: 1.1; letter-spacing: -0.025em; }
+`;
+
+/** Which logo goes on each style, and the HTML for the card behind it. */
+function card(group, style) {
+  if (style === 'scene') {
+    return {
+      logo: 'ivory',
+      css: `body { background: ${group.scene}; color: ${C.ivory}; }
+        .band { position: absolute; left: -200px; width: 1800px; background: ${C.ivory}; transform: rotate(-18deg); }
+        .band-wide { top: 470px; height: 120px; opacity: 0.03; }
+        .band-thin { top: 620px; height: 60px; opacity: 0.025; }
+        .text { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 60px; }
+        h1 { font-size: 112px; }
+        p { margin-top: 24px; font-size: 32px; color: ${C.sand}; }`,
+      body: `<div class="band band-wide"></div><div class="band band-thin"></div>
+        <div class="text"><h1 class="serif">${group.name}</h1><p>${MOTTO}</p></div>`,
+    };
+  }
+  if (style === 'ivory') {
+    return {
+      logo: 'espresso',
+      css: `body { background: ${C.ivory}; color: ${C.espresso}; }
+        .rule { position: absolute; left: ${LOGO_LEFT}px; top: 196px; width: 96px; height: 2px; background: ${C.taupe}; }
+        h1 { position: absolute; left: ${LOGO_LEFT}px; bottom: 150px; font-size: 136px; }
+        p { position: absolute; left: ${LOGO_LEFT}px; bottom: 84px; font-size: 32px; color: ${C.bronze}; }`,
+      body: `<div class="rule"></div><h1 class="serif">${group.name}</h1><p>${MOTTO}</p>`,
+    };
+  }
+  return {
+    logo: 'ivory',
+    css: `body { background: ${C.walnut}; color: ${C.ivory}; }
+      .glow { position: absolute; left: ${W / 2 - 230}px; top: 40px; width: 460px; height: 460px; border-radius: 50%; background: ${C.coinDeep}; opacity: 0.12; }
+      .coin { position: absolute; left: ${W / 2 - 170}px; top: 100px; width: 340px; height: 340px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        background: radial-gradient(circle at 38% 32%, ${C.coinLight} 0%, ${C.coinMid} 45%, ${C.coinDeep} 100%);
+        box-shadow: inset 0 -10px 28px rgb(35 25 17 / 0.45), inset 0 8px 18px rgb(249 245 239 / 0.25), 0 14px 40px rgb(0 0 0 / 0.45);
+        border: 6px solid rgb(226 198 162 / 0.6); }
+      .coin span { font-size: 168px; color: ${C.espresso}; line-height: 1; padding-bottom: 12px; }
+      p { position: absolute; left: 0; right: 0; top: 476px; text-align: center; font-size: 40px; font-weight: 700; }`,
+    body: `<div class="glow"></div><div class="coin"><span class="serif">${group.glyph}</span></div><p>${group.name}</p>`,
+  };
 }
 
-function makeSceneCard(bg, name) {
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
-  <rect width="${W}" height="${H}" fill="${bg}"/>
-  <!-- subtle texture: two diagonal bands at low opacity -->
-  <rect x="-200" y="350" width="1800" height="120" fill="white" fill-opacity="0.03" transform="rotate(-18 600 315)"/>
-  <rect x="-200" y="500" width="1800" height="60"  fill="white" fill-opacity="0.025" transform="rotate(-18 600 315)"/>
-  <!-- wordmark stand-in: 'cueory' in Lato, upper-left -->
-  <text x="60" y="80" font-family="Lato, sans-serif" font-size="32" font-weight="700" fill="${COLORS.ivory}" fill-opacity="0.6" letter-spacing="6">cueory</text>
-  <!-- main label -->
-  <text x="${W / 2}" y="${H / 2 + 20}" text-anchor="middle" font-family="Lato, sans-serif" font-size="96" font-weight="700" fill="${COLORS.ivory}" letter-spacing="-2">${name}</text>
-  <!-- tagline -->
-  <text x="${W / 2}" y="${H / 2 + 90}" text-anchor="middle" font-family="Lato, sans-serif" font-size="32" fill="${COLORS.ivory}" fill-opacity="0.55">daily medical study</text>
-</svg>`;
+function html(group, style) {
+  const { css, body } = card(group, style);
+  return `<!doctype html><html><head><meta charset="utf-8"><style>${FONTS}${BASE}${css}</style></head><body>${body}</body></html>`;
 }
 
-function makeIvoryCard(name) {
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
-  <rect width="${W}" height="${H}" fill="${COLORS.ivory}"/>
-  <!-- decorative large display number / glyph (Bodoni editorial feel) -->
-  <text x="60" y="480" font-family="'Bodoni Moda', 'Bodoni 72', Didot, Georgia, serif" font-size="480" font-style="italic" fill="${COLORS.espresso}" fill-opacity="0.06" letter-spacing="-20">7</text>
-  <!-- divider -->
-  <line x1="60" y1="80" x2="60" y2="500" stroke="${COLORS.line}" stroke-width="2"/>
-  <!-- wordmark -->
-  <text x="88" y="120" font-family="Lato, sans-serif" font-size="28" font-weight="700" fill="${COLORS.espresso}" fill-opacity="0.45" letter-spacing="5">cueory</text>
-  <!-- main label -->
-  <text x="88" y="390" font-family="'Bodoni Moda', 'Bodoni 72', Didot, Georgia, serif" font-size="88" fill="${COLORS.espresso}">${name}</text>
-  <!-- tagline -->
-  <text x="88" y="470" font-family="Lato, sans-serif" font-size="30" fill="${COLORS.espresso}" fill-opacity="0.5">daily medical study</text>
-</svg>`;
-}
-
-function makeBronzeCoinCard(glyph, name) {
-  const cx = W / 2, cy = H / 2;
-  const r = 210;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
-  <defs>
-    <radialGradient id="coin" cx="38%" cy="32%" r="65%">
-      <stop offset="0%"   stop-color="${COLORS.bronze3}"/>
-      <stop offset="45%"  stop-color="${COLORS.bronze2}"/>
-      <stop offset="100%" stop-color="${COLORS.bronze1}"/>
-    </radialGradient>
-    <radialGradient id="shadow" cx="50%" cy="50%" r="50%">
-      <stop offset="60%"  stop-color="black" stop-opacity="0"/>
-      <stop offset="100%" stop-color="black" stop-opacity="0.35"/>
-    </radialGradient>
-    <filter id="softshadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="8" stdDeviation="24" flood-color="black" flood-opacity="0.5"/>
-    </filter>
-  </defs>
-  <rect width="${W}" height="${H}" fill="${COLORS.walnut}"/>
-  <!-- subtle warm glow behind coin -->
-  <circle cx="${cx}" cy="${cy}" r="${r + 60}" fill="${COLORS.bronze1}" fill-opacity="0.12"/>
-  <!-- coin body -->
-  <circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#coin)" filter="url(#softshadow)"/>
-  <!-- coin edge ring -->
-  <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${COLORS.bronze3}" stroke-width="6" stroke-opacity="0.6"/>
-  <circle cx="${cx}" cy="${cy}" r="${r - 14}" fill="none" stroke="${COLORS.bronze1}" stroke-width="2" stroke-opacity="0.5"/>
-  <!-- inner shadow -->
-  <circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#shadow)"/>
-  <!-- glyph (Bodoni editorial) -->
-  <text x="${cx}" y="${cy + 52}" text-anchor="middle" font-family="'Bodoni Moda', 'Bodoni 72', Didot, Georgia, serif" font-size="160" font-style="italic" fill="${COLORS.espresso}" fill-opacity="0.75">${glyph}</text>
-  <!-- wordmark, lower left -->
-  <text x="60" y="${H - 44}" font-family="Lato, sans-serif" font-size="26" font-weight="700" fill="${COLORS.ivory}" fill-opacity="0.4" letter-spacing="4">cueory</text>
-  <!-- name label, lower right -->
-  <text x="${W - 60}" y="${H - 44}" text-anchor="end" font-family="Lato, sans-serif" font-size="26" fill="${COLORS.ivory}" fill-opacity="0.5">${name}</text>
-</svg>`;
+/**
+ * The official logo file at LOGO_WIDTH, the way scripts/build-brand-v1.mjs scales it: resizing changes only the
+ * transparency (how much ink covers each pixel), and every pixel is put back to the file's exact ink color.
+ */
+async function logoImage(variant) {
+  const meta = await sharp(LOGO[variant]).metadata();
+  const height = Math.round((meta.height * LOGO_WIDTH) / meta.width);
+  const { data, info } = await sharp(LOGO[variant])
+    .resize({ width: LOGO_WIDTH, height, fit: 'fill', kernel: 'lanczos3' })
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const [r, g, b] = LOGO_INK[variant];
+  for (let i = 0; i < data.length; i += 4) {
+    data[i] = r;
+    data[i + 1] = g;
+    data[i + 2] = b;
+  }
+  return sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } }).png().toBuffer();
 }
 
 async function main() {
   mkdirSync(OUT_DIR, { recursive: true });
-
-  const STYLES = ['scene', 'ivory', 'bronze-coin'];
-  const tasks = [];
-  for (const group of GROUPS) {
-    for (const style of STYLES) {
-      tasks.push({ group, style });
+  const logos = { ivory: await logoImage('ivory'), espresso: await logoImage('espresso') };
+  const browser = await chromium.launch({ executablePath: process.env.SHARE_CARDS_CHROMIUM || undefined });
+  try {
+    const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
+    for (const group of GROUPS) {
+      for (const style of STYLES) {
+        await page.setContent(html(group, style));
+        const missing = await page.evaluate(async (faces) => {
+          await Promise.all(faces.map((face) => document.fonts.load(face)));
+          await document.fonts.ready;
+          return faces.filter((face) => !document.fonts.check(face));
+        }, ['400 20px Lato', '700 20px Lato', '500 20px "Bodoni Moda"']);
+        if (missing.length) throw new Error(`fonts did not load: ${missing.join(', ')}`);
+        const background = await page.screenshot({ type: 'png' });
+        const outPath = `${OUT_DIR}/${group.id}-${style}.png`;
+        await sharp(background)
+          .composite([{ input: logos[card(group, style).logo], left: LOGO_LEFT, top: LOGO_TOP }])
+          .png({ compressionLevel: 9 })
+          .toFile(outPath);
+        console.log(`wrote ${outPath}`);
+      }
     }
+  } finally {
+    await browser.close();
   }
-
-  for (const { group, style } of tasks) {
-    const svg = makeSvg(group, style);
-    const outPath = `${OUT_DIR}/${group.id}-${style}.png`;
-    await sharp(Buffer.from(svg))
-      .png({ compressionLevel: 9 })
-      .toFile(outPath);
-    console.log(`wrote ${outPath}`);
-  }
-
-  console.log(`done — ${tasks.length} images in ${OUT_DIR}/`);
 }
 
-main().catch(err => {
-  console.error(err);
+main().catch((error) => {
+  console.error(error);
   process.exit(1);
 });

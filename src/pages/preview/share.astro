@@ -16,14 +16,14 @@ import { gameName } from '../../config/games';
     <h1 class="text-xl font-medium text-ink">share sheet preview</h1>
 
     <div class="flex flex-col gap-2">
-      <p class="text-sm text-ink-soft">games ({gameName('pulse')})</p>
+      <h2 class="text-lg font-medium text-ink">a game: {gameName('pulse')}</h2>
       <div class="rounded-2xl border border-line p-6">
         <ShareSheet tool="pulse" siteUrl={site.url} client:only="react" />
       </div>
     </div>
 
     <div class="flex flex-col gap-2">
-      <p class="text-sm text-ink-soft">study skills</p>
+      <h2 class="text-lg font-medium text-ink">study skills</h2>
       <div class="rounded-2xl border border-line p-6">
         <ShareSheet tool="study" siteUrl={site.url} client:only="react" />
       </div>
