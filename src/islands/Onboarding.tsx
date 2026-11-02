@@ -1,6 +1,9 @@
-import { useRef, useState, type FormEvent } from 'react';
-import { COURSES, examDateWords, isExamDate, readProgress, saveProgress, withOnboarding } from '../scripts/progress';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import {
+  COURSES, examDateWords, isExamDate, localDay, readProgress, saveProgress, withOnboarding, type Onboarding as Answers,
+} from '../scripts/progress';
 import { browserStorage } from '../scripts/storage';
+import { connectExamPlans, loadExamPlan, saveExamPlan, type ExamPlanSyncDb } from './examplansync';
 
 const primaryButton = 'min-h-11 rounded-pill bg-button px-5 py-2.5 text-on-button hover:bg-button-hover';
 const quietButton = 'min-h-11 rounded-pill px-3 py-2.5 text-ink-soft underline';
@@ -11,6 +14,9 @@ const TOTAL_QUESTIONS = 2;
  * Navigation is local UI state. Only finishing writes cueory-progress, and
  * "skip for now" re-reads the current storage record to prevent restoring
  * answers forgotten in another tab.
+ *
+ * Signed in (Task 145), the account's exam date is read on load and wins over the device's, and a new, changed or
+ * cleared date is also written to the account. Signed out or with accounts off, nothing leaves the device.
  */
 export default function Onboarding() {
   const [storage] = useState(browserStorage);
@@ -24,6 +30,34 @@ export default function Onboarding() {
   const courseLegendRef = useRef<HTMLLegendElement>(null);
   const dateHeadingRef = useRef<HTMLHeadingElement>(null);
   const dateRef = useRef<HTMLInputElement>(null);
+  const [syncNote, setSyncNote] = useState('');
+  const account = useRef<Promise<ExamPlanSyncDb | null>>(Promise.resolve(null));
+  const finished = useRef(false);
+
+  useEffect(() => {
+    account.current = (async () => {
+      const db = await connectExamPlans();
+      if (!db) return null;
+      const loaded = await loadExamPlan(db, readProgress(storage).onboarding);
+      if (finished.current) return db;
+      if (!loaded.ok) setSyncNote(loaded.message);
+      else if (loaded.onboarding) {
+        const server = loaded.onboarding;
+        saveProgress(storage, withOnboarding(readProgress(storage), server));
+        // Only answers the student hasn't touched on this screen yet are replaced.
+        setCourse((current) => (current === (saved.course ?? '') ? server.course ?? '' : current));
+        setExamDate((current) => (current === (saved.examDate ?? '') ? server.examDate ?? '' : current));
+      }
+      return db;
+    })();
+  }, [storage, saved]);
+
+  const saveToAccount = async (before: Answers, after: Answers) => {
+    const db = await account.current;
+    if (!db) return;
+    const outcome = await saveExamPlan(db, before, after, localDay(new Date()));
+    if (outcome.status !== 'unchanged') setSyncNote(outcome.message);
+  };
 
   const focusQuestion = (next: 0 | 1) => {
     setStep(next);
@@ -33,9 +67,14 @@ export default function Onboarding() {
   };
 
   const finish = (answers: { course: string; examDate: string }, outcome: 'saved' | 'skipped') => {
-    const kept = saveProgress(storage, withOnboarding(readProgress(storage), answers));
+    const before = readProgress(storage).onboarding;
+    const next = withOnboarding(readProgress(storage), answers);
+    const kept = saveProgress(storage, next);
+    finished.current = true;
+    setSyncNote('');
     setResult(kept ? outcome : 'not-kept');
     requestAnimationFrame(() => resultRef.current?.focus());
+    if (kept) void saveToAccount(before, next.onboarding);
   };
 
   const saveAnswers = () => {
@@ -87,6 +126,7 @@ export default function Onboarding() {
       <div ref={resultRef} tabIndex={-1} aria-live="polite">
         <p className="text-lg">{result === 'saved' ? 'saved on this device.' : 'all set.'}</p>
         <p className="mt-2 text-ink-soft">{summary}</p>
+        {syncNote && <p className="mt-2 text-ink-soft" data-testid="exam-sync">{syncNote}</p>}
         <ul className="mt-stack space-y-2">
           <li><a href="/learn/study-skills">start studying</a></li>
           <li><a href="/progress">see what’s saved on this device</a></li>
@@ -97,6 +137,7 @@ export default function Onboarding() {
 
   return (
     <form onSubmit={submit} noValidate className="space-y-stack">
+      {syncNote && <p className="text-sm text-ink-soft" role="status" data-testid="exam-sync">{syncNote}</p>}
       <div className="flex flex-col gap-3">
         <p className="text-sm font-medium text-ink-soft" aria-live="polite" data-testid="setup-step">
           question {step + 1} of {TOTAL_QUESTIONS}
