@@ -7,11 +7,12 @@
  *   submit_flag:   supabase/migrations/20261101120000_flags_and_submit_flag.sql (PR #110)
  *   delete_my_account: Task 60's migration (branch task-60/delete-my-account-rpc); its only refusal is
  *                      'sign in to delete your account' (errcode 28000).
+ *   update_display_name: supabase/migrations/20261102140000_update_display_name.sql
  *
  * Never echoes raw database text, SQL, table names or error codes to a student.
  */
 
-export type RpcFunction = 'check_answer' | 'submit_flag' | 'delete_my_account';
+export type RpcFunction = 'check_answer' | 'submit_flag' | 'delete_my_account' | 'update_display_name';
 
 interface DbError {
   /** PostgreSQL error message (the string after `raise exception`). */
@@ -72,6 +73,16 @@ export function studentMessage(fn: RpcFunction, error: unknown): string {
   if (fn === 'delete_my_account') {
     // Task 60 (branch task-60/delete-my-account-rpc)
     if (msg === 'sign in to delete your account') return 'please sign in again to delete your account.';
+  }
+
+  if (fn === 'update_display_name') {
+    // supabase/migrations/20261102140000_update_display_name.sql
+    if (msg === 'sign in to change your display name') return 'please sign in again to change your display name.';
+    if (msg === 'a display name is 1 to 50 characters of plain text') return 'a name can be 1 to 50 characters of plain text.';
+    if (msg === 'that is a lot of name changes; please try again later') {
+      return "you've changed your name a lot this hour. please try again later.";
+    }
+    if (msg === 'your profile was not found') return 'your account could not load. please try again.';
   }
 
   return 'something went wrong — please try again.';

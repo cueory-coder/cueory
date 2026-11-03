@@ -7,7 +7,7 @@
  * Reuses checkDisplayName (displayname.ts), loadExport/fromSupabase (exportload.ts), exportJsonBlob/exportCsvBlobs
  * (exportdata.ts) and deletionSummary/confirmState/afterDeletion (deleteaccount.ts).
  */
-import { afterDeletion, confirmState, deletionSummary } from './deleteaccount';
+import { afterDeletion, confirmState, deletionSummary, SESSION_KEYS_AFTER_DELETION } from './deleteaccount';
 import { checkDisplayName } from './displayname';
 import { exportCsvBlobs, exportJsonBlob, type ExportData } from './exportdata';
 import { fromSupabase, loadExport, type ExportReader, type SupabaseExportClient } from './exportload';
@@ -38,7 +38,7 @@ export function accountMessage(kind: AccountMessage): string {
     'delete-unavailable': 'account deletion opens soon.',
     'delete-failed': "we couldn't delete your account. please try again.",
     deleted: 'your account is deleted, and this device no longer keeps your cueory data.',
-    'deleted-not-cleared': "your account is deleted, but this browser didn't let cueory clear what it saved, so clear this site's data in your browser settings.",
+    'deleted-not-cleared': "your account is deleted, but cueory couldn't confirm this browser cleared what it saved, so clear this site's data in your browser settings.",
     'signout-failed': 'sign out did not work. please try again.',
     'load-failed': 'your account could not load. please try again.',
   };
@@ -57,17 +57,17 @@ export type AccountClient = {
   auth: { signOut(options: { scope: 'local' }): PromiseLike<{ error: unknown }> };
   from(table: 'profiles'): {
     select(columns: 'display_name'): { eq(column: 'id', value: string): { maybeSingle(): PromiseLike<Reply> } };
-    update(values: { display_name: string }): { eq(column: 'id', value: string): { select(columns: 'display_name'): PromiseLike<Reply> } };
   };
   rpc(name: 'delete_my_account'): PromiseLike<{ error: unknown }>;
+  rpc(name: 'update_display_name', args: { new_name: string }): PromiseLike<Reply>;
 } & SupabaseExportClient & SessionReader;
 
 export interface AccountAdapters {
   session(): Promise<SessionState>;
   /** The student's own display name, or null when there is none or it can't be read. */
   readName(userId: string): Promise<string | null>;
-  /** True only when the student's own row was updated. */
-  writeName(userId: string, name: string): Promise<boolean>;
+  /** Saves the signed-in student's own display name and resolves with it as saved, or rejects with the database error as `cause`. */
+  writeName(name: string): Promise<string>;
   reader: ExportReader;
   /** Deletes the signed-in student's account, or rejects with the database error as `cause`. Null while deletion isn't open. */
   deleteAccount: (() => Promise<void>) | null;
@@ -76,8 +76,10 @@ export interface AccountAdapters {
 }
 
 /**
- * Adapters over the shared client. deleteAccount calls Task 60's `delete_my_account()` (no arguments; it deletes the
- * caller's own auth user). Methods are always called on their objects, because supabase-js relies on the receiver.
+ * Adapters over the shared client. writeName calls `update_display_name(new_name)` (20261102140000_update_display_name.sql),
+ * the only way to change the name: it changes the caller's own row and limits how often. deleteAccount calls Task 60's
+ * `delete_my_account()` (no arguments; it deletes the caller's own auth user). Methods are always called on their
+ * objects, because supabase-js relies on the receiver.
  */
 export function adaptersFor(client: AccountClient): AccountAdapters {
   return {
@@ -88,9 +90,11 @@ export function adaptersFor(client: AccountClient): AccountAdapters {
       const name = (data as { display_name?: unknown }).display_name;
       return typeof name === 'string' ? name : null;
     },
-    async writeName(userId, name) {
-      const { data, error } = await client.from('profiles').update({ display_name: name }).eq('id', userId).select('display_name');
-      return error == null && Array.isArray(data) && data.length === 1;
+    async writeName(name) {
+      const { data, error } = await client.rpc('update_display_name', { new_name: name });
+      if (error != null) throw new Error('display name not saved', { cause: error });
+      if (typeof data !== 'string') throw new Error('display name not saved');
+      return data;
     },
     reader: fromSupabase(client),
     async deleteAccount() {
@@ -110,16 +114,24 @@ export type SaveResult =
   | { kind: 'saved'; name: string; message: string }
   | { kind: 'invalid' | 'failed'; message: string };
 
-/** Checks the name with the database's own rules first, then saves it to the student's own profile row. */
-export async function saveDisplayName(
-  write: AccountAdapters['writeName'], userId: string, input: string,
-): Promise<SaveResult> {
+/** A known refusal from update_display_name() gets its own sentence (rpcerrors.ts); anything else gets ours. */
+function nameFailure(cause: unknown): string {
+  const said = studentMessage('update_display_name', cause);
+  return said === studentMessage('update_display_name', {}) ? accountMessage('name-failed') : said;
+}
+
+/** Checks the name with the database's own rules first, then saves it through update_display_name. */
+export async function saveDisplayName(write: AccountAdapters['writeName'], input: string): Promise<SaveResult> {
   const checked = checkDisplayName(input);
   if (!checked.ok) return { kind: 'invalid', message: checked.message };
   try {
-    if (await write(userId, checked.name)) return { kind: 'saved', name: checked.name, message: accountMessage('name-saved') };
-  } catch {
-    // Never show a database error; it can hold SQL internals.
+    const saved = await write(checked.name);
+    // Show the name exactly as the database saved it; anything that isn't a valid name is a failed save.
+    const shown = checkDisplayName(saved);
+    if (shown.ok && shown.name === saved) return { kind: 'saved', name: saved, message: accountMessage('name-saved') };
+  } catch (error) {
+    // Never show a database error; it can hold SQL internals. Known refusals have their own sentence.
+    return { kind: 'failed', message: nameFailure(error instanceof Error ? error.cause : undefined) };
   }
   return { kind: 'failed', message: accountMessage('name-failed') };
 }
@@ -236,6 +248,33 @@ export interface DeleteOptions {
   session: KeyValueStorage | undefined;
 }
 
+/** Removes each key, trying every one even after a failure. True only when every removal went through. */
+function removeAll(storage: KeyValueStorage | undefined, keys: Iterable<string>): boolean {
+  if (!storage) return false;
+  let ok = true;
+  for (const key of keys) {
+    try {
+      storage.removeItem(key);
+    } catch {
+      ok = false;
+    }
+  }
+  return ok;
+}
+
+/** The sign-in key first, then every key afterDeletion lists. False when any of it can't be confirmed. */
+function clearLocal(local: KeyValueStorage | undefined): boolean {
+  if (!local) return false;
+  const signIn = removeAll(local, [AUTH_STORAGE_KEY]);
+  let listed: string[];
+  try {
+    listed = [...afterDeletion(local)];
+  } catch {
+    return false;
+  }
+  return removeAll(local, listed) && signIn;
+}
+
 /**
  * Deletes the account, then clears this browser: sign out of this device, remove the sign-in key even when signing
  * out fails (the account is already gone), then remove every key afterDeletion lists. The account is deleted first,
@@ -255,21 +294,11 @@ export async function deleteMyAccount({ typed, deleteAccount, signOut, local, se
   } catch {
     // The account no longer exists; the sign-in key is removed below either way.
   }
-  let cleared = true;
-  try {
-    local?.removeItem(AUTH_STORAGE_KEY);
-  } catch {
-    cleared = false;
-  }
-  if (local) {
-    try {
-      const keys = afterDeletion(local);
-      for (const key of keys) local.removeItem(key);
-      for (const key of keys.sessionKeys ?? []) session?.removeItem(key);
-    } catch {
-      cleared = false;
-    }
-  }
+  // Each storage area is cleared on its own, so one that is missing or refuses never stops the other. Anything that
+  // can't be confirmed (an area this browser won't open, or a removal that throws) is reported, never called clear.
+  const localCleared = clearLocal(local);
+  const sessionCleared = removeAll(session, SESSION_KEYS_AFTER_DELETION);
+  const cleared = localCleared && sessionCleared;
   return { kind: 'deleted', message: accountMessage(cleared ? 'deleted' : 'deleted-not-cleared'), next: '/' };
 }
 

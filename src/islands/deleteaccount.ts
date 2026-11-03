@@ -90,6 +90,9 @@ export function confirmState(typed: string): string | null {
 
 // ── Browser-storage keys to clear ────────────────────────────────────────────
 
+/** This tab's sessionStorage keys that deletion clears. Fixed names, so they can be cleared even when localStorage can't be listed. */
+export const SESSION_KEYS_AFTER_DELETION: readonly string[] = Object.freeze([VISIT_STORAGE_KEY, BREAK_STORAGE_KEY]);
+
 /** Iterable localStorage key names with separate keys for this tab's sessionStorage. */
 export type DeletionStorageKeys = string[] & { readonly sessionKeys: readonly string[] };
 
@@ -117,5 +120,5 @@ export function afterDeletion(storage: KeyValueStorage | undefined): DeletionSto
     const key = storage.key(index);
     if (key?.startsWith(prefix) || key?.startsWith(GUEST_IMPORT_MARKER_PREFIX)) keys.add(key);
   }
-  return Object.assign([...keys], { sessionKeys: [VISIT_STORAGE_KEY, BREAK_STORAGE_KEY] });
+  return Object.assign([...keys], { sessionKeys: [...SESSION_KEYS_AFTER_DELETION] });
 }

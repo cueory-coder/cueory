@@ -110,17 +110,19 @@ test.beforeAll(async () => {
               q.eq = () => ({ maybeSingle: async () => ({ data: { display_name: name }, error: null }) });
               return q;
             },
-            update(values) {
-              return { eq: () => ({ select: async () => {
-                calls.push('update:' + values.display_name);
-                name = values.display_name;
-                return { data: [{ display_name: name }], error: null };
-              } }) };
-            },
+
           };
         },
-        rpc(fn) {
+        rpc(fn, args) {
           if (fn === 'my_flags') return query('my_flags');
+          if (fn === 'update_display_name') {
+            calls.push('rpc:update_display_name:' + args.new_name);
+            if (params.has('name-limited')) {
+              return Promise.resolve({ data: null, error: { message: 'that is a lot of name changes; please try again later', code: '54000' } });
+            }
+            name = args.new_name;
+            return Promise.resolve({ data: name, error: null });
+          }
           calls.push('rpc:' + fn);
           return Promise.resolve(params.has('delete-refused')
             ? { data: null, error: { message: 'sign in to delete your account', code: '28000' } } : { data: null, error: null });
@@ -218,7 +220,17 @@ test.describe('/account signed in (fake client)', () => {
     await page.getByRole('button', { name: 'save', exact: true }).click();
     await expect(page.getByRole('status').first()).toHaveText('your display name is saved.');
     await expect(field).toHaveValue('New Name');
-    expect(await calls(page)).toEqual(['update:New Name']);
+    expect(await calls(page)).toEqual(['rpc:update_display_name:New Name']);
+  });
+
+  test('says so in one sentence when the server limit refuses a name change (Codex on #230)', async ({ page }) => {
+    await fixture(page, '&name-limited');
+    const field = page.getByRole('textbox', { name: 'display name' });
+    await field.fill('New Name');
+    await page.getByRole('button', { name: 'save', exact: true }).click();
+    await expect(page.getByRole('status').first()).toHaveText("you've changed your name a lot this hour. please try again later.");
+    await expect(page.locator('body')).not.toContainText('that is a lot of name changes');
+    expect(await calls(page)).toEqual(['rpc:update_display_name:New Name']);
   });
 
   test('downloads the JSON file and the spreadsheet files, and revokes each object URL', async ({ page }) => {

@@ -4,15 +4,17 @@ import { checkAnswer, type AnswerTransport } from '../../src/islands/checkanswer
 import { exportCsv, exportJson, type ExportData } from '../../src/islands/exportdata';
 import { checkReport } from '../../src/islands/flag';
 import { flagArguments } from '../../src/islands/flagsubmit';
+import { adaptersFor, type AccountClient } from '../../src/islands/accountsettings';
 import { studentMessage } from '../../src/islands/rpcerrors';
 
 const sql = [
   '20261101100000_attempts_and_check_answer.sql',
   '20261101120000_flags_and_submit_flag.sql',
   '20261102100000_study_events.sql',
+  '20261102140000_update_display_name.sql',
 ].map(name => readFileSync(new URL(`../../supabase/migrations/${name}`, import.meta.url), 'utf8')).join('\n');
 
-type FunctionName = 'submit_flag' | 'check_answer' | 'my_flags' | 'record_study_events';
+type FunctionName = 'submit_flag' | 'check_answer' | 'my_flags' | 'record_study_events' | 'update_display_name';
 
 /** Read the actual declarations and dollar-quoted bodies, rather than copying their contracts into a fixture. */
 function declaration(name: FunctionName) {
@@ -61,7 +63,7 @@ describe('SQL arguments and browser request helpers', () => {
 });
 
 describe('every explicit SQL refusal has a student message', () => {
-  for (const name of ['check_answer', 'submit_flag', 'my_flags'] as const) {
+  for (const name of ['check_answer', 'submit_flag', 'my_flags', 'update_display_name'] as const) {
     const messages = declaration(name).messages;
     if (name !== 'my_flags') {
       it(`${name} exposes refusals for this contract check to cover`, () => {
@@ -155,5 +157,30 @@ describe('record_study_events contract (Task 140)', () => {
       expect(table).toMatch(new RegExp(`^\\s+${column} `, 'm'));
     }
     expect(table).toMatch(/user_id uuid not null references auth\.users \(id\) on delete cascade/);
+  });
+});
+
+describe('update_display_name contract (Task 59, Codex on #230)', () => {
+  const nameSql = readFileSync(
+    new URL('../../supabase/migrations/20261102140000_update_display_name.sql', import.meta.url), 'utf8',
+  );
+
+  it('takes one text argument named new_name, which the account page sends, and returns the saved name', async () => {
+    expect(declaration('update_display_name').arguments).toEqual(['new_name']);
+    expect(nameSql).toMatch(/create function public\.update_display_name\(new_name text\)\s+returns text\s/i);
+    const rpc = vi.fn(async () => ({ data: 'Sample', error: null }));
+    const client = { rpc } as unknown as AccountClient;
+    expect(await adaptersFor(client).writeName('Sample')).toBe('Sample');
+    expect(rpc).toHaveBeenCalledWith('update_display_name', { new_name: 'Sample' });
+  });
+
+  it('is signed-in only, security definer with an empty search_path, rate limited, and the only way in', () => {
+    expect(nameSql).toMatch(/returns text\s+language plpgsql\s+security definer\s+set search_path = ''/i);
+    expect(nameSql).toContain('revoke execute on function public.update_display_name(text) from public, anon, authenticated;');
+    expect(nameSql).toContain('grant execute on function public.update_display_name(text) to authenticated;');
+    expect(nameSql).toContain('revoke update (display_name) on table public.profiles from authenticated;');
+    expect(nameSql).toMatch(/pg_advisory_xact_lock\(hashtextextended\('display-name:' \|\| uid::text, 0\)\)/);
+    expect(nameSql).toMatch(/update public\.profiles p set display_name = clean_name where p\.id = uid;/);
+    expect(nameSql).not.toMatch(/grant\s+(select|insert|update|delete)[^;]*display_name_changes[^;]*to\s+(anon|authenticated)/i);
   });
 });

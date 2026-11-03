@@ -3,7 +3,7 @@ import {
   accountMessage, adaptersFor, deleteGate, deleteMyAccount, deletionLines, downloadFiles, gatherExport, offerFile,
   prepareDownload, saveDisplayName, signOutHere, type AccountClient, type AccountMessage, type DownloadDom,
 } from '../../src/islands/accountsettings';
-import { afterDeletion } from '../../src/islands/deleteaccount';
+import { afterDeletion, SESSION_KEYS_AFTER_DELETION } from '../../src/islands/deleteaccount';
 import type { ExportReader } from '../../src/islands/exportload';
 import { STATS_STORAGE_KEY } from '../../src/islands/gameresults';
 import { AUTH_STORAGE_KEY } from '../../src/islands/supabaseclient';
@@ -60,23 +60,33 @@ describe('every outcome is one plain sentence', () => {
 });
 
 describe('saveDisplayName', () => {
-  it("saves a trimmed name to the student's own row", async () => {
-    const write = vi.fn(async () => true);
-    expect(await saveDisplayName(write, 'user-1', '  Sample  ')).toEqual({ kind: 'saved', name: 'Sample', message: 'your display name is saved.' });
-    expect(write).toHaveBeenCalledWith('user-1', 'Sample');
+  it('saves a trimmed name through update_display_name and shows it as saved', async () => {
+    const write = vi.fn(async (name: string) => name);
+    expect(await saveDisplayName(write, '  Sample  ')).toEqual({ kind: 'saved', name: 'Sample', message: 'your display name is saved.' });
+    expect(write).toHaveBeenCalledWith('Sample');
   });
 
   it("refuses a bad name with the database's own rule and never writes", async () => {
-    const write = vi.fn(async () => true);
-    expect(await saveDisplayName(write, 'user-1', '   ')).toEqual({ kind: 'invalid', message: 'a name is required.' });
-    expect(await saveDisplayName(write, 'user-1', 'x'.repeat(51))).toEqual({ kind: 'invalid', message: 'a name can be 1 to 50 characters.' });
+    const write = vi.fn(async (name: string) => name);
+    expect(await saveDisplayName(write, '   ')).toEqual({ kind: 'invalid', message: 'a name is required.' });
+    expect(await saveDisplayName(write, 'x'.repeat(51))).toEqual({ kind: 'invalid', message: 'a name can be 1 to 50 characters.' });
     expect(write).not.toHaveBeenCalled();
+  });
+
+  it("gives the server's limit and sign-in refusals their own sentence (Codex on #230)", async () => {
+    const refusing = (message: string) => async () => { throw new Error('display name not saved', { cause: { message, code: 'P0001' } }); };
+    expect(await saveDisplayName(refusing('that is a lot of name changes; please try again later'), 'Sample'))
+      .toEqual({ kind: 'failed', message: "you've changed your name a lot this hour. please try again later." });
+    expect(await saveDisplayName(refusing('sign in to change your display name'), 'Sample'))
+      .toEqual({ kind: 'failed', message: 'please sign in again to change your display name.' });
   });
 
   it('reports a refused or broken save in one sentence', async () => {
     const failed = { kind: 'failed', message: "we couldn't save your display name. please try again." };
-    expect(await saveDisplayName(async () => false, 'user-1', 'Sample')).toEqual(failed);
-    expect(await saveDisplayName(async () => { throw new Error('private detail'); }, 'user-1', 'Sample')).toEqual(failed);
+    expect(await saveDisplayName(async () => '', 'Sample')).toEqual(failed);
+    expect(await saveDisplayName(async () => { throw new Error('private detail'); }, 'Sample')).toEqual(failed);
+    expect(await saveDisplayName(async () => { throw new Error('x', { cause: { message: 'private detail', code: 'XX000' } }); }, 'Sample'))
+      .toEqual(failed);
   });
 });
 
@@ -244,6 +254,43 @@ describe('delete my account', () => {
     expect(result).toEqual({ kind: 'deleted', next: '/', message: accountMessage('deleted-not-cleared') });
   });
 
+  it('clears session storage even when local storage is missing, and never calls that clear (Codex on #230)', async () => {
+    const { session } = seeded();
+    for (const key of SESSION_KEYS_AFTER_DELETION) session.setItem(key, '1');
+    const result = await deleteMyAccount({ typed: 'delete', deleteAccount: async () => {}, signOut: async () => {}, local: undefined, session });
+    for (const key of SESSION_KEYS_AFTER_DELETION) expect(session.getItem(key)).toBeNull();
+    expect(result).toEqual({ kind: 'deleted', next: '/', message: accountMessage('deleted-not-cleared') });
+  });
+
+  it('clears session storage when local storage throws, and still clears the rest of local storage', async () => {
+    const storage = seeded();
+    const removeItem = storage.local.removeItem.bind(storage.local);
+    // Only the sign-in key refuses; every other local key and the session keys still go.
+    storage.local.removeItem = (key: string) => { if (key === AUTH_STORAGE_KEY) throw new Error('blocked'); removeItem(key); };
+    const result = await deleteMyAccount({ typed: 'delete', deleteAccount: async () => {}, signOut: async () => {}, ...storage });
+    expect([...storage.local.values.keys()].sort()).toEqual([AUTH_STORAGE_KEY, 'not-cueory']);
+    expect(storage.session.getItem(BREAK_STORAGE_KEY)).toBeNull();
+    expect(result.message).toBe(accountMessage('deleted-not-cleared'));
+  });
+
+  it('clears session storage when local storage cannot be listed', async () => {
+    const storage = seeded();
+    const unlistable = Object.assign(storage.local, { key: undefined }) as unknown as KeyValueStorage;
+    const result = await deleteMyAccount({ typed: 'delete', deleteAccount: async () => {}, signOut: async () => {}, local: unlistable, session: storage.session });
+    expect(storage.local.getItem(AUTH_STORAGE_KEY)).toBeNull();
+    expect(storage.session.getItem(BREAK_STORAGE_KEY)).toBeNull();
+    expect(result.message).toBe(accountMessage('deleted-not-cleared'));
+  });
+
+  it('reports cleanup it cannot confirm when session storage is missing or refuses', async () => {
+    for (const session of [undefined, Object.assign(new MemoryStorage(), { removeItem: () => { throw new Error('blocked'); } })]) {
+      const { local } = seeded();
+      const result = await deleteMyAccount({ typed: 'delete', deleteAccount: async () => {}, signOut: async () => {}, local, session });
+      expect([...local.values.keys()]).toEqual(['not-cueory']);
+      expect(result.message).toBe(accountMessage('deleted-not-cleared'));
+    }
+  });
+
   it("lists what will go, or says it couldn't", async () => {
     expect(await deletionLines(reader(), { email: 'student@example.test', storage: undefined, today }))
       .toEqual({ ok: true, lines: ['your display name and email address', '1 exam date'] });
@@ -260,7 +307,7 @@ describe('sign out', () => {
 });
 
 describe('adaptersFor', () => {
-  function fakeClient({ error = null as unknown, rows = [{ display_name: 'Saved' }] as unknown } = {}) {
+  function fakeClient({ error = null as unknown, saved = null as unknown } = {}) {
     const calls: unknown[][] = [];
     const client = {
       auth: {
@@ -276,15 +323,12 @@ describe('adaptersFor', () => {
           select: (columns: string) => ({ eq: (column: string, value: string) => ({
             maybeSingle: async () => { calls.push(['read', table, columns, column, value]); return { data: error ? null : { display_name: 'Sample' }, error }; },
           }) }),
-          update: (values: unknown) => ({ eq: (column: string, value: string) => ({
-            select: async (columns: string) => { calls.push(['update', table, values, column, value, columns]); return { data: rows, error }; },
-          }) }),
         };
       },
-      rpc(this: unknown, name: string) {
+      rpc(this: unknown, name: string, args?: unknown) {
         if (this !== client) throw new Error('client receiver was lost');
-        calls.push(['rpc', name]);
-        return Promise.resolve({ data: null, error });
+        calls.push(args === undefined ? ['rpc', name] : ['rpc', name, args]);
+        return Promise.resolve({ data: error ? null : saved, error });
       },
     };
     return { client: client as unknown as AccountClient, calls };
@@ -298,12 +342,13 @@ describe('adaptersFor', () => {
     expect(calls).toEqual([['read', 'profiles', 'display_name', 'id', 'user-1']]);
   });
 
-  it("updates only display_name on the student's own row, and needs exactly that row back", async () => {
-    const { client, calls } = fakeClient();
-    expect(await adaptersFor(client).writeName('user-1', 'Sample')).toBe(true);
-    expect(calls).toEqual([['update', 'profiles', { display_name: 'Sample' }, 'id', 'user-1', 'display_name']]);
-    expect(await adaptersFor(fakeClient({ rows: [] }).client).writeName('user-1', 'Sample')).toBe(false);
-    expect(await adaptersFor(fakeClient({ error: { code: '42501' } }).client).writeName('user-1', 'Sample')).toBe(false);
+  it('saves the name only through update_display_name, never a direct table update (Codex on #230)', async () => {
+    const { client, calls } = fakeClient({ saved: 'Sample' });
+    expect(await adaptersFor(client).writeName('Sample')).toBe('Sample');
+    expect(calls).toEqual([['rpc', 'update_display_name', { new_name: 'Sample' }]]);
+    await expect(adaptersFor(fakeClient({ saved: null }).client).writeName('Sample')).rejects.toThrow();
+    const refusal = { code: '54000', message: 'that is a lot of name changes; please try again later' };
+    await expect(adaptersFor(fakeClient({ error: refusal }).client).writeName('Sample')).rejects.toMatchObject({ cause: refusal });
   });
 
   it('deletes through delete_my_account() with no arguments and signs out this device only', async () => {

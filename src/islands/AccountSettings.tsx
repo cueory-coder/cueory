@@ -75,7 +75,7 @@ export default function AccountSettings({ adapters: supplied }: Props) {
   if (phase.kind !== 'ready') return null;
 
   return <div className="space-y-10">
-    <NameSection adapters={phase.adapters} userId={phase.userId} initial={phase.name} />
+    <NameSection adapters={phase.adapters} initial={phase.name} />
     <DataSection adapters={phase.adapters} email={phase.email} />
     <DeleteSection adapters={phase.adapters} email={phase.email}
       onDeleted={(message, next) => setPhase({ kind: 'deleted', message, next })} />
@@ -83,7 +83,7 @@ export default function AccountSettings({ adapters: supplied }: Props) {
   </div>;
 }
 
-function NameSection({ adapters, userId, initial }: { adapters: AccountAdapters; userId: string; initial: string }) {
+function NameSection({ adapters, initial }: { adapters: AccountAdapters; initial: string }) {
   const id = useId();
   const [name, setName] = useState(initial);
   const [saving, setSaving] = useState(false);
@@ -94,7 +94,7 @@ function NameSection({ adapters, userId, initial }: { adapters: AccountAdapters;
     if (saving) return;
     setSaving(true);
     setOutcome(null);
-    const result = await saveDisplayName(adapters.writeName, userId, name);
+    const result = await saveDisplayName(adapters.writeName, name);
     setSaving(false);
     setOutcome({ invalid: result.kind === 'invalid', message: result.message });
     if (result.kind === 'saved') setName(result.name);
