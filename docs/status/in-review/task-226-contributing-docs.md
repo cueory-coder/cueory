@@ -1,0 +1,1 @@
+status: Task 226 adds contributor instructions based on the existing package scripts, repository rules, and content-batch documentation. It documents local validation, staging-targeted pull requests, status notes, and the public-content boundary without changing application code.
