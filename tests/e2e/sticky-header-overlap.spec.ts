@@ -21,7 +21,7 @@ function builtRoutes(folder = dist): string[] {
   return routes;
 }
 
-const routes = [...new Set(builtRoutes())].filter((route) => route !== '/').sort();
+const routes = [...new Set(builtRoutes())].sort();
 
 async function waitForIslands(page: Page, route: string): Promise<void> {
   try {
