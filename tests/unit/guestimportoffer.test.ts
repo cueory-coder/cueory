@@ -220,6 +220,19 @@ describe('acceptOffer', () => {
     expect(storage.getItem(markerKey(OTHER))).toBeNull();
   });
 
+  it('stops before the cards and the marker when the account switched while the exam plan was saving', async () => {
+    const storage = memoryStorage();
+    saveProgress(storage, withPile(withOnboarding(emptyProgress(), { course: 'fundamentals', examDate: '2026-12-10' }), 'deck-a', 'card-a', 'know'));
+    let signedInAs: string | null = USER;
+    const { dbs, run } = accept(storage, { idMap: MATCHES, currentUserId: async () => signedInAs });
+    dbs.upsert.mockImplementation(async () => { signedInAs = OTHER; return { error: null }; });
+    expect(await run()).toEqual({ kind: 'account-changed' });
+    expect(dbs.upsert).toHaveBeenCalledTimes(1);
+    expect(dbs.insert).not.toHaveBeenCalled();
+    expect(storage.getItem(markerKey(USER))).toBeNull();
+    expect(storage.getItem(markerKey(OTHER))).toBeNull();
+  });
+
   it('checks the account inside the lock, after waiting for another tab', async () => {
     const storage = memoryStorage();
     withExamDate(storage);
@@ -283,7 +296,7 @@ describe('database adapters', () => {
     const client: ImportClient = {
       from: (table) => ({
         insert: async (rows) => { calls.push(['insert', table, rows]); return { error: insertError }; },
-        update: (patch) => ({ eq: async (column, value) => { calls.push(['update', table, patch, column, value]); return { error: updateError }; } }),
+        update: (patch) => ({ match: async (filter) => { calls.push(['update', table, patch, filter]); return { error: updateError }; } }),
       }),
     };
     return { client, calls };
@@ -292,19 +305,19 @@ describe('database adapters', () => {
 
   it('inserts a new exam plan without an update', async () => {
     const { client, calls } = fakeClient(null);
-    expect(await plansDbFrom(client).upsert('exam_plans', row, 'user_id,course')).toEqual({ error: null });
+    expect(await plansDbFrom(client, USER).upsert('exam_plans', row, 'user_id,course')).toEqual({ error: null });
     expect(calls).toEqual([['insert', 'exam_plans', row]]);
   });
 
-  it('updates only exam_date when the course already has a plan', async () => {
+  it('updates only exam_date, only on the accepting account row, when the course already has a plan', async () => {
     const { client, calls } = fakeClient({ code: '23505' });
-    expect(await plansDbFrom(client).upsert('exam_plans', row, 'user_id,course')).toEqual({ error: null });
-    expect(calls[1]).toEqual(['update', 'exam_plans', { exam_date: '2026-12-10' }, 'course', 'fundamentals']);
+    expect(await plansDbFrom(client, USER).upsert('exam_plans', row, 'user_id,course')).toEqual({ error: null });
+    expect(calls[1]).toEqual(['update', 'exam_plans', { exam_date: '2026-12-10' }, { course: 'fundamentals', user_id: USER }]);
   });
 
   it('passes other insert and update errors through', async () => {
-    expect(await plansDbFrom(fakeClient({ code: '54000' }).client).upsert('exam_plans', row, 'user_id,course')).toEqual({ error: { code: '54000' } });
-    expect(await plansDbFrom(fakeClient({ code: '23505' }, { code: '42501' }).client).upsert('exam_plans', row, 'user_id,course')).toEqual({ error: { code: '42501' } });
+    expect(await plansDbFrom(fakeClient({ code: '54000' }).client, USER).upsert('exam_plans', row, 'user_id,course')).toEqual({ error: { code: '54000' } });
+    expect(await plansDbFrom(fakeClient({ code: '23505' }, { code: '42501' }).client, USER).upsert('exam_plans', row, 'user_id,course')).toEqual({ error: { code: '42501' } });
   });
 
   it('inserts review_state rows as given', async () => {

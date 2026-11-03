@@ -141,7 +141,7 @@ export default function GuestImportOffer({ idMap = NO_CARD_MATCHES }: { idMap?: 
       idMap,
       today: localDay(new Date()),
       cardsDb: cardsDbFrom(current.client),
-      plansDb: plansDbFrom(current.client),
+      plansDb: plansDbFrom(current.client, current.userId),
       lock: browserLock(),
       currentUserId: signedInNow,
     });

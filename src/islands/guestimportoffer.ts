@@ -136,6 +136,9 @@ async function acceptLocked({
   if (wanted.examPlan) {
     const plan = await importExamPlan(plansDb, progress.onboarding, today);
     if (!plan.ok) return { kind: 'error', message: `${plan.message}.` };
+    // Checked again after the plan's round trip, before the cards and the marker: another tab may have switched
+    // accounts while it was in flight.
+    if ((await currentUserId()) !== userId) return { kind: 'account-changed' };
   }
 
   if (wanted.cards) {
@@ -178,7 +181,7 @@ export interface ImportClient {
   from(table: 'review_state' | 'exam_plans'): {
     insert(rows: GuestImportRow[] | ExamPlanRow): PromiseLike<{ error: { code?: string; message?: string } | null }>;
     update(patch: { exam_date: string }): {
-      eq(column: 'course', value: string): PromiseLike<{ error: { code?: string; message?: string } | null }>;
+      match(filter: { course: string; user_id: string }): PromiseLike<{ error: { code?: string; message?: string } | null }>;
     };
   };
 }
@@ -196,14 +199,18 @@ export function cardsDbFrom(client: ImportClient): GuestImportDb {
 /**
  * exam_plans "upsert" as insert, then update on a duplicate. PostgREST's upsert puts every sent column in
  * `do update set`, including `course`, but students may update only `exam_date` (column grant in the D-87
- * migration), so a real upsert would be refused. Row-level security limits the update to the student's own row.
+ * migration), so a real upsert would be refused. Row-level security limits the update to the student's own row, and
+ * the update also names the account that accepted the offer.
  */
-export function plansDbFrom(client: ImportClient): ExamPlanDb {
+export function plansDbFrom(client: ImportClient, userId: string): ExamPlanDb {
   return {
     async upsert(table, row) {
       const inserted = await client.from(table).insert(row);
       if (inserted.error?.code !== '23505') return { error: inserted.error ?? null };
-      const updated = await client.from(table).update({ exam_date: row.exam_date }).eq('course', row.course);
+      // Bound to the account that accepted the offer as well as the course (Codex P1 on #231): if another tab switched
+      // accounts while the insert was in flight, row-level security now limits the update to the new account's row,
+      // and the user_id filter makes it match nothing, so the import can never change another account's plan.
+      const updated = await client.from(table).update({ exam_date: row.exam_date }).match({ course: row.course, user_id: userId });
       return { error: updated.error ?? null };
     },
   };
