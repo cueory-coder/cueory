@@ -71,7 +71,7 @@ its address, `/learn/study-skills`, and its label it and sample questions pages.
   Everyday words only, labeled as samples on the page (D-63).
 - `visuals/` — one JSON file per teaching picture in the visuals kit ([docs/VISUALS.md](../docs/VISUALS.md)): its
   labels, what the drawing shows, and for each one the exact words of the cited open book with the page address. The
-  build checks every file. Only a file marked `"status": "approved"` can appear on a page.
+  build checks every file. Only a visual marked `"status": "approved"` can appear as a teaching picture on a page.
 - `games/cueword/` — sample puzzles for the small crossword, one JSON file each: a `grid` of 3 to 7 rows of equal
   length (capital letters, `.` for a gap) and its `clues`, `across` and `down`, each numbered the usual way. The build
   checks every file with the game's own rules (every word has exactly one clue). Everyday words only, labeled as
@@ -85,3 +85,6 @@ its address, `/learn/study-skills`, and its label it and sample questions pages.
 
 Never put answer keys or reviewer results in this repository while it is (or might become) public. From Task 2 they
 live only in the database (see docs/DECISIONS.md, D-07).
+
+Study-mode pages may show labeled everyday samples and placeholders in the repository, as approved in D-92. Real
+questions, answer keys and rationales still stay private and never appear here.

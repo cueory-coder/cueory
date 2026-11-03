@@ -1,3 +1,4 @@
+import '../styles/pillo.css';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import {
   cleanGuess,
