@@ -178,10 +178,16 @@ describe('debug-console source guard', () => {
   });
 
   it('contains no console.log or console.debug references in src', () => {
-    // No log/debug exceptions are needed. Operational warn/error calls are outside
-    // this rule and remain available for deliberate failure reporting.
-    const violations = files(sourceRoot).flatMap((path) => scan(readFileSync(path, 'utf8'), extname(path))
-      .map(({ line, method }) => `src/${relative(sourceRoot, path)}:${line}: console.${method}`));
+    // Deliberate build-time logging allowlist with specific reasons (Task 278).
+    const allowlist: Record<string, string> = {
+      'src/visuals/prunedrafts.ts:70': 'Build-time notification when draft anatomy models are pruned from dist',
+    };
+    const violations = files(sourceRoot).flatMap((path) => {
+      const rel = `src/${relative(sourceRoot, path)}`;
+      return scan(readFileSync(path, 'utf8'), extname(path))
+        .filter(({ line }) => !allowlist[`${rel}:${line}`])
+        .map(({ line, method }) => `${rel}:${line}: console.${method}`);
+    });
     expect(violations, violations.join('\n')).toEqual([]);
   });
 });
