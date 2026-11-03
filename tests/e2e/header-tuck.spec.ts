@@ -62,7 +62,7 @@ test('header tucks again after focus leaves while the page is scrolled', async (
   await expect(homeLink(page)).toBeFocused();
   await expect(header(page)).not.toHaveClass(/\bis-tucked\b/);
 
-  await page.locator('main a').first().evaluate((link) => (link as HTMLAnchorElement).focus({ preventScroll: true }));
+  await page.locator('main button').first().evaluate((link) => (link as HTMLAnchorElement).focus({ preventScroll: true }));
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(80);
   await expect(header(page)).toHaveClass(/\bis-tucked\b/);
 });
