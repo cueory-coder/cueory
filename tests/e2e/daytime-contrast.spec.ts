@@ -42,6 +42,35 @@ test.describe('Task 233: Daytime contrast sweep', () => {
       const response = await page.goto(route);
       expect(response?.status()).toBe(route === missingPage ? 404 : 200);
       await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+
+      if (route === '/learn/study-skills/questions') {
+        const player = page.getByTestId('questions');
+        await expect(
+          player.locator('fieldset legend'),
+          'question content must finish loading before the Daytime audit',
+        ).toBeVisible({ timeout: 15000 });
+        await expect(
+          player.locator('fieldset input[type="radio"], fieldset input[type="checkbox"]').first(),
+          'at least one question choice must be visible before the Daytime audit',
+        ).toBeVisible();
+      }
+
+      if (route === '/learn/study-skills/label-it') {
+        const board = page.getByTestId('labelit');
+        await expect(
+          board.getByTestId('labelit-status'),
+          'the label-it diagram must finish loading before the Daytime audit',
+        ).toBeVisible({ timeout: 15000 });
+        await expect(
+          board.locator('[data-testid^="cover-"]').first(),
+          'the diagram must show at least one cover before the Daytime audit',
+        ).toBeVisible();
+        await expect.poll(
+          () => board.locator('img').evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0),
+          { timeout: 15000, message: 'the diagram image must load before the Daytime audit' },
+        ).toBe(true);
+      }
+
       const results = await new AxeBuilder({ page }).withTags(axeTags).analyze();
       expect(results.violations.map((violation) =>
         `${violation.id}: ${violation.help} (${violation.nodes.map((node) => node.target.join(' ')).join(', ')})`,
