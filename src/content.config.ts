@@ -6,6 +6,7 @@ import { parseSet as parseLabelSet } from './islands/labelit';
 import { sampleChecker, type SampleItem } from './islands/questions';
 import { visualProblems } from './visuals/sources';
 import { videoSchema } from './videos/schema';
+import { lessonSentenceProblems } from './content/lesson-validation';
 
 /**
  * Lessons are content, not code: they live as JSON files in /content/lessons.
@@ -27,7 +28,12 @@ const lessons = defineCollection({
           text: z.string().min(1).max(400),
         }),
       )
-      .min(1),
+      .min(1)
+      .superRefine((sentences, context) => {
+        for (const message of lessonSentenceProblems(sentences)) {
+          context.addIssue({ code: 'custom', path: ['sentences'], message });
+        }
+      }),
   }),
 });
 
