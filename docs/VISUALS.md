@@ -139,7 +139,14 @@ The allowed books so far are Open RN *Nursing Fundamentals, 2nd Edition*, and Bo
   the official site can't be reached from the build machine. Release 3.0 has no separate heart chambers (the heart is
   one "wall of heart" with valves, papillary muscles and coronary vessels). When Christian downloads the official 4.0
   files, the models are rebuilt with `--release 4.0 --retrieved <the download day>`, after checking that release's
-  file names, hierarchy and coordinate system in its README.
+  file names, hierarchy and coordinate system in its README. The Release 3.0 README says CC BY-SA 2.1 Japan, while
+  the licensor's current license page (2025-02-27) says the database is CC BY 4.0, so these 3.0-based models are
+  drafts on the locked staging site only and will be rebuilt from the official 4.0 download before any picture or
+  model is published.
+- The skeleton is two models so each keeps more detail: `skeleton-axial` (the tree's "axial skeleton", plus the
+  sternum, costal cartilages and inferior nasal conchae, which the tree puts under neither half) and `skeleton-limbs`
+  (the tree's "appendicular skeleton": clavicles, scapulae, hip bones, arms, hands, legs and feet). The tree also
+  lists the ribs and the sacrum under the appendicular skeleton; they stay in `skeleton-axial` only.
 - Viewer: a three.js React island. One body system loads at a time; a system filter and layer peeling (skin to bone)
   with buttons; rotate and zoom by drag, pinch, buttons and the keyboard; no auto-rotate with reduced motion.
 - Phone budget per system: at most 3 MB to download and 150,000 triangles, and it must stay smooth on a mid-range

@@ -157,6 +157,11 @@ describe('the anatomy models', () => {
     expect(anatomyFiles).toEqual(systems.map((system) => `anatomy-${system.id}.json`).sort());
   });
 
+  it('puts each structure in one system only, so the skeleton halves never repeat a bone', () => {
+    const all = systems.flatMap((system) => system.structures);
+    expect(new Set(all).size).toBe(all.length);
+  });
+
   for (const file of anatomyFiles) {
     describe(file, () => {
       const visual = JSON.parse(readFileSync(new URL(file, visualsDir), 'utf8')) as Visual;
