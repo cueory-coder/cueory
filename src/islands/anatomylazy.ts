@@ -58,6 +58,23 @@ export function showAllPlan(
   };
 }
 
+/**
+ * What "show me" must do so the quiz target is really on screen: unhide the target (and its whole layer, when the whole
+ * layer was hidden), or fetch its layer first when the layer's model files are not loaded yet.
+ */
+export function revealTargetPlan(
+  layers: readonly Layer[],
+  hidden: ReadonlySet<string>,
+  targetId: string,
+  filesOf: (layerId: string) => readonly string[],
+  isLoaded: (url: string) => boolean,
+): { unhide: string[]; fetch: Layer | null } {
+  const layer = layers.find((l) => l.ids.includes(targetId));
+  if (layer && !filesOf(layer.id).every(isLoaded) && filesOf(layer.id).length > 0) return { unhide: [], fetch: layer };
+  const wholeLayerHidden = layer !== undefined && layer.ids.every((id) => hidden.has(id));
+  return { unhide: [targetId, ...(wholeLayerHidden ? layer.ids : [])], fetch: null };
+}
+
 export function createOnDemandLoader<R>(fetchOne: (url: string) => Promise<R>): OnDemandLoader<R> {
   const done = new Set<string>();
   const inFlight = new Map<string, Promise<R | null>>();

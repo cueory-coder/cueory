@@ -60,6 +60,56 @@ export function readColors(root: HTMLElement = document.documentElement): LabCol
   };
 }
 
+/** The picture-export sizes, read from the --export-* tokens (src/styles/tokens.css); pixels at `reference`. */
+export interface ExportTokens {
+  reference: number;
+  title: number;
+  label: number;
+  credit: number;
+  pad: number;
+  offset: number;
+  gap: number;
+  radius: number;
+  line: number;
+  dash: number;
+  dashGap: number;
+  dot: number;
+  leading: number;
+  labelPadX: number;
+  labelPadY: number;
+  labelRoom: number;
+}
+
+const EXPORT_TOKEN_NAMES: Record<keyof ExportTokens, string> = {
+  reference: '--export-reference',
+  title: '--export-title',
+  label: '--export-label',
+  credit: '--export-credit',
+  pad: '--export-pad',
+  offset: '--export-offset',
+  gap: '--export-gap',
+  radius: '--export-radius',
+  line: '--export-line',
+  dash: '--export-dash',
+  dashGap: '--export-dash-gap',
+  dot: '--export-dot',
+  leading: '--export-leading',
+  labelPadX: '--export-label-pad-x',
+  labelPadY: '--export-label-pad-y',
+  labelRoom: '--export-label-room',
+};
+
+export function readExportTokens(root: HTMLElement = document.documentElement): ExportTokens {
+  const style = getComputedStyle(root);
+  const out = {} as Record<keyof ExportTokens, number>;
+  for (const key of Object.keys(EXPORT_TOKEN_NAMES) as Array<keyof ExportTokens>) {
+    const value = Number.parseFloat(style.getPropertyValue(EXPORT_TOKEN_NAMES[key]));
+    if (!Number.isFinite(value)) throw new Error(`The picture sizes are missing (${EXPORT_TOKEN_NAMES[key]}).`);
+    out[key] = value;
+  }
+  return out;
+}
+
 export interface Appearance {
   hidden: ReadonlySet<string>;
   selected: string | null;
@@ -555,11 +605,12 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
     const { width, height } = EXPORT_SIZES[request.size];
     // Type is set for the picture's shorter side (1080 in every size), so a wide picture's labels are no taller than
     // a phone picture's and as many fit down its side.
-    const scale = Math.min(width, height) / 1080;
-    const titleSize = Math.round(44 * scale);
-    const labelSize = Math.round(30 * scale);
-    const creditSize = Math.round(22 * scale);
-    const pad = Math.round(48 * scale);
+    const tk = readExportTokens();
+    const scale = Math.min(width, height) / tk.reference;
+    const titleSize = Math.round(tk.title * scale);
+    const labelSize = Math.round(tk.label * scale);
+    const creditSize = Math.round(tk.credit * scale);
+    const pad = Math.round(tk.pad * scale);
     const font = colors.font;
     if (document.fonts) {
       await Promise.all([
@@ -577,20 +628,20 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
     // The credit's lines decide how much room the bottom band needs.
     ctx.font = `400 ${creditSize}px ${font}`;
     const creditLines = wrapText(request.credit, width - 2 * pad, (s) => ctx.measureText(s).width);
-    const creditLineHeight = Math.round(creditSize * 1.5);
-    const top = pad + Math.round(titleSize * 1.5) + Math.round(pad / 2);
+    const creditLineHeight = Math.round(creditSize * tk.leading);
+    const top = pad + Math.round(titleSize * tk.leading) + Math.round(pad / 2);
     const bottom = pad + creditLines.length * creditLineHeight + Math.round(pad / 2);
     const viewHeight = Math.max(1, height - top - bottom);
 
     // Each label's lines, wrapped to a column's width, with "(behind)" for a structure hidden from this side.
     ctx.font = `400 ${labelSize}px ${font}`;
     const measure = (s: string) => ctx.measureText(s).width;
-    const padX = Math.round(labelSize * 0.5);
-    const lineHeight = Math.round(labelSize * 1.5);
-    const boxPadY = Math.round(labelSize * 0.15);
-    const offset = Math.round(40 * scale);
+    const padX = Math.round(labelSize * tk.labelPadX);
+    const lineHeight = Math.round(labelSize * tk.leading);
+    const boxPadY = Math.round(labelSize * tk.labelPadY);
+    const offset = Math.round(tk.offset * scale);
     const margin = Math.round(pad / 2);
-    const maxText = Math.round(width * 0.26);
+    const maxText = Math.round(width * tk.labelRoom);
     const names = new Map(request.labels.map((label) => [label.id, label.text]));
     const ids = [...names.keys()];
 
@@ -626,7 +677,7 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
       height: viewHeight,
       margin,
       offset,
-      gap: Math.round(10 * scale),
+      gap: Math.round(tk.gap * scale),
       ...(model ? { columns: { left: model.x, right: model.x + model.width } } : {}),
     });
     const projected = new Set(anchors.map((a) => a.id));
@@ -651,9 +702,9 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
       // Labels with leader lines, laid out the same way as on screen. A label whose structure is hidden behind others
       // from this side is marked in words, "(behind)", and with a dashed line, box and hollow dot, never by color alone.
       ctx.font = `400 ${labelSize}px ${font}`;
-      ctx.lineWidth = Math.max(2, Math.round(2 * scale));
+      ctx.lineWidth = Math.max(2, Math.round(tk.line * scale));
       ctx.textBaseline = 'middle';
-      const dash = [Math.round(8 * scale), Math.round(6 * scale)];
+      const dash = [Math.round(tk.dash * scale), Math.round(tk.dashGap * scale)];
       const y0 = top;
       for (const label of layout.placed) {
         const text = lines.get(label.id)!;
@@ -664,7 +715,7 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
         ctx.lineTo(label.lineX, label.lineY + y0);
         ctx.stroke();
         ctx.beginPath();
-        ctx.arc(label.anchorX, label.anchorY + y0, Math.max(3, 5 * scale), 0, Math.PI * 2);
+        ctx.arc(label.anchorX, label.anchorY + y0, Math.max(3, tk.dot * scale), 0, Math.PI * 2);
         if (label.behind) {
           ctx.fillStyle = colors.page;
           ctx.fill();
@@ -676,7 +727,7 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
         ctx.fillStyle = colors.page;
         ctx.strokeStyle = label.behind ? colors.inkSoft : colors.line;
         ctx.beginPath();
-        ctx.roundRect(label.x, label.y + y0, label.width, label.height, Math.round(8 * scale));
+        ctx.roundRect(label.x, label.y + y0, label.width, label.height, Math.round(tk.radius * scale));
         ctx.fill();
         ctx.stroke();
         ctx.setLineDash([]);

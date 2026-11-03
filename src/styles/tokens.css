@@ -274,6 +274,24 @@
   --pillo-gloss-mix: 70%;
   /* Anatomy lab (Task 178): how opaque the other structures are while one is selected. */
   --model-dim-alpha: 0.18;
+  /* The anatomy lab's exported pictures (Task 178). Sizes are pixels at the picture's shorter side of
+     --export-reference; the exporter scales them to the picture. Ratios are unitless. */
+  --export-reference: 1080;
+  --export-title: 44;
+  --export-label: 30;
+  --export-credit: 22;
+  --export-pad: 48;
+  --export-offset: 40;
+  --export-gap: 10;
+  --export-radius: 8;
+  --export-line: 2;
+  --export-dash: 8;
+  --export-dash-gap: 6;
+  --export-dot: 5;
+  --export-leading: 1.5;
+  --export-label-pad-x: 0.5;
+  --export-label-pad-y: 0.15;
+  --export-label-room: 0.26;
 }
 
 /*

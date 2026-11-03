@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { AnatomyStructure } from '../../src/islands/anatomylab';
 import { LAYERS, wholeBody, layerShown, type Layer } from '../../src/islands/anatomylayers';
 import { onlyThis } from '../../src/islands/anatomylab';
-import { PartialLoadError, showAllPlan, createGeneration, createOnDemandLoader, filesForLayer, firstLayer, lazyPeel, lazyRestore } from '../../src/islands/anatomylazy';
+import { PartialLoadError, revealTargetPlan, showAllPlan, createGeneration, createOnDemandLoader, filesForLayer, firstLayer, lazyPeel, lazyRestore } from '../../src/islands/anatomylazy';
 
 const layers: Layer[] = [
   { id: 'skin', ids: ['s1'] },
@@ -44,6 +44,22 @@ describe('show only this in the lazy view', () => {
     const files: Record<string, string[]> = { skin: ['s'], muscle: ['m'], skeleton: ['k'] };
     const plan = showAllPlan(layers, hidden, (id) => files[id]!, (url) => url === 's');
     expect(plan.fetch.map((l) => l.id)).toEqual(['muscle', 'skeleton']);
+  });
+});
+
+describe('show me in the quiz', () => {
+  const files: Record<string, string[]> = { skin: ['s'], muscle: ['m'], skeleton: ['k'] };
+  const filesOf = (id: string) => files[id]!;
+  it('unhides a hidden target, and its whole layer when the layer was peeled away', () => {
+    const plan = revealTargetPlan(layers, new Set(['m1', 'm2']), 'm1', filesOf, () => true);
+    expect(plan).toEqual({ unhide: ['m1', 'm1', 'm2'], fetch: null });
+    const single = revealTargetPlan(layers, new Set(['m1']), 'm1', filesOf, () => true);
+    expect(single.unhide).toEqual(['m1']);
+  });
+  it('fetches the target\'s layer first when its files are not loaded', () => {
+    const plan = revealTargetPlan(layers, new Set(['b1']), 'b1', filesOf, (url) => url === 's');
+    expect(plan.fetch?.id).toBe('skeleton');
+    expect(plan.unhide).toEqual([]);
   });
 });
 

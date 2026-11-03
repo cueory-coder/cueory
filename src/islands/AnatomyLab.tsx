@@ -8,7 +8,7 @@ import {
   type MutableRefObject,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import { createGeneration, createOnDemandLoader, filesForLayer, firstLayer, lazyPeel, lazyRestore, PartialLoadError, showAllPlan, type OnDemandLoader } from './anatomylazy';
+import { createGeneration, createOnDemandLoader, filesForLayer, firstLayer, lazyPeel, lazyRestore, PartialLoadError, revealTargetPlan, showAllPlan, type OnDemandLoader } from './anatomylazy';
 import type { LabColors, LabScene, LoadResult } from './anatomyscene';
 import { checkTriangleBudget } from './bodyviewer-logic';
 import {
@@ -809,6 +809,23 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                         onClick={() => {
                           setQuiz(revealQuiz(quiz));
                           setSelected(quiz.target);
+                          // The target may have been hidden by the student (or its layer peeled away): put it back.
+                          const target = quiz.target;
+                          if (!target) return;
+                          const loader = loaderRef.current;
+                          const plan = revealTargetPlan(
+                            layers,
+                            hidden,
+                            target,
+                            (id) => (lazy && system ? filesForLayer(system, id) : []),
+                            (url) => loader?.isLoaded(url) ?? true,
+                          );
+                          if (plan.fetch) reveal(plan.fetch);
+                          else setHidden((h) => {
+                            const next = new Set(h);
+                            for (const id of plan.unhide) next.delete(id);
+                            return next;
+                          });
                         }}
                       >
                         show me
