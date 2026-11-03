@@ -76,7 +76,6 @@ export async function loadModelsOrDispose<T>(
     throw error;
   }
 }
-}
 
 /** Some of a layer's files loaded and some failed: the loaded ones are kept here so the caller can still use them. */
 export class PartialLoadError<R> extends Error {
@@ -161,37 +160,85 @@ export function revealTargetPlan(
   return { unhide: [targetId, ...(wholeLayerHidden ? layer.ids : [])], fetch: null };
 }
 
+/** At most two on-demand GLBs decode at once, including requests from different layer buttons. */
+export const MAX_CONCURRENT_ANATOMY_MODELS = 2;
+
 export function createOnDemandLoader<R>(fetchOne: (url: string) => Promise<R>): OnDemandLoader<R> {
   const done = new Set<string>();
   const inFlight = new Map<string, Promise<R | null>>();
+  const waiting: Array<{ url: string; start: () => void; cancel: () => void }> = [];
+  let active = 0;
   let retired = false;
+
+  /** A shared queue bounds simultaneous model downloads across separate ensure() calls. */
+  function drain() {
+    while (!retired && active < MAX_CONCURRENT_ANATOMY_MODELS && waiting.length > 0) {
+      const job = waiting.shift()!;
+      // Another path might have marked a queued file loaded (for example, the first view).
+      if (done.has(job.url)) {
+        inFlight.delete(job.url);
+        job.cancel();
+        continue;
+      }
+      active++;
+      job.start();
+    }
+  }
+
   function one(url: string): Promise<R | null> {
     if (retired || done.has(url)) return Promise.resolve(null);
     const running = inFlight.get(url);
     if (running) return running.then(() => null);
-    const promise = fetchOne(url).then(
-      (result) => {
-        if (retired) return null;
-        done.add(url);
-        inFlight.delete(url);
-        return result;
-      },
-      (err: unknown) => {
-        // A failure is forgotten, so asking again tries again.
-        inFlight.delete(url);
-        if (retired) return null;
-        throw err;
-      },
-    );
+
+    let resolve!: (value: R | null) => void;
+    let reject!: (reason: unknown) => void;
+    const promise = new Promise<R | null>((ok, fail) => {
+      resolve = ok;
+      reject = fail;
+    });
+    // Register before enqueueing: overlapping layers must share the same download.
     inFlight.set(url, promise);
+    waiting.push({
+      url,
+      cancel: () => resolve(null),
+      start: () => {
+        let fetch: Promise<R>;
+        try {
+          fetch = Promise.resolve(fetchOne(url));
+        } catch (err) {
+          fetch = Promise.reject(err);
+        }
+        void fetch.then(
+          (result) => {
+            inFlight.delete(url);
+            if (retired) resolve(null);
+            else {
+              done.add(url);
+              resolve(result);
+            }
+          },
+          (err: unknown) => {
+            // Failure is not cached, so a later layer action can retry.
+            inFlight.delete(url);
+            if (retired) resolve(null);
+            else reject(err);
+          },
+        ).finally(() => {
+          active--;
+          drain();
+        });
+      },
+    });
+    drain();
     return promise;
   }
+
   return {
     async ensure(urls) {
       const settled = await Promise.allSettled([...new Set(urls)].map(one));
       const results = settled.flatMap((s) => (s.status === 'fulfilled' && s.value !== null ? [s.value] : []));
       const failed = settled.find((s): s is PromiseRejectedResult => s.status === 'rejected');
-      // Files that did load stay loaded (and in the scene), so they are handed over with the error rather than lost.
+      // A failed file must not hide other files that successfully loaded in the same batch.
       if (failed) throw new PartialLoadError(results as R[], failed.reason);
       return results as R[];
     },
@@ -205,6 +252,8 @@ export function createOnDemandLoader<R>(fetchOne: (url: string) => Promise<R>): 
       retired = true;
       done.clear();
       inFlight.clear();
+      // Queued work must never start after changing systems, and callers must not hang.
+      for (const job of waiting.splice(0)) job.cancel();
     },
   };
 }
