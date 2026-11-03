@@ -416,6 +416,46 @@ test.describe('anatomy lab whole body loads layers on demand', () => {
     expect(glb.some((p) => p.endsWith('skin.glb'))).toBe(false);
   });
 
+  test('show me reveals a loaded heart target without fetching the rest of its organ layer', async ({ page }, info) => {
+    test.skip(!isDesktopOfEachEngine(info), 'one real-model quiz reveal check per browser engine');
+    await page.goto('/preview/anatomy-lab');
+    await page.getByRole('button', { name: 'open the anatomy lab' }).click();
+    await expect(page.locator('canvas')).toBeVisible({ timeout: 15_000 });
+    const whole = page.getByRole('group', { name: 'body system' }).getByRole('button', { name: 'whole body' });
+    test.skip((await whole.count()) === 0, 'whole-body draft model is absent from this build');
+    await whole.click();
+    const files = page.getByTestId('anatomy-files');
+    await expect(files).toContainText('model files loaded: 1 of 11', { timeout: 20_000 });
+
+    const layerControls = page.getByRole('group', { name: 'layers, skin to bone' });
+    await layerControls.getByRole('button', { name: /^vessels \(/ }).press('Enter');
+    await expect(files).toContainText('model files loaded: 3 of 11', { timeout: 20_000 });
+
+    // heart.glb is already loaded through the vessels layer, even though
+    // other files that supply the organs layer are still absent.
+    await page.getByLabel('find a structure').fill('heart');
+    await expect(list(page).getByRole('button', { name: 'heart (hidden)', exact: true })).toBeEnabled();
+    await list(page).getByRole('button', { name: 'heart (hidden)', exact: true }).click();
+    await list(page).getByRole('button', { name: 'show heart', exact: true }).click();
+    await page.getByRole('region', { name: 'heart' }).getByRole('button', { name: 'show only this' }).click();
+
+    const quiz = page.getByRole('region', { name: 'find it' });
+    await quiz.getByRole('button', { name: 'start the quiz' }).click();
+    await expect(quiz.getByText('find: heart')).toBeVisible();
+    await list(page).getByRole('button', { name: 'hide heart', exact: true }).click();
+    await expect(list(page).getByRole('button', { name: 'heart (hidden)', exact: true })).toBeVisible();
+
+    const extraRequests: string[] = [];
+    page.on('request', (request) => {
+      if (/\\.glb(?:\\?|$)/.test(request.url())) extraRequests.push(request.url());
+    });
+    await quiz.getByRole('button', { name: 'show me' }).click();
+    await expect(quiz.locator('[data-feedback="shown"]')).toContainText('heart');
+    await expect(list(page).getByRole('button', { name: 'heart', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(files).toContainText('model files loaded: 3 of 11');
+    expect(extraRequests).toEqual([]);
+  });
+
   test('the organs button loads missing files when only the heart is visible from the vessels layer', async ({ page }, info) => {
     test.skip(!isDesktopOfEachEngine(info), 'one real-model download test per browser engine');
     await page.goto('/preview/anatomy-lab');
