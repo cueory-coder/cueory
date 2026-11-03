@@ -1,1 +1,1 @@
-STATUS: route-wide keyboard regression test added; every visited Tab stop must expose a visible outline or box-shadow focus indicator.
+STATUS: focused route-wide keyboard regression test added; it waits for Astro islands and settled requests, excludes hidden layout controls, and requires every visited Tab stop to expose a visible outline or box-shadow focus indicator. This isolates focus visibility from the existing combined axe and keyboard sweep.

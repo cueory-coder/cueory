@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { readdirSync } from 'node:fs';
 import { join, relative, resolve, sep } from 'node:path';
 
@@ -24,15 +24,27 @@ function builtPages(folder = dist): string[] {
 const routes = builtPages();
 const selector = 'a[href], button, input, select, textarea, [tabindex], details > summary:first-of-type';
 
+async function waitForIslands(page: Page, route: string): Promise<void> {
+  try {
+    await page.waitForFunction(() => document.querySelectorAll('astro-island[ssr]').length === 0, undefined, { timeout: 10_000 });
+  } catch {
+    throw new Error(`${route}: islands did not finish loading within 10 s`);
+  }
+  await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {
+    throw new Error(`${route}: network requests did not settle within 10 s`);
+  });
+}
+
 test.describe('Task 210: visible keyboard focus', () => {
   for (const route of routes) {
     test(`${route} gives each Tab stop a visible focus indicator`, async ({ page }) => {
       const response = await page.goto(route);
       expect(response?.status()).toBe(route === '/visible-focus-page-does-not-exist' ? 404 : 200);
+      await waitForIslands(page, route);
 
       const controls = await page.locator(selector).evaluateAll((elements) => elements.flatMap((element, index) => {
         const style = getComputedStyle(element);
-        if (element.tabIndex < 0 || element.matches(':disabled') || style.display === 'none' || style.visibility === 'hidden' || element.closest('[hidden], [inert]')) return [];
+        if (element.tabIndex < 0 || element.matches(':disabled') || style.display === 'none' || style.visibility === 'hidden' || element.closest('[hidden], [inert]') || element.getClientRects().length === 0) return [];
         if (element instanceof HTMLInputElement && element.type === 'radio' && element.name) {
           const group = elements.filter((peer): peer is HTMLInputElement =>
             peer instanceof HTMLInputElement && peer.type === 'radio' && peer.name === element.name && peer.form === element.form,
