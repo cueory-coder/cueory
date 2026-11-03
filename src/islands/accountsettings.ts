@@ -24,7 +24,7 @@ export type AccountMessage =
   | 'export-downloading' | 'export-csv-downloading' | 'export-failed'
   | 'summary-failed'
   | 'delete-unavailable' | 'delete-failed' | 'deleted' | 'deleted-not-cleared'
-  | 'signout-failed' | 'load-failed';
+  | 'signout-failed' | 'load-failed' | 'identity-changed';
 
 /** Every outcome on the page, as one plain sentence in the lowercase voice (D-47). */
 export function accountMessage(kind: AccountMessage): string {
@@ -41,6 +41,7 @@ export function accountMessage(kind: AccountMessage): string {
     'deleted-not-cleared': "your account is deleted, but cueory couldn't confirm this browser cleared what it saved, so clear this site's data in your browser settings.",
     'signout-failed': 'sign out did not work. please try again.',
     'load-failed': 'your account could not load. please try again.',
+    'identity-changed': 'the account signed in on this device changed, so nothing was done. your page is reloading for the current account.',
   };
   return messages[kind];
 }
@@ -54,7 +55,13 @@ interface Reply { data: unknown; error: unknown }
  * `from('profiles')` picks it over the export reader's.
  */
 export type AccountClient = {
-  auth: { signOut(options: { scope: 'local' }): PromiseLike<{ error: unknown }> };
+  auth: {
+    signOut(options: { scope: 'local' }): PromiseLike<{ error: unknown }>;
+    /** https://supabase.com/docs/reference/javascript/auth-onauthstatechange */
+    onAuthStateChange?(callback: (event: string, session: { user?: { id?: unknown } | null } | null) => void): {
+      data: { subscription: { unsubscribe(): void } };
+    };
+  };
   from(table: 'profiles'): {
     select(columns: 'display_name'): { eq(column: 'id', value: string): { maybeSingle(): PromiseLike<Reply> } };
   };
@@ -75,6 +82,18 @@ export interface AccountAdapters {
   deleteAccount: (() => Promise<void>) | null;
   /** Signs out this device only, or rejects. */
   signOut(): Promise<void>;
+  /** Calls back with the signed-in user id (null when signed out) on every sign-in state change, including from other tabs. Returns the unsubscribe. */
+  onIdentityChange?(callback: (userId: string | null) => void): () => void;
+}
+
+/** True only while the device's current session still belongs to `userId`. Any failure to read it counts as changed. */
+export async function sameIdentity(adapters: Pick<AccountAdapters, 'session'>, userId: string): Promise<boolean> {
+  try {
+    const now = await adapters.session();
+    return now.signedIn && now.userId === userId;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -109,6 +128,15 @@ export function adaptersFor(client: AccountClient): AccountAdapters {
     async deleteAccount() {
       const { error } = await client.rpc('delete_my_account');
       if (error != null) throw new Error('account deletion failed', { cause: error });
+    },
+    onIdentityChange(callback) {
+      const listener = client.auth.onAuthStateChange;
+      if (typeof listener !== 'function') return () => {};
+      const { data } = listener.call(client.auth, (_event, next) => {
+        const id = next?.user?.id;
+        callback(typeof id === 'string' && id !== '' ? id : null);
+      });
+      return () => data.subscription.unsubscribe();
     },
     async signOut() {
       const { error } = await client.auth.signOut({ scope: 'local' });
@@ -219,6 +247,17 @@ export async function prepareDownload(reader: ExportReader, options: GatherOptio
   return gathered.ok ? downloadFiles(gathered.data, options.today) : gathered;
 }
 
+/** Like prepareDownload, but for the account the page was opened for: no file if the signed-in account differs before or after reading. */
+export async function prepareDownloadFor(
+  adapters: Pick<AccountAdapters, 'session' | 'reader'>, userId: string, options: GatherOptions,
+): Promise<DownloadResult | { ok: false; message: string; changed: true }> {
+  const changed = { ok: false as const, message: accountMessage('identity-changed'), changed: true as const };
+  if (!(await sameIdentity(adapters, userId))) return changed;
+  const files = await prepareDownload(adapters.reader, options);
+  if (files.ok && !(await sameIdentity(adapters, userId))) return changed;
+  return files;
+}
+
 export interface DownloadDom {
   urls: Pick<typeof URL, 'createObjectURL' | 'revokeObjectURL'>;
   document: Pick<Document, 'createElement' | 'body'>;
@@ -263,9 +302,11 @@ function deleteFailure(cause: unknown): string {
 
 export type DeleteResult =
   | { kind: 'deleted'; message: string; next: '/' }
-  | { kind: 'not-confirmed' | 'unavailable' | 'failed'; message: string };
+  | { kind: 'not-confirmed' | 'unavailable' | 'failed' | 'identity-changed'; message: string };
 
 export interface DeleteOptions {
+  /** Re-reads the current session just before deleting; false (or a throw) means the account changed, so nothing is deleted. */
+  stillSame?: () => Promise<boolean>;
   typed: string;
   deleteAccount: AccountAdapters['deleteAccount'];
   signOut: AccountAdapters['signOut'];
@@ -305,10 +346,11 @@ function clearLocal(local: KeyValueStorage | undefined): boolean {
  * out fails (the account is already gone), then remove every key afterDeletion lists. The account is deleted first,
  * so a failed deletion leaves the student signed in with everything in place.
  */
-export async function deleteMyAccount({ typed, deleteAccount, signOut, local, session }: DeleteOptions): Promise<DeleteResult> {
+export async function deleteMyAccount({ typed, stillSame, deleteAccount, signOut, local, session }: DeleteOptions): Promise<DeleteResult> {
   const reason = confirmState(typed);
   if (reason !== null) return { kind: 'not-confirmed', message: reason };
   if (!deleteAccount) return { kind: 'unavailable', message: accountMessage('delete-unavailable') };
+  if (stillSame && !(await stillSame().catch(() => false))) return { kind: 'identity-changed', message: accountMessage('identity-changed') };
   try {
     await deleteAccount();
   } catch (error) {

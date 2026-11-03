@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import {
-  accountMessage, adaptersFor, deleteGate, deleteMyAccount, deletionLines, offerFile, prepareDownload,
-  saveDisplayName, signOutHere, type AccountAdapters, type AccountClient, type DownloadFile,
+  accountMessage, adaptersFor, deleteGate, deleteMyAccount, deletionLines, offerFile, prepareDownloadFor,
+  sameIdentity, saveDisplayName, signOutHere, type AccountAdapters, type AccountClient, type DownloadFile,
 } from './accountsettings';
 import { AccountsUnavailable, authButton, authInput } from './SignIn.tsx';
 import { getSupabase } from './supabaseclient';
@@ -31,10 +31,42 @@ interface Props {
 }
 
 /** /account (Task 59): display name, download my data, delete my account, then sign out. */
-export default function AccountSettings({ adapters: supplied }: Props) {
+export default function AccountSettings({ adapters }: Props) {
+  const [notice, setNotice] = useState('');
+  return <>
+    <AccountView supplied={adapters} onNotice={setNotice} />
+    {notice && <p role="alert" className="mt-6">{notice}</p>}
+  </>;
+}
+
+function AccountView({ supplied, onNotice }: { supplied: AccountAdapters | null | undefined; onNotice: (message: string) => void }) {
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' });
   const [attempt, setAttempt] = useState(0);
   const deletedRef = useRef<HTMLParagraphElement>(null);
+  const shownUser = useRef<string | null>(null);
+  const deleting = useRef(false);
+  const reload = (message = '') => { onNotice(message); setAttempt(value => value + 1); };
+  shownUser.current = phase.kind === 'ready' ? phase.userId : null;
+
+  // Another tab can sign out or into a different account while this page is open: start over for whoever is signed in now.
+  useEffect(() => {
+    let stop = () => {};
+    let active = true;
+    void (async () => {
+      let adapters = supplied;
+      if (adapters === undefined) {
+        const client = await getSupabase();
+        adapters = client ? adaptersFor(client as unknown as AccountClient) : null;
+      }
+      if (!active || !adapters?.onIdentityChange) return;
+      stop = adapters.onIdentityChange(userId => {
+        if (deleting.current || shownUser.current === null || userId === shownUser.current) return;
+        setPhase({ kind: 'loading' });
+        reload(accountMessage('identity-changed'));
+      });
+    })().catch(() => {});
+    return () => { active = false; stop(); };
+  }, [supplied]);
 
   useEffect(() => {
     let active = true;
@@ -62,7 +94,7 @@ export default function AccountSettings({ adapters: supplied }: Props) {
   if (phase.kind === 'loading') return <p role="status">opening your account…</p>;
   if (phase.kind === 'failed') return <div>
     <p role="alert">{accountMessage('load-failed')}</p>
-    <button type="button" className={`${primary} mt-4`} onClick={() => setAttempt(value => value + 1)}>try again</button>
+    <button type="button" className={`${primary} mt-4`} onClick={() => reload()}>try again</button>
   </div>;
   if (phase.kind === 'off') return <AccountsUnavailable />;
   if (phase.kind === 'signed-out') return <p data-testid="account-signed-out">
@@ -76,8 +108,8 @@ export default function AccountSettings({ adapters: supplied }: Props) {
 
   return <div className="space-y-10">
     <NameSection adapters={phase.adapters} initial={phase.name} />
-    <DataSection adapters={phase.adapters} email={phase.email} />
-    <DeleteSection adapters={phase.adapters} email={phase.email}
+    <DataSection adapters={phase.adapters} userId={phase.userId} email={phase.email} onStale={reload} />
+    <DeleteSection adapters={phase.adapters} userId={phase.userId} email={phase.email} busy={deleting} onStale={reload}
       onDeleted={(message, next) => setPhase({ kind: 'deleted', message, next })} />
     <SignOutSection adapters={phase.adapters} />
   </div>;
@@ -117,7 +149,9 @@ function NameSection({ adapters, initial }: { adapters: AccountAdapters; initial
   </section>;
 }
 
-function DataSection({ adapters, email }: { adapters: AccountAdapters; email: string }) {
+function DataSection({ adapters, userId, email, onStale }: {
+  adapters: AccountAdapters; userId: string; email: string; onStale: (message?: string) => void;
+}) {
   const id = useId();
   const [busy, setBusy] = useState(false);
   const [csv, setCsv] = useState<DownloadFile[] | null>(null);
@@ -130,6 +164,10 @@ function DataSection({ adapters, email }: { adapters: AccountAdapters; email: st
     setCsv(null);
     const today = localDay(new Date());
     let signInDetails: unknown;
+    if (!(await sameIdentity(adapters, userId))) {
+      setBusy(false);
+      return onStale(accountMessage('identity-changed'));
+    }
     try {
       signInDetails = await adapters.signInDetails?.();
     } catch {
@@ -137,9 +175,12 @@ function DataSection({ adapters, email }: { adapters: AccountAdapters; email: st
       setBusy(false);
       return setMessage(accountMessage('export-failed'));
     }
-    const files = await prepareDownload(adapters.reader, { email, signInDetails, storage: browserStorage(), today });
+    const files = await prepareDownloadFor(adapters, userId, { email, signInDetails, storage: browserStorage(), today });
     setBusy(false);
-    if (!files.ok) return setMessage(files.message);
+    if (!files.ok) {
+      if ('changed' in files) return onStale(files.message);
+      return setMessage(files.message);
+    }
     offerFile(files.json, dom());
     setCsv(files.csv);
     setMessage(accountMessage('export-downloading'));
@@ -168,8 +209,8 @@ function DataSection({ adapters, email }: { adapters: AccountAdapters; email: st
 
 type Summary = { kind: 'idle' | 'loading' } | { kind: 'lines'; lines: string[] } | { kind: 'failed'; message: string };
 
-function DeleteSection({ adapters, email, onDeleted }: {
-  adapters: AccountAdapters; email: string; onDeleted: (message: string, next: string) => void;
+function DeleteSection({ adapters, userId, email, busy, onStale, onDeleted }: {
+  adapters: AccountAdapters; userId: string; email: string; busy: { current: boolean }; onStale: (message?: string) => void; onDeleted: (message: string, next: string) => void;
 }) {
   const id = useId();
   const [open, setOpen] = useState(false);
@@ -201,13 +242,18 @@ function DeleteSection({ adapters, email, onDeleted }: {
   const remove = async () => {
     if (locked) return;
     setDeleting(true);
+    busy.current = true;
     setMessage('');
     const result = await deleteMyAccount({
-      typed, deleteAccount: adapters.deleteAccount, signOut: adapters.signOut, local: browserStorage(), session: tabStorage(),
+      typed, stillSame: () => sameIdentity(adapters, userId), deleteAccount: adapters.deleteAccount, signOut: adapters.signOut, local: browserStorage(), session: tabStorage(),
     });
+    busy.current = false;
     setDeleting(false);
     if (result.kind === 'deleted') onDeleted(result.message, result.next);
-    else setMessage(result.message);
+    else {
+      if (result.kind === 'identity-changed') return onStale(result.message);
+      setMessage(result.message);
+    }
   };
 
   return <section aria-labelledby={`${id}-heading`}>

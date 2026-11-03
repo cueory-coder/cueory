@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
-  accountMessage, adaptersFor, deleteGate, deleteMyAccount, deletionLines, downloadFiles, gatherExport, offerFile,
+  accountMessage, adaptersFor, deleteGate, deleteMyAccount, deletionLines, downloadFiles, gatherExport, offerFile, prepareDownloadFor, sameIdentity,
   prepareDownload, saveDisplayName, signOutHere, type AccountClient, type AccountMessage, type DownloadDom,
 } from '../../src/islands/accountsettings';
 import { afterDeletion, SESSION_KEYS_AFTER_DELETION } from '../../src/islands/deleteaccount';
@@ -406,5 +406,62 @@ describe('adaptersFor', () => {
     await expect(adapters.deleteAccount!()).rejects.toThrow('account deletion failed');
     await expect(adapters.signOut()).rejects.toThrow('sign out failed');
     expect(await adapters.readName('user-1')).toBeNull();
+  });
+});
+
+describe('a different account signed in from another tab (Codex on #230)', () => {
+  const session = (userId: string | null) => async () => userId
+    ? { signedIn: true as const, userId, email: `${userId}@example.test` } : { signedIn: false as const };
+
+  it('sameIdentity is true only for the same signed-in user', async () => {
+    expect(await sameIdentity({ session: session('a') }, 'a')).toBe(true);
+    expect(await sameIdentity({ session: session('b') }, 'a')).toBe(false);
+    expect(await sameIdentity({ session: session(null) }, 'a')).toBe(false);
+    expect(await sameIdentity({ session: async () => { throw new Error('x'); } }, 'a')).toBe(false);
+  });
+
+  it('delete aborts and never calls the RPC when the account changed during the confirmation', async () => {
+    let current: string | null = 'a';
+    const deleteAccount = vi.fn(async () => {});
+    const signOut = vi.fn(async () => {});
+    const options = {
+      typed: 'delete', deleteAccount, signOut, local: new MemoryStorage(), session: new MemoryStorage(),
+      stillSame: () => sameIdentity({ session: session(current) }, 'a'),
+    };
+    current = 'b';
+    const result = await deleteMyAccount(options);
+    expect(result).toEqual({ kind: 'identity-changed', message: accountMessage('identity-changed') });
+    current = null;
+    expect((await deleteMyAccount(options)).kind).toBe('identity-changed');
+    expect(deleteAccount).not.toHaveBeenCalled();
+    expect(signOut).not.toHaveBeenCalled();
+    current = 'a';
+    expect((await deleteMyAccount(options)).kind).toBe('deleted');
+    expect(deleteAccount).toHaveBeenCalledTimes(1);
+  });
+
+  it('export aborts with no files when the account differs before or after reading', async () => {
+    const options = { email: 'a@example.test', signInDetails: undefined, storage: new MemoryStorage(), today };
+    const swapped = { session: session('b'), reader: reader() };
+    expect(await prepareDownloadFor(swapped, 'a', options)).toMatchObject({ ok: false, changed: true });
+    let reads = 0;
+    const midway = { session: async () => (++reads > 1 ? { signedIn: true as const, userId: 'b', email: 'b@example.test' } : { signedIn: true as const, userId: 'a', email: 'a@example.test' }), reader: reader() };
+    expect(await prepareDownloadFor(midway, 'a', options)).toMatchObject({ ok: false, changed: true });
+    expect((await prepareDownloadFor({ session: session('a'), reader: reader() }, 'a', options)).ok).toBe(true);
+  });
+
+  it('onIdentityChange reports the new user id (or null) and unsubscribes', () => {
+    let listener: ((event: string, next: { user?: { id?: unknown } | null } | null) => void) | undefined;
+    const unsubscribe = vi.fn();
+    const client = {
+      auth: { onAuthStateChange(this: unknown, callback: typeof listener) { listener = callback; return { data: { subscription: { unsubscribe } } }; } },
+    } as unknown as AccountClient;
+    const seen: Array<string | null> = [];
+    const stop = adaptersFor(client).onIdentityChange!(id => seen.push(id));
+    listener!('SIGNED_IN', { user: { id: 'b' } });
+    listener!('SIGNED_OUT', null);
+    expect(seen).toEqual(['b', null]);
+    stop();
+    expect(unsubscribe).toHaveBeenCalled();
   });
 });
