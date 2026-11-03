@@ -48,5 +48,14 @@ const hasSystems = systems.length > 0 || lab.fixture !== null;
         <p class="rounded-lg border border-line p-4 text-ink">the anatomy lab is coming soon.</p>
       )
     }
+    {
+      hasSystems && (
+        <noscript>
+          <p class="rounded-lg border border-line p-4 text-ink">
+            The 3D view needs JavaScript. <a class="underline" href="/preview/anatomy-text">read structure names without JavaScript</a>.
+          </p>
+        </noscript>
+      )
+    }
   </div>
 </Layout>
