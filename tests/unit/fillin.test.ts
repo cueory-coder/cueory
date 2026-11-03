@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
-  answerCurrent, checkAnswer, currentIndex, editDistance, isCheckKey, nextItem, normalizeAnswer, parseItems,
-  sentenceParts, showHint, startFillIn, summary, type FillInItem,
+  answerCurrent, boundTyped, checkAnswer, currentIndex, editDistance, isCheckKey, nextItem, normalizeAnswer, parseItems,
+  MAX_TYPED, sentenceParts, showHint, startFillIn, summary, type FillInItem,
 } from '../../src/islands/fillin';
+import { MAX_ANSWER_TEXT, parseResume } from '../../src/scripts/resume';
 
 const items: FillInItem[] = [
   { id: 'bees', sentence: 'Bees make [[honey]] from flowers.' },
@@ -119,5 +120,25 @@ describe('fill-in rounds', () => {
     expect(state.done).toBe(true);
     expect(currentIndex(state)).toBeUndefined();
     expect(summary(state)).toBe('all 0 recalled in 0 rounds.');
+  });
+});
+
+describe('fill-in submission bounds (Codex on #219)', () => {
+  it('keeps a saved attempt with its prefix inside the resume answer limit', () => {
+    expect(MAX_TYPED + 2).toBe(MAX_ANSWER_TEXT);
+    const long = boundTyped('a'.repeat(600));
+    expect([...long]).toHaveLength(MAX_TYPED);
+    const now = 1_800_000_000_000;
+    const raw = JSON.stringify({
+      version: 1, tool: 'fill-in', page: '/learn/study-skills/fill-in', step: 'advance-0', itemIndex: 0,
+      itemId: 'item-0', totalItems: 1, answers: { 'item-0': [`h:${long}`] }, timer: null, phase: 'working', savedAt: now,
+    });
+    expect(parseResume(raw, now)).not.toBeNull();
+  });
+
+  it('counts characters, not code units, and drops control characters the resume format rejects', () => {
+    expect([...boundTyped('\u{1F600}'.repeat(600))]).toHaveLength(MAX_TYPED);
+    expect(boundTyped('ho\u0001ney\u007f')).toBe('honey');
+    expect(boundTyped('honey')).toBe('honey');
   });
 });

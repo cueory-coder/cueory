@@ -5,11 +5,17 @@
  */
 import { checkAnswer, checkArguments, type AnswerTransport, type CheckItem } from './checkanswer';
 import { startQuestions, validateResult, type Checker, type Question } from './questions';
+import type { StudyRecorder } from './studyrecorder';
 
 export interface RemoteQuestions {
   signedIn: boolean;
   transport: AnswerTransport;
   versions: readonly CheckItem[];
+  /**
+   * Task 147: makes the study-event recorder for this signed-in player. Leave it out to use the shared client
+   * (`defaultStudyRecorder` in QuestionsPlayer.tsx); tests pass a fake. Never called while signed out.
+   */
+  studyEvents?: () => StudyRecorder;
 }
 
 const failed = "couldn't check that answer. try again.";

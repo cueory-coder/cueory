@@ -4,7 +4,7 @@
  * The new hub cards read from the canonical study-mode configuration. Their
  * visible links preserve the established labels used by students and tests.
  */
-import { getEntry } from 'astro:content';
+import { getCollection, getEntry } from 'astro:content';
 import Layout from '../../../layouts/Layout.astro';
 import ModeTile from '../../../components/ModeTile.astro';
 import SentenceStepper from '../../../islands/SentenceStepper';
@@ -17,6 +17,7 @@ const lesson = await getEntry('lessons', 'study-skills-01');
 if (!lesson) {
   throw new Error('Lesson file content/lessons/study-skills-01.json is missing.');
 }
+const lessonCount = (await getCollection('lessons')).length;
 const { title, summary, sentences, status } = lesson.data;
 const video = await getEntry('videos', 'study-skills-01');
 
@@ -41,7 +42,9 @@ const availableModes = modeOrder.map((id) => {
 <Layout title={title} description={summary} variant="study">
   <div class="mx-auto max-w-page pb-section pt-8 sm:pt-12">
     <header class="mx-auto max-w-prose">
-      <p class="text-sm text-ink-soft">how to study for nursing school · lesson 1 of 5</p>
+      <p class="text-sm text-ink-soft">
+        how to study for nursing school · lesson 1{lessonCount > 1 ? ` of ${lessonCount}` : ''}
+      </p>
       <h1 class="mt-3 text-2xl">{title}</h1>
       <p class="mt-3 text-ink-soft">{summary}</p>
       {status === 'placeholder' && (

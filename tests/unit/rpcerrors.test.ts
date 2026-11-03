@@ -132,3 +132,10 @@ describe('unknown and edge-case errors', () => {
     }
   });
 });
+
+describe('confirmed-email refusal (Task 169)', () => {
+  it.each(['submit_flag', 'check_answer'] as const)('maps it to a plain sentence for %s', fn => {
+    expect(studentMessage(fn, { message: 'confirm your email to use this' }))
+      .toBe('please confirm your email first. the link is in the email we sent you.');
+  });
+});

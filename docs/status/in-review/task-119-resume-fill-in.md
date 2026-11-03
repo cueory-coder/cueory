@@ -1,0 +1,1 @@
+status: Task 119, fill-in recall saves only submitted student words and hint-use flags by opaque item position; Continue restores the exact round and previous submissions, Start over clears the snapshot, and blocked storage remains usable, pending director checks, browser CI and Codex review.
