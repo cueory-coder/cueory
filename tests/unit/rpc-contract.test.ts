@@ -10,9 +10,10 @@ const sql = [
   '20261101100000_attempts_and_check_answer.sql',
   '20261101120000_flags_and_submit_flag.sql',
   '20261102100000_study_events.sql',
+  '20261102110000_delete_my_account.sql',
 ].map(name => readFileSync(new URL(`../../supabase/migrations/${name}`, import.meta.url), 'utf8')).join('\n');
 
-type FunctionName = 'submit_flag' | 'check_answer' | 'my_flags' | 'record_study_events';
+type FunctionName = 'submit_flag' | 'check_answer' | 'my_flags' | 'record_study_events' | 'delete_my_account';
 
 /** Read the actual declarations and dollar-quoted bodies, rather than copying their contracts into a fixture. */
 function declaration(name: FunctionName) {
@@ -155,5 +156,28 @@ describe('record_study_events contract (Task 140)', () => {
       expect(table).toMatch(new RegExp(`^\\s+${column} `, 'm'));
     }
     expect(table).toMatch(/user_id uuid not null references auth\.users \(id\) on delete cascade/);
+  });
+});
+
+describe('delete_my_account contract (Task 60)', () => {
+  const deleteSql = readFileSync(
+    new URL('../../supabase/migrations/20261102110000_delete_my_account.sql', import.meta.url), 'utf8',
+  );
+
+  it('takes no arguments and returns nothing, so the browser calls supabase.rpc(\'delete_my_account\')', () => {
+    expect(declaration('delete_my_account').arguments).toEqual([]);
+    expect(deleteSql).toMatch(/create\s+function\s+public\.delete_my_account\(\)\s+returns void\s/i);
+  });
+
+  it('raises exactly this literal refusal, which the account page handles', () => {
+    // A change here is a contract change for the /account page: update it in the same pull request.
+    expect(declaration('delete_my_account').messages).toEqual(['sign in to delete your account']);
+  });
+
+  it('is signed-in only and security definer with an empty search_path', () => {
+    expect(deleteSql).toMatch(/returns void\s+language plpgsql\s+security definer\s+set search_path = ''/i);
+    expect(deleteSql).toContain('revoke execute on function public.delete_my_account() from public, anon, authenticated;');
+    expect(deleteSql).toContain('grant execute on function public.delete_my_account() to authenticated;');
+    expect(deleteSql).not.toMatch(/grant\s+execute[^;]*to\s+(anon|public)\b/i);
   });
 });

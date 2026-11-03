@@ -19,6 +19,7 @@ import {
   withPile,
   withStars,
 } from '../../src/scripts/progress';
+import { RESUME_STORAGE_KEY } from '../../src/scripts/resume';
 import type { KeyValueStorage } from '../../src/scripts/storage';
 
 function memoryStorage(initial: Record<string, string> = {}): KeyValueStorage & { data: Record<string, string> } {
@@ -176,6 +177,16 @@ describe('guest progress record (D-69)', () => {
     });
     expect(forgetProgress(storage, ['deck-a'])).toBe(true);
     expect(Object.keys(storage.data).sort()).toEqual(['cueory-promo-seen', 'cueory-theme']);
+  });
+
+  it('also forgets the saved study place, which holds the same piles as answers (Codex on #221)', () => {
+    const storage = memoryStorage({
+      [PROGRESS_STORAGE_KEY]: '{"version":1,"decks":{"deck-a":{"know":["c1"],"learning":[],"starred":[]}}}',
+      [RESUME_STORAGE_KEY]: '{"version":1,"tool":"cards","answers":{"c1":"know"}}',
+      'cueory-theme': 'dark',
+    });
+    expect(forgetProgress(storage, ['deck-a'])).toBe(true);
+    expect(Object.keys(storage.data)).toEqual(['cueory-theme']);
   });
 });
 
