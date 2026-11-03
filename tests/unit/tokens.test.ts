@@ -26,6 +26,16 @@ const brand = {
   evening: ['#1c1917', '#3a2d24', '#6b5243', '#cbb8a4', '#f9f5ef'],
 };
 
+// Palette-independent type, spacing and layout tokens live in the shared @theme block. Color tokens are
+// palette-dependent and must be declared in both the Daytime block and the Evening override.
+describe('palette token parity', () => {
+  it('gives every Daytime color token an Evening value', () => {
+    const daytimeColors = Object.keys(daytime);
+    const eveningColors = Object.keys(readColorTokens(eveningDeviceCss));
+    expect(eveningColors).toEqual(expect.arrayContaining(daytimeColors));
+  });
+});
+
 describe('retired colors (brand guide v1.0 §4.3)', () => {
   it('appear nowhere in the tokens', () => {
     expect(css.toLowerCase()).not.toMatch(/#3f2e24|#1b1715|#efe6da|63 46 36|27 23 21|239 230 218/);
