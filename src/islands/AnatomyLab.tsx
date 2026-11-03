@@ -8,7 +8,7 @@ import {
   type MutableRefObject,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import { createGeneration, createOnDemandLoader, filesForLayer, firstLayer, layerNeedsReveal, lazyPeel, lazyRestore, PartialLoadError, revealTargetPlan, showAllPlan, structureLoadNote, type OnDemandLoader } from './anatomylazy';
+import { createGeneration, createOnDemandLoader, filesForLayer, firstLayer, layerNeedsReveal, visibilityAfterLayerDownload, lazyPeel, lazyRestore, PartialLoadError, revealTargetPlan, showAllPlan, structureLoadNote, type OnDemandLoader } from './anatomylazy';
 import type { LabColors, LabScene, LoadResult } from './anatomyscene';
 import { checkTriangleBudget } from './bodyviewer-logic';
 import {
@@ -155,6 +155,8 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
   const [layerError, setLayerError] = useState<{ layer: string; message: string; retry: () => void } | null>(null);
   const [filesLoaded, setFilesLoaded] = useState(0);
   const generation = useMemo(() => createGeneration(), []);
+  // Every explicit show/hide choice supersedes the visibility effect of earlier downloads.
+  const visibilityIntent = useMemo(() => createGeneration(), []);
   const loaderRef = useRef<OnDemandLoader<LoadResult> | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -286,6 +288,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     loaderRef.current?.retire();
     loaderRef.current = null;
     generation.bump();
+    visibilityIntent.bump();
     setExporting(null);
     setExportNote('');
     scene.clear();
@@ -337,6 +340,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
       const loader = loaderRef.current;
       if (!system || !loader) return;
       const run = () => {
+        const intent = visibilityIntent.token();
         setLayerError(null);
         setPending((p) => new Set(p).add(layer.id));
         const take = (results: LoadResult[]) => {
@@ -359,29 +363,37 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
           .then((results) => {
             if (loader.isRetired()) return; // the system changed while this layer downloaded
             take(results);
-            setHidden((h) => {
-              const next = new Set(h);
-              for (const id of layer.ids) next.delete(id);
-              if (hideAfter) for (const id of hideAfter.ids) next.add(id);
-              return next;
-            });
-            setAnnounce(hideAfter ? `peeled away ${hideAfter.id}, showing ${layer.id}` : `${layer.id} loaded and shown`);
+            // Geometry and structure counts always update. An older download must not
+            // overwrite a newer "show only this", hide or layer choice.
+            setHidden((h) => visibilityAfterLayerDownload(
+              h, layer.ids, hideAfter?.ids ?? [], visibilityIntent.isCurrent(intent),
+            ));
+            if (visibilityIntent.isCurrent(intent)) {
+              setAnnounce(hideAfter ? `peeled away ${hideAfter.id}, showing ${layer.id}` : `${layer.id} loaded and shown`);
+            }
           })
           .catch((err: unknown) => {
             if (loader.isRetired()) return;
             // Files that did arrive are already in the scene: count them, so their structures are listed and quizzable.
             if (err instanceof PartialLoadError) take(err.results as LoadResult[]);
-            setLayerError({ layer: layer.id, message: err instanceof Error ? err.message : String(err), retry: run });
+            if (visibilityIntent.isCurrent(intent)) {
+              setLayerError({
+                layer: layer.id,
+                message: err instanceof Error ? err.message : String(err),
+                retry: () => { visibilityIntent.bump(); run(); },
+              });
+            }
           })
           .finally(() => loader.isRetired() || setPending((p) => new Set([...p].filter((id) => id !== layer.id))));
       };
       run();
     },
-    [system],
+    [system, visibilityIntent],
   );
 
   /** Show every structure; in the lazy whole-body view, layers not fetched yet are fetched, then shown. */
   const showAll = () => {
+    visibilityIntent.bump();
     const loader = loaderRef.current;
     if (!lazy || !system || !loader) {
       setHidden(new Set());
@@ -659,6 +671,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                     aria-disabled={pending.has(layer.id) || undefined}
                     onClick={() => {
                       if (pending.has(layer.id)) return;
+                      visibilityIntent.bump();
                       if (lazy && layerNeedsReveal(
                         layer, hidden, filesForLayer(system, layer.id), (url) => loaderRef.current?.isLoaded(url) ?? false,
                       )) reveal(layer);
@@ -676,6 +689,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                   disabled={!toPeel}
                   onClick={() => {
                     if (!toPeel || pending.size > 0) return;
+                    visibilityIntent.bump();
                     if (peelPlan) {
                       reveal(peelPlan.show, peelPlan.hide);
                       return;
@@ -692,6 +706,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                   disabled={!toRestore}
                   onClick={() => {
                     if (!toRestore || pending.size > 0) return;
+                    visibilityIntent.bump();
                     if (lazy) reveal(toRestore);
                     else setHidden((h) => toggleLayer(h, toRestore));
                     setAnnounce(`put back ${toRestore.id}`);
@@ -764,10 +779,10 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
               {selectedGroup && <p className="text-sm text-ink-soft">{selectedGroup}</p>}
               <p className="mt-1 text-sm text-ink-soft">{nameSourceFor(system)}</p>
               <div className="mt-3 flex flex-wrap gap-2">
-                <button type="button" className={secondaryButton} onClick={() => setHidden(onlyThis(system.structures.map((s) => s.id), selected!))}>
+                <button type="button" className={secondaryButton} onClick={() => { visibilityIntent.bump(); setHidden(onlyThis(system.structures.map((s) => s.id), selected!)); }}>
                   show only this
                 </button>
-                <button type="button" className={secondaryButton} onClick={() => setHidden((h) => toggleHidden(h, selected!))}>
+                <button type="button" className={secondaryButton} onClick={() => { visibilityIntent.bump(); setHidden((h) => toggleHidden(h, selected!)); }}>
                   {hidden.has(selected!) ? 'show it' : 'hide it'}
                 </button>
                 <button type="button" className={secondaryButton} onClick={() => setSelected(null)}>clear selection</button>
@@ -811,6 +826,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                         className={secondaryButton}
                         disabled={quiz.feedback?.kind === 'shown' || quiz.feedback?.kind === 'right'}
                         onClick={() => {
+                          visibilityIntent.bump();
                           setQuiz(revealQuiz(quiz));
                           setSelected(quiz.target);
                           // The target may have been hidden by the student (or its layer peeled away): put it back.
@@ -915,7 +931,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                           <button
                             type="button"
                             aria-label={`${isHidden ? 'show' : 'hide'} ${item.text}`}
-                            onClick={() => setHidden((h) => toggleHidden(h, item.id))}
+                            onClick={() => { visibilityIntent.bump(); setHidden((h) => toggleHidden(h, item.id)); }}
                             className="min-h-11 min-w-14 rounded-md border border-line px-2 text-sm text-ink"
                           >
                             {isHidden ? 'show' : 'hide'}
