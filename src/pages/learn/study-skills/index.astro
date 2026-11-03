@@ -17,7 +17,7 @@ const lesson = await getEntry('lessons', 'study-skills-01');
 if (!lesson) {
   throw new Error('Lesson file content/lessons/study-skills-01.json is missing.');
 }
-const lessonCount = (await getCollection('lessons')).length;
+const lessonCount = (await getCollection('lessons', (entry) => entry.data.course === lesson.data.course)).length;
 const { title, summary, sentences, status } = lesson.data;
 const video = await getEntry('videos', 'study-skills-01');
 
@@ -43,7 +43,7 @@ const availableModes = modeOrder.map((id) => {
   <div class="mx-auto max-w-page pb-section pt-8 sm:pt-12">
     <header class="mx-auto max-w-prose">
       <p class="text-sm text-ink-soft">
-        how to study for nursing school · lesson 1{lessonCount > 1 ? ` of ${lessonCount}` : ''}
+        how to study for nursing school · lesson {lesson.data.order}{lessonCount > 1 ? ` of ${lessonCount}` : ''}
       </p>
       <h1 class="mt-3 text-2xl">{title}</h1>
       <p class="mt-3 text-ink-soft">{summary}</p>
