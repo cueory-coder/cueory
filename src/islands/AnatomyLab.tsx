@@ -599,7 +599,11 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                 key={s.key}
                 type="button"
                 aria-pressed={s.key === system.key}
-                onClick={() => setSystemKey(s.key)}
+                onClick={() => {
+                  if (s.key === system.key) return;
+                  setQuery('');
+                  setSystemKey(s.key);
+                }}
                 className={secondaryButton}
               >
                 {s.title}
