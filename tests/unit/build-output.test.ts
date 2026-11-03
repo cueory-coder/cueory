@@ -92,6 +92,31 @@ describe.skipIf(!existsSync(dist))('built site', () => {
     expect(csp!.replace(scriptSrc, '')).not.toContain('wasm-unsafe-eval');
   });
 
+  it('gives every indexable page complete, unique social metadata', () => {
+    const indexableTitles = new Map<string, string>();
+    const meta = (html: string, property: string) =>
+      new RegExp(`<meta property="${property}" content="([^"]*)"`).exec(html)?.[1];
+
+    for (const pagePath of pages) {
+      const page = pagePath.replace(`${dist}/`, '');
+      const html = readFileSync(pagePath, 'utf8');
+      if (html.includes('<meta name="robots" content="noindex')) continue;
+
+      const title = /<title>([^<]+)<\/title>/.exec(html)?.[1];
+      const description = /<meta name="description" content="([^"]*)"/.exec(html)?.[1];
+      expect(title, `${page}: title`).toBeTruthy();
+      expect(description, `${page}: description`).toBeTruthy();
+      expect(indexableTitles.has(title!), `${page}: duplicate title`).toBe(false);
+      indexableTitles.set(title!, page);
+
+      expect(html, `${page}: canonical`).toContain(`rel="canonical" href="https://cueory.app/`);
+      expect(meta(html, 'og:title'), `${page}: og:title`).toBe(title);
+      expect(meta(html, 'og:description'), `${page}: og:description`).toBe(description);
+      expect(meta(html, 'og:image'), `${page}: og:image`).toBe('https://cueory.app/share/study-ivory.png');
+      expect(existsSync(join(dist, 'share/study-ivory.png')), `${page}: og:image file`).toBe(true);
+    }
+  });
+
   it('builds the site search index next to the pages (D-49)', () => {
     expect(existsSync(join(dist, 'pagefind', 'pagefind.js'))).toBe(true);
     expect(htmlFiles(join(dist, 'pagefind'))).toEqual([]);
