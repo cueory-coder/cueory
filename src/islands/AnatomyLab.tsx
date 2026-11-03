@@ -430,6 +430,8 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     (id: string | null) => {
       if (quiz && quiz.target) {
         if (!id) return;
+        // Once the answer is shown or found, further clicks must not move the highlight off the target.
+        if (quiz.feedback?.kind === 'shown' || quiz.feedback?.kind === 'right') return;
         const next = answerQuiz(quiz, id);
         setQuiz(next);
         setSelected(id);
