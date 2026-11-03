@@ -110,3 +110,16 @@ describe('anatomy production artifact audit', () => {
     expect(modelUrls({ file: '/models/anatomy/a.glb', files: 'other.glb' })).toBeNull();
   });
 });
+
+/** CI builds dist/ before running unit tests. Audit those real files, not only synthetic examples. */
+describe('built production artifact gate', () => {
+  it('checks the actual dist output in CI, unless this was explicitly a draft preview build', () => {
+    if (process.env.CI !== 'true') return;
+    const workersBranch = process.env.WORKERS_CI_BRANCH?.trim();
+    const preview = process.env.CUEORY_ANATOMY_DRAFTS === '1' ||
+      (process.env.WORKERS_CI === '1' && !!workersBranch && workersBranch !== 'main');
+    if (preview) return;
+    // A missing dist/ is an error, too. The CI workflow runs npm run build before npm test.
+    expect(auditAnatomyProduction('dist', 'content/visuals').errors).toEqual([]);
+  });
+});
