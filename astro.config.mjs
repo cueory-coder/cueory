@@ -9,6 +9,7 @@ import { themeHeadScript } from './src/scripts/theme.ts';
 import { connectSrc } from './src/islands/supabasecsp.ts';
 import { supabaseBuildCheck } from './src/islands/supabasebuildcheck.ts';
 import { loadEnv } from 'vite';
+import { pruneDraftModelsIntegration } from './src/visuals/prunedrafts.ts';
 
 // The signup form posts to Kit, so the CSP must allow that one address.
 const formOrigin = newsletter.formAction ? ` ${new URL(newsletter.formAction).origin}` : '';
@@ -28,7 +29,7 @@ export default defineConfig({
   trailingSlash: 'never',
 
   // Bad account settings stop the build before a wrong value can be bundled into the public site (Task 161).
-  integrations: [supabaseBuildCheck(publicEnv), react()],
+  integrations: [supabaseBuildCheck(publicEnv), react(), pruneDraftModelsIntegration()],
 
   build: {
     // Keep CSS in files so the content security policy can stay strict.
