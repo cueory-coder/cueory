@@ -543,9 +543,8 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
               </div>
               {system.key === WHOLE_BODY_KEY && missingLayers(system.structures).length > 0 && (
                 <p className="text-sm text-ink-soft" data-testid="anatomy-layer-gaps">
-                  no 3D models yet for {missingLayers(system.structures).join(', ')}: the BodyParts3D 3.0 copy these drafts
-                  are built from has none. vessels are only those of the heart. they are planned for the rebuild from
-                  BodyParts3D 4.0.
+                  no 3D models yet for {missingLayers(system.structures).join(', ')}: the BodyParts3D release these
+                  models are built from has none.
                 </p>
               )}
               {system.key === WHOLE_BODY_KEY && (
