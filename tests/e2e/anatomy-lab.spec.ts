@@ -58,7 +58,7 @@ test.describe('anatomy lab', () => {
     });
     const glb: string[] = [];
     page.on('request', (request) => {
-      if (new URL(request.url()).pathname.endsWith('.glb')) glb.push(request.url());
+      if (new globalThis.URL(request.url()).pathname.endsWith('.glb')) glb.push(request.url());
     });
 
     await page.goto(URL);
