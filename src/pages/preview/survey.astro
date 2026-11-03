@@ -1,0 +1,20 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import SurveyPrompt from '../../islands/SurveyPrompt';
+---
+
+<Layout title="finals survey preview" description="UI preview of the semester finals survey prompt." variant="study" noindex promo={false}>
+  <div class="mx-auto max-w-prose space-y-8 py-section font-body leading-relaxed" data-pagefind-ignore>
+    <header>
+      <p class="text-sm text-ink-soft">design preview</p>
+      <h1 class="mt-2 text-2xl font-bold leading-relaxed">finals survey prompt</h1>
+      <p class="mt-4">UI-only preview of the finals survey prompt with local storage dismissal.</p>
+    </header>
+
+    <section class="rounded-lg border border-line bg-page p-6" data-testid="survey-preview-container">
+      <SurveyPrompt client:load storageKey="cueory-preview-survey" />
+    </section>
+
+    <noscript><p>turn on javascript to try the survey prompt.</p></noscript>
+  </div>
+</Layout>
