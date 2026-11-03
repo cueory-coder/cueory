@@ -1,0 +1,313 @@
+---
+/**
+ * The ☰ button (top-left on every page) and its side panel (D-46). The panel is a native modal <dialog>: it slides in
+ * from the left, dims the page, keeps keyboard focus inside, and closes with its close button, Escape or a tap on the
+ * dimmed page; focus then returns to ☰. With reduced motion it simply appears. Without JavaScript the button stays
+ * hidden (its space is kept, so nothing moves) and the footer links still work.
+ */
+import { menuLinks, menuSmallLinks } from '../config/site';
+import SocialLinks from './SocialLinks.astro';
+import { currentHref, groupMenuLinks } from '../scripts/menu';
+
+interface Props {
+  /** Study screens: the same button, without the frosted circle. */
+  quiet?: boolean;
+}
+
+const { quiet = false } = Astro.props;
+const grouped = groupMenuLinks(menuLinks, menuSmallLinks);
+const current = currentHref(
+  Astro.url.pathname,
+  [...menuLinks, ...menuSmallLinks].map((link) => link.href),
+);
+---
+
+<button
+  type="button"
+  class:list={['corner-button invisible', quiet && 'corner-button-quiet']}
+  aria-label="open site menu"
+  aria-expanded="false"
+  aria-controls="site-menu"
+  data-menu-open
+>
+  <svg viewBox="0 0 24 24" class="size-6" aria-hidden="true" focusable="false">
+    <path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
+  </svg>
+</button>
+
+<dialog id="site-menu" class="menu-panel" aria-label="site menu" data-testid="site-menu">
+  <div class="menu-panel-inner">
+    <div class="flex justify-end">
+      <button type="button" class="corner-button corner-button-panel" aria-label="close site menu" data-menu-close>
+        <svg viewBox="0 0 24 24" class="size-6" aria-hidden="true" focusable="false">
+          <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Site search (D-49): results appear as you type; the index loads only once the field is used. -->
+    <div role="search" class="mt-4" data-site-search>
+      <div class="menu-search">
+        <label for="site-search" class="sr-only">search the site</label>
+        <input
+          id="site-search"
+          type="search"
+          class="menu-search-input"
+          placeholder="search"
+          autocomplete="off"
+          spellcheck="false"
+          enterkeyhint="search"
+          aria-describedby="site-search-status"
+          aria-controls="site-search-results"
+          data-search-input
+        />
+        <svg viewBox="0 0 24 24" class="menu-search-icon" aria-hidden="true" focusable="false">
+          <circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" stroke-width="1.6"></circle>
+          <path d="M15 15l5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
+        </svg>
+      </div>
+      <p id="site-search-status" class="menu-search-status" aria-live="polite" data-search-status></p>
+      <ul id="site-search-results" class="menu-search-results" aria-label="search results" hidden data-search-results>
+      </ul>
+    </div>
+
+    <nav aria-label="site" class="my-auto py-section">
+      <ul class="flex flex-col gap-7">
+        {
+          grouped.home.map((link) => (
+            <li>
+              <a href={link.href} class="menu-link" aria-current={link.href === current ? 'page' : undefined}>
+                {link.label}
+              </a>
+            </li>
+          ))
+        }
+        {
+          grouped.sections.map((section) => (
+            <li>
+              <h2 class="menu-section-heading mb-3">{section.heading}</h2>
+              <ul class="flex flex-col gap-3">
+                {section.links.map((link) => (
+                  <li>
+                    <a href={link.href} class="menu-link" aria-current={link.href === current ? 'page' : undefined}>
+                      {link.label}
+                      {link.note && <span class="menu-note">{link.note}</span>}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+
+    <div class="mb-4">
+      <SocialLinks panel />
+    </div>
+  </div>
+</dialog>
+
+<style>
+  .menu-section-heading {
+    color: var(--color-panel-ink-soft);
+    font-size: var(--text-sm);
+    line-height: var(--text-sm--line-height);
+    letter-spacing: var(--tracking-menu);
+    font-weight: 700;
+  }
+
+  /* A reduced-motion menu opens at its final position, without a slide. */
+  @media (prefers-reduced-motion: reduce) {
+    dialog:global(.menu-panel) {
+      transition: none;
+    }
+
+    @starting-style {
+      dialog:global(.menu-panel[open]) {
+        transform: none;
+      }
+    }
+  }
+</style>
+
+<script>
+  import { isCloseKey, wrapFocus } from '../scripts/menu';
+  import { cleanUrl, excerptParts, keepFocus, MAX_RESULTS, moveFocus, PAGEFIND_URL, statusText } from '../scripts/search';
+
+  /** The parts of Pagefind's browser API the panel uses (https://pagefind.app/docs/api/). */
+  interface PagefindResult {
+    url: string;
+    excerpt: string;
+    meta: { title?: string };
+  }
+  interface Pagefind {
+    options(options: Record<string, unknown>): Promise<void>;
+    init(): Promise<void> | void;
+    debouncedSearch(term: string): Promise<{ results: { data(): Promise<PagefindResult> }[] } | null>;
+  }
+
+  /** Site search (D-49). The index loads the first time the field gets focus, never with the page. */
+  function setUpSearch(root: HTMLElement) {
+    const input = root.querySelector<HTMLInputElement>('[data-search-input]');
+    const status = root.querySelector<HTMLElement>('[data-search-status]');
+    const list = root.querySelector<HTMLUListElement>('[data-search-results]');
+    if (!input || !status || !list) return;
+
+    let pagefind: Promise<Pagefind> | undefined;
+    const load = () => {
+      pagefind ??= (async () => {
+        // A plain URL, so the bundler leaves it alone: the index is built after the site, by `pagefind --site dist`.
+        const url: string = PAGEFIND_URL;
+        const module = (await import(/* @vite-ignore */ url)) as Pagefind;
+        // Search on the page itself rather than in a worker, so the content security policy needs no `blob:`.
+        await module.options({ noWorker: true });
+        await module.init();
+        return module;
+      })();
+      return pagefind;
+    };
+
+    const links = () => [...list.querySelectorAll<HTMLAnchorElement>('a')];
+    let latest = 0;
+
+    const render = (results: PagefindResult[]) => {
+      // If a result had keyboard focus, it keeps a place to go once the list is replaced (Codex review on #27).
+      const focused = links().indexOf(document.activeElement as HTMLAnchorElement);
+      list.replaceChildren(
+        ...results.map((result) => {
+          const item = document.createElement('li');
+          const link = document.createElement('a');
+          link.className = 'menu-result';
+          link.href = cleanUrl(result.url);
+          const title = document.createElement('span');
+          title.className = 'menu-result-title';
+          title.textContent = result.meta.title ?? cleanUrl(result.url);
+          const excerpt = document.createElement('span');
+          excerpt.className = 'menu-result-excerpt';
+          for (const part of excerptParts(result.excerpt)) {
+            if (part.mark) {
+              const mark = document.createElement('mark');
+              mark.textContent = part.text;
+              excerpt.append(mark);
+            } else excerpt.append(part.text);
+          }
+          link.append(title, excerpt);
+          item.append(link);
+          return item;
+        }),
+      );
+      list.hidden = results.length === 0;
+      if (focused !== -1) {
+        const target = keepFocus(focused, results.length);
+        if (target === -1) input.focus();
+        else links()[target]?.focus();
+      }
+    };
+
+    input.addEventListener('focus', () => {
+      load().catch(() => undefined);
+    });
+
+    input.addEventListener('input', async () => {
+      const term = input.value;
+      const run = ++latest;
+      if (term.trim() === '') {
+        render([]);
+        status.textContent = '';
+        return;
+      }
+      try {
+        const search = await (await load()).debouncedSearch(term);
+        // A newer search replaced this one, or the field changed while it ran.
+        if (search === null || run !== latest) return;
+        const shown = await Promise.all(search.results.slice(0, MAX_RESULTS).map((result) => result.data()));
+        if (run !== latest) return;
+        render(shown);
+        status.textContent = statusText(term, search.results.length, shown.length);
+      } catch {
+        if (run !== latest) return;
+        render([]);
+        status.textContent = 'Search isn’t available right now. The links below still work.';
+      }
+    });
+
+    // Arrow keys move between the field and the results; Tab and Enter work as usual.
+    root.addEventListener('keydown', (event) => {
+      const items = links();
+      const index = items.indexOf(document.activeElement as HTMLAnchorElement);
+      if (index === -1 && document.activeElement !== input) return;
+      const target = moveFocus(index, items.length, event.key);
+      if (target === undefined) return;
+      event.preventDefault();
+      if (target === -1) input.focus();
+      else items[target]?.focus();
+    });
+  }
+
+  const dialog = document.querySelector<HTMLDialogElement>('#site-menu');
+  const openButton = document.querySelector<HTMLButtonElement>('[data-menu-open]');
+  const closeButton = dialog?.querySelector<HTMLButtonElement>('[data-menu-close]');
+
+  if (dialog && openButton && closeButton && typeof dialog.showModal === 'function') {
+    let returnFocus = true;
+
+    openButton.addEventListener('click', () => {
+      returnFocus = true;
+      dialog.showModal();
+      // Focus starts on the close button. Left to itself, the browser focuses the first focusable thing in the panel,
+      // and once the links are taller than the window the panel's own scrolling box counts as one: Chromium would
+      // focus that box, which comes before the close button, instead of a control.
+      closeButton.focus();
+      openButton.setAttribute('aria-expanded', 'true');
+    });
+
+    dialog.addEventListener('close', () => {
+      openButton.setAttribute('aria-expanded', 'false');
+      // After a link to a spot on this page, focus follows the link instead of jumping back to the top.
+      if (returnFocus) openButton.focus({ preventScroll: true });
+    });
+
+    dialog.addEventListener('keydown', (event) => {
+      // Escape: browsers close a modal dialog themselves; this also covers older ones that only fire keydown.
+      if (isCloseKey(event.key) && dialog.open) {
+        event.preventDefault();
+        dialog.close();
+        return;
+      }
+      // Tab stays inside the panel instead of leaving for the browser's own buttons.
+      if (event.key === 'Tab') {
+        const items = [...dialog.querySelectorAll<HTMLElement>('a[href], button, input')].filter(
+          (item) => item.checkVisibility?.() !== false,
+        );
+        const index = items.indexOf(document.activeElement as HTMLElement);
+        // Safari's own Tab skips links and buttons unless the visitor changed its setting, which would carry focus out
+        // of the panel; so every Tab step is taken here, one item at a time, in every browser.
+        const target = wrapFocus(index, items.length, event.shiftKey) ?? index + (event.shiftKey ? -1 : 1);
+        if (items.length > 0) {
+          event.preventDefault();
+          items[target]?.focus();
+        }
+      }
+    });
+
+    // The panel's inner box fills the whole dialog, so a click on the dialog itself is a click on the dimmed page.
+    dialog.addEventListener('click', (event) => {
+      if (event.target === dialog) dialog.close();
+    });
+
+    closeButton.addEventListener('click', () => dialog.close());
+
+    for (const link of dialog.querySelectorAll('a')) {
+      link.addEventListener('click', () => {
+        returnFocus = false;
+        dialog.close();
+      });
+    }
+
+    const search = dialog.querySelector<HTMLElement>('[data-site-search]');
+    if (search) setUpSearch(search);
+
+    openButton.classList.remove('invisible');
+  }
+</script>
