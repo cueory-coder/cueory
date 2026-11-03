@@ -192,10 +192,90 @@ You should see both projects, `cueory-staging` and `cueory-prod`, on your Supaba
 
 ---
 
-## Part L — Sign-in settings for cueory-staging (20 minutes, $0)
+## Part L — Set up the database on cueory-staging (20 minutes, $0)
+
+This puts the empty tables and their locks into **`cueory-staging` only**. No questions and no student data go in.
+**Don't do this on `cueory-prod`.** Prod comes later, with the same steps, only when Claude says so.
+
+There are nine files. Run each one **exactly once, in this order**. Later files build on earlier ones (questions need
+topics, attempts need questions), and the first file's "locked by default" rule only covers what is made after it. A
+file run out of order or twice fails or leaves a gap.
+
+| # | File (click to open the text) | What it makes |
+| --- | --- | --- |
+| 1 | [locked_by_default](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261101060000_locked_by_default.sql) | The rule that nothing new is open to the website until a later file opens it |
+| 2 | [profiles](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261101060100_profiles.sql) | Student profiles (display name only), made for each new account |
+| 3 | [concepts_sources_rights](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261101080000_concepts_sources_rights.sql) | Topics, sources (the credit lines) and your private image-rights records |
+| 4 | [items_and_versions](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261101090000_items_and_versions.sql) | Questions, their versions and choices, and the locked answer key |
+| 5 | [attempts_and_check_answer](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261101100000_attempts_and_check_answer.sql) | Students' attempts, and the one checked way to learn if an answer is right |
+| 6 | [review_state_and_exam_plans](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261101110000_review_state_and_exam_plans.sql) | Each student's spaced-review progress and optional exam dates |
+| 7 | [flags_and_submit_flag](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261101120000_flags_and_submit_flag.sql) | "Flag or comment" reports, and the checked ways to send and read them |
+| 8 | [publish_item_version](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261102090000_publish_item_version.sql) | Publishing a new version of a question in one safe step |
+| 9 | [study_events](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261102100000_study_events.sql) | Study events (answered, marked, skipped, time on each question) |
+
+### Open the right project
+1. Open https://github.com/lilchristxan/Cueory/tree/staging/supabase/migrations.
+   You should see exactly the nine files above. If there are more, or other names, stop and tell Claude.
+2. Open https://supabase.com/dashboard and click the **cueory-staging** project.
+3. Check that the project name near the top of the page says `cueory-staging`. If it says `cueory-prod`, go back and
+   pick `cueory-staging`. If it says the project is paused, stop and tell Claude.
+4. Go to the **SQL Editor** section of the project.
+
+### Run the nine files (steps 5 to 9, once per file)
+5. Click file 1's link in the table above. A new tab shows plain text whose first line names its subject, like
+   `-- Locked by default`.
+6. Press **Cmd+A**, then **Cmd+C**, to copy all of it.
+7. Back in the SQL Editor, click **New Query**.
+8. Click in the empty editor and press **Cmd+V**.
+9. Click **Run** (or press **Cmd+Enter**). You should see it finish with no error. Then do steps 5 to 9 again with the
+   next file, until all nine have run once.
+
+**If a file shows an error, or a box asks you to confirm something:**
+- Stop. Don't run that file again, don't run the next one, and don't try to fix anything.
+- Copy the whole error text (or the box's text) and send it to Claude with the file's number. It holds no passwords.
+- Why: part of that file may already be in the database, and every later file needs all of it. Claude tells you
+  exactly what to run next. An error saying something "already exists" usually means that file already ran once.
+
+### Check the result
+10. Click **New Query**, paste this, and click **Run**:
+
+    ```sql
+    select 'table' as kind, c.relname as name,
+           case when c.relrowsecurity then 'RLS on' else 'RLS OFF' end as rls
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public' and c.relkind in ('r', 'p')
+    union all
+    select 'function', p.proname, ''
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+    order by kind desc, name;
+    ```
+
+11. You should see 24 rows. First 13 tables, **every one with `RLS on`** (RLS is the lock that lets each student see
+    only their own rows): attempts, concepts, exam_plans, flags, item_answers, item_choices, item_versions, items,
+    profiles, review_state, rights_records, sources, study_events. Then 11 functions: check_answer, exam_plans_guard,
+    handle_new_user, item_parts_guard, item_versions_guard, items_guard, my_flags, publish_item_version,
+    record_study_events, review_state_guard, submit_flag.
+    If any table says `RLS OFF`, or the rows differ, take a screenshot and send it to Claude.
+12. Tell Claude "staging database done".
+
+Supabase's docs prefer the command-line tool for migrations; the SQL Editor is used here because it needs no terminal.
+Running SQL there skips Supabase's migration history, so before anyone uses the command-line tool on this project,
+Claude marks these nine files as already run (`supabase migration repair`), so they never run twice. Sources:
+[Supabase: Database functions](https://supabase.com/docs/guides/database/functions) (SQL Editor, **New Query**,
+**Run**), [Supabase: Use Supabase with Next.js](https://supabase.com/docs/guides/getting-started/quickstarts/nextjs)
+(paste into the SQL Editor, then **Run**),
+[Supabase: Deploy database migrations](https://supabase.com/docs/guides/deployment/database-migrations) (timestamp
+order, migration history, `migration repair`).
+
+---
+
+## Part M — Sign-in settings for cueory-staging (20 minutes, $0)
 
 These settings make Supabase match the sign-in code (Task 165). Do them on `cueory-staging` only. `cueory-prod` waits
-for Part N. Page names below come from Supabase's docs. Where a step says **check on screen**, the docs don't confirm
+for Part O. Page names below come from Supabase's docs. Where a step says **check on screen**, the docs don't confirm
 the exact wording: if what you see doesn't match, stop and tell Claude what it says.
 
 ### Find the staging address
@@ -267,7 +347,7 @@ the exact wording: if what you see doesn't match, stop and tell Claude what it s
     Cueory doesn't use text messages.
     Two-factor inside Cueory's own admin area needs code that isn't built yet; Claude will tell you when to set it up.
 
-Tell Claude "Part L done", or which step didn't match.
+Tell Claude "Part M done", or which step didn't match.
 
 Sources: [Supabase: Redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls),
 [Supabase: General configuration](https://supabase.com/docs/guides/auth/general-configuration),
@@ -283,7 +363,7 @@ Sources: [Supabase: Redirect URLs](https://supabase.com/docs/guides/auth/redirec
 
 ---
 
-## Part M — Google sign-in for cueory-staging (25 minutes, $0)
+## Part N — Google sign-in for cueory-staging (25 minutes, $0)
 
 Google sign-in needs a "client" in Google Cloud: a pair of codes that lets Supabase ask Google who someone is. Use your
 **business Gmail** for all of it (rule 9). None of these steps needs a billing account. If a screen asks for a card or
@@ -316,7 +396,7 @@ problem with one never touches the other.
 13. Open **Clients** in the left menu and click **Create client**.
 14. **Application type:** **Web application**.
 15. **Name:** `cueory-staging` (**check on screen**).
-16. Under **Authorized JavaScript origins**, add the `STAGING` address from Part L, step 3, with nothing after the
+16. Under **Authorized JavaScript origins**, add the `STAGING` address from Part M, step 3, with nothing after the
     domain.
 17. Under **Authorized redirect URIs**, paste the Supabase callback address from step 2.
 18. Click **Create**.
@@ -333,7 +413,7 @@ problem with one never touches the other.
     Google's docs say a changed redirect address can take from 5 minutes to a few hours to work. Claude tests the
     sign-in button on staging once the account code is live there.
 
-Tell Claude "Part M done", or which step didn't match.
+Tell Claude "Part N done", or which step didn't match.
 
 Sources: [Supabase: Login with Google](https://supabase.com/docs/guides/auth/social-login/auth-google),
 [Google: Get started with the Google Auth Platform](https://support.google.com/cloud/answer/15544987),
@@ -343,27 +423,27 @@ Sources: [Supabase: Login with Google](https://supabase.com/docs/guides/auth/soc
 
 ---
 
-## Part N — The same settings for cueory-prod (25 minutes, $0, only when Claude asks)
+## Part O — The same settings for cueory-prod (25 minutes, $0, only when Claude asks)
 
 Only after staging works and Claude asks. Never put the staging address into `cueory-prod`, or the live address into
 `cueory-staging`.
 
-1. Do Part L, steps 4 to 26, on the **cueory-prod** project, with `https://cueory.app` instead of the staging address:
+1. Do Part M, steps 4 to 26, on the **cueory-prod** project, with `https://cueory.app` instead of the staging address:
    - **Site URL:** `https://cueory.app`
    - **Redirect URLs:** `https://cueory.app/auth/callback**` and `https://cueory.app/reset-password`
    Supabase recommends exact addresses for a live site. The callback needs `**` anyway, because each sign-in carries
    the page to open next; the code only ever opens pages on cueory.app.
-2. Do Part M, steps 1, 2 and 13 to 22, for **cueory-prod**: the client's name is `cueory-prod`, its JavaScript origin
+2. Do Part N, steps 1, 2 and 13 to 22, for **cueory-prod**: the client's name is `cueory-prod`, its JavaScript origin
    is `https://cueory.app`, and its redirect URI is the callback address from the **cueory-prod** Google page. Save the
    codes as "Google client cueory-prod".
 3. In Google Cloud, open **Branding**. Under the app's domain, add `https://cueory.app` as the home page,
    `https://cueory.app/privacy` as the privacy policy and `https://cueory.app/terms` as the terms. Add `cueory.app`
    under **Authorized domains**. Google's docs say live apps need all three links. Save.
 4. Open **Audience** and click **Publish app**. If Google asks for verification or payment, stop and tell Claude.
-5. Supabase's built-in email can't reach students (Part L, step 24). Don't open sign-up on the live site until
+5. Supabase's built-in email can't reach students (Part M, step 24). Don't open sign-up on the live site until
    Claude has connected Resend.
 
-Tell Claude "Part N done", or which step didn't match.
+Tell Claude "Part O done", or which step didn't match.
 
 ---
 
