@@ -66,6 +66,20 @@ export function pictureCreditFor(system: Pick<AnatomySystem, 'status' | 'model' 
   return `${creditFor(system)} · ${releaseNoteFor(system)}`;
 }
 
+/**
+ * The selected mesh is opaque while other structures become translucent.
+ * When two visible meshes overlap under the pointer, prefer the selected one
+ * if the ray actually crosses its geometry. Otherwise choose the nearest hit.
+ * The quiz disables this preference so earlier picks cannot bias answers.
+ */
+export function pickedStructure(
+  hitsNearestFirst: readonly string[],
+  selected: string | null,
+): string | null {
+  if (selected && hitsNearestFirst.includes(selected)) return selected;
+  return hitsNearestFirst[0] ?? null;
+}
+
 /** Where a structure's name comes from, shown on its name card. */
 export function nameSourceFor(system: Pick<AnatomySystem, 'fixture'>): string {
   return system.fixture ? 'name from the test fixture' : 'name from the BodyParts3D parts list';
