@@ -147,6 +147,17 @@ The allowed books so far are Open RN *Nursing Fundamentals, 2nd Edition*, and Bo
   the licensor's current license page (2025-02-27) says the database is CC BY 4.0, so these 3.0-based models are
   drafts on the locked staging site only and will be rebuilt from the official 4.0 download before any picture or
   model is published.
+- Rebuilding from 4.0 is one command, once Christian's download is in a folder (no need to unpack the zip):
+  `node scripts/build-anatomy.mjs --source <that folder> --release 4.0 --retrieved <the download day> --update-definitions`.
+  It reads the files the 4.0 README names, for the PART-OF tree by default (`--tree isa` for the IS-A tree):
+  `partof_parts_list_e.txt` (concept id, representation id, English name), `partof_inclusion_relation_list.txt`
+  (parent id and name, child id and name), `partof_element_parts.txt` (concept id, name, element file id) and the OBJ
+  meshes inside `partof_BP3D_4.0_obj_99.zip`. In 4.0 only atomic organs ("elements") have meshes, so each element is
+  drawn once, as part of the most specific concept of the system that lists it; a heart chamber with meshes of its
+  own is then a structure of its own. What the README doesn't say (a header line or not, the OBJ file names in the
+  zip, units and axes) is listed as assumptions at the top of `scripts/anatomy-release4.mjs`, and the build stops
+  with a plain message when the real files differ. The `--update-definitions` run rewrites each system's structure
+  list in `scripts/anatomy-systems.json`, so its change is reviewed in the pull request.
 - The skeleton is two models so each keeps more detail: `skeleton-axial` (the tree's "axial skeleton", plus the
   sternum, costal cartilages and inferior nasal conchae, which the tree puts under neither half) and `skeleton-limbs`
   (the tree's "appendicular skeleton": clavicles, scapulae, hip bones, arms, hands, legs and feet). The tree also

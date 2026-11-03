@@ -1,5 +1,5 @@
 {
-  "about": "Body systems for the anatomy lab (Task 177). scripts/build-anatomy.mjs takes every concept under each system's roots in BodyParts3D's conventional_part_of.txt, skips the exclusions, keeps those with a mesh, and checks the result against 'structures'. Names are BodyParts3D's own (parts_list_e.txt); 'why' gives the hierarchy line that puts each root in the system.",
+  "about": "Body systems for the anatomy lab (Task 177). scripts/build-anatomy.mjs takes every concept under each system's roots in BodyParts3D's hierarchy (Release 3.0: conventional_part_of.txt; Release 4.0: <tree>_inclusion_relation_list.txt), skips the exclusions, keeps those with a mesh (4.0: those that own an element mesh), and checks the result against 'structures'. Names are BodyParts3D's own (the release's parts list); 'why' gives the hierarchy line that puts each root in the system.",
   "systems": [
     {
       "id": "heart",

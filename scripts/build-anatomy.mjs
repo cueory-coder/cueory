@@ -2,21 +2,35 @@
  * Builds the anatomy lab's 3D models from BodyParts3D (Task 177; D-58, D-80; docs/VISUALS.md, "3D body").
  *
  *   node scripts/build-anatomy.mjs --source <dir> --release <3.0|4.0> [--system <id>] [--retrieved YYYY-MM-DD]
- *                                  [--update-definitions]
+ *                                  [--tree partof|isa] [--update-definitions]
  *
- * --source   a folder holding BodyParts3D's own files: parts_list_e.txt, conventional_part_of.txt, README_e.html and
- *            one mesh per structure named <structure id>.stl or <structure id>.obj (any subfolder). Treated as data
- *            only: nothing in it is ever run.
+ * Rebuilding from the official 4.0 download is one command, run from the repository's folder:
+ *
+ *   node scripts/build-anatomy.mjs --source <the download folder> --release 4.0 --retrieved <the download day> \
+ *        --update-definitions
+ *
+ * --source   a folder holding BodyParts3D's own files, treated as data only (nothing in it is ever run):
+ *            Release 3.0: parts_list_e.txt, conventional_part_of.txt, README_e.html and one mesh per structure named
+ *            <structure id>.stl or <structure id>.obj (any subfolder).
+ *            Release 4.0: README_e.html and, for the chosen tree, <tree>_parts_list_e.txt,
+ *            <tree>_inclusion_relation_list.txt, <tree>_element_parts.txt and <tree>_BP3D_4.0_obj_99.zip, the names the
+ *            4.0 README gives (read by scripts/anatomy-release4.mjs, which lists what the README confirms and what it
+ *            doesn't). The zip is read as it is; there's no need to unpack it.
  * --release  3.0: the 2011-09-15 release, from the GitHub mirror Kevin-Mattheus-Moerman/BodyParts3D, whose README
- *            says it converted BodyParts3D_3.0_obj_95.zip to binary STL. 4.0: the official download (OBJ). Release 4.0
- *            also needs --retrieved, the day the files were downloaded.
+ *            says it converted BodyParts3D_3.0_obj_95.zip to binary STL. 4.0: the official download (OBJ in zips).
+ *            Release 4.0 also needs --retrieved, the day the files were downloaded.
+ * --tree     Release 4.0 only: partof (default: the PART-OF tree, which says what each organ is made of) or isa.
  * --system   build only this system (default: every system in scripts/anatomy-systems.json).
  * --update-definitions  write the structure lists worked out from the hierarchy back into anatomy-systems.json.
  *            Without it the build stops when the hierarchy and the stored list disagree, so the list never drifts.
+ *            The first 4.0 build needs it, because 4.0's structures differ from 3.0's; review the change it makes.
  *
  * For each system in scripts/anatomy-systems.json it:
- *   1. picks the structures from the database's own hierarchy: every concept under the system's root concepts in
- *      conventional_part_of.txt (BodyParts3D's "conventional" tree), skipping the listed exclusions, that has a mesh.
+ *   1. picks the structures from the database's own hierarchy: every concept under the system's root concepts,
+ *      skipping the listed exclusions. Release 3.0: those in conventional_part_of.txt (BodyParts3D's "conventional"
+ *      tree) that have a mesh. Release 4.0: those in <tree>_inclusion_relation_list.txt that own an element mesh
+ *      (each element goes to the most specific concept of the system that <tree>_element_parts.txt lists it under, so
+ *      a compound organ with meshes of its own, such as a heart chamber, is a structure of its own when 4.0 has one).
  *      The order is the tree's breadth-first order, ties in file order, so it is the same on every run;
  *   2. reads each mesh (binary STL or OBJ), joins identical corners, drops triangles that collapse to a line, and turns
  *      the database's coordinates into glTF's with one fixed change for every system, so the systems line up:
@@ -36,6 +50,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSy
 import { basename, extname, join } from 'node:path';
 import { pack } from 'gltfpack';
 import { groupHeadings } from './anatomy-groups.mjs';
+import { checkCoordinates, readRelease4Tables, readZip, release4Files, resolveSystem4 } from './anatomy-release4.mjs';
 
 const SYSTEMS_FILE = 'scripts/anatomy-systems.json';
 const MODELS_DIR = 'public/models/anatomy';
@@ -49,26 +64,27 @@ const MAX_BYTES = 3 * 1024 * 1024;
 const CREDIT = 'BodyParts3D, © The Database Center for Life Science licensed under CC Attribution 4.0 International';
 
 /**
- * The README sentence each model's depiction cites. Checked against the README in --source, so a release whose
- * README says something else stops the build instead of being cited wrongly.
+ * The README sentence each model's depiction cites (readmeQuote). Checked against the README in --source, so a release
+ * whose README says something else stops the build instead of being cited wrongly. The 4.0 sentence is the opening of
+ * the README page dated 2025/02/27, as read on 2026-11-02; the build checks it word for word against the download.
  */
-const README_QUOTE =
-  'BodyParts3D is a dictionary-type database for anatomy in which shapes and positions of body parts are represented by 3D human models.';
-
 const RELEASES = {
   '3.0': {
     label: 'BodyParts3D 3.0 (2011-09-15)',
     via: 'GitHub mirror Kevin-Mattheus-Moerman/BodyParts3D (OBJ converted to STL)',
-    partsSection: 'parts_list_e.txt, Release 3.0 (2011-09-15)',
+    partsSection: () => 'parts_list_e.txt, Release 3.0 (2011-09-15)',
     readmeSection: 'README_e.html, Release 3.0 (2011-09-15)',
+    readmeQuote:
+      'BodyParts3D is a dictionary-type database for anatomy in which shapes and positions of body parts are represented by 3D human models.',
     url: 'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html',
     retrieved: '2026-11-02',
   },
   '4.0': {
     label: 'BodyParts3D 4.0',
     via: 'official download from dbarchive.biosciencedbc.jp',
-    partsSection: 'parts_list_e.txt, Release 4.0',
+    partsSection: (tree) => `${tree}_parts_list_e.txt, Release 4.0`,
     readmeSection: 'README_e.html, Release 4.0',
+    readmeQuote: 'The dictionary-type database for anatomy in which anatomical concepts are represented by 3D structure data',
     url: 'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/README_e.html',
     retrieved: undefined,
   },
@@ -80,7 +96,7 @@ function fail(message) {
 }
 
 function parseArguments(argv) {
-  const options = { system: undefined, source: undefined, release: undefined, retrieved: undefined, update: false };
+  const options = { system: undefined, source: undefined, release: undefined, retrieved: undefined, tree: undefined, update: false };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     const value = () => {
@@ -92,11 +108,15 @@ function parseArguments(argv) {
     else if (arg === '--release') options.release = value();
     else if (arg === '--system') options.system = value();
     else if (arg === '--retrieved') options.retrieved = value();
+    else if (arg === '--tree') options.tree = value();
     else if (arg === '--update-definitions') options.update = true;
     else fail(`unknown argument ${arg} (see the top of scripts/build-anatomy.mjs)`);
   }
   if (!options.source) fail('--source <dir> is required');
   if (!RELEASES[options.release]) fail('--release must be 3.0 or 4.0');
+  if (options.tree !== undefined && options.release !== '4.0') fail('--tree is for Release 4.0 only');
+  options.tree ??= 'partof';
+  if (options.tree !== 'partof' && options.tree !== 'isa') fail('--tree must be partof or isa');
   options.retrieved ??= RELEASES[options.release].retrieved;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(options.retrieved ?? '')) fail('--retrieved YYYY-MM-DD is required for this release');
   return options;
@@ -125,13 +145,38 @@ function table(path) {
   return lines.slice(1).filter((line) => line.length > 0).map((line) => ({ line, cells: line.split('\t') }));
 }
 
-/** The structures of one system, worked out from the conventional tree. */
-function resolveSystem(system, hierarchy, names, meshes) {
+/**
+ * The structures of one system: the release's own choice of concepts (data.findStructures, each with its path from a
+ * root concept), each named and given its list heading.
+ */
+function resolveSystem(system, data) {
   for (const concept of [...system.roots, ...(system.exclude ?? [])]) {
-    if (names.get(concept.id) !== concept.name) {
-      fail(`${system.id}: ${concept.id} is "${names.get(concept.id)}" in the parts list, not "${concept.name}"`);
+    if (data.names.get(concept.id) !== concept.name) {
+      fail(`${system.id}: ${concept.id} is "${data.names.get(concept.id)}" in the release's files, not "${concept.name}"`);
     }
   }
+  const found = data.findStructures(system);
+  if (found.length === 0) fail(`${system.id}: no structure under its root concepts has a mesh`);
+  // The list heading: the coarsest useful concept on the structure's path (scripts/anatomy-groups.mjs).
+  let headings;
+  try {
+    headings = groupHeadings(found, system.roots.map((root) => root.id), data.hierarchy.parents);
+  } catch (error) {
+    fail(`${system.id}: ${error.message}`);
+  }
+  return found.map(({ id, path }) => {
+    if (!data.partsLines.has(id)) fail(`${system.id}: ${id} has a mesh but no line in the parts list to name it`);
+    return {
+      id,
+      name: data.names.get(id),
+      group: data.names.get(headings.get(id)) ?? fail(`${system.id}: heading ${headings.get(id)} of ${id} has no name in the release's files`),
+      path: path.map((step) => data.names.get(step)),
+    };
+  });
+}
+
+/** Every concept under a system's roots (breadth-first; ties in file order), skipping exclusions, with its path. */
+function walkSystem(system, hierarchy) {
   const excluded = new Set((system.exclude ?? []).map((concept) => concept.id));
   const paths = new Map();
   const queue = system.roots.map((root) => [root.id, [root.id]]);
@@ -141,20 +186,95 @@ function resolveSystem(system, hierarchy, names, meshes) {
     paths.set(id, path);
     for (const part of hierarchy.parts.get(id) ?? []) queue.push([part, [...path, part]]);
   }
-  const found = [...paths].filter(([id]) => meshes.has(id)).map(([id, path]) => ({ id, path }));
-  // The list heading: the coarsest useful concept on the structure's path (scripts/anatomy-groups.mjs).
-  let headings;
-  try {
-    headings = groupHeadings(found, system.roots.map((root) => root.id), hierarchy.parents);
-  } catch (error) {
-    fail(`${system.id}: ${error.message}`);
+  return paths;
+}
+
+/** Release 3.0 (the GitHub mirror): a parts list, the conventional tree and one mesh file per structure. */
+function loadRelease3(files, need) {
+  const names = new Map();
+  const partsLines = new Map();
+  for (const { line, cells } of table(need('parts_list_e.txt'))) {
+    if (cells.length !== 2) fail(`parts_list_e.txt has a line that isn't "id<tab>name": ${line}`);
+    names.set(cells[0], cells[1]);
+    partsLines.set(cells[0], line);
   }
-  return found.map(({ id, path }) => ({
-    id,
-    name: names.get(id),
-    group: names.get(headings.get(id)) ?? fail(`${system.id}: heading ${headings.get(id)} of ${id} is not in parts_list_e.txt`),
-    path: path.map((step) => names.get(step)),
-  }));
+  const hierarchy = { parts: new Map(), parents: new Map() };
+  for (const { cells } of table(need('conventional_part_of.txt'))) {
+    const [whole, , part] = cells;
+    if (!hierarchy.parts.has(whole)) hierarchy.parts.set(whole, []);
+    hierarchy.parts.get(whole).push(part);
+    if (!hierarchy.parents.has(part)) hierarchy.parents.set(part, []);
+    hierarchy.parents.get(part).push(whole);
+  }
+  const meshes = new Map();
+  for (const [name, path] of files) {
+    const extension = extname(name).toLowerCase();
+    if (extension !== '.stl' && extension !== '.obj') continue;
+    const id = name.slice(0, -extension.length);
+    if (meshes.has(id)) fail(`${id} has both an STL and an OBJ mesh; keep one`);
+    meshes.set(id, path);
+  }
+  return {
+    names,
+    partsLines,
+    hierarchy,
+    findStructures: (system) =>
+      [...walkSystem(system, hierarchy)].filter(([id]) => meshes.has(id)).map(([id, path]) => ({ id, path })),
+    corners: (id) => {
+      const path = meshes.get(id);
+      const bytes = readFileSync(path);
+      return extname(path).toLowerCase() === '.stl' ? readStl(bytes, path) : readObj(bytes.toString('utf8'), path);
+    },
+  };
+}
+
+/** Release 4.0 (the official download): three tables and a zip of element meshes (scripts/anatomy-release4.mjs). */
+function loadRelease4(need, tree) {
+  const names4 = release4Files(tree);
+  const texts = {};
+  for (const key of ['parts', 'inclusion', 'elements']) texts[key] = readFileSync(need(names4[key]), 'utf8');
+  let data;
+  let zip;
+  try {
+    data = readRelease4Tables(texts, names4);
+    zip = readZip(readFileSync(need(names4.zip)), names4.zip);
+  } catch (error) {
+    fail(error.message);
+  }
+  const elementsOf = new Map();
+  return {
+    ...data,
+    findStructures: (system) => {
+      let found;
+      try {
+        found = resolveSystem4(system, data);
+      } catch (error) {
+        fail(error.message);
+      }
+      for (const structure of found) elementsOf.set(structure.id, structure.elements);
+      return found.map(({ id, path }) => ({ id, path }));
+    },
+    corners: (id) => {
+      const parts = elementsOf.get(id).map((element) => {
+        const entry = zip.get(`${element}.obj`); // assumption A3
+        if (!entry) fail(`${names4.zip} has no ${element}.obj, the mesh ${names4.elements} gives for ${id} (assumption A3 in scripts/anatomy-release4.mjs)`);
+        let bytes;
+        try {
+          bytes = entry();
+        } catch (error) {
+          fail(error.message);
+        }
+        return readObj(bytes.toString('utf8'), `${names4.zip}/${element}.obj`);
+      });
+      const all = new Float32Array(parts.reduce((n, p) => n + p.length, 0));
+      let at = 0;
+      for (const p of parts) {
+        all.set(p, at);
+        at += p.length;
+      }
+      return all;
+    },
+  };
 }
 
 /** Binary STL: an 80-byte header, a triangle count, then 50 bytes per triangle (normal, three corners, 2 spare). */
@@ -348,7 +468,7 @@ function visualJson(visual) {
   return `{\n${fields.join(',\n')}\n}\n`;
 }
 
-function visualFor(system, structures, partsLines, release, retrieved) {
+function visualFor(system, structures, partsLines, release, { retrieved, tree }) {
   return {
     id: `anatomy-${system.id}`,
     title: system.title,
@@ -365,12 +485,12 @@ function visualFor(system, structures, partsLines, release, retrieved) {
       },
     ],
     sources: [
-      { id: 'bp3d-readme', quote: README_QUOTE, book: 'BodyParts3D', section: release.readmeSection, url: release.url, license: 'CC BY 4.0', retrieved },
+      { id: 'bp3d-readme', quote: release.readmeQuote, book: 'BodyParts3D', section: release.readmeSection, url: release.url, license: 'CC BY 4.0', retrieved },
       ...structures.map((s) => ({
         id: `bp3d-${s.id}`,
         quote: partsLines.get(s.id).replaceAll('\t', ' '),
         book: 'BodyParts3D',
-        section: release.partsSection,
+        section: release.partsSection(tree),
         url: release.url,
         license: 'CC BY 4.0',
         retrieved,
@@ -387,31 +507,8 @@ async function main() {
   const need = (name) => files.get(name) ?? fail(`${name} is not in ${options.source}`);
 
   const readme = readFileSync(need('README_e.html'), 'utf8').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
-  if (!readme.includes(README_QUOTE)) fail(`README_e.html does not say: ${README_QUOTE}`);
-
-  const names = new Map();
-  const partsLines = new Map();
-  for (const { line, cells } of table(need('parts_list_e.txt'))) {
-    if (cells.length !== 2) fail(`parts_list_e.txt has a line that isn't "id<tab>name": ${line}`);
-    names.set(cells[0], cells[1]);
-    partsLines.set(cells[0], line);
-  }
-  const hierarchy = { parts: new Map(), parents: new Map() };
-  for (const { cells } of table(need('conventional_part_of.txt'))) {
-    const [whole, , part] = cells;
-    if (!hierarchy.parts.has(whole)) hierarchy.parts.set(whole, []);
-    hierarchy.parts.get(whole).push(part);
-    if (!hierarchy.parents.has(part)) hierarchy.parents.set(part, []);
-    hierarchy.parents.get(part).push(whole);
-  }
-  const meshes = new Map();
-  for (const [name, path] of files) {
-    const extension = extname(name).toLowerCase();
-    if (extension !== '.stl' && extension !== '.obj') continue;
-    const id = name.slice(0, -extension.length);
-    if (meshes.has(id)) fail(`${id} has both an STL and an OBJ mesh; keep one`);
-    meshes.set(id, path);
-  }
+  if (!readme.includes(release.readmeQuote)) fail(`README_e.html does not say: ${release.readmeQuote}`);
+  const data = options.release === '4.0' ? loadRelease4(need, options.tree) : loadRelease3(files, need);
 
   const definitions = JSON.parse(readFileSync(SYSTEMS_FILE, 'utf8'));
   const chosen = definitions.systems.filter((system) => !options.system || system.id === options.system);
@@ -419,7 +516,7 @@ async function main() {
 
   let changed = false;
   for (const system of chosen) {
-    const structures = resolveSystem(system, hierarchy, names, meshes);
+    const structures = resolveSystem(system, data);
     const ids = structures.map((s) => s.id);
     if (JSON.stringify(ids) !== JSON.stringify(system.structures)) {
       if (!options.update) {
@@ -429,17 +526,31 @@ async function main() {
       changed = true;
     }
 
+    const box = { min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] };
     for (const structure of structures) {
-      const path = meshes.get(structure.id);
-      const bytes = readFileSync(path);
-      structure.mesh = indexMesh(extname(path).toLowerCase() === '.stl' ? readStl(bytes, path) : readObj(bytes.toString('utf8'), path));
+      const corners = data.corners(structure.id);
+      for (let i = 0; i < corners.length; i++) {
+        box.min[i % 3] = Math.min(box.min[i % 3], corners[i]);
+        box.max[i % 3] = Math.max(box.max[i % 3], corners[i]);
+      }
+      structure.mesh = indexMesh(corners);
+    }
+    if (options.release === '4.0') {
+      try {
+        checkCoordinates(system.id, box); // assumption A6: Release 3.0's millimetres with +z up
+      } catch (error) {
+        fail(error.message);
+      }
     }
     const sourceTotal = structures.reduce((sum, s) => sum + s.mesh.indices.length / 3, 0);
     const packed = await packWithinBudget(system, sceneGlb(structures));
 
     mkdirSync(MODELS_DIR, { recursive: true });
     writeFileSync(join(MODELS_DIR, `${system.id}.glb`), packed.bytes);
-    writeFileSync(join(VISUALS_DIR, `anatomy-${system.id}.json`), visualJson(visualFor(system, structures, partsLines, release, options.retrieved)));
+    writeFileSync(
+      join(VISUALS_DIR, `anatomy-${system.id}.json`),
+      visualJson(visualFor(system, structures, data.partsLines, release, options)),
+    );
 
     process.stdout.write(
       `\n${system.id}: ${structures.length} structures, ${sourceTotal} -> ${packed.total} triangles ` +

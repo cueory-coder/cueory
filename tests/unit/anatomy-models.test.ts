@@ -237,8 +237,15 @@ describe('the anatomy models', () => {
           const source = sources.get(label.source);
           expect(source?.book, label.id).toBe('BodyParts3D');
           expect(label.source).toBe(`bp3d-${label.id}`);
-          // The quote is the parts-list line "id<tab>name" with the tab shown as one space.
-          expect(source?.quote).toBe(`${label.id} ${label.text}`);
+          // The quote is the parts-list line with each tab shown as one space: "id name" in Release 3.0, and
+          // "concept id, representation id, name" in Release 4.0 (scripts/anatomy-release4.mjs).
+          if (visual.model?.release.startsWith('BodyParts3D 4.0')) {
+            const [id, representation, ...name] = source!.quote.split(' ');
+            expect([id, name.join(' ')]).toEqual([label.id, label.text]);
+            expect(representation).toBeTruthy();
+          } else {
+            expect(source?.quote).toBe(`${label.id} ${label.text}`);
+          }
           expect(label.group, label.id).toBeTruthy();
         }
       });
