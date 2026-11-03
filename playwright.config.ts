@@ -43,7 +43,7 @@ export default defineConfig({
     // Serves the already-built dist/ folder. Run `npm run build` first.
     // --ignore-lock: Playwright owns this server; don't clash with a dev's own preview.
     // Builds with the explicit draft flag (the anatomy lab's fixture is left out of a plain build), then serves dist/.
-    command: `CUEORY_ANATOMY_DRAFTS=1 npx astro build && npx astro preview --port ${port} --ignore-lock`,
+    command: `CUEORY_ANATOMY_DRAFTS=1 npm run build && npx astro preview --port ${port} --ignore-lock`,
     url: `http://localhost:${port}`,
     reuseExistingServer: !process.env.CI,
   },

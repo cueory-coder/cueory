@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AnatomyStructure } from '../../src/islands/anatomylab';
-import { LAYERS, wholeBody, type Layer } from '../../src/islands/anatomylayers';
+import { LAYERS, wholeBody, layerShown, type Layer } from '../../src/islands/anatomylayers';
+import { onlyThis } from '../../src/islands/anatomylab';
 import { PartialLoadError, showAllPlan, createGeneration, createOnDemandLoader, filesForLayer, firstLayer, lazyPeel, lazyRestore } from '../../src/islands/anatomylazy';
 
 const layers: Layer[] = [
@@ -33,6 +34,16 @@ describe('partial failures and show all', () => {
     const plan = showAllPlan(layers, hidden, (id) => files[id]!, (url) => url === 's' || url === 'm');
     expect(plan.unhide.sort()).toEqual(['extra', 'm1', 'm2']);
     expect(plan.fetch.map((l) => l.id)).toEqual(['skeleton']);
+  });
+});
+
+describe('show only this in the lazy view', () => {
+  it('keeps structures of unloaded layers hidden, so their layers are still fetched by show all', () => {
+    const hidden = onlyThis(['s1', 'm1', 'm2', 'b1'], 's1');
+    expect(layerShown(layers[1]!, hidden)).toBe(false);
+    const files: Record<string, string[]> = { skin: ['s'], muscle: ['m'], skeleton: ['k'] };
+    const plan = showAllPlan(layers, hidden, (id) => files[id]!, (url) => url === 's');
+    expect(plan.fetch.map((l) => l.id)).toEqual(['muscle', 'skeleton']);
   });
 });
 

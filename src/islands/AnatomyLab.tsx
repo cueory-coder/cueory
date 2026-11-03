@@ -760,7 +760,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
               {selectedGroup && <p className="text-sm text-ink-soft">{selectedGroup}</p>}
               <p className="mt-1 text-sm text-ink-soft">{nameSourceFor(system)}</p>
               <div className="mt-3 flex flex-wrap gap-2">
-                <button type="button" className={secondaryButton} onClick={() => setHidden(onlyThis(found, selected!))}>
+                <button type="button" className={secondaryButton} onClick={() => setHidden(onlyThis(system.structures.map((s) => s.id), selected!))}>
                   show only this
                 </button>
                 <button type="button" className={secondaryButton} onClick={() => setHidden((h) => toggleHidden(h, selected!))}>
