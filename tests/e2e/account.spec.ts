@@ -82,7 +82,7 @@ test.beforeAll(async () => {
       const when = '2026-11-01T08:00:00.000Z';
       const uuid = n => '0000000' + n + '-0000-4000-8000-000000000000';
       const tables = {
-        profiles: [{ display_name: 'Sample Student', created_at: when }],
+        profiles: [{ display_name: 'Sample Student', created_at: when, name_change_window_start: when, name_changes_in_window: 1 }],
         attempts: [],
         exam_plans: [{ id: uuid(1), course: 'med-surg-1', exam_date: '2026-12-15', created_at: when }],
         review_state: [],
@@ -241,6 +241,8 @@ test.describe('/account signed in (fake client)', () => {
     expect(file.suggestedFilename()).toMatch(/^cueory-data-\d{4}-\d{2}-\d{2}\.json$/);
     const saved = JSON.parse(readFileSync((await file.path())!, 'utf8'));
     expect(saved.profile).toMatchObject({ displayName: 'Sample Student', email: 'student@example.test' });
+    // The display-name limit's two profile fields are personal data too (Codex on #230).
+    expect(saved.profile).toMatchObject({ nameChangeWindowStart: '2026-11-01T08:00:00.000Z', nameChangesInWindow: 1 });
     expect(saved.studyEvents).toHaveLength(1);
     await expect(page.getByText('your data file is downloading.')).toBeVisible();
 

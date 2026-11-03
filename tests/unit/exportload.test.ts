@@ -8,14 +8,14 @@ const itemId = '22222222-2222-4222-8222-222222222222';
 const reportId = '33333333-3333-4333-8333-333333333333';
 const id = (n: number) => n.toString(16).padStart(8, '0') + '-0000-4000-8000-000000000000';
 const fields = {
-  profiles: 'display_name,created_at',
+  profiles: 'display_name,created_at,name_change_window_start,name_changes_in_window',
   attempts: 'id,item_version_id,picked,correct,created_at',
   exam_plans: 'id,course,exam_date,created_at',
   review_state: 'item_id,level,last_reviewed,next_review',
   study_events: 'id,item_id,item_version_id,kind,ms_on_item,mark,at,created_at',
 } as const;
 const rows = {
-  profiles: [{ display_name: 'Sample', created_at: when, user_id: 'private' }],
+  profiles: [{ display_name: 'Sample', created_at: when, name_change_window_start: when, name_changes_in_window: 2, user_id: 'private' }],
   attempts: [{ id: id(1), item_version_id: versionId, picked: ['a', 'c'], correct: true, created_at: when, user_id: 'private' }],
   exam_plans: [{ id: id(2), course: 'med-surg-1', exam_date: '2026-12-15', created_at: when }],
   review_state: [{ item_id: itemId, level: 2, last_reviewed: '2026-10-30', next_review: '2026-11-03', user_id: 'private' }],
@@ -55,7 +55,7 @@ describe('loadExport — personal data boundaries', () => {
     if (!result.ok) return;
     const { studyEvents, ...rest } = result.data;
     expect(rest).toEqual({
-      profile: { displayName: 'Sample', createdAt: when },
+      profile: { displayName: 'Sample', createdAt: when, nameChangeWindowStart: when, nameChangesInWindow: 2 },
       attempts: [{ itemVersionId: versionId, picked: ['a', 'c'], correct: true, createdAt: when }],
       examPlans: [{ course: 'med-surg-1', examDate: '2026-12-15', createdAt: when }],
       reviewRows: [{ itemId, level: 2, lastReviewed: '2026-10-30', nextReview: '2026-11-03' }],
@@ -80,6 +80,17 @@ describe('loadExport — personal data boundaries', () => {
       'exam_plans:' + fields.exam_plans, 'review_state:' + fields.review_state,
       'study_events:' + fields.study_events, 'rpc:my_flags',
     ]);
+  });
+
+  it('exports the display-name limit fields with the profile, and refuses a bad count (Codex on #230)', async () => {
+    const fresh = await loadExport(reader({ profiles: { data: [{ ...rows.profiles[0], name_change_window_start: null, name_changes_in_window: 0 }], error: null } }).db);
+    expect(fresh.ok && fresh.data.profile).toEqual({ displayName: 'Sample', createdAt: when, nameChangeWindowStart: null, nameChangesInWindow: 0 });
+    const failed = { ok: false, message: "we couldn't load all your saved data. please try again." };
+    for (const bad of [{ name_changes_in_window: 11 }, { name_changes_in_window: 1.5 }, { name_changes_in_window: '2' }, { name_change_window_start: 'later' }]) {
+      expect(await loadExport(reader({ profiles: { data: [{ ...rows.profiles[0], ...bad }], error: null } }).db)).toEqual(failed);
+    }
+    const { name_changes_in_window: _dropped, ...missing } = rows.profiles[0]!;
+    expect(await loadExport(reader({ profiles: { data: [missing], error: null } }).db)).toEqual(failed);
   });
 
   it('has empty sections when the account has no rows, without inventing email', async () => {
@@ -306,7 +317,7 @@ describe('a study history longer than 200,000 events (Task 140)', () => {
     expect(exported.dropped).toEqual([]);
     expect(exported.attempts).toHaveLength(1);
     expect(exported.reports).toHaveLength(1);
-    expect(exported.profile).toEqual({ displayName: 'Sample', createdAt: when });
+    expect(exported.profile).toEqual({ displayName: 'Sample', createdAt: when, nameChangeWindowStart: when, nameChangesInWindow: 2 });
 
     const files = exportCsvBlobs(result.data);
     const lines = (await files.find(file => file.fileName === 'studyEvents.csv')!.blob.text()).split('\r\n');

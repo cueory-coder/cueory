@@ -5,39 +5,27 @@
 -- grant from 20261101060100_profiles.sql, and the only way to change the name is this function: it checks the name with
 -- the same rules as the profiles table, changes only the caller's own row, and allows a few changes an hour.
 --
--- The limit is counted the way submit_flag counts reports (20261101120000_flags_and_submit_flag.sql): a per-person
--- advisory lock, then a count over the last hour. Profiles keep no history, so each change is noted in
--- display_name_changes: the account and the time, nothing else. Notes older than an hour are deleted on every call,
--- and deleting an account deletes its notes. The table is closed to every website role, like flags.
+-- The limit uses submit_flag's pattern (20261101120000_flags_and_submit_flag.sql): a per-person advisory lock, then a
+-- check against the limit. Profiles keep no history, so the count lives on the student's own profile row in two fixed
+-- fields: when the current hour of name changes began, and how many changes were made in it. A change more than an
+-- hour after the window began starts a new window. The fields are overwritten, never pile up, are deleted with the
+-- profile, and are part of export-my-data (exportload.ts reads them with the rest of the profile).
 --
--- Grants, row-level security and the policies are all in this file, together (D-73).
+-- Grants are in this file and in 20261101060100_profiles.sql (D-73).
 
-create table public.display_name_changes (
-  -- Whose change it was; deleting an account deletes its notes (delete-my-account).
-  user_id uuid not null references auth.users (id) on delete cascade,
-  changed_at timestamptz not null default now()
-);
+alter table public.profiles
+  add column name_change_window_start timestamptz,
+  add column name_changes_in_window smallint not null default 0
+    constraint profiles_name_changes_in_window_range check (name_changes_in_window between 0 and 10);
 
-create index display_name_changes_user_time_idx on public.display_name_changes (user_id, changed_at desc);
+comment on column public.profiles.name_change_window_start is
+  'When the current hour of display-name changes began (null until the first change). Written only by update_display_name.';
+comment on column public.profiles.name_changes_in_window is
+  'How many display-name changes were made since name_change_window_start. Written only by update_display_name.';
 
-comment on table public.display_name_changes is
-  'When each display-name change happened, for the last hour only, so update_display_name can limit changes.';
-
--- Nothing for anon or authenticated: only update_display_name reads and writes it. The service role does everything.
-grant select, insert, update, delete on table public.display_name_changes to service_role;
-
-alter table public.display_name_changes enable row level security;
-
--- Written down as well as granted away (AGENTS.md: explicit policies), so the rule survives a later grant by mistake.
-create policy "no website role reads or writes display name changes"
-  on public.display_name_changes
-  as restrictive
-  for all
-  to anon, authenticated
-  using (false)
-  with check (false);
-
--- The function below is now the only way a student changes their display name.
+-- Students keep reading their own row (the table-wide select grant, for the page and export-my-data) but can no longer
+-- write any column: update_display_name below is now the only way to change the name, and the two new columns get no
+-- insert or update grant.
 revoke update (display_name) on table public.profiles from authenticated;
 
 -- ------------------------------------------------------------ update_display_name
@@ -53,6 +41,8 @@ as $$
 declare
   uid uuid := (select auth.uid());
   clean_name text;
+  window_start timestamptz;
+  changes integer;
   hourly_limit constant integer := 10;
 begin
   if uid is null then
@@ -71,17 +61,25 @@ begin
 
   -- The limit, per person. The lock keeps two quick calls from both slipping under it.
   perform pg_advisory_xact_lock(hashtextextended('display-name:' || uid::text, 0));
-  delete from public.display_name_changes c where c.changed_at <= now() - interval '1 hour';
-  if (select count(*) from public.display_name_changes c where c.user_id = uid) >= hourly_limit then
-    raise exception 'that is a lot of name changes; please try again later' using errcode = '54000';
-  end if;
-
-  update public.profiles p set display_name = clean_name where p.id = uid;
+  select p.name_change_window_start, p.name_changes_in_window into window_start, changes
+    from public.profiles p where p.id = uid;
   if not found then
     raise exception 'your profile was not found' using errcode = 'P0002';
   end if;
 
-  insert into public.display_name_changes (user_id) values (uid);
+  if window_start is null or window_start <= now() - interval '1 hour' then
+    -- No changes in the last hour: this one starts a new window.
+    window_start := now();
+    changes := 1;
+  elsif changes >= hourly_limit then
+    raise exception 'that is a lot of name changes; please try again later' using errcode = '54000';
+  else
+    changes := changes + 1;
+  end if;
+
+  update public.profiles p
+    set display_name = clean_name, name_change_window_start = window_start, name_changes_in_window = changes
+    where p.id = uid;
   return clean_name;
 end;
 $$;

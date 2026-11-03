@@ -180,7 +180,16 @@ describe('update_display_name contract (Task 59, Codex on #230)', () => {
     expect(nameSql).toContain('grant execute on function public.update_display_name(text) to authenticated;');
     expect(nameSql).toContain('revoke update (display_name) on table public.profiles from authenticated;');
     expect(nameSql).toMatch(/pg_advisory_xact_lock\(hashtextextended\('display-name:' \|\| uid::text, 0\)\)/);
-    expect(nameSql).toMatch(/update public\.profiles p set display_name = clean_name where p\.id = uid;/);
-    expect(nameSql).not.toMatch(/grant\s+(select|insert|update|delete)[^;]*display_name_changes[^;]*to\s+(anon|authenticated)/i);
+    expect(nameSql).toMatch(/where p\.id = uid;/);
+    // No grant to students in this file: the limit's two columns are written only by the function.
+    expect(nameSql).not.toMatch(/\bgrant\s+(insert|update|delete)[^;]*\bto\s+(anon|authenticated|public)\b/i);
+    expect(nameSql).not.toMatch(/create\s+table/i);
+  });
+
+  it('keeps the limit in two profile columns, which export-my-data reads', () => {
+    expect(nameSql).toMatch(/add column name_change_window_start timestamptz,/);
+    expect(nameSql).toMatch(/add column name_changes_in_window smallint not null default 0/);
+    const exportSource = readFileSync(new URL('../../src/islands/exportload.ts', import.meta.url), 'utf8');
+    expect(exportSource).toContain("profiles: 'display_name,created_at,name_change_window_start,name_changes_in_window',");
   });
 });

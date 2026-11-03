@@ -37,10 +37,19 @@ describe('JSON export', () => {
     expect(exportJson(sample, exportDate)).toContain('\n  "profile": {\n    "displayName": "Sample Student",');
   });
 
+  it('includes the display-name limit fields in JSON and CSV (Codex on #230)', () => {
+    const profile = { displayName: 'Sample Student', nameChangeWindowStart: '2026-11-01T08:00:00+00:00', nameChangesInWindow: 3 };
+    expect(json({ profile }).profile).toEqual({ ...profile, nameChangeWindowStart: '2026-11-01T08:00:00.000Z' });
+    expect(parseRows(file({ profile }, 'profile'))[1]).toEqual(['Sample Student', '', '', '2026-11-01T08:00:00.000Z', '3']);
+    expect(json({ profile: { nameChangesInWindow: 11, nameChangeWindowStart: 'soon' } }).dropped)
+      .toEqual(['profile.nameChangeWindowStart', 'profile.nameChangesInWindow']);
+  });
+
   it('includes the account email as personal data in JSON and CSV', () => {
     expect(json(sample).profile.email).toBe('sample@example.invalid');
     expect(parseRows(file(sample, 'profile'))).toEqual([
-      ['displayName', 'email', 'createdAt'], ['Sample Student', 'sample@example.invalid', '2026-10-01T12:00:00.000Z'],
+      ['displayName', 'email', 'createdAt', 'nameChangeWindowStart', 'nameChangesInWindow'],
+      ['Sample Student', 'sample@example.invalid', '2026-10-01T12:00:00.000Z', '', ''],
     ]);
     expect(json({ profile: { email: null } }).profile).toEqual({ email: null });
   });
@@ -285,7 +294,7 @@ describe('CSV export', () => {
     const school = 'Sample: "School", East';
     const input = { profile: { displayName }, onboarding: { school } };
     expect(file(input, 'profile')).toContain('"Sample: ""Ána"", 王\nnext line\r\nlast line"');
-    expect(parseRows(file(input, 'profile'))[1]).toEqual([displayName, '', '']);
+    expect(parseRows(file(input, 'profile'))[1]).toEqual([displayName, '', '', '', '']);
     expect(parseRows(file(input, 'onboarding'))[1]).toEqual(['', '', '', school]);
   });
 

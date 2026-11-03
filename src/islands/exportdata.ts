@@ -20,7 +20,11 @@ import { isCourse, isExamDate, PROGRESS_VERSION, type DeckProgress, type Progres
 import type { GameStats } from './gamestats';
 
 export interface ExportData {
-  profile?: { displayName?: string | null; email?: string | null; createdAt?: string | null };
+  profile?: {
+    displayName?: string | null; email?: string | null; createdAt?: string | null;
+    /** The display-name limit (20261102140000_update_display_name.sql): when the current hour of changes began, and how many. */
+    nameChangeWindowStart?: string | null; nameChangesInWindow?: number;
+  };
   onboarding?: { course?: string | null; examDate?: string | null; done?: boolean; school?: string | null };
   progress?: readonly { id: string; result: string | boolean; date: string }[] | Progress;
   reviewState?: readonly { id: string; nextDueDate: string; interval: number }[];
@@ -74,7 +78,11 @@ function utcDate(value: unknown): string | undefined {
   return iso.slice(0, -1) + micros + 'Z';
 }
 const date = (value: unknown) => utcDate(value) !== undefined;
-const profileSchema: Schema = { displayName: nullableText, email: nullableText, createdAt: value => value === null || date(value) };
+const profileSchema: Schema = {
+  displayName: nullableText, email: nullableText, createdAt: value => value === null || date(value),
+  nameChangeWindowStart: value => value === null || date(value),
+  nameChangesInWindow: value => typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 10,
+};
 const onboardingSchema: Schema = {
   course: nullableText, examDate: value => value === null || day(value), done: bool, school: nullableText,
 };
@@ -293,6 +301,7 @@ function prepare(data: unknown): { data: Sections; dropped: string[] } {
     ? cleanList(own(source, key), schema, key, dropped, rowCaps[key]) : [];
   const profile = recordSection('profile', profileSchema);
   if (typeof profile.createdAt === 'string') profile.createdAt = utcDate(profile.createdAt)!;
+  if (typeof profile.nameChangeWindowStart === 'string') profile.nameChangeWindowStart = utcDate(profile.nameChangeWindowStart)!;
   const suppliedProgress = own(source, 'progress');
   const progress = !Object.hasOwn(source, 'progress') ? [] : Array.isArray(suppliedProgress)
     ? cleanList(suppliedProgress, progressSchema, 'progress', dropped) : cleanGuest(suppliedProgress, dropped) ?? [];

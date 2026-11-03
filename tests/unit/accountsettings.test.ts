@@ -30,7 +30,7 @@ const eventId = '44444444-4444-4444-8444-444444444444';
 /** A reader with the student's own rows, or one that fails a read. */
 function reader({ fails = false, events = [] as unknown[] } = {}): ExportReader {
   const rows: Record<string, unknown[]> = {
-    profiles: [{ display_name: 'Sample Student', created_at: when }],
+    profiles: [{ display_name: 'Sample Student', created_at: when, name_change_window_start: null, name_changes_in_window: 0 }],
     attempts: [],
     exam_plans: [{ id: eventId, course: 'med-surg-1', exam_date: '2026-12-15', created_at: when }],
     review_state: [],
@@ -99,7 +99,9 @@ describe('download my data', () => {
     const result = await gatherExport(reader(), { email: 'student@example.test', storage: local, today });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.data.profile).toEqual({ displayName: 'Sample Student', createdAt: when, email: 'student@example.test' });
+    expect(result.data.profile).toEqual({
+      displayName: 'Sample Student', createdAt: when, nameChangeWindowStart: null, nameChangesInWindow: 0, email: 'student@example.test',
+    });
     expect(result.data.progress).toMatchObject({ decks: { 'sample-deck': { starred: ['card-1'] } } });
     expect(result.data.gameStats).toEqual([]);
   });
