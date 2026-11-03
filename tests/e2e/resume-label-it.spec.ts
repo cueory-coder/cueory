@@ -123,12 +123,14 @@ test('merely visiting or revealing does not overwrite a different study tool sav
 test('unknown label IDs in a structurally valid snapshot safely restart without revealing labels', async ({ page }) => {
   await open(page);
   await markLabel(page, 1, 'know it');
-  await page.evaluate(key => {
-    const snapshot = JSON.parse(localStorage.getItem(key)!);
-    snapshot.answers = { unknown: { mark: 'know', round: 'current' } };
+  const snapshot = await saved(page);
+  snapshot.answers = { unknown: { mark: 'know', round: 'current' } };
+  // Seed the next document after pagehide flushes this page's valid draft.
+  await page.addInitScript(({ key, snapshot }) => {
     localStorage.setItem(key, JSON.stringify(snapshot));
-  }, key);
+  }, { key, snapshot });
   await page.reload();
+  expect((await saved(page)).answers).toEqual(snapshot.answers);
   await page.getByRole('button', { name: 'continue question 2', exact: true }).click();
   await expect(page.getByTestId('cover-1')).toHaveAccessibleName('label 1, covered');
   expect(await saved(page)).toBeNull();
