@@ -1,0 +1,1 @@
+status: Task 231 replacement for destructive PR #347: all built routes are checked on phone and desktop with JavaScript disabled, primary client-only islands require adjacent readable noscript content, and the anatomy preview, visual diagrams and video sample now have fallbacks. No files outside this bounded scope were removed or changed.
