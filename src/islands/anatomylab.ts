@@ -276,6 +276,22 @@ export function groupStructures(structures: readonly AnatomyStructure[], query =
   return [...groups].map(([group, items]) => ({ group, items }));
 }
 
+/** Keep a text-only fallback usable on phones even with a large whole-body catalog. */
+export const TEXT_FALLBACK_BATCH = 40;
+
+/** The first `limit` matching names, preserving group order; searching still checks the entire catalog. */
+export function textFallbackItems(groups: readonly StructureGroup[], limit: number): AnatomyStructure[] {
+  if (!Number.isSafeInteger(limit) || limit < 1) return [];
+  const entries: AnatomyStructure[] = [];
+  for (const group of groups) {
+    for (const item of group.items) {
+      if (entries.length >= limit) return entries;
+      entries.push(item);
+    }
+  }
+  return entries;
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 // Visibility
 // ---------------------------------------------------------------------------------------------------------------------
