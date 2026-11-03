@@ -77,6 +77,19 @@ function hasHiddenAttribute(attributes: string): boolean {
   return (quote === '"' || quote === "'") && value.slice(1).startsWith(`true${quote}`);
 }
 
+const ENTITY_MAP: Record<string, string> = {
+  '&nbsp;': ' ',
+  '&amp;': '&',
+  '&lt;': '<',
+  '&gt;': '>',
+  '&quot;': '"',
+  '&#39;': "'",
+};
+
+function decodeEntities(text: string): string {
+  return text.replace(/&(?:nbsp|amp|lt|gt|quot|#39);/gi, (entity) => ENTITY_MAP[entity.toLowerCase()] ?? entity);
+}
+
 function visibleText(markup: string): string {
   const stack: Array<{ name: string; suppressed: boolean }> = [];
   let output = '';
@@ -111,13 +124,7 @@ function visibleText(markup: string): string {
     index = end + 1;
   }
 
-  return output
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
+  return decodeEntities(output)
     .replace(/\s+/g, ' ')
     .trim();
 }
