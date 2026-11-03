@@ -548,3 +548,37 @@ test.describe('anatomy lab system switch', () => {
     await expect(page.getByText(/^loading /)).toHaveCount(0, { timeout: 20_000 });
   });
 });
+
+
+test('recovers from a failed first anatomy model request without refreshing', async ({ page }) => {
+  let requests = 0;
+  await page.route('**/preview/anatomy-fixture/fixture.glb', async (route) => {
+    requests++;
+    if (requests === 1) {
+      await route.fulfill({ status: 503, contentType: 'text/plain', body: 'temporarily unavailable' });
+    } else {
+      await route.continue();
+    }
+  });
+  await page.goto(URL);
+  await page.getByRole('button', { name: 'open the anatomy lab' }).click();
+  await expect(page.getByRole('alert')).toContainText('could not load');
+  const retry = page.getByRole('button', { name: 'try loading again' });
+  await expect(retry).toBeVisible();
+  await retry.click();
+  await expect(list(page).getByRole('button', { name: 'fixture cube A', exact: true })).toBeEnabled({ timeout: 20_000 });
+  expect(requests).toBe(2);
+});
+
+test.describe('anatomy lab without JavaScript', () => {
+  test.use({ javaScriptEnabled: false });
+  test('keeps a readable alternative next to the interactive viewer', async ({ page }) => {
+    await page.goto(URL);
+    const fallback = page.locator('main astro-island[client="only"] + noscript');
+    await expect(fallback).toHaveCount(1);
+    const paragraph = fallback.locator(':scope > p');
+    await expect(paragraph).toBeVisible();
+    expect(await paragraph.textContent()).toContain('the 3D anatomy lab needs JavaScript');
+    await expect(paragraph.getByRole('link', { name: 'browse the lessons' })).toHaveAttribute('href', '/learn');
+  });
+});

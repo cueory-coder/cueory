@@ -43,7 +43,14 @@ const hasSystems = systems.length > 0 || lab.fixture !== null;
 
     {
       hasSystems ? (
-        <AnatomyLab client:only="react" systems={systems} fixture={lab.fixture} drafts={lab.drafts} />
+        <>
+          <AnatomyLab client:only="react" systems={systems} fixture={lab.fixture} drafts={lab.drafts} />
+          <noscript>
+            <p class="rounded-lg border border-line p-4 text-ink">
+              the 3D anatomy lab needs JavaScript. <a href="/learn" class="underline">browse the lessons</a> instead.
+            </p>
+          </noscript>
+        </>
       ) : (
         <p class="rounded-lg border border-line p-4 text-ink">the anatomy lab is coming soon.</p>
       )

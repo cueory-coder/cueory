@@ -135,9 +135,9 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
   }, [baseSystems, fixture]);
 
   const [phase, setPhase] = useState<Phase>('cover');
-  const [openError, setOpenError] = useState('');
   const [systemKey, setSystemKey] = useState(systems[0]?.key ?? '');
   const [load, setLoad] = useState<SystemLoad>({ state: 'loading' });
+  const [initialRetry, setInitialRetry] = useState(0);
   const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
   const [selected, setSelected] = useState<string | null>(null);
   const [query, setQuery] = useState('');
@@ -250,7 +250,6 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
   // ── Open: load three.js and the scene module only now ─────────────────────────────────────────────────────────────
   const open = useCallback(async () => {
     setPhase('opening');
-    setOpenError('');
     try {
       const { createLabScene, readColors } = await import('./anatomyscene');
       // Wait a frame so React has put the canvas on the page (the timeout covers background tabs, which get no frames).
@@ -269,10 +268,9 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
         onRender: () => updateLabelsRef.current(),
       });
       setPhase('open');
-    } catch (err) {
+    } catch {
       sceneRef.current?.dispose();
       sceneRef.current = null;
-      setOpenError(err instanceof Error ? err.message : 'The anatomy lab could not open.');
       setPhase('error');
     }
   }, []);
@@ -330,7 +328,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
       current = false;
       loaderRef.current?.retire();
     };
-  }, [phase, system]);
+  }, [phase, system, initialRetry]);
 
   /** Shows a layer, fetching its model files first if the student has not got to it yet; `then` hides another after. */
   const reveal = useCallback(
@@ -575,9 +573,12 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
 
   if (phase === 'error') {
     return (
-      <div className="rounded-lg bg-surface p-4 text-sm" role="alert">
-        <p>The anatomy lab could not open.</p>
-        {openError && <p className="mt-1 text-ink-soft">{openError}</p>}
+      <div className="space-y-3 rounded-lg bg-surface p-4 text-sm">
+        <p role="alert">the anatomy lab could not open. try again, or browse the lessons instead.</p>
+        <div className="flex flex-wrap gap-3">
+          <button type="button" className={secondaryButton} onClick={() => void open()}>try opening again</button>
+          <a href="/learn" className="inline-flex min-h-11 items-center underline">browse the lessons</a>
+        </div>
       </div>
     );
   }
@@ -643,10 +644,11 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
               </div>
             )}
             {load.state === 'error' && (
-              <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-surface p-4" role="alert">
-                <p className="text-sm text-ink">
-                  Could not load {system.title}. <span className="text-ink-soft">{load.message}</span>
-                </p>
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-lg bg-surface p-4 text-center">
+                <p role="alert" className="text-sm text-ink">could not load {system.title}. check the connection and try again.</p>
+                <button type="button" className={secondaryButton} onClick={() => setInitialRetry((count) => count + 1)}>
+                  try loading again
+                </button>
               </div>
             )}
           </div>
