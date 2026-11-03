@@ -595,9 +595,11 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     return (
       <div className="space-y-6">
         <div className="space-y-3 rounded-lg border border-line bg-surface p-4">
-          <h2 ref={fallbackHeadingRef} tabIndex={-1} role="alert" className="text-lg text-ink">
-            the 3D anatomy lab could not open.
-          </h2>
+          <div role="alert">
+            <h2 ref={fallbackHeadingRef} tabIndex={-1} className="text-lg text-ink">
+              the 3D anatomy lab could not open.
+            </h2>
+          </div>
           <p className="text-sm text-ink-soft">you can still search the original structure names below.</p>
           <div className="flex flex-wrap gap-3">
             <button type="button" className={secondaryButton} onClick={() => void open()}>try 3D again</button>
