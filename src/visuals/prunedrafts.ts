@@ -39,7 +39,7 @@ export function pruneDraftModels(dist: string, contentDir: string, env: PruneEnv
   const systems: SystemFile[] = readdirSync(contentDir)
     .filter((f) => /^anatomy-.+\.json$/.test(f))
     .map((f) => JSON.parse(readFileSync(join(contentDir, f), 'utf8')) as SystemFile);
-  const keep = new Set(approvedOnly(systems.map((s) => ({ ...s, status: s.status }))).flatMap(modelPathsOf));
+  const keep = new Set(approvedOnly(systems.map((s) => ({ ...s, status: s.status === 'approved' ? ('approved' as const) : ('draft' as const) }))).flatMap(modelPathsOf));
   const removed: string[] = [];
   const walk = (dir: string, url: string) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
