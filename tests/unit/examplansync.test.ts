@@ -7,7 +7,9 @@ import {
   loadTickets,
   supabaseExamPlans,
   SYNC_MESSAGES,
-  withAccountAnswers,
+  loadExamPlans,
+  resolveAccountAnswers,
+  saveSetupToAccount,
   withServerPlan,
   type DbError,
   type ExamPlanClient,
@@ -130,30 +132,115 @@ describe('loadExamPlan', () => {
   });
 });
 
-describe('withAccountAnswers — a late load never replaces what the student did', () => {
-  const server = answers('med-surg-1', '2026-12-10');
+describe('resolveAccountAnswers — the date belongs to the course on screen (Codex on #232)', () => {
+  const plans = [{ course: 'med-surg-1', examDate: '2026-12-10' }, { course: 'fundamentals', examDate: '2027-01-20' }] as const;
   const untouched = { course: false, examDate: false };
 
-  it('fills questions the student has not acted on', () => {
-    expect(withAccountAnswers({ course: '', examDate: '' }, server, untouched))
+  it("fills an untouched date with the account's date for the course on screen", () => {
+    expect(resolveAccountAnswers({ course: 'med-surg-1', examDate: '' }, untouched, plans))
       .toEqual({ course: 'med-surg-1', examDate: '2026-12-10' });
   });
 
-  it('keeps a skipped course blank, even though blank is also what an untouched question shows (Codex on #232)', () => {
-    expect(withAccountAnswers({ course: '', examDate: '' }, server, { course: true, examDate: false }))
-      .toEqual({ course: '', examDate: '2026-12-10' });
+  it('uses the course picked now, not the one saved on the device, and never borrows another course\'s date', () => {
+    const picked = { course: true, examDate: false };
+    expect(resolveAccountAnswers({ course: 'fundamentals', examDate: '' }, picked, plans))
+      .toEqual({ course: 'fundamentals', examDate: '2027-01-20' });
+    expect(resolveAccountAnswers({ course: 'fundamentals', examDate: '' }, picked, [plans[0]]))
+      .toEqual({ course: 'fundamentals', examDate: '' });
+    expect(resolveAccountAnswers({ course: 'both', examDate: '2027-03-01' }, picked, plans))
+      .toEqual({ course: 'both', examDate: '2027-03-01' });
   });
 
-  it('keeps a picked course and a typed, cleared or skipped date', () => {
-    expect(withAccountAnswers({ course: 'fundamentals', examDate: '2027-01-05' }, server, { course: true, examDate: true }))
-      .toEqual({ course: 'fundamentals', examDate: '2027-01-05' });
-    expect(withAccountAnswers({ course: 'med-surg-1', examDate: '' }, server, { course: false, examDate: true }))
-      .toEqual({ course: 'med-surg-1', examDate: '' });
-  });
-
-  it('shows an account without a course or date as blank', () => {
-    expect(withAccountAnswers({ course: 'both', examDate: '2027-01-05' }, answers(null, null), untouched))
+  it('keeps a skipped course blank, and then has no course to take a date from', () => {
+    expect(resolveAccountAnswers({ course: '', examDate: '' }, { course: true, examDate: false }, [plans[0]]))
       .toEqual({ course: '', examDate: '' });
+  });
+
+  it("takes the account's only plan when the course is untouched and blank", () => {
+    expect(resolveAccountAnswers({ course: '', examDate: '' }, untouched, [plans[0]]))
+      .toEqual({ course: 'med-surg-1', examDate: '2026-12-10' });
+    expect(resolveAccountAnswers({ course: '', examDate: '' }, untouched, plans)).toEqual({ course: '', examDate: '' });
+  });
+
+  it('never replaces a date the student typed, cleared or skipped', () => {
+    expect(resolveAccountAnswers({ course: 'med-surg-1', examDate: '' }, { course: false, examDate: true }, plans))
+      .toEqual({ course: 'med-surg-1', examDate: '' });
+    expect(resolveAccountAnswers({ course: 'med-surg-1', examDate: '2027-02-02' }, { course: false, examDate: true }, plans))
+      .toEqual({ course: 'med-surg-1', examDate: '2027-02-02' });
+  });
+});
+
+describe('saveSetupToAccount — the account plans are the baseline (Codex on #232)', () => {
+  const save = (db: ExamPlanSyncDb, values: { plans: { course: 'med-surg-1' | 'fundamentals'; examDate: string }[] | null;
+    deviceBefore: Onboarding; after: Onboarding; clearedDate?: boolean }) =>
+    saveSetupToAccount(db, { clearedDate: false, today: TODAY, ...values });
+
+  it('a cleared or skipped date removes the plan even when the device never had that date', async () => {
+    const db = new FakePlans();
+    db.rows = [{ course: 'med-surg-1', exam_date: '2026-12-10' }];
+    const result = await save(db, {
+      plans: [{ course: 'med-surg-1', examDate: '2026-12-10' }],
+      deviceBefore: answers('med-surg-1', null), after: answers('med-surg-1', null), clearedDate: true,
+    });
+    expect(result).toEqual({ status: 'removed', message: SYNC_MESSAGES.removed });
+    expect(db.calls).toEqual(['remove med-surg-1']);
+  });
+
+  it('a blank the student never touched removes nothing', async () => {
+    const db = new FakePlans();
+    expect(await save(db, {
+      plans: [{ course: 'med-surg-1', examDate: '2026-12-10' }], deviceBefore: answers('med-surg-1', '2026-12-10'), after: answers('med-surg-1', null),
+    })).toEqual({ status: 'unchanged' });
+    expect(db.calls).toEqual([]);
+  });
+
+  it('a clear for a course the account has no plan for sends nothing, and a clear with no course uses the device course', async () => {
+    const db = new FakePlans();
+    expect(await save(db, {
+      plans: [{ course: 'med-surg-1', examDate: '2026-12-10' }], deviceBefore: answers(null, null), after: answers('fundamentals', null), clearedDate: true,
+    })).toEqual({ status: 'unchanged' });
+    expect(await save(db, {
+      plans: [{ course: 'med-surg-1', examDate: '2026-12-10' }], deviceBefore: answers('med-surg-1', null), after: answers(null, null), clearedDate: true,
+    })).toEqual({ status: 'removed', message: SYNC_MESSAGES.removed });
+    expect(db.calls).toEqual(['remove med-surg-1']);
+  });
+
+  it("a date equal to the account's plan sends nothing; a date for another course writes only that course", async () => {
+    const db = new FakePlans();
+    db.rows = [{ course: 'med-surg-1', exam_date: '2026-12-10' }, { course: 'fundamentals', exam_date: '2027-01-20' }];
+    const plans = [{ course: 'med-surg-1' as const, examDate: '2026-12-10' }, { course: 'fundamentals' as const, examDate: '2027-01-20' }];
+    expect(await save(db, { plans, deviceBefore: answers('med-surg-1', null), after: answers('fundamentals', '2027-01-20') }))
+      .toEqual({ status: 'unchanged' });
+    expect(await save(db, { plans, deviceBefore: answers('fundamentals', '2027-01-20'), after: answers('fundamentals', '2027-02-02') }))
+      .toEqual({ status: 'saved', message: SYNC_MESSAGES.saved });
+    expect(db.calls).toEqual(['update fundamentals 2027-02-02']);
+    expect(db.rows).toContainEqual({ course: 'med-surg-1', exam_date: '2026-12-10' });
+  });
+
+  it('when the plans could not be read, compares with the device and still sends a clear', async () => {
+    const db = new FakePlans();
+    expect(await save(db, { plans: null, deviceBefore: answers('both', '2026-12-10'), after: answers('both', '2026-12-10') }))
+      .toEqual({ status: 'unchanged' });
+    expect(await save(db, { plans: null, deviceBefore: answers('both', null), after: answers('both', null), clearedDate: true }))
+      .toEqual({ status: 'removed', message: SYNC_MESSAGES.removed });
+    expect(db.calls).toEqual(['remove both']);
+  });
+
+  it('a failed removal is one plain sentence', async () => {
+    const db = new FakePlans();
+    db.failOn = (call) => (call === 'remove' ? { code: '500', message: 'private' } : undefined);
+    expect(await save(db, { plans: null, deviceBefore: answers('both', null), after: answers('both', null), clearedDate: true }))
+      .toEqual({ status: 'failed', message: SYNC_MESSAGES.removeFailed });
+  });
+});
+
+describe('loadExamPlans', () => {
+  it('returns the plans by course, or the load sentence', async () => {
+    const db = new FakePlans();
+    db.rows = [{ course: 'med-surg-1', exam_date: '2026-12-10' }];
+    expect(await loadExamPlans(db)).toEqual({ ok: true, plans: [{ course: 'med-surg-1', examDate: '2026-12-10' }] });
+    db.failOn = () => ({ code: '500' });
+    expect(await loadExamPlans(db)).toEqual({ ok: false, message: SYNC_MESSAGES.loadFailed });
   });
 });
 

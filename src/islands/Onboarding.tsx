@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import {
-  COURSES, examDateWords, isExamDate, localDay, readProgress, saveProgress, withOnboarding, type Onboarding as Answers,
+  COURSES, emptyProgress, examDateWords, isExamDate, localDay, readProgress, saveProgress, withOnboarding,
+  type Onboarding as Answers,
 } from '../scripts/progress';
 import { browserStorage } from '../scripts/storage';
 import {
-  connectExamPlans, loadExamPlan, saveExamPlan, withAccountAnswers, type ExamPlanSyncDb, type Touched,
+  connectExamPlans, loadExamPlans, resolveAccountAnswers, saveSetupToAccount, withServerPlan,
+  type ExamPlanSyncDb, type ServerPlan, type Touched,
 } from './examplansync';
 
 const primaryButton = 'min-h-11 rounded-pill bg-button px-5 py-2.5 text-on-button hover:bg-button-hover';
@@ -19,6 +21,12 @@ const TOTAL_QUESTIONS = 2;
  *
  * Signed in (Task 145), the account's exam date is read on load and wins over the device's, and a new, changed or
  * cleared date is also written to the account. Signed out or with accounts off, nothing leaves the device.
+ *
+ * The account's plans, once loaded, are the baseline for saving (Codex on #232). An untouched date always shows the
+ * account's date for the course on screen, never another course's. Finishing before the load lands saves on the
+ * device at once and shows the result; the account save waits for the plans and reconciles then: untouched answers
+ * take the account's values (on the device and in the summary), and a date the student cleared or skipped removes
+ * that course's plan. Waiting instead (with a time limit) would still need this reconcile for a load that outlasts it.
  */
 export default function Onboarding() {
   const [storage] = useState(browserStorage);
@@ -33,42 +41,79 @@ export default function Onboarding() {
   const dateHeadingRef = useRef<HTMLHeadingElement>(null);
   const dateRef = useRef<HTMLInputElement>(null);
   const [syncNote, setSyncNote] = useState('');
-  const account = useRef<Promise<ExamPlanSyncDb | null>>(Promise.resolve(null));
+  /** Resolves once the account is known: its adapter and plans (null plans: they couldn't be read). Null: no account. */
+  const account = useRef<Promise<{ db: ExamPlanSyncDb; plans: ServerPlan[] | null } | null>>(Promise.resolve(null));
+  /** The account's plans once loaded, for keeping an untouched date in step with the course. */
+  const plans = useRef<ServerPlan[] | null>(null);
   const finished = useRef(false);
   // Set as soon as the student picks, types, clears or skips, so a late account load never replaces that answer.
   const touched = useRef<Touched>({ course: false, examDate: false });
+  // The answers on screen, readable from the load and save callbacks without waiting for a render.
+  const answers = useRef({ course: saved.course ?? '', examDate: saved.examDate ?? '' });
+  const show = (next: { course: string; examDate: string }) => {
+    answers.current = next;
+    setCourse(next.course);
+    setExamDate(next.examDate);
+  };
   const changeCourse = (value: string) => {
     touched.current.course = true;
-    setCourse(value);
+    const next = { ...answers.current, course: value };
+    // An untouched date follows the course: the account's date for the new course, once the plans are known.
+    show(plans.current ? resolveAccountAnswers(next, touched.current, plans.current) : next);
   };
   const changeExamDate = (value: string) => {
     touched.current.examDate = true;
-    setExamDate(value);
+    show({ ...answers.current, examDate: value });
   };
 
   useEffect(() => {
     account.current = (async () => {
       const db = await connectExamPlans();
       if (!db) return null;
-      const loaded = await loadExamPlan(db, readProgress(storage).onboarding);
-      if (finished.current) return db;
-      if (!loaded.ok) setSyncNote(loaded.message);
-      else if (loaded.onboarding) {
-        const server = loaded.onboarding;
-        saveProgress(storage, withOnboarding(readProgress(storage), server));
-        // Only answers the student hasn't acted on yet are replaced, read when the answer arrives.
-        setCourse((current) => withAccountAnswers({ course: current, examDate: '' }, server, touched.current).course);
-        setExamDate((current) => withAccountAnswers({ course: '', examDate: current }, server, touched.current).examDate);
+      const loaded = await loadExamPlans(db);
+      if (!loaded.ok) {
+        if (!finished.current) setSyncNote(loaded.message);
+        return { db, plans: null };
       }
-      return db;
+      plans.current = loaded.plans;
+      if (!finished.current) {
+        // The device record takes the account's date for its own course, as /progress does.
+        const server = withServerPlan(readProgress(storage).onboarding, loaded.plans);
+        if (server) saveProgress(storage, withOnboarding(readProgress(storage), server));
+        // The screen takes it for the course on screen now, and only for questions the student hasn't acted on.
+        show(resolveAccountAnswers(answers.current, touched.current, loaded.plans));
+      }
+      return { db, plans: loaded.plans };
     })();
   }, [storage]);
 
-  const saveToAccount = async (before: Answers, after: Answers) => {
-    const db = await account.current;
-    if (!db) return;
-    const outcome = await saveExamPlan(db, before, after, localDay(new Date()));
-    if (outcome.status !== 'unchanged') setSyncNote(outcome.message);
+  /**
+   * After the device save: waits for the account's plans, then reconciles with them and saves to the account.
+   * `acted` is what the student had acted on when they finished.
+   */
+  const saveToAccount = async (deviceBefore: Answers, done: { course: string; examDate: string }, acted: Touched, outcome: 'saved' | 'skipped') => {
+    const known = await account.current;
+    if (!known) return;
+    let final = done;
+    if (known.plans) {
+      // The load may have landed after the student finished: untouched answers take the account's values now.
+      const resolved = resolveAccountAnswers(done, acted, known.plans);
+      if (resolved.course !== done.course || resolved.examDate !== done.examDate) {
+        saveProgress(storage, withOnboarding(readProgress(storage), resolved));
+        if (outcome === 'saved') show(resolved);
+        final = resolved;
+      }
+    }
+    // "skip for now" keeps what was saved: the account fills in the device, but nothing is sent back.
+    if (outcome === 'skipped') return;
+    const result = await saveSetupToAccount(known.db, {
+      plans: known.plans,
+      deviceBefore,
+      after: withOnboarding(emptyProgress(), final).onboarding,
+      clearedDate: acted.examDate && !final.examDate,
+      today: localDay(new Date()),
+    });
+    if (result.status !== 'unchanged') setSyncNote(result.message);
   };
 
   const focusQuestion = (next: 0 | 1) => {
@@ -78,15 +123,15 @@ export default function Onboarding() {
     });
   };
 
-  const finish = (answers: { course: string; examDate: string }, outcome: 'saved' | 'skipped') => {
+  const finish = (done: { course: string; examDate: string }, outcome: 'saved' | 'skipped', acted: Touched = touched.current) => {
     const before = readProgress(storage).onboarding;
-    const next = withOnboarding(readProgress(storage), answers);
+    const next = withOnboarding(readProgress(storage), done);
     const kept = saveProgress(storage, next);
     finished.current = true;
     setSyncNote('');
     setResult(kept ? outcome : 'not-kept');
     requestAnimationFrame(() => resultRef.current?.focus());
-    if (kept) void saveToAccount(before, next.onboarding);
+    if (kept) void saveToAccount(before, done, { ...acted }, outcome);
   };
 
   const saveAnswers = () => {
@@ -96,7 +141,7 @@ export default function Onboarding() {
       return;
     }
     setDateProblem('');
-    finish({ course, examDate }, 'saved');
+    finish(answers.current, 'saved');
   };
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -113,15 +158,16 @@ export default function Onboarding() {
     } else {
       changeExamDate('');
       setDateProblem('');
-      finish({ course, examDate: '' }, 'saved');
+      finish(answers.current, 'saved');
     }
   };
 
   const skipForNow = () => {
     // Read when clicked, not when the form mounted. A second tab may have
     // forgotten all progress while this screen stayed open.
+    // Nothing on this screen counts as answered, so the account only fills in, never clears.
     const fresh = readProgress(storage).onboarding;
-    finish({ course: fresh.course ?? '', examDate: fresh.examDate ?? '' }, 'skipped');
+    finish({ course: fresh.course ?? '', examDate: fresh.examDate ?? '' }, 'skipped', { course: false, examDate: false });
   };
 
   if (result) {

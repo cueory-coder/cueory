@@ -142,7 +142,10 @@ test.describe('exam date, signed in', () => {
       'list course,exam_date 10', `update fundamentals ${NEW_DATE}`, `insert fundamentals ${NEW_DATE}`,
     ]);
 
-    await page.reload();
+    // Back later: the fixture's account is rebuilt from the page address, so it is opened again with the saved plan.
+    await open(page, 'start', { course: 'fundamentals', examDate: NEW_DATE, done: true }, '', [
+      { course: 'fundamentals', exam_date: NEW_DATE },
+    ]);
     await toExam(page);
     await page.getByRole('button', { name: 'skip', exact: true }).click();
     await expect(page.getByTestId('exam-sync')).toHaveText('your exam date is cleared from your account too.');
@@ -191,14 +194,87 @@ test.describe('exam date, signed in', () => {
     await open(page, 'start', null, '&slow=list', [{ course: 'med-surg-1', exam_date: SERVER_DATE }]);
     await page.getByRole('button', { name: 'skip', exact: true }).click();
     await expect(page.getByTestId('setup-step')).toHaveText('question 2 of 2');
-    // The untouched date question still takes the account's date when it arrives.
-    await expect(page.getByLabel('when is your exam?')).toHaveValue(SERVER_DATE, { timeout: 5000 });
+    await expect.poll(() => calls(page), { timeout: 5000 }).toEqual(['list course,exam_date 10']);
+    await page.waitForTimeout(1800);
+    // No course, so there is no course to take an account date from: the date stays blank.
+    await expect(page.getByLabel('when is your exam?')).toHaveValue('');
     await page.getByRole('button', { name: 'back' }).click();
     await expect(page.getByRole('radio', { name: 'not sure yet' })).toBeChecked();
     await page.getByRole('button', { name: 'continue', exact: true }).click();
     await page.getByRole('button', { name: 'save my answers' }).click();
     await expect(page.locator(':focus')).toContainText('no course picked.');
-    expect(await deviceAnswers(page)).toEqual({ course: null, examDate: SERVER_DATE, done: true });
+    expect(await deviceAnswers(page)).toEqual({ course: null, examDate: null, done: true });
+    expect(await calls(page)).toEqual(['list course,exam_date 10']);
+  });
+
+  test('skipping the date before the account load lands clears the account plan, and /progress keeps it cleared (Codex on #232)', async ({ page }) => {
+    await open(page, 'start', { course: 'med-surg-1', examDate: null, done: true }, '&slow=list', [
+      { course: 'med-surg-1', exam_date: SERVER_DATE },
+    ]);
+    await toExam(page);
+    await page.getByRole('button', { name: 'skip', exact: true }).click();
+    await expect(page.locator(':focus')).toContainText('saved on this device.');
+    await expect(page.getByTestId('exam-sync')).toHaveText('your exam date is cleared from your account too.', { timeout: 5000 });
+    expect(await calls(page)).toEqual(['list course,exam_date 10', 'delete med-surg-1']);
+    expect(await page.evaluate(() => (window as unknown as { planRows: unknown[] }).planRows)).toEqual([]);
+    expect(await deviceAnswers(page)).toEqual({ course: 'med-surg-1', examDate: null, done: true });
+
+    // The account no longer has the date, so the progress page can't bring it back.
+    await open(page, 'progress', { course: 'med-surg-1', examDate: null, done: true });
+    await expect(page.getByText('course: med-surg i')).toBeVisible();
+    await expect(page.getByText('exam: no date')).toBeVisible();
+    expect(await deviceAnswers(page)).toEqual({ course: 'med-surg-1', examDate: null, done: true });
+  });
+
+  test("a course picked while the account loads gets that course's account date, never the saved course's (Codex on #232)", async ({ page }) => {
+    const FUNDAMENTALS_DATE = daysFromNow(100);
+    await open(page, 'start', { course: 'med-surg-1', examDate: null, done: true }, '&slow=list', [
+      { course: 'med-surg-1', exam_date: SERVER_DATE }, { course: 'fundamentals', exam_date: FUNDAMENTALS_DATE },
+    ]);
+    await page.getByRole('radio', { name: 'fundamentals', exact: true }).check();
+    await toExam(page);
+    await expect(page.getByLabel('when is your exam?')).toHaveValue(FUNDAMENTALS_DATE, { timeout: 5000 });
+    await page.getByRole('button', { name: 'save my answers' }).click();
+    await expect(page.locator(':focus')).toContainText('saved on this device.');
+    expect(await deviceAnswers(page)).toEqual({ course: 'fundamentals', examDate: FUNDAMENTALS_DATE, done: true });
+    // The account already has that date for fundamentals: nothing to send, and med-surg's date is never copied over.
+    await page.waitForTimeout(300);
+    expect(await calls(page)).toEqual(['list course,exam_date 10']);
+    expect(await page.evaluate(() => (window as unknown as { planRows: unknown }).planRows)).toEqual([
+      { course: 'med-surg-1', exam_date: SERVER_DATE }, { course: 'fundamentals', exam_date: FUNDAMENTALS_DATE },
+    ]);
+  });
+
+  test('a course picked while the account loads, with no plan for it, does not take the saved course\'s date (Codex on #232)', async ({ page }) => {
+    await open(page, 'start', { course: 'med-surg-1', examDate: null, done: true }, '&slow=list', [
+      { course: 'med-surg-1', exam_date: SERVER_DATE },
+    ]);
+    await page.getByRole('radio', { name: 'fundamentals', exact: true }).check();
+    await toExam(page);
+    await expect.poll(() => calls(page), { timeout: 5000 }).toEqual(['list course,exam_date 10']);
+    await page.waitForTimeout(1800);
+    await expect(page.getByLabel('when is your exam?')).toHaveValue('');
+    await page.getByRole('button', { name: 'save my answers' }).click();
+    await expect(page.locator(':focus')).toContainText('no exam date.');
+    await page.waitForTimeout(300);
+    expect(await calls(page)).toEqual(['list course,exam_date 10']);
+    expect(await deviceAnswers(page)).toEqual({ course: 'fundamentals', examDate: null, done: true });
+  });
+
+  test('saving before the account load lands fills an untouched date afterwards and sends nothing (Codex on #232)', async ({ page }) => {
+    await open(page, 'start', { course: 'med-surg-1', examDate: null, done: true }, '&slow=list', [
+      { course: 'med-surg-1', exam_date: SERVER_DATE },
+    ]);
+    await toExam(page);
+    await page.getByRole('button', { name: 'save my answers' }).click();
+    await expect(page.locator(':focus')).toContainText('saved on this device.');
+    await expect.poll(() => deviceAnswers(page), { timeout: 5000 }).toEqual({ course: 'med-surg-1', examDate: SERVER_DATE, done: true });
+    const words = await page.evaluate(async (day) => {
+      const [y, m, d] = day.split('-').map(Number) as [number, number, number];
+      return `${new Date(y, m - 1, d).toLocaleString('en-US', { month: 'long' }).toLowerCase()} ${d}, ${y}`;
+    }, SERVER_DATE);
+    await expect(page.getByText(`exam: ${words}.`)).toBeVisible();
+    expect(await calls(page)).toEqual(['list course,exam_date 10']);
   });
 
   test('a failed load leaves the device date and says so', async ({ page }) => {

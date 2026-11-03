@@ -89,16 +89,23 @@ export function withServerPlan(onboarding: Onboarding, plans: readonly ServerPla
 }
 
 export type LoadResult = { ok: true; onboarding: Onboarding | null } | { ok: false; message: string };
+export type PlansResult = { ok: true; plans: ServerPlan[] } | { ok: false; message: string };
 
-/** Reads the account's plans and returns the device answers to save (`null`: no change). Never throws. */
-export async function loadExamPlan(db: ExamPlanSyncDb, onboarding: Onboarding): Promise<LoadResult> {
+/** Reads the account's plans, one per course. Never throws. */
+export async function loadExamPlans(db: ExamPlanSyncDb): Promise<PlansResult> {
   try {
     const result = await db.list();
     if (!result || result.error || !Array.isArray(result.data)) return { ok: false, message: SYNC_MESSAGES.loadFailed };
-    return { ok: true, onboarding: withServerPlan(onboarding, serverPlans(result.data)) };
+    return { ok: true, plans: serverPlans(result.data) };
   } catch {
     return { ok: false, message: SYNC_MESSAGES.loadFailed };
   }
+}
+
+/** Reads the account's plans and returns the device answers to save (`null`: no change). Never throws. */
+export async function loadExamPlan(db: ExamPlanSyncDb, onboarding: Onboarding): Promise<LoadResult> {
+  const loaded = await loadExamPlans(db);
+  return loaded.ok ? { ok: true, onboarding: withServerPlan(onboarding, loaded.plans) } : loaded;
 }
 
 /** Which setup questions the student has acted on during this visit: picked, typed, cleared or skipped. */
@@ -108,18 +115,21 @@ export interface Touched {
 }
 
 /**
- * The answers to show once the account's plan arrives. A question the student has acted on keeps their answer,
- * even when it happens to equal what was on screen before (a skip leaves the course blank, like an untouched one).
+ * The setup answers to show once the account's plans are known, worked out for the course on screen at that moment.
+ * - The course: the student's pick (or skip) stands. Untouched and blank, it takes the account's only plan's course.
+ * - The date: the student's answer (or clear) stands. Untouched, it takes the account's date for the course resolved
+ *   above, and is left alone when the account has no plan for that course. It never takes another course's date.
+ * Called when the plans arrive and whenever the course changes afterwards, so the date always belongs to the course.
  */
-export function withAccountAnswers(
+export function resolveAccountAnswers(
   current: { course: string; examDate: string },
-  server: Onboarding,
   touched: Touched,
+  plans: readonly ServerPlan[],
 ): { course: string; examDate: string } {
-  return {
-    course: touched.course ? current.course : server.course ?? '',
-    examDate: touched.examDate ? current.examDate : server.examDate ?? '',
-  };
+  const course = touched.course || current.course ? current.course : plans.length === 1 ? plans[0]!.course : '';
+  if (touched.examDate) return { course, examDate: current.examDate };
+  const plan = course ? plans.find((p) => p.course === course) : undefined;
+  return { course, examDate: plan ? plan.examDate : current.examDate };
 }
 
 /**
@@ -145,6 +155,51 @@ export type SaveResult =
   | { status: 'saved' | 'removed'; message: string }
   | { status: 'failed'; message: string };
 
+/** Removes the account's plan for one course. Never throws. */
+async function removePlan(db: ExamPlanSyncDb, course: CourseId): Promise<SaveResult> {
+  try {
+    const result = await db.remove(course);
+    if (!result || result.error) return { status: 'failed', message: failure(result?.error, SYNC_MESSAGES.removeFailed) };
+    return { status: 'removed', message: SYNC_MESSAGES.removed };
+  } catch {
+    return { status: 'failed', message: SYNC_MESSAGES.removeFailed };
+  }
+}
+
+export interface SetupSave {
+  /** The account's plans as loaded, or null when they couldn't be read. */
+  plans: readonly ServerPlan[] | null;
+  /** The device's setup answers just before this save. */
+  deviceBefore: Onboarding;
+  /** The setup answers as saved on the device now. */
+  after: Onboarding;
+  /** The student cleared or skipped the date question on this visit. */
+  clearedDate: boolean;
+  today: string;
+}
+
+/**
+ * Saves the finished setup to the account, measured against the account's own plans (the baseline), never against
+ * what this device happened to hold.
+ * - A date: written to the plan for the chosen course, unless the account already has exactly that date.
+ * - A date the student cleared or skipped: the plan for that course (the chosen one, or the device's when no course
+ *   is chosen) is removed, whatever the device held before. A blank the student never touched removes nothing.
+ * When the plans couldn't be read, the device's previous answers stand in for them, and a clear is still sent.
+ */
+export async function saveSetupToAccount(db: ExamPlanSyncDb, save: SetupSave): Promise<SaveResult> {
+  const { plans, deviceBefore, after, clearedDate, today } = save;
+  if (!after.examDate) {
+    if (!clearedDate) return { status: 'unchanged' };
+    const course = after.course ?? deviceBefore.course;
+    if (!course) return { status: 'unchanged' };
+    if (plans && !plans.some((plan) => plan.course === course)) return { status: 'unchanged' };
+    return removePlan(db, course);
+  }
+  const accountDate = plans && after.course ? plans.find((plan) => plan.course === after.course)?.examDate ?? null : null;
+  const before: Onboarding = plans ? { course: after.course, examDate: accountDate, done: true } : deviceBefore;
+  return saveExamPlan(db, before, after, today);
+}
+
 /**
  * Writes the change from `before` to `after` (the setup answers as saved on the device) to the account.
  * - A new or changed date with a course: the plan for that course gets the date.
@@ -162,13 +217,7 @@ export async function saveExamPlan(
 
   if (!after.examDate) {
     if (!before.examDate || !before.course) return { status: 'unchanged' };
-    try {
-      const result = await db.remove(before.course);
-      if (!result || result.error) return { status: 'failed', message: failure(result?.error, SYNC_MESSAGES.removeFailed) };
-      return { status: 'removed', message: SYNC_MESSAGES.removed };
-    } catch {
-      return { status: 'failed', message: SYNC_MESSAGES.removeFailed };
-    }
+    return removePlan(db, before.course);
   }
 
   if (!after.course) return { status: 'failed', message: SYNC_MESSAGES.noCourse };
