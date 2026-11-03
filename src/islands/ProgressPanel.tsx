@@ -61,7 +61,7 @@ export default function ProgressPanel({ decks }: Props) {
       if (!db || isConnectFailure(db) || !live) return;
       setSignedIn(true);
       if (!current()) return;
-      const loaded = await loadExamPlan(db, readProgress(storage).onboarding);
+      const loaded = await loadExamPlan(db, () => readProgress(storage).onboarding);
       if (!live || !current()) return;
       if (!loaded.ok) setSyncNote(loaded.message);
       else if (loaded.onboarding && saveProgress(storage, withOnboarding(readProgress(storage), loaded.onboarding))) {

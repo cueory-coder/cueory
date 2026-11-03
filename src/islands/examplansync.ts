@@ -104,9 +104,11 @@ export async function loadExamPlans(db: ExamPlanSyncDb): Promise<PlansResult> {
 }
 
 /** Reads the account's plans and returns the device answers to save (`null`: no change). Never throws. */
-export async function loadExamPlan(db: ExamPlanSyncDb, onboarding: Onboarding): Promise<LoadResult> {
+export async function loadExamPlan(db: ExamPlanSyncDb, onboarding: Onboarding | (() => Onboarding)): Promise<LoadResult> {
   const loaded = await loadExamPlans(db);
-  return loaded.ok ? { ok: true, onboarding: withServerPlan(onboarding, loaded.plans) } : loaded;
+  // A function is read when the plans arrive, so answers saved meanwhile (another tab) are not overwritten.
+  const latest = typeof onboarding === 'function' ? onboarding() : onboarding;
+  return loaded.ok ? { ok: true, onboarding: withServerPlan(latest, loaded.plans) } : loaded;
 }
 
 /** Which setup questions the student has acted on during this visit: picked, typed, cleared or skipped. */
@@ -196,7 +198,7 @@ export interface SetupSave {
  * - A date: written to the plan for the chosen course, unless the account already has exactly that date.
  * - A date the student cleared or skipped: the plan for that course (the chosen one, or the device's when no course
  *   is chosen) is removed, whatever the device held before. A blank the student never touched removes nothing.
- * When the plans couldn't be read, the device's previous answers stand in for them, and a clear is still sent.
+ * When the plans couldn't be read, the account's date is unknown, so a date is always written and a clear still sent.
  */
 export async function saveSetupToAccount(db: ExamPlanSyncDb, save: SetupSave): Promise<SaveResult> {
   const { plans, deviceBefore, after, clearedDate, today } = save;
@@ -208,7 +210,8 @@ export async function saveSetupToAccount(db: ExamPlanSyncDb, save: SetupSave): P
     return removePlan(db, course);
   }
   const accountDate = plans && after.course ? plans.find((plan) => plan.course === after.course)?.examDate ?? null : null;
-  const before: Onboarding = plans ? { course: after.course, examDate: accountDate, done: true } : deviceBefore;
+  // Plans that couldn't be read leave the account's value unknown: never infer "unchanged" from the device, always write.
+  const before: Onboarding = plans ? { course: after.course, examDate: accountDate, done: true } : { course: null, examDate: null, done: true };
   return saveExamPlan(db, before, after, today);
 }
 

@@ -111,6 +111,15 @@ describe('withServerPlan — the account wins', () => {
 });
 
 describe('loadExamPlan', () => {
+  it('applies the account date to the answers saved when the load lands, not when it started (Codex on #232)', async () => {
+    const db = new FakePlans();
+    db.rows = [{ course: 'fundamentals', exam_date: '2027-01-20' }, { course: 'med-surg-1', exam_date: '2027-03-01' }];
+    let saved = answers('fundamentals', '2027-06-01');
+    const pending = loadExamPlan(db, () => saved);
+    saved = answers('med-surg-1', '2027-09-09');
+    expect(await pending).toEqual({ ok: true, onboarding: answers('med-surg-1', '2027-03-01') });
+  });
+
   it("returns the device answers with the account's date", async () => {
     const db = new FakePlans();
     db.rows = [{ course: 'fundamentals', exam_date: '2027-01-20' }];
@@ -232,10 +241,12 @@ describe('saveSetupToAccount — the account plans are the baseline (Codex on #2
     expect(db.rows).toContainEqual({ course: 'med-surg-1', exam_date: '2026-12-10' });
   });
 
-  it('when the plans could not be read, compares with the device and still sends a clear', async () => {
+  it('when the plans could not be read, still writes a date equal to the device one, and a clear (Codex on #232)', async () => {
     const db = new FakePlans();
     expect(await save(db, { plans: null, deviceBefore: answers('both', '2026-12-10'), after: answers('both', '2026-12-10') }))
-      .toEqual({ status: 'unchanged' });
+      .toEqual({ status: 'saved', message: SYNC_MESSAGES.saved });
+    expect(db.calls[0]).toBe('update both 2026-12-10');
+    db.calls.length = 0;
     expect(await save(db, { plans: null, deviceBefore: answers('both', null), after: answers('both', null), clearedDate: true }))
       .toEqual({ status: 'removed', message: SYNC_MESSAGES.removed });
     expect(db.calls).toEqual(['remove both']);
