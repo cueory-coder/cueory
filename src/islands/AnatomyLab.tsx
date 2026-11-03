@@ -854,11 +854,12 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                         type="button"
                         className={primaryButton}
                         onClick={() => {
+                          visibilityIntent.bump();
                           const next = nextQuiz(quiz, Math.random);
                           setSelected(null);
                           setQuiz(next);
-                          // A learner may have hidden a future target during the round.
-                          // Make that target visible before asking them to find it.
+                          // A learner may have hidden a future target during the round, or an earlier peel may still be finishing.
+                          // Make that target visible before asking them to find it, superseding pending peels.
                           const target = next.target;
                           if (target) setHidden((current) => {
                             if (!current.has(target)) return current;
