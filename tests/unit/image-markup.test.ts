@@ -15,9 +15,12 @@ function attributes(tag: string): Record<string, string> {
     .map(match => [match[1].toLowerCase(), match[2] ?? match[3] ?? match[4]]));
 }
 function problems(html: string, home: boolean): string[] {
-  // Scripts/comments can contain markup-shaped strings that are not DOM images.
-  const markup = html.replace(/<!--[\s\S]*?-->|<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '');
-  return [...markup.matchAll(/<img\b[^>]*>/gi)].flatMap(([tag]) => {
+  // Inventory tokens directly. Never construct "sanitized HTML" by deleting
+  // substrings: deletion can join fragments into new markup. Script closing
+  // tags may contain whitespace and ignored attributes before their >.
+  const tokens = html.matchAll(/<!--[\s\S]*?(?:-->|$)|<script(?=[\s/>])[^>]*>[\s\S]*?(?:<\/script(?=[\s/>])[^>]*>|$)|<img\b[^>]*>/gi);
+  return [...tokens].flatMap(([tag]) => {
+    if (!/^<img\b/i.test(tag)) return [];
     const a = attributes(tag);
     const errors: string[] = [];
     if (!Object.hasOwn(a, 'alt')) errors.push('missing alt');
@@ -44,4 +47,12 @@ describe('Task 207 built image markup', () => {
     expect(problems('<img src="/x" alt="x" width="1" height="1" loading="eager" data-image-priority="hero">', true)).toHaveLength(1);
     expect(problems('<!-- <img> --><script>const x = "<img>";</script>', false)).toEqual([]);
   });
+  it('ignores raw-text/comment image lookalikes without joining fragments', () => {
+    const valid = '<img src="/real" alt="real" width="1" height="1" loading="lazy">';
+    expect(problems('<script>"<img>"</script\t\n bar>' + valid, false)).toEqual([]);
+    expect(problems('<!-- <img> --><!-- <scr -->ipt><img>', false)).toHaveLength(4);
+    expect(problems('<script>"<img>"', false)).toEqual([]);
+    expect(problems('<!-- <img>', false)).toEqual([]);
+  });
+
 });
