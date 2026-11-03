@@ -20,9 +20,10 @@ test.describe('home page-specific behavior', () => {
     const response = await page.goto('/');
     expect(response?.status()).toBe(200);
 
-    await expect(page.locator('main > section')).toHaveCount(5);
-    await expect(page.locator('main > section')).toHaveAttribute('id', /.+/);
-    const sectionIds = await page.locator('main > section').evaluateAll((sections) => sections.map((section) => section.id));
+    const identifiedSections = page.locator('main > section[id]');
+    await expect(page.locator('main > section')).toHaveCount(6);
+    await expect(identifiedSections).toHaveCount(5);
+    const sectionIds = await identifiedSections.evaluateAll((sections) => sections.map((section) => section.id));
     expect(sectionIds).toEqual([
       'how-it-works',
       'ways-to-study',
@@ -33,13 +34,14 @@ test.describe('home page-specific behavior', () => {
 
     await expect(page.getByRole('link', { name: "start with a lesson" })).toHaveAttribute('href', '/learn/study-skills');
     await expect(page.getByTestId('games-link')).toHaveAttribute('href', '/play');
-    await expect(page.getByRole('heading', { level: 2 })).toHaveCount(4);
+    await expect(page.getByRole('heading', { level: 2 })).toHaveCount(5);
     const sectionHeadings = await page.getByRole('heading', { level: 2 }).allTextContents();
     expect(sectionHeadings).toEqual([
       'how it works',
       'ways to study',
       'daily games',
       'made for the way you study',
+      'get launch updates',
     ]);
 
     await expect(page.getByTestId('signup-pending')).toHaveText('signups open soon.');
@@ -51,20 +53,21 @@ test.describe('home page-specific behavior', () => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/');
 
-    const activeCard = page.locator('[data-mode-card][data-active="true"]');
+    const activeCard = page.locator('[data-mode-card][data-active]');
     const openButton = activeCard.locator('[data-mode-open]');
     await expect(openButton).toBeVisible();
+    const originalTitle = (await activeCard.locator('h3').textContent()) ?? '';
     await openButton.click();
 
     const dialog = page.getByRole('dialog', { name: /.+/ });
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByRole('heading', { level: 2 })).toHaveText(await activeCard.locator('h3').textContent() ?? '');
+    await expect(dialog.getByRole('heading', { level: 2 })).toHaveText(originalTitle);
     await expect(dialog.getByRole('button', { name: 'close preview' })).toBeFocused();
 
     await dialog.getByRole('button', { name: 'next study mode' }).click();
-    await expect(dialog.getByRole('heading', { level: 2 })).not.toHaveText(await activeCard.locator('h3').textContent() ?? '');
+    await expect(dialog.getByRole('heading', { level: 2 })).not.toHaveText(originalTitle);
     await dialog.getByRole('button', { name: 'close preview' }).click();
     await expect(dialog).toBeHidden();
-    await expect(page.locator('[data-mode-card][data-active="true"] [data-mode-open]')).toBeFocused();
+    await expect(page.locator('[data-mode-card][data-active] [data-mode-open]')).toBeFocused();
   });
 });
