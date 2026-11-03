@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { AnatomyStructure } from '../../src/islands/anatomylab';
-import { LAYERS, wholeBody, layerShown, type Layer } from '../../src/islands/anatomylayers';
+import type { AnatomyStructure, AnatomySystem } from '../../src/islands/anatomylab';
+import { LAYERS, wholeBody, layersOf, layerShown, type Layer } from '../../src/islands/anatomylayers';
 import { onlyThis } from '../../src/islands/anatomylab';
-import { PartialLoadError, revealTargetPlan, showAllPlan, createGeneration, createOnDemandLoader, visibilityAfterLayerDownload, filesForLayer, firstLayer, layerNeedsReveal, lazyPeel, lazyRestore, structureLoadNote } from '../../src/islands/anatomylazy';
+import { PartialLoadError, revealTargetPlan, showAllPlan, createGeneration, createOnDemandLoader, visibilityAfterLayerDownload, filesForLayer, firstLayer, idsForFiles, initialLayerPlan, layerNeedsReveal, lazyPeel, lazyRestore, structureLoadNote } from '../../src/islands/anatomylazy';
 
 const layers: Layer[] = [
   { id: 'skin', ids: ['s1'] },
@@ -44,6 +44,57 @@ describe('show only this in the lazy view', () => {
     const files: Record<string, string[]> = { skin: ['s'], muscle: ['m'], skeleton: ['k'] };
     const plan = showAllPlan(layers, hidden, (id) => files[id]!, (url) => url === 's');
     expect(plan.fetch.map((l) => l.id)).toEqual(['muscle', 'skeleton']);
+  });
+});
+
+describe('first whole-body files shared across layers', () => {
+  it('maps deeper structures in the initial files, keeps them hidden and reuses already downloaded files', async () => {
+    // Synthetic structures, not clinical content. The mixed file belongs to both vessels and organs.
+    const system = (key: string, structures: AnatomyStructure[]): AnatomySystem => ({
+      key,
+      title: `sample ${key}`,
+      status: 'draft',
+      model: { file: `/models/anatomy/${key}.glb`, release: 'test' },
+      structures,
+    });
+    const body = wholeBody([
+      system('mixed', [
+        { id: 'v1', text: 'sample outer one', layer: 'vessels' },
+        { id: 'o1', text: 'sample inner one', layer: 'organs' },
+      ]),
+      system('outer', [{ id: 'v2', text: 'sample outer two', layer: 'vessels' }]),
+      system('inner', [{ id: 'o2', text: 'sample inner two', layer: 'organs' }]),
+    ])!;
+    const layers = layersOf(body.structures);
+    const initial = initialLayerPlan(body, layers)!;
+
+    expect(initial.files).toEqual(['/models/anatomy/mixed.glb', '/models/anatomy/outer.glb']);
+    // Scene.load must map o1 even though its organ layer is initially hidden.
+    expect(initial.ids).toEqual(['v1', 'v2', 'o1']);
+    expect([...initial.hidden].sort()).toEqual(['o1', 'o2']);
+    expect(initial.ids).not.toContain('o2'); // Its file has not been fetched.
+    expect(idsForFiles(body, layers, ['/models/anatomy/mixed.glb'])).toEqual(['v1', 'o1']);
+
+    const downloaded: string[] = [];
+    const loader = createOnDemandLoader(async (url) => {
+      downloaded.push(url);
+      return url;
+    });
+    for (const url of initial.files) loader.markLoaded(url);
+    expect(await loader.ensure(filesForLayer(body, 'organs'))).toEqual(['/models/anatomy/inner.glb']);
+    expect(downloaded).toEqual(['/models/anatomy/inner.glb']);
+    expect(idsForFiles(body, layers, downloaded)).toEqual(['o2']);
+  });
+
+  it('falls back to an eager load if the first layer has no model files', () => {
+    const body: AnatomySystem = {
+      key: 'sample',
+      title: 'sample',
+      status: 'draft',
+      model: { file: '/models/anatomy/sample.glb', release: 'test' },
+      structures: [{ id: 'a', text: 'sample part', layer: 'vessels' }],
+    };
+    expect(initialLayerPlan(body, layersOf(body.structures))).toBeNull();
   });
 });
 
