@@ -133,6 +133,18 @@ describe.skipIf(!existsSync(privacyPath))('privacy page browser storage disclosu
     expect(html).toContain('Signing out removes them.');
   });
 
+  it('names each detail Google shares, the sign-in sessions and the service logs (Task 309, CLAUDE.md rule 2)', () => {
+    const text = privacyHtml().replace(/\s+/g, ' ');
+    for (const detail of ['your name', 'a link to your profile photo', 'your Google account id', 'your email address',
+      'whether Google has checked it']) {
+      expect(text).toContain(detail);
+    }
+    expect(text).toContain('never reads or shows your photo');
+    expect(text).toContain('Supabase keeps a sign-in session with your IP address and the kind of browser and device you used, until you sign out');
+    expect(text).toContain('which also include IP addresses, are kept for about a day');
+    expect(text).toContain('Your sign-in sessions, with the IP address and browser of each, until you sign out.');
+  });
+
   it('does not imply export or deletion for accounts is live', () => {
     const html = privacyHtml();
     expect(html).toContain('not available yet');

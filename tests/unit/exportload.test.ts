@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { exportCsvBlobs, exportJsonBlob, StudyEventPages } from '../../src/islands/exportdata';
-import { fromSupabase, loadExport, type ExportReader, type ExportTable, type SupabaseExportClient } from '../../src/islands/exportload';
+import {
+  fromSupabase, loadExport, type ExportReader, type ExportRpc, type ExportTable, type SupabaseExportClient,
+} from '../../src/islands/exportload';
 
 const when = '2026-11-01T08:00:00.000Z';
 const versionId = '11111111-1111-4111-8111-111111111111';
@@ -27,9 +29,31 @@ const rows = {
   ],
   my_flags: [{ id: reportId, page: '/learn/study-skills', item_id: null, item_version_id: null,
     reason: 'confusing', comment: 'Sample report', created_at: when, status: 'private' }],
+  my_sessions: [{ id: id(5), created_at: when, updated_at: '2026-11-01T09:00:00+00:00', not_after: null,
+    user_agent: 'sample browser', ip: '203.0.113.5', user_id: 'private' }],
 };
+/** A sample of what auth.getUser() returns for a Google account: made-up values, no real person. */
+const googleData = {
+  iss: 'https://accounts.google.com', sub: '100000000000000000001', provider_id: '100000000000000000001',
+  name: 'Sample Student', full_name: 'Sample Student', email: 'sample@example.invalid', email_verified: true,
+  phone_verified: false, picture: 'https://example.invalid/photo.png', avatar_url: 'https://example.invalid/photo.png',
+  custom_claims: { hd: 'example.invalid' },
+};
+const user = {
+  id: 'private', aud: 'authenticated', role: 'authenticated', email: 'sample@example.invalid',
+  created_at: '2026-10-01T12:00:00.123456Z', last_sign_in_at: when,
+  app_metadata: { provider: 'google', providers: ['google'] },
+  user_metadata: googleData,
+  identities: [{ identity_id: 'private', id: 'private', user_id: 'private', provider: 'google', identity_data: googleData,
+    created_at: '2026-10-01T12:00:00.123456Z', last_sign_in_at: when, updated_at: when, email: 'private' }],
+};
+const account = {
+  createdAt: '2026-10-01T12:00:00.123456Z', lastSignInAt: when, providers: ['google'], userMetadata: googleData,
+  identities: [{ provider: 'google', identityData: googleData, createdAt: '2026-10-01T12:00:00.123456Z', lastSignInAt: when }],
+};
+const sessions = [{ createdAt: when, updatedAt: '2026-11-01T09:00:00+00:00', notAfter: null, userAgent: 'sample browser', ip: '203.0.113.5' }];
 type Table = keyof typeof fields;
-type Source = Table | 'my_flags';
+type Source = Table | ExportRpc | 'user';
 type Reply = { data: unknown; error: unknown };
 const failed = { ok: false, message: "we couldn't load all your saved data. please try again." };
 
@@ -37,18 +61,19 @@ function reader(overrides: Partial<Record<Source, Reply | Error>> = {}) {
   const calls: string[] = [];
   const fetch = (table: Source) => {
     if (overrides[table] instanceof Error) throw overrides[table];
-    return overrides[table] ?? { data: rows[table], error: null };
+    return overrides[table] ?? { data: table === 'user' ? { user } : rows[table], error: null };
   };
   const db: ExportReader = {
     async select(table, columns) { calls.push(table + ':' + columns); return fetch(table) as Reply; },
     async *selectPages(table, columns) { calls.push(table + ':' + columns); yield fetch(table) as Reply; },
     async rpc(name) { calls.push('rpc:' + name); return fetch(name) as Reply; },
+    async user() { calls.push('user'); return fetch('user') as Reply; },
   };
   return { db, calls };
 }
 
 describe('loadExport — personal data boundaries', () => {
-  it('maps the five owned tables and my_flags with no extra fields or lost records', async () => {
+  it('maps the five owned tables, my_flags, my_sessions and the sign-in record with no extra fields or lost records', async () => {
     const { db, calls } = reader();
     const result = await loadExport(db);
     expect(result.ok).toBe(true);
@@ -61,6 +86,8 @@ describe('loadExport — personal data boundaries', () => {
       reviewRows: [{ itemId, level: 2, lastReviewed: '2026-10-30', nextReview: '2026-11-03', updatedAt: when }],
       reports: [{ id: reportId, page: '/learn/study-skills', itemId: null, itemVersionId: null,
         reason: 'confusing', comment: 'Sample report', createdAt: when }],
+      account,
+      sessions,
     });
     expect(studyEvents).toBeInstanceOf(StudyEventPages);
     expect((studyEvents as StudyEventPages).count).toBe(2);
@@ -69,6 +96,8 @@ describe('loadExport — personal data boundaries', () => {
     expect(exported.dropped).toEqual([]);
     expect(exported.attempts).toEqual(result.data.attempts);
     expect(exported.reports).toEqual(result.data.reports);
+    expect(exported.account).toEqual(account);
+    expect(exported.sessions).toEqual([{ ...sessions[0], updatedAt: '2026-11-01T09:00:00.000Z' }]);
     expect(exported.studyEvents).toEqual([
       { itemId, itemVersionId: versionId, kind: 'marked', msOnItem: 4200, mark: 'learning',
         at: '2026-11-01T07:59:58.500Z', createdAt: when },
@@ -78,8 +107,35 @@ describe('loadExport — personal data boundaries', () => {
     expect(calls).toEqual([
       'profiles:' + fields.profiles, 'attempts:' + fields.attempts,
       'exam_plans:' + fields.exam_plans, 'review_state:' + fields.review_state,
-      'study_events:' + fields.study_events, 'rpc:my_flags',
+      'study_events:' + fields.study_events, 'rpc:my_flags', 'rpc:my_sessions', 'user',
     ]);
+  });
+
+  it('exports the sign-in record as plain copies, and never the user, identity or session ids', async () => {
+    const result = await loadExport(reader().db);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.account?.userMetadata).not.toBe(user.user_metadata);
+    expect(result.data.account?.identities?.[0]?.identityData).not.toBe(googleData);
+    const text = await exportJsonBlob(result.data, when).text();
+    expect(text).not.toContain('private');
+    expect(text).not.toContain(id(5));
+    const files = exportCsvBlobs(result.data);
+    const accountCsv = await files.find(file => file.fileName === 'account.csv')!.blob.text();
+    expect(accountCsv).toContain('identities[0].identityData.picture,https://example.invalid/photo.png\r\n');
+    expect(accountCsv).toContain('userMetadata.custom_claims.hd,example.invalid\r\n');
+    expect(accountCsv).not.toContain('private');
+    const sessionsCsv = await files.find(file => file.fileName === 'sessions.csv')!.blob.text();
+    expect(sessionsCsv).toBe('createdAt,updatedAt,notAfter,userAgent,ip\r\n' +
+      when + ',2026-11-01T09:00:00.000Z,,sample browser,203.0.113.5\r\n');
+  });
+
+  it('accepts an email-only account that Supabase gave no last sign-in, metadata or identities', async () => {
+    const plainUser = { id: 'private', created_at: when, app_metadata: { provider: 'email', providers: ['email'] } };
+    const result = await loadExport(reader({ user: { data: { user: plainUser }, error: null } }).db);
+    expect(result.ok && result.data.account).toEqual({
+      createdAt: when, lastSignInAt: null, providers: ['email'], userMetadata: {}, identities: [],
+    });
   });
 
   it('has empty sections when the account has no rows, without inventing email', async () => {
@@ -87,16 +143,17 @@ describe('loadExport — personal data boundaries', () => {
     const result = await loadExport(reader(overrides).db);
     expect(result).toEqual({
       ok: true,
-      data: { profile: {}, attempts: [], examPlans: [], reviewRows: [], reports: [], studyEvents: expect.any(StudyEventPages) },
+      data: { profile: {}, account, attempts: [], examPlans: [], reviewRows: [], reports: [], sessions: [],
+        studyEvents: expect.any(StudyEventPages) },
     });
     if (!result.ok) return;
     expect((result.data.studyEvents as StudyEventPages).count).toBe(0);
     expect(JSON.parse(await exportJsonBlob(result.data, when).text()).studyEvents).toEqual([]);
   });
 
-  it.each(['profiles', 'attempts', 'exam_plans', 'review_state', 'study_events', 'my_flags'] as const)(
+  it.each(['profiles', 'attempts', 'exam_plans', 'review_state', 'study_events', 'my_flags', 'my_sessions', 'user'] as const)(
     'fails closed on a %s refusal without returning any personal data', async table => {
-      const response = { data: rows[table], error: { message: 'private SQL error' } };
+      const response = { data: table === 'user' ? { user } : rows[table], error: { message: 'private SQL error' } };
       expect(await loadExport(reader({ [table]: response }).db)).toEqual(failed);
     },
   );
@@ -104,6 +161,9 @@ describe('loadExport — personal data boundaries', () => {
   it('fails closed on network errors, missing rows and duplicate profiles', async () => {
     expect(await loadExport(reader({ attempts: new Error('private key') }).db)).toEqual(failed);
     expect(await loadExport(reader({ my_flags: { data: null, error: null } }).db)).toEqual(failed);
+    expect(await loadExport(reader({ my_sessions: { data: null, error: null } }).db)).toEqual(failed);
+    expect(await loadExport(reader({ user: { data: { user: null }, error: null } }).db)).toEqual(failed);
+    expect(await loadExport(reader({ user: new Error('private token') }).db)).toEqual(failed);
     expect(await loadExport(reader({ profiles: { data: [rows.profiles[0], rows.profiles[0]], error: null } }).db)).toEqual(failed);
   });
 
@@ -124,8 +184,34 @@ describe('loadExport — personal data boundaries', () => {
     ['my_flags', { ...rows.my_flags[0], page: '//outside.example' }],
     ['my_flags', { ...rows.my_flags[0], reason: 'not-allowed' }],
     ['my_flags', { ...rows.my_flags[0], comment: 'x'.repeat(1001) }],
+    ['my_sessions', { ...rows.my_sessions[0], ip: 203 }],
+    ['my_sessions', { ...rows.my_sessions[0], created_at: '2026-02-30T08:00:00Z' }],
+    ['my_sessions', { ...rows.my_sessions[0], id: 'private' }],
   ] as const)('does not silently drop invalid %s records', async (table, record) => {
     expect(await loadExport(reader({ [table]: { data: [record], error: null } }).db)).toEqual(failed);
+  });
+
+  const deep: Record<string, unknown> = {};
+  let level = deep;
+  for (let n = 0; n < 6; n++) { level.next = {}; level = level.next as Record<string, unknown>; }
+  it.each([
+    ['a bad creation time', { ...user, created_at: '2026-02-30T08:00:00Z' }],
+    ['a sign-in method that is not a name', { ...user, app_metadata: { providers: ['Google Sign-In'] } }],
+    ['metadata that is a list', { ...user, user_metadata: ['private'] }],
+    ['metadata nested too deep', { ...user, user_metadata: deep }],
+    ['metadata with a function', { ...user, user_metadata: { name: () => 'private' } }],
+    ['an identity without a provider', { ...user, identities: [{ identity_data: googleData }] }],
+    ['identities that are not a list', { ...user, identities: { 0: user.identities[0] } }],
+    ['too many identities', { ...user, identities: Array(21).fill(user.identities[0]) }],
+  ])('fails closed on a sign-in record with %s', async (_, record) => {
+    expect(await loadExport(reader({ user: { data: { user: record }, error: null } }).db)).toEqual(failed);
+  });
+
+  it('does not run getters in the sign-in record', async () => {
+    const identityData = { ...googleData };
+    Object.defineProperty(identityData, 'name', { get: () => { throw Error('getter ran'); }, enumerable: true });
+    const record = { ...user, identities: [{ ...user.identities[0], identity_data: identityData }] };
+    expect(await loadExport(reader({ user: { data: { user: record }, error: null } }).db)).toEqual(failed);
   });
 
   it('does not execute getters supplied by a database-reader mock', async () => {
@@ -168,7 +254,8 @@ function supabase(dataset: Record<string, unknown[]>, failure?: { name: string; 
     from: (name: ExportTable) => ({ select: (columns: string) => {
       expect(columns).toBe(fields[name]); return query(name);
     } }),
-    rpc: (name: 'my_flags') => query(name),
+    rpc: (name: ExportRpc) => query(name),
+    auth: { getUser: async () => ({ data: { user }, error: null }) },
   } satisfies SupabaseExportClient;
   return { client, calls };
 }
@@ -190,6 +277,20 @@ describe('fromSupabase — no silent row truncation', () => {
       'attempts:0-499:id.gt(' + id(1000) + ')',
     ]);
     expect(calls.some(x => x.startsWith('flags:'))).toBe(false);
+  });
+
+  it('pages my_sessions by its id and reads the sign-in record from auth.getUser()', async () => {
+    const many = { ...rows, my_sessions: Array.from({ length: 501 }, (_, i) => ({ ...rows.my_sessions[0], id: id(i + 1) })) };
+    const { client, calls } = supabase(many);
+    const result = await loadExport(fromSupabase(client));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.sessions).toHaveLength(501);
+    expect(result.data.account).toEqual(account);
+    expect(calls.filter(x => x.startsWith('my_sessions:'))).toEqual([
+      'my_sessions:0-499:id',
+      'my_sessions:0-499:id.gt(' + id(500) + ')',
+    ]);
   });
 
   it('fails the whole export when a later page is unavailable', async () => {
@@ -269,6 +370,7 @@ function generatedEvents(total: number) {
       ? { select: (columns: string) => { expect(columns).toBe(fields.study_events); return query(); } }
       : small.from(name),
     rpc: small.rpc,
+    auth: small.auth,
   } as SupabaseExportClient;
   return { client, pages, at };
 }

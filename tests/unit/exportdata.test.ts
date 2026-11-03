@@ -33,7 +33,7 @@ function sampleGuest() {
 
 describe('JSON export', () => {
   it('round-trips every allowed sample section with a caller-supplied date and format', () => {
-    expect(json(sample)).toEqual({ format: 'cueory-export-1', exportDate, ...sample, attempts: [], examPlans: [], reviewRows: [], reports: [], studyEvents: [], dropped: [] });
+    expect(json(sample)).toEqual({ format: 'cueory-export-1', exportDate, ...sample, account: {}, attempts: [], examPlans: [], reviewRows: [], reports: [], sessions: [], studyEvents: [], dropped: [] });
     expect(exportJson(sample, exportDate)).toContain('\n  "profile": {\n    "displayName": "Sample Student",');
   });
 
@@ -144,7 +144,7 @@ describe('JSON export', () => {
       profile: { createdAt: '2026-10-01T12:00:00.000Z', email: 'sample@example.invalid', displayName: 'Sample Student' },
     };
     expect(exportJson(reordered, exportDate)).toBe(exportJson(sample, exportDate));
-    expect(Object.keys(json(sample))).toEqual(['format', 'exportDate', 'profile', 'onboarding', 'progress', 'reviewState', 'gameStats', 'attempts', 'examPlans', 'reviewRows', 'reports', 'studyEvents', 'dropped']);
+    expect(Object.keys(json(sample))).toEqual(['format', 'exportDate', 'profile', 'account', 'onboarding', 'progress', 'reviewState', 'gameStats', 'attempts', 'examPlans', 'reviewRows', 'reports', 'sessions', 'studyEvents', 'dropped']);
   });
 
   it('preserves attempt and history row order, false, zero, null and Unicode', () => {
@@ -162,7 +162,7 @@ describe('JSON export', () => {
 
   it('makes empty sections explicit without inventing profile values or records', () => {
     expect(json({})).toEqual({
-      format: 'cueory-export-1', exportDate, profile: {}, onboarding: {}, progress: [], reviewState: [], gameStats: [], attempts: [], examPlans: [], reviewRows: [], reports: [], studyEvents: [], dropped: [],
+      format: 'cueory-export-1', exportDate, profile: {}, account: {}, onboarding: {}, progress: [], reviewState: [], gameStats: [], attempts: [], examPlans: [], reviewRows: [], reports: [], sessions: [], studyEvents: [], dropped: [],
     });
   });
 
@@ -271,7 +271,7 @@ describe('JSON export', () => {
 describe('CSV export', () => {
   it('returns section files in fixed order with RFC 4180 record endings', () => {
     const files = exportCsv(sample);
-    expect(files.map(entry => entry.fileName)).toEqual(['profile.csv', 'onboarding.csv', 'progress.csv', 'reviewState.csv', 'gameStats.csv', 'attempts.csv', 'examPlans.csv', 'reviewRows.csv', 'reports.csv', 'studyEvents.csv', 'dropped.csv']);
+    expect(files.map(entry => entry.fileName)).toEqual(['profile.csv', 'account.csv', 'onboarding.csv', 'progress.csv', 'reviewState.csv', 'gameStats.csv', 'attempts.csv', 'examPlans.csv', 'reviewRows.csv', 'reports.csv', 'sessions.csv', 'studyEvents.csv', 'dropped.csv']);
     expect(files.every(entry => entry.text.endsWith('\r\n'))).toBe(true);
     expect(parseRows(file(sample, 'progress'))).toEqual([
       ['id', 'result', 'date', 'deckId', 'progressVersion', 'course', 'examDate', 'done'],
@@ -314,9 +314,9 @@ describe('CSV export', () => {
 
   it('includes only headers for empty sections and the empty dropped report', () => {
     const files = exportCsv({});
-    expect(files).toHaveLength(11);
+    expect(files).toHaveLength(13);
     expect(files.every(entry => parseRows(entry.text).length === 1)).toBe(true);
-    expect(files[10]).toEqual({ fileName: 'dropped.csv', text: 'dropped\r\n' });
+    expect(files[12]).toEqual({ fileName: 'dropped.csv', text: 'dropped\r\n' });
   });
 
   it('returns fresh files and the same stable output for repeated exports', () => {
@@ -683,3 +683,78 @@ describe('study events written page by page (StudyEventPages, Task 140)', () => 
   });
 });
 
+
+describe('the sign-in record and sessions (Task 309)', () => {
+  const googleData = {
+    sub: '100000000000000000001', name: 'Sample Student', email: 'sample@example.invalid', email_verified: true,
+    picture: 'https://example.invalid/photo.png', custom_claims: { hd: 'example.invalid' },
+  };
+  const account = {
+    createdAt: '2026-10-01T12:00:00.123456+00:00', lastSignInAt: null, providers: ['google', 'email'],
+    userMetadata: googleData,
+    identities: [{ provider: 'google', identityData: googleData, createdAt: '2026-10-01T12:00:00Z', lastSignInAt: null }],
+  } satisfies ExportData['account'];
+  const session = {
+    createdAt: '2026-11-01T08:00:00+00:00', updatedAt: null, notAfter: null, userAgent: 'sample browser', ip: '2001:db8::1',
+  } satisfies NonNullable<ExportData['sessions']>[number];
+
+  it('keeps Google\'s details as JSON, in UTC, and lists them one field per line in account.csv', () => {
+    const exported = json({ account, sessions: [session] });
+    expect(exported.account).toEqual({ ...account, createdAt: '2026-10-01T12:00:00.123456Z',
+      identities: [{ ...account.identities[0], createdAt: '2026-10-01T12:00:00.000Z' }] });
+    expect(exported.sessions).toEqual([{ ...session, createdAt: '2026-11-01T08:00:00.000Z' }]);
+    expect(exported.dropped).toEqual([]);
+    expect(parseRows(file({ account }, 'account'))).toEqual([
+      ['field', 'value'],
+      ['createdAt', '2026-10-01T12:00:00.123456Z'],
+      ['lastSignInAt', ''],
+      ['providers', 'google;email'],
+      ['userMetadata.sub', '100000000000000000001'],
+      ['userMetadata.name', 'Sample Student'],
+      ['userMetadata.email', 'sample@example.invalid'],
+      ['userMetadata.email_verified', 'true'],
+      ['userMetadata.picture', 'https://example.invalid/photo.png'],
+      ['userMetadata.custom_claims.hd', 'example.invalid'],
+      ['identities[0].provider', 'google'],
+      ['identities[0].identityData.sub', '100000000000000000001'],
+      ['identities[0].identityData.name', 'Sample Student'],
+      ['identities[0].identityData.email', 'sample@example.invalid'],
+      ['identities[0].identityData.email_verified', 'true'],
+      ['identities[0].identityData.picture', 'https://example.invalid/photo.png'],
+      ['identities[0].identityData.custom_claims.hd', 'example.invalid'],
+      ['identities[0].createdAt', '2026-10-01T12:00:00.000Z'],
+      ['identities[0].lastSignInAt', ''],
+    ]);
+    expect(parseRows(file({ sessions: [session] }, 'sessions'))).toEqual([
+      ['createdAt', 'updatedAt', 'notAfter', 'userAgent', 'ip'],
+      ['2026-11-01T08:00:00.000Z', '', '', 'sample browser', '2001:db8::1'],
+    ]);
+  });
+
+  it('drops bad sign-in fields by name and never copies a getter or a __proto__ key into an object prototype', () => {
+    const tricky = JSON.parse('{"__proto__": {"polluted": true}, "name": "Sample"}');
+    const withGetter = { ...googleData };
+    Object.defineProperty(withGetter, 'email', { get: () => { throw Error('getter ran'); }, enumerable: true });
+    const result = json({
+      account: { ...account, providers: ['Not A Name'], userMetadata: tricky, extra: 'private',
+        identities: [{ ...account.identities[0], identityData: withGetter }, { ...account.identities[0], userId: 'private' }] },
+      sessions: [{ ...session, id: 'private' }, { ...session, ip: 7 }],
+    });
+    expect(result.account.userMetadata).toEqual(tricky);
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+    expect(result.account.providers).toBeUndefined();
+    expect(result.account.identities).toEqual([{ ...account.identities[0], createdAt: '2026-10-01T12:00:00.000Z' }]);
+    expect(result.sessions).toEqual([{ ...session, createdAt: '2026-11-01T08:00:00.000Z' }]);
+    expect(result.dropped).toEqual([
+      'account.extra', 'account.identities[0]', 'account.identities[0].identityData', 'account.identities[1].userId',
+      'account.providers', 'sessions[0].id', 'sessions[1]', 'sessions[1].ip',
+    ]);
+    expect(JSON.stringify(result)).not.toContain('private');
+  });
+
+  it('keeps the first 20 identities and names the rest', () => {
+    const result = json({ account: { identities: Array(21).fill(account.identities[0]) } });
+    expect(result.account.identities).toHaveLength(20);
+    expect(result.dropped).toEqual(['account.identities[20+]']);
+  });
+});

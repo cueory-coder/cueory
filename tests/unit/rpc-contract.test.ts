@@ -11,9 +11,10 @@ const sql = [
   '20261101120000_flags_and_submit_flag.sql',
   '20261102100000_study_events.sql',
   '20261102110000_delete_my_account.sql',
+  '20261102160000_my_sessions.sql',
 ].map(name => readFileSync(new URL(`../../supabase/migrations/${name}`, import.meta.url), 'utf8')).join('\n');
 
-type FunctionName = 'submit_flag' | 'check_answer' | 'my_flags' | 'record_study_events' | 'delete_my_account';
+type FunctionName = 'submit_flag' | 'check_answer' | 'my_flags' | 'record_study_events' | 'delete_my_account' | 'my_sessions';
 
 /** Read the actual declarations and dollar-quoted bodies, rather than copying their contracts into a fixture. */
 function declaration(name: FunctionName) {
@@ -179,5 +180,31 @@ describe('delete_my_account contract (Task 60)', () => {
     expect(deleteSql).toContain('revoke execute on function public.delete_my_account() from public, anon, authenticated;');
     expect(deleteSql).toContain('grant execute on function public.delete_my_account() to authenticated;');
     expect(deleteSql).not.toMatch(/grant\s+execute[^;]*to\s+(anon|public)\b/i);
+  });
+});
+
+describe('my_sessions contract (Task 309)', () => {
+  const sessionsSql = readFileSync(new URL('../../supabase/migrations/20261102160000_my_sessions.sql', import.meta.url), 'utf8');
+
+  it('takes no arguments and returns the cursor id plus exactly the exported session fields', () => {
+    expect(declaration('my_sessions').arguments).toEqual([]);
+    const camel = (name: string) => name.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase());
+    const session: NonNullable<ExportData['sessions']>[number] = {
+      createdAt: '2026-11-01T00:00:00.000Z', updatedAt: null, notAfter: null, userAgent: 'sample browser', ip: '203.0.113.5',
+    };
+    const columns = declaration('my_sessions').columns;
+    expect(columns[0]).toBe('id');
+    const json = JSON.parse(exportJson({ sessions: [session] }, '2026-11-01'));
+    expect(Object.keys(json.sessions[0]).sort()).toEqual(columns.slice(1).map(camel).sort());
+    const csv = exportCsv({ sessions: [session] }).find(file => file.fileName === 'sessions.csv')!;
+    expect(csv.text.split('\r\n')[0]!.split(',').sort()).toEqual(columns.slice(1).map(camel).sort());
+  });
+
+  it('is signed-in only, security definer with an empty search_path, and reads only the caller\'s sessions', () => {
+    expect(sessionsSql).toMatch(/language sql\s+stable\s+security definer\s+set search_path = ''/i);
+    expect(sessionsSql).toContain('revoke execute on function public.my_sessions() from public, anon, authenticated;');
+    expect(sessionsSql).toContain('grant execute on function public.my_sessions() to authenticated;');
+    expect(sessionsSql).not.toMatch(/grant\s+execute[^;]*to\s+(anon|public)\b/i);
+    expect(sessionsSql).toMatch(/where s\.user_id = \(select auth\.uid\(\)\)/);
   });
 });

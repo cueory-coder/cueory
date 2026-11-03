@@ -329,6 +329,28 @@ describe('the current export contract in the deletion summary', () => {
   });
 });
 
+describe('the sign-in record in the deletion summary (Task 309)', () => {
+  const session = { createdAt: '2026-11-01T08:00:00Z', updatedAt: null, notAfter: null, userAgent: 'sample browser', ip: '203.0.113.5' };
+
+  it('names the sign-in details and counts sessions without echoing them', () => {
+    const data: ExportData = {
+      account: { providers: ['google'], userMetadata: { name: 'Sample Student' }, identities: [] },
+      sessions: [session, session],
+    };
+    const lines = deletionSummary(data);
+    expect(lines).toEqual(['your sign-in details', '2 sign-in sessions']);
+    expect(lines.join(' ')).not.toContain('Sample Student');
+    expect(lines.join(' ')).not.toContain('203.0.113.5');
+    expect(deletionSummary({ sessions: [session] })).toEqual(['1 sign-in session']);
+  });
+
+  it.each([{}, { account: {}, sessions: [] }, { account: { providers: [], userMetadata: {}, identities: [] } }] satisfies ExportData[])(
+    'omits an empty sign-in record: %j', data => {
+      expect(deletionSummary(data)).toEqual([]);
+    },
+  );
+});
+
 describe('reports in the deletion summary', () => {
   const report: NonNullable<ExportData['reports']>[number] = Object.freeze({
     id: '00000000-0000-4000-8000-000000000001',
