@@ -102,6 +102,8 @@ export interface LabScene {
   load(urls: string | readonly string[], ids: readonly string[]): Promise<LoadResult | null>;
   /** Adds more model files to the loaded view (the whole body's deeper layers); null if a newer load replaced it. */
   add(urls: string | readonly string[], ids: readonly string[]): Promise<LoadResult | null>;
+  /** Removes the shown model at once and drops any download still in flight (a system change calls this first). */
+  clear(): void;
   setAppearance(appearance: Appearance): void;
   setColors(colors: LabColors): void;
   pick(clientX: number, clientY: number): string | null;
@@ -740,6 +742,12 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
     zoom,
     resetView,
     exportPicture,
+    clear() {
+      loadId++;
+      disposeModel();
+      appearance = { hidden: new Set(), selected: null };
+      requestRender();
+    },
     dispose() {
       loadId++;
       cancelAnimationFrame(raf);

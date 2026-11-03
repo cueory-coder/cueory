@@ -251,6 +251,10 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     const scene = sceneRef.current;
     if (!scene) return;
     let current = true;
+    // Drop the previous system's model and any layer still downloading before anything else (loading state follows).
+    loaderRef.current?.retire();
+    loaderRef.current = null;
+    scene.clear();
     setLoad({ state: 'loading' });
     setSelected(null);
     setQuiz(null);
@@ -273,7 +277,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
           const loader = createOnDemandLoader<LoadResult>((url) => {
             const ids = layers_idsForFile(system, wholeLayers!, url);
             return scene.add(url, ids).then((r) => {
-              if (!r) throw new Error('The view changed while this layer downloaded.');
+              if (!r || !current) throw new Error('The view changed while this layer downloaded.');
               return r;
             });
           });
@@ -289,6 +293,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
       });
     return () => {
       current = false;
+      loaderRef.current?.retire();
     };
   }, [phase, system]);
 

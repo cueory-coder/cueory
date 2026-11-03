@@ -22,6 +22,33 @@ describe('on-demand loader', () => {
     expect(loader.loadedCount()).toBe(3);
   });
 
+  it('ignores a file that arrives after the loader is retired, and fetches nothing more', async () => {
+    let release!: (v: string) => void;
+    const calls: string[] = [];
+    const loader = createOnDemandLoader<string>((url) => {
+      calls.push(url);
+      return new Promise<string>((resolve) => (release = resolve));
+    });
+    const pending = loader.ensure(['late']);
+    loader.retire();
+    release('late');
+    expect(await pending).toEqual([]);
+    expect(loader.isLoaded('late')).toBe(false);
+    loader.markLoaded('x');
+    expect(loader.loadedCount()).toBe(0);
+    expect(await loader.ensure(['other'])).toEqual([]);
+    expect(calls).toEqual(['late']);
+  });
+
+  it('a failure after retiring is swallowed, not shown for the new system', async () => {
+    let fail!: (e: Error) => void;
+    const loader = createOnDemandLoader<string>(() => new Promise<string>((_, reject) => (fail = reject)));
+    const pending = loader.ensure(['late']);
+    loader.retire();
+    fail(new Error('old system layer failed'));
+    expect(await pending).toEqual([]);
+  });
+
   it('keeps loaded files: asking again fetches nothing', async () => {
     let n = 0;
     const loader = createOnDemandLoader(async () => ++n);

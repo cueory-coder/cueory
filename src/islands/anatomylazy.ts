@@ -14,17 +14,21 @@ export interface OnDemandLoader<R> {
   markLoaded(url: string): void;
   isLoaded(url: string): boolean;
   loadedCount(): number;
+  /** Retires the loader: files still in flight are ignored when they arrive, and later asks fetch nothing. */
+  retire(): void;
 }
 
 export function createOnDemandLoader<R>(fetchOne: (url: string) => Promise<R>): OnDemandLoader<R> {
   const done = new Set<string>();
   const inFlight = new Map<string, Promise<R | null>>();
+  let retired = false;
   function one(url: string): Promise<R | null> {
-    if (done.has(url)) return Promise.resolve(null);
+    if (retired || done.has(url)) return Promise.resolve(null);
     const running = inFlight.get(url);
     if (running) return running.then(() => null);
     const promise = fetchOne(url).then(
       (result) => {
+        if (retired) return null;
         done.add(url);
         inFlight.delete(url);
         return result;
@@ -32,6 +36,7 @@ export function createOnDemandLoader<R>(fetchOne: (url: string) => Promise<R>): 
       (err: unknown) => {
         // A failure is forgotten, so asking again tries again.
         inFlight.delete(url);
+        if (retired) return null;
         throw err;
       },
     );
@@ -43,9 +48,16 @@ export function createOnDemandLoader<R>(fetchOne: (url: string) => Promise<R>): 
       const results = await Promise.all([...new Set(urls)].map(one));
       return results.filter((r): r is Awaited<R> => r !== null) as R[];
     },
-    markLoaded: (url) => void done.add(url),
+    markLoaded: (url) => {
+      if (!retired) done.add(url);
+    },
     isLoaded: (url) => done.has(url),
     loadedCount: () => done.size,
+    retire() {
+      retired = true;
+      done.clear();
+      inFlight.clear();
+    },
   };
 }
 

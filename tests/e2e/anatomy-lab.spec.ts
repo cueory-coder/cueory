@@ -281,3 +281,29 @@ test.describe('anatomy lab whole body loads layers on demand', () => {
     expect(glb.some((p) => p.endsWith('skin.glb'))).toBe(false);
   });
 });
+
+test.describe('anatomy lab system switch', () => {
+  test('the old model is not shown after switching, and a late layer from the old system changes nothing', async ({ page }) => {
+    const release: Array<() => void> = [];
+    // Hold every model file until the test lets it go, so the order of arrival is ours.
+    await page.route(/\.glb(\?|$)/, async (route) => {
+      await new Promise<void>((resolve) => release.push(resolve));
+      await route.continue();
+    });
+    await page.goto('/preview/anatomy-lab');
+    await page.getByRole('button', { name: 'open the anatomy lab' }).click();
+    await expect(page.locator('canvas')).toBeVisible({ timeout: 15_000 });
+    const picker = page.getByRole('group', { name: 'body system' });
+    const buttons = picker.getByRole('button');
+    test.skip((await buttons.count()) < 2, 'no real models in this build');
+    await expect.poll(() => release.length).toBeGreaterThan(0);
+    release.splice(0).forEach((r) => r());
+    await expect(page.getByText(/^loading /)).toHaveCount(0, { timeout: 20_000 });
+    await buttons.nth(1).click();
+    // Held download of the new system: the old model must already be gone, and the loading state shown.
+    await expect(page.getByText(/^loading /).first()).toBeVisible();
+    await expect(list(page).getByRole('button').first()).toBeDisabled();
+    release.splice(0).forEach((r) => r());
+    await expect(page.getByText(/^loading /)).toHaveCount(0, { timeout: 20_000 });
+  });
+});
