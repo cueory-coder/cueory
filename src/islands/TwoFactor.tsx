@@ -56,7 +56,10 @@ export default function TwoFactor({ auth: supplied }: Props) {
       setAuth(client);
       if (!client) { setScreen({ kind: 'unavailable' }); return; }
       const status = await readStatus(client);
-      if (active) setScreen(status.kind === 'failed' ? { kind: 'load-failed' } : status);
+      if (!active) return;
+      // Arriving to enter a code (after signing in, or from /admin/flags): the code field is the one thing to do.
+      if (status.kind === 'needs-code') shouldFocus.current = true;
+      setScreen(status.kind === 'failed' ? { kind: 'load-failed' } : status);
     };
     load().catch(() => { if (active) setScreen({ kind: 'load-failed' }); });
     return () => { active = false; };
