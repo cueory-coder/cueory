@@ -33,6 +33,7 @@ import {
   releaseNoteFor,
   pickQuizTarget,
   revealQuiz,
+  revealedQuizTarget,
   slugify,
   startQuiz,
   systemKeyFromPath,
@@ -316,6 +317,16 @@ describe('the "find it" quiz', () => {
     expect(state).toMatchObject({ right: 0, answered: 1 });
     // Once found, more picks change nothing.
     expect(answerQuiz(state, 'C')).toBe(state);
+  });
+
+  it('protects only a correctly found or revealed quiz answer, not a wrong guess', () => {
+    const state = startQuiz(pool, () => 0); // target A
+    expect(revealedQuizTarget(null)).toBeNull();
+    expect(revealedQuizTarget(state)).toBeNull();
+    expect(revealedQuizTarget(answerQuiz(state, 'B'))).toBeNull();
+    expect(revealedQuizTarget(answerQuiz(state, 'A'))).toBe('A');
+    expect(revealedQuizTarget(revealQuiz(state))).toBe('A');
+    expect(revealedQuizTarget({ target: null, feedback: { kind: 'shown' } })).toBeNull();
   });
 
   it('"show me" reveals and counts an unanswered question as answered, not right', () => {
