@@ -44,6 +44,45 @@ test.describe('anatomy lab', () => {
     expect(await page.locator('meta[name="robots"]').getAttribute('content')).toContain('noindex');
   });
 
+  test('keeps a searchable, keyboard-accessible text catalog if WebGL is unavailable', async ({ page }) => {
+    // Simulate a device whose canvas can render text but cannot create a 3D context.
+    await page.addInitScript(() => {
+      const original = HTMLCanvasElement.prototype.getContext;
+      Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
+        configurable: true,
+        value: function (this: HTMLCanvasElement, ...args: unknown[]) {
+          if (typeof args[0] === 'string' && args[0].startsWith('webgl')) return null;
+          return Reflect.apply(original, this, args);
+        },
+      });
+    });
+    const glb: string[] = [];
+    page.on('request', (request) => {
+      if (/\\.glb(\\?|$)/.test(request.url())) glb.push(request.url());
+    });
+
+    await page.goto(URL);
+    await page.getByRole('button', { name: 'open the anatomy lab' }).click();
+    const error = page.getByRole('alert');
+    await expect(error).toContainText('the 3D anatomy lab could not open.');
+    await expect(error).toBeFocused();
+    await expect(page.getByRole('button', { name: 'try 3D again' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'browse the lessons' })).toHaveAttribute('href', '/learn');
+    await expect(page.getByRole('heading', { name: 'structure names: test shapes (fixture)' })).toBeVisible();
+    await expect(page.getByText('draft · labels waiting for review')).toBeVisible();
+    await expect(page.getByText('name from the test fixture')).toBeVisible();
+    await expect(page.getByRole('status')).toHaveText('showing 5 of 5 matching structures');
+
+    const search = page.getByLabel('find a structure');
+    await search.fill('cube b');
+    await expect(page.getByRole('status')).toHaveText('showing 1 of 1 matching structures');
+    await expect(page.getByRole('listitem')).toContainText(['fixture cube B']);
+    await expect(page.getByText('fixture cube A')).toHaveCount(0);
+    await search.fill('not a structure');
+    await expect(page.getByText('no structure names match this search.')).toBeVisible();
+    expect(glb).toEqual([]);
+  });
+
   test('without ?fixture the preview shows no fixture', async ({ page }) => {
     await page.goto('/preview/anatomy-lab');
     const open = page.getByRole('button', { name: 'open the anatomy lab' });
