@@ -169,14 +169,26 @@ describe('the structures of a system in 4.0', () => {
     ]);
   });
 
-  it('leaves out an excluded concept and everything under it', () => {
+  it('leaves out an excluded concept, everything under it, and the elements its compound whole lists for it', () => {
     const without = resolveSystem4({ ...system, exclude: [{ id: 'FMA90002', name: 'sample chamber' }] }, data);
-    expect(without.map((s) => [s.id, s.elements])).toEqual([['FMA90001', ['E1', 'E2']], ['FMA90004', ['E3']]]);
+    // E1 and E2 belong to the excluded chamber and its part; the root lists them too, but does not take them over.
+    expect(without.map((s) => [s.id, s.elements])).toEqual([['FMA90004', ['E3']]]);
   });
 
-  it('stops when an element is listed under two concepts and neither is part of the other', () => {
+  it('gives an element listed on two lines of the tree to the deeper concept, then to the one the walk reaches first', () => {
+    // E2 is under the part (depth 3) and the other part (depth 2), neither inside the other: the deeper wins.
     const twice = readRelease4Tables({ ...tables, elements: `${tables.elements}FMA90004\tsample other part\tE2\n` }, files);
-    expect(() => resolveSystem4(system, twice)).toThrow('element E2 is listed under');
+    expect(resolveSystem4(system, twice).map((s) => [s.id, s.elements])).toEqual([
+      ['FMA90002', ['E1']],
+      ['FMA90004', ['E3']],
+      ['FMA90003', ['E2']],
+    ]);
+    // E3 under the chamber too: the chamber and the other part are equally deep, so the one reached first keeps it.
+    const tie = readRelease4Tables({ ...tables, elements: `${tables.elements}FMA90002\tsample chamber\tE3\n` }, files);
+    expect(resolveSystem4(system, tie).map((s) => [s.id, s.elements])).toEqual([
+      ['FMA90002', ['E1', 'E3']],
+      ['FMA90003', ['E2']],
+    ]);
   });
 });
 
@@ -219,7 +231,7 @@ describe('building from a 4.0 download, end to end', () => {
         encoding: 'utf8',
         timeout: 60_000,
       });
-    return { repo, run };
+    return { repo, download, run };
   }
 
   it('reads the tables and the zip in one command, and writes the model and its source file', () => {
@@ -248,6 +260,54 @@ describe('building from a 4.0 download, end to end', () => {
     expect(source).toMatchObject({ quote: 'FMA90002 BP90002 sample chamber', section: 'partof_parts_list_e.txt, Release 4.0', retrieved: '2026-11-20' });
     const stored = JSON.parse(readFileSync(join(repo, 'scripts', 'anatomy-systems.json'), 'utf8'));
     expect(stored.systems[0].structures).toEqual(['FMA90002', 'FMA90004', 'FMA90003']);
+  });
+
+  it('builds a second system from the IS-A tree in another folder, drawing no element twice', () => {
+    const { repo, download, run } = setUp([
+      { path: 'partof_BP3D_4.0_obj_99/E1.obj', data: obj(0) },
+      { path: 'partof_BP3D_4.0_obj_99/E2.obj', data: obj(40) },
+      { path: 'partof_BP3D_4.0_obj_99/E3.obj', data: obj(80) },
+    ]);
+    // The IS-A folder: the same sample tables under the isa_ names. The second system takes the whole sample tree,
+    // so the first system (which comes first in the file) keeps E1 and E2 and the second gets only E3.
+    const isa = mkdtempSync(join(tmpdir(), 'cueory-bp3d4-isa-'));
+    folders.push(isa);
+    const isaFiles = release4Files('isa');
+    writeFileSync(join(isa, isaFiles.parts), tables.parts);
+    writeFileSync(join(isa, isaFiles.inclusion), tables.inclusion);
+    writeFileSync(join(isa, isaFiles.elements), tables.elements);
+    writeFileSync(
+      join(isa, isaFiles.zip),
+      zip([
+        { path: 'isa_BP3D_4.0_obj_99/E1.obj', data: obj(0) },
+        { path: 'isa_BP3D_4.0_obj_99/E2.obj', data: obj(40) },
+        { path: 'isa_BP3D_4.0_obj_99/E3.obj', data: obj(80) },
+      ]),
+    );
+    const definitions = JSON.parse(readFileSync(join(repo, 'scripts', 'anatomy-systems.json'), 'utf8'));
+    definitions.systems[0].roots = [{ id: 'FMA90003', name: 'sample part', why: 'sample' }];
+    definitions.systems.push({ ...definitions.systems[0], id: 'sample2', tree: 'isa', roots: [{ id: 'FMA90001', name: 'sample root', why: 'sample' }] });
+    definitions.layers = {
+      order: [
+        { id: 'muscle', title: 'muscle', concepts: [{ id: 'FMA90004', name: 'sample other part', tree: 'isa' }] },
+        { id: 'organs', title: 'organs', concepts: [] },
+      ],
+    };
+    writeFileSync(join(repo, 'scripts', 'anatomy-systems.json'), JSON.stringify(definitions));
+    expect(download).toBeTruthy();
+    const result = run('--isa-source', isa, '--update-definitions');
+    expect(result.stderr).toBe('');
+    expect(result.status).toBe(0);
+    const one = new Uint8Array(readFileSync(join(repo, 'public', 'models', 'anatomy', 'sample.glb')));
+    const two = new Uint8Array(readFileSync(join(repo, 'public', 'models', 'anatomy', 'sample2.glb')));
+    expect(glbNodeNames(one)).toEqual(['FMA90003']);
+    expect(glbNodeNames(two)).toEqual(['FMA90002', 'FMA90004']);
+    const visual = JSON.parse(readFileSync(join(repo, 'content', 'visuals', 'anatomy-sample2.json'), 'utf8'));
+    expect(visual.labels.map((l: { id: string; layer: string }) => [l.id, l.layer])).toEqual([
+      ['FMA90002', 'organs'],
+      ['FMA90004', 'muscle'],
+    ]);
+    expect(visual.sources.find((x: { id: string }) => x.id === 'bp3d-FMA90004').section).toBe('isa_parts_list_e.txt, Release 4.0');
   });
 
   it('stops with a plain message when the zip lacks an element the tables name', () => {

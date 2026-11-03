@@ -303,7 +303,7 @@ const visuals = defineCollection({
       labels: z.array(
         z.object({
           id: visualId.or(structureId),
-          text: z.string().min(1).max(80),
+          text: z.string().min(1).max(120),
           source: visualId.or(structureSourceId),
           group: z.string().min(1).max(120).optional(),
           layer: z.enum(['skin', 'muscle', 'nerves', 'vessels', 'organs', 'skeleton']).optional(),

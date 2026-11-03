@@ -119,10 +119,11 @@ The allowed books so far are Open RN *Nursing Fundamentals, 2nd Edition*, and Bo
 - BodyParts3D's parts list has no conduction pathway (SA node, AV node, bundle of His, bundle branches, Purkinje
   fibers), and whether Z-Anatomy added one isn't confirmed yet. If neither has it, we draw it on the heart ourselves,
   from a cited source.
-- Pipeline (Task 177): `node scripts/build-anatomy.mjs --source <folder> --release <3.0|4.0> [--system <id>]` turns
+- Pipeline (Task 177): `node scripts/build-anatomy.mjs --source <folder> [--isa-source <folder>] --release 4.0 --retrieved <day> [--system <id>]` turns
   BodyParts3D's own files into one compressed model per body system. `scripts/anatomy-systems.json` names each system's
-  root concepts; the script takes every structure under them in the database's own hierarchy
-  (`conventional_part_of.txt`), minus the listed exclusions, and stops if that list ever differs from the stored one.
+  root concepts and the tree they come from (`partof` by default, or `isa`); the script takes every structure under them in
+  the database's own hierarchy (`<tree>_inclusion_relation_list.txt`), minus the listed exclusions, and stops if that list
+  ever differs from the stored one. Each element mesh is drawn once in the whole body: the first system in the file to have it keeps it.
   gltfpack (npm, MIT) adds normals, simplifies only when a system is over the phone budget (one ratio for every
   structure, within its 1% error limit) and compresses with meshopt, keeping each structure a separate mesh node named
   with its id, such as `FMA7204` (D-58). No textures and one neutral material: the viewer colors the structures. All
@@ -138,36 +139,30 @@ The allowed books so far are Open RN *Nursing Fundamentals, 2nd Edition*, and Bo
   (such as "cardiac vein" and "right coronary artery"), not one heading per branch.
   Each label's `layer` (skin, muscle, nerves, vessels, organs or skeleton, outside in) is the first layer in
   `scripts/anatomy-systems.json` whose listed concepts the structure is under in the same hierarchy; anything under
-  none of them is "organs". The lab peels the whole body by these layers. The Release 3.0 mirror we use has 302 meshes
-  (composite_parts.txt names 1,420 primitives), and none under the integumentary, muscular or nervous systems, so skin,
-  muscle and nerves have no models yet; vessels are only the heart's and great vessels (20). Those layers come with the
-  official 4.0 rebuild.
+  none of them is "organs" (a layer concept names its tree too). The lab peels the whole body by these layers. Release 4.0's
+  PART-OF tree has the skin, the integumentary and nervous systems, the heart and its chambers, the aorta and venae cavae,
+  the organs and the arterial and venous trees, but no skeletal muscles and no artery or vein concept, and its limb
+  concepts mix bones, muscles and vessels. So the organs and the brain and spinal cord use the PART-OF tree, and the muscles
+  (`muscle organ`), the arteries and veins, the bones, the peripheral nerves and the skin use the IS-A tree, which sorts
+  structures by kind.
   BodyParts3D may be cited only by a 3D model (`kind: "model"`), and the unit tests check that every node in each
   model has exactly one label.
-- Stopgap: the first models come from Release 3.0 (2011-09-15) by way of the GitHub mirror
-  Kevin-Mattheus-Moerman/BodyParts3D, which converted the official `BodyParts3D_3.0_obj_95.zip` meshes to STL, because
-  the official site can't be reached from the build machine. Release 3.0 has no separate heart chambers (the heart is
-  one "wall of heart" with valves, papillary muscles and coronary vessels). When Christian downloads the official 4.0
-  files, the models are rebuilt with `--release 4.0 --retrieved <the download day>`, after checking that release's
-  file names, hierarchy and coordinate system in its README. The Release 3.0 README says CC BY-SA 2.1 Japan, while
-  the licensor's current license page (2025-02-27) says the database is CC BY 4.0, so these 3.0-based models are
-  drafts on the locked staging site only and will be rebuilt from the official 4.0 download before any picture or
-  model is published.
-- Rebuilding from 4.0 is one command, once Christian's download is in a folder (no need to unpack the zip):
-  `node scripts/build-anatomy.mjs --source <that folder> --release 4.0 --retrieved <the download day> --update-definitions`.
-  It reads the files the 4.0 README names, for the PART-OF tree by default (`--tree isa` for the IS-A tree):
-  `partof_parts_list_e.txt` (concept id, representation id, English name), `partof_inclusion_relation_list.txt`
-  (parent id and name, child id and name), `partof_element_parts.txt` (concept id, name, element file id) and the OBJ
-  meshes inside `partof_BP3D_4.0_obj_99.zip`. In 4.0 only atomic organs ("elements") have meshes, so each element is
-  drawn once, as part of the most specific concept of the system that lists it; a heart chamber with meshes of its
-  own is then a structure of its own. What the README doesn't say (a header line or not, the OBJ file names in the
+- The models are built from the official Release 4.0 files (retrieved 2026-11-02), not the earlier Release 3.0 mirror.
+  BodyParts3D 4.0 is CC BY 4.0 (the licensor's license page, updated 2025-02-27).
+- Rebuilding from 4.0 is one command, once Christian's download is in a folder (no need to unpack the zip; the PART-OF and IS-A
+  files may share a folder or use `--isa-source`):
+  `node scripts/build-anatomy.mjs --source <that folder> --isa-source <the IS-A folder> --release 4.0 --retrieved <the download day> --update-definitions`.
+  It reads the files the 4.0 README names for each tree: `<tree>_parts_list_e.txt` (concept id, representation id, English name),
+  `<tree>_inclusion_relation_list.txt` (parent id and name, child id and name), `<tree>_element_parts.txt` (concept id, name,
+  element file id) and the OBJ meshes inside `<tree>_BP3D_4.0_obj_99.zip`. In 4.0 only atomic organs ("elements") have meshes,
+  so each element is drawn once, as part of the most specific concept of the system that lists it; a heart chamber with meshes
+  of its own is then a structure of its own. What the README doesn't say (a header line or not, the OBJ file names in the
   zip, units and axes) is listed as assumptions at the top of `scripts/anatomy-release4.mjs`, and the build stops
   with a plain message when the real files differ. The `--update-definitions` run rewrites each system's structure
   list in `scripts/anatomy-systems.json`, so its change is reviewed in the pull request.
-- The skeleton is two models so each keeps more detail: `skeleton-axial` (the tree's "axial skeleton", plus the
-  sternum, costal cartilages and inferior nasal conchae, which the tree puts under neither half) and `skeleton-limbs`
-  (the tree's "appendicular skeleton": clavicles, scapulae, hip bones, arms, hands, legs and feet). The tree also
-  lists the ribs and the sacrum under the appendicular skeleton; they stay in `skeleton-axial` only.
+- The skeleton is two models so each keeps more detail, both from the IS-A tree's `bone organ`: `skeleton-limbs` (clavicle, scapula,
+  hip bone, arm, hand, leg and foot bones, listed by concept in the file) and `skeleton-axial` (every other bone: skull, spine,
+  ribs, sacrum; plus the costal cartilages and the three parts of the sternum, which the IS-A tree keeps outside `bone organ`).
 - Viewer: a three.js React island. One body system loads at a time; a system filter and layer peeling (skin to bone)
   with buttons; rotate and zoom by drag, pinch, buttons and the keyboard; no auto-rotate with reduced motion.
 - Phone budget per system: at most 3 MB to download and 150,000 triangles, and it must stay smooth on a mid-range

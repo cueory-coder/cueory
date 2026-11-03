@@ -4,25 +4,25 @@
   "kind": "model",
   "lessonIds": ["U09-T01-L02", "U09-T02-L01"],
   "status": "draft",
-  "model": { "file": "/models/anatomy/kidneys.glb", "release": "BodyParts3D 3.0 (2011-09-15)", "via": "GitHub mirror Kevin-Mattheus-Moerman/BodyParts3D (OBJ converted to STL)" },
+  "model": { "file": "/models/anatomy/kidneys.glb", "release": "BodyParts3D 4.0", "via": "official download from dbarchive.biosciencedbc.jp" },
   "labels": [
     { "id": "FMA15900", "text": "urinary bladder", "group": "urinary system", "layer": "organs", "source": "bp3d-FMA15900" },
     { "id": "FMA19667", "text": "urethra", "group": "urinary system", "layer": "organs", "source": "bp3d-FMA19667" },
-    { "id": "FMA7205", "text": "left kidney", "group": "urinary system", "layer": "organs", "source": "bp3d-FMA7205" },
     { "id": "FMA7204", "text": "right kidney", "group": "urinary system", "layer": "organs", "source": "bp3d-FMA7204" },
-    { "id": "FMA15572", "text": "left ureter", "group": "urinary system", "layer": "organs", "source": "bp3d-FMA15572" },
-    { "id": "FMA15571", "text": "right ureter", "group": "urinary system", "layer": "organs", "source": "bp3d-FMA15571" }
+    { "id": "FMA15571", "text": "right ureter", "group": "urinary system", "layer": "organs", "source": "bp3d-FMA15571" },
+    { "id": "FMA7205", "text": "left kidney", "group": "urinary system", "layer": "organs", "source": "bp3d-FMA7205" },
+    { "id": "FMA15572", "text": "left ureter", "group": "urinary system", "layer": "organs", "source": "bp3d-FMA15572" }
   ],
   "depictions": [
     { "id": "geometry", "what": "each structure's 3D shape and position as BodyParts3D models it, all in the database's one shared body coordinate system", "source": "bp3d-readme" }
   ],
   "sources": [
-    { "id": "bp3d-readme", "quote": "BodyParts3D is a dictionary-type database for anatomy in which shapes and positions of body parts are represented by 3D human models.", "book": "BodyParts3D", "section": "README_e.html, Release 3.0 (2011-09-15)", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
-    { "id": "bp3d-FMA15900", "quote": "FMA15900 urinary bladder", "book": "BodyParts3D", "section": "parts_list_e.txt, Release 3.0 (2011-09-15)", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
-    { "id": "bp3d-FMA19667", "quote": "FMA19667 urethra", "book": "BodyParts3D", "section": "parts_list_e.txt, Release 3.0 (2011-09-15)", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
-    { "id": "bp3d-FMA7205", "quote": "FMA7205 left kidney", "book": "BodyParts3D", "section": "parts_list_e.txt, Release 3.0 (2011-09-15)", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
-    { "id": "bp3d-FMA7204", "quote": "FMA7204 right kidney", "book": "BodyParts3D", "section": "parts_list_e.txt, Release 3.0 (2011-09-15)", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
-    { "id": "bp3d-FMA15572", "quote": "FMA15572 left ureter", "book": "BodyParts3D", "section": "parts_list_e.txt, Release 3.0 (2011-09-15)", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
-    { "id": "bp3d-FMA15571", "quote": "FMA15571 right ureter", "book": "BodyParts3D", "section": "parts_list_e.txt, Release 3.0 (2011-09-15)", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" }
+    { "id": "bp3d-readme", "quote": "The dictionary-type database for anatomy in which anatomical concepts are represented by 3D structure data", "book": "BodyParts3D", "section": "README_e.html, Release 4.0", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
+    { "id": "bp3d-FMA15900", "quote": "FMA15900 BP9803 urinary bladder", "book": "BodyParts3D", "section": "partof_parts_list_e.txt, Release 4.0", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
+    { "id": "bp3d-FMA19667", "quote": "FMA19667 BP10143 urethra", "book": "BodyParts3D", "section": "partof_parts_list_e.txt, Release 4.0", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
+    { "id": "bp3d-FMA7204", "quote": "FMA7204 BP10046 right kidney", "book": "BodyParts3D", "section": "partof_parts_list_e.txt, Release 4.0", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
+    { "id": "bp3d-FMA15571", "quote": "FMA15571 BP10049 right ureter", "book": "BodyParts3D", "section": "partof_parts_list_e.txt, Release 4.0", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
+    { "id": "bp3d-FMA7205", "quote": "FMA7205 BP10234 left kidney", "book": "BodyParts3D", "section": "partof_parts_list_e.txt, Release 4.0", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
+    { "id": "bp3d-FMA15572", "quote": "FMA15572 BP9940 left ureter", "book": "BodyParts3D", "section": "partof_parts_list_e.txt, Release 4.0", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" }
   ]
 }

@@ -2,7 +2,7 @@
  * Builds the anatomy lab's 3D models from BodyParts3D (Task 177; D-58, D-80; docs/VISUALS.md, "3D body").
  *
  *   node scripts/build-anatomy.mjs --source <dir> --release <3.0|4.0> [--system <id>] [--retrieved YYYY-MM-DD]
- *                                  [--tree partof|isa] [--update-definitions]
+ *                                  [--isa-source <dir>] [--tree partof|isa] [--update-definitions]
  *
  * Rebuilding from the official 4.0 download is one command, run from the repository's folder:
  *
@@ -19,7 +19,13 @@
  * --release  3.0: the 2011-09-15 release, from the GitHub mirror Kevin-Mattheus-Moerman/BodyParts3D, whose README
  *            says it converted BodyParts3D_3.0_obj_95.zip to binary STL. 4.0: the official download (OBJ in zips).
  *            Release 4.0 also needs --retrieved, the day the files were downloaded.
- * --tree     Release 4.0 only: partof (default: the PART-OF tree, which says what each organ is made of) or isa.
+ * --isa-source  Release 4.0: the folder with the IS-A tree's files, when they are not in --source (README_e.html is
+ *            read from --source only). A system or layer concept in anatomy-systems.json says which tree it uses with
+ *            "tree": "partof" (the default) or "isa". The PART-OF tree says what each organ is made of; the IS-A tree
+ *            sorts structures by kind (muscle organ, artery, vein, bone organ, nerve), which the PART-OF tree has no
+ *            concept for.
+ * --tree     Release 4.0 only: the tree used by systems and layer concepts that don't name one (default partof).
+ *            Elements are shared by both trees, and the first system in the file to have an element keeps it.
  * --system   build only this system (default: every system in scripts/anatomy-systems.json).
  * --update-definitions  write the structure lists worked out from the hierarchy back into anatomy-systems.json.
  *            Without it the build stops when the hierarchy and the stored list disagree, so the list never drifts.
@@ -108,11 +114,13 @@ function parseArguments(argv) {
     else if (arg === '--release') options.release = value();
     else if (arg === '--system') options.system = value();
     else if (arg === '--retrieved') options.retrieved = value();
+    else if (arg === '--isa-source') options.isaSource = value();
     else if (arg === '--tree') options.tree = value();
     else if (arg === '--update-definitions') options.update = true;
     else fail(`unknown argument ${arg} (see the top of scripts/build-anatomy.mjs)`);
   }
   if (!options.source) fail('--source <dir> is required');
+  if (options.isaSource !== undefined && options.release !== '4.0') fail('--isa-source is for Release 4.0 only');
   if (!RELEASES[options.release]) fail('--release must be 3.0 or 4.0');
   if (options.tree !== undefined && options.release !== '4.0') fail('--tree is for Release 4.0 only');
   options.tree ??= 'partof';
@@ -149,13 +157,13 @@ function table(path) {
  * The structures of one system: the release's own choice of concepts (data.findStructures, each with its path from a
  * root concept), each named and given its list heading.
  */
-function resolveSystem(system, data) {
+function resolveSystem(system, data, claimed) {
   for (const concept of [...system.roots, ...(system.exclude ?? [])]) {
     if (data.names.get(concept.id) !== concept.name) {
       fail(`${system.id}: ${concept.id} is "${data.names.get(concept.id)}" in the release's files, not "${concept.name}"`);
     }
   }
-  const found = data.findStructures(system);
+  const found = data.findStructures(system, claimed);
   if (found.length === 0) fail(`${system.id}: no structure under its root concepts has a mesh`);
   // The list heading: the coarsest useful concept on the structure's path (scripts/anatomy-groups.mjs).
   let headings;
@@ -218,7 +226,7 @@ function loadRelease3(files, need) {
     names,
     partsLines,
     hierarchy,
-    findStructures: (system) =>
+    findStructures: (system, claimed) =>
       [...walkSystem(system, hierarchy)].filter(([id]) => meshes.has(id)).map(([id, path]) => ({ id, path })),
     corners: (id) => {
       const path = meshes.get(id);
@@ -244,15 +252,23 @@ function loadRelease4(need, tree) {
   const elementsOf = new Map();
   return {
     ...data,
-    findStructures: (system) => {
+    findStructures: (system, claimed) => {
       let found;
       try {
         found = resolveSystem4(system, data);
       } catch (error) {
         fail(error.message);
       }
-      for (const structure of found) elementsOf.set(structure.id, structure.elements);
-      return found.map(({ id, path }) => ({ id, path }));
+      // An element is drawn once in the whole body: the first system (in file order) that has it keeps it.
+      const kept = [];
+      for (const structure of found) {
+        const elements = structure.elements.filter((element) => !claimed.has(element));
+        if (elements.length === 0) continue;
+        elementsOf.set(structure.id, elements);
+        kept.push({ id: structure.id, path: structure.path, elements });
+      }
+      for (const structure of kept) for (const element of structure.elements) claimed.add(element);
+      return kept.map(({ id, path }) => ({ id, path }));
     },
     corners: (id) => {
       const parts = elementsOf.get(id).map((element) => {
@@ -508,7 +524,19 @@ async function main() {
 
   const readme = readFileSync(need('README_e.html'), 'utf8').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
   if (!readme.includes(release.readmeQuote)) fail(`README_e.html does not say: ${release.readmeQuote}`);
-  const data = options.release === '4.0' ? loadRelease4(need, options.tree) : loadRelease3(files, need);
+  // Release 4.0 has two trees; a system or layer concept names the one it comes from ("tree", default: --tree).
+  const isaFiles = options.isaSource ? indexFiles(options.isaSource) : files;
+  const needIsa = (name) => isaFiles.get(name) ?? fail(`${name} is not in ${options.isaSource ?? options.source}`);
+  const loaded = new Map();
+  const dataFor = (tree = options.tree) => {
+    if (options.release !== '4.0') {
+      if (!loaded.has('only')) loaded.set('only', loadRelease3(files, need));
+      return loaded.get('only');
+    }
+    if (tree !== 'partof' && tree !== 'isa') fail(`the tree is "partof" or "isa", not "${tree}"`);
+    if (!loaded.has(tree)) loaded.set(tree, loadRelease4(tree === 'isa' ? needIsa : need, tree));
+    return loaded.get(tree);
+  };
 
   const definitions = JSON.parse(readFileSync(SYSTEMS_FILE, 'utf8'));
   const chosen = definitions.systems.filter((system) => !options.system || system.id === options.system);
@@ -517,21 +545,44 @@ async function main() {
   const layers = definitions.layers?.order ?? [];
   for (const layer of layers) {
     for (const concept of layer.concepts) {
-      if (data.names.get(concept.id) !== concept.name) {
-        fail(`layer ${layer.id}: ${concept.id} is "${data.names.get(concept.id)}" in the release's files, not "${concept.name}"`);
+      const names = dataFor(concept.tree).names;
+      if (names.get(concept.id) !== concept.name) {
+        fail(`layer ${layer.id}: ${concept.id} is "${names.get(concept.id)}" in the release's files, not "${concept.name}"`);
       }
     }
   }
-  /** The first layer (outside in) whose concepts the structure is under or is; else "organs". */
-  const layerOf = (id) => {
-    const above = new Set([id, ...ancestorsOf(id, data.hierarchy.parents)]);
-    return layers.find((layer) => layer.concepts.some((concept) => above.has(concept.id)))?.id ?? 'organs';
+  /** The first layer (outside in) whose concepts the structure is under or is, in its own tree; else "organs". */
+  const layerOf = (id, tree) => {
+    const above = new Set([id, ...ancestorsOf(id, dataFor(tree).hierarchy.parents)]);
+    return (
+      layers.find((layer) =>
+        layer.concepts.some((concept) => (concept.tree ?? options.tree) === tree && above.has(concept.id)),
+      )?.id ?? 'organs'
+    );
   };
+
+  // Elements already drawn by an earlier system: the whole-body view loads every system, so none may be drawn twice.
+  // All systems are resolved (cheap), so a --system run keeps the same elements as a full run.
+  const claimed = new Set();
+  const usedIds = new Map();
+  const resolved = new Map();
+  for (const system of definitions.systems) {
+    const tree = system.tree ?? options.tree;
+    const data = dataFor(tree);
+    const structures = resolveSystem(system, data, claimed);
+    for (const structure of structures) {
+      if (usedIds.has(structure.id)) fail(`${system.id}: ${structure.id} (${structure.name}) is already a structure of ${usedIds.get(structure.id)}; keep it in one system`);
+      usedIds.set(structure.id, system.id);
+    }
+    resolved.set(system.id, structures);
+  }
 
   let changed = false;
   for (const system of chosen) {
-    const structures = resolveSystem(system, data);
-    for (const structure of structures) structure.layer = layerOf(structure.id);
+    const tree = system.tree ?? options.tree;
+    const data = dataFor(tree);
+    const structures = resolved.get(system.id);
+    for (const structure of structures) structure.layer = layerOf(structure.id, tree);
     const ids = structures.map((s) => s.id);
     if (JSON.stringify(ids) !== JSON.stringify(system.structures)) {
       if (!options.update) {
@@ -564,7 +615,7 @@ async function main() {
     writeFileSync(join(MODELS_DIR, `${system.id}.glb`), packed.bytes);
     writeFileSync(
       join(VISUALS_DIR, `anatomy-${system.id}.json`),
-      visualJson(visualFor(system, structures, data.partsLines, release, options)),
+      visualJson(visualFor(system, structures, data.partsLines, release, { ...options, tree })),
     );
 
     process.stdout.write(

@@ -199,14 +199,22 @@ function isBelow(a, b, parents) {
  */
 export function resolveSystem4(system, data) {
   const excluded = new Set((system.exclude ?? []).map((concept) => concept.id));
-  const paths = new Map();
-  const queue = system.roots.map((root) => [root.id, [root.id]]);
-  while (queue.length > 0) {
-    const [id, path] = queue.shift();
-    if (paths.has(id) || excluded.has(id)) continue;
-    paths.set(id, path);
-    for (const part of data.hierarchy.parts.get(id) ?? []) queue.push([part, [...path, part]]);
-  }
+  /** Breadth-first from the roots (ties in file order), optionally stepping over the exclusions. */
+  const walk = (skip) => {
+    const found = new Map();
+    const queue = system.roots.map((root) => [root.id, [root.id]]);
+    while (queue.length > 0) {
+      const [id, path] = queue.shift();
+      if (found.has(id) || (skip && excluded.has(id))) continue;
+      found.set(id, path);
+      for (const part of data.hierarchy.parts.get(id) ?? []) queue.push([part, [...path, part]]);
+    }
+    return found;
+  };
+  // A compound concept lists the elements of its parts too, so an excluded part's elements are also listed by its
+  // whole. Owners are therefore worked out over every concept, and the ones an exclusion owns are then dropped.
+  const paths = walk(false);
+  const kept = walk(true);
   const listedBy = new Map();
   for (const id of paths.keys()) {
     for (const element of data.elements.get(id) ?? []) {
@@ -216,17 +224,18 @@ export function resolveSystem4(system, data) {
   }
   const owned = new Map();
   for (const [element, concepts] of listedBy) {
-    const owner = concepts.find((c) => concepts.every((other) => other === c || isBelow(c, other, data.hierarchy.parents)));
-    if (!owner) {
-      throw new Error(
-        `${system.id}: element ${element} is listed under ${concepts.join(', ')}, and none of them is part of all the others, ` +
-          'so it is not clear which structure it belongs to (assumption A4 in scripts/anatomy-release4.mjs)',
-      );
-    }
+    // The most specific listing concept: the one no other listing concept is below. A system with several roots can
+    // list an element under concepts that are not on one line (a root such as "heart" lists the elements of the right
+    // side of the heart, which the tree puts elsewhere), so of those, the one deepest in the system's own walk wins.
+    // Two equally deep concepts (a muscle and a layer of the same wall can share one mesh) go to the one the walk
+    // reaches first, which is the same on every run.
+    const lowest = concepts.filter((c) => !concepts.some((other) => other !== c && isBelow(other, c, data.hierarchy.parents)));
+    const depth = Math.max(...lowest.map((c) => paths.get(c).length));
+    const owner = [...paths.keys()].find((c) => lowest.includes(c) && paths.get(c).length === depth);
     if (!owned.has(owner)) owned.set(owner, []);
     owned.get(owner).push(element);
   }
-  return [...paths]
+  return [...kept]
     .filter(([id]) => owned.has(id))
     .map(([id, path]) => ({ id, path, elements: owned.get(id).sort() }));
 }
