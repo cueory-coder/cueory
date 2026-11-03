@@ -8,7 +8,7 @@ import {
   type MutableRefObject,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import { createGeneration, createOnDemandLoader, filesForLayer, firstLayer, layerNeedsReveal, visibilityAfterLayerDownload, lazyPeel, lazyRestore, PartialLoadError, revealTargetPlan, showAllPlan, structureLoadNote, type OnDemandLoader } from './anatomylazy';
+import { createGeneration, createOnDemandLoader, filesForLayer, idsForFiles, initialLayerPlan, firstLayer, layerNeedsReveal, visibilityAfterLayerDownload, lazyPeel, lazyRestore, PartialLoadError, revealTargetPlan, showAllPlan, structureLoadNote, type OnDemandLoader } from './anatomylazy';
 import type { LabColors, LabScene, LoadResult } from './anatomyscene';
 import { checkTriangleBudget } from './bodyviewer-logic';
 import {
@@ -58,11 +58,6 @@ interface Props {
 }
 
 type Phase = 'cover' | 'opening' | 'open' | 'error';
-/** The structure ids a model file serves in the whole-body view: those of every layer that names the file. */
-function layers_idsForFile(system: AnatomySystem, layers: readonly Layer[], url: string): string[] {
-  return layers.filter((layer) => filesForLayer(system, layer.id).includes(url)).flatMap((layer) => layer.ids);
-}
-
 type SystemLoad = { state: 'loading' } | { state: 'ready'; result: LoadResult } | { state: 'error'; message: string };
 
 const primaryButton =
@@ -299,26 +294,25 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     setLayerError(null);
     loaderRef.current = null;
     const wholeLayers = system.key === WHOLE_BODY_KEY && system.model.layerFiles ? layersOf(system.structures) : null;
-    const first = wholeLayers ? firstLayer(wholeLayers) : null;
-    const firstFiles = first ? filesForLayer(system, first.id) : [];
-    const lazyStart = first !== null && firstFiles.length > 0;
-    const firstIds = new Set(first?.ids ?? []);
-    // Deeper layers start out hidden and unfetched; the scene only gets the outermost layer's files.
-    setHidden(lazyStart ? new Set(system.structures.filter((s) => !firstIds.has(s.id)).map((s) => s.id)) : new Set());
-    setFilesLoaded(lazyStart ? firstFiles.length : 0);
+    // Files can hold structures in several layers. Map all of their IDs now, while showing only the first layer.
+    const initial = wholeLayers ? initialLayerPlan(system, wholeLayers) : null;
+    setHidden(initial?.hidden ?? new Set());
+    setFilesLoaded(initial?.files.length ?? 0);
     scene
-      .load(lazyStart ? firstFiles : (system.model.files ?? system.model.file), lazyStart ? [...firstIds] : system.structures.map((s) => s.id))
+      .load(initial?.files ?? (system.model.files ?? system.model.file), initial?.ids ?? system.structures.map((s) => s.id))
       .then((result) => {
         if (!current || !result) return;
-        if (lazyStart) {
+        if (initial) {
+          // Apply the first-layer visibility before the React ready-state effect runs.
+          scene.setAppearance({ hidden: initial.hidden, selected: null });
           const loader = createOnDemandLoader<LoadResult>((url) => {
-            const ids = layers_idsForFile(system, wholeLayers!, url);
+            const ids = idsForFiles(system, wholeLayers!, [url]);
             return scene.add(url, ids).then((r) => {
               if (!r || !current) throw new Error('The view changed while this layer downloaded.');
               return r;
             });
           });
-          for (const url of firstFiles) loader.markLoaded(url);
+          for (const url of initial.files) loader.markLoaded(url);
           loaderRef.current = loader;
         }
         setLoad({ state: 'ready', result });
