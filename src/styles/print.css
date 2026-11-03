@@ -1,3 +1,8 @@
+/* Screen default: print-only elements stay hidden */
+[data-print-only] {
+  display: none;
+}
+
 /* Keep printed lessons focused on their reading content, not the interactive site chrome. */
 @media print {
   body {
@@ -9,8 +14,13 @@
   body > footer,
   body > [data-testid="building-notice"],
   body > dialog,
-  body > a[href="#main"] {
+  body > a[href="#main"],
+  [data-print-hidden] {
     display: none !important;
+  }
+
+  [data-print-only] {
+    display: block !important;
   }
 
   main {

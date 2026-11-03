@@ -16,6 +16,11 @@ test.describe('Task 216: printed lesson pages', () => {
     test(`${route} prints reading content without site navigation`, async ({ page }) => {
       const response = await page.goto(route);
       expect(response?.status()).toBe(200);
+
+      if (route === '/learn/study-skills') {
+        await expect(page.getByTestId('print-lesson-reader')).toBeHidden();
+      }
+
       await page.emulateMedia({ media: 'print' });
 
       await expect(page.locator('main')).toBeVisible();
@@ -29,6 +34,15 @@ test.describe('Task 216: printed lesson pages', () => {
         await expect(page.locator(selector)).toBeHidden();
       }
       await expect(page.locator('main')).toHaveCSS('max-width', 'none');
+
+      if (route === '/learn/study-skills') {
+        const printReader = page.getByTestId('print-lesson-reader');
+        await expect(printReader).toBeVisible();
+        await expect(printReader.locator('li')).toHaveCount(3);
+        await expect(printReader).toContainText('Placeholder sentence 1');
+        await expect(printReader).toContainText('Placeholder sentence 2');
+        await expect(printReader).toContainText('Placeholder sentence 3');
+      }
     });
   }
 });
