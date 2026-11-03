@@ -24,7 +24,9 @@ for (const route of [...new Set(builtPages())].sort()) {
     const response = await page.goto(route);
     expect(response?.status()).toBe(route === '/body-line-height-page-does-not-exist' ? 404 : 200);
     await page.waitForFunction(() => document.querySelectorAll('astro-island[ssr]').length === 0);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {
+      throw new Error(`${route}: network requests did not settle within 10 s`);
+    });
     await page.evaluate(() => document.fonts.ready);
 
     const findings = await page.evaluate(() => {
