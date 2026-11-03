@@ -58,14 +58,14 @@ test.describe('anatomy lab', () => {
     });
     const glb: string[] = [];
     page.on('request', (request) => {
-      if (/\\.glb(\\?|$)/.test(request.url())) glb.push(request.url());
+      if (new URL(request.url()).pathname.endsWith('.glb')) glb.push(request.url());
     });
 
     await page.goto(URL);
     await page.getByRole('button', { name: 'open the anatomy lab' }).click();
     const error = page.getByRole('alert');
     await expect(error).toContainText('the 3D anatomy lab could not open.');
-    await expect(error).toBeFocused();
+    await expect(page.getByRole('heading', { name: 'the 3D anatomy lab could not open.' })).toBeFocused();
     await expect(page.getByRole('button', { name: 'try 3D again' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'browse the lessons' })).toHaveAttribute('href', '/learn');
     await expect(page.getByRole('heading', { name: 'structure names: test shapes (fixture)' })).toBeVisible();
