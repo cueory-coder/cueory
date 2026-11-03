@@ -447,7 +447,7 @@ test.describe('anatomy lab whole body loads layers on demand', () => {
 
     const extraRequests: string[] = [];
     page.on('request', (request) => {
-      if (/\\.glb(?:\\?|$)/.test(request.url())) extraRequests.push(request.url());
+      if (/\.glb(?:\?|$)/.test(request.url())) extraRequests.push(request.url());
     });
     await quiz.getByRole('button', { name: 'show me' }).click();
     await expect(quiz.locator('[data-feedback="shown"]')).toContainText('heart');
