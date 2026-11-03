@@ -1,1 +1,3 @@
 status: Task 278, W40, debug-console regression guard. Scope recorded before edits: tests/unit/no-debug-console.test.ts and this status note only. Scans source TypeScript/TSX and Astro frontmatter/script blocks without treating comments or ordinary text as executable logging. No application behavior, dependencies or off-limits files changed.
+
+Round 1: replaced HTML script/style filtering regexes with explicit raw-text tag boundary handling after the CodeQL finding. Added an end-tag whitespace/ignored-attribute fixture. Focused tests 5 passed, check/build passed, and the serialized full unit suite passed 3,552 tests in 119 files. Current-head CodeQL and review must still pass after publication.

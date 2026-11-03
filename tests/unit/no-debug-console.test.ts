@@ -39,15 +39,35 @@ function scan(text: string, extension: string): Logging[] {
   // Astro's inline scripts and processed module scripts are both source code.
   const markupStart = frontmatter?.[0].length ?? 0;
   const markup = text.slice(markupStart);
+  const masked = markup.split('');
+  const lower = markup.toLowerCase();
+  const opening = /<(script|style)\b[^>]*>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = opening.exec(markup)) !== null) {
+    const contentStart = match.index! + match[0].length;
+    // Read HTML raw-text end-tag boundaries explicitly. HTML permits whitespace
+    // and ignored attributes on an end tag, such as </script\t\n ignored>.
+    const name = `</${match[1]!.toLowerCase()}`;
+    let close = lower.indexOf(name, contentStart);
+    while (close !== -1 && !/[\s/>]/.test(lower[close + name.length] ?? '')) {
+      close = lower.indexOf(name, close + name.length);
+    }
+    const closingEnd = close === -1 ? -1 : markup.indexOf('>', close + name.length);
+    const contentEnd = close === -1 ? markup.length : close;
+    const end = closingEnd === -1 ? markup.length : closingEnd + 1;
+    if (match[1]!.toLowerCase() === 'script') {
+      const start = markupStart + contentStart;
+      found.push(...debugReferences(markup.slice(contentStart, contentEnd), text.slice(0, start).split('\n').length - 1));
+    }
+    for (let index = match.index!; index < end; index++) {
+      if (markup[index] !== '\n') masked[index] = ' ';
+    }
+    // Ignore script-looking strings within this raw-text block.
+    opening.lastIndex = end;
+  }
   // JSX parsing also visits executable {...} expressions in Astro attributes and
   // templates, while ordinary element text remains JSX text rather than code.
-  const expressions = markup.replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,
-    (block) => block.replace(/[^\n]/g, ' '));
-  found.push(...debugReferences(`<>${expressions}</>`, text.slice(0, markupStart).split('\n').length - 1));
-  for (const match of markup.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\s*>/gi)) {
-    const start = markupStart + match.index! + match[0].indexOf('>') + 1;
-    found.push(...debugReferences(match[1]!, text.slice(0, start).split('\n').length - 1));
-  }
+  found.push(...debugReferences(`<>${masked.join('')}</>`, text.slice(0, markupStart).split('\n').length - 1));
   return found;
 }
 
@@ -75,6 +95,13 @@ describe('debug-console source guard', () => {
     expect(scan('<p>console.log("ordinary text")</p>', '.astro')).toEqual([]);
     expect(scan('<p>{console.log("template")}</p>\n<button onClick={console.debug}>test</button>', '.astro'))
       .toEqual([{ line: 1, method: 'log' }, { line: 2, method: 'debug' }]);
+  });
+
+  it('reads raw-text end tags with whitespace and ignored attributes', () => {
+    expect(scan('<script>console.log("client");</script\t\n ignored>\n<p>{console.debug("template")}</p>', '.astro'))
+      .toEqual([{ line: 1, method: 'log' }, { line: 3, method: 'debug' }]);
+    expect(scan('<style>.x { content: "console.log()"; }</style\t\n ignored>\n<p>{console.debug("template")}</p>', '.astro'))
+      .toEqual([{ line: 3, method: 'debug' }]);
   });
 
   it('contains no console.log or console.debug references in src', () => {
