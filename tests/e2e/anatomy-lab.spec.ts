@@ -253,3 +253,31 @@ test.describe('anatomy lab', () => {
     expect((await new AxeBuilder({ page }).withTags(axeTags).analyze()).violations).toEqual([]);
   });
 });
+
+test.describe('anatomy lab whole body loads layers on demand', () => {
+  test('only the outer layer is requested at first; a deeper layer only when peeled to', async ({ page }) => {
+    const glb: string[] = [];
+    page.on('request', (req) => {
+      if (/\.glb(\?|$)/.test(req.url())) glb.push(req.url().split('?')[0]!);
+    });
+    await page.goto('/preview/anatomy-lab');
+    await page.getByRole('button', { name: 'open the anatomy lab' }).click();
+    await expect(page.locator('canvas')).toBeVisible({ timeout: 15_000 });
+    const picker = page.getByRole('group', { name: 'body system' });
+    test.skip((await picker.getByRole('button', { name: 'whole body' }).count()) === 0, 'no real whole-body models in this build');
+    await page.waitForLoadState('networkidle');
+    glb.length = 0;
+    await picker.getByRole('button', { name: 'whole body' }).click();
+    const note = page.getByTestId('anatomy-files');
+    await expect(note).toContainText(/model files loaded: 1 of 11/, { timeout: 20_000 });
+    await page.waitForLoadState('networkidle');
+    expect(glb.map((p) => p.split('/').pop())).toEqual(['skin.glb']);
+    glb.length = 0;
+    const peelButton = page.getByRole('button', { name: /^peel a layer/ });
+    await peelButton.press('Enter');
+    await expect(note).toContainText(/model files loaded: [2-9] of 11/, { timeout: 20_000 });
+    expect(glb.length).toBeGreaterThan(0);
+    expect(glb.length).toBeLessThan(10);
+    expect(glb.some((p) => p.endsWith('skin.glb'))).toBe(false);
+  });
+});

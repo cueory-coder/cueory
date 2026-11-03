@@ -100,6 +100,8 @@ export interface ExportRequest {
 export interface LabScene {
   /** Loads one model file, or several that share one coordinate frame (the whole-body view), as one model. */
   load(urls: string | readonly string[], ids: readonly string[]): Promise<LoadResult | null>;
+  /** Adds more model files to the loaded view (the whole body's deeper layers); null if a newer load replaced it. */
+  add(urls: string | readonly string[], ids: readonly string[]): Promise<LoadResult | null>;
   setAppearance(appearance: Appearance): void;
   setColors(colors: LabColors): void;
   pick(clientX: number, clientY: number): string | null;
@@ -379,32 +381,40 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
     requestRender();
   }
 
-  async function load(urls: string | readonly string[], ids: readonly string[]): Promise<LoadResult | null> {
-    const myLoad = ++loadId;
+  async function fetchGroup(urls: string | readonly string[]): Promise<THREE.Group> {
     await MeshoptDecoder.ready;
     const loader = new GLTFLoader();
     loader.setMeshoptDecoder(MeshoptDecoder);
     const list = typeof urls === 'string' ? [urls] : [...urls];
     const scenes = await Promise.all(list.map((url) => loader.loadAsync(url).then((gltf) => gltf.scene)));
-    const gltf = { scene: new THREE.Group() };
-    for (const part of scenes) gltf.scene.add(part);
-    if (myLoad !== loadId) {
-      // A newer system was picked while this one downloaded: throw this one away.
-      gltf.scene.traverse((object) => {
-        const mesh = object as THREE.Mesh;
-        if (mesh.isMesh) {
-          mesh.geometry.dispose();
-          for (const material of ([] as THREE.Material[]).concat(mesh.material)) material.dispose();
-        }
-      });
-      return null;
+    const group = new THREE.Group();
+    for (const part of scenes) group.add(part);
+    return group;
+  }
+
+  function disposeGroup(group: THREE.Object3D) {
+    group.traverse((object) => {
+      const mesh = object as THREE.Mesh;
+      if (mesh.isMesh) {
+        mesh.geometry.dispose();
+        for (const material of ([] as THREE.Material[]).concat(mesh.material)) material.dispose();
+      }
+    });
+  }
+
+  /** Takes a fetched group into the view: `replace` makes it the whole model, otherwise it joins the current one. */
+  function integrate(group: THREE.Group, ids: readonly string[], replace: boolean): LoadResult {
+    if (replace || !root) {
+      disposeModel();
+      root = group;
+      scene.add(root);
+    } else {
+      root.add(group);
     }
-    disposeModel();
-    root = gltf.scene;
-    root.updateMatrixWorld(true);
+    group.updateMatrixWorld(true);
     const wanted = new Set(ids);
     const owner = new Map<THREE.Object3D, string>();
-    root.traverse((object) => {
+    group.traverse((object) => {
       const name = typeof object.userData['name'] === 'string' ? (object.userData['name'] as string) : object.name;
       if (wanted.has(name) && !meshesById.has(name)) {
         meshesById.set(name, []);
@@ -412,7 +422,7 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
       }
     });
     let triangles = 0;
-    root.traverse((object) => {
+    group.traverse((object) => {
       const mesh = object as THREE.Mesh;
       if (!mesh.isMesh) return;
       let id: string | undefined;
@@ -429,20 +439,47 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
         unlabeled.push(mesh);
       }
     });
-    order = ids.filter((id) => (meshesById.get(id)?.length ?? 0) > 0);
-    for (const id of [...meshesById.keys()]) if (!order.includes(id)) meshesById.delete(id);
-    for (const id of order) {
+    const added = ids.filter((id) => (meshesById.get(id)?.length ?? 0) > 0 && !order.includes(id));
+    for (const id of ids) if (!added.includes(id) && !order.includes(id)) meshesById.delete(id);
+    order = [...order, ...added];
+    for (const id of added) {
       const box = new THREE.Box3();
       for (const mesh of meshesById.get(id)!) box.expandByObject(mesh);
       centers.set(id, box.getCenter(new THREE.Vector3()));
       boxes.set(id, box);
     }
-    scene.add(root);
+    visibilityDirty = true;
+    return { found: added, missing: ids.filter((id) => !added.includes(id)), triangles: Math.round(triangles) };
+  }
+
+  async function load(urls: string | readonly string[], ids: readonly string[]): Promise<LoadResult | null> {
+    const myLoad = ++loadId;
+    const group = await fetchGroup(urls);
+    if (myLoad !== loadId) {
+      // A newer system was picked while this one downloaded: throw this one away.
+      disposeGroup(group);
+      return null;
+    }
+    const result = integrate(group, ids, true);
+    order = ids.filter((id) => (meshesById.get(id)?.length ?? 0) > 0);
     appearance = { hidden: new Set(), selected: null };
     applyAppearance();
     frame();
     resetView();
-    return { found: order, missing: ids.filter((id) => !order.includes(id)), triangles: Math.round(triangles) };
+    return result;
+  }
+
+  async function add(urls: string | readonly string[], ids: readonly string[]): Promise<LoadResult | null> {
+    const myLoad = loadId;
+    const group = await fetchGroup(urls);
+    if (myLoad !== loadId || !root) {
+      disposeGroup(group);
+      return null;
+    }
+    const result = integrate(group, ids, false);
+    applyAppearance();
+    requestRender();
+    return result;
   }
 
   const raycaster = new THREE.Raycaster();
@@ -679,6 +716,7 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
 
   return {
     load,
+    add,
     setAppearance(next) {
       appearance = next;
       applyAppearance();

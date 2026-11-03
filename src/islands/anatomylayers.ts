@@ -86,8 +86,13 @@ export function wholeBody(systems: readonly AnatomySystem[]): AnatomySystem | nu
   if (real.some((s) => s.model.release !== release)) return null;
   const seen = new Set<string>();
   const structures: AnatomyStructure[] = [];
+  const layerFiles: Record<string, string[]> = {};
   for (const system of real) {
     for (const structure of system.structures) {
+      if (structure.layer) {
+        const files = (layerFiles[structure.layer] ??= []);
+        if (!files.includes(system.model.file)) files.push(system.model.file);
+      }
       if (seen.has(structure.id)) continue;
       seen.add(structure.id);
       structures.push(structure);
@@ -97,7 +102,7 @@ export function wholeBody(systems: readonly AnatomySystem[]): AnatomySystem | nu
     key: WHOLE_BODY_KEY,
     title: 'whole body',
     status: real.every((s) => s.status === 'approved') ? 'approved' : 'draft',
-    model: { file: real[0]!.model.file, files: real.map((s) => s.model.file), release },
+    model: { file: real[0]!.model.file, files: real.map((s) => s.model.file), release, layerFiles },
     structures,
   };
   if (real[0]!.model.via) out.model.via = real[0]!.model.via;

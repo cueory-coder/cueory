@@ -8,10 +8,12 @@ import {
   type MutableRefObject,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
+import { createOnDemandLoader, filesForLayer, firstLayer, lazyPeel, lazyRestore, type OnDemandLoader } from './anatomylazy';
 import type { LabColors, LabScene, LoadResult } from './anatomyscene';
 import { checkTriangleBudget } from './bodyviewer-logic';
 import {
   WHOLE_BODY_KEY,
+  type Layer,
   layerShown,
   layersOf,
   missingLayers,
@@ -56,6 +58,11 @@ interface Props {
 }
 
 type Phase = 'cover' | 'opening' | 'open' | 'error';
+/** The structure ids a model file serves in the whole-body view: those of every layer that names the file. */
+function layers_idsForFile(system: AnatomySystem, layers: readonly Layer[], url: string): string[] {
+  return layers.filter((layer) => filesForLayer(system, layer.id).includes(url)).flatMap((layer) => layer.ids);
+}
+
 type SystemLoad = { state: 'loading' } | { state: 'ready'; result: LoadResult } | { state: 'error'; message: string };
 
 const primaryButton =
@@ -121,6 +128,10 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
   const [exportNote, setExportNote] = useState('');
   const [announce, setAnnounce] = useState('');
   const [labelNote, setLabelNote] = useState<string[]>([]);
+  const [pending, setPending] = useState<ReadonlySet<string>>(new Set());
+  const [layerError, setLayerError] = useState<{ layer: string; message: string; retry: () => void } | null>(null);
+  const [filesLoaded, setFilesLoaded] = useState(0);
+  const loaderRef = useRef<OnDemandLoader<LoadResult> | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<LabScene | null>(null);
@@ -140,9 +151,15 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
   const visible = useMemo(() => found.filter((id) => !hidden.has(id)), [found, hidden]);
   const groups = useMemo(() => groupStructures(system?.structures ?? [], query), [system, query]);
   const shownCount = groups.reduce((n, g) => n + g.items.length, 0);
-  const layers = useMemo(() => layersOf(system?.structures ?? [], foundSet), [system, foundSet]);
-  const toPeel = nextToPeel(layers, hidden);
-  const toRestore = nextToRestore(layers, hidden);
+  // The whole-body view fetches a layer's model files only when the student gets to it (src/islands/anatomylazy.ts).
+  const lazy = system?.key === WHOLE_BODY_KEY && !!system.model.layerFiles;
+  const layers = useMemo(
+    () => (lazy ? layersOf(system?.structures ?? []) : layersOf(system?.structures ?? [], foundSet)),
+    [lazy, system, foundSet],
+  );
+  const peelPlan = lazy ? lazyPeel(layers, hidden) : null;
+  const toPeel = lazy ? (peelPlan ? peelPlan.show : null) : nextToPeel(layers, hidden);
+  const toRestore = lazy ? lazyRestore(layers, hidden) : nextToRestore(layers, hidden);
   const labelIds = useMemo(
     () => (labelsOn && !quiz ? labelsToShow(visible, selected) : []),
     [labelsOn, quiz, visible, selected],
@@ -235,13 +252,34 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     if (!scene) return;
     let current = true;
     setLoad({ state: 'loading' });
-    setHidden(new Set());
     setSelected(null);
     setQuiz(null);
+    setPending(new Set());
+    setLayerError(null);
+    loaderRef.current = null;
+    const wholeLayers = system.key === WHOLE_BODY_KEY && system.model.layerFiles ? layersOf(system.structures) : null;
+    const first = wholeLayers ? firstLayer(wholeLayers) : null;
+    const firstFiles = first ? filesForLayer(system, first.id) : [];
+    const lazyStart = first !== null && firstFiles.length > 0;
+    const firstIds = new Set(first?.ids ?? []);
+    // Deeper layers start out hidden and unfetched; the scene only gets the outermost layer's files.
+    setHidden(lazyStart ? new Set(system.structures.filter((s) => !firstIds.has(s.id)).map((s) => s.id)) : new Set());
+    setFilesLoaded(lazyStart ? firstFiles.length : 0);
     scene
-      .load(system.model.files ?? system.model.file, system.structures.map((s) => s.id))
+      .load(lazyStart ? firstFiles : (system.model.files ?? system.model.file), lazyStart ? [...firstIds] : system.structures.map((s) => s.id))
       .then((result) => {
         if (!current || !result) return;
+        if (lazyStart) {
+          const loader = createOnDemandLoader<LoadResult>((url) => {
+            const ids = layers_idsForFile(system, wholeLayers!, url);
+            return scene.add(url, ids).then((r) => {
+              if (!r) throw new Error('The view changed while this layer downloaded.');
+              return r;
+            });
+          });
+          for (const url of firstFiles) loader.markLoaded(url);
+          loaderRef.current = loader;
+        }
         setLoad({ state: 'ready', result });
         setAnnounce(`${system.title}: ${result.found.length} structures loaded.`);
       })
@@ -253,6 +291,48 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
       current = false;
     };
   }, [phase, system]);
+
+  /** Shows a layer, fetching its model files first if the student has not got to it yet; `then` hides another after. */
+  const reveal = useCallback(
+    (layer: Layer, hideAfter?: Layer) => {
+      const loader = loaderRef.current;
+      if (!system || !loader) return;
+      const run = () => {
+        setLayerError(null);
+        setPending((p) => new Set(p).add(layer.id));
+        loader
+          .ensure(filesForLayer(system, layer.id))
+          .then((results) => {
+            setFilesLoaded(loader.loadedCount());
+            setLoad((prev) =>
+              prev.state !== 'ready'
+                ? prev
+                : {
+                    state: 'ready',
+                    result: {
+                      found: [...prev.result.found, ...results.flatMap((r) => r.found)],
+                      missing: prev.result.missing.filter((id) => !results.some((r) => r.found.includes(id))),
+                      triangles: prev.result.triangles + results.reduce((n, r) => n + r.triangles, 0),
+                    },
+                  },
+            );
+            setHidden((h) => {
+              const next = new Set(h);
+              for (const id of layer.ids) next.delete(id);
+              if (hideAfter) for (const id of hideAfter.ids) next.add(id);
+              return next;
+            });
+            setAnnounce(hideAfter ? `peeled away ${hideAfter.id}, showing ${layer.id}` : `${layer.id} loaded and shown`);
+          })
+          .catch((err: unknown) => {
+            setLayerError({ layer: layer.id, message: err instanceof Error ? err.message : String(err), retry: run });
+          })
+          .finally(() => setPending((p) => new Set([...p].filter((id) => id !== layer.id))));
+      };
+      run();
+    },
+    [system],
+  );
 
   useEffect(() => {
     if (load.state === 'ready') sceneRef.current?.setAppearance({ hidden, selected });
@@ -509,9 +589,14 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                     type="button"
                     className={secondaryButton}
                     aria-pressed={layerShown(layer, hidden)}
-                    onClick={() => setHidden((h) => toggleLayer(h, layer))}
+                    aria-disabled={pending.has(layer.id) || undefined}
+                    onClick={() => {
+                      if (pending.has(layer.id)) return;
+                      if (lazy && !layerShown(layer, hidden)) reveal(layer);
+                      else setHidden((h) => toggleLayer(h, layer));
+                    }}
                   >
-                    {layer.id} ({layer.ids.length})
+                    {layer.id} ({layer.ids.length}){pending.has(layer.id) ? ', loading' : ''}
                   </button>
                 ))}
               </div>
@@ -521,7 +606,11 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                   className={secondaryButton}
                   disabled={!toPeel}
                   onClick={() => {
-                    if (!toPeel) return;
+                    if (!toPeel || pending.size > 0) return;
+                    if (peelPlan) {
+                      reveal(peelPlan.show, peelPlan.hide);
+                      return;
+                    }
                     setHidden((h) => toggleLayer(h, toPeel));
                     setAnnounce(`peeled away ${toPeel.id}`);
                   }}
@@ -533,8 +622,9 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                   className={secondaryButton}
                   disabled={!toRestore}
                   onClick={() => {
-                    if (!toRestore) return;
-                    setHidden((h) => toggleLayer(h, toRestore));
+                    if (!toRestore || pending.size > 0) return;
+                    if (lazy) reveal(toRestore);
+                    else setHidden((h) => toggleLayer(h, toRestore));
                     setAnnounce(`put back ${toRestore.id}`);
                   }}
                 >
@@ -548,7 +638,25 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                 </p>
               )}
               {system.key === WHOLE_BODY_KEY && (
-                <p className="text-sm text-ink-soft">the whole body loads every system's model at once, so it takes longer to open.</p>
+                <p className="text-sm text-ink-soft" data-testid="anatomy-files">
+                  the whole body starts with the outer layer only; each deeper layer downloads when you open it.
+                  model files loaded: {filesLoaded} of {system.model.files?.length ?? 0}.
+                </p>
+              )}
+              {pending.size > 0 && (
+                <p role="status" className="text-sm text-ink" data-testid="anatomy-layer-loading">
+                  loading {[...pending].join(', ')}…
+                </p>
+              )}
+              {layerError && (
+                <div role="alert" className="space-y-2 rounded-md border border-line px-3 py-2 text-sm text-ink">
+                  <p>
+                    Could not load {layerError.layer}. <span className="text-ink-soft">{layerError.message}</span>
+                  </p>
+                  <button type="button" className={secondaryButton} onClick={layerError.retry}>
+                    try {layerError.layer} again
+                  </button>
+                </div>
               )}
             </fieldset>
           )}

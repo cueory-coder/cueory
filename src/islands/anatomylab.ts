@@ -32,7 +32,7 @@ export interface AnatomySystem {
   title: string;
   status: 'draft' | 'approved';
   /** `files`: the whole-body view loads several systems' models together (src/islands/anatomylayers.ts). */
-  model: { file: string; files?: string[]; release: string; via?: string };
+  model: { file: string; files?: string[]; release: string; via?: string; layerFiles?: Record<string, string[]> };
   structures: AnatomyStructure[];
   /** The automated tests' fixture: shapes made in code, not anatomy and not from BodyParts3D. */
   fixture?: boolean;
