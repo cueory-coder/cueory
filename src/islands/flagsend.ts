@@ -9,7 +9,8 @@ import { checkReport, type FlagReport } from './flag';
 import { flagArguments, type FlagArgs } from './flagsubmit';
 import { studentMessage } from './rpcerrors';
 
-export type SendResult = 'sent' | 'too-many' | 'failed';
+/** `{ message }` is a refusal the student can act on, already in plain words from studentMessage. */
+export type SendResult = 'sent' | 'too-many' | 'failed' | { message: string };
 export type FlagRpc = (
   name: 'submit_flag',
   args: FlagArgs,
@@ -18,6 +19,7 @@ export type FlagRpc = (
 /** PostgreSQL accepts canonical UUIDs even when the version bits are all zero. */
 const UUID = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const RATE_LIMIT_MESSAGE = "you've sent a lot of reports recently — please try again later.";
+const FALLBACK_MESSAGE = studentMessage('submit_flag', {});
 
 /** Don't send sample item slugs to an RPC whose item_id argument is a UUID. */
 function validItemContext(args: FlagArgs): boolean {
@@ -42,7 +44,9 @@ export function makeSend(rpc: FlagRpc): (report: FlagReport) => Promise<SendResu
       if (!reply || typeof reply !== 'object') return 'failed';
       if (reply.error != null) {
         const message = studentMessage('submit_flag', reply.error);
-        return message === RATE_LIMIT_MESSAGE ? 'too-many' : 'failed';
+        if (message === RATE_LIMIT_MESSAGE) return 'too-many';
+        // An unknown refusal keeps the form's own "didn't send" line; a known one says what to do.
+        return message === FALLBACK_MESSAGE ? 'failed' : { message };
       }
       // submit_flag returns a report UUID, not a boolean or an empty result.
       return typeof reply.data === 'string' && UUID.test(reply.data) ? 'sent' : 'failed';

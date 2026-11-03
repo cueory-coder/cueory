@@ -1,0 +1,21 @@
+---
+/**
+ * Christian's "Flag or comment" inbox (Task 66). Not linked from anywhere on the site, kept out of search engines and
+ * never cached for offline use (offlineplan.ts only keeps /, /play and lesson pages).
+ *
+ * Nothing is pre-rendered: the island asks the database who is visiting. Until Task 65's admin functions are merged
+ * and wired in, it uses the unwired adapter, so every visitor sees only "this page is for the site owner."
+ */
+import Layout from '../../layouts/Layout.astro';
+import AdminFlags from '../../islands/AdminFlags';
+---
+
+<Layout title="reports" description="cueory's private report inbox." variant="study" noindex promo={false}>
+  <div class="mx-auto max-w-page py-8">
+    {/* client:only: who may see this is decided by the database at visit time, so there is nothing to pre-render. */}
+    <AdminFlags client:only="react" />
+    <noscript>
+      <p>this page needs javascript turned on.</p>
+    </noscript>
+  </div>
+</Layout>

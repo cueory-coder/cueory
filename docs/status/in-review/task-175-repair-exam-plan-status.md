@@ -1,0 +1,1 @@
+STATUS: Repairs the missing status record for Task 173 / PR #247: the exam-plan save updates only exam_date, inserts when missing, and retries after a concurrent insert; check, build and unit tests passed, while the local browser setup failed before e2e assertions.

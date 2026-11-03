@@ -10,6 +10,7 @@ import {
   migrateLegacyStars,
 } from '../scripts/progress';
 import { browserStorage } from '../scripts/storage';
+import { readResume } from '../scripts/resume';
 import ProgressRing from './ProgressRing';
 import { examCountdown, progressView } from './progressview';
 
@@ -95,7 +96,9 @@ export default function ProgressPanel({ decks }: Props) {
     );
   }
 
-  const empty = isEmptyProgress(progress);
+  // Download has nothing to export without saved progress, but forget also clears a saved study place (Codex on #221).
+  const noProgress = isEmptyProgress(progress);
+  const empty = noProgress && readResume(storage) === null;
 
   return (
     <div>
@@ -172,7 +175,7 @@ export default function ProgressPanel({ decks }: Props) {
           all of this is saved in this browser only. cueory never receives it.
         </p>
         <div className="mt-stack flex flex-wrap gap-3">
-          <button type="button" onClick={download} disabled={empty} className={`${primaryButton} disabled:opacity-50`}>
+          <button type="button" onClick={download} disabled={noProgress} className={`${primaryButton} disabled:opacity-50`}>
             download my progress
           </button>
           {!confirming && (
@@ -194,7 +197,7 @@ export default function ProgressPanel({ decks }: Props) {
         {confirming && (
           <div role="group" aria-labelledby="forget-question" className="mt-stack rounded-md border border-line bg-surface p-4">
             <p id="forget-question">
-              forget your setup answers, piles and stars on this device? this can’t be undone. your light or dark pick stays.
+              forget your setup answers, piles, stars and where you stopped studying on this device? this can’t be undone. your light or dark pick stays.
             </p>
             <div className="mt-3 flex flex-wrap gap-3">
               <button ref={confirmRef} type="button" onClick={forget} className={primaryButton}>
