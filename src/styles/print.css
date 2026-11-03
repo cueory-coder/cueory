@@ -15,7 +15,8 @@
   body > [data-testid="building-notice"],
   body > dialog,
   body > a[href="#main"],
-  [data-print-hidden] {
+  [data-print-hidden],
+  noscript[data-print-hidden] {
     display: none !important;
   }
 
