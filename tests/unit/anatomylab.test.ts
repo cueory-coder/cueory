@@ -36,6 +36,7 @@ import {
   startQuiz,
   systemKeyFromPath,
   toggleHidden,
+  visibleSelection,
   wrapText,
   type LabelAnchor,
   type PlacedLabel,
@@ -239,6 +240,20 @@ describe('the structure list', () => {
     expect([...toggleHidden(new Set(['A']), 'A')]).toEqual([]);
     expect([...toggleHidden(new Set(), 'A')]).toEqual(['A']);
     expect([...onlyThis(['A', 'B', 'C'], 'B')]).toEqual(['A', 'C']);
+  });
+
+  it('keeps a hidden selection named but stops dimming the other structures', () => {
+    // The name card can still say which structure was selected, but the
+    // renderer must have no active highlight while that structure is hidden.
+    expect(visibleSelection('A', new Set())).toBe('A');
+    expect(visibleSelection('A', new Set(['B']))).toBe('A');
+    expect(visibleSelection('A', new Set(['A']))).toBeNull();
+    expect(visibleSelection(null, new Set())).toBeNull();
+
+    const hiddenFromList = toggleHidden(new Set<string>(), 'A');
+    expect(visibleSelection('A', hiddenFromList)).toBeNull();
+    // Showing the same structure again restores its highlight automatically.
+    expect(visibleSelection('A', toggleHidden(hiddenFromList, 'A'))).toBe('A');
   });
 
   it('labels every visible structure, or only the selected one when there are many', () => {
