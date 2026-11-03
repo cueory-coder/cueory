@@ -119,6 +119,9 @@ test.describe('anatomy lab', () => {
   test('tapping a highlighted inner shape prefers it through a translucent outer shape', async ({ page }, info) => {
     test.skip(!isDesktopOfEachEngine(info), 'one overlapping 3D pick test per browser engine');
     await openLab(page);
+    // Block C overlaps the center ray from this side. Hide it so the
+    // regression isolates cube A in front of the highlighted cube B.
+    await list(page).getByRole('button', { name: 'hide fixture block C' }).click();
     // At a quarter turn the fixture's cube B sits behind the larger cube A.
     // The old nearest-only raycast picked A even when B was highlighted.
     const left = page.getByRole('button', { name: 'turn left' });
