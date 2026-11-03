@@ -160,6 +160,32 @@
   /* ---------- Word path board (Task 97) ---------- */
   --border-board: 2.5px;        /* the frame around the word search grid (Christian's design, 2026-11-01) */
 
+  /* ---------- Motion (D-41 brand bar: 150–400 ms, soft not bouncy, always off under reduced-motion) ---------- */
+  --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);     /* gentle UI transitions */
+  --ease-emphasis: cubic-bezier(0.2, 0, 0, 1);   /* snappier entrances */
+  --duration-fast: 150ms;                         /* micro-interactions */
+  --duration-base: 240ms;                         /* most transitions */
+  --duration-slow: 400ms;                         /* larger motions */
+
+  /* ---------- Depth (interactive elements: cards, lift, hover) ---------- */
+  /* Built from --shadow-tint (Espresso in Daytime), like the existing marketing shadows. */
+  --shadow-card: 0 1px 3px rgb(var(--shadow-tint) / 0.06), 0 4px 12px rgb(var(--shadow-tint) / 0.08);
+  --shadow-card-hover: 0 2px 8px rgb(var(--shadow-tint) / 0.08), 0 12px 28px rgb(var(--shadow-tint) / 0.14);
+
+  /* ---------- Motion and control sizes (Task 77; used by the shared motion classes in global.css) ---------- */
+  --lift-rise: 0.125rem;              /* .lift: how far a card rises on hover or focus */
+  --enter-rise: 0.5rem;               /* .enter: how far content rises as it appears */
+  --flip-perspective: 75rem;          /* .flip: depth of the 3D card flip */
+  --progress-height: 0.375rem;        /* .progress-track */
+  --segmented-inset: 0.125rem;        /* .segmented: space between the pill and its options */
+  --segmented-gap: 0.375rem;          /* .segmented: space between options */
+  --segmented-pad-y: 0.375rem;        /* .segmented-option */
+  --segmented-pad-x: 0.875rem;        /* .segmented-option */
+  --tap-min: 2.75rem;                 /* 44 px minimum tap target */
+}
+
+/* Pillo rules are a separate entry: always emit their shared theme variables. */
+@theme static {
   /* ---------- pillo, the blister-pack word game on /play (Task 114) ----------
      Pill colors by mark (letters on them also carry ● ○ ·, so color is never the only signal). Evening values are in
      the two Evening copies below; tests/unit/pulse.test.ts checks every letter on its pill for AA contrast. */
@@ -210,29 +236,6 @@
   --pillo-cruet: 0.3em;                 /* the cruet's width; its height is about a third of the l's */
   --pillo-cruet-gap: 0.06em;            /* space between the final o and the cruet */
   --pillo-cruet-rise: 0.28em;           /* how far below the top of the name's line the cruet's top sits */
-
-  /* ---------- Motion (D-41 brand bar: 150–400 ms, soft not bouncy, always off under reduced-motion) ---------- */
-  --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);     /* gentle UI transitions */
-  --ease-emphasis: cubic-bezier(0.2, 0, 0, 1);   /* snappier entrances */
-  --duration-fast: 150ms;                         /* micro-interactions */
-  --duration-base: 240ms;                         /* most transitions */
-  --duration-slow: 400ms;                         /* larger motions */
-
-  /* ---------- Depth (interactive elements: cards, lift, hover) ---------- */
-  /* Built from --shadow-tint (Espresso in Daytime), like the existing marketing shadows. */
-  --shadow-card: 0 1px 3px rgb(var(--shadow-tint) / 0.06), 0 4px 12px rgb(var(--shadow-tint) / 0.08);
-  --shadow-card-hover: 0 2px 8px rgb(var(--shadow-tint) / 0.08), 0 12px 28px rgb(var(--shadow-tint) / 0.14);
-
-  /* ---------- Motion and control sizes (Task 77; used by the shared motion classes in global.css) ---------- */
-  --lift-rise: 0.125rem;              /* .lift: how far a card rises on hover or focus */
-  --enter-rise: 0.5rem;               /* .enter: how far content rises as it appears */
-  --flip-perspective: 75rem;          /* .flip: depth of the 3D card flip */
-  --progress-height: 0.375rem;        /* .progress-track */
-  --segmented-inset: 0.125rem;        /* .segmented: space between the pill and its options */
-  --segmented-gap: 0.375rem;          /* .segmented: space between options */
-  --segmented-pad-y: 0.375rem;        /* .segmented-option */
-  --segmented-pad-x: 0.875rem;        /* .segmented-option */
-  --tap-min: 2.75rem;                 /* 44 px minimum tap target */
 }
 
 /* Strengths and images for the marketing background (D-41). Daytime values; the Evening ones are below. */
