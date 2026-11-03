@@ -57,9 +57,15 @@ describe.skipIf(!existsSync(dist))('built site', () => {
       expect(hrefs, page).toContain('/fonts/bodoni-moda-latin-opsz-normal.woff2');
       for (const href of hrefs) expect(existsSync(join(dist, href)), href).toBe(true);
     }
-    expect(preloads(readFileSync(join(dist, 'index.html'), 'utf8'))).toContain('/fonts/bodoni-moda-latin-opsz-italic.woff2');
     // Study screens stay quiet: no display font, nothing extra to download.
     expect(preloads(readFileSync(join(dist, 'learn/study-skills.html'), 'utf8'))).toEqual([]);
+  });
+
+  it('does not preload unused italic Bodoni on home, while retaining its font file (Task 187)', () => {
+    const home = readFileSync(join(dist, 'index.html'), 'utf8');
+    const preloads = [...home.matchAll(/<link\b[^>]*rel="preload"[^>]*>/g)].map((match) => match[0]);
+    expect(preloads.some((link) => link.includes('/fonts/bodoni-moda-latin-opsz-italic.woff2'))).toBe(false);
+    expect(existsSync(join(dist, 'fonts/bodoni-moda-latin-opsz-italic.woff2'))).toBe(true);
   });
 
   it('ships the font license with the fonts', () => {

@@ -42,7 +42,7 @@ export function ContinueStrip({ snapshot }: { snapshot: ResumeSnapshot }) {
         </span>
         <progress
           aria-label="saved study progress"
-          className="mt-1 block h-1 w-full accent-on-button"
+          className="mt-1 block h-1 w-full appearance-none overflow-hidden rounded-pill bg-button-hover [&::-webkit-progress-bar]:bg-button-hover [&::-webkit-progress-value]:bg-on-button [&::-moz-progress-bar]:bg-on-button"
           value={current}
           max={snapshot.totalItems}
         />
@@ -50,3 +50,4 @@ export function ContinueStrip({ snapshot }: { snapshot: ResumeSnapshot }) {
     </aside>
   );
 }
+

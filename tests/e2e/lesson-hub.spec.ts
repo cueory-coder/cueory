@@ -16,6 +16,7 @@ const oldLinkLabels: Record<(typeof modeOrder)[number], string> = {
 test('the hub uses seven canonical modes and preserves every existing destination', async ({ page }) => {
   const response = await page.goto('/learn/study-skills');
   expect(response?.status()).toBe(200);
+  await expect(page.locator('main header p').first()).toHaveText('how to study for nursing school · lesson 1');
   const grid = page.getByTestId('mode-grid');
   const tiles = grid.locator('[data-mode-tile]');
   await expect(tiles).toHaveCount(modeOrder.length);
