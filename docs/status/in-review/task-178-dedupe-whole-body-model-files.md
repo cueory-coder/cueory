@@ -1,0 +1,1 @@
+status: Task 178 Anatomy Lab: whole-body model.files now lists each shared GLB URL once in first-seen order, retaining all structures and per-layer URL mapping; added a synthetic cross-layer shared-file regression. Exact-head CI, Codex review and founder draft-model approval remain required.
