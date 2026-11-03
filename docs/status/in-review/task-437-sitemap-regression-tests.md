@@ -1,1 +1,1 @@
-status: Task 437, sitemap regression tests: verifies the public sitemap emits exactly the approved indexable routes and safely escapes XML-sensitive values.
+status: Task 437, cached public sitemap: serves the generated SEO sitemap with one-hour browser and one-day edge caching, reducing repeated XML generation while preserving the existing route coverage.
