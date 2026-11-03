@@ -126,20 +126,27 @@ test.describe('anatomy lab', () => {
     // The old nearest-only raycast picked A even when B was highlighted.
     const left = page.getByRole('button', { name: 'turn left' });
     for (let index = 0; index < 12; index++) await left.click();
-    const box = (await page.locator('canvas').boundingBox())!;
-    const point = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    // Selecting from the structure list can scroll the page. Recalculate
+    // canvas coordinates for each tap rather than reusing stale viewport pixels.
+    const canvas = page.locator('canvas');
+    const tapCenter = async () => {
+      await canvas.scrollIntoViewIfNeeded();
+      const box = await canvas.boundingBox();
+      if (!box) throw new Error('the fixture canvas is not visible');
+      await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    };
     const cubeA = list(page).getByRole('button', { name: 'fixture cube A', exact: true });
     const cubeB = list(page).getByRole('button', { name: 'fixture cube B', exact: true });
 
     // Without a highlight the nearest outer mesh wins.
-    await page.mouse.click(point.x, point.y);
+    await tapCenter();
     await expect(cubeA).toHaveAttribute('aria-pressed', 'true');
     // Picking cube B from the keyboard-accessible list fades A.
     await cubeB.click();
     await expect(cubeB).toHaveAttribute('aria-pressed', 'true');
     // Tapping the same projected point now picks the visibly opaque B,
     // rather than taking focus back to the translucent A.
-    await page.mouse.click(point.x, point.y);
+    await tapCenter();
     await expect(cubeB).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByRole('region', { name: 'fixture cube B' })).toBeVisible();
   });
