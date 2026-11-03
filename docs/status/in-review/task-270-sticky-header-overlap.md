@@ -1,0 +1,1 @@
+STATUS: Task 270 adds a route-wide Playwright check at the existing phone and desktop viewports to ensure the sticky header does not cover the first main heading or any visible focused main control after scrolling.
