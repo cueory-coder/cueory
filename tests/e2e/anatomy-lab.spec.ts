@@ -419,6 +419,27 @@ test.describe('anatomy lab', () => {
 });
 
 test.describe('anatomy lab whole body loads layers on demand', () => {
+  test('initial HTML contains each source structure once, then offers whole body after opening', async ({ page }, info) => {
+    test.skip(!isDesktopOfEachEngine(info), 'one HTML payload check per browser engine');
+    const heart = JSON.parse(
+      await readFile(new URL('../../content/visuals/anatomy-heart.json', import.meta.url), 'utf8'),
+    ) as { labels: Array<{ id: string }> };
+    const sourceId = heart.labels[0]?.id ?? '';
+    expect(sourceId).not.toBe('');
+
+    const response = await page.goto('/preview/anatomy-lab');
+    expect(response).not.toBeNull();
+    const html = await response!.text();
+    test.skip(!html.includes(sourceId), 'no draft anatomy sources in this build');
+    expect(html.split(sourceId).length - 1).toBe(1);
+
+    await expect(page.getByRole('button', { name: 'whole body', exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'open the anatomy lab' }).click();
+    await expect(
+      page.getByRole('group', { name: 'body system' }).getByRole('button', { name: 'whole body', exact: true }),
+    ).toBeVisible({ timeout: 15_000 });
+  });
+
   test('only the outer layer is requested at first; a deeper layer only when peeled to', async ({ page }) => {
     const glb: string[] = [];
     page.on('request', (req) => {
