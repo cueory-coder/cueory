@@ -20,7 +20,7 @@ const namespaces = new Map([
 ]);
 function unapproved(text: string, path: string): string[] {
   // Accept JSON's escaped slash syntax too. Do not rewrite or sanitize HTML.
-  const literals = text.match(/http:(?:\\?\/){2}[^\s"'<>\\x60)\\]}]+/gi) ?? [];
+  const literals = text.match(/http:(?:\\?\/){2}[^\s"'<>\x60)\]}]+/gi) ?? [];
   return literals.map(url => url.split('\\/').join('/')).filter(url => {
     if (namespaces.has(url)) return false;
     // Preserve upstream font licenses verbatim. This is a license reference,
