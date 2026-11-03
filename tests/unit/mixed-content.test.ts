@@ -20,7 +20,7 @@ const namespaces = new Map([
 ]);
 function unapproved(text: string, path: string): string[] {
   // Accept JSON's escaped slash syntax too. Do not rewrite or sanitize HTML.
-  const literals = text.match(/http:(?:\\?\/){2}[^\s"'<>`\\)\]}]+/gi) ?? [];
+  const literals = text.match(/http:(?:\\?\/){2}[^\s"'<>\\x60\)\]}]+/gi) ?? [];
   return literals.map(url => url.split('\\/').join('/')).filter(url => {
     if (namespaces.has(url)) return false;
     // Preserve upstream font licenses verbatim. This is a license reference,
@@ -54,5 +54,10 @@ describe('Task 247 no mixed-content HTTP literals in built text assets', () => {
     expect(unapproved('http://localhost:9999', 'index.html')).toHaveLength(1);
     expect(unapproved('http://localhost:9999', '_astro/dist.hash.js')).toEqual([]);
     expect(unapproved('http://localhost:9999/evil', '_astro/dist.hash.js')).toHaveLength(1);
+  });
+  it('consumes escaped path segments before applying exact-match exceptions', () => {
+    expect(unapproved('"http:\\/\\/localhost:9999\\/evil"', '_astro/dist.hash.js')).toEqual(['http://localhost:9999/evil']);
+    expect(unapproved('"http:\\/\\/www.w3.org\\/2000\\/svg"', 'index.html')).toEqual([]);
+    expect(unapproved('"http:\\/\\/www.w3.org\\/2000\\/svg\\/evil"', 'index.html')).toHaveLength(1);
   });
 });
