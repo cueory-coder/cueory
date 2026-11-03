@@ -132,7 +132,12 @@ const { quiet = false, overlay = false } = Astro.props;
     window.addEventListener('scroll', refresh, { passive: true });
     header.addEventListener('focusin', refresh);
     // Let focus settle on its new target before deciding whether the header may tuck away.
-    header.addEventListener('focusout', () => requestAnimationFrame(refresh));
+    header.addEventListener('focusout', () => requestAnimationFrame(() => {
+      // Leaving the header at the same scroll position is still a downward navigation event for the sticky chrome.
+      // Give the state helper a one-pixel delta so it can tuck the header without waiting for another wheel/touch move.
+      lastY = Math.max(0, window.scrollY - 1);
+      refresh();
+    }));
     // The menu is a native dialog, which can move focus away from its opening button.
     menuDialog?.addEventListener('toggle', refresh);
     menuDialog?.addEventListener('close', refresh);
