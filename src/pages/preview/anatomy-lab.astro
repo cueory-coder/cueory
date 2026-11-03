@@ -1,0 +1,47 @@
+---
+/**
+ * Preview page for the anatomy lab (Task 178). Unlinked and kept out of search engines and site search.
+ *
+ * Drafts never reach the live site (D-56): the body systems are chosen at build time by `labDataForBuild`
+ * (src/islands/anatomylab.ts). Cloudflare Workers Builds sets WORKERS_CI=1 and WORKERS_CI_BRANCH on every build; the
+ * build of `main` (or a Workers build that doesn't name its branch) gets approved systems only, so with none approved it
+ * shows "coming soon" and no draft name is in the page. Staging, branch previews and local builds show drafts, marked
+ * "draft · labels waiting for review".
+ */
+import Layout from '../../layouts/Layout.astro';
+import AnatomyLab from '../../islands/AnatomyLab';
+import { labDataForBuild } from '../../islands/anatomylab';
+import fixtureJson from '../../../tests/fixtures/anatomy-fixture.json';
+
+// One file per body system (the data contract with Task 177): content/visuals/anatomy-<system>.json.
+const files = import.meta.glob('../../../content/visuals/anatomy-*.json', { eager: true, import: 'default' });
+const lab = labDataForBuild(files, fixtureJson, {
+  WORKERS_CI: process.env.WORKERS_CI,
+  WORKERS_CI_BRANCH: process.env.WORKERS_CI_BRANCH,
+});
+const hasSystems = lab.systems.length > 0 || lab.fixture !== null;
+---
+
+<Layout title="preview: anatomy lab" description="Preview of the anatomy lab." variant="study" noindex>
+  <div class="mx-auto max-w-page space-y-8 pt-8 pb-section">
+    <div>
+      <p class="text-sm text-ink-soft">preview · not linked from the site</p>
+      <h1 class="mt-2 text-2xl">anatomy lab</h1>
+      {
+        hasSystems && (
+          <p class="mt-2 max-w-prose text-sm text-ink-soft">
+            turn a body system in 3D, find each structure by its name, quiz yourself, and save a picture.
+          </p>
+        )
+      }
+    </div>
+
+    {
+      hasSystems ? (
+        <AnatomyLab client:only="react" systems={lab.systems} fixture={lab.fixture} drafts={lab.drafts} />
+      ) : (
+        <p class="rounded-lg border border-line p-4 text-ink">the anatomy lab is coming soon.</p>
+      )
+    }
+  </div>
+</Layout>

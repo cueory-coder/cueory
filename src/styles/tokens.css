@@ -48,6 +48,11 @@
   --color-on-panel-button: #3e2c23; /* Espresso — text on the light pill button in a dark panel (D-59) */
   --color-player: #3e2c23;      /* Espresso — behind the lesson video player (D-82) */
 
+  /* ---------- Anatomy lab 3D models (Task 178): read at runtime by src/islands/anatomyscene.ts ---------- */
+  --color-model: #d3b7a1;          /* Taupe    — a structure */
+  --color-model-alt: #eadccf;      /* Linen    — every other structure, so neighbours stand apart */
+  --color-model-selected: #8b6f5b; /* Mocha    — the selected structure (the others also fade: never color alone) */
+
   /* ---------- Fonts ---------- */
   --font-body: "Lato", system-ui, -apple-system, "Segoe UI", sans-serif; /* headings, body, UI, buttons */
   /* Marketing headings and the italic accent line only (brand spec section 4; D-41). Self-hosted in public/fonts. */
@@ -261,6 +266,8 @@
   --pillo-absent-mix: 100%;
   --pillo-key-mix: 100%;
   --pillo-gloss-mix: 70%;
+  /* Anatomy lab (Task 178): how opaque the other structures are while one is selected. */
+  --model-dim-alpha: 0.18;
 }
 
 /*
@@ -293,6 +300,9 @@
     --color-panel-ink-soft: #cbb8a4; /* Sand */
     --color-on-panel-button: #1c1917; /* Charcoal */
     --color-player: #1c1917;      /* Charcoal */
+    --color-model: #cbb8a4;          /* Sand */
+    --color-model-alt: #6b5243;      /* Bronze */
+    --color-model-selected: #f9f5ef; /* Ivory */
     --shadow-tint: 28 25 23;      /* Charcoal */
     --silk-fold-rgb: 58 45 36;    /* Walnut */
     --silk-fold-alpha: 0.7;
@@ -358,6 +368,9 @@
   --color-panel-ink-soft: #cbb8a4; /* Sand */
   --color-on-panel-button: #1c1917; /* Charcoal */
   --color-player: #1c1917;      /* Charcoal */
+  --color-model: #cbb8a4;          /* Sand */
+  --color-model-alt: #6b5243;      /* Bronze */
+  --color-model-selected: #f9f5ef; /* Ivory */
   --shadow-tint: 28 25 23;      /* Charcoal */
   --silk-fold-rgb: 58 45 36;    /* Walnut */
   --silk-fold-alpha: 0.7;

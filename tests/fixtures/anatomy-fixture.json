@@ -1,0 +1,27 @@
+{
+  "id": "anatomy-fixture",
+  "title": "test shapes (fixture)",
+  "kind": "model",
+  "lessonIds": ["U01-T01-L01"],
+  "status": "draft",
+  "model": { "file": "/preview/anatomy-fixture/fixture.glb", "release": "fixture 1 (made in code)", "via": "tests/fixtures/anatomyfixture.ts" },
+  "labels": [
+    { "id": "FIX001", "text": "fixture cube A", "source": "fixture", "group": "fixture group one" },
+    { "id": "FIX002", "text": "fixture cube B", "source": "fixture", "group": "fixture group one" },
+    { "id": "FIX003", "text": "fixture block C", "source": "fixture", "group": "fixture group two" },
+    { "id": "FIX004", "text": "fixture point D", "source": "fixture", "group": "fixture group two" },
+    { "id": "FIX005", "text": "fixture slab E", "source": "fixture" }
+  ],
+  "depictions": [],
+  "sources": [
+    {
+      "id": "fixture",
+      "quote": "Test shapes made in code for the anatomy lab's automated tests. Not anatomy.",
+      "book": "test fixture",
+      "section": "tests/fixtures/anatomyfixture.ts",
+      "url": "https://github.com/lilchristxan/cueory",
+      "license": "none",
+      "retrieved": "2026-11-02"
+    }
+  ]
+}
