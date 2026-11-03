@@ -70,7 +70,8 @@ describe('first whole-body files shared across layers', () => {
 
     expect(initial.files).toEqual(['/models/anatomy/mixed.glb', '/models/anatomy/outer.glb']);
     // Scene.load must map o1 even though its organ layer is initially hidden.
-    expect(initial.ids).toEqual(['v1', 'v2', 'o1']);
+    // IDs keep source-file order, not layer order. Each needed mesh is mapped once.
+    expect(initial.ids).toEqual(['v1', 'o1', 'v2']);
     expect([...initial.hidden].sort()).toEqual(['o1', 'o2']);
     expect(initial.ids).not.toContain('o2'); // Its file has not been fetched.
     expect(idsForFiles(body, layers, ['/models/anatomy/mixed.glb'])).toEqual(['v1', 'o1']);
