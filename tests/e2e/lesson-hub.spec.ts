@@ -40,10 +40,10 @@ test('the original sentence-by-sentence reader and its keyboard controls remain'
   await page.goto('/learn/study-skills');
   await expect(page.locator('main h1')).toHaveCount(1);
   await expect(page.getByTestId('study-reader').getByRole('heading', { level: 2, name: 'read the lesson' })).toBeVisible();
-  await expect(page.getByText('Sentence 1 of')).toBeVisible();
-  await page.getByRole('button', { name: 'Next sentence' }).focus();
+  await expect(page.getByText('sentence 1 of')).toBeVisible();
+  await page.getByRole('button', { name: 'next sentence' }).focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByText('Sentence 2 of')).toBeVisible();
+  await expect(page.getByText('sentence 2 of')).toBeVisible();
   await expect(page.getByText('this lesson is a placeholder.', { exact: false })).toBeVisible();
   await expect(page.locator('main iframe')).toHaveCount(0);
 });
@@ -98,4 +98,13 @@ test.describe('without JavaScript', () => {
     await expect(page.getByTestId('mode-grid').getByRole('link')).toHaveCount(modeOrder.length);
     await expect(page.locator('main noscript ol li')).toHaveCount(3);
   });
+});
+
+
+test('learn mode navigation uses lowercase interface wording', async ({ page }) => {
+  await page.goto('/learn/study-skills/learn-mode');
+  await expect(page.getByText('how to study for nursing school · lesson 1 · learn mode')).toBeVisible();
+  await expect(page.locator('meta[name="description"]')).toHaveAttribute(
+    'content', 'learn mode for lesson 1 of how to study for nursing school.',
+  );
 });
