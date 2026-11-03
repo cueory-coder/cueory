@@ -3,7 +3,7 @@
  */
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { isAbsolute, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
@@ -71,7 +71,7 @@ function initialJsFiles(page: string): string[] {
   const queue = [...html.matchAll(/(?:src|component-url|renderer-url)="([^"]+\.js(?:\?[^" ]*)?)"/g)].map((match) => match[1]!);
   const files = new Set<string>();
   const resolveAsset = (from: string, url: string) => {
-    if (url.startsWith(dist + '/')) return url;
+    if (isAbsolute(url) && url.startsWith(dist)) return url;
     return url.startsWith('/') ? join(dist, url.slice(1)) : join(from, '..', url);
   };
 
@@ -81,7 +81,7 @@ function initialJsFiles(page: string): string[] {
     if (files.has(file) || !file.endsWith('.js') || !existsSync(file)) continue;
     files.add(file);
     const source = readFileSync(file, 'utf8');
-    for (const match of source.matchAll(/(?:import\s+[^"']*?from\s*|import\s*)["']([^"']+\.js(?:\?[^"']*)?)["']/g)) {
+    for (const match of source.matchAll(/(?:import|export)\s*(?:[^"'();]*?\bfrom\s*)?["']([^"']+\.js)["']/g)) {
       const imported = match[1]!.split('?')[0]!;
       queue.push(imported.startsWith('/') ? imported : join(file, '..', imported));
     }
@@ -92,7 +92,7 @@ function initialJsFiles(page: string): string[] {
 function initialJsGzipBytes(page: string): number {
   const html = readFileSync(page, 'utf8');
   const external = initialJsFiles(page).reduce((total, file) => total + gzipSync(readFileSync(file)).length, 0);
-  const inline = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)]
+  const inline = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script\s*>/gi)]
     .reduce((total, match) => total + gzipSync(match[1]!).length, 0);
   return external + inline;
 }
