@@ -320,6 +320,12 @@ export interface QuizState {
   scored: boolean;
 }
 
+/** The target must stay visible once its answer is shown or found, even if layer controls are used. */
+export function revealedQuizTarget(state: Pick<QuizState, 'target' | 'feedback'> | null): string | null {
+  if (!state?.target) return null;
+  return state.feedback?.kind === 'right' || state.feedback?.kind === 'shown' ? state.target : null;
+}
+
 /** Picks the next target among `pool`, never one already asked this round. `random` returns [0, 1). */
 export function pickQuizTarget(pool: readonly string[], asked: readonly string[], random: () => number): string | null {
   const left = pool.filter((id) => !asked.includes(id));
