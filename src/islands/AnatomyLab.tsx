@@ -8,7 +8,7 @@ import {
   type MutableRefObject,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import { createGeneration, createOnDemandLoader, filesForLayer, firstLayer, lazyPeel, lazyRestore, type OnDemandLoader } from './anatomylazy';
+import { createGeneration, createOnDemandLoader, filesForLayer, firstLayer, lazyPeel, lazyRestore, PartialLoadError, showAllPlan, type OnDemandLoader } from './anatomylazy';
 import type { LabColors, LabScene, LoadResult } from './anatomyscene';
 import { checkTriangleBudget } from './bodyviewer-logic';
 import {
@@ -81,9 +81,32 @@ function prefersReducedMotion(): boolean {
 /** A label on the 3D view: its box, and its name's lines (with "(behind)" for a structure hidden from this side). */
 type OverlayLabel = PlacedLabel & Pick<ReturnType<typeof labelLines>, 'lines' | 'mark'>;
 
-/** The overlay label's line height (15px text, line spacing 1.5) and the box's padding above and below. */
-const LABEL_LINE = 22.5;
-const LABEL_PAD_Y = 4;
+/** The label box's measurements, read from the same token-backed classes the label is drawn with. */
+interface LabelMetrics {
+  fontPx: number;
+  line: number;
+  padX: number;
+  padY: number;
+  borderX: number;
+}
+
+function readLabelMetrics(): LabelMetrics {
+  const probe = document.createElement('span');
+  probe.className = 'invisible absolute border px-2 py-1 text-sm leading-normal';
+  probe.textContent = 'x';
+  document.body.append(probe);
+  const style = getComputedStyle(probe);
+  const fontPx = parseFloat(style.fontSize) || 15;
+  const metrics = {
+    fontPx,
+    line: parseFloat(style.lineHeight) || fontPx * 1.5,
+    padX: parseFloat(style.paddingLeft) || 0,
+    padY: parseFloat(style.paddingTop) || 0,
+    borderX: parseFloat(style.borderLeftWidth) || 0,
+  };
+  probe.remove();
+  return metrics;
+}
 
 /** The notes under the view about labels: which found no room, and what "(behind)" means. */
 function labelNotes(names: ReadonlyMap<string, string>, leftOut: readonly string[], anyBehind: boolean): string[] {
@@ -94,11 +117,11 @@ function labelNotes(names: ReadonlyMap<string, string>, leftOut: readonly string
   return notes;
 }
 
-/** The label overlay's font, matching the label's text-sm class (15px Lato). */
-function measureLabel(font: string): (s: string) => number {
+/** The label overlay's font, at the size the label's text-sm class resolves to. */
+function measureLabel(font: string, fontPx: number): (s: string) => number {
   const ctx = document.createElement('canvas').getContext('2d');
-  if (!ctx) return (s) => s.length * 8;
-  ctx.font = `400 15px ${font}`;
+  if (!ctx) return (s) => s.length * (fontPx / 2);
+  ctx.font = `400 ${fontPx}px ${font}`;
   return (s) => ctx.measureText(s).width;
 }
 
@@ -143,7 +166,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
   const labelIdsRef = useRef<string[]>([]);
   const setPlacedRef = useRef<((labels: OverlayLabel[]) => void) | null>(null);
   const labelNoteRef = useRef('');
-  const measureRef = useRef<{ font: string; measure: (s: string) => number } | null>(null);
+  const measureRef = useRef<{ font: string; measure: (s: string) => number; metrics: LabelMetrics } | null>(null);
 
   const system = systems.find((s) => s.key === systemKey) ?? systems[0];
   const names = useMemo(() => new Map(system?.structures.map((s) => [s.id, s.text]) ?? []), [system]);
@@ -189,15 +212,22 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
       return;
     }
     const font = colorsRef.current?.font ?? 'sans-serif';
-    if (measureRef.current?.font !== font) measureRef.current = { font, measure: measureLabel(font) };
-    const { measure } = measureRef.current;
+    if (measureRef.current?.font !== font) {
+      const metrics = readLabelMetrics();
+      measureRef.current = { font, measure: measureLabel(font, metrics.fontPx), metrics };
+    }
+    const { measure, metrics } = measureRef.current;
     const maxText = Math.min(240, Math.max(120, canvas.clientWidth * 0.42));
     const text = new Map<string, ReturnType<typeof labelLines>>();
     const anchors = points.map((point) => {
       const lines = labelLines(names.get(point.id) ?? point.id, point.behind, maxText, measure);
       text.set(point.id, lines);
       const count = lines.lines.length + (lines.mark === 'line' ? 1 : 0);
-      return { ...point, width: Math.ceil(lines.width) + 20, height: Math.ceil(count * LABEL_LINE + 2 * LABEL_PAD_Y) };
+      return {
+        ...point,
+        width: Math.ceil(lines.width) + 2 * (metrics.padX + metrics.borderX) + 2,
+        height: Math.ceil(count * metrics.line + 2 * metrics.padY),
+      };
     });
     const model = scene.extent();
     const layout = placeLabels(anchors, {
@@ -309,23 +339,26 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
       const run = () => {
         setLayerError(null);
         setPending((p) => new Set(p).add(layer.id));
+        const take = (results: LoadResult[]) => {
+          setFilesLoaded(loader.loadedCount());
+          setLoad((prev) =>
+            prev.state !== 'ready'
+              ? prev
+              : {
+                  state: 'ready',
+                  result: {
+                    found: [...prev.result.found, ...results.flatMap((r) => r.found)],
+                    missing: prev.result.missing.filter((id) => !results.some((r) => r.found.includes(id))),
+                    triangles: prev.result.triangles + results.reduce((n, r) => n + r.triangles, 0),
+                  },
+                },
+          );
+        };
         loader
           .ensure(filesForLayer(system, layer.id))
           .then((results) => {
             if (loader.isRetired()) return; // the system changed while this layer downloaded
-            setFilesLoaded(loader.loadedCount());
-            setLoad((prev) =>
-              prev.state !== 'ready'
-                ? prev
-                : {
-                    state: 'ready',
-                    result: {
-                      found: [...prev.result.found, ...results.flatMap((r) => r.found)],
-                      missing: prev.result.missing.filter((id) => !results.some((r) => r.found.includes(id))),
-                      triangles: prev.result.triangles + results.reduce((n, r) => n + r.triangles, 0),
-                    },
-                  },
-            );
+            take(results);
             setHidden((h) => {
               const next = new Set(h);
               for (const id of layer.ids) next.delete(id);
@@ -336,6 +369,8 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
           })
           .catch((err: unknown) => {
             if (loader.isRetired()) return;
+            // Files that did arrive are already in the scene: count them, so their structures are listed and quizzable.
+            if (err instanceof PartialLoadError) take(err.results as LoadResult[]);
             setLayerError({ layer: layer.id, message: err instanceof Error ? err.message : String(err), retry: run });
           })
           .finally(() => loader.isRetired() || setPending((p) => new Set([...p].filter((id) => id !== layer.id))));
@@ -344,6 +379,22 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     },
     [system],
   );
+
+  /** Show every structure; in the lazy whole-body view, layers not fetched yet are fetched, then shown. */
+  const showAll = () => {
+    const loader = loaderRef.current;
+    if (!lazy || !system || !loader) {
+      setHidden(new Set());
+      return;
+    }
+    const plan = showAllPlan(layers, hidden, (id) => filesForLayer(system, id), (url) => loader.isLoaded(url));
+    setHidden((h) => {
+      const next = new Set(h);
+      for (const id of plan.unhide) next.delete(id);
+      return next;
+    });
+    for (const layer of plan.fetch) reveal(layer);
+  };
 
   useEffect(() => {
     if (load.state === 'ready') sceneRef.current?.setAppearance({ hidden, selected });
@@ -582,7 +633,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
             <button type="button" className={iconButton} aria-label="zoom in" onClick={() => sceneRef.current?.zoom(ZOOM_IN)}>+</button>
             <button type="button" className={iconButton} aria-label="zoom out" onClick={() => sceneRef.current?.zoom(1 / ZOOM_IN)}>−</button>
             <button type="button" className={secondaryButton} onClick={() => sceneRef.current?.resetView()}>reset view</button>
-            <button type="button" className={secondaryButton} disabled={!ready} onClick={() => setHidden(new Set())}>show all</button>
+            <button type="button" className={secondaryButton} disabled={!ready} onClick={showAll}>show all</button>
             <button
               type="button"
               className={secondaryButton}

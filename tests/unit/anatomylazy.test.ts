@@ -1,13 +1,40 @@
 import { describe, expect, it } from 'vitest';
 import type { AnatomyStructure } from '../../src/islands/anatomylab';
 import { LAYERS, wholeBody, type Layer } from '../../src/islands/anatomylayers';
-import { createGeneration, createOnDemandLoader, filesForLayer, firstLayer, lazyPeel, lazyRestore } from '../../src/islands/anatomylazy';
+import { PartialLoadError, showAllPlan, createGeneration, createOnDemandLoader, filesForLayer, firstLayer, lazyPeel, lazyRestore } from '../../src/islands/anatomylazy';
 
 const layers: Layer[] = [
   { id: 'skin', ids: ['s1'] },
   { id: 'muscle', ids: ['m1', 'm2'] },
   { id: 'skeleton', ids: ['b1'] },
 ];
+
+describe('partial failures and show all', () => {
+  it('hands over the files that loaded when another file of the layer fails, and retries only the failed one', async () => {
+    let failB = true;
+    const calls: string[] = [];
+    const loader = createOnDemandLoader<string>(async (url) => {
+      calls.push(url);
+      if (url === 'b' && failB) throw new Error('b failed');
+      return url;
+    });
+    const err = await loader.ensure(['a', 'b']).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(PartialLoadError);
+    expect((err as PartialLoadError<string>).results).toEqual(['a']);
+    expect(loader.isLoaded('a')).toBe(true);
+    failB = false;
+    expect(await loader.ensure(['a', 'b'])).toEqual(['b']);
+    expect(calls).toEqual(['a', 'b', 'b']);
+  });
+
+  it('show all unhides loaded layers at once and fetches the layers whose files are missing', () => {
+    const files: Record<string, string[]> = { skin: ['s'], muscle: ['m'], skeleton: ['k'] };
+    const hidden = new Set(['m1', 'm2', 'b1', 'extra']);
+    const plan = showAllPlan(layers, hidden, (id) => files[id]!, (url) => url === 's' || url === 'm');
+    expect(plan.unhide.sort()).toEqual(['extra', 'm1', 'm2']);
+    expect(plan.fetch.map((l) => l.id)).toEqual(['skeleton']);
+  });
+});
 
 describe('system generation', () => {
   it('a token taken before a system change is no longer current', () => {

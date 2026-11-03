@@ -30,6 +30,34 @@ export function createGeneration() {
   };
 }
 
+/** Some of a layer's files loaded and some failed: the loaded ones are kept here so the caller can still use them. */
+export class PartialLoadError<R> extends Error {
+  constructor(
+    readonly results: R[],
+    readonly cause: unknown,
+  ) {
+    super(cause instanceof Error ? cause.message : String(cause));
+  }
+}
+
+/**
+ * "Show all" in the lazy view: the structures to unhide right away (those in layers whose files are all loaded, and any
+ * in no layer) and the layers that must be fetched first, each shown only once its files are there.
+ */
+export function showAllPlan(
+  layers: readonly Layer[],
+  hidden: ReadonlySet<string>,
+  filesOf: (layerId: string) => readonly string[],
+  isLoaded: (url: string) => boolean,
+): { unhide: string[]; fetch: Layer[] } {
+  const inLayer = new Set(layers.flatMap((l) => l.ids));
+  const ready = layers.filter((l) => filesOf(l.id).every(isLoaded));
+  return {
+    unhide: [...hidden].filter((id) => !inLayer.has(id) || ready.some((l) => l.ids.includes(id))),
+    fetch: layers.filter((l) => !ready.includes(l) && !layerShown(l, hidden)),
+  };
+}
+
 export function createOnDemandLoader<R>(fetchOne: (url: string) => Promise<R>): OnDemandLoader<R> {
   const done = new Set<string>();
   const inFlight = new Map<string, Promise<R | null>>();
@@ -57,8 +85,12 @@ export function createOnDemandLoader<R>(fetchOne: (url: string) => Promise<R>): 
   }
   return {
     async ensure(urls) {
-      const results = await Promise.all([...new Set(urls)].map(one));
-      return results.filter((r): r is Awaited<R> => r !== null) as R[];
+      const settled = await Promise.allSettled([...new Set(urls)].map(one));
+      const results = settled.flatMap((s) => (s.status === 'fulfilled' && s.value !== null ? [s.value] : []));
+      const failed = settled.find((s): s is PromiseRejectedResult => s.status === 'rejected');
+      // Files that did load stay loaded (and in the scene), so they are handed over with the error rather than lost.
+      if (failed) throw new PartialLoadError(results as R[], failed.reason);
+      return results as R[];
     },
     markLoaded: (url) => {
       if (!retired) done.add(url);
