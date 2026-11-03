@@ -4,7 +4,7 @@ This page is the recovery index for Cueory. It contains no credentials or privat
 
 ## Website release rollback
 
-If a live release breaks the site, follow the rollback steps in [SETUP.md](SETUP.md#-if-a-release-breaks-the-live-site-2-minutes). That procedure restores the previously served Cloudflare version without changing the GitHub branches. A rollback is temporary: fix the cause in a new pull request through `staging` before releasing again.
+If a live release breaks the site, follow the rollback steps in [SETUP.md](SETUP.md#if-a-release-breaks-the-live-site-2-minutes). That procedure restores the previously served Cloudflare version without changing the GitHub branches. A rollback is temporary: fix the cause in a new pull request through `staging` before releasing again.
 
 ## Database backups and restoration
 
