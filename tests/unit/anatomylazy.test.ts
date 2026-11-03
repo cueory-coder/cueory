@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { AnatomyStructure } from '../../src/islands/anatomylab';
 import { LAYERS, wholeBody, layerShown, type Layer } from '../../src/islands/anatomylayers';
 import { onlyThis } from '../../src/islands/anatomylab';
-import { PartialLoadError, revealTargetPlan, showAllPlan, createGeneration, createOnDemandLoader, filesForLayer, firstLayer, layerNeedsReveal, lazyPeel, lazyRestore, structureLoadNote } from '../../src/islands/anatomylazy';
+import { PartialLoadError, revealTargetPlan, showAllPlan, createGeneration, createOnDemandLoader, visibilityAfterLayerDownload, filesForLayer, firstLayer, layerNeedsReveal, lazyPeel, lazyRestore, structureLoadNote } from '../../src/islands/anatomylazy';
 
 const layers: Layer[] = [
   { id: 'skin', ids: ['s1'] },
@@ -145,6 +145,38 @@ describe('system generation', () => {
     gen.bump();
     expect(gen.isCurrent(mine)).toBe(false);
     expect(gen.isCurrent(gen.token())).toBe(true);
+  });
+});
+
+describe('a delayed layer must not undo newer visibility choices', () => {
+  it('keeps successful downloads but preserves show-only when an older reveal finishes later', async () => {
+    const intents = createGeneration();
+    const older = intents.token();
+    let finish!: (value: string) => void;
+    const loader = createOnDemandLoader<string>(() => new Promise((resolve) => { finish = resolve; }));
+    const pending = loader.ensure(['organs.glb']);
+
+    // A later click replaces the prior "show all" with "show only skin".
+    intents.bump();
+    const onlySkin = new Set(['heart', 'lung', 'bone']);
+    finish('organs.glb');
+    expect(await pending).toEqual(['organs.glb']);
+    expect(loader.isLoaded('organs.glb')).toBe(true);
+    const result = visibilityAfterLayerDownload(onlySkin, ['heart', 'lung'], [], intents.isCurrent(older));
+    expect(result).toBe(onlySkin);
+    expect([...result]).toEqual(['heart', 'lung', 'bone']);
+  });
+
+  it('applies the newest request, including the hide-after side of a peel', () => {
+    const hidden = new Set(['organ']);
+    const changed = visibilityAfterLayerDownload(hidden, ['organ'], ['skin'], true);
+    expect(changed).toEqual(new Set(['skin']));
+    expect(hidden).toEqual(new Set(['organ']));
+  });
+
+  it('does not unhide or hide anything for a superseded peel', () => {
+    const newer = new Set(['organ']);
+    expect(visibilityAfterLayerDownload(newer, ['organ'], ['skin'], false)).toBe(newer);
   });
 });
 
