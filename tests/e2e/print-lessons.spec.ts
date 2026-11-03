@@ -1,0 +1,34 @@
+import { expect, test } from '@playwright/test';
+
+const lessonRoutes = [
+  '/learn/study-skills',
+  '/learn/study-skills/cards',
+  '/learn/study-skills/fill-in',
+  '/learn/study-skills/label-it',
+  '/learn/study-skills/learn-mode',
+  '/learn/study-skills/matching',
+  '/learn/study-skills/organizer',
+  '/learn/study-skills/questions',
+];
+
+test.describe('Task 216: printed lesson pages', () => {
+  for (const route of lessonRoutes) {
+    test(`${route} prints reading content without site navigation`, async ({ page }) => {
+      const response = await page.goto(route);
+      expect(response?.status()).toBe(200);
+      await page.emulateMedia({ media: 'print' });
+
+      await expect(page.locator('main')).toBeVisible();
+      for (const selector of [
+        'body > header',
+        'body > footer',
+        'body > [data-testid="building-notice"]',
+        'body > dialog',
+        'body > a[href="#main"]',
+      ]) {
+        await expect(page.locator(selector)).toBeHidden();
+      }
+      await expect(page.locator('main')).toHaveCSS('max-width', 'none');
+    });
+  }
+});

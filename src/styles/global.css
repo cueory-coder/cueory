@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 14960)
+Total output lines: 2030
+
 @import "tailwindcss";
 @import "./tokens.css";
 
@@ -767,365 +770,7 @@ html:has(dialog.menu-panel[open]) {
     overscroll-behavior-x: contain;
     scroll-snap-type: x mandatory;
     scrollbar-width: none;
-    /* Room below for a hovered card's deeper shadow (D-51); the negative margin keeps the buttons where they were. */
-    padding-block: calc(var(--spacing) * 6) calc(var(--spacing) * 20);
-    margin-block-end: calc(var(--spacing) * -10);
-    padding-inline: calc((100% - var(--container-mode-card)) / 2);
-  }
-
-  .modes-track::-webkit-scrollbar {
-    display: none;
-  }
-
-  .mode-card {
-    position: relative;
-    display: flex;
-    flex: 0 0 var(--container-mode-card);
-    flex-direction: column;
-    padding: calc(var(--spacing) * 6);
-    scroll-snap-align: center;
-  }
-
-  /*
-    The merry-go-round (D-60), once the script has taken over (data-ring). Every card sits in the same spot in the
-    middle, and the script's numbers move it out to its place: --ring-shift card widths and --ring-gaps gaps sideways,
-    so neighbours sit edge to edge; --ring-scale its size (1, then 0.88 and 0.76: stepping back); and --ring-turn
-    degrees turned away, round the ring. Only the card in the middle and its neighbours show: one on each side on
-    phones and tablets, two on wider screens. A turn takes 240 ms, easing out (RING_MS in src/scripts/carousel.ts).
-  */
-  .modes[data-ring] .modes-track {
-    display: grid;
-    grid-template-areas: "ring";
-    justify-content: center;
-    /*
-      Still a scroll box, as the plain row was (but nothing to scroll), so the switch causes no layout shift. The row's
-      padding leaves room for the lift of the card in the middle.
-    */
-    overflow: hidden;
-    scroll-snap-type: none;
-    padding-inline: 0;
-    touch-action: pan-y;
-  }
-
-  .modes[data-ring] .mode-card {
-    grid-area: ring;
-    inline-size: var(--container-mode-card);
-    visibility: hidden;
-    z-index: var(--ring-layer, 0);
-    transform: perspective(calc(var(--container-mode-card) * 4))
-      translateX(calc(var(--ring-shift, 0) * var(--container-mode-card) + var(--ring-gaps, 0) * var(--gap-mode-card)))
-      rotateY(calc(var(--ring-turn, 0) * 1deg)) scale(var(--ring-scale, 1));
-    transition:
-      transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1),
-      visibility 240ms,
-      scale 200ms ease,
-      box-shadow 200ms ease;
-  }
-
-  .modes[data-ring] .mode-card:is([data-offset="-1"], [data-offset="0"], [data-offset="1"]) {
-    visibility: visible;
-  }
-
-  @media (width >= 64rem) {
-    .modes[data-ring] .mode-card:is([data-offset="-2"], [data-offset="2"]) {
-      visibility: visible;
-    }
-  }
-
-  /* Going round the back, or a jump of several cards, switches at once instead of sweeping across the row. */
-  .modes[data-ring] .mode-card[data-jump] {
-    transition: none;
-  }
-
-  /*
-    Side cards are quieter: no shadow, a softer drawing, and the heading in the second ink. Their words keep the
-    frosted-panel contrast, since both inks are checked on it. A tap anywhere on a side card brings it to the middle,
-    so its own link waits until it is there.
-  */
-  .modes[data-ring] .mode-card:not([data-offset="0"]) {
-    box-shadow: none;
-    cursor: pointer;
-  }
-
-  .modes[data-ring] .mode-card:not([data-offset="0"]) h3 {
-    color: var(--color-ink-soft);
-  }
-
-  .modes[data-ring] .mode-card:not([data-offset="0"]) a {
-    pointer-events: none;
-  }
-
-  .modes[data-ring] .mode-card:not([data-offset="0"]) .ill {
-    opacity: 0.6;
-  }
-
-  /*
-    The card's preview button (D-51) covers the whole card, so a tap anywhere on it opens the preview; its focus ring
-    outlines the card. The card's own link sits above it and still goes straight to the mode.
-  */
-  .mode-open {
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    border: 0;
-    border-radius: inherit;
-    background-color: transparent;
-    cursor: pointer;
-  }
-
-  .mode-card a {
-    position: relative;
-    z-index: 2;
-  }
-
-  .mode-art {
-    aspect-ratio: 10 / 7;
-    border-radius: var(--radius-md);
-    background-color: color-mix(in srgb, var(--color-surface) 55%, transparent);
-  }
-
-  /* Illustrations: brand colors only. */
-  .ill {
-    display: block;
-    inline-size: 100%;
-    block-size: 100%;
-  }
-
-  .ill-paper {
-    fill: var(--color-page);
-    stroke: var(--color-line);
-    stroke-width: 1.5;
-  }
-
-  .ill-surface-card {
-    fill: var(--color-surface);
-    stroke: var(--color-line);
-    stroke-width: 1.5;
-  }
-
-  .ill-shadow {
-    fill: var(--color-line);
-    opacity: 0.5;
-  }
-
-  .ill-line {
-    fill: var(--color-line);
-  }
-
-  .ill-ink {
-    fill: var(--color-ink);
-  }
-
-  .ill-soft {
-    fill: var(--color-ink-soft);
-  }
-
-  .ill-accent {
-    fill: var(--color-highlight);
-  }
-
-  .ill-blank {
-    fill: none;
-    stroke: var(--color-ink-soft);
-    stroke-width: 1.5;
-    stroke-dasharray: 4 3;
-  }
-
-  .ill-group,
-  .ill-day,
-  .ill-option {
-    fill: var(--color-page);
-    stroke: var(--color-line);
-    stroke-width: 1.5;
-  }
-
-  .ill-ring-track,
-  .ill-ring {
-    fill: none;
-    stroke-width: 9;
-  }
-
-  .ill-ring-track {
-    stroke: var(--color-surface);
-  }
-
-  .ill-ring {
-    stroke: var(--color-highlight);
-    stroke-linecap: round;
-    stroke-dasharray: 100;
-    transform: rotate(-90deg);
-    transform-box: fill-box;
-    transform-origin: center;
-  }
-
-  .ill-check,
-  .ill-link,
-  .ill-pole {
-    fill: none;
-    stroke: var(--color-ink);
-    stroke-width: 3;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
-
-  .ill-link {
-    stroke: var(--color-ink-soft);
-    stroke-width: 2.5;
-  }
-
-  .ill-q-pick {
-    fill: var(--color-highlight);
-    stroke: var(--color-highlight);
-  }
-
-  /* The back of the flip card waits folded flat until the loop shows it. */
-  .ill-flip-back {
-    transform: scaleX(0);
-    transform-box: fill-box;
-    transform-origin: center;
-  }
-
-  .ill-anim {
-    transform-box: fill-box;
-    transform-origin: center;
-  }
-
-  .ill-from-left {
-    transform-origin: left center;
-  }
-
-  /* The play mark on the video's cover, in the page color on the dark button. */
-  .ill-play {
-    fill: var(--color-page);
-  }
-}
-
-/*
-  The illustration loops play only on the card in the middle and in the open preview, only once the script has checked
-  the visitor's motion setting (data-motion), and stop with either pause button (data-paused). Without them every illustration is still and
-  complete. Each loop is 6 s, the same as the auto-advance.
-*/
-.modes[data-motion]:not([data-paused]) :is(.mode-card[data-active], .mode-preview) {
-  & .ill-video-press { animation: ill-video-press 6s ease-in-out infinite both; }
-  & .ill-video-progress { animation: ill-video-progress 6s ease-in-out infinite both; }
-
-  & .ill-flip-front { animation: ill-flip-front 6s ease-in-out infinite both; }
-  & .ill-flip-back { animation: ill-flip-back 6s ease-in-out infinite both; }
-
-  & .ill-learn-card-1 { animation: ill-learn-card 6s ease-in-out infinite both; }
-  & .ill-learn-card-2 { animation: ill-learn-card 6s ease-in-out 0.6s infinite both; }
-  & .ill-learn-ring { animation: ill-learn-ring 6s ease-in-out infinite both; }
-  & .ill-learn-check { animation: ill-draw-late 6s ease-in-out infinite both; }
-
-  & .ill-fill-word { animation: ill-fill-word 6s cubic-bezier(0.3, 0.7, 0.4, 1) infinite both; }
-
-  & .ill-match-1 { animation: ill-draw 6s ease-in-out infinite both; }
-  & .ill-match-2 { animation: ill-draw 6s ease-in-out 0.8s infinite both; }
-  & .ill-match-3 { animation: ill-draw 6s ease-in-out 1.6s infinite both; }
-
-  & .ill-sort-1 { animation: ill-sort-left 6s ease-in-out infinite both; }
-  & .ill-sort-2 { animation: ill-sort-right 6s ease-in-out 0.8s infinite both; }
-  & .ill-sort-3 { animation: ill-sort-left 6s ease-in-out 1.6s infinite both; }
-
-  & .ill-q-pick { animation: ill-q-pick 6s ease-in-out infinite both; }
-  & .ill-q-check { animation: ill-draw-late 6s ease-in-out infinite both; }
-  & .ill-q-why { animation: ill-grow-late 6s ease-in-out infinite both; }
-
-  & .ill-review-1 { animation: ill-pop 6s ease-out infinite both; }
-  & .ill-review-2 { animation: ill-pop 6s ease-out 0.7s infinite both; }
-  & .ill-review-3 { animation: ill-pop 6s ease-out 1.3s infinite both; }
-  & .ill-review-4 { animation: ill-pop 6s ease-out 1.8s infinite both; }
-  & .ill-review-5 { animation: ill-pop 6s ease-out 2.2s infinite both; }
-  & .ill-review-flag { animation: ill-flag 6s ease-in-out infinite both; }
-
-  & .ill-label-cover-1 { animation: ill-label-reveal 6s ease-in-out infinite both; }
-  & .ill-label-cover-2 { animation: ill-label-reveal 6s ease-in-out 1.2s infinite both; }
-
-  & .ill-climb { animation: ill-climb 6s ease-in-out infinite both; }
-
-  & .ill-level-1 { animation: ill-pop 6s ease-out infinite both; }
-  & .ill-level-2 { animation: ill-pop 6s ease-out 0.3s infinite both; }
-  & .ill-level-3 { animation: ill-pop 6s ease-out 0.6s infinite both; }
-  & .ill-level-4 { animation: ill-pop 6s ease-out 1s infinite both; }
-  & .ill-level-5 { animation: ill-pop 6s ease-out 1.3s infinite both; }
-  & .ill-level-7 { animation: ill-pop 6s ease-out 1.7s infinite both; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .modes .ill * {
-    animation: none !important;
-  }
-
-  .modes-track {
-    scroll-behavior: auto;
-  }
-
-  .modes[data-ring] .mode-card {
-    transition: none;
-  }
-}
-
-/*
-  pillo (Task 114), the word game on /play. The board is a foil blister pack: six rows of five pockets with dashed
-  perforations between them. A guessed letter is a glossy capsule pill with a capital letter and its mark under it
-  (● in place, ○ elsewhere in the word, · not in the word), and each guess is also said in words for screen readers,
-  so color is never the only signal. In place is Espresso (Evening: Walnut), elsewhere is Taupe (Evening: Sand), and not
-  in the word is Ivory with a faded Bronze letter (Evening: frosted Ivory). The row being typed shows plain Ivory pills
-  and rings the next empty pocket. Every color, size and shadow is a token (tokens.css, "pillo"); the foil is drawn
-  with gradients, so there is no image file and nothing the content security policy has to allow.
-*/
-@layer components {
-  .pillo {
-    /* The foil's grey: Ivory greyed with Bronze by day, Charcoal lit with Sand in the evening. */
-    --pillo-foil-color: color-mix(in srgb, var(--color-pillo-foil-tint) var(--pillo-foil-mix), var(--color-pillo-foil));
-    --pillo-hatch-color: color-mix(in srgb, var(--color-pillo-hatch) var(--pillo-hatch-mix), transparent);
-    --pillo-gloss-color: color-mix(in srgb, var(--color-pillo-gloss) var(--pillo-gloss-mix), transparent);
-    --pillo-perforation: color-mix(in srgb, var(--color-pillo-hatch) 22%, transparent);
-  }
-
-  .pillo-top {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: calc(var(--spacing) * 3);
-    max-inline-size: var(--pillo-board);
-  }
-
-  .pillo-status {
-    font-size: var(--text-sm);
-    line-height: var(--text-sm--line-height);
-    color: var(--color-ink-soft);
-  }
-
-  .pillo-status strong {
-    font-weight: 700;
-    color: var(--color-ink);
-  }
-
-  /* The foil itself: a fine cross-hatch and a soft sheen over the grey, rounded like a real blister card. */
-  .pillo-pack,
-  .pillo-strip {
-    background-color: var(--pillo-foil-color);
-    background-image:
-      linear-gradient(135deg, var(--pillo-gloss-color), transparent 45%),
-      repeating-linear-gradient(45deg, var(--pillo-hatch-color) 0 var(--pillo-hatch-width), transparent var(--pillo-hatch-width) var(--pillo-hatch-gap)),
-      repeating-linear-gradient(-45deg, var(--pillo-hatch-color) 0 var(--pillo-hatch-width), transparent var(--pillo-hatch-width) var(--pillo-hatch-gap));
-  }
-
-  .pillo-pack {
-    max-inline-size: var(--pillo-board);
-    padding: calc(var(--spacing) * 2);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-pillo-pack);
-  }
-
-  /* One row of five pockets. Dashed perforations run between rows and between pockets. */
-  .pillo-row {
-    position: relative;
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    border-block-end: var(--border-pillo-perforation) dashed var(--pillo-perforation);
+    /* Roo…2960 tokens truncated…ation) dashed var(--pillo-perforation);
   }
 
   .pillo-row-last {
@@ -1526,6 +1171,32 @@ html:has(dialog.menu-panel[open]) {
 @media (prefers-reduced-motion: reduce) {
   [data-reveal="shown"] {
     transition: none;
+  }
+}
+
+/* Keep printed lessons focused on their reading content, not the interactive site chrome. */
+@media print {
+  body {
+    background-color: var(--color-page) !important;
+    color: var(--color-ink) !important;
+  }
+
+  body > header,
+  body > footer,
+  body > [data-testid="building-notice"],
+  body > dialog,
+  body > a[href="#main"] {
+    display: none !important;
+  }
+
+  main {
+    max-width: none !important;
+    padding-inline: 0 !important;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
   }
 }
 
