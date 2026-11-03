@@ -70,6 +70,13 @@ describe('checkAnswer', () => {
       .toEqual({ ok: true, result: { right: false, key: ['b'], rationales: result.rationales } });
   });
 
+  it('rejects a correctness flag that disagrees with the submitted choices and key', async () => {
+    expect(await checkAnswer(fake({ ...result, correct: true, key: ['b'] }), item, ['a']))
+      .toEqual({ ok: false, message: 'something went wrong — please try again.' });
+    expect(await checkAnswer(fake({ ...result, correct: false, key: ['a'] }), item, ['a']))
+      .toEqual({ ok: false, message: 'something went wrong — please try again.' });
+  });
+
   it('maps a database refusal to plain words and exposes no returned feedback on failure', async () => {
     const error = { code: '55000', message: 'this question was updated; reload it and answer again', details: 'sample: private detail' };
     expect(await checkAnswer(fake(result, error), item, ['a'])).toEqual({
