@@ -11,7 +11,19 @@ function builtHtml(folder = dist): string[] {
   });
 }
 function documentProblems(source: string): string[] {
-  const html = source.replace(/<!--[\s\S]*?-->/g, '');
+  // Inspect document text only. This is not an HTML sanitizer and its result
+  // is never rendered. Skip complete comments and consume an unterminated
+  // comment to EOF rather than treating its contents as page markup.
+  let html = '';
+  let cursor = 0;
+  while (cursor < source.length) {
+    const start = source.indexOf('<!--', cursor);
+    if (start === -1) { html += source.slice(cursor); break; }
+    html += source.slice(cursor, start);
+    const end = source.indexOf('-->', start + 4);
+    if (end === -1) break;
+    cursor = end + 3;
+  }
   const root = html.match(/<html\b[^>]*>/i)?.[0] ?? '';
   const lang = root.match(/\slang\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
   const problems: string[] = [];
@@ -33,6 +45,7 @@ describe('Task 248: built page language and title', () => {
   it('rejects missing or wrong language and blank titles', () => {
     expect(documentProblems('<html lang="fr"><head><title> </title></head></html>')).toHaveLength(2);
     expect(documentProblems('<html><head></head></html>')).toHaveLength(2);
+    expect(documentProblems('<!-- <html lang="en"><head><title>hidden</title></head>')).toHaveLength(2);
     expect(documentProblems('<html data-lang="en"><head><title>x</title></head></html>')).toHaveLength(1);
     expect(documentProblems('<html lang="en"><head><title>&nbsp;</title></head></html>')).toHaveLength(1);
   });
