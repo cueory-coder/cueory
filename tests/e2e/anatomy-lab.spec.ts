@@ -68,18 +68,20 @@ test.describe('anatomy lab', () => {
     await expect(page.getByRole('heading', { name: 'the 3D anatomy lab could not open.' })).toBeFocused();
     await expect(page.getByRole('button', { name: 'try 3D again' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'browse the lessons' })).toHaveAttribute('href', '/learn');
-    await expect(page.getByRole('heading', { name: 'structure names: test shapes (fixture)' })).toBeVisible();
-    await expect(page.getByText('draft · labels waiting for review')).toBeVisible();
-    await expect(page.getByText('name from the test fixture')).toBeVisible();
-    await expect(page.getByRole('status')).toHaveText('showing 5 of 5 matching structures');
+    const catalog = page.getByRole('region', { name: 'structure names: test shapes (fixture)' });
+    await expect(catalog).toBeVisible();
+    await expect(catalog.getByText('draft · labels waiting for review')).toBeVisible();
+    await expect(catalog.getByText('name from the test fixture')).toBeVisible();
+    await expect(catalog.getByRole('status')).toHaveText('showing 5 of 5 matching structures');
 
-    const search = page.getByLabel('find a structure');
+    const search = catalog.getByLabel('find a structure');
     await search.fill('cube b');
-    await expect(page.getByRole('status')).toHaveText('showing 1 of 1 matching structures');
-    await expect(page.getByRole('listitem')).toContainText(['fixture cube B']);
-    await expect(page.getByText('fixture cube A')).toHaveCount(0);
+    await expect(catalog.getByRole('status')).toHaveText('showing 1 of 1 matching structures');
+    await expect(catalog.getByRole('listitem')).toHaveCount(1);
+    await expect(catalog.getByRole('listitem').first()).toContainText('fixture cube B');
+    await expect(catalog.getByText('fixture cube A')).toHaveCount(0);
     await search.fill('not a structure');
-    await expect(page.getByText('no structure names match this search.')).toBeVisible();
+    await expect(catalog.getByText('no structure names match this search.')).toBeVisible();
     expect(glb).toEqual([]);
   });
 
