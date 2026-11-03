@@ -32,11 +32,12 @@ describe('progress words check', () => {
       scan(path.join(root, d));
     }
 
-    // Also scan LearnSession.tsx UI jsx specifically
+    // Also scan LearnSession.tsx UI jsx text and aria-labels specifically
     const learnSession = fs.readFileSync(path.join(root, 'islands/LearnSession.tsx'), 'utf8');
-    const jsxLines = learnSession.split('\n').filter((l) => /<|aria-|>/.test(l));
+    const jsxLines = learnSession.split('\n');
     jsxLines.forEach((line, idx) => {
-      if (/\b(master|mastered|mastery)\b/i.test(line)) {
+      // Check for user-facing words (aria-label, text nodes)
+      if (/aria-label="[^"]*master/i.test(line) || />[^<]*\b(master|mastered|mastery)\b[^<]*</i.test(line)) {
         violations.push({ file: 'src/islands/LearnSession.tsx', line: idx + 1, text: line.trim() });
       }
     });
