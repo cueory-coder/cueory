@@ -8,6 +8,7 @@
  */
 import * as THREE from 'three';
 import { createDemandFrameScheduler } from './anatomyframe';
+import { loadModelsOrDispose } from './anatomylazy';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
@@ -455,7 +456,12 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
     const loader = new GLTFLoader();
     loader.setMeshoptDecoder(MeshoptDecoder);
     const list = typeof urls === 'string' ? [urls] : [...urls];
-    const scenes = await Promise.all(list.map((url) => loader.loadAsync(url).then((gltf) => gltf.scene)));
+    // A failed file cannot leave earlier or later decoded meshes in memory.
+    // Scene.add has not run yet, so failed initial loads must release all parts.
+    const scenes = await loadModelsOrDispose(
+      list.map((url) => () => loader.loadAsync(url).then((gltf) => gltf.scene)),
+      disposeGroup,
+    );
     const group = new THREE.Group();
     for (const part of scenes) group.add(part);
     return group;
