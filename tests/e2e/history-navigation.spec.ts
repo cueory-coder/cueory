@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 const studyRoutes = [
   '/learn/study-skills',
@@ -10,7 +10,7 @@ const studyRoutes = [
   '/learn/study-skills/questions',
 ];
 
-async function historyState(page: Parameters<typeof test>[0] extends never ? never : any) {
+async function historyState(page: Page) {
   return page.evaluate(() => ({
     activeTag: document.activeElement?.tagName ?? '',
     activeId: document.activeElement?.id ?? '',
@@ -21,7 +21,7 @@ async function historyState(page: Parameters<typeof test>[0] extends never ? nev
 
 test.describe('Task 242: study-page browser history', () => {
   for (const route of studyRoutes) {
-    test(`Back and Forward keep ${route} usable`, async ({ page }) => {
+    test('Back and Forward keep ' + route + ' usable', async ({ page }) => {
       await page.goto(route);
       await expect(page.getByRole('main')).toBeVisible();
       await page.evaluate(() => window.scrollTo(0, Math.min(180, document.documentElement.scrollHeight)));
@@ -35,7 +35,7 @@ test.describe('Task 242: study-page browser history', () => {
       await expect(page.getByRole('main')).toBeVisible();
 
       await page.goBack();
-      await expect(page).toHaveURL(new RegExp(`${route.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}$`));
+      await expect(page).toHaveURL(new RegExp(route.replace(/[.*+?^$()|[\]\\]/g, '\\$&') + '$'));
       await expect(page.getByRole('main')).toBeVisible();
 
       const afterBack = await historyState(page);
