@@ -533,7 +533,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
         labels: ids.map((id) => ({ id, text: names.get(id) ?? id })),
       });
       if (!generation.isCurrent(mine)) return; // the system changed while the picture was drawn
-      const fileName = exportFileName(system.key, selected ? (names.get(selected) ?? null) : null, size);
+      const fileName = exportFileName(system.key, selected && !hidden.has(selected) ? (names.get(selected) ?? null) : null, size);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
