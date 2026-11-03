@@ -87,8 +87,12 @@ export function wholeBody(systems: readonly AnatomySystem[]): AnatomySystem | nu
   const seen = new Set<string>();
   const structures: AnatomyStructure[] = [];
   const layerFiles: Record<string, string[]> = {};
+  // Preserve the exact IDs from each source file; layerFiles alone cannot say which file owns a given ID.
+  const fileIds: Record<string, string[]> = {};
   for (const system of real) {
+    const ids = (fileIds[system.model.file] ??= []);
     for (const structure of system.structures) {
+      if (!ids.includes(structure.id)) ids.push(structure.id);
       if (structure.layer) {
         const files = (layerFiles[structure.layer] ??= []);
         if (!files.includes(system.model.file)) files.push(system.model.file);
@@ -102,7 +106,7 @@ export function wholeBody(systems: readonly AnatomySystem[]): AnatomySystem | nu
     key: WHOLE_BODY_KEY,
     title: 'whole body',
     status: real.every((s) => s.status === 'approved') ? 'approved' : 'draft',
-    model: { file: real[0]!.model.file, files: real.map((s) => s.model.file), release, layerFiles },
+    model: { file: real[0]!.model.file, files: real.map((s) => s.model.file), release, layerFiles, fileIds },
     structures,
   };
   if (real[0]!.model.via) out.model.via = real[0]!.model.via;
