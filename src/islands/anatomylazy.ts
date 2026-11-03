@@ -40,6 +40,19 @@ export class PartialLoadError<R> extends Error {
   }
 }
 
+/** 
+ * A layer button must finish downloading all of its model files before it can act as a hide toggle.
+ * A shared model can make one organ visible even while its other files are still missing.
+ */
+export function layerNeedsReveal(
+  layer: Layer,
+  hidden: ReadonlySet<string>,
+  files: readonly string[],
+  isLoaded: (url: string) => boolean,
+): boolean {
+  return !layerShown(layer, hidden) || files.some((url) => !isLoaded(url));
+}
+
 /**
  * "Show all" in the lazy view: the structures to unhide right away (those in layers whose files are all loaded, and any
  * in no layer) and the layers that must be fetched first, each shown only once its files are there.
