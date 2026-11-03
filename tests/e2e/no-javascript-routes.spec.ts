@@ -28,33 +28,43 @@ const optionalIslands = new Set(['ContinueBar', 'GameStatsPanel', 'GuestImportOf
 test.describe('Task 231: all built routes without JavaScript', () => {
   test.use({ javaScriptEnabled: false });
 
-  for (const route of routes) {
-    test(route + ' keeps content and primary island fallbacks', async ({ page }, testInfo) => {
+  // Reuse each JavaScript-disabled browser page for a small group of routes.
+  // This preserves the all-route checks without adding a new browser context
+  // for every page, which can make CI exceed its 15-minute job limit.
+  const batchSize = 20;
+  for (let start = 0; start < routes.length; start += batchSize) {
+    const batch = routes.slice(start, start + batchSize);
+    test(`routes ${start + 1}–${start + batch.length} keep content and fallbacks`, async ({ page }, testInfo) => {
       test.skip(!['phone', 'desktop'].includes(testInfo.project.name), 'Phone and desktop Chromium coverage');
+      test.setTimeout(120_000);
 
-      const response = await page.goto(route);
-      expect(response?.status(), route).toBe(route === missing ? 404 : 200);
+      for (const route of batch) {
+        await test.step(route, async () => {
+          const response = await page.goto(route);
+          expect(response?.status(), route).toBe(route === missing ? 404 : 200);
 
-      const main = page.getByRole('main');
-      await expect(main).toBeVisible();
-      expect((await main.innerText()).trim().length, route + ': main must not be blank').toBeGreaterThan(0);
+          const main = page.getByRole('main');
+          await expect(main).toBeVisible();
+          expect((await main.innerText()).trim().length, route + ': main must not be blank').toBeGreaterThan(0);
 
-      for (const island of await main.locator('astro-island[client="only"]').all()) {
-        const options = JSON.parse((await island.getAttribute('opts')) ?? '{}') as { name?: string };
-        const name = options.name ?? 'unnamed client-only island';
-        if (optionalIslands.has(name)) continue;
+          for (const island of await main.locator('astro-island[client="only"]').all()) {
+            const options = JSON.parse((await island.getAttribute('opts')) ?? '{}') as { name?: string };
+            const name = options.name ?? 'unnamed client-only island';
+            if (optionalIslands.has(name)) continue;
 
-        // Require the fallback beside THIS island, not another island in the
-        // same section. A generic page-level <noscript> is not enough.
-        const fallback = island.locator('xpath=following-sibling::*[1][self::noscript]');
-        await expect(fallback, route + ': ' + name + ' needs a local no-JavaScript fallback').toHaveCount(1);
+            // Require the fallback beside THIS island, not another island in the
+            // same section. A generic page-level <noscript> is not enough.
+            const fallback = island.locator('xpath=following-sibling::*[1][self::noscript]');
+            await expect(fallback, route + ': ' + name + ' needs a local no-JavaScript fallback').toHaveCount(1);
 
-        // Playwright text queries intentionally exclude <noscript>. Inspect
-        // its parsed child markup directly while JavaScript is disabled.
-        const content = fallback.locator(':scope > *').first();
-        await expect(content, route + ': ' + name + ' fallback must be visible').toBeVisible();
-        expect((await content.textContent() ?? '').trim().length, route + ': ' + name + ' fallback must explain something')
-          .toBeGreaterThan(0);
+            // Playwright text queries intentionally exclude <noscript>. Inspect
+            // its parsed child markup directly while JavaScript is disabled.
+            const content = fallback.locator(':scope > *').first();
+            await expect(content, route + ': ' + name + ' fallback must be visible').toBeVisible();
+            expect((await content.textContent() ?? '').trim().length, route + ': ' + name + ' fallback must explain something')
+              .toBeGreaterThan(0);
+          }
+        });
       }
     });
   }
