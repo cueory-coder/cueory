@@ -24,6 +24,7 @@ import {
   type ExportSize,
   type Rect,
   type VisibilityTarget,
+  visibleSelection,
 } from './anatomylab';
 
 /** Brand colors the scene and the exported pictures use, read from the tokens in src/styles/tokens.css. */
@@ -292,9 +293,10 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
 
   function applyAppearance() {
     const { hidden, selected } = appearance;
+    const highlighted = visibleSelection(selected, hidden);
     order.forEach((id, index) => {
-      const isSelected = id === selected;
-      const dim = selected !== null && !isSelected;
+      const isSelected = id === highlighted;
+      const dim = highlighted !== null && !isSelected;
       const color = isSelected ? colors.modelSelected : index % 2 === 0 ? colors.model : colors.modelAlt;
       for (const mesh of meshesById.get(id) ?? []) {
         mesh.visible = !hidden.has(id);
@@ -310,9 +312,9 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
     for (const mesh of unlabeled) {
       const material = mesh.material as THREE.MeshLambertMaterial;
       material.color.set(colors.model);
-      material.transparent = selected !== null;
-      material.opacity = selected !== null ? colors.dimAlpha : 1;
-      material.depthWrite = selected === null;
+      material.transparent = highlighted !== null;
+      material.opacity = highlighted !== null ? colors.dimAlpha : 1;
+      material.depthWrite = highlighted === null;
       material.needsUpdate = true;
     }
     visibilityDirty = true;
@@ -341,8 +343,9 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
 
   function renderIds(cam: THREE.Camera, width: number, height: number, into: THREE.WebGLRenderer): Uint8Array {
     const saved: Array<[THREE.Mesh, THREE.Material | THREE.Material[], number]> = [];
+    const highlighted = visibleSelection(appearance.selected, appearance.hidden);
     order.forEach((id, index) => {
-      const isSelected = id === appearance.selected;
+      const isSelected = id === highlighted;
       for (const mesh of meshesById.get(id) ?? []) {
         saved.push([mesh, mesh.material, mesh.renderOrder]);
         const material = idMaterialFor(index);
