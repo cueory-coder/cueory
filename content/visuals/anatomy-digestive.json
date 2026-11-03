@@ -1,0 +1,46 @@
+{
+  "id": "anatomy-digestive",
+  "title": "GI tract with liver, pancreas and gallbladder",
+  "kind": "model",
+  "lessonIds": ["U08-T01-L02", "U08-T03-L02", "U08-T04-L02"],
+  "status": "draft",
+  "model": { "file": "/models/anatomy/digestive.glb", "release": "BodyParts3D 3.0 (2011-09-15)", "via": "GitHub mirror Kevin-Mattheus-Moerman/BodyParts3D (OBJ converted to STL)" },
+  "labels": [
+    { "id": "FMA7131", "text": "esophagus", "group": "alimentary system", "source": "bp3d-FMA7131" },
+    { "id": "FMA7148", "text": "stomach", "group": "abdomen", "source": "bp3d-FMA7148" },
+    { "id": "FMA14542", "text": "appendix", "group": "alimentary system", "source": "bp3d-FMA14542" },
+    { "id": "FMA7197", "text": "liver", "group": "abdomen", "source": "bp3d-FMA7197" },
+    { "id": "FMA7202", "text": "gallbladder", "group": "alimentary system", "source": "bp3d-FMA7202" },
+    { "id": "FMA7206", "text": "duodenum", "group": "small intestine", "source": "bp3d-FMA7206" },
+    { "id": "FMA7207", "text": "jejunum", "group": "small intestine", "source": "bp3d-FMA7207" },
+    { "id": "FMA7208", "text": "ileum", "group": "small intestine", "source": "bp3d-FMA7208" },
+    { "id": "FMA14544", "text": "rectum", "group": "large intestine", "source": "bp3d-FMA14544" },
+    { "id": "FMA7198nsn", "text": "pancreas, nsn", "group": "pancreas", "source": "bp3d-FMA7198nsn" },
+    { "id": "FMA10419", "text": "pancreatic duct", "group": "pancreas", "source": "bp3d-FMA10419" },
+    { "id": "FMA14543nsn", "text": "colon, nsn", "group": "colon", "source": "bp3d-FMA14543nsn" },
+    { "id": "FMA76891", "text": "mesocolic taenia", "group": "longitudinal muscle layer of colon", "source": "bp3d-FMA76891" },
+    { "id": "FMA76893", "text": "free taenia", "group": "longitudinal muscle layer of colon", "source": "bp3d-FMA76893" },
+    { "id": "FMA76892", "text": "omental taenia", "group": "longitudinal muscle layer of colon", "source": "bp3d-FMA76892" }
+  ],
+  "depictions": [
+    { "id": "geometry", "what": "each structure's 3D shape and position as BodyParts3D models it, all in the database's one shared body coordinate system", "source": "bp3d-readme" }
+  ],
+  "sources": [
+    { "id": "bp3d-readme", "quote": "BodyParts3D is a dictionary-type database for anatomy in which shapes and positions of body parts are represented by 3D human models.", "book": "BodyParts3D", "section": "README_e.html, Release 3.0 (2011-09-15)", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
+    { "id": "bp3d-FMA7131", "quote": "FMA7131 esophagus", "book": "BodyParts3D", "section": "parts_list_e.txt, Release 3.0 (2011-09-15)", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
+    { "id": "bp3d-FMA7148", "quote": "FMA7148 stomach", "book": "BodyParts3D", "section": "parts_list_e.txt, Release 3.0 (2011-09-15)", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
+    { "id": "bp3d-FMA14542", "quote": "FMA14542 appendix", "book": "BodyParts3D", "section": "parts_list_e.txt, Release 3.0 (2011-09-15)", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
+    { "id": "bp3d-FMA7197", "quote": "FMA7197 liver", "book": "BodyParts3D", "section": "parts_list_e.txt, Release 3.0 (2011-09-15)", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
+    { "id": "bp3d-FMA7202", "quote": "FMA7202 gallbladder", "book": "BodyParts3D", "section": "parts_list_e.txt, Release 3.0 (2011-09-15)", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
+    { "id": "bp3d-FMA7206", "quote": "FMA7206 duodenum", "book": "BodyParts3D", "section": "parts_list_e.txt, Release 3.0 (2011-09-15)", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
+    { "id": "bp3d-FMA7207", "quote": "FMA7207 jejunum", "book": "BodyParts3D", "section": "parts_list_e.txt, Release 3.0 (2011-09-15)", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
+    { "id": "bp3d-FMA7208", "quote": "FMA7208 ileum", "book": "BodyParts3D", "section": "parts_list_e.txt, Release 3.0 (2011-09-15)", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
+    { "id": "bp3d-FMA14544", "quote": "FMA14544 rectum", "book": "BodyParts3D", "section": "parts_list_e.txt, Release 3.0 (2011-09-15)", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
+    { "id": "bp3d-FMA7198nsn", "quote": "FMA7198nsn pancreas, nsn", "book": "BodyParts3D", "section": "parts_list_e.txt, Release 3.0 (2011-09-15)", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
+    { "id": "bp3d-FMA10419", "quote": "FMA10419 pancreatic duct", "book": "BodyParts3D", "section": "parts_list_e.txt, Release 3.0 (2011-09-15)", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
+    { "id": "bp3d-FMA14543nsn", "quote": "FMA14543nsn colon, nsn", "book": "BodyParts3D", "section": "parts_list_e.txt, Release 3.0 (2011-09-15)", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
+    { "id": "bp3d-FMA76891", "quote": "FMA76891 mesocolic taenia", "book": "BodyParts3D", "section": "parts_list_e.txt, Release 3.0 (2011-09-15)", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
+    { "id": "bp3d-FMA76893", "quote": "FMA76893 free taenia", "book": "BodyParts3D", "section": "parts_list_e.txt, Release 3.0 (2011-09-15)", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
+    { "id": "bp3d-FMA76892", "quote": "FMA76892 omental taenia", "book": "BodyParts3D", "section": "parts_list_e.txt, Release 3.0 (2011-09-15)", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" }
+  ]
+}

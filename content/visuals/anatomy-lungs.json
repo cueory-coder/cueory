@@ -1,0 +1,30 @@
+{
+  "id": "anatomy-lungs",
+  "title": "lungs and airway",
+  "kind": "model",
+  "lessonIds": ["U03-T03-L01", "U03-T04-L02"],
+  "status": "draft",
+  "model": { "file": "/models/anatomy/lungs.glb", "release": "BodyParts3D 3.0 (2011-09-15)", "via": "GitHub mirror Kevin-Mattheus-Moerman/BodyParts3D (OBJ converted to STL)" },
+  "labels": [
+    { "id": "FMA7394", "text": "trachea", "group": "respiratory system", "source": "bp3d-FMA7394" },
+    { "id": "FMA7409", "text": "bronchus", "group": "respiratory system", "source": "bp3d-FMA7409" },
+    { "id": "FMA7371", "text": "lower lobe of left lung", "group": "lower lobe of lung", "source": "bp3d-FMA7371" },
+    { "id": "FMA7337", "text": "lower lobe of right lung", "group": "lower lobe of lung", "source": "bp3d-FMA7337" },
+    { "id": "FMA7370", "text": "upper lobe of left lung", "group": "left lung", "source": "bp3d-FMA7370" },
+    { "id": "FMA7383", "text": "middle lobe of lung", "group": "right lung", "source": "bp3d-FMA7383" },
+    { "id": "FMA7333", "text": "upper lobe of right lung", "group": "right lung", "source": "bp3d-FMA7333" }
+  ],
+  "depictions": [
+    { "id": "geometry", "what": "each structure's 3D shape and position as BodyParts3D models it, all in the database's one shared body coordinate system", "source": "bp3d-readme" }
+  ],
+  "sources": [
+    { "id": "bp3d-readme", "quote": "BodyParts3D is a dictionary-type database for anatomy in which shapes and positions of body parts are represented by 3D human models.", "book": "BodyParts3D", "section": "README_e.html, Release 3.0 (2011-09-15)", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
+    { "id": "bp3d-FMA7394", "quote": "FMA7394 trachea", "book": "BodyParts3D", "section": "parts_list_e.txt, Release 3.0 (2011-09-15)", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
+    { "id": "bp3d-FMA7409", "quote": "FMA7409 bronchus", "book": "BodyParts3D", "section": "parts_list_e.txt, Release 3.0 (2011-09-15)", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
+    { "id": "bp3d-FMA7371", "quote": "FMA7371 lower lobe of left lung", "book": "BodyParts3D", "section": "parts_list_e.txt, Release 3.0 (2011-09-15)", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
+    { "id": "bp3d-FMA7337", "quote": "FMA7337 lower lobe of right lung", "book": "BodyParts3D", "section": "parts_list_e.txt, Release 3.0 (2011-09-15)", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
+    { "id": "bp3d-FMA7370", "quote": "FMA7370 upper lobe of left lung", "book": "BodyParts3D", "section": "parts_list_e.txt, Release 3.0 (2011-09-15)", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
+    { "id": "bp3d-FMA7383", "quote": "FMA7383 middle lobe of lung", "book": "BodyParts3D", "section": "parts_list_e.txt, Release 3.0 (2011-09-15)", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
+    { "id": "bp3d-FMA7333", "quote": "FMA7333 upper lobe of right lung", "book": "BodyParts3D", "section": "parts_list_e.txt, Release 3.0 (2011-09-15)", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" }
+  ]
+}
