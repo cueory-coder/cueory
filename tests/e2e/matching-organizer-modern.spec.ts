@@ -123,25 +123,58 @@ test('organizer retains the touch-friendly pick and destination controls', async
   await checkAccessible(page);
 });
 
-test('reduced motion settles a matched pair with fade only', async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: 'reduce' });
+async function recordFeedback(page: Page) {
   await page.addInitScript(() => {
     const original = Element.prototype.animate;
-    const record = window as Window & { __cueoryFrames?: Keyframe[][] };
-    record.__cueoryFrames = [];
-    Element.prototype.animate = function (frames: Keyframe[] | PropertyIndexedKeyframes | null, options?: number | KeyframeAnimationOptions) {
-      if (this instanceof HTMLButtonElement && Array.isArray(frames)) record.__cueoryFrames!.push(frames);
-      return original.call(this, frames, options);
+    const record = window as Window & { __cueoryFeedback?: Animation[] };
+    record.__cueoryFeedback = [];
+    Element.prototype.animate = function (frames, options) {
+      const animation = original.call(this, frames, options);
+      if (this instanceof HTMLButtonElement) {
+        // Keep the effect running until the test changes the motion preference.
+        animation.pause();
+        record.__cueoryFeedback!.push(animation);
+      }
+      return animation;
     };
   });
-  await page.goto('/learn/study-skills/matching');
-  await page.getByRole('region', { name: 'Terms' }).getByRole('button', { name: 'Placeholder card 1, front.' }).click();
-  await page.getByRole('region', { name: 'Meanings' }).getByRole('button', { name: /^Placeholder card 1, back\./ }).click();
-  await expect(page.getByText('Matched: Placeholder card 1, front.')).toBeVisible();
-  const frames = await page.evaluate(() => (window as Window & { __cueoryFrames?: Keyframe[][] }).__cueoryFrames ?? []);
-  expect(frames).toHaveLength(2);
-  for (const pair of frames) {
-    expect(pair.map((step) => step.opacity)).toEqual([0.75, 1]);
-    expect(pair.every((step) => step.transform === undefined)).toBe(true);
+}
+
+async function correctFeedback(page: Page, mode: 'matching' | 'organizer') {
+  if (mode === 'matching') {
+    await page.getByRole('region', { name: 'Terms' }).getByRole('button', { name: 'Placeholder card 1, front.' }).click();
+    await page.getByRole('region', { name: 'Meanings' }).getByRole('button', { name: /^Placeholder card 1, back\./ }).click();
+    await expect(page.getByText('Matched: Placeholder card 1, front.')).toBeVisible();
+    await expect(page.getByRole('progressbar', { name: 'matching progress' })).toHaveAttribute('aria-valuenow', '1');
+  } else {
+    const board = page.getByTestId('organizer');
+    await board.getByRole('button', { name: /^apple(?:\s|$)/ }).click();
+    await board.getByRole('button', { name: '1. fruit', exact: true }).click();
+    await board.getByRole('button', { name: 'check', exact: true }).click();
+    await expect(board.getByRole('progressbar', { name: 'organizer progress' })).toHaveAttribute('aria-valuenow', '1');
+    await expect(board.getByTestId('organizer-live')).toContainText('1 right');
   }
-});
+}
+
+for (const mode of ['matching', 'organizer'] as const) {
+  test(`${mode}: reduced motion gives immediate feedback without Web Animations`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await recordFeedback(page);
+    await page.goto('/learn/study-skills/' + mode);
+    await correctFeedback(page, mode);
+    // Flush the post-render effect before checking that no animation was requested.
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    const count = await page.evaluate(() => (window as Window & { __cueoryFeedback?: Animation[] }).__cueoryFeedback?.length);
+    expect(count).toBe(0);
+  });
+
+  test(`${mode}: enabling reduced motion cancels feedback already in progress`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await recordFeedback(page);
+    await page.goto('/learn/study-skills/' + mode);
+    await correctFeedback(page, mode);
+    await expect.poll(() => page.evaluate(() => (window as Window & { __cueoryFeedback?: Animation[] }).__cueoryFeedback?.length)).toBe(mode === 'matching' ? 2 : 1);
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await expect.poll(() => page.evaluate(() => (window as Window & { __cueoryFeedback?: Animation[] }).__cueoryFeedback?.map((animation) => animation.playState))).toEqual(mode === 'matching' ? ['idle', 'idle'] : ['idle']);
+  });
+}

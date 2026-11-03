@@ -16,6 +16,7 @@ own licenses, noted where they are used. We don't take outside pull requests. To
 | --- | --- |
 | See what's done, what's waiting, and what needs you | [docs/STATUS.md](docs/STATUS.md) |
 | See what's coming next | [docs/ROADMAP.md](docs/ROADMAP.md) |
+| Run the project checks | [docs/TESTING.md](docs/TESTING.md) |
 | Follow the Cloudflare and Kit setup steps | [docs/SETUP.md](docs/SETUP.md) |
 | Change colors, fonts, sizes or spacing | [src/styles/tokens.css](src/styles/tokens.css) |
 | See the brand rules (colors, fonts, logo) | [docs/BRAND.md](docs/BRAND.md) |
