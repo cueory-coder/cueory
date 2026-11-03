@@ -160,6 +160,7 @@
   /* ---------- Share sheet (Task 103) ---------- */
   --container-share-card: min(64vw, 17.5rem); /* one card style in the share sheet: most of a phone, 280px elsewhere */
   --aspect-share-card: 1200 / 630;  /* the shared card images (Open Graph size) */
+  --aspect-lab-view: 4 / 3;  /* the anatomy lab picture, tablet width and up */
   --size-share-icon: 3.125rem;      /* the round share buttons: 50px circles */
   --border-share-icon: 1.5px;       /* the Espresso ring around each share button */
 
