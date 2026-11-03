@@ -237,15 +237,53 @@ describe('show me in the quiz', () => {
   const files: Record<string, string[]> = { skin: ['s'], muscle: ['m'], skeleton: ['k'] };
   const filesOf = (id: string) => files[id]!;
   it('unhides a hidden target, and its whole layer when the layer was peeled away', () => {
-    const plan = revealTargetPlan(layers, new Set(['m1', 'm2']), 'm1', filesOf, () => true);
+    const plan = revealTargetPlan(layers, new Set(['m1', 'm2']), 'm1', filesOf, () => true, new Set());
     expect(plan).toEqual({ unhide: ['m1', 'm1', 'm2'], fetch: null });
-    const single = revealTargetPlan(layers, new Set(['m1']), 'm1', filesOf, () => true);
+    const single = revealTargetPlan(layers, new Set(['m1']), 'm1', filesOf, () => true, new Set());
     expect(single.unhide).toEqual(['m1']);
   });
   it('fetches the target\'s layer first when its files are not loaded', () => {
-    const plan = revealTargetPlan(layers, new Set(['b1']), 'b1', filesOf, (url) => url === 's');
+    const plan = revealTargetPlan(layers, new Set(['b1']), 'b1', filesOf, (url) => url === 's', new Set());
     expect(plan.fetch?.id).toBe('skeleton');
     expect(plan.unhide).toEqual([]);
+  });
+});
+
+describe('show me with a loaded target in a partially downloaded layer', () => {
+  it('shows the loaded answer without requesting unrelated or failing files', async () => {
+    const organLayer: Layer = { id: 'organs', ids: ['fixture-a', 'fixture-b'] };
+    const files = ['shared.glb', 'unrelated.glb'];
+    const fetched: string[] = [];
+    const loader = createOnDemandLoader(async (url) => {
+      fetched.push(url);
+      if (url === 'unrelated.glb') throw new Error('offline');
+      return url;
+    });
+    loader.markLoaded('shared.glb');
+    // The first structure is already in the scene but is hidden while the
+    // quiz is active. The other GLB cannot be downloaded.
+    const plan = revealTargetPlan(
+      [organLayer],
+      new Set(['fixture-a', 'fixture-b']),
+      'fixture-a',
+      () => files,
+      loader.isLoaded,
+      new Set(['fixture-a']),
+    );
+    expect(plan).toEqual({ unhide: ['fixture-a'], fetch: null });
+    const stillHidden = new Set(['fixture-a', 'fixture-b']);
+    for (const id of plan.unhide) stillHidden.delete(id);
+    expect(stillHidden).toEqual(new Set(['fixture-b']));
+    expect(fetched).toEqual([]);
+  });
+
+  it('still fetches a layer for a target whose mesh has not arrived', () => {
+    const organLayer: Layer = { id: 'organs', ids: ['fixture-a'] };
+    const plan = revealTargetPlan(
+      [organLayer], new Set(['fixture-a']), 'fixture-a',
+      () => ['missing.glb'], () => false, new Set(),
+    );
+    expect(plan).toEqual({ unhide: [], fetch: organLayer });
   });
 });
 
