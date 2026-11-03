@@ -47,6 +47,37 @@ export function visibilityAfterLayerDownload(
   return next;
 }
 
+/**
+ * An initial multi-file scene is all-or-nothing. If any model request fails,
+ * dispose decoded models that already arrived, including requests that finish
+ * after the first failure. Unlike the on-demand loader below, these models
+ * were never integrated into the visible scene and cannot be reused on retry.
+ *
+ * Reject as soon as a load fails, rather than waiting for every in-flight
+ * request. The late requests still release their decoded resources.
+ */
+export async function loadModelsOrDispose<T>(
+  loads: readonly (() => Promise<T>)[],
+  dispose: (value: T) => void,
+): Promise<T[]> {
+  const completed: T[] = [];
+  let failed = false;
+  try {
+    // Promise.all preserves input order even when model requests finish out of order.
+    return await Promise.all(loads.map(async (load) => {
+      const value = await load();
+      if (failed) dispose(value);
+      else completed.push(value);
+      return value;
+    }));
+  } catch (error) {
+    failed = true;
+    for (const value of completed) dispose(value);
+    throw error;
+  }
+}
+}
+
 /** Some of a layer's files loaded and some failed: the loaded ones are kept here so the caller can still use them. */
 export class PartialLoadError<R> extends Error {
   constructor(
