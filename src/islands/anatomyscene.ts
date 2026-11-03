@@ -22,6 +22,7 @@ import {
   labelLines,
   labelRoomFor,
   placeLabels,
+  pickedStructure,
   wrapText,
   type ExportSize,
   type Rect,
@@ -159,7 +160,8 @@ export interface LabScene {
   clear(): void;
   setAppearance(appearance: Appearance): void;
   setColors(colors: LabColors): void;
-  pick(clientX: number, clientY: number): string | null;
+  /** The quiz uses nearest-hit picking so earlier answers do not bias later taps. */
+  pick(clientX: number, clientY: number, preferSelected?: boolean): string | null;
   project(ids: readonly string[]): ProjectedPoint[];
   /** The visible model's box on screen, in CSS pixels, or null when nothing is in front of the camera. */
   extent(): Rect | null;
@@ -559,14 +561,19 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
 
   const raycaster = new THREE.Raycaster();
 
-  function pick(clientX: number, clientY: number): string | null {
+  function pick(clientX: number, clientY: number, preferSelected = true): string | null {
     const rect = canvas.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return null;
     const pointer = new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
     raycaster.setFromCamera(pointer, camera);
     const candidates = order.flatMap((id) => (appearance.hidden.has(id) ? [] : meshesById.get(id)!));
-    const hit = raycaster.intersectObjects(candidates, false)[0];
-    return hit ? ((hit.object.userData['structureId'] as string | undefined) ?? null) : null;
+    const hits = raycaster.intersectObjects(candidates, false)
+      .map((hit) => hit.object.userData['structureId'])
+      .filter((id): id is string => typeof id === 'string');
+    // The selected opaque mesh may be behind another translucent mesh.
+    // Only prefer it if the ray actually intersects it; otherwise pick the nearest mesh.
+    const selected = preferSelected ? visibleSelection(appearance.selected, appearance.hidden) : null;
+    return pickedStructure(hits, selected);
   }
 
   function projectWith(
