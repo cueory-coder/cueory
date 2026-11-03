@@ -29,8 +29,8 @@ test('callback explains the JavaScript requirement when scripts are disabled', a
   try {
     const page = await context.newPage();
     await page.goto('/auth/callback');
-    await expect(page.locator('main')).toContainText('turn on javascript to finish signing in.');
-    await expect(page.locator('main').getByRole('link', { name: 'back to home' })).toHaveAttribute('href', '/#signup');
+    await expect(page.locator('noscript p')).toContainText('turn on javascript to finish signing in.');
+    await expect(page.locator('noscript a[href="/#signup"]')).toHaveText('back to home');
   } finally {
     await context.close();
   }
