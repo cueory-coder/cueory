@@ -35,16 +35,16 @@ create temporary view anon_reach as
   where n.nspname = 'public' and c.relkind = 'S' and has_sequence_privilege('anon', c.oid, p.privilege);
 
 -- What the website (anon or authenticated) can run in public, also as effective privileges. Only the functions on the
--- allowed list: check_answer (D-86), submit_flag and my_flags (D-88), record_study_events (Task 140), and the three
--- admin inbox functions, which refuse anyone but an admin with two-factor (Task 65). Each gets its own test file for
--- who may run it.
+-- allowed list: check_answer (D-86), submit_flag and my_flags (D-88), record_study_events (Task 140),
+-- delete_my_account (Task 60), and the three admin inbox functions, which refuse anyone but an admin with two-factor
+-- (Task 65). Each gets its own test file for who may run it.
 create temporary view website_functions as
   select 'public.' || p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' as function
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'public'
     and (has_function_privilege('anon', p.oid, 'execute')
          or has_function_privilege('authenticated', p.oid, 'execute'))
-    and p.proname <> all (array['check_answer', 'submit_flag', 'my_flags', 'record_study_events',
+    and p.proname <> all (array['check_answer', 'submit_flag', 'my_flags', 'record_study_events', 'delete_my_account',
                             'admin_list_flags', 'admin_mark_flag_handled', 'admin_reopen_flag']::name[]);
 
 select is_empty(
