@@ -40,6 +40,12 @@ const exceptions: Exception[] = [
   },
   {
     kind: 'size',
+    path: 'islands/LabelItBoard.tsx',
+    matches: text => text.includes('clamp(0px, calc('),
+    reason: 'label boxes are positioned from submitted image percentages at runtime',
+  },
+  {
+    kind: 'size',
     path: 'styles/global.css',
     matches: text =>
       /@media .*\b(?:40|64)rem\b/.test(text) ||
@@ -47,13 +53,14 @@ const exceptions: Exception[] = [
       /--scene-fade-(?:top|bottom): 0px/.test(text) ||
       /background-size: 220px 220px/.test(text) ||
       /^(?:border(?:-[^:]+)?|inset|block-size|text-decoration-thickness|max-block-size):/.test(text.trim()) ||
-      /env\(safe-area-inset-[^,]+, 0px\)/.test(text),
-    reason: 'responsive, safe-area, hairline, texture-tile and underline geometry are CSS primitives',
+      /env\(safe-area-inset-[^,]+, 0px\)/.test(text) ||
+      /(?:backdrop-filter: blur\([12]px\)|@supports .*blur\(1px\)|transform: translate(?:X|Y)?\([^)]*px)/.test(text),
+    reason: 'responsive, safe-area, hairline, texture-tile, blur and animation geometry are CSS primitives',
   },
 ];
 
 function exceptionFor(finding: Finding): Exception | undefined {
-  return exceptions.find(exception => exception.kind === finding.kind && exception.path === finding.path && exception.matches(finding.text));
+  return exceptions.find(exception => exception.kind === finding.kind && exception.path === finding.path && exception.matches(finding.text.trim()));
 }
 
 describe('design values', () => {
