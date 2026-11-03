@@ -10,6 +10,7 @@ import {
 } from 'react';
 import { createGeneration, createOnDemandLoader, filesForLayer, idsForFiles, initialLayerPlan, firstLayer, layerNeedsReveal, visibilityAfterLayerDownload, lazyPeel, lazyRestore, PartialLoadError, revealTargetPlan, showAllPlan, structureLoadNote, type OnDemandLoader } from './anatomylazy';
 import type { LabColors, LabScene, LoadResult } from './anatomyscene';
+import { STRUCTURE_PAGE_SIZE, visibleStructureGroups } from './anatomy-list-window';
 import { anatomyTriangleNote } from './anatomybudget';
 import {
   WHOLE_BODY_KEY,
@@ -142,6 +143,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
   const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
   const [selected, setSelected] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const [listLimit, setListLimit] = useState(STRUCTURE_PAGE_SIZE);
   const [labelsOn, setLabelsOn] = useState(false);
   const [quiz, setQuiz] = useState<QuizState | null>(null);
   const [transparent, setTransparent] = useState(false);
@@ -163,6 +165,8 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
   const readColorsRef = useRef<(() => LabColors) | null>(null);
   const pointerRef = useRef<{ id: number; x: number; y: number; moved: boolean } | null>(null);
   const activePointers = useRef(new Set<number>());
+  const nextListFocusId = useRef<string | null>(null);
+  const nextListItemRef = useRef<HTMLLIElement | null>(null);
   const labelIdsRef = useRef<string[]>([]);
   const setPlacedRef = useRef<((labels: OverlayLabel[]) => void) | null>(null);
   const labelNoteRef = useRef('');
@@ -175,6 +179,14 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
   const visible = useMemo(() => found.filter((id) => !hidden.has(id)), [found, hidden]);
   const groups = useMemo(() => groupStructures(system?.structures ?? [], query), [system, query]);
   const shownCount = groups.reduce((n, g) => n + g.items.length, 0);
+  const listedGroups = useMemo(() => visibleStructureGroups(groups, listLimit), [groups, listLimit]);
+  const listedCount = Math.min(shownCount, listLimit);
+  // After expanding, keyboard focus moves to the first new row, even if its 3D file is not loaded yet.
+  useEffect(() => {
+    if (nextListFocusId.current === null) return;
+    nextListItemRef.current?.focus();
+    nextListFocusId.current = null;
+  }, [listLimit]);
   // The whole-body view fetches a layer's model files only when the student gets to it (src/islands/anatomylazy.ts).
   const lazy = system?.key === WHOLE_BODY_KEY && !!system.model.layerFiles;
   const layers = useMemo(
@@ -605,6 +617,8 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                 aria-pressed={s.key === system.key}
                 onClick={() => {
                   if (s.key === system.key) return;
+                  nextListFocusId.current = null;
+                  setListLimit(STRUCTURE_PAGE_SIZE);
                   setQuery('');
                   setSystemKey(s.key);
                 }}
@@ -925,15 +939,21 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
             id="anatomy-search"
             type="search"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              nextListFocusId.current = null;
+              setListLimit(STRUCTURE_PAGE_SIZE);
+              setQuery(e.target.value);
+            }}
             className="min-h-11 w-full rounded-md border border-control bg-page px-3 text-ink"
             autoComplete="off"
           />
           <p className="text-sm text-ink-soft" aria-live="polite">
-            {shownCount === 1 ? '1 structure' : `${shownCount} structures`}
+            {listedCount < shownCount
+              ? `showing ${listedCount} of ${shownCount} structures`
+              : shownCount === 1 ? '1 structure' : `${shownCount} structures`}
           </p>
           <div className="space-y-4">
-            {groups.map((group) => (
+            {listedGroups.map((group) => (
               <div key={group.group ?? '—'}>
                 {group.group && <h3 className="text-sm text-ink-soft">{group.group}</h3>}
                 <ul className="mt-1 space-y-1">
@@ -945,7 +965,12 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                       system.model.files ?? [], (url) => loaderRef.current?.isLoaded(url) ?? false,
                     );
                     return (
-                      <li key={item.id} className="flex items-stretch gap-1">
+                      <li
+                        key={item.id}
+                        ref={nextListFocusId.current === item.id ? nextListItemRef : undefined}
+                        tabIndex={nextListFocusId.current === item.id ? -1 : undefined}
+                        className="flex items-stretch gap-1"
+                      >
                         <button
                           type="button"
                           aria-pressed={selected === item.id}
@@ -974,6 +999,18 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                 </ul>
               </div>
             ))}
+            {listedCount < shownCount && (
+              <button
+                type="button"
+                className={secondaryButton}
+                onClick={() => {
+                  nextListFocusId.current = groups.flatMap((group) => group.items)[listedCount]?.id ?? null;
+                  setListLimit((current) => current + STRUCTURE_PAGE_SIZE);
+                }}
+              >
+                show {Math.min(STRUCTURE_PAGE_SIZE, shownCount - listedCount)} more structures
+              </button>
+            )}
           </div>
         </section>
       </div>
