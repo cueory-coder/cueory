@@ -41,48 +41,78 @@ function scan(text: string, extension: string): Logging[] {
   const markup = text.slice(markupStart);
   const masked = markup.split('');
   const lower = markup.toLowerCase();
-  const opening = /<(script|style)\b/gi;
-  let match: RegExpExecArray | null;
-  while ((match = opening.exec(markup)) !== null) {
-    // Attribute expressions may contain > inside a string, function or object.
-    // Keep the complete opening tag for the template-expression AST below.
-    let quote = '';
-    let braces = 0;
-    let at = opening.lastIndex;
-    for (; at < markup.length; at++) {
-      const char = markup[at]!;
-      if (quote) {
-        if (char === '\\') at++;
-        else if (char === quote) quote = '';
-      } else if (char === '"' || char === "'" || char === '`') quote = char;
-      else if (char === '{') braces++;
-      else if (char === '}') braces = Math.max(0, braces - 1);
-      else if (char === '>' && braces === 0) break;
+
+  let quote = '';
+  let braces = 0;
+  let i = 0;
+
+  while (i < markup.length) {
+    const char = markup[i]!;
+    if (quote) {
+      if (char === '\\') i++;
+      else if (char === quote) quote = '';
+      i++;
+    } else if (braces > 0 && (char === '"' || char === "'" || char === '`')) {
+      quote = char;
+      i++;
+    } else if (char === '{') {
+      braces++;
+      i++;
+    } else if (char === '}') {
+      braces = Math.max(0, braces - 1);
+      i++;
+    } else if (braces === 0 && markup.startsWith('<!--', i)) {
+      const endComment = markup.indexOf('-->', i + 4);
+      i = endComment === -1 ? markup.length : endComment + 3;
+    } else if (braces === 0 && char === '<') {
+      const match = /^<(script|style)\b/i.exec(markup.slice(i, i + 8));
+      if (!match) {
+        i++;
+        continue;
+      }
+      const tagName = match[1]!.toLowerCase();
+      // Attribute expressions may contain > inside a string, function or object.
+      // Keep the complete opening tag for the template-expression AST below.
+      let tagQuote = '';
+      let tagBraces = 0;
+      let at = i + match[0].length;
+      for (; at < markup.length; at++) {
+        const c = markup[at]!;
+        if (tagQuote) {
+          if (c === '\\') at++;
+          else if (c === tagQuote) tagQuote = '';
+        } else if (c === '"' || c === "'" || c === '`') tagQuote = c;
+        else if (c === '{') tagBraces++;
+        else if (c === '}') tagBraces = Math.max(0, tagBraces - 1);
+        else if (c === '>' && tagBraces === 0) break;
+      }
+      const contentStart = Math.min(at + 1, markup.length);
+      if (markup.slice(i, contentStart).trimEnd().endsWith('/>')) {
+        i = contentStart;
+        continue;
+      }
+      // Read HTML raw-text end-tag boundaries explicitly. HTML permits whitespace
+      // and ignored attributes on an end tag, such as </script\t\n ignored>.
+      const endName = `</${tagName}`;
+      let close = lower.indexOf(endName, contentStart);
+      while (close !== -1 && !/[\s/>]/.test(lower[close + endName.length] ?? '')) {
+        close = lower.indexOf(endName, close + endName.length);
+      }
+      const closingEnd = close === -1 ? -1 : markup.indexOf('>', close + endName.length);
+      const contentEnd = close === -1 ? markup.length : close;
+      const end = closingEnd === -1 ? markup.length : closingEnd + 1;
+
+      if (tagName === 'script') {
+        const start = markupStart + contentStart;
+        found.push(...debugReferences(markup.slice(contentStart, contentEnd), text.slice(0, start).split('\n').length - 1));
+      }
+      for (let index = contentStart; index < contentEnd; index++) {
+        if (markup[index] !== '\n') masked[index] = ' ';
+      }
+      i = end;
+    } else {
+      i++;
     }
-    const contentStart = Math.min(at + 1, markup.length);
-    if (markup.slice(match.index!, contentStart).trimEnd().endsWith('/>')) {
-      opening.lastIndex = contentStart;
-      continue;
-    }
-    // Read HTML raw-text end-tag boundaries explicitly. HTML permits whitespace
-    // and ignored attributes on an end tag, such as </script\t\n ignored>.
-    const name = `</${match[1]!.toLowerCase()}`;
-    let close = lower.indexOf(name, contentStart);
-    while (close !== -1 && !/[\s/>]/.test(lower[close + name.length] ?? '')) {
-      close = lower.indexOf(name, close + name.length);
-    }
-    const closingEnd = close === -1 ? -1 : markup.indexOf('>', close + name.length);
-    const contentEnd = close === -1 ? markup.length : close;
-    const end = closingEnd === -1 ? markup.length : closingEnd + 1;
-    if (match[1]!.toLowerCase() === 'script') {
-      const start = markupStart + contentStart;
-      found.push(...debugReferences(markup.slice(contentStart, contentEnd), text.slice(0, start).split('\n').length - 1));
-    }
-    for (let index = contentStart; index < contentEnd; index++) {
-      if (markup[index] !== '\n') masked[index] = ' ';
-    }
-    // Ignore script-looking strings within this raw-text block.
-    opening.lastIndex = end;
   }
   // JSX parsing also visits executable {...} expressions in Astro attributes and
   // templates, while ordinary element text remains JSX text rather than code.
@@ -132,6 +162,8 @@ describe('debug-console source guard', () => {
       .toEqual([{ line: 1, method: 'log' }, { line: 3, method: 'debug' }]);
     expect(scan('<style>.x { content: "console.log()"; }</style\t\n ignored>\n<p>{console.debug("template")}</p>', '.astro'))
       .toEqual([{ line: 3, method: 'debug' }]);
+    expect(scan('<p>{"<style>"}{console.log("actual")}</p>', '.astro'))
+      .toEqual([{ line: 1, method: 'log' }]);
   });
 
   it('inspects script opening attributes including self-closing set:html', () => {
