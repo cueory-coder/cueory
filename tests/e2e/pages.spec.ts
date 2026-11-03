@@ -27,6 +27,15 @@ async function openFooterLinks(page: Page) {
 const middleCard = (page: Page) =>
   page.locator('#ways-to-study [data-mode-card][data-offset="0"]').getAttribute('data-name');
 
+/** Measure cards only after their turn transitions finish, including on a loaded runner. */
+const waitForCardTurn = async (page: Page) => {
+  await expect.poll(() => page.locator('#ways-to-study [data-mode-card]').evaluateAll((cards) =>
+    cards.flatMap((card) => card.getAnimations()).filter((animation) =>
+      animation.playState === 'running' || animation.pending,
+    ).length,
+  )).toBe(0);
+};
+
 const pages = [
   '/',
   '/learn/study-skills',
@@ -666,7 +675,7 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
     await section(page).getByRole('button', { name: 'next study mode' }).click();
     await expect.poll(() => middleCard(page)).toBe('cards');
     // Let the 700 ms glide finish (Task 109).
-    await page.waitForTimeout(900);
+    await waitForCardTurn(page);
     const look = (id: string) =>
       page.locator(`#mode-${id}`).evaluate((card) => {
         const box = card.getBoundingClientRect();
@@ -1001,7 +1010,7 @@ test.describe('study-mode preview (D-51)', () => {
     await page.goto('/');
     await bringToMiddle(page, 'cards');
     // Let the turn finish, so the card has come to rest before it is measured.
-    await page.waitForTimeout(400);
+    await waitForCardTurn(page);
     // The grow starts with the preview's bottle exactly over the vial it came from (Task 109: the same bottle moves
     // forward). (A click without moving the mouse there, so the hover lift doesn't change the vial while it is
     // measured.)
@@ -1158,8 +1167,7 @@ test.describe('study-mode preview (D-51)', () => {
     await expect.poll(() => card.evaluate((el) => getComputedStyle(el).scale)).toBe('1.04');
     const side = page.locator('#mode-cards');
     await side.hover();
-    await page.waitForTimeout(300);
-    expect(await side.evaluate((el) => getComputedStyle(el).scale)).toBe('none');
+    await expect.poll(() => side.evaluate((el) => getComputedStyle(el).scale)).toBe('none');
   });
 });
 
