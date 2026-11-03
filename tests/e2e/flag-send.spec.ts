@@ -143,6 +143,36 @@ test.describe('flag or comment with accounts on', () => {
     expect(rpcCalls).toHaveLength(2);
   });
 
+  test('a sign-in in another tab is picked up when the form opens again, without a reload (Codex on #237)', async ({ page, context }) => {
+    const { rpcCalls, accessToken } = await fixture(page, { signedIn: false });
+    await flagButton(page).click();
+    const panel = page.getByTestId('flag-form');
+    await expect(panel).toContainText('a free account is needed to send a report');
+    await flagButton(page).click();
+    await expect(flagButton(page)).toHaveAttribute('aria-expanded', 'false');
+
+    // Another tab of this site signs in: supabase-js keeps the session in shared local storage.
+    const other = await context.newPage();
+    await other.route('**/__blank', route => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>other tab</title>' }));
+    await other.goto('/__blank');
+    const exp = Math.floor(Date.now() / 1000) + 3600;
+    await other.evaluate(([token, user, expiresAt]) => {
+      localStorage.setItem('cueory-auth', JSON.stringify({
+        access_token: token, token_type: 'bearer', expires_in: 3600, expires_at: expiresAt, refresh_token: 'fixture-refresh',
+        user: { id: user, aud: 'authenticated', role: 'authenticated', email: 'student@example.test', app_metadata: {}, user_metadata: {} },
+      }));
+    }, [accessToken, USER_ID, exp] as const);
+    await other.close();
+
+    await flagButton(page).click();
+    await expect(page.getByRole('radio', { name: 'something confusing' })).toBeVisible();
+    await expect(panel).not.toContainText('a free account is needed to send a report');
+    await page.getByRole('radio', { name: 'something confusing' }).check();
+    await page.getByRole('button', { name: 'send', exact: true }).click();
+    await expect(page.getByTestId('flag-result')).toHaveText('thank you. your report is in.');
+    expect(rpcCalls).toHaveLength(1);
+  });
+
   test('signed out, the form offers the email instead and calls nothing', async ({ page }) => {
     const { rpcCalls, otherCalls } = await fixture(page, { signedIn: false });
     await flagButton(page).click();

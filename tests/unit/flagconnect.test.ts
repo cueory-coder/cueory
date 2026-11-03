@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { FlagReport } from '../../src/islands/flag';
-import { flagItemContext, flagSignedIn, makeFlagSend, type FlagClient } from '../../src/islands/flagconnect';
+import { flagItemContext, flagSignedIn, makeFlagSend, watchFlagSession, type FlagClient } from '../../src/islands/flagconnect';
 import type { FlagArgs } from '../../src/islands/flagsubmit';
 
 const reportId = '11111111-1111-4111-8111-111111111111';
@@ -40,6 +40,116 @@ describe('flagSignedIn', () => {
     expect(await flagSignedIn(fakeClient({ sessionError: { message: 'private detail' } }).load)).toBe(false);
     expect(await flagSignedIn(async () => null)).toBe(false);
     expect(await flagSignedIn(async () => { throw new Error('package download failed'); })).toBe(false);
+  });
+});
+
+/** A client whose session can change between reads, and which announces sign-ins and sign-outs like supabase-js. */
+function switchableClient() {
+  let session: { user: { id: string } } | null = null;
+  const listeners = new Set<(event: string, session: { user: { id: string } } | null) => void>();
+  const unsubscribed = vi.fn();
+  const client: FlagClient = {
+    auth: {
+      getSession: vi.fn(async () => ({ data: { session }, error: null })),
+      onAuthStateChange: vi.fn((callback) => {
+        listeners.add(callback);
+        return { data: { subscription: { unsubscribe: () => { listeners.delete(callback); unsubscribed(); } } } };
+      }),
+    },
+    rpc: () => Promise.resolve({ data: reportId, error: null }),
+  };
+  return {
+    client,
+    unsubscribed,
+    listeners,
+    /** Changes the stored session without announcing it (another tab wrote it). */
+    store: (id: string | null) => { session = id ? { user: { id } } : null; },
+    /** Announces a change, as supabase-js does for this tab and, by broadcast, for other tabs. */
+    announce: (id: string | null) => { session = id ? { user: { id } } : null; for (const l of listeners) l(id ? 'SIGNED_IN' : 'SIGNED_OUT', session); },
+  };
+}
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+describe('watchFlagSession (Codex on #237)', () => {
+  it('reads the session again on every check, so a sign-in in another tab is picked up when the form reopens', async () => {
+    const fake = switchableClient();
+    const seen: boolean[] = [];
+    const watch = watchFlagSession(async () => fake.client, (signedIn) => seen.push(signedIn));
+    watch.check();
+    await settle();
+    expect(seen).toEqual([false]);
+    fake.store('user-1');
+    watch.check();
+    await settle();
+    expect(seen).toEqual([false, true]);
+    expect(fake.client.auth.getSession).toHaveBeenCalledTimes(2);
+    watch.stop();
+  });
+
+  it('follows announced sign-ins and sign-outs once the client has loaded, and stops listening when stopped', async () => {
+    const fake = switchableClient();
+    const seen: boolean[] = [];
+    const watch = watchFlagSession(async () => fake.client, (signedIn) => seen.push(signedIn));
+    watch.check();
+    await settle();
+    expect(fake.listeners.size).toBe(1);
+    fake.announce('user-1');
+    fake.announce(null);
+    expect(seen).toEqual([false, true, false]);
+    watch.check();
+    await settle();
+    expect(fake.listeners.size).toBe(1); // one subscription, however many checks
+    watch.stop();
+    expect(fake.unsubscribed).toHaveBeenCalledTimes(1);
+    fake.announce('user-1');
+    watch.check();
+    await settle();
+    expect(seen).toEqual([false, true, false, false]);
+  });
+
+  it('reuses a check that is still running, and lets a newer announcement win over it', async () => {
+    const fake = switchableClient();
+    let gate: Promise<void> = Promise.resolve();
+    let loads = 0;
+    const seen: boolean[] = [];
+    const watch = watchFlagSession(async () => { loads += 1; await gate; return fake.client; }, (signedIn) => seen.push(signedIn));
+    watch.check();
+    await settle();
+    expect(seen).toEqual([false]);
+
+    let release: () => void = () => {};
+    gate = new Promise<void>((resolve) => { release = resolve; });
+    fake.store('user-1');
+    watch.check(); // the form opens while signed in elsewhere: this check reads true once its load finishes
+    watch.check(); // a second open while it runs reuses it
+    fake.announce(null); // ...but a sign-out is announced before it finishes
+    fake.store('user-1'); // what the slow check will read: older than the announcement
+    release();
+    await settle();
+    expect(loads).toBe(2);
+    expect(seen).toEqual([false, false]); // the stale "signed in" from the slow check is dropped
+    watch.stop();
+  });
+
+  it('reads as signed out, without listening, when accounts are off or the client cannot load', async () => {
+    for (const load of [async () => null, async () => { throw new Error('offline'); }]) {
+      const seen: boolean[] = [];
+      const watch = watchFlagSession(load, (signedIn) => seen.push(signedIn));
+      watch.check();
+      await settle();
+      expect(seen).toEqual([false]);
+      watch.stop();
+    }
+  });
+
+  it('still rechecks on open when the client has no auth events', async () => {
+    const { client } = fakeClient({ session: null });
+    const seen: boolean[] = [];
+    const watch = watchFlagSession(async () => client, (signedIn) => seen.push(signedIn));
+    watch.check();
+    await settle();
+    expect(seen).toEqual([false]);
+    watch.stop();
   });
 });
 

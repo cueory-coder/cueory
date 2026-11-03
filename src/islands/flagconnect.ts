@@ -12,8 +12,14 @@ import { studentMessage } from './rpcerrors';
 import { sessionStateFrom, type SessionReader } from './supabaseclient';
 import type { FlagReport } from './flag';
 
-/** The two parts of the Supabase client the flag form uses. */
+/** A sign-in or sign-out, in this tab or (through supabase-js's broadcast) another one. */
+type AuthListener = (event: string, session: { user?: { id?: unknown } | null } | null) => void;
+
+/** The parts of the Supabase client the flag form uses. */
 export interface FlagClient extends SessionReader {
+  auth: SessionReader['auth'] & {
+    onAuthStateChange?(callback: AuthListener): { data: { subscription: { unsubscribe(): void } } };
+  };
   rpc(name: 'submit_flag', args: FlagArgs): PromiseLike<{ data: unknown; error: unknown }>;
 }
 export type LoadFlagClient = () => Promise<FlagClient | null>;
@@ -25,6 +31,64 @@ export async function flagSignedIn(load: LoadFlagClient): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+export interface FlagSessionWatch {
+  /** Reads the session again (when the page is idle and every time the form opens). A check already running is reused. */
+  check(): void;
+  /** Stops listening; nothing is reported afterwards. */
+  stop(): void;
+}
+
+/**
+ * Keeps the form's signed-in state current instead of trusting the first answer: every `check()` reads the browser's
+ * session again, and once the client has loaded, sign-ins and sign-outs (from any tab) are followed as they happen.
+ * A check that was already running when a newer sign-in or sign-out arrived is dropped, so the newest state wins.
+ */
+export function watchFlagSession(load: LoadFlagClient, report: (signedIn: boolean) => void): FlagSessionWatch {
+  let stopped = false;
+  let running = false;
+  let latest = 0;
+  let subscription: { unsubscribe(): void } | null = null;
+
+  const listen = (client: FlagClient | null) => {
+    if (stopped || subscription || !client || typeof client.auth?.onAuthStateChange !== 'function') return;
+    try {
+      subscription = client.auth.onAuthStateChange((_event, session) => {
+        if (stopped) return;
+        latest += 1;
+        report(typeof session?.user?.id === 'string' && session.user.id !== '');
+      }).data.subscription;
+    } catch {
+      // Rechecking when the form opens still keeps it current.
+    }
+  };
+
+  return {
+    check() {
+      if (stopped || running) return;
+      running = true;
+      const mine = ++latest;
+      void (async () => {
+        let client: FlagClient | null = null;
+        try {
+          client = await load();
+        } catch {
+          client = null;
+        }
+        const signedIn = await flagSignedIn(async () => client);
+        running = false;
+        if (stopped) return;
+        if (mine === latest) report(signedIn);
+        listen(client);
+      })();
+    },
+    stop() {
+      stopped = true;
+      subscription?.unsubscribe();
+      subscription = null;
+    },
+  };
 }
 
 /** The FlagForm send callback, using the shared client. */

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import FlagForm from './FlagForm';
-import { flagSignedIn, makeFlagSend, type FlagClient, type LoadFlagClient } from './flagconnect';
+import { makeFlagSend, watchFlagSession, type FlagClient, type FlagSessionWatch, type LoadFlagClient } from './flagconnect';
 import { getSupabase } from './supabaseclient';
 
 interface Props {
@@ -15,26 +15,32 @@ const loadShared: LoadFlagClient = () => getSupabase() as unknown as Promise<Fla
 
 /**
  * Mounts FlagForm on the page (Task 171). Signed-in state comes from the browser's real session, checked once the
- * browser is idle (like the account corner) or as soon as the student opens the form, whichever comes first.
+ * browser is idle (like the account corner) and again every time the student opens the form. Once the client has
+ * loaded, a sign-in or sign-out in this tab or another one updates the form too, so it is never stuck on the first answer.
  */
 export default function FlagMount({ page, itemId, itemVersionId, variant }: Props) {
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
-  const started = useRef(false);
+  const watch = useRef<FlagSessionWatch | null>(null);
   const send = useMemo(() => makeFlagSend(loadShared), []);
-  const check = useCallback(() => {
-    if (started.current) return;
-    started.current = true;
-    void flagSignedIn(loadShared).then(setSignedIn);
-  }, []);
+  const check = useCallback(() => watch.current?.check(), []);
 
   useEffect(() => {
+    const current = watchFlagSession(loadShared, setSignedIn);
+    watch.current = current;
+    let cancelIdle: () => void;
     if ('requestIdleCallback' in window) {
-      const handle = window.requestIdleCallback(check, { timeout: 2500 });
-      return () => window.cancelIdleCallback(handle);
+      const handle = window.requestIdleCallback(() => current.check(), { timeout: 2500 });
+      cancelIdle = () => window.cancelIdleCallback(handle);
+    } else {
+      const timer = setTimeout(() => current.check(), 100);
+      cancelIdle = () => clearTimeout(timer);
     }
-    const timer = setTimeout(check, 100);
-    return () => clearTimeout(timer);
-  }, [check]);
+    return () => {
+      cancelIdle();
+      current.stop();
+      if (watch.current === current) watch.current = null;
+    };
+  }, []);
 
   return (
     <FlagForm

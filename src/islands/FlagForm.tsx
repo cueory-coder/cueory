@@ -20,11 +20,12 @@ const control = 'min-h-11 min-w-11 rounded-md border border-control px-4 py-2 te
 /**
  * A changed page, item or account starts a fresh form before it can render another report's draft. The first session
  * check finishing (null to signed in or out) is not a change of account, so a panel opened while it ran stays open.
+ * Neither is signing in after being signed out: the signed-out panel has no draft, so an open panel simply shows the form.
  */
 export default function FlagForm(props: Props) {
   const account = useRef<{ known: boolean | null; changes: number }>({ known: null, changes: 0 });
   if (props.signedIn !== null) {
-    if (account.current.known !== null && account.current.known !== props.signedIn) account.current.changes += 1;
+    if (account.current.known === true && !props.signedIn) account.current.changes += 1;
     account.current.known = props.signedIn;
   }
   return <ReportForm key={JSON.stringify([props.page, props.itemId, props.itemVersionId, account.current.changes])} {...props} />;
