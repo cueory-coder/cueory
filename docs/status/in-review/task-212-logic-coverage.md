@@ -1,0 +1,1 @@
+STATUS: inventory found only src/scripts/swoff.ts without a dedicated unit-test import; added focused lifecycle regression coverage. All other src/scripts/*.ts and src/islands/*.ts files are covered directly or through the existing service-worker source harness.
