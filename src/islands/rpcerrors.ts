@@ -5,6 +5,7 @@
  * Error messages are read verbatim from the migrations:
  *   check_answer:  supabase/migrations/20261101100000_attempts_and_check_answer.sql
  *   submit_flag:   supabase/migrations/20261101120000_flags_and_submit_flag.sql (PR #110)
+ *   any function:  "confirm your email to use this" (Task 169's confirmed-email migration, starting with submit_flag)
  *
  * Never echoes raw database text, SQL, table names or error codes to a student.
  */
@@ -26,6 +27,11 @@ function isDbError(e: unknown): e is DbError {
 export function studentMessage(fn: RpcFunction, error: unknown): string {
   if (!isDbError(error)) return 'something went wrong — please try again.';
   const msg = typeof error.message === 'string' ? error.message : '';
+
+  // Task 169: a signed-in account whose email is not confirmed yet is refused with this one message.
+  if (msg === 'confirm your email to use this') {
+    return 'please confirm your email first. the link is in the email we sent you.';
+  }
 
   if (fn === 'check_answer') {
     // 20261101100000_attempts_and_check_answer.sql

@@ -57,7 +57,14 @@ describe('makeSend for submit_flag', () => {
   });
 
   it.each([
-    { data: null, error: { code: '28000', message: 'sign in to send a report' } },
+    ['sign in to send a report', 'please sign in to send a report.'],
+    ['confirm your email to use this', 'please confirm your email first. the link is in the email we sent you.'],
+    ['that question was not found', 'that question could not be found — it may have been removed.'],
+  ])('passes a known refusal (%s) on as its plain sentence', async (raw, sentence) => {
+    expect(await stub({ data: null, error: { message: raw } }).send(good)).toEqual({ message: sentence });
+  });
+
+  it.each([
     { data: null, error: { code: '23505', message: 'internal database details' } },
     { data: null, error: null },
     { data: false, error: null },

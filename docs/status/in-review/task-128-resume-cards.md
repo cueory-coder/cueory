@@ -1,0 +1,1 @@
+status: Task 128, flashcard save and resume: saves only card IDs and the student's know/learning marks, offers continue or start over above a still-usable deck (sorting a card instead starts fresh), keeps the same card across shuffle, restores the results screen, and works with blocked storage.

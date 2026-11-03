@@ -606,6 +606,8 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
   }) => {
     await page.goto('/');
     await section(page).scrollIntoViewIfNeeded();
+    await expect(section(page)).toHaveAttribute('role', 'region');
+    await expect(section(page)).toHaveAttribute('aria-roledescription', 'carousel');
     await expect(page.getByRole('heading', { name: 'ways to study' })).toBeVisible();
     // The first vial in front, with the last one as its left neighbour: four on each side stand on the arc (Task 109;
     // on phones the outer ones run past the window's edges), and the one straight behind is hidden.
