@@ -188,6 +188,9 @@ export function firstLayer(layers: readonly Layer[]): Layer | null {
  * The scene needs these IDs on its FIRST load: once a file is cached it will not be added again.
  */
 export function idsForFiles(system: Pick<AnatomySystem, 'model'>, layers: readonly Layer[], urls: readonly string[]): string[] {
+  // A layer can span several files, so its full ID list would include meshes not downloaded yet.
+  // The whole-body builder records the exact file-to-ID mapping from each original system.
+  if (system.model.fileIds) return [...new Set(urls.flatMap((url) => system.model.fileIds?.[url] ?? []))];
   const wanted = new Set(urls);
   return [...new Set(layers.filter((layer) => filesForLayer(system, layer.id).some((url) => wanted.has(url))).flatMap((layer) => layer.ids))];
 }
