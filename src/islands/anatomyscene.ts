@@ -215,7 +215,9 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
   const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = !reducedMotion;
   controls.dampingFactor = 0.12;
-  controls.screenSpacePanning = true;
+  // Panning is off: it can only be done by right-drag or a two-finger drag, and the lab offers no keyboard or tap
+  // alternative for it (AGENTS.md: every dragging gesture needs one). Rotate, zoom and reset all have buttons and keys.
+  controls.enablePan = false;
   const onCameraChange = () => {
     lastMove = performance.now();
     visibilityDirty = true;
