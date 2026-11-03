@@ -3,8 +3,9 @@
  */
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gzipSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import { newsletter, site } from '../../src/config/site';
 
@@ -28,6 +29,74 @@ const requiredPages = [
   'subscribed.html',
 ];
 
+// Baseline gzip bytes for the initial JavaScript on each route at staging 65a05c3.
+// This includes external scripts in the HTML, Astro island components and renderers,
+// their static imports, and inline scripts. Dynamic imports are intentionally excluded.
+const initialJsBudget = {
+  '404.html': 75978,
+  'auth/callback.html': 76233,
+  'breaks.html': 76095,
+  'disclaimer.html': 76405,
+  'index.html': 80295,
+  'learn/study-skills/cards.html': 79473,
+  'learn/study-skills/fill-in.html': 78805,
+  'learn/study-skills/label-it.html': 78339,
+  'learn/study-skills/learn-mode.html': 78047,
+  'learn/study-skills/matching.html': 78053,
+  'learn/study-skills/organizer.html': 79191,
+  'learn/study-skills/questions.html': 79636,
+  'learn/study-skills.html': 75781,
+  'learn/video-sample.html': 76252,
+  'learn.html': 75452,
+  'play.html': 91853,
+  'preview/body-viewer.html': 79576,
+  'preview/email.html': 75055,
+  'preview/prose.html': 75055,
+  'preview/reminders.html': 76112,
+  'preview/share.html': 79128,
+  'preview/states.html': 75055,
+  'privacy.html': 76405,
+  'progress.html': 77916,
+  'reset-password.html': 75917,
+  'signin.html': 75184,
+  'signup.html': 75184,
+  'start.html': 76938,
+  'subscribed.html': 75055,
+  'support.html': 76405,
+  'terms.html': 76405,
+} satisfies Record<string, number>;
+
+function initialJsFiles(page: string): string[] {
+  const html = readFileSync(page, 'utf8');
+  const queue = [...html.matchAll(/(?:src|component-url|renderer-url)="([^"]+\.js(?:\?[^" ]*)?)"/g)].map((match) => match[1]!);
+  const files = new Set<string>();
+  const resolveAsset = (from: string, url: string) => {
+    if (url.startsWith(dist + '/')) return url;
+    return url.startsWith('/') ? join(dist, url.slice(1)) : join(from, '..', url);
+  };
+
+  while (queue.length > 0) {
+    const url = queue.shift()!.split('?')[0]!;
+    const file = resolveAsset(page, url);
+    if (files.has(file) || !file.endsWith('.js') || !existsSync(file)) continue;
+    files.add(file);
+    const source = readFileSync(file, 'utf8');
+    for (const match of source.matchAll(/(?:import\s+[^"']*?from\s*|import\s*)["']([^"']+\.js(?:\?[^"']*)?)["']/g)) {
+      const imported = match[1]!.split('?')[0]!;
+      queue.push(imported.startsWith('/') ? imported : join(file, '..', imported));
+    }
+  }
+  return [...files];
+}
+
+function initialJsGzipBytes(page: string): number {
+  const html = readFileSync(page, 'utf8');
+  const external = initialJsFiles(page).reduce((total, file) => total + gzipSync(readFileSync(file)).length, 0);
+  const inline = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)]
+    .reduce((total, match) => total + gzipSync(match[1]!).length, 0);
+  return external + inline;
+}
+
 /**
  * A built page's markup without the contents of its script elements, found by plain text search in a lowercase copy.
  * Used only to inspect our own build output (Astro's scripts can contain everyday words such as "window").
@@ -48,6 +117,14 @@ function markupOutsideScripts(html: string): string {
 
 describe.skipIf(!existsSync(dist))('built site', () => {
   const pages = htmlFiles(dist);
+
+  it('keeps each route within 10% of its initial JavaScript gzip budget', () => {
+    expect(pages.map((page) => relative(dist, page).replaceAll('\\', '/')).sort()).toEqual(Object.keys(initialJsBudget).sort());
+    for (const [page, budget] of Object.entries(initialJsBudget)) {
+      const actual = initialJsGzipBytes(join(dist, page));
+      expect(actual, `${page} initial JavaScript gzip bytes`).toBeLessThanOrEqual(Math.ceil(budget * 1.1));
+    }
+  });
 
   it('marketing pages preload the self-hosted serif (D-41), and every preloaded file exists', () => {
     const preloads = (html: string) =>
