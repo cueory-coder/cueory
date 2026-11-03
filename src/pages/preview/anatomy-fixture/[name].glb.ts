@@ -8,7 +8,9 @@ import { draftsAllowed } from '../../../islands/anatomylab';
 import { fixtureGlb } from '../../../../tests/fixtures/anatomyfixture';
 
 export function getStaticPaths() {
-  const env = { WORKERS_CI: process.env.WORKERS_CI, WORKERS_CI_BRANCH: process.env.WORKERS_CI_BRANCH };
+  const env = { WORKERS_CI: process.env.WORKERS_CI, WORKERS_CI_BRANCH: process.env.WORKERS_CI_BRANCH,
+    CUEORY_ANATOMY_DRAFTS: process.env.CUEORY_ANATOMY_DRAFTS,
+  };
   return draftsAllowed(env) ? [{ params: { name: 'fixture' } }] : [];
 }
 

@@ -308,6 +308,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
         loader
           .ensure(filesForLayer(system, layer.id))
           .then((results) => {
+            if (loader.isRetired()) return; // the system changed while this layer downloaded
             setFilesLoaded(loader.loadedCount());
             setLoad((prev) =>
               prev.state !== 'ready'
@@ -330,9 +331,10 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
             setAnnounce(hideAfter ? `peeled away ${hideAfter.id}, showing ${layer.id}` : `${layer.id} loaded and shown`);
           })
           .catch((err: unknown) => {
+            if (loader.isRetired()) return;
             setLayerError({ layer: layer.id, message: err instanceof Error ? err.message : String(err), retry: run });
           })
-          .finally(() => setPending((p) => new Set([...p].filter((id) => id !== layer.id))));
+          .finally(() => loader.isRetired() || setPending((p) => new Set([...p].filter((id) => id !== layer.id))));
       };
       run();
     },

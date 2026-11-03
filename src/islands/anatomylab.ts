@@ -157,6 +157,8 @@ export function sortSystems(systems: readonly AnatomySystem[]): AnatomySystem[] 
 export interface BuildEnv {
   WORKERS_CI?: string | undefined;
   WORKERS_CI_BRANCH?: string | undefined;
+  /** Explicit opt-in for local and test builds (the Playwright config sets it); never set on a deployed build. */
+  CUEORY_ANATOMY_DRAFTS?: string | undefined;
 }
 
 /** The live site's branch (wrangler.jsonc: production branch `main`). */
@@ -165,10 +167,11 @@ export const PRODUCTION_BRANCH = 'main';
 /**
  * May this build show drafts? Workers Builds (WORKERS_CI=1) builds every branch: drafts only when it names a branch and
  * that branch isn't `main`. A Workers build that doesn't say which branch counts as the live site, so a missing
- * variable can never leak drafts. Builds outside Workers Builds (a laptop, GitHub CI) never deploy, so they show drafts.
+ * variable can never leak drafts. Fails closed: any other build (a plain `npm run build`, an uploaded dist/) excludes
+ * drafts unless CUEORY_ANATOMY_DRAFTS=1 says so on purpose.
  */
 export function draftsAllowed(env: BuildEnv): boolean {
-  if (env.WORKERS_CI !== '1') return true;
+  if (env.WORKERS_CI !== '1') return env.CUEORY_ANATOMY_DRAFTS === '1';
   const branch = env.WORKERS_CI_BRANCH?.trim();
   return Boolean(branch) && branch !== PRODUCTION_BRANCH;
 }

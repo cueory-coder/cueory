@@ -153,10 +153,24 @@ describe('the draft gate (D-56)', () => {
     expect(draftsAllowed({ WORKERS_CI: '1', WORKERS_CI_BRANCH: '  ' })).toBe(false);
   });
 
-  it('shows drafts on staging, branch previews and builds outside Workers Builds', () => {
+  it('a plain production build with no Workers variables excludes drafts and the fixture', () => {
+    expect(draftsAllowed({})).toBe(false);
+    expect(draftsAllowed({ CUEORY_ANATOMY_DRAFTS: '0' })).toBe(false);
+    const draft = parseAnatomyFile(fixtureJson, 'tests/fixtures/anatomy-fixture.json', { fixture: true });
+    const data = labDataForBuild({}, fixtureJson, {});
+    expect(data.fixture).toBeNull();
+    expect(data.drafts).toBe(false);
+    expect(JSON.stringify(data)).not.toContain(draft.structures[0]!.name);
+  });
+
+  it('shows drafts only with the explicit local flag outside Workers Builds', () => {
+    expect(draftsAllowed({ CUEORY_ANATOMY_DRAFTS: '1' })).toBe(true);
+    expect(draftsAllowed({ WORKERS_CI: '1', WORKERS_CI_BRANCH: 'main', CUEORY_ANATOMY_DRAFTS: '1' })).toBe(false);
+  });
+
+  it('shows drafts on staging and branch previews', () => {
     expect(draftsAllowed({ WORKERS_CI: '1', WORKERS_CI_BRANCH: 'staging' })).toBe(true);
     expect(draftsAllowed({ WORKERS_CI: '1', WORKERS_CI_BRANCH: 'task-178/anatomy-lab' })).toBe(true);
-    expect(draftsAllowed({})).toBe(true);
   });
 
   it('puts no draft and no fixture in the live site\'s page data', () => {
@@ -186,7 +200,7 @@ describe('the draft gate (D-56)', () => {
         '../../../content/visuals/anatomy-skeleton-axial.json': file({ title: 'a axial' }),
       },
       fixtureJson,
-      {},
+      { CUEORY_ANATOMY_DRAFTS: '1' },
     );
     expect(data.systems.map((s) => s.key)).toEqual(['skeleton-axial', 'skeleton-limbs']);
   });

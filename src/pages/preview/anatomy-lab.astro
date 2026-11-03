@@ -19,6 +19,7 @@ const files = import.meta.glob('../../../content/visuals/anatomy-*.json', { eage
 const lab = labDataForBuild(files, fixtureJson, {
   WORKERS_CI: process.env.WORKERS_CI,
   WORKERS_CI_BRANCH: process.env.WORKERS_CI_BRANCH,
+  CUEORY_ANATOMY_DRAFTS: process.env.CUEORY_ANATOMY_DRAFTS,
 });
 // The whole-body view (every system's model together, for peeling layers) comes last, after the single systems.
 const body = wholeBody(lab.systems);

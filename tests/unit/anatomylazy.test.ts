@@ -33,6 +33,7 @@ describe('on-demand loader', () => {
     loader.retire();
     release('late');
     expect(await pending).toEqual([]);
+    expect(loader.isRetired()).toBe(true);
     expect(loader.isLoaded('late')).toBe(false);
     loader.markLoaded('x');
     expect(loader.loadedCount()).toBe(0);

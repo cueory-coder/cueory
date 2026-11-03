@@ -16,6 +16,8 @@ export interface OnDemandLoader<R> {
   loadedCount(): number;
   /** Retires the loader: files still in flight are ignored when they arrive, and later asks fetch nothing. */
   retire(): void;
+  /** True once retired: callers check this before any state change or announcement after an await. */
+  isRetired(): boolean;
 }
 
 export function createOnDemandLoader<R>(fetchOne: (url: string) => Promise<R>): OnDemandLoader<R> {
@@ -53,6 +55,7 @@ export function createOnDemandLoader<R>(fetchOne: (url: string) => Promise<R>): 
     },
     isLoaded: (url) => done.has(url),
     loadedCount: () => done.size,
+    isRetired: () => retired,
     retire() {
       retired = true;
       done.clear();
