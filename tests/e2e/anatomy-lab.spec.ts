@@ -108,6 +108,35 @@ test.describe('anatomy lab', () => {
     await page.getByRole('button', { name: 'reset view' }).click();
   });
 
+  test('switching body systems clears a stale search but reselecting the same system does not', async ({ page }) => {
+    await openLab(page);
+    const search = page.getByLabel('find a structure');
+    const picker = page.getByRole('group', { name: 'body system' });
+    const whole = picker.getByRole('button', { name: 'whole body', exact: true });
+    test.skip((await whole.count()) === 0, 'the real whole-body catalog is not included in this build');
+
+    await search.fill('fixture cube B');
+    await expect(list(page).getByRole('button', { name: 'fixture cube B', exact: true })).toBeVisible();
+    await expect(list(page).getByText('1 structure', { exact: true })).toBeVisible();
+
+    // A fixture-only search must not follow the student into the whole-body list.
+    await whole.click();
+    await expect(search).toHaveValue('');
+    await expect(list(page).locator('li').first()).toBeVisible();
+
+    // Clicking the already-selected system isn't a new system choice.
+    await search.fill('no-such-structure');
+    await expect(list(page).getByText('0 structures', { exact: true })).toBeVisible();
+    await whole.click();
+    await expect(search).toHaveValue('no-such-structure');
+
+    // Changing back restores the fixture's unfiltered five-name list.
+    await picker.getByRole('button', { name: 'test shapes (fixture)', exact: true }).click();
+    await expect(search).toHaveValue('');
+    await expect(list(page).getByRole('button', { name: 'fixture cube A', exact: true })).toBeVisible({ timeout: 20_000 });
+    await expect(list(page).getByText('5 structures', { exact: true })).toBeVisible();
+  });
+
   test('tapping the structure in the middle of the view selects it (raycasting)', async ({ page }) => {
     await openLab(page);
     const box = (await page.locator('canvas').boundingBox())!;
