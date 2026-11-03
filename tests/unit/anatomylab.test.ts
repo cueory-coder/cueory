@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   BEHIND_MARK,
+  TEXT_FALLBACK_BATCH,
   BODYPARTS3D_CREDIT,
   EXPORT_PAD,
   EXPORT_SIZES,
@@ -38,6 +39,7 @@ import {
   slugify,
   startQuiz,
   systemKeyFromPath,
+  textFallbackItems,
   toggleHidden,
   visibleSelection,
   wrapText,
@@ -260,6 +262,23 @@ describe('the structure list', () => {
     expect(matchesSearch('right part', 'art')).toBe(false);
     expect(groupStructures(structures, 'part').map((g) => g.items.map((i) => i.id))).toEqual([['A'], ['B']]);
     expect(groupStructures(structures, 'nothing like this')).toEqual([]);
+  });
+
+  it('keeps the full text-only catalog searchable while showing a bounded first page', () => {
+    const structures = Array.from({ length: TEXT_FALLBACK_BATCH + 3 }, (_, i) => ({
+      id: `TEST${i}`,
+      text: `sample part ${i}`,
+      group: i < TEXT_FALLBACK_BATCH ? 'first group' : 'second group',
+    }));
+    const all = groupStructures(structures);
+    expect(textFallbackItems(all, TEXT_FALLBACK_BATCH).map((item) => item.id)).toEqual(
+      structures.slice(0, TEXT_FALLBACK_BATCH).map((item) => item.id),
+    );
+    expect(textFallbackItems(all, TEXT_FALLBACK_BATCH + 3)).toHaveLength(TEXT_FALLBACK_BATCH + 3);
+    // Searching is performed over every source name before the result window is applied.
+    expect(textFallbackItems(groupStructures(structures, 'part 42'), TEXT_FALLBACK_BATCH).map((item) => item.id)).toEqual(['TEST42']);
+    expect(textFallbackItems(all, 0)).toEqual([]);
+    expect(textFallbackItems(all, Number.NaN)).toEqual([]);
   });
 
   it('hides, shows and shows only one', () => {
