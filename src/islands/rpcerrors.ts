@@ -6,11 +6,18 @@
  *   check_answer:  supabase/migrations/20261101100000_attempts_and_check_answer.sql
  *   submit_flag:   supabase/migrations/20261101120000_flags_and_submit_flag.sql (PR #110)
  *   any function:  "confirm your email to use this" (Task 169's confirmed-email migration, starting with submit_flag)
+ *   delete_my_account: supabase/migrations/20261102160000_fresh_sign_in_and_name_rules.sql (Task 302)
  *
  * Never echoes raw database text, SQL, table names or error codes to a student.
  */
 
-export type RpcFunction = 'check_answer' | 'submit_flag';
+export type RpcFunction = 'check_answer' | 'submit_flag' | 'delete_my_account';
+
+/** delete_my_account's refusals (20261102160000_fresh_sign_in_and_name_rules.sql). */
+export const DELETE_SIGNED_OUT = 'sign in to delete your account';
+export const DELETE_REAUTH = 'please sign in again to delete your account';
+/** The SQLSTATE delete_my_account raises when the sign-in is older than 10 minutes. */
+export const DELETE_REAUTH_CODE = '28R01';
 
 interface DbError {
   /** PostgreSQL error message (the string after `raise exception`). */
@@ -70,6 +77,13 @@ export function studentMessage(fn: RpcFunction, error: unknown): string {
     }
     if (msg === 'that is a lot of reports; please try again later') {
       return "you've sent a lot of reports recently — please try again later.";
+    }
+  }
+
+  if (fn === 'delete_my_account') {
+    if (msg === DELETE_SIGNED_OUT) return 'please sign in to delete your account.';
+    if (msg === DELETE_REAUTH || error.code === DELETE_REAUTH_CODE) {
+      return 'for your safety, please sign in again to delete your account.';
     }
   }
 
