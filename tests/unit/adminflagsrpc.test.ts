@@ -288,6 +288,14 @@ describe('inboxAdapter (the shape the /admin/flags page takes)', () => {
     expect(await adapter.markHandled(flagId)).toEqual({ kind: 'ok', value: '2026-11-02T12:00:00+00:00' });
   });
 
+  it('says so when the list was cut off at the cap, and not otherwise', async () => {
+    const full = Array.from({ length: 200 }, (_, i) => row({ id: id(1000 - i) }));
+    const capped = await inboxAdapter(fake({ data: full, error: null }), 200).loadFlags('open');
+    expect(capped).toMatchObject({ kind: 'ok', complete: false });
+    const whole = await inboxAdapter(fake({ data: [row()], error: null })).loadFlags('open');
+    expect(whole.kind === 'ok' && whole.complete).toBeUndefined();
+  });
+
   it('reopens a report (Task 305)', async () => {
     const rpc = fake({ data: null, error: null });
     expect(await inboxAdapter(rpc).reopen(flagId)).toEqual({ kind: 'ok', value: null });

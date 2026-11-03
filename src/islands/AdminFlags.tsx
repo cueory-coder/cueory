@@ -32,7 +32,7 @@ interface Props {
 
 const control = 'min-h-11 min-w-11 rounded-md border border-control bg-page px-4 py-2 text-ink aria-disabled:opacity-50';
 
-type Screen = { kind: 'loading' } | { kind: 'refused' } | { kind: 'failed' } | { kind: 'ok'; rows: FlagRow[] };
+type Screen = { kind: 'loading' } | { kind: 'refused' } | { kind: 'failed' } | { kind: 'ok'; rows: FlagRow[]; complete: boolean };
 
 /** A client that could not load: the page says the reports could not be loaded and offers to try again. */
 const FAILED_ADAPTER: AdminFlagsAdapter = Object.freeze({
@@ -144,7 +144,7 @@ export default function AdminFlags({ sampleRows }: Props) {
     const { handledAt } = outcome;
     setScreen((s) => {
       if (s.kind !== 'ok') return s;
-      return { kind: 'ok', rows: handledAt !== null ? withHandled(s.rows, row.id, handledAt) : withReopened(s.rows, row.id) };
+      return { ...s, rows: handledAt !== null ? withHandled(s.rows, row.id, handledAt) : withReopened(s.rows, row.id) };
     });
     setAnnouncement(`${action === 'mark' ? 'marked handled' : 'reopened'}: ${reasonLabel(row.reason)}, ${formatWhen(row.created_at, timeZone)}.`);
   };
@@ -227,6 +227,12 @@ export default function AdminFlags({ sampleRows }: Props) {
             try again
           </button>
         </div>
+      )}
+
+      {screen.kind === 'ok' && !screen.complete && (
+        <p className="mt-4" data-testid="admin-flags-capped">
+          showing the newest 2,000 reports; older ones are not shown. mark some handled to see more.
+        </p>
       )}
 
       {screen.kind === 'ok' && groups.length === 0 && (

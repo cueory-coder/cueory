@@ -42,15 +42,24 @@ test.beforeAll(async () => {
           reason: 'other', comment: 'sample comment: already looked at.', status: 'handled',
           created_at: '2026-11-01T09:00:00+00:00', handled_at: '2026-11-01T12:00:00+00:00' },
       ];
+      if (who === 'capped') {
+        // 2,000 open reports: ten full pages of 200 (more than the page will load).
+        rows = Array.from({ length: 2100 }, (_, i) => ({ id: id(5000 + i), user_id: id(900), page: '/play', item_id: null,
+          item_version_id: null, reason: 'typo', comment: 'sample ' + i, status: 'open',
+          created_at: new Date(Date.UTC(2026, 10, 2, 10, 0, 0) - i * 1000).toISOString(), handled_at: null }));
+      }
       let failures = who === 'broken' ? 1 : 0;
       const refusal = { code: '42501', message: 'only the site owner, signed in with two-factor, can do this', details: null, hint: null };
       const later = value => new Promise(resolve => setTimeout(() => resolve(value), 50));
       const rpc = (fn, args) => {
         window.rpcCalls.push([fn, args]);
         if (failures > 0) { failures -= 1; return later({ data: null, error: { code: '57014', message: 'provider-private-detail' } }); }
-        if (who !== 'admin' && who !== 'broken') return later({ data: null, error: refusal });
+        if (who !== 'admin' && who !== 'broken' && who !== 'capped') return later({ data: null, error: refusal });
         if (fn === 'admin_list_flags') {
-          return later({ data: rows.filter(r => r.status === args.flag_status).slice(0, args.max_rows), error: null });
+          const sorted = rows.filter(r => r.status === args.flag_status)
+            .sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id));
+          const start = args.before_id ? sorted.findIndex(r => r.id === args.before_id) + 1 : 0;
+          return later({ data: sorted.slice(start, start + args.max_rows), error: null });
         }
         const row = rows.find(r => r.id === args.flag_id);
         if (!row) return later({ data: null, error: { code: '22023', message: 'that report was not found' } });
@@ -64,7 +73,7 @@ test.beforeAll(async () => {
         }
         return later({ data: null, error: { code: 'PGRST202', message: 'unknown function' } });
       };
-      const level = who === 'admin' || who === 'broken' ? 'aal2' : 'aal1';
+      const level = who === 'admin' || who === 'broken' || who === 'capped' ? 'aal2' : 'aal1';
       const nextLevel = who === 'student' ? 'aal1' : 'aal2';
       window.fixtureClient = {
         rpc,
@@ -131,6 +140,19 @@ test.describe('/admin/flags wired to the database functions', () => {
       ['admin_reopen_flag', { flag_id: id(3) }],
       list('open'),
     ]);
+  });
+
+  test('a list cut off at 2,000 reports says so in plain words', async ({ page }) => {
+    await fixture(page, 'who=capped');
+    await expect(page.getByTestId('admin-flags-capped')).toHaveText(
+      'showing the newest 2,000 reports; older ones are not shown. mark some handled to see more.');
+    await expect(page.getByTestId('admin-flags-row')).toHaveCount(2000);
+  });
+
+  test('a complete list shows no cap notice', async ({ page }) => {
+    await fixture(page, 'who=admin');
+    await expect(page.getByTestId('admin-flags-row')).toHaveCount(2);
+    await expect(page.getByTestId('admin-flags-capped')).toHaveCount(0);
   });
 
   test('a student is refused with the one sentence, and stays on the page', async ({ page }) => {

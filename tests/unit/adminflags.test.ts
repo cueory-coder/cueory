@@ -191,7 +191,19 @@ describe('mark handled', () => {
     await makeMarker(adapter)(id(1));
     const handled = await loadView(adapter, 'handled');
     expect(handled.kind === 'ok' && handled.rows.map((r) => [r.id, r.handled_at])).toEqual([[id(1), '2026-11-02T10:00:00.000Z']]);
-    expect(await loadView(adapter, 'open')).toEqual({ kind: 'ok', rows: [] });
+    expect(await loadView(adapter, 'open')).toEqual({ kind: 'ok', rows: [], complete: true });
+  });
+});
+
+describe('a list cut off at the cap (Task 305)', () => {
+  const adapter = (complete?: boolean): AdminFlagsAdapter => ({
+    loadFlags: async () => ({ kind: 'ok', value: [row(1)], ...(complete === undefined ? {} : { complete }) }),
+    markHandled: async () => ({ kind: 'failed' }), reopen: async () => ({ kind: 'failed' }),
+  });
+  it('is reported by the view, and a plain outcome counts as complete', async () => {
+    expect(await loadView(adapter(false), 'open')).toMatchObject({ kind: 'ok', complete: false });
+    expect(await loadView(adapter(true), 'open')).toMatchObject({ kind: 'ok', complete: true });
+    expect(await loadView(adapter(), 'open')).toMatchObject({ kind: 'ok', complete: true });
   });
 });
 

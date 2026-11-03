@@ -20,7 +20,8 @@ export type FlagStatus = 'open' | 'handled';
 export const STATUSES: readonly FlagStatus[] = ['open', 'handled'];
 
 /** What an adapter call can come back with. `refused` is not an admin, signed out, or no two-factor. */
-export type Outcome<T> = { kind: 'ok'; value: T } | { kind: 'refused' } | { kind: 'failed' };
+/** `complete: false` on an ok outcome means the list was cut off at a cap; leaving it out means complete. */
+export type Outcome<T> = { kind: 'ok'; value: T; complete?: boolean } | { kind: 'refused' } | { kind: 'failed' };
 
 export interface AdminFlagsAdapter {
   /** Every report with this status. The value is checked by `parseFlagRows`. */
@@ -98,7 +99,7 @@ export function parseFlagRows(input: unknown): FlagRow[] | null {
 
 // --------------------------------------------------------------------------------------------------- the view
 
-export type View = { kind: 'ok'; rows: FlagRow[] } | { kind: 'refused' } | { kind: 'failed' };
+export type View = { kind: 'ok'; rows: FlagRow[]; complete: boolean } | { kind: 'refused' } | { kind: 'failed' };
 
 /** Loads one status through the adapter. A thrown error is a failure; bad rows are a failure, never shown. */
 export async function loadView(adapter: AdminFlagsAdapter, status: FlagStatus): Promise<View> {
@@ -113,7 +114,7 @@ export async function loadView(adapter: AdminFlagsAdapter, status: FlagStatus): 
   const rows = parseFlagRows(outcome.value);
   if (!rows) return { kind: 'failed' };
   // The adapter is asked for one status; `inbox` keeps only that one either way, newest first.
-  return { kind: 'ok', rows: inbox(rows, { handled: status === 'handled' }) };
+  return { kind: 'ok', rows: inbox(rows, { handled: status === 'handled' }), complete: outcome.complete !== false };
 }
 
 /**
