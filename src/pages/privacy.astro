@@ -17,8 +17,8 @@ import { newsletter, promo, site } from '../config/site';
 
     <h2>Right now</h2>
     <p>
-      You can read lessons without an account and without giving us anything. Nothing you do on a lesson is sent to
-      us.
+      You can read lessons without an account and without giving us anything. Without an account, nothing you do on a
+      lesson is sent to us.
     </p>
     <p>
       If you pick Light or Dark at the bottom of a page, your browser remembers that choice as
@@ -27,7 +27,8 @@ import { newsletter, promo, site } from '../config/site';
 
     <h2>Your progress on this device</h2>
     <p>
-      Your study progress is kept by your browser, on your device only. It never reaches us. It is only:
+      Unless you choose to bring it into your account, your study progress is kept by your browser, on your device
+      only. It is only:
     </p>
     <ul>
       <li>your answers to the two setup questions (which course, and your exam date), if you answer them;</li>
@@ -37,6 +38,10 @@ import { newsletter, promo, site } from '../config/site';
     <p>
       The saved setup answers, card piles and stars are stored as <code>cueory-progress</code> in your browser's local
       storage. This isn't an account, and it stays on the device you're using.
+    </p>
+    <p>
+      If you're signed in, your work on real questions is also saved to your account (see "If you create an account"
+      below).
     </p>
     <p>
       Older per-deck stars can still be saved under <code>{'cueory-stars-<deck>'}</code> until they are moved into
@@ -133,8 +138,8 @@ import { newsletter, promo, site } from '../config/site';
     </ul>
     <p>
       If you choose Google sign-in, you are sent to Google to finish signing in. Google then gives Supabase, which runs
-      our accounts, some details from your Google account, such as its email address, and Supabase keeps them with
-      your account.
+      our accounts, some details from your Google account, such as its email address, name and profile-picture link,
+      and Supabase keeps them with your account.
     </p>
     <p>
       When you're signed in, the browser keeps your sign-in session under <code>cueory-auth</code>. It includes your
@@ -144,17 +149,16 @@ import { newsletter, promo, site } from '../config/site';
       <code>cueory-auth-flows-code-verifier</code>. Signing out removes them.
     </p>
     <p>
-      If you choose to bring your saved guest progress into an account, the browser will use
-      <code>{'cueory-guest-imported:<id>'}</code> to remember that it has already imported for that account, or that you chose not to. Here,
-      <code>{'<id>'}</code> stands for that account's identifier, not a public name.
+      If you bring your guest progress into an account, your card piles for published questions become review
+      schedules and your course and exam date become an exam plan in your account; stars stay on this device. The
+      browser uses <code>{'cueory-guest-imported:<id>'}</code> to remember that it has already imported for that
+      account, or that you chose not to. Here, <code>{'<id>'}</code> stands for that account's identifier, not a
+      public name.
     </p>
     <p>
-      When account controls launch, the <code>/account</code> page will let you download your account data and
-      request deletion of your account and linked study data. That page and those controls are not available yet.
-      Today, <a href="/progress">your progress page</a> lets you download or forget the setup answers, piles and stars
-      stored on this device.
-      When account deletion becomes available, it will also clear Cueory study progress and settings saved in this
-      browser on this device.
+      On the <code>/account</code> page you can download your account data, change your display name, or delete your
+      account. Deleting it removes your account and all study data linked to it, and clears Cueory progress and
+      settings saved in this browser.
     </p>
 
     <h2>Who handles data for us</h2>
