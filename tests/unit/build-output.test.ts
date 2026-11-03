@@ -178,3 +178,62 @@ describe.skipIf(!existsSync(dist))('built site', () => {
     expect(served.items.every((item: { status: string }) => item.status === 'sample')).toBe(true);
   });
 
+  it('home page: "video" comes first, "learn" is Learn mode, and modes not built yet say coming soon (D-43, D-50, D-60)', () => {
+    const html = readFileSync(join(dist, 'index.html'), 'utf8');
+    const card = (id: string) => {
+      const match = new RegExp(`<div[^>]*id="mode-${id}"[\\s\\S]*?<h3[^>]*>([^<]+)</h3>[\\s\\S]*?(?:href="([^"]+)"|coming soon)`).exec(html);
+      expect(match, `card ${id}`).not.toBeNull();
+      return { name: match![1]!.trim(), href: match![2] };
+    };
+    expect(card('video')).toEqual({ name: 'video', href: undefined });
+    expect(card('learn')).toEqual({ name: 'learn', href: '/learn/study-skills/learn-mode' });
+    expect(card('fill-in')).toEqual({ name: 'fill-in', href: '/learn/study-skills/fill-in' });
+    expect(card('questions')).toEqual({ name: 'questions', href: '/learn/study-skills/questions' });
+    expect(card('review')).toEqual({ name: 'review', href: undefined });
+    expect(card('level-test')).toEqual({ name: 'level test', href: undefined });
+    expect(html).not.toContain('id="mode-lesson"');
+  });
+
+  it('keeps the signup thank-you page out of search engines', () => {
+    const html = readFileSync(join(dist, 'subscribed.html'), 'utf8');
+    expect(html).toContain('<meta name="robots" content="noindex, nofollow">');
+  });
+
+  it('home page signup matches the Kit settings, and the CSP allows only that form address', () => {
+    const html = readFileSync(join(dist, 'index.html'), 'utf8');
+    const csp = /<meta http-equiv="content-security-policy" content="([^"]+)"/.exec(html)![1];
+    const formAction = /form-action ([^;]+)/.exec(csp)![1].trim();
+    if (newsletter.formAction) {
+      expect(html).toContain(`action="${newsletter.formAction}"`);
+      expect(html).toContain(`name="${newsletter.emailFieldName}"`);
+      expect(formAction).toBe(`'self' ${new URL(newsletter.formAction).origin}`);
+    } else {
+      expect(html).toContain('signups open soon.');
+      expect(html).not.toContain('<form');
+      expect(formAction).toBe("'self'");
+    }
+  });
+
+  it('ships the security headers file', () => {
+    const headers = readFileSync(join(dist, '_headers'), 'utf8');
+    for (const h of [
+      "frame-ancestors 'none'",
+      'Strict-Transport-Security',
+      'X-Content-Type-Options: nosniff',
+      'Referrer-Policy',
+      'Permissions-Policy',
+    ]) {
+      expect(headers).toContain(h);
+    }
+  });
+
+  it('never ships secret-looking values', () => {
+    const files = readdirSync(join(dist, '_astro')).map((f) => join(dist, '_astro', f));
+    for (const f of [...pages.map((p) => p), ...files.filter((f) => f.endsWith('.js'))]) {
+      const text = readFileSync(f, 'utf8');
+      expect(text, f).not.toMatch(/sb_secret_[A-Za-z0-9]/);
+      expect(text, f).not.toMatch(/service_role/);
+      expect(text, f).not.toMatch(/api_secret|kit_api_key/i);
+    }
+  });
+});
