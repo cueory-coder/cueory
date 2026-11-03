@@ -9,8 +9,13 @@ const tokenFile = join(srcRoot, 'styles/tokens.css');
 // Their CSS consumers document the same names in global.css, so they do not have a static declaration.
 const runtimeProperties = new Set([
   'progress',
+  // Task 109: ModesCarousel.astro sets these on each vial for its place on the ring.
+  'ring-bright',
+  'ring-depth',
   'ring-gaps',
   'ring-layer',
+  'ring-rise',
+  'ring-saturate',
   'ring-scale',
   'ring-shift',
   'ring-turn',
