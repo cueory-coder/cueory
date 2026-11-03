@@ -184,6 +184,32 @@ export function firstLayer(layers: readonly Layer[]): Layer | null {
 }
 
 /**
+ * All structure IDs represented by the requested model files, including deeper-layer IDs when a file is shared.
+ * The scene needs these IDs on its FIRST load: once a file is cached it will not be added again.
+ */
+export function idsForFiles(system: Pick<AnatomySystem, 'model'>, layers: readonly Layer[], urls: readonly string[]): string[] {
+  const wanted = new Set(urls);
+  return [...new Set(layers.filter((layer) => filesForLayer(system, layer.id).some((url) => wanted.has(url))).flatMap((layer) => layer.ids))];
+}
+
+/** Start with only the outermost layer's files, but map every structure in those files before caching them. */
+export function initialLayerPlan(
+  system: AnatomySystem,
+  layers: readonly Layer[],
+): { files: string[]; ids: string[]; hidden: Set<string> } | null {
+  const first = firstLayer(layers);
+  if (!first) return null;
+  const files = filesForLayer(system, first.id);
+  if (files.length === 0) return null;
+  const visible = new Set(first.ids);
+  return {
+    files,
+    ids: idsForFiles(system, layers, files),
+    hidden: new Set(system.structures.filter((structure) => !visible.has(structure.id)).map((structure) => structure.id)),
+  };
+}
+
+/**
  * Peel in the lazy view: show the layer just under the outermost shown one (it may need fetching), then hide the
  * outermost. Null when nothing is deeper. The view is never empty, because the deeper layer is shown first.
  */
