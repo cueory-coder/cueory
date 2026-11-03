@@ -43,4 +43,20 @@ describe('Pillo stylesheet delivery', () => {
       expect(styles, relative(dist, path)).not.toMatch(/\.pillo(?:[\s.{:#\[]|-)/);
     }
   });
+
+  it('delivers every shared variable referenced by the separate game stylesheet in the default palette', () => {
+    // The original build already resolved all 68 references. Make that cross-entry contract explicit
+    // so later theme pruning cannot silently remove values while the selector-only check stays green.
+    const source = readFileSync(new URL('../../src/styles/pillo.css', import.meta.url), 'utf8');
+    const references = new Set([...source.matchAll(/var\((--[\w-]+)/g)].map(match => match[1]!));
+    const local = new Set([...source.matchAll(/(--[\w-]+)\s*:/g)].map(match => match[1]!));
+    const styles = deliveredStyles(readFileSync(join(dist, 'play.html'), 'utf8'));
+    // Evening overrides alone must not satisfy this check: the default root also needs every value.
+    const defaults = [...styles.matchAll(/:root(?:\s*,\s*:host)?\s*\{([^}]*)\}/g)]
+      .map(match => match[1]!).join('\n');
+    const defined = new Set([...defaults.matchAll(/(--[\w-]+)\s*:/g)].map(match => match[1]!));
+    const missing = [...references].filter(name => !local.has(name) && !defined.has(name));
+    expect(references.size).toBeGreaterThan(0);
+    expect(missing, 'shared variables needed by Pillo on the Daytime palette').toEqual([]);
+  });
 });
