@@ -305,6 +305,49 @@ test.describe('anatomy lab', () => {
     await expect(quiz.getByText(/^round done:/)).toBeVisible();
   });
 
+  test('show me restores a hidden quiz target and keeps it highlighted through later controls', async ({ page }) => {
+    await openLab(page);
+    const quiz = page.getByRole('region', { name: 'find it' });
+    await quiz.getByRole('button', { name: 'start the quiz' }).click();
+    const target = (await quiz.getByText(/^find: /).locator('strong').textContent())!;
+    expect(NAMES).toContain(target);
+
+    // Hide the question's target before asking to see the answer.
+    await list(page).getByRole('button', { name: `hide ${target}` }).click();
+    await expect(list(page).getByRole('button', { name: `${target} (hidden)`, exact: true })).toBeVisible();
+    await quiz.getByRole('button', { name: 'show me' }).click();
+    await expect(quiz.locator('[data-feedback="shown"]')).toContainText(target);
+    const targetButton = list(page).getByRole('button', { name: target, exact: true });
+    await expect(targetButton).toHaveAttribute('aria-pressed', 'true');
+    await expect(list(page).getByRole('button', { name: `hide ${target}` })).toBeDisabled();
+
+    // Other structure selections cannot replace the revealed answer.
+    const other = NAMES.find((name) => name !== target)!;
+    await list(page).getByRole('button', { name: other, exact: true }).click();
+    await expect(targetButton).toHaveAttribute('aria-pressed', 'true');
+
+    // Hiding an entire layer after revealing an answer must not hide that answer.
+    const layer = target.startsWith('fixture cube') ? 'organs' : target === 'fixture block C' ? 'vessels' : 'skeleton';
+    await page.getByRole('group', { name: 'layers, skin to bone' })
+      .getByRole('button', { name: new RegExp(`^${layer} \\(`) }).click();
+    await expect(targetButton).toHaveAttribute('aria-pressed', 'true');
+    await expect(targetButton).not.toContainText('(hidden)');
+  });
+
+  test('a correct quiz pick unhides a structure hidden before it was found', async ({ page }) => {
+    await openLab(page);
+    const quiz = page.getByRole('region', { name: 'find it' });
+    await quiz.getByRole('button', { name: 'start the quiz' }).click();
+    const target = (await quiz.getByText(/^find: /).locator('strong').textContent())!;
+
+    await list(page).getByRole('button', { name: `hide ${target}` }).click();
+    await list(page).getByRole('button', { name: `${target} (hidden)`, exact: true }).click();
+    await expect(quiz.locator('[data-feedback="right"]')).toContainText(target);
+    await expect(list(page).getByRole('button', { name: target, exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(list(page).getByRole('button', { name: `hide ${target}` })).toBeDisabled();
+  });
+  });
+
   test('exports a phone picture as a 1080 × 1920 PNG with the right file name', async ({ page }, info) => {
     test.skip(!isDesktopOfEachEngine(info), 'one export run per engine is enough');
     await openLab(page);
