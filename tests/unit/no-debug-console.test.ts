@@ -61,6 +61,12 @@ function scan(text: string, extension: string): Logging[] {
           if (char === '\\') i++;
           else if (char === exprQuote) exprQuote = '';
           i++;
+        } else if (markup.startsWith('/*', i)) {
+          const end = markup.indexOf('*/', i + 2);
+          i = end === -1 ? markup.length : end + 2;
+        } else if (markup.startsWith('//', i)) {
+          const end = markup.indexOf('\n', i + 2);
+          i = end === -1 ? markup.length : end + 1;
         } else if (char === '"' || char === "'" || char === '`') {
           exprQuote = char;
           i++;
@@ -92,6 +98,12 @@ function scan(text: string, extension: string): Logging[] {
           if (char === '\\') i++;
           else if (char === exprQuote) exprQuote = '';
           i++;
+        } else if (markup.startsWith('/*', i)) {
+          const end = markup.indexOf('*/', i + 2);
+          i = end === -1 ? markup.length : end + 2;
+        } else if (markup.startsWith('//', i)) {
+          const end = markup.indexOf('\n', i + 2);
+          i = end === -1 ? markup.length : end + 1;
         } else if (char === '"' || char === "'" || char === '`') {
           exprQuote = char;
           i++;
@@ -128,6 +140,12 @@ function scan(text: string, extension: string): Logging[] {
             if (tagQuote) {
               if (c === '\\') at++;
               else if (c === tagQuote) tagQuote = '';
+            } else if (tagBraces > 0 && markup.startsWith('/*', at)) {
+              const end = markup.indexOf('*/', at + 2);
+              at = end === -1 ? markup.length : end + 1;
+            } else if (tagBraces > 0 && markup.startsWith('//', at)) {
+              const end = markup.indexOf('\n', at + 2);
+              at = end === -1 ? markup.length : end;
             } else if (c === '"' || c === "'" || c === '`') tagQuote = c;
             else if (c === '{') tagBraces++;
             else if (c === '}') tagBraces = Math.max(0, tagBraces - 1);
@@ -236,6 +254,12 @@ describe('debug-console source guard', () => {
       .toEqual([{ line: 1, method: 'debug' }]);
     expect(scan('<!-- {console.log("comment")} -->\n<p>{console.debug("actual")}</p>', '.astro'))
       .toEqual([{ line: 2, method: 'debug' }]);
+    expect(scan("{/* don't render this */}\n<script>console.log('actual')</script>", '.astro'))
+      .toEqual([{ line: 2, method: 'log' }]);
+    expect(scan("<script define:vars={{ /* don't fail */ val: console.debug('server') }}>alert(val)</script>", '.astro'))
+      .toEqual([{ line: 1, method: 'debug' }]);
+    expect(scan("{// don't fail\nconsole.log('actual')}", '.astro'))
+      .toEqual([{ line: 2, method: 'log' }]);
   });
 
   it('contains no console.log or console.debug references in src', () => {
