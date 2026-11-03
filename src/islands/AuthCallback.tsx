@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { cleanCallbackUrl, readCallback } from './authcallback';
+import { afterSignIn, type LevelReader } from './twofactor';
 
 /** Supabase's auth.exchangeCodeForSession shape, injected so accounts can stay off until Task 55 lands. */
-export interface ExchangeAuth {
+export interface ExchangeAuth extends LevelReader {
   exchangeCodeForSession(code: string): Promise<{ error: { message: string } | null }>;
 }
 
@@ -65,11 +66,13 @@ export default function AuthCallback({ auth = null, signinReady = false }: { aut
       }
     }
 
-    void exchange.current.promise.then(({ error }) => {
+    void exchange.current.promise.then(async ({ error }) => {
       if (!active) return;
       clearCode();
-      if (error) setState({ kind: 'error', message: RETRY_MESSAGE });
-      else window.location.replace(callback.next);
+      if (error) { setState({ kind: 'error', message: RETRY_MESSAGE }); return; }
+      // An account with two-factor on enters its code first, then comes back to `next` (Task 301).
+      const destination = await afterSignIn(auth, callback.next, window.location.origin);
+      if (active) window.location.replace(destination);
     }).catch(() => {
       if (!active) return;
       clearCode();

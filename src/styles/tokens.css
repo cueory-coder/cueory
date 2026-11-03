@@ -47,6 +47,7 @@
   --color-panel-ink-soft: #d3b7a1; /* Taupe — notes and small links on the panel */
   --color-on-panel-button: #3e2c23; /* Espresso — text on the light pill button in a dark panel (D-59) */
   --color-player: #3e2c23;      /* Espresso — behind the lesson video player (D-82) */
+  --color-qr-quiet: #f9f5ef;    /* Ivory    — the light margin around a two-factor QR code, in both palettes, so a phone can read it (Task 301) */
 
   /* ---------- Fonts ---------- */
   --font-body: "Lato", system-ui, -apple-system, "Segoe UI", sans-serif; /* headings, body, UI, buttons */
