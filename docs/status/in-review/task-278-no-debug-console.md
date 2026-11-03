@@ -1,0 +1,1 @@
+status: Task 278, W40, debug-console regression guard. Scope recorded before edits: tests/unit/no-debug-console.test.ts and this status note only. Scans source TypeScript/TSX and Astro frontmatter/script blocks without treating comments or ordinary text as executable logging. No application behavior, dependencies or off-limits files changed.
