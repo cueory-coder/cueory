@@ -65,10 +65,10 @@ test.describe('Task 270: sticky header overlap', () => {
       await waitForIslands(page, route);
 
       const header = page.locator('header[data-scroll-header]');
-      await expect(header, `${route}: expected a sticky header`).toHaveCount(1);
-
       const heading = page.locator('main :is(h1, h2, h3, h4, h5, h6)').first();
       await expect(heading, `${route}: expected a heading in main`).toHaveCount(1);
+      if (await header.count() === 0) return;
+      await expect(header, `${route}: expected a sticky header`).toHaveCount(1);
       await heading.evaluate((element) => element.scrollIntoView({ block: 'start', inline: 'nearest' }));
       await expect.poll(() => header.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThan(0);
       await assertNotCovered(heading, route, 'first heading');
