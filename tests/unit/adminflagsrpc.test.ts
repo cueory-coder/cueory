@@ -15,6 +15,7 @@ import {
   type AdminFunction,
   type AdminRpc,
 } from '../../src/islands/adminflagsrpc';
+import type { AdminFlagsAdapter } from '../../src/islands/adminflags';
 
 const sql = readFileSync(
   new URL('../../supabase/migrations/20261102153000_admin_flag_rpcs.sql', import.meta.url), 'utf8',
@@ -285,6 +286,18 @@ describe('inboxAdapter (the shape the /admin/flags page takes)', () => {
     const adapter = inboxAdapter(rpc);
     expect(await adapter.loadFlags('open')).toEqual({ kind: 'ok', value: [row()] });
     expect(await adapter.markHandled(flagId)).toEqual({ kind: 'ok', value: '2026-11-02T12:00:00+00:00' });
+  });
+
+  it('reopens a report (Task 305)', async () => {
+    const rpc = fake({ data: null, error: null });
+    expect(await inboxAdapter(rpc).reopen(flagId)).toEqual({ kind: 'ok', value: null });
+    expect(rpc).toHaveBeenCalledWith('admin_reopen_flag', { flag_id: flagId });
+    expect(await inboxAdapter(fake({ data: null, error: refusal })).reopen(flagId)).toEqual({ kind: 'refused' });
+  });
+
+  it('fits the page\'s adapter type', () => {
+    const adapter: AdminFlagsAdapter = inboxAdapter(fake());
+    expect(Object.keys(adapter).sort()).toEqual(['loadFlags', 'markHandled', 'reopen']);
   });
 
   it('turns a refusal into refused and anything else into failed', async () => {

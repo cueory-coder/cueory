@@ -195,14 +195,15 @@ export async function listAllFlags(
 }
 
 /**
- * The shape Task 66's page takes (`AdminFlagsAdapter` in its src/islands/adminflags.ts, PR #240), built over these
- * calls, so wiring the page is `inboxAdapter((fn, args) => supabase.rpc(fn, args))`. Typed here by shape only, because
- * that file is not merged yet.
+ * The adapter the /admin/flags page takes (`AdminFlagsAdapter` in adminflags.ts), built over these calls:
+ * `inboxAdapter((fn, args) => supabase.rpc(fn, args))` (Task 305). Typed here by shape, so this file doesn't depend
+ * on the page's.
  */
 export type InboxOutcome = { kind: 'ok'; value: unknown } | { kind: 'refused' } | { kind: 'failed' };
 export interface InboxAdapter {
   loadFlags(status: FlagStatus): Promise<InboxOutcome>;
   markHandled(flagId: string): Promise<InboxOutcome>;
+  reopen(flagId: string): Promise<InboxOutcome>;
 }
 
 export function inboxAdapter(rpc: AdminRpc, maxRows = 2000): InboxAdapter {
@@ -211,5 +212,6 @@ export function inboxAdapter(rpc: AdminRpc, maxRows = 2000): InboxAdapter {
   return {
     loadFlags: async (status) => outcome(await listAllFlags(rpc, status, maxRows), (v) => v.rows),
     markHandled: async (flagId) => outcome(await markFlagHandled(rpc, flagId), (v) => v.handledAt),
+    reopen: async (flagId) => outcome(await reopenFlag(rpc, flagId), () => null),
   };
 }

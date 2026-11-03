@@ -3,9 +3,9 @@
  * Pure logic: no page and no database. Reading and marking go through an injected adapter.
  *
  * The `flags` table has no grant for any website role (20261101120000_flags_and_submit_flag.sql), so the only way in
- * is a permission-checked database function (CLAUDE.md rule 1). Those functions, `admin_list_flags` and
- * `admin_mark_flag_handled`, are Task 65's and are not in the repository yet. Until they are, the page uses
- * `UNWIRED_ADAPTER`, which refuses everything, so the page only ever says it is for the site owner.
+ * is a permission-checked database function (CLAUDE.md rule 1): Task 65's `admin_list_flags`, `admin_mark_flag_handled`
+ * and `admin_reopen_flag`, reached through `inboxAdapter` in adminflagsrpc.ts (Task 305). With accounts off the page
+ * uses `UNWIRED_ADAPTER`, which refuses everything, so it only ever says it is for the site owner.
  *
  * Rows from the adapter are untrusted: `parseFlagRows` checks every field before anything is shown, and comments are
  * shown as plain text by the component, never as HTML.
@@ -27,12 +27,15 @@ export interface AdminFlagsAdapter {
   loadFlags(status: FlagStatus): Promise<Outcome<unknown>>;
   /** Marks one report handled. The value may be the stored `handled_at` time; otherwise the page uses its own clock. */
   markHandled(flagId: string): Promise<Outcome<unknown>>;
+  /** Puts one handled report back in the open list (Task 305). */
+  reopen(flagId: string): Promise<Outcome<unknown>>;
 }
 
-/** Refuses everything. The page uses it until Task 65's database functions exist and are wired in. */
+/** Refuses everything. The page uses it when accounts are off in this build. */
 export const UNWIRED_ADAPTER: AdminFlagsAdapter = Object.freeze({
   loadFlags: async () => ({ kind: 'refused' }) as const,
   markHandled: async () => ({ kind: 'refused' }) as const,
+  reopen: async () => ({ kind: 'refused' }) as const,
 });
 
 // ------------------------------------------------------------------------------------------------ checking rows
@@ -122,6 +125,11 @@ export function withHandled(rows: FlagRow[], flagId: string, when: string): Flag
   return rows.map((row) => (row.id === flagId ? markHandled(row, when) : row));
 }
 
+/** The rows with one report reopened: open again, with no handled time, staying where it is like a marked row. */
+export function withReopened(rows: FlagRow[], flagId: string): FlagRow[] {
+  return rows.map((row) => (row.id === flagId ? { ...row, status: 'open', handled_at: null } : row));
+}
+
 /** The time to record: the database's own `handled_at` when it sends one back, otherwise `now`. */
 export function handledTime(value: unknown, now: () => Date): string {
   if (isTime(value)) return value;
@@ -133,29 +141,44 @@ export function handledTime(value: unknown, now: () => Date): string {
 
 export type MarkOutcome = { kind: 'ok'; handledAt: string } | { kind: 'refused' } | { kind: 'failed' };
 
-/**
- * Marks reports handled through the adapter, at most one call per report at a time: a second press while the first
- * is still on its way gets the same answer instead of a second call.
- */
-export function makeMarker(adapter: AdminFlagsAdapter, now: () => Date = () => new Date()) {
-  const inFlight = new Map<string, Promise<MarkOutcome>>();
-  return (flagId: string): Promise<MarkOutcome> => {
+/** One call per report at a time: a second press while the first is still on its way gets the same answer. */
+function oncePerReport<T>(action: (flagId: string) => Promise<T>): (flagId: string) => Promise<T> {
+  const inFlight = new Map<string, Promise<T>>();
+  return (flagId) => {
     const existing = inFlight.get(flagId);
     if (existing) return existing;
-    const run = (async (): Promise<MarkOutcome> => {
-      try {
-        const outcome = await adapter.markHandled(flagId);
-        if (outcome?.kind === 'ok') return { kind: 'ok', handledAt: handledTime(outcome.value, now) };
-        return outcome?.kind === 'refused' ? { kind: 'refused' } : { kind: 'failed' };
-      } catch {
-        return { kind: 'failed' };
-      } finally {
-        inFlight.delete(flagId);
-      }
-    })();
+    const run = action(flagId).finally(() => inFlight.delete(flagId));
     inFlight.set(flagId, run);
     return run;
   };
+}
+
+/** Marks reports handled through the adapter, at most one call per report at a time. */
+export function makeMarker(adapter: AdminFlagsAdapter, now: () => Date = () => new Date()) {
+  return oncePerReport(async (flagId): Promise<MarkOutcome> => {
+    try {
+      const outcome = await adapter.markHandled(flagId);
+      if (outcome?.kind === 'ok') return { kind: 'ok', handledAt: handledTime(outcome.value, now) };
+      return outcome?.kind === 'refused' ? { kind: 'refused' } : { kind: 'failed' };
+    } catch {
+      return { kind: 'failed' };
+    }
+  });
+}
+
+export type ReopenOutcome = { kind: 'ok' } | { kind: 'refused' } | { kind: 'failed' };
+
+/** Reopens reports through the adapter, at most one call per report at a time. */
+export function makeReopener(adapter: AdminFlagsAdapter) {
+  return oncePerReport(async (flagId): Promise<ReopenOutcome> => {
+    try {
+      const outcome = await adapter.reopen(flagId);
+      if (outcome?.kind === 'ok') return { kind: 'ok' };
+      return outcome?.kind === 'refused' ? { kind: 'refused' } : { kind: 'failed' };
+    } catch {
+      return { kind: 'failed' };
+    }
+  });
 }
 
 // ------------------------------------------------------------------------------------------------------ words
@@ -187,40 +210,7 @@ export function formatWhen(iso: string, timeZone?: string): string {
   }).format(date);
 }
 
-// --------------------------------------------------------------------------------------- the database adapter
-
-/** The part of a Supabase client the adapter needs: `rpc(name, args)` resolving to `{ data, error }`. */
-export type RpcCall = (fn: string, args: Record<string, unknown>) => PromiseLike<{ data: unknown; error: unknown }>;
-
-/**
- * Error codes read as "not allowed" rather than "something broke". 28000 and 42501 are Postgres's own
- * (invalid_authorization_specification, insufficient_privilege); the house functions raise 28000 for a signed-out
- * caller (submit_flag). Task 65 must raise one of these for "not an admin" and "no two-factor".
- */
-const REFUSAL_CODES = new Set(['28000', '42501', 'PGRST301', 'PGRST302']);
-
-/** True when an RPC error means the caller is not allowed in. */
-export function isRefusal(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false;
-  const { code, status } = error as { code?: unknown; status?: unknown };
-  return (typeof code === 'string' && REFUSAL_CODES.has(code)) || status === 401 || status === 403;
-}
-
-/**
- * Builds the adapter over Task 65's two database functions. Not used by the page yet: wire it in only once
- * `admin_list_flags` and `admin_mark_flag_handled` are merged, and check their argument names and error codes here.
- */
-export function makeRpcAdapter(rpc: RpcCall): AdminFlagsAdapter {
-  const call = async (fn: string, args: Record<string, unknown>): Promise<Outcome<unknown>> => {
-    const { data, error } = await rpc(fn, args);
-    if (error) return isRefusal(error) ? { kind: 'refused' } : { kind: 'failed' };
-    return { kind: 'ok', value: data };
-  };
-  return {
-    loadFlags: (status) => call('admin_list_flags', { status }),
-    markHandled: (flagId) => (isUuid(flagId) ? call('admin_mark_flag_handled', { flag_id: flagId }) : Promise.resolve({ kind: 'failed' })),
-  };
-}
+// ------------------------------------------------------------------------------------------- the sample adapter
 
 /**
  * An adapter over rows kept in memory, for the labeled sample on /preview/admin-flags and for tests. It never
@@ -236,6 +226,11 @@ export function makeMemoryAdapter(seed: readonly FlagRow[], now: () => Date = ()
       const when = row.handled_at ?? now().toISOString();
       rows = withHandled(rows, flagId, when);
       return { kind: 'ok', value: when };
+    },
+    reopen: async (flagId) => {
+      if (!rows.some((r) => r.id === flagId)) return { kind: 'failed' };
+      rows = withReopened(rows, flagId);
+      return { kind: 'ok', value: null };
     },
   };
 }
