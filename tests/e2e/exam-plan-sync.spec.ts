@@ -34,7 +34,9 @@ test.beforeAll(async () => {
       window.planRows = rows;
       window.planCalls = [];
       const log = (call) => window.planCalls.push(call);
-      const reply = (value) => new Promise(resolve => setTimeout(() => resolve(value), 50));
+      const reply = (value, wait = 50) => new Promise(resolve => setTimeout(() => resolve(value), wait));
+      // '&slow=list' holds the account load back long enough for the student to act first.
+      const listWait = params.get('slow') === 'list' ? 1500 : 50;
       const refused = { code: '500', message: 'provider-private-detail' };
       window.fixtureClient = {
         from(table) {
@@ -42,7 +44,7 @@ test.beforeAll(async () => {
           return {
             select: (columns) => ({ limit: (n) => {
               log('list ' + columns + ' ' + n);
-              return reply(fail === 'list' ? { data: null, error: refused } : { data: rows.map(r => ({ ...r })), error: null });
+              return reply(fail === 'list' ? { data: null, error: refused } : { data: rows.map(r => ({ ...r })), error: null }, listWait);
             } }),
             update: (patch) => ({ eq: (column, value) => ({ select: () => {
               log('update ' + value + ' ' + patch.exam_date);
@@ -169,6 +171,34 @@ test.describe('exam date, signed in', () => {
     await expect(page.getByText(`exam: ${words}`)).toBeVisible();
     await expect(page.getByText('an exam date you set is also saved to your account.')).toBeVisible();
     expect(await deviceAnswers(page)).toEqual({ course: 'med-surg-1', examDate: SERVER_DATE, done: true });
+  });
+
+  test('forgetting while the account load is on its way stays forgotten (Codex on #232)', async ({ page }) => {
+    await open(page, 'progress', { course: 'med-surg-1', examDate: DEVICE_DATE, done: true }, '&slow=list', [
+      { course: 'med-surg-1', exam_date: SERVER_DATE },
+    ]);
+    await page.getByRole('button', { name: 'forget my progress on this device' }).click();
+    await page.getByRole('button', { name: 'yes, forget it' }).click();
+    await expect(page.getByText('done. your progress is no longer saved on this device.')).toBeVisible();
+    await expect.poll(() => calls(page)).toEqual(['list course,exam_date 10']);
+    await page.waitForTimeout(1800);
+    expect(await deviceAnswers(page)).toBeUndefined();
+    await expect(page.getByText('you haven’t answered them yet.')).toBeVisible();
+    await expect(page.getByText('exam:')).toHaveCount(0);
+  });
+
+  test('a course skipped before the account load finishes stays skipped (Codex on #232)', async ({ page }) => {
+    await open(page, 'start', null, '&slow=list', [{ course: 'med-surg-1', exam_date: SERVER_DATE }]);
+    await page.getByRole('button', { name: 'skip', exact: true }).click();
+    await expect(page.getByTestId('setup-step')).toHaveText('question 2 of 2');
+    // The untouched date question still takes the account's date when it arrives.
+    await expect(page.getByLabel('when is your exam?')).toHaveValue(SERVER_DATE, { timeout: 5000 });
+    await page.getByRole('button', { name: 'back' }).click();
+    await expect(page.getByRole('radio', { name: 'not sure yet' })).toBeChecked();
+    await page.getByRole('button', { name: 'continue', exact: true }).click();
+    await page.getByRole('button', { name: 'save my answers' }).click();
+    await expect(page.locator(':focus')).toContainText('no course picked.');
+    expect(await deviceAnswers(page)).toEqual({ course: null, examDate: SERVER_DATE, done: true });
   });
 
   test('a failed load leaves the device date and says so', async ({ page }) => {

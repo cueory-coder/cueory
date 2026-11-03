@@ -101,6 +101,45 @@ export async function loadExamPlan(db: ExamPlanSyncDb, onboarding: Onboarding): 
   }
 }
 
+/** Which setup questions the student has acted on during this visit: picked, typed, cleared or skipped. */
+export interface Touched {
+  course: boolean;
+  examDate: boolean;
+}
+
+/**
+ * The answers to show once the account's plan arrives. A question the student has acted on keeps their answer,
+ * even when it happens to equal what was on screen before (a skip leaves the course blank, like an untouched one).
+ */
+export function withAccountAnswers(
+  current: { course: string; examDate: string },
+  server: Onboarding,
+  touched: Touched,
+): { course: string; examDate: string } {
+  return {
+    course: touched.course ? current.course : server.course ?? '',
+    examDate: touched.examDate ? current.examDate : server.examDate ?? '',
+  };
+}
+
+/**
+ * Keeps track of the newest account load. `start()` returns a check that stays true until `cancel()` (or a newer
+ * `start()`), so a load that finishes after "forget my progress" or after the page closes changes nothing.
+ */
+export function loadTickets(): { start(): () => boolean; cancel(): void } {
+  let latest = 0;
+  return {
+    start() {
+      latest += 1;
+      const mine = latest;
+      return () => mine === latest;
+    },
+    cancel() {
+      latest += 1;
+    },
+  };
+}
+
 export type SaveResult =
   | { status: 'unchanged' }
   | { status: 'saved' | 'removed'; message: string }

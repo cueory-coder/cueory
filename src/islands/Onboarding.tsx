@@ -3,7 +3,9 @@ import {
   COURSES, examDateWords, isExamDate, localDay, readProgress, saveProgress, withOnboarding, type Onboarding as Answers,
 } from '../scripts/progress';
 import { browserStorage } from '../scripts/storage';
-import { connectExamPlans, loadExamPlan, saveExamPlan, type ExamPlanSyncDb } from './examplansync';
+import {
+  connectExamPlans, loadExamPlan, saveExamPlan, withAccountAnswers, type ExamPlanSyncDb, type Touched,
+} from './examplansync';
 
 const primaryButton = 'min-h-11 rounded-pill bg-button px-5 py-2.5 text-on-button hover:bg-button-hover';
 const quietButton = 'min-h-11 rounded-pill px-3 py-2.5 text-ink-soft underline';
@@ -33,6 +35,16 @@ export default function Onboarding() {
   const [syncNote, setSyncNote] = useState('');
   const account = useRef<Promise<ExamPlanSyncDb | null>>(Promise.resolve(null));
   const finished = useRef(false);
+  // Set as soon as the student picks, types, clears or skips, so a late account load never replaces that answer.
+  const touched = useRef<Touched>({ course: false, examDate: false });
+  const changeCourse = (value: string) => {
+    touched.current.course = true;
+    setCourse(value);
+  };
+  const changeExamDate = (value: string) => {
+    touched.current.examDate = true;
+    setExamDate(value);
+  };
 
   useEffect(() => {
     account.current = (async () => {
@@ -44,13 +56,13 @@ export default function Onboarding() {
       else if (loaded.onboarding) {
         const server = loaded.onboarding;
         saveProgress(storage, withOnboarding(readProgress(storage), server));
-        // Only answers the student hasn't touched on this screen yet are replaced.
-        setCourse((current) => (current === (saved.course ?? '') ? server.course ?? '' : current));
-        setExamDate((current) => (current === (saved.examDate ?? '') ? server.examDate ?? '' : current));
+        // Only answers the student hasn't acted on yet are replaced, read when the answer arrives.
+        setCourse((current) => withAccountAnswers({ course: current, examDate: '' }, server, touched.current).course);
+        setExamDate((current) => withAccountAnswers({ course: '', examDate: current }, server, touched.current).examDate);
       }
       return db;
     })();
-  }, [storage, saved]);
+  }, [storage]);
 
   const saveToAccount = async (before: Answers, after: Answers) => {
     const db = await account.current;
@@ -96,10 +108,10 @@ export default function Onboarding() {
   const skipQuestion = () => {
     if (step === 0) {
       // Only this answer is cleared. The exam-date answer stays in state.
-      setCourse('');
+      changeCourse('');
       focusQuestion(1);
     } else {
-      setExamDate('');
+      changeExamDate('');
       setDateProblem('');
       finish({ course, examDate: '' }, 'saved');
     }
@@ -181,7 +193,7 @@ export default function Onboarding() {
                   name="course"
                   value={option.id}
                   checked={course === option.id}
-                  onChange={() => setCourse(option.id)}
+                  onChange={() => changeCourse(option.id)}
                   className="size-5 accent-button"
                 />
                 <span className="font-medium">{option.label}</span>
@@ -204,7 +216,7 @@ export default function Onboarding() {
             min="2000-01-01"
             max="2100-12-31"
             value={examDate}
-            onChange={(event) => { setExamDate(event.currentTarget.value); setDateProblem(''); }}
+            onChange={(event) => { changeExamDate(event.currentTarget.value); setDateProblem(''); }}
             onKeyDown={(event) => {
               if (event.key === 'Enter') {
                 event.preventDefault();
@@ -221,7 +233,7 @@ export default function Onboarding() {
             <button
               type="button"
               onClick={() => {
-                setExamDate('');
+                changeExamDate('');
                 setDateProblem('');
                 // This button disappears after clearing; restore focus to the date field.
                 dateRef.current?.focus();

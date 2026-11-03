@@ -4,8 +4,10 @@ import {
   loadExamPlan,
   saveExamPlan,
   serverPlans,
+  loadTickets,
   supabaseExamPlans,
   SYNC_MESSAGES,
+  withAccountAnswers,
   withServerPlan,
   type DbError,
   type ExamPlanClient,
@@ -125,6 +127,60 @@ describe('loadExamPlan', () => {
     const odd = Object.assign(new FakePlans(), { list: async () => ({ data: null, error: null }) });
     expect(await loadExamPlan(odd, answers('both', null))).toEqual(failed);
     expect(SYNC_MESSAGES.loadFailed).not.toMatch(/provider-private-detail/);
+  });
+});
+
+describe('withAccountAnswers — a late load never replaces what the student did', () => {
+  const server = answers('med-surg-1', '2026-12-10');
+  const untouched = { course: false, examDate: false };
+
+  it('fills questions the student has not acted on', () => {
+    expect(withAccountAnswers({ course: '', examDate: '' }, server, untouched))
+      .toEqual({ course: 'med-surg-1', examDate: '2026-12-10' });
+  });
+
+  it('keeps a skipped course blank, even though blank is also what an untouched question shows (Codex on #232)', () => {
+    expect(withAccountAnswers({ course: '', examDate: '' }, server, { course: true, examDate: false }))
+      .toEqual({ course: '', examDate: '2026-12-10' });
+  });
+
+  it('keeps a picked course and a typed, cleared or skipped date', () => {
+    expect(withAccountAnswers({ course: 'fundamentals', examDate: '2027-01-05' }, server, { course: true, examDate: true }))
+      .toEqual({ course: 'fundamentals', examDate: '2027-01-05' });
+    expect(withAccountAnswers({ course: 'med-surg-1', examDate: '' }, server, { course: false, examDate: true }))
+      .toEqual({ course: 'med-surg-1', examDate: '' });
+  });
+
+  it('shows an account without a course or date as blank', () => {
+    expect(withAccountAnswers({ course: 'both', examDate: '2027-01-05' }, answers(null, null), untouched))
+      .toEqual({ course: '', examDate: '' });
+  });
+});
+
+describe('loadTickets', () => {
+  it('a load started before "forget" is cancelled for good (Codex on #232)', () => {
+    const loads = loadTickets();
+    const pending = loads.start();
+    expect(pending()).toBe(true);
+    loads.cancel();
+    expect(pending()).toBe(false);
+    expect(pending()).toBe(false);
+  });
+
+  it('only the newest load counts', () => {
+    const loads = loadTickets();
+    const first = loads.start();
+    const second = loads.start();
+    expect(first()).toBe(false);
+    expect(second()).toBe(true);
+  });
+
+  it('keeps separate pages apart', () => {
+    const a = loadTickets();
+    const b = loadTickets();
+    const pending = a.start();
+    b.cancel();
+    expect(pending()).toBe(true);
   });
 });
 

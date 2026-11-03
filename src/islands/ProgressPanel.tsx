@@ -13,7 +13,7 @@ import {
   withOnboarding,
 } from '../scripts/progress';
 import { browserStorage } from '../scripts/storage';
-import { connectExamPlans, loadExamPlan } from './examplansync';
+import { connectExamPlans, loadExamPlan, loadTickets } from './examplansync';
 import ProgressRing from './ProgressRing';
 import { examCountdown, progressView } from './progressview';
 
@@ -49,22 +49,29 @@ export default function ProgressPanel({ decks }: Props) {
   const saidRef = useRef<HTMLParagraphElement>(null);
   const [signedIn, setSignedIn] = useState(false);
   const [syncNote, setSyncNote] = useState('');
+  // "forget my progress" cancels a load still on its way, so the account's answers aren't written back afterwards.
+  const [loads] = useState(loadTickets);
 
   useEffect(() => {
+    const current = loads.start();
     let live = true;
     void (async () => {
       const db = await connectExamPlans();
       if (!db || !live) return;
       setSignedIn(true);
+      if (!current()) return;
       const loaded = await loadExamPlan(db, readProgress(storage).onboarding);
-      if (!live) return;
+      if (!live || !current()) return;
       if (!loaded.ok) setSyncNote(loaded.message);
       else if (loaded.onboarding && saveProgress(storage, withOnboarding(readProgress(storage), loaded.onboarding))) {
         setProgress(migrateLegacyStars(storage));
       }
     })();
-    return () => { live = false; };
-  }, [storage]);
+    return () => {
+      live = false;
+      loads.cancel();
+    };
+  }, [storage, loads]);
 
   // Studying in another tab changes what's saved. Read it again when another tab saves, and when this page comes back
   // into view, so the page, the download and "forget" always match what's actually kept.
@@ -102,6 +109,7 @@ export default function ProgressPanel({ decks }: Props) {
   };
 
   const forget = () => {
+    loads.cancel();
     const ok = forgetProgress(storage, decks.map((deck) => deck.id));
     setConfirming(false);
     if (ok) setProgress(emptyProgress());
