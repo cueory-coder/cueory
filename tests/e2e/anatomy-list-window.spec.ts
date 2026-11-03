@@ -30,3 +30,30 @@ test('whole-body catalog shows a bounded list, then moves focus to the first new
   await search.fill('');
   await expect(list.locator('li')).toHaveCount(40);
 });
+
+test('switching body systems clears the previous system\'s structure search', async ({ page }) => {
+  await page.goto('/preview/anatomy-lab?fixture');
+  await page.getByRole('button', { name: 'open the anatomy lab' }).click();
+  await expect(page.locator('canvas')).toBeFocused({ timeout: 15_000 });
+
+  const picker = page.getByRole('group', { name: 'body system' });
+  const buttons = picker.getByRole('button');
+  test.skip((await buttons.count()) < 2, 'requires the fixture and another draft system');
+
+  const list = page.getByRole('region', { name: 'structures' });
+  const search = page.getByRole('searchbox', { name: 'find a structure' });
+  await expect(buttons.first()).toHaveAttribute('aria-pressed', 'true');
+  await search.fill('fixture cube');
+  await expect(list.locator('li')).toHaveCount(2);
+
+  // The second system has different source labels. It should show all of them
+  // without retaining a search typed for the fixture.
+  await buttons.nth(1).click();
+  await expect(buttons.nth(1)).toHaveAttribute('aria-pressed', 'true');
+  await expect(search).toHaveValue('');
+  await expect(list.locator('li').first()).toBeVisible();
+
+  await buttons.first().click();
+  await expect(search).toHaveValue('');
+  await expect(list.locator('li')).toHaveCount(5);
+});
