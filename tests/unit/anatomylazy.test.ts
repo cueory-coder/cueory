@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { AnatomyStructure } from '../../src/islands/anatomylab';
 import { LAYERS, wholeBody, layerShown, type Layer } from '../../src/islands/anatomylayers';
 import { onlyThis } from '../../src/islands/anatomylab';
-import { PartialLoadError, revealTargetPlan, showAllPlan, createGeneration, createOnDemandLoader, filesForLayer, firstLayer, lazyPeel, lazyRestore } from '../../src/islands/anatomylazy';
+import { PartialLoadError, revealTargetPlan, showAllPlan, createGeneration, createOnDemandLoader, filesForLayer, firstLayer, layerNeedsReveal, lazyPeel, lazyRestore } from '../../src/islands/anatomylazy';
 
 const layers: Layer[] = [
   { id: 'skin', ids: ['s1'] },
@@ -44,6 +44,40 @@ describe('show only this in the lazy view', () => {
     const files: Record<string, string[]> = { skin: ['s'], muscle: ['m'], skeleton: ['k'] };
     const plan = showAllPlan(layers, hidden, (id) => files[id]!, (url) => url === 's');
     expect(plan.fetch.map((l) => l.id)).toEqual(['muscle', 'skeleton']);
+  });
+});
+
+describe('partially loaded layer button', () => {
+  it('fetches missing organ files before toggling a layer whose heart is already visible', async () => {
+    const organs: Layer = { id: 'organs', ids: ['heart', 'lung', 'kidney', 'digestive'] };
+    const files = ['heart.glb', 'lungs.glb', 'kidneys.glb', 'digestive.glb'];
+    const fetched: string[] = [];
+    const loader = createOnDemandLoader(async (url) => {
+      fetched.push(url);
+      return url;
+    });
+    for (const url of ['skin.glb', 'heart.glb', 'vessels.glb']) loader.markLoaded(url);
+    const partlyHidden = new Set(['lung', 'kidney', 'digestive']);
+
+    // Vessels requested heart.glb, so the heart is already shown. The organs
+    // button must download the remaining files instead of hiding that heart.
+    expect(layerShown(organs, partlyHidden)).toBe(true);
+    expect(layerNeedsReveal(organs, partlyHidden, files, loader.isLoaded)).toBe(true);
+    expect(await loader.ensure(files)).toEqual(['lungs.glb', 'kidneys.glb', 'digestive.glb']);
+    expect(fetched).toEqual(['lungs.glb', 'kidneys.glb', 'digestive.glb']);
+
+    // Only after the entire layer is loaded does its button become a hide toggle.
+    expect(layerNeedsReveal(organs, new Set(), files, loader.isLoaded)).toBe(false);
+    // A hidden but cached layer is shown from memory, without another request.
+    expect(layerNeedsReveal(organs, new Set(organs.ids), files, loader.isLoaded)).toBe(true);
+    expect(await loader.ensure(files)).toEqual([]);
+    expect(fetched).toHaveLength(3);
+  });
+
+  it('does not treat a partially failed layer as complete', () => {
+    const organs: Layer = { id: 'organs', ids: ['heart', 'lung'] };
+    expect(layerNeedsReveal(organs, new Set(), ['heart.glb', 'lungs.glb'], (url) => url === 'heart.glb')).toBe(true);
+    expect(layerNeedsReveal(organs, new Set(), [], () => false)).toBe(false);
   });
 });
 
