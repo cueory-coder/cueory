@@ -8,6 +8,7 @@ import { newsletter, site } from './src/config/site.ts';
 import { themeHeadScript } from './src/scripts/theme.ts';
 import { connectSrc } from './src/islands/supabasecsp.ts';
 import { loadEnv } from 'vite';
+import { pruneDraftModelsIntegration } from './src/visuals/prunedrafts.ts';
 
 // The signup form posts to Kit, so the CSP must allow that one address.
 const formOrigin = newsletter.formAction ? ` ${new URL(newsletter.formAction).origin}` : '';
@@ -26,7 +27,7 @@ export default defineConfig({
   output: 'static',
   trailingSlash: 'never',
 
-  integrations: [react()],
+  integrations: [react(), pruneDraftModelsIntegration()],
 
   build: {
     // Keep CSS in files so the content security policy can stay strict.
