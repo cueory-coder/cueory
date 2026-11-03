@@ -45,13 +45,13 @@ test.describe('label it page', () => {
     await board.getByRole('button', { name: 'uncover label 2' }).click();
     await expect(board.getByRole('group', { name: 'mark label 2' }).getByRole('button', { name: 'know it' })).toBeFocused();
     await page.keyboard.press('Enter');
-    await expect(live).toHaveText('chimney: know it. 2 left to mark.');
+    await expect(live).toHaveText('chimney: know it. 3 left to mark.');
     await expect(status).toHaveText('2 covered · know it: 1 · still learning: 0');
 
     await board.getByRole('button', { name: 'reveal all' }).click();
     await expect(status).toHaveText('0 covered · know it: 1 · still learning: 0');
     await expect(board.getByRole('button', { name: 'still learning' }).first()).toBeVisible();
-    expect(await board.getByRole('button', { name: 'know it' }).count()).toBe(3);
+    expect(await board.getByRole('button', { name: 'know it' }).count()).toBe(4);
   });
 });
 
