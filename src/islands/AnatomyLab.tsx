@@ -41,6 +41,7 @@ import {
   releaseNoteFor,
   onlyThis,
   revealQuiz,
+  revealedQuizTarget,
   startQuiz,
   toggleHidden,
   type AnatomySystem,
@@ -178,6 +179,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     () => (lazy ? layersOf(system?.structures ?? []) : layersOf(system?.structures ?? [], foundSet)),
     [lazy, system, foundSet],
   );
+  const revealedTarget = revealedQuizTarget(quiz);
   const peelPlan = lazy ? lazyPeel(layers, hidden) : null;
   const toPeel = lazy ? (peelPlan ? peelPlan.show : null) : nextToPeel(layers, hidden);
   const toRestore = lazy ? lazyRestore(layers, hidden) : nextToRestore(layers, hidden);
@@ -401,6 +403,19 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     });
     for (const layer of plan.fetch) reveal(layer);
   };
+
+  // Once the correct target is found or revealed, it must remain visible and selected.
+  // A learner can hide a structure before answering, or later hide its whole layer.
+  useEffect(() => {
+    if (!revealedTarget) return;
+    setHidden((current) => {
+      if (!current.has(revealedTarget)) return current;
+      const next = new Set(current);
+      next.delete(revealedTarget);
+      return next;
+    });
+    setSelected((current) => (current === revealedTarget ? current : revealedTarget));
+  }, [revealedTarget, hidden, selected]);
 
   useEffect(() => {
     if (load.state === 'ready') sceneRef.current?.setAppearance({ hidden, selected });
@@ -937,6 +952,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                           <button
                             type="button"
                             aria-label={`${isHidden ? 'show' : 'hide'} ${item.text}`}
+                            disabled={revealedTarget === item.id}
                             onClick={() => { visibilityIntent.bump(); setHidden((h) => toggleHidden(h, item.id)); }}
                             className="min-h-11 min-w-14 rounded-md border border-line px-2 text-sm text-ink"
                           >
