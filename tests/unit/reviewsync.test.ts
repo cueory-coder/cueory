@@ -212,7 +212,7 @@ describe('createReviewSync failures', () => {
     ['an odd reply', { data: [{ item_id: A }, { item_id: B }], error: null }, MESSAGES.connection],
   ])('tells the student in one sentence on %s', async (_name, reply, message) => {
     const { client } = fakeClient({ update: [reply as Reply | Error] });
-    expect(await createReviewSync(client).record(A, [{ day: today, result: 'knew' }], today)).toEqual({ ok: false, message });
+    expect(await createReviewSync(client).record(A, [{ day: today, result: 'knew' }], today)).toEqual({ ok: false, message, failed: [A] });
   });
 
   it('says when a question is not published (the insert policy refuses it)', async () => {
@@ -220,17 +220,49 @@ describe('createReviewSync failures', () => {
       update: [{ data: [], error: null }],
       insert: [{ error: { code: '42501', message: 'new row violates row-level security policy for table "review_state"' } }],
     });
-    expect(await createReviewSync(client).record(A, [{ day: today, result: 'knew' }], today)).toEqual({ ok: false, message: MESSAGES.unavailable });
+    expect(await createReviewSync(client).record(A, [{ day: today, result: 'knew' }], today)).toEqual({ ok: false, message: MESSAGES.unavailable, failed: [A] });
   });
 
   it('keeps unsaved rows and saves them on retry', async () => {
     const { client, calls } = fakeClient({ update: [new TypeError('Failed to fetch')] });
     const sync = createReviewSync(client);
-    expect(await sync.record(A, [{ day: today, result: 'knew' }], today)).toEqual({ ok: false, message: MESSAGES.connection });
+    expect(await sync.record(A, [{ day: today, result: 'knew' }], today)).toEqual({ ok: false, message: MESSAGES.connection, failed: [A] });
     expect(await sync.retry()).toEqual({ ok: true });
     expect(calls).toHaveLength(2);
     expect(await sync.retry()).toEqual({ ok: true });
     expect(calls).toHaveLength(2);
+  });
+
+  it('one refused question never blocks the others, and stays waiting and reported (Codex on #234)', async () => {
+    const refused = { error: { code: '42501', message: 'new row violates row-level security policy for table "review_state"' } };
+    const noRow = { data: [], error: null };
+    const { client, calls } = fakeClient({ update: [noRow, noRow, { data: [{ item_id: B }], error: null }, noRow], insert: [refused, refused, refused] });
+    const sync = createReviewSync(client);
+    expect(await sync.record(A, [{ day: today, result: 'knew' }], today)).toEqual({ ok: false, message: MESSAGES.unavailable, failed: [A] });
+    // B comes after the refused A in the waiting list and is still saved.
+    expect(await sync.record(B, [{ day: today, result: 'missed' }], today)).toEqual({ ok: false, message: MESSAGES.unavailable, failed: [A] });
+    const writes = calls.map((call) => `${call.op} ${call.op === 'update' ? call.eq[1] : (call as Extract<Call, { op: 'insert' }>).values.item_id}`);
+    expect(writes).toEqual([`update ${A}`, `insert ${A}`, `update ${A}`, `insert ${A}`, `update ${B}`]);
+    // A is kept for a retry; B, saved, is not sent again.
+    expect(await sync.retry()).toEqual({ ok: false, message: MESSAGES.unavailable, failed: [A] });
+    expect(calls.slice(5).map((call) => call.op)).toEqual(['update', 'insert']);
+    expect(await sync.retry()).toEqual({ ok: true });
+    expect(calls).toHaveLength(8);
+  });
+
+  it('tries every waiting row and shows the sentence that applies to them all first', async () => {
+    const refused = { error: { code: '42501', message: 'new row violates row-level security policy for table "review_state"' } };
+    const { client, calls } = fakeClient({
+      update: [new TypeError('Failed to fetch'), new TypeError('Failed to fetch'), { data: [], error: null }],
+      insert: [refused],
+    });
+    const sync = createReviewSync(client);
+    expect((await sync.record(A, [{ day: today, result: 'knew' }], today)).ok).toBe(false);
+    expect(await sync.record(B, [{ day: today, result: 'knew' }], today)).toEqual({ ok: false, message: MESSAGES.connection, failed: [A, B] });
+    // Back online: the next step sends every waiting row, oldest first, then the new one.
+    expect(await sync.record(C, [{ day: today, result: 'knew' }], today)).toEqual({ ok: true });
+    expect(calls.filter((call) => call.op === 'update').map((call) => (call as Extract<Call, { op: 'update' }>).eq[1]))
+      .toEqual([A, A, B, A, B, C]);
   });
 
   it('reports a history it cannot schedule instead of sending it', async () => {

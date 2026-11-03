@@ -46,7 +46,11 @@ interface ReadQuery {
   limit(count: number): PromiseLike<Reply>;
 }
 
-export type SyncOutcome = { ok: true } | { ok: false; message: string };
+/**
+ * `failed`: the published questions whose newest step is still waiting after this attempt (kept for the next save or
+ * retry). Left out when nothing was sent (a step the device's date can't schedule).
+ */
+export type SyncOutcome = { ok: true } | { ok: false; message: string; failed?: string[] };
 
 const COLUMNS = 'item_id,level,last_reviewed,next_review' as const;
 const KEYS = ['item_id', 'level', 'last_reviewed', 'next_review'] as const;
@@ -179,6 +183,9 @@ export function syncMessage(error: unknown): string {
   return MESSAGES.connection;
 }
 
+/** When several rows fail at once, the one sentence shown is the one that applies to them all first. */
+const MESSAGE_ORDER: readonly string[] = [MESSAGES.signedOut, MESSAGES.connection, MESSAGES.deviceDate, MESSAGES.unavailable];
+
 class WriteError extends Error {
   constructor(readonly reason: unknown) { super('review_state write failed'); }
 }
@@ -215,7 +222,8 @@ export interface ReviewSync {
 
 /**
  * Keeps unsaved rows (newest per question) until they are saved, and writes one at a time in order, so an older
- * step can never land after a newer one.
+ * step can never land after a newer one. Questions are independent: a row that is refused (for example a question
+ * unpublished before its first save) stays waiting and is reported, and every other row is still sent.
  */
 export function createReviewSync(client: ReviewStateClient): ReviewSync {
   const waiting = new Map<string, ReviewStateRow>();
@@ -223,15 +231,20 @@ export function createReviewSync(client: ReviewStateClient): ReviewSync {
 
   const flush = (): Promise<SyncOutcome> => {
     const run = queue.then(async (): Promise<SyncOutcome> => {
+      const failed: string[] = [];
+      let message: string | undefined;
       for (const [id, row] of [...waiting]) {
         try {
           await writeRow(client, row);
         } catch (error) {
-          return { ok: false, message: syncMessage(error instanceof WriteError ? error.reason : error) };
+          failed.push(id);
+          const reason = syncMessage(error instanceof WriteError ? error.reason : error);
+          if (message === undefined || MESSAGE_ORDER.indexOf(reason) < MESSAGE_ORDER.indexOf(message)) message = reason;
+          continue;
         }
         if (waiting.get(id) === row) waiting.delete(id);
       }
-      return { ok: true };
+      return message === undefined ? { ok: true } : { ok: false, message, failed };
     });
     queue = run;
     return run;
