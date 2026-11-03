@@ -5,7 +5,7 @@
  * Error messages are read verbatim from the migrations:
  *   check_answer:  supabase/migrations/20261101100000_attempts_and_check_answer.sql
  *   submit_flag:   supabase/migrations/20261101120000_flags_and_submit_flag.sql (PR #110)
- *   both:          supabase/migrations/20261102120000_confirmed_accounts_only.sql (Task 169)
+ *   both:          supabase/migrations/20261102135000_confirmed_accounts_only.sql (Task 169)
  *   any function:  "confirm your email to use this" (Task 169). check_answer and submit_flag name the action; any
  *                  other function that gains the check falls back to one general sentence (Task 171).
  *
@@ -33,7 +33,7 @@ export function studentMessage(fn: RpcFunction, error: unknown): string {
   if (fn === 'check_answer') {
     // 20261101100000_attempts_and_check_answer.sql
     if (msg === 'sign in to check an answer') return 'please sign in to check answers.';
-    // 20261102120000_confirmed_accounts_only.sql (Task 169)
+    // 20261102135000_confirmed_accounts_only.sql (Task 169)
     if (msg === 'confirm your email to use this') {
       return 'please confirm your email to check answers — look for the link in your inbox.';
     }
@@ -59,7 +59,7 @@ export function studentMessage(fn: RpcFunction, error: unknown): string {
   if (fn === 'submit_flag') {
     // supabase/migrations/20261101120000_flags_and_submit_flag.sql (PR #110)
     if (msg === 'sign in to send a report') return 'please sign in to send a report.';
-    // 20261102120000_confirmed_accounts_only.sql (Task 169)
+    // 20261102135000_confirmed_accounts_only.sql (Task 169)
     if (msg === 'confirm your email to use this') {
       return 'please confirm your email to send a report — look for the link in your inbox.';
     }

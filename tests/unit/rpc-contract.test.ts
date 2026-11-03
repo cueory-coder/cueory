@@ -12,7 +12,7 @@ const sql = [
   '20261102100000_study_events.sql',
   '20261102110000_delete_my_account.sql',
   // Task 169 redefines check_answer, submit_flag and record_study_events; the last definition is the live one.
-  '20261102120000_confirmed_accounts_only.sql',
+  '20261102135000_confirmed_accounts_only.sql',
 ].map(name => readFileSync(new URL(`../../supabase/migrations/${name}`, import.meta.url), 'utf8')).join('\n');
 
 type FunctionName = 'submit_flag' | 'check_answer' | 'my_flags' | 'record_study_events' | 'delete_my_account';
