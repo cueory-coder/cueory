@@ -1496,6 +1496,8 @@ test.describe('fill-in at 320 px', () => {
     await expect(page.getByTestId('fill-in-sample-note')).toBeVisible();
 
     const board = page.getByTestId('fill-in');
+    // Switch to type mode to test typing and keyboard flow
+    await board.getByRole('button', { name: 'type instead' }).click();
     const field = board.getByRole('textbox', { name: 'the missing word' });
     const next = board.getByRole('button', { name: 'next' });
     const axe = async () => {

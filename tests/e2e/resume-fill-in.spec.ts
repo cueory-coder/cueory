@@ -13,6 +13,7 @@ test.beforeEach(async ({ page }) => {
 async function open(page: Page) {
   await page.goto(path);
   const board = page.getByTestId('fill-in');
+  await board.getByRole('button', { name: 'type instead' }).click();
   await expect(board.getByRole('textbox', { name: 'the missing word' })).toBeVisible();
   return board;
 }
