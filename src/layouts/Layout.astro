@@ -23,7 +23,10 @@ interface Props {
    * because its visitor has just joined); study screens never do.
    */
   promo?: boolean;
-  /** Optional item context forwarded to the flag form (added by Task 64; pages pass this once their item IDs exist). */
+  /**
+   * The real item a question page shows, for its flag reports: the database item id and item version id (uuids).
+   * Sample pages pass none (Task 171). A slug or half a pair fails the build.
+   */
   flagItem?: { itemId: string; itemVersionId: string };
   /** Hide the flag-or-comment button (D-pending, Task 64): set true during sharpening rounds and timed reviews. */
   hideFlag?: boolean;
@@ -33,6 +36,7 @@ const { title, description = site.description, variant = 'default', noindex = fa
 // Browser-tab titles use the lowercase brand voice: "privacy · cueory" (D-47).
 const fullTitle = title === site.name || title === site.wordmarkName ? site.wordmarkName : `${title} · ${site.wordmarkName}`;
 const canonical = new URL(Astro.url.pathname, site.url).href;
+const socialImage = new URL('/share/study-ivory.png', site.url).href;
 const isStudy = variant === 'study';
 const isHome = variant === 'home';
 const showPromo = promoSettings.show && promo && !isStudy;
@@ -48,6 +52,9 @@ const searchTitle = isHome ? 'home' : title;
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={socialImage} />
     <!-- Brand v1.0 icons (D-55): the emblem on Ivory, built by scripts/build-brand-v1.mjs. -->
     <link rel="icon" type="image/png" sizes="32x32" href="/brand/v1/icon-32.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="/brand/v1/icon-192.png" />
@@ -63,7 +70,6 @@ const searchTitle = isHome ? 'home' : title;
         <link rel="preload" href="/fonts/bodoni-moda-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin />
       )
     }
-    {isHome && <link rel="preload" href="/fonts/bodoni-moda-latin-opsz-italic.woff2" as="font" type="font/woff2" crossorigin />}
   </head>
   <body class:list={['flex flex-col', isStudy ? 'bg-page' : 'silk-quiet']}>
     <a
