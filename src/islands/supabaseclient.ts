@@ -19,6 +19,21 @@ import { supabaseSettings } from './supabaseenv';
 /** Where the session is kept in local storage. */
 export const AUTH_STORAGE_KEY = 'cueory-auth';
 
+/**
+ * The PKCE sign-in's one-time verifier, kept in local storage while a sign-in is in progress. Names from the installed
+ * @supabase/auth-js 2.118.0 (`lib/helpers.js`, `storePKCEVerifier`): every sign-in writes the fixed key
+ * `<storageKey>-code-verifier`, its own slot `<storageKey>-flow-<flow id>-code-verifier`, and the list of pending
+ * slots `<storageKey>-flows-code-verifier`. Signing out removes all of them (`removeAllPKCEVerifiers`).
+ */
+export const PKCE_VERIFIER_STORAGE_KEY = `${AUTH_STORAGE_KEY}-code-verifier`;
+export const PKCE_FLOW_LIST_STORAGE_KEY = `${AUTH_STORAGE_KEY}-flows-code-verifier`;
+export const pkceFlowStorageKey = (flowId: string) => `${AUTH_STORAGE_KEY}-flow-${flowId}-code-verifier`;
+
+/** True for any of the PKCE verifier keys above, including one left behind by an abandoned sign-in. */
+export function isPkceVerifierKey(key: string): boolean {
+  return key.startsWith(`${AUTH_STORAGE_KEY}-`) && key.endsWith('-code-verifier');
+}
+
 /** Exactly the auth options every client is created with. */
 export const AUTH_OPTIONS = Object.freeze({
   flowType: 'pkce',
