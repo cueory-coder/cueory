@@ -232,6 +232,9 @@ const questions = defineCollection({
       } catch (error) {
         context.addIssue({ code: 'custom', path: ['items'], message: (error as Error).message });
       }
+      for (const message of questionContentProblems(items)) {
+        context.addIssue({ code: 'custom', path: ['items'], message });
+      }
     }),
 });
 
