@@ -21,6 +21,7 @@ test('the labeled search uses the site index and stays keyboard accessible', asy
   await page.goto(missingPage);
   const search = page.getByRole('search', { name: 'search cueory' });
   const input = search.getByRole('searchbox', { name: 'search cueory' });
+  await expect(search.getByRole('status')).toHaveAttribute('aria-atomic', 'true');
   await expect(input).toBeVisible();
   await input.focus();
   await expect(input).toBeFocused();

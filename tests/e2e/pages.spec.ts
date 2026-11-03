@@ -609,6 +609,8 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
   }) => {
     await page.goto('/');
     await section(page).scrollIntoViewIfNeeded();
+    await expect(section(page)).toHaveAttribute('role', 'region');
+    await expect(section(page)).toHaveAttribute('aria-roledescription', 'carousel');
     await expect(page.getByRole('heading', { name: 'ways to study' })).toBeVisible();
     // The first card in the middle, with the last card as its left neighbour: one on each side, two on wider screens.
     await expect
