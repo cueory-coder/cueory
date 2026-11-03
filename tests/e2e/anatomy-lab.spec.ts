@@ -401,6 +401,20 @@ test.describe('anatomy lab', () => {
     await expect(page.getByText(/^saved cueory-fixture-wide\.png\.$/)).toBeVisible();
   });
 
+  test('a hidden selection is not named in an exported picture', async ({ page }, info) => {
+    test.skip(!isDesktopOfEachEngine(info), 'one export run per engine is enough');
+    await openLab(page);
+    await list(page).getByRole('button', { name: 'fixture cube A', exact: true }).click();
+    await page.getByRole('button', { name: 'hide fixture cube A' }).click();
+    await expect(list(page).getByRole('button', { name: /^fixture cube A/ })).toContainText('(hidden)');
+
+    // The name card remains available, but the picture does not contain the hidden shape.
+    const download = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'square 1080×1080' }).click();
+    expect((await download).suggestedFilename()).toBe('cueory-fixture-square.png');
+    await expect(page.getByText('saved cueory-fixture-square.png.')).toBeVisible();
+  });
+
   test('fits a 320 px screen without sideways scrolling', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 700 });
     await openLab(page);
