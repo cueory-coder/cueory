@@ -9,6 +9,8 @@
  * shown exactly as written (CLAUDE.md rule 5).
  */
 
+import { LAYERS, isLayer, type LayerId } from './anatomylayers';
+
 // ---------------------------------------------------------------------------------------------------------------------
 // Systems
 // ---------------------------------------------------------------------------------------------------------------------
@@ -19,6 +21,8 @@ export interface AnatomyStructure {
   /** The official name, exactly as the source file gives it. */
   text: string;
   group?: string;
+  /** Its layer for peeling (skin … skeleton), from the source file, which takes it from BodyParts3D's hierarchy. */
+  layer?: LayerId;
 }
 
 /** What the island gets for one body system: only what it shows (sources stay at build time). */
@@ -27,7 +31,8 @@ export interface AnatomySystem {
   key: string;
   title: string;
   status: 'draft' | 'approved';
-  model: { file: string; release: string; via?: string };
+  /** `files`: the whole-body view loads several systems' models together (src/islands/anatomylayers.ts). */
+  model: { file: string; files?: string[]; release: string; via?: string };
   structures: AnatomyStructure[];
   /** The automated tests' fixture: shapes made in code, not anatomy and not from BodyParts3D. */
   fixture?: boolean;
@@ -120,8 +125,11 @@ export function parseAnatomyFile(json: unknown, path: string, options: { fixture
     if (!text(label['source'], 120)) return fail(`label "${id}" needs a "source"`);
     const group = label['group'];
     if (group !== undefined && !text(group, 120)) return fail(`label "${id}": "group", when given, must be text`);
+    const layer = label['layer'];
+    if (layer !== undefined && !isLayer(layer)) return fail(`label "${id}": "layer", when given, is one of ${LAYERS.join(', ')}`);
     const structure: AnatomyStructure = { id, text: label['text'] as string };
     if (typeof group === 'string') structure.group = group;
+    if (isLayer(layer)) structure.layer = layer;
     return structure;
   });
   const out: AnatomySystem = {

@@ -98,7 +98,8 @@ export interface ExportRequest {
 }
 
 export interface LabScene {
-  load(url: string, ids: readonly string[]): Promise<LoadResult | null>;
+  /** Loads one model file, or several that share one coordinate frame (the whole-body view), as one model. */
+  load(urls: string | readonly string[], ids: readonly string[]): Promise<LoadResult | null>;
   setAppearance(appearance: Appearance): void;
   setColors(colors: LabColors): void;
   pick(clientX: number, clientY: number): string | null;
@@ -378,12 +379,15 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
     requestRender();
   }
 
-  async function load(url: string, ids: readonly string[]): Promise<LoadResult | null> {
+  async function load(urls: string | readonly string[], ids: readonly string[]): Promise<LoadResult | null> {
     const myLoad = ++loadId;
     await MeshoptDecoder.ready;
     const loader = new GLTFLoader();
     loader.setMeshoptDecoder(MeshoptDecoder);
-    const gltf = await loader.loadAsync(url);
+    const list = typeof urls === 'string' ? [urls] : [...urls];
+    const scenes = await Promise.all(list.map((url) => loader.loadAsync(url).then((gltf) => gltf.scene)));
+    const gltf = { scene: new THREE.Group() };
+    for (const part of scenes) gltf.scene.add(part);
     if (myLoad !== loadId) {
       // A newer system was picked while this one downloaded: throw this one away.
       gltf.scene.traverse((object) => {

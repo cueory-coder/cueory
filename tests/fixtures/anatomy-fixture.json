@@ -6,11 +6,11 @@
   "status": "draft",
   "model": { "file": "/preview/anatomy-fixture/fixture.glb", "release": "fixture 1 (made in code)", "via": "tests/fixtures/anatomyfixture.ts" },
   "labels": [
-    { "id": "FIX001", "text": "fixture cube A", "source": "fixture", "group": "fixture group one" },
-    { "id": "FIX002", "text": "fixture cube B", "source": "fixture", "group": "fixture group one" },
-    { "id": "FIX003", "text": "fixture block C", "source": "fixture", "group": "fixture group two" },
-    { "id": "FIX004", "text": "fixture point D", "source": "fixture", "group": "fixture group two" },
-    { "id": "FIX005", "text": "fixture slab E", "source": "fixture" }
+    { "id": "FIX001", "text": "fixture cube A", "source": "fixture", "group": "fixture group one", "layer": "organs" },
+    { "id": "FIX002", "text": "fixture cube B", "source": "fixture", "group": "fixture group one", "layer": "organs" },
+    { "id": "FIX003", "text": "fixture block C", "source": "fixture", "group": "fixture group two", "layer": "vessels" },
+    { "id": "FIX004", "text": "fixture point D", "source": "fixture", "group": "fixture group two", "layer": "skeleton" },
+    { "id": "FIX005", "text": "fixture slab E", "source": "fixture", "layer": "skeleton" }
   ],
   "depictions": [],
   "sources": [

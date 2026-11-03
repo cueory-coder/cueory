@@ -108,6 +108,7 @@ describe('anatomy files', () => {
     ['an id with a space', { labels: [{ id: 'FMA 1', text: 'a', source: 's' }] }, 'id'],
     ['a label without a name', { labels: [{ id: 'FMA1', text: ' ', source: 's' }] }, 'official name'],
     ['a label without a source', { labels: [{ id: 'FMA1', text: 'a' }] }, 'source'],
+    ['an unknown layer', { labels: [{ id: 'FMA1', text: 'a', source: 's', layer: 'bones' }] }, '"layer", when given'],
   ])('stops the build on %s', (_, overrides, message) => {
     expect(() => parseAnatomyFile(file(overrides), 'content/visuals/anatomy-sample.json')).toThrow(message);
   });

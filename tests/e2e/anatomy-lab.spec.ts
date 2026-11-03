@@ -157,6 +157,33 @@ test.describe('anatomy lab', () => {
     await expect(overlay.locator(':scope > span[data-behind]')).toHaveCount(0);
   });
 
+  test('layers: buttons show and hide each layer, and peel goes from the outside in, by keyboard', async ({ page }) => {
+    await openLab(page);
+    const layers = page.getByRole('group', { name: 'layers, skin to bone' });
+    const vessels = layers.getByRole('button', { name: 'vessels (1)' });
+    await expect(vessels).toHaveAttribute('aria-pressed', 'true');
+    await vessels.press('Enter');
+    await expect(vessels).toHaveAttribute('aria-pressed', 'false');
+    await expect(list(page).getByRole('button', { name: /^fixture block C/ })).toContainText('(hidden)');
+    await vessels.press('Enter');
+    // Peel: vessels, then organs; the skeleton is never peeled, so the view is never empty.
+    const peelButton = layers.getByRole('button', { name: /^peel a layer/ });
+    await expect(peelButton).toHaveText('peel a layer: vessels');
+    await peelButton.press('Enter');
+    await expect(peelButton).toHaveText('peel a layer: organs');
+    await peelButton.press('Enter');
+    await expect(peelButton).toBeDisabled();
+    await expect(list(page).getByRole('button', { name: /\(hidden\)/ })).toHaveCount(3);
+    const back = layers.getByRole('button', { name: /^put a layer back/ });
+    await expect(back).toHaveText('put a layer back: organs');
+    await back.press('Enter');
+    await back.press('Enter');
+    await expect(back).toBeDisabled();
+    await expect(list(page).getByRole('button', { name: /\(hidden\)/ })).toHaveCount(0);
+    // The fixture is not a whole-body view, so it claims nothing about missing layers.
+    await expect(page.getByTestId('anatomy-layer-gaps')).toHaveCount(0);
+  });
+
   test('"find it": right and wrong answers in words and an icon, score, next and show me', async ({ page }) => {
     await openLab(page);
     await page.getByRole('button', { name: 'start the quiz' }).click();

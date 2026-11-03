@@ -11,6 +11,15 @@ import {
 import type { LabColors, LabScene, LoadResult } from './anatomyscene';
 import { checkTriangleBudget } from './bodyviewer-logic';
 import {
+  WHOLE_BODY_KEY,
+  layerShown,
+  layersOf,
+  missingLayers,
+  nextToPeel,
+  nextToRestore,
+  toggleLayer,
+} from './anatomylayers';
+import {
   BODYPARTS3D_CREDIT_LEAD,
   BODYPARTS3D_LICENSE_NAME,
   BODYPARTS3D_LICENSE_URL,
@@ -131,6 +140,9 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
   const visible = useMemo(() => found.filter((id) => !hidden.has(id)), [found, hidden]);
   const groups = useMemo(() => groupStructures(system?.structures ?? [], query), [system, query]);
   const shownCount = groups.reduce((n, g) => n + g.items.length, 0);
+  const layers = useMemo(() => layersOf(system?.structures ?? [], foundSet), [system, foundSet]);
+  const toPeel = nextToPeel(layers, hidden);
+  const toRestore = nextToRestore(layers, hidden);
   const labelIds = useMemo(
     () => (labelsOn && !quiz ? labelsToShow(visible, selected) : []),
     [labelsOn, quiz, visible, selected],
@@ -227,7 +239,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     setSelected(null);
     setQuiz(null);
     scene
-      .load(system.model.file, system.structures.map((s) => s.id))
+      .load(system.model.files ?? system.model.file, system.structures.map((s) => s.id))
       .then((result) => {
         if (!current || !result) return;
         setLoad({ state: 'ready', result });
@@ -487,6 +499,60 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
               labels
             </button>
           </div>
+          {layers.length > 1 && (
+            <fieldset className="space-y-3 rounded-lg border border-line p-4">
+              <legend className="px-1 text-sm text-ink-soft">layers, skin to bone</legend>
+              <div className="flex flex-wrap gap-2">
+                {layers.map((layer) => (
+                  <button
+                    key={layer.id}
+                    type="button"
+                    className={secondaryButton}
+                    aria-pressed={layerShown(layer, hidden)}
+                    onClick={() => setHidden((h) => toggleLayer(h, layer))}
+                  >
+                    {layer.id} ({layer.ids.length})
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className={secondaryButton}
+                  disabled={!toPeel}
+                  onClick={() => {
+                    if (!toPeel) return;
+                    setHidden((h) => toggleLayer(h, toPeel));
+                    setAnnounce(`peeled away ${toPeel.id}`);
+                  }}
+                >
+                  peel a layer{toPeel ? `: ${toPeel.id}` : ''}
+                </button>
+                <button
+                  type="button"
+                  className={secondaryButton}
+                  disabled={!toRestore}
+                  onClick={() => {
+                    if (!toRestore) return;
+                    setHidden((h) => toggleLayer(h, toRestore));
+                    setAnnounce(`put back ${toRestore.id}`);
+                  }}
+                >
+                  put a layer back{toRestore ? `: ${toRestore.id}` : ''}
+                </button>
+              </div>
+              {system.key === WHOLE_BODY_KEY && missingLayers(system.structures).length > 0 && (
+                <p className="text-sm text-ink-soft" data-testid="anatomy-layer-gaps">
+                  no 3D models yet for {missingLayers(system.structures).join(', ')}: the BodyParts3D 3.0 copy these drafts
+                  are built from has none. vessels are only those of the heart. they are planned for the rebuild from
+                  BodyParts3D 4.0.
+                </p>
+              )}
+              {system.key === WHOLE_BODY_KEY && (
+                <p className="text-sm text-ink-soft">the whole body loads every system's model at once, so it takes longer to open.</p>
+              )}
+            </fieldset>
+          )}
           {labelsOn && !quiz && visible.length > labelIds.length && (
             <p className="text-sm text-ink-soft">
               {selected ? 'with this many structures showing, only the selected one is labeled.' : 'with this many structures showing, select one to label it.'}
