@@ -86,6 +86,11 @@ describe('the whole-body view', () => {
     expect(body.status).toBe('draft');
     expect(body.model.files).toEqual(['/models/anatomy/a.glb', '/models/anatomy/b.glb']);
     expect(body.structures.map((s) => s.id)).toEqual(['x', 'y', 'z']);
+    // Needed for lazy 3D loads: a shared layer may span files, but each file contains only its own IDs.
+    expect(body.model.fileIds).toEqual({
+      '/models/anatomy/a.glb': ['x', 'y'],
+      '/models/anatomy/b.glb': ['y', 'z'],
+    });
   });
 
   it('needs two systems of one release, and leaves the test fixture out', () => {
