@@ -363,6 +363,23 @@ test.describe('daily games: crossword (D-70)', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 
+  test('Tab leaves the grid, while Alt+Arrow changes the active word', async ({ page }) => {
+    const board = page.getByTestId('cueword');
+    const grid = board.getByRole('grid', { name: 'crossword grid' });
+    const activeCell = grid.locator('button[tabindex="0"]');
+
+    await activeCell.focus();
+    await page.keyboard.press('Alt+ArrowRight');
+    await expect(board.getByTestId('cueword-clue')).not.toHaveText('1 across: it twinkles in the night sky');
+    await expect(grid).toHaveAttribute('aria-keyshortcuts', 'Alt+ArrowLeft Alt+ArrowRight');
+
+    await activeCell.focus();
+    await page.keyboard.press('Tab');
+    await expect(board.getByRole('group', { name: 'letters' }).getByRole('button').first()).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(grid.locator('button[tabindex="0"]')).toBeFocused();
+  });
+
   test('check marks a wrong letter with a symbol and says it in words', async ({ page }) => {
     await fill(page, 'across', 0, 'stax');
     await page.getByRole('button', { name: 'check', exact: true }).click();

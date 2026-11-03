@@ -242,20 +242,6 @@ test.describe('Task 74: full-site accessibility sweep', () => {
 
       // One failure per page, with *every* finding in the assertion output.
       // Do not mark failures as fixed or alter pages in this auditing task.
-      // The crossword owns a different keyboard model: Tab switches words,
-      // Escape leaves its grid. Keep checking all other assertions (axe, h1,
-      // skip link, and unexpected findings), but report this confirmed
-      // Tab-only limitation as a visible fixme, not as a silently green page.
-      if (route === '/play') {
-        const known = problems.filter((problem) =>
-          /^Tab did not reach \d+ eligible controls: /.test(problem) ||
-          /^Tab traversal did not finish within \d+ presses$/.test(problem));
-        const unexpected = problems.filter((problem) => !known.includes(problem));
-        expect(unexpected, 'unexpected /play accessibility findings').toEqual([]);
-        if (known.length) {
-          test.fixme(true, '/play crossword uses Tab to select words and Escape to exit. ' + known.join(' | '));
-        }
-      }
       // If a genuine date-field focus defect remains AFTER the outline
       // detector fix, preserve it as an explicit follow-up for the director.
       if (route === '/start' && problems.length &&
