@@ -30,6 +30,23 @@ export function createGeneration() {
   };
 }
 
+/** 
+ * A model may finish downloading after the student chose a newer visibility state.
+ * Always keep its geometry, but never let an older reveal undo a later show-only or hide choice.
+ */
+export function visibilityAfterLayerDownload(
+  hidden: ReadonlySet<string>,
+  showIds: readonly string[],
+  hideAfterIds: readonly string[],
+  intentStillCurrent: boolean,
+): ReadonlySet<string> {
+  if (!intentStillCurrent) return hidden;
+  const next = new Set(hidden);
+  for (const id of showIds) next.delete(id);
+  for (const id of hideAfterIds) next.add(id);
+  return next;
+}
+
 /** Some of a layer's files loaded and some failed: the loaded ones are kept here so the caller can still use them. */
 export class PartialLoadError<R> extends Error {
   constructor(
