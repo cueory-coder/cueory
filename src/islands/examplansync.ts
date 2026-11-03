@@ -290,7 +290,7 @@ export function supabaseExamPlans(client: ExamPlanClient): ExamPlanSyncDb {
 
 interface ClientModule {
   getSupabase(): Promise<unknown>;
-  sessionStateFrom(client: never): Promise<{ signedIn: boolean }>;
+  sessionCheckFrom(client: never): Promise<{ signedIn: boolean } | ConnectFailure>;
 }
 
 /** The session or client couldn't be checked: unlike `null` (accounts off, or confirmed signed out). */
@@ -306,10 +306,11 @@ export async function connectExamPlans(
   load: () => Promise<ClientModule> = () => import('./supabaseclient') as unknown as Promise<ClientModule>,
 ): Promise<ExamPlanSyncDb | ConnectFailure | null> {
   try {
-    const { getSupabase, sessionStateFrom } = await load();
+    const { getSupabase, sessionCheckFrom } = await load();
     const client = await getSupabase();
     if (!client) return null;
-    const session = await sessionStateFrom(client as never);
+    const session = await sessionCheckFrom(client as never);
+    if (isConnectFailure(session)) return session;
     return session.signedIn ? supabaseExamPlans(client as ExamPlanClient) : null;
   } catch {
     // Not the same as signed out: the session couldn't be checked, so a signed-in student may still have an account.

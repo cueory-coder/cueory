@@ -86,7 +86,7 @@ test.beforeAll(async () => {
           return params.get('accounts') === 'off' ? null : window.fixtureClient;
         }
         let checks = 0;
-        export async function sessionStateFrom(client) {
+        export async function sessionCheckFrom(client) {
           // '&session=fail-once': the first session check is rejected, as a dropped connection would.
           if (params.get('session') === 'fail-once' && checks++ === 0) throw new Error('session-private-detail');
           if (!client || params.has('signed-out')) return { signedIn: false };

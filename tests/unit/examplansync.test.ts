@@ -416,8 +416,14 @@ describe('supabaseExamPlans', () => {
 describe('connectExamPlans', () => {
   const module = (client: unknown, signedIn: boolean) => async () => ({
     getSupabase: async () => client,
-    sessionStateFrom: vi.fn(async () => ({ signedIn })),
+    sessionCheckFrom: vi.fn(async () => ({ signedIn })),
   });
+  // The page's real session helper over a fake client, so a thrown or returned error goes the whole way through.
+  const real = (getSession: () => Promise<unknown>) => async () => {
+    const actual = await import('../../src/islands/supabaseclient');
+    const client = { auth: { getSession }, from: vi.fn() };
+    return { getSupabase: async () => client, sessionCheckFrom: actual.sessionCheckFrom as never };
+  };
 
   it('is null with accounts off or confirmed signed out', async () => {
     expect(await connectExamPlans(module(null, true))).toBeNull();
@@ -427,14 +433,23 @@ describe('connectExamPlans', () => {
   it('reports a failure, not signed out, when loading or the session check fails', async () => {
     expect(await connectExamPlans(() => Promise.reject(new Error('offline')))).toEqual({ error: true });
     expect(await connectExamPlans(async () => ({
-      getSupabase: () => Promise.reject(new Error('x')), sessionStateFrom: async () => ({ signedIn: true }),
+      getSupabase: () => Promise.reject(new Error('x')), sessionCheckFrom: async () => ({ signedIn: true }),
     }))).toEqual({ error: true });
     const rejected = await connectExamPlans(async () => ({
-      getSupabase: async () => ({ from: vi.fn() }), sessionStateFrom: () => Promise.reject(new Error('session')),
+      getSupabase: async () => ({ from: vi.fn() }), sessionCheckFrom: () => Promise.reject(new Error('session')),
     }));
     expect(rejected).toEqual({ error: true });
     expect(isConnectFailure(rejected)).toBe(true);
     expect(isConnectFailure(null)).toBe(false);
+  });
+
+  it('the real session helper: a thrown or returned getSession error is a failure, no session is signed out', async () => {
+    expect(await connectExamPlans(real(() => Promise.reject(new Error('offline'))))).toEqual({ error: true });
+    expect(await connectExamPlans(real(async () => ({ data: { session: null }, error: new Error('x') })))).toEqual({ error: true });
+    expect(await connectExamPlans(real(async () => ({ data: { session: null }, error: null })))).toBeNull();
+    const db = await connectExamPlans(real(async () => ({ data: { session: { user: { id: 'u1' } } }, error: null })));
+    expect(db).not.toBeNull();
+    expect(isConnectFailure(db)).toBe(false);
   });
 
   it('gives the adapter when someone is signed in', async () => {
