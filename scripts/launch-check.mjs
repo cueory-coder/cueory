@@ -46,7 +46,8 @@ function report(path) {
     file === '404.html' ? '/404.html' : `/${file.slice(0, -5)}`;
   let html;
   try {
-    html = readFileSync(path, 'utf8').replace(/<!--[\s\S]*?-->/g, '')
+    // Preserve a boundary: removing comments must not join fragments into new markup.
+    html = readFileSync(path, 'utf8').replace(/<!--[\s\S]*?-->/g, ' ')
       .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, ' ');
   } catch {
     warnings.push(`could not read dist/${file}`);

@@ -51,6 +51,16 @@ describe('launch readiness report', () => {
     expect(run(cwd).stdout).toContain('noindex=yes');
   });
 
+  it('does not join separated markup into new directives when ignoring comments', () => {
+    const cwd = fixture({ 'index.html': '<met<!-- ignored -->a name="robots" content="noindex">' +
+      '<p data-place<!-- ignored -->holder="CHRISTIAN-TEXT">sample</p>' });
+    const result = run(cwd);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('CHRISTIAN-TEXT=0');
+    expect(result.stdout).toContain('sample=1');
+    expect(result.stdout).toContain('noindex=no');
+  });
+
   it('does not mistake noindex text or an index directive for a noindex robots meta', () => {
     const cwd = fixture({ 'index.html': '<meta name="robots" content="index,follow"><p>noindex</p><meta name="description" content="noindex">' });
     expect(run(cwd).stdout).toContain('noindex=no');
