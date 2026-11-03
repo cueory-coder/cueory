@@ -70,11 +70,33 @@ describe('anatomy production artifact audit', () => {
     ]));
   });
 
-  it('does not falsely mark the name of a different label or an unrelated page as a leak', () => {
+  it('avoids false positives from longer or unrelated structure identifiers', () => {
     const f = setup();
     f.file('preview/anatomy-lab.html', '<div>FMA9999910</div>');
-    f.file('other.html', '<div>FMA999991</div>');
+    f.file('other.html', '<div>FMA999992</div>');
     expect(f.check().errors).toEqual([]);
+  });
+
+  it('rejects draft identifiers on unrelated pages, in search data and in SVG exports', () => {
+    const f = setup();
+    f.file('index.html', '<div>FMA999991</div>');
+    f.file('pagefind/pagefind-entry.json', '{"id":"FMA999991"}');
+    f.file('images/structure.svg', '<svg><title>FMA999991</title></svg>');
+    expect(f.check().errors).toEqual(expect.arrayContaining([
+      'draft anatomy ID exposed in built text: index.html (FMA999991)',
+      'draft anatomy ID exposed in built text: pagefind/pagefind-entry.json (FMA999991)',
+      'draft anatomy ID exposed in built text: images/structure.svg (FMA999991)',
+    ]));
+  });
+
+  it('fails closed when a draft has no labels or an unsupported identifier format', () => {
+    const f = setup();
+    f.system('draft', 'draft', ['/models/anatomy/draft.glb'], []);
+    f.system('badid', 'draft', ['/models/anatomy/badid.glb'], ['local-sample']);
+    expect(f.check().errors).toEqual(expect.arrayContaining([
+      'anatomy-draft.json: draft labels are missing',
+      'anatomy-badid.json: invalid draft label ID',
+    ]));
   });
 
   it('rejects a model shared by an approved and a draft record', () => {

@@ -10,7 +10,9 @@ import { pathToFileURL } from 'node:url';
 
 const ANATOMY_FILE = /^anatomy-[a-z0-9-]+\.json$/;
 const MODEL_URL = /^\/models\/anatomy\/[a-z0-9][a-z0-9_-]*\.glb$/;
-const TEXT_ASSET = /\.(?:html|js|mjs|json|map)$/i;
+// Scan all ordinary published text assets, not just the anatomy page or hashed JavaScript chunks.
+// Site search, manifests or unrelated pages can otherwise accidentally expose a draft identifier.
+const TEXT_ASSET = /\.(?:html?|js|mjs|json|map|xml|svg|txt|css|csv|tsv|md|webmanifest)$/i;
 
 function walkFiles(dir) {
   if (!existsSync(dir)) return [];
@@ -86,11 +88,11 @@ export function auditAnatomyProduction(distDir, contentDir) {
     } else {
       draftSystems++;
       urls.forEach((url) => draft.add(url));
-      if (!Array.isArray(data.labels)) {
+      if (!Array.isArray(data.labels) || data.labels.length === 0) {
         errors.push(`${name}: draft labels are missing`);
       } else {
         for (const label of data.labels) {
-          if (!label || typeof label.id !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(label.id)) {
+          if (!label || typeof label.id !== 'string' || !/^FMA\d{3,}$/.test(label.id)) {
             errors.push(`${name}: invalid draft label ID`);
           } else {
             draftIds.add(label.id);
@@ -123,14 +125,10 @@ export function auditAnatomyProduction(distDir, contentDir) {
 
   // Draft labels must not be baked into static HTML/JS data, even if their .glb files were pruned.
   // The identifiers are original data keys, not guessed medical wording. Only match exact token boundaries.
-  // A short numeric FMA identifier could appear in documentation, so restrict text scanning to the anatomy page and
-  // built JavaScript/JSON bundles, rather than unrelated lesson pages and documentation.
-  const textFiles = walkFiles(dist).filter((path) => TEXT_ASSET.test(path) && (
-    path.includes(`${join('preview', 'anatomy-lab')}`) ||
-    path.includes(`${join('assets')}${'/'}`) ||
-    path.includes(`${join('_astro')}${'/'}`)
-  ));
-  const draftTokens = new Set([...draftIds].filter((id) => /^FMA\d{3,}$/.test(id)));
+  // Search every static text asset, including Pagefind/search data and other public routes.
+  // Token boundaries avoid confusing FMA999991 with FMA9999910. Unknown ID formats fail source validation above.
+  const textFiles = walkFiles(dist).filter((path) => TEXT_ASSET.test(path));
+  const draftTokens = draftIds;
   if (draftTokens.size) {
     for (const file of textFiles) {
       const contents = readFileSync(file, 'utf8');
