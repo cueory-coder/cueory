@@ -854,8 +854,18 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                         type="button"
                         className={primaryButton}
                         onClick={() => {
+                          const next = nextQuiz(quiz, Math.random);
                           setSelected(null);
-                          setQuiz(nextQuiz(quiz, quizPool, Math.random));
+                          setQuiz(next);
+                          // A learner may have hidden a future target during the round.
+                          // Make that target visible before asking them to find it.
+                          const target = next.target;
+                          if (target) setHidden((current) => {
+                            if (!current.has(target)) return current;
+                            const shown = new Set(current);
+                            shown.delete(target);
+                            return shown;
+                          });
                         }}
                       >
                         next

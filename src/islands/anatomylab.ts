@@ -290,6 +290,8 @@ export function labelsToShow(
 // ---------------------------------------------------------------------------------------------------------------------
 
 export interface QuizState {
+  /** The eligible structure IDs fixed when this round starts, even if visibility changes. */
+  pool: string[];
   /** The structure to find, or null when every structure in the round has been asked. */
   target: string | null;
   /** Targets already asked this round, in order (the current one included). */
@@ -313,8 +315,10 @@ export function pickQuizTarget(pool: readonly string[], asked: readonly string[]
 }
 
 export function startQuiz(pool: readonly string[], random: () => number): QuizState {
-  const target = pickQuizTarget(pool, [], random);
-  return { target, asked: target ? [target] : [], answered: 0, right: 0, feedback: null, scored: false };
+  // Snapshot the eligible structures for the full round. Visibility changes belong to the next round.
+  const roundPool = [...new Set(pool)];
+  const target = pickQuizTarget(roundPool, [], random);
+  return { pool: roundPool, target, asked: target ? [target] : [], answered: 0, right: 0, feedback: null, scored: false };
 }
 
 /** The student picked `picked` (in 3D or the list). Only the first pick of a question counts towards the score. */
@@ -337,9 +341,9 @@ export function revealQuiz(state: QuizState): QuizState {
   return { ...state, answered: state.answered + (state.scored ? 0 : 1), scored: true, feedback: { kind: 'shown' } };
 }
 
-/** "next": a new target from the pool, never repeating this round; null target when the round is done. */
-export function nextQuiz(state: QuizState, pool: readonly string[], random: () => number): QuizState {
-  const target = pickQuizTarget(pool, state.asked, random);
+/** "next": pick from the round's original pool, even if visible structures changed since it started. */
+export function nextQuiz(state: QuizState, random: () => number): QuizState {
+  const target = pickQuizTarget(state.pool, state.asked, random);
   return {
     ...state,
     // Skipping a question with "next" before answering it counts it as answered, not right.

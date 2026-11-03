@@ -214,6 +214,43 @@ test.describe('anatomy lab', () => {
     await expect(quiz.getByText('score: 1 of 3')).toBeVisible();
   });
 
+  test('find-it keeps asking its original targets after some become hidden', async ({ page }) => {
+    await openLab(page);
+    const quiz = page.getByRole('region', { name: 'find it' });
+    await quiz.getByRole('button', { name: 'start the quiz' }).click();
+    const prompt = quiz.getByText(/^find: /);
+    const first = (await prompt.locator('strong').textContent())!;
+    for (const name of NAMES.filter((n) => n !== first)) {
+      await list(page).getByRole('button', { name: `hide ${name}` }).click();
+    }
+    // All remaining candidates were hidden, but the round must not end early.
+    await quiz.getByRole('button', { name: 'next' }).click();
+    const second = (await prompt.locator('strong').textContent())!;
+    expect(second).not.toBe(first);
+    // The next target is shown again so it can actually be found in 3D.
+    await expect(list(page).getByRole('button', { name: `hide ${second}` })).toBeVisible();
+  });
+
+  test('find-it does not add newly shown structures to the active round', async ({ page }) => {
+    await openLab(page);
+    const excluded = 'fixture slab E';
+    await list(page).getByRole('button', { name: `hide ${excluded}` }).click();
+    const quiz = page.getByRole('region', { name: 'find it' });
+    await quiz.getByRole('button', { name: 'start the quiz' }).click();
+    await list(page).getByRole('button', { name: `show ${excluded}` }).click();
+    const prompt = quiz.getByText(/^find: /);
+    const seen = new Set<string>();
+    for (let i = 0; i < NAMES.length - 1; i++) {
+      const target = (await prompt.locator('strong').textContent())!;
+      expect(target).not.toBe(excluded);
+      expect(seen.has(target)).toBe(false);
+      seen.add(target);
+      await quiz.getByRole('button', { name: 'next' }).click();
+    }
+    expect(seen.size).toBe(NAMES.length - 1);
+    await expect(quiz.getByText(/^round done:/)).toBeVisible();
+  });
+
   test('exports a phone picture as a 1080 × 1920 PNG with the right file name', async ({ page }, info) => {
     test.skip(!isDesktopOfEachEngine(info), 'one export run per engine is enough');
     await openLab(page);

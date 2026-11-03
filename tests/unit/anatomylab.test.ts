@@ -272,12 +272,12 @@ describe('the "find it" quiz', () => {
     let state = startQuiz(pool, random);
     const asked = [state.target];
     for (let i = 0; i < pool.length - 1; i++) {
-      state = nextQuiz(answerQuiz(state, state.target!), pool, random);
+      state = nextQuiz(answerQuiz(state, state.target!), random);
       asked.push(state.target);
     }
     expect(new Set(asked).size).toBe(pool.length);
     expect(asked.sort()).toEqual([...pool].sort());
-    state = nextQuiz(answerQuiz(state, state.target!), pool, random);
+    state = nextQuiz(answerQuiz(state, state.target!), random);
     expect(state.target).toBeNull();
     expect(state).toMatchObject({ right: 4, answered: 4 });
   });
@@ -308,15 +308,40 @@ describe('the "find it" quiz', () => {
     expect(state.feedback).toEqual({ kind: 'shown' });
     expect(state).toMatchObject({ right: 0, answered: 1 });
     expect(answerQuiz(state, 'A')).toBe(state);
-    state = nextQuiz(state, pool, () => 0);
+    state = nextQuiz(state, () => 0);
     expect(state.target).toBe('B');
     expect(state.feedback).toBeNull();
   });
 
   it('"next" before answering counts the skipped question once', () => {
     let state = startQuiz(pool, () => 0);
-    state = nextQuiz(state, pool, () => 0);
+    state = nextQuiz(state, () => 0);
     expect(state).toMatchObject({ answered: 1, right: 0, target: 'B' });
+  });
+
+  it('keeps the original round even if a caller later hides or reveals structures', () => {
+    const original = ['A', 'B', 'C'];
+    let state = startQuiz(original, () => 0);
+    original.splice(1, 2, 'D', 'E');
+    expect(state.pool).toEqual(['A', 'B', 'C']);
+    state = nextQuiz(state, () => 0);
+    expect(state.target).toBe('B');
+    state = nextQuiz(state, () => 0);
+    expect(state.target).toBe('C');
+    state = nextQuiz(state, () => 0);
+    expect(state.target).toBeNull();
+    expect(state.asked).toEqual(['A', 'B', 'C']);
+    expect(state.answered).toBe(3);
+  });
+
+  it('does not ask duplicate structure IDs twice within a round', () => {
+    let state = startQuiz(['A', 'A', 'B'], () => 0);
+    expect(state.pool).toEqual(['A', 'B']);
+    expect(state.target).toBe('A');
+    state = nextQuiz(state, () => 0);
+    expect(state.target).toBe('B');
+    state = nextQuiz(state, () => 0);
+    expect(state.target).toBeNull();
   });
 });
 
