@@ -231,6 +231,22 @@ test.describe('anatomy lab', () => {
     await expect(list(page).getByRole('button', { name: `hide ${second}` })).toBeVisible();
   });
 
+  test('can stop an active Find It round after all structures are hidden', async ({ page }) => {
+    await openLab(page);
+    const quiz = page.getByRole('region', { name: 'find it' });
+    await quiz.getByRole('button', { name: 'start the quiz' }).click();
+    for (const name of NAMES) {
+      await list(page).getByRole('button', { name: `hide ${name}` }).click();
+    }
+    const stop = quiz.getByRole('button', { name: 'stop the quiz' });
+    await expect(stop).toBeEnabled();
+    await stop.click();
+    const start = quiz.getByRole('button', { name: 'start the quiz' });
+    await expect(start).toBeDisabled();
+    await list(page).getByRole('button', { name: `show ${NAMES[0]}` }).click();
+    await expect(start).toBeEnabled();
+  });
+
   test('find-it does not add newly shown structures to the active round', async ({ page }) => {
     await openLab(page);
     const excluded = 'fixture slab E';

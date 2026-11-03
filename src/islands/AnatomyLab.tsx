@@ -793,7 +793,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
           <section className="space-y-3 rounded-lg border border-line p-4" aria-labelledby="anatomy-quiz-heading">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 id="anatomy-quiz-heading" className="text-lg text-ink">find it</h2>
-              <button type="button" className={secondaryButton} aria-pressed={quiz !== null} disabled={!ready || quizPool.length === 0} onClick={toggleQuiz}>
+              <button type="button" className={secondaryButton} aria-pressed={quiz !== null} disabled={!ready || (quiz === null && quizPool.length === 0)} onClick={toggleQuiz}>
                 {quiz ? 'stop the quiz' : 'start the quiz'}
               </button>
             </div>
