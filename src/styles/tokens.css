@@ -297,6 +297,7 @@
     --color-panel-ink-soft: #cbb8a4; /* Sand */
     --color-on-panel-button: #1c1917; /* Charcoal */
     --color-player: #1c1917;      /* Charcoal */
+    --color-qr-quiet: #f9f5ef;    /* Ivory: stays light, so a phone can read the QR code */
     --shadow-tint: 28 25 23;      /* Charcoal */
     --silk-fold-rgb: 58 45 36;    /* Walnut */
     --silk-fold-alpha: 0.7;
@@ -362,6 +363,7 @@
   --color-panel-ink-soft: #cbb8a4; /* Sand */
   --color-on-panel-button: #1c1917; /* Charcoal */
   --color-player: #1c1917;      /* Charcoal */
+  --color-qr-quiet: #f9f5ef;    /* Ivory: stays light, so a phone can read the QR code */
   --shadow-tint: 28 25 23;      /* Charcoal */
   --silk-fold-rgb: 58 45 36;    /* Walnut */
   --silk-fold-alpha: 0.7;
