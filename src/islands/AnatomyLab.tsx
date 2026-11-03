@@ -28,6 +28,7 @@ import {
   BEHIND_MARK,
   EXPORT_SIZES,
   answerQuiz,
+  anatomyFailureMessage,
   creditFor,
   exportFileName,
   groupStructures,
@@ -376,7 +377,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
             if (visibilityIntent.isCurrent(intent)) {
               setLayerError({
                 layer: layer.id,
-                message: err instanceof Error ? err.message : String(err),
+                message: anatomyFailureMessage('layer', err),
                 retry: () => { visibilityIntent.bump(); run(); },
               });
             }
@@ -545,7 +546,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
       setExportNote([`saved ${fileName}.`, ...labelNotes(names, leftOut, behind.length > 0)].join(' '));
     } catch (err) {
       if (!generation.isCurrent(mine)) return;
-      setExportNote(`could not save the picture: ${err instanceof Error ? err.message : String(err)}`);
+      setExportNote(anatomyFailureMessage('picture', err));
     } finally {
       if (generation.isCurrent(mine)) setExporting(null);
     }
