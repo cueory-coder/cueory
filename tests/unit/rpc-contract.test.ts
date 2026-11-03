@@ -11,7 +11,7 @@ const sql = [
   '20261101120000_flags_and_submit_flag.sql',
   '20261102100000_study_events.sql',
   '20261102110000_delete_my_account.sql',
-  '20261102160000_my_sessions.sql',
+  '20261102170000_my_sessions.sql',
 ].map(name => readFileSync(new URL(`../../supabase/migrations/${name}`, import.meta.url), 'utf8')).join('\n');
 
 type FunctionName = 'submit_flag' | 'check_answer' | 'my_flags' | 'record_study_events' | 'delete_my_account' | 'my_sessions';
@@ -184,7 +184,7 @@ describe('delete_my_account contract (Task 60)', () => {
 });
 
 describe('my_sessions contract (Task 309)', () => {
-  const sessionsSql = readFileSync(new URL('../../supabase/migrations/20261102160000_my_sessions.sql', import.meta.url), 'utf8');
+  const sessionsSql = readFileSync(new URL('../../supabase/migrations/20261102170000_my_sessions.sql', import.meta.url), 'utf8');
 
   it('takes no arguments and returns the cursor id plus exactly the exported session fields', () => {
     expect(declaration('my_sessions').arguments).toEqual([]);
