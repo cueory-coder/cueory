@@ -28,6 +28,7 @@ import {
   onlyThis,
   parseAnatomyFile,
   pictureCreditFor,
+  pickedStructure,
   placeLabels,
   releaseNoteFor,
   pickQuizTarget,
@@ -254,6 +255,21 @@ describe('the structure list', () => {
     expect(visibleSelection('A', hiddenFromList)).toBeNull();
     // Showing the same structure again restores its highlight automatically.
     expect(visibleSelection('A', toggleHidden(hiddenFromList, 'A'))).toBe('A');
+  });
+
+  it('picks the opaque selected mesh through translucent geometry without biasing other taps', () => {
+    const hits = ['outer-skin', 'inner-organ'];
+    // Ray intersections are ordered nearest first. The selected inner mesh
+    // is still visibly highlighted through the translucent outer skin.
+    expect(pickedStructure(hits, 'inner-organ')).toBe('inner-organ');
+    // A selected structure outside the ray is not sticky.
+    expect(pickedStructure(hits, 'unrelated')).toBe('outer-skin');
+    expect(pickedStructure(hits, null)).toBe('outer-skin');
+    // A hidden selection is never treated as a visible highlight.
+    expect(pickedStructure(hits, visibleSelection('inner-organ', new Set(['inner-organ'])))).toBe('outer-skin');
+    expect(pickedStructure([], 'inner-organ')).toBeNull();
+    // In quiz mode the caller passes null, so the nearest visible mesh wins.
+    expect(pickedStructure(hits, null)).toBe('outer-skin');
   });
 
   it('labels every visible structure, or only the selected one when there are many', () => {
