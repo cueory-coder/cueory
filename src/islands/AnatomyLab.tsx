@@ -849,6 +849,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                             target,
                             (id) => (lazy && system ? filesForLayer(system, id) : []),
                             (url) => loader?.isLoaded(url) ?? true,
+                            foundSet,
                           );
                           if (plan.fetch) reveal(plan.fetch);
                           else setHidden((h) => {
