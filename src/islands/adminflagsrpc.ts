@@ -105,7 +105,7 @@ export function parseAdminFlagRow(input: unknown): AdminFlagRow | null {
   const handled_at = input.handled_at ?? null;
   if (!isUuid(id) || !isUuid(user_id) || !isPage(page)) return null;
   if ((item_id !== null && !isUuid(item_id)) || (item_version_id !== null && !isUuid(item_version_id))) return null;
-  if ((item_id === null) !== (item_version_id === null)) return null;
+  // item_id and item_version_id are set to null independently (a deleted draft version leaves item_id set), so each is checked alone.
   if (typeof reason !== 'string' || !(REASONS as readonly string[]).includes(reason)) return null;
   if (comment !== null && (typeof comment !== 'string' || comment.length < 1 || [...comment].length > 1000)) return null;
   if (status !== 'open' && status !== 'handled') return null;

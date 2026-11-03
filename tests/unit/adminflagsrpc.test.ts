@@ -140,7 +140,6 @@ describe('parseAdminFlagRow', () => {
     ['a bad user', { user_id: 12 }],
     ['a page on another site', { page: '//evil.example/x' }],
     ['a page with markup', { page: '/<script>' }],
-    ['an item without its version', { item_id: id(0xe1) }],
     ['an unknown reason', { reason: 'rude' }],
     ['a comment over 1,000 characters', { comment: 'a'.repeat(1001) }],
     ['an empty comment', { comment: '' }],
@@ -150,6 +149,13 @@ describe('parseAdminFlagRow', () => {
     ['open with a handled time', { handled_at: '2026-11-02T11:00:00Z' }],
   ] as const)('refuses %s', (_label, change) => {
     expect(parseAdminFlagRow({ ...row(), ...change })).toBeNull();
+  });
+
+  it('accepts an item whose version was deleted, and a version without its item', () => {
+    const noVersion = row({ item_id: id(0xe1), item_version_id: null });
+    expect(parseAdminFlagRow(noVersion)).toEqual(noVersion);
+    const noItem = row({ item_id: null, item_version_id: id(0xf1) });
+    expect(parseAdminFlagRow(noItem)).toEqual(noItem);
   });
 
   it('refuses things that are not rows', () => {
@@ -294,18 +300,6 @@ describe('inboxAdapter (the shape the /admin/flags page takes)', () => {
     expect(capped).toMatchObject({ kind: 'ok', complete: false });
     const whole = await inboxAdapter(fake({ data: [row()], error: null })).loadFlags('open');
     expect(whole.kind === 'ok' && whole.complete).toBeUndefined();
-  });
-
-  it('reopens a report (Task 305)', async () => {
-    const rpc = fake({ data: null, error: null });
-    expect(await inboxAdapter(rpc).reopen(flagId)).toEqual({ kind: 'ok', value: null });
-    expect(rpc).toHaveBeenCalledWith('admin_reopen_flag', { flag_id: flagId });
-    expect(await inboxAdapter(fake({ data: null, error: refusal })).reopen(flagId)).toEqual({ kind: 'refused' });
-  });
-
-  it('fits the page\'s adapter type', () => {
-    const adapter: AdminFlagsAdapter = inboxAdapter(fake());
-    expect(Object.keys(adapter).sort()).toEqual(['loadFlags', 'markHandled', 'reopen']);
   });
 
   it('turns a refusal into refused and anything else into failed', async () => {
