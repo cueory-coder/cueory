@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { ancestorsOf, commonParent, GROUP_MIN, GROUP_SPLIT_ABOVE, groupHeadings } from '../../scripts/anatomy-groups.mjs';
 import { MAX_SIZE_BYTES, MAX_TRIANGLES } from '../../src/islands/bodyviewer-logic';
 import {
   allowedBooks,
@@ -144,6 +145,45 @@ describe('matching model nodes and labels', () => {
   });
 });
 
+describe('list headings from the hierarchy (scripts/anatomy-groups.mjs)', () => {
+  // A made-up tree with placeholder ids (not anatomy): T is part of nothing; R1 and R2 are a system's roots.
+  //   T > R1 > A > a1, a2, a3        T > R1 > B > b1, b2        T > R1 > c1        T > R2
+  const parents = new Map<string, string[]>([
+    ['R1', ['T']], ['R2', ['T']],
+    ['A', ['R1']], ['B', ['R1']], ['c1', ['R1']],
+    ['a1', ['A']], ['a2', ['A']], ['a3', ['A']], ['b1', ['B']], ['b2', ['B']],
+  ]);
+  const structures = [
+    { id: 'R2', path: ['R2'] },
+    { id: 'c1', path: ['R1', 'c1'] },
+    ...['a1', 'a2', 'a3'].map((id) => ({ id, path: ['R1', 'A', id] })),
+    ...['b1', 'b2'].map((id) => ({ id, path: ['R1', 'B', id] })),
+  ];
+
+  it('walks up the tree nearest first', () => {
+    expect(ancestorsOf('a1', parents)).toEqual(['A', 'R1', 'T']);
+    expect(commonParent(['R1', 'R2'], parents)).toBe('T');
+    expect(commonParent(['R1'], parents)).toBe('T');
+  });
+
+  it('keeps a small system under its root concepts', () => {
+    expect(structures.length).toBeLessThanOrEqual(GROUP_SPLIT_ABOVE);
+    expect(Object.fromEntries(groupHeadings(structures, ['R1', 'R2'], parents))).toEqual({
+      R2: 'T', c1: 'R1', a1: 'R1', a2: 'R1', a3: 'R1', b1: 'R1', b2: 'R1',
+    });
+  });
+
+  it(`splits a root that holds more than ${GROUP_SPLIT_ABOVE} structures, only into parts that hold at least ${GROUP_MIN}`, () => {
+    // Ten more structures straight under R1 push it over the limit: A (3) becomes a heading, B (2) stays under R1.
+    const extra = Array.from({ length: 10 }, (_, i) => ({ id: `x${i}`, path: ['R1', `x${i}`] }));
+    const headings = groupHeadings([...structures, ...extra], ['R1', 'R2'], parents);
+    expect(headings.get('a1')).toBe('A');
+    expect(headings.get('b1')).toBe('R1');
+    expect(headings.get('c1')).toBe('R1');
+    expect(headings.get('x0')).toBe('R1');
+  });
+});
+
 const visualsDir = new URL('../../content/visuals/', import.meta.url);
 const anatomyFiles = readdirSync(visualsDir).filter((file) => /^anatomy-[a-z0-9-]+\.json$/.test(file)).sort();
 const systems = (
@@ -201,6 +241,15 @@ describe('the anatomy models', () => {
           expect(source?.quote).toBe(`${label.id} ${label.text}`);
           expect(label.group, label.id).toBeTruthy();
         }
+      });
+
+      it('groups the list under a few headings, not one or two structures each', () => {
+        const sizes = new Map<string, number>();
+        for (const label of visual.labels) sizes.set(label.group!, (sizes.get(label.group!) ?? 0) + 1);
+        // Fewer headings than a third of the structures, and most structures under a heading of three or more.
+        expect(sizes.size, [...sizes.keys()].join('; ')).toBeLessThanOrEqual(Math.ceil(visual.labels.length / 3));
+        const inSmall = [...sizes.values()].filter((n) => n < GROUP_MIN).reduce((a, b) => a + b, 0);
+        expect(inSmall, [...sizes].join('; ')).toBeLessThanOrEqual(visual.labels.length / 3);
       });
     });
   }

@@ -8,11 +8,11 @@
   "labels": [
     { "id": "FMA7394", "text": "trachea", "group": "respiratory system", "source": "bp3d-FMA7394" },
     { "id": "FMA7409", "text": "bronchus", "group": "respiratory system", "source": "bp3d-FMA7409" },
-    { "id": "FMA7371", "text": "lower lobe of left lung", "group": "lower lobe of lung", "source": "bp3d-FMA7371" },
-    { "id": "FMA7337", "text": "lower lobe of right lung", "group": "lower lobe of lung", "source": "bp3d-FMA7337" },
-    { "id": "FMA7370", "text": "upper lobe of left lung", "group": "left lung", "source": "bp3d-FMA7370" },
-    { "id": "FMA7383", "text": "middle lobe of lung", "group": "right lung", "source": "bp3d-FMA7383" },
-    { "id": "FMA7333", "text": "upper lobe of right lung", "group": "right lung", "source": "bp3d-FMA7333" }
+    { "id": "FMA7371", "text": "lower lobe of left lung", "group": "lung", "source": "bp3d-FMA7371" },
+    { "id": "FMA7337", "text": "lower lobe of right lung", "group": "lung", "source": "bp3d-FMA7337" },
+    { "id": "FMA7370", "text": "upper lobe of left lung", "group": "lung", "source": "bp3d-FMA7370" },
+    { "id": "FMA7383", "text": "middle lobe of lung", "group": "lung", "source": "bp3d-FMA7383" },
+    { "id": "FMA7333", "text": "upper lobe of right lung", "group": "lung", "source": "bp3d-FMA7333" }
   ],
   "depictions": [
     { "id": "geometry", "what": "each structure's 3D shape and position as BodyParts3D models it, all in the database's one shared body coordinate system", "source": "bp3d-readme" }

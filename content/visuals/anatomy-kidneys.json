@@ -8,10 +8,10 @@
   "labels": [
     { "id": "FMA15900", "text": "urinary bladder", "group": "urinary system", "source": "bp3d-FMA15900" },
     { "id": "FMA19667", "text": "urethra", "group": "urinary system", "source": "bp3d-FMA19667" },
-    { "id": "FMA7205", "text": "left kidney", "group": "kidney", "source": "bp3d-FMA7205" },
-    { "id": "FMA7204", "text": "right kidney", "group": "kidney", "source": "bp3d-FMA7204" },
-    { "id": "FMA15572", "text": "left ureter", "group": "ureter", "source": "bp3d-FMA15572" },
-    { "id": "FMA15571", "text": "right ureter", "group": "ureter", "source": "bp3d-FMA15571" }
+    { "id": "FMA7205", "text": "left kidney", "group": "urinary system", "source": "bp3d-FMA7205" },
+    { "id": "FMA7204", "text": "right kidney", "group": "urinary system", "source": "bp3d-FMA7204" },
+    { "id": "FMA15572", "text": "left ureter", "group": "urinary system", "source": "bp3d-FMA15572" },
+    { "id": "FMA15571", "text": "right ureter", "group": "urinary system", "source": "bp3d-FMA15571" }
   ],
   "depictions": [
     { "id": "geometry", "what": "each structure's 3D shape and position as BodyParts3D models it, all in the database's one shared body coordinate system", "source": "bp3d-readme" }

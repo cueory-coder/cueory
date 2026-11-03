@@ -131,7 +131,11 @@ The allowed books so far are Open RN *Nursing Fundamentals, 2nd Edition*, and Bo
 - Output: `public/models/anatomy/<system>.glb` and `content/visuals/anatomy-<system>.json`, a draft whose labels are
   the database's official English names (`parts_list_e.txt`), each cited to its own line. A name is shown exactly as
   written, including the ", nsn" some names end with: the README doesn't say what it means, so it isn't removed.
-  Each label's `group` is the concept the structure is part of in the same hierarchy, for the viewer's list headings.
+  Each label's `group`, the viewer's list heading, is a concept from the same hierarchy
+  (`scripts/anatomy-groups.mjs`): the system's root concept the structure is under, then one step down the structure's
+  path at a time while the concept holds more than 12 structures and the next one holds at least 3; a structure that is a
+  root itself is headed by the concept all the system's roots are part of. So the heart's list has seven headings
+  (such as "cardiac vein" and "right coronary artery"), not one heading per branch.
   BodyParts3D may be cited only by a 3D model (`kind: "model"`), and the unit tests check that every node in each
   model has exactly one label.
 - Stopgap: the first models come from Release 3.0 (2011-09-15) by way of the GitHub mirror

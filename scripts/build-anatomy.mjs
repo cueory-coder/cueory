@@ -28,12 +28,14 @@
  *      (EXT_meshopt_compression, D-58) with float positions (-vpf), so each structure stays one named mesh node;
  *   4. writes public/models/anatomy/<system>.glb, with the BodyParts3D credit as the file's copyright, and
  *      content/visuals/anatomy-<system>.json: one label per structure whose text is the parts list's English name
- *      exactly as written, cited to that line of parts_list_e.txt.
+ *      exactly as written, cited to that line of parts_list_e.txt, and whose group (the lab's list heading) is a
+ *      concept from the same hierarchy, chosen by scripts/anatomy-groups.mjs.
  * It prints the triangles of every structure before and after. The same input gives the same files, byte for byte.
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { basename, extname, join } from 'node:path';
 import { pack } from 'gltfpack';
+import { groupHeadings } from './anatomy-groups.mjs';
 
 const SYSTEMS_FILE = 'scripts/anatomy-systems.json';
 const MODELS_DIR = 'public/models/anatomy';
@@ -139,14 +141,20 @@ function resolveSystem(system, hierarchy, names, meshes) {
     paths.set(id, path);
     for (const part of hierarchy.parts.get(id) ?? []) queue.push([part, [...path, part]]);
   }
-  return [...paths]
-    .filter(([id]) => meshes.has(id))
-    .map(([id, path]) => {
-      // The group is the concept the structure is part of: its parent on the path, or for a root, its first parent.
-      const parent = path.length > 1 ? path[path.length - 2] : hierarchy.parents.get(id)?.[0];
-      if (!parent) fail(`${system.id}: ${id} has no parent concept in conventional_part_of.txt`);
-      return { id, name: names.get(id), group: names.get(parent), path: path.map((step) => names.get(step)) };
-    });
+  const found = [...paths].filter(([id]) => meshes.has(id)).map(([id, path]) => ({ id, path }));
+  // The list heading: the coarsest useful concept on the structure's path (scripts/anatomy-groups.mjs).
+  let headings;
+  try {
+    headings = groupHeadings(found, system.roots.map((root) => root.id), hierarchy.parents);
+  } catch (error) {
+    fail(`${system.id}: ${error.message}`);
+  }
+  return found.map(({ id, path }) => ({
+    id,
+    name: names.get(id),
+    group: names.get(headings.get(id)) ?? fail(`${system.id}: heading ${headings.get(id)} of ${id} is not in parts_list_e.txt`),
+    path: path.map((step) => names.get(step)),
+  }));
 }
 
 /** Binary STL: an 80-byte header, a triangle count, then 50 bytes per triangle (normal, three corners, 2 spare). */
