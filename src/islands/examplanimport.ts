@@ -48,11 +48,12 @@ export function examPlanRow(onboarding: Onboarding, today: string): ExamPlanResu
 
 /** A small adapter supplied by the account page, so these rules need no network or SDK. */
 export interface ExamPlanDb {
-  upsert(
+  update(
     table: 'exam_plans',
-    row: ExamPlanRow,
-    onConflict: 'user_id,course',
-  ): Promise<{ error: { code?: string; message?: string } | null }>;
+    course: ExamPlanRow['course'],
+    examDate: ExamPlanRow['exam_date'],
+  ): Promise<{ data: readonly unknown[] | null; error: { code?: string; message?: string } | null }>;
+  insert(table: 'exam_plans', row: ExamPlanRow): Promise<{ error: { code?: string; message?: string } | null }>;
 }
 
 export type ImportExamPlanResult =
@@ -69,29 +70,32 @@ export async function importExamPlan(
   if (!candidate.ok) return candidate;
 
   try {
-    // On conflict, only exam_date changes. PostgreSQL applies the count guard atomically,
-    // including against concurrent inserts; a browser-side count would be subject to races.
-    const result = await db.upsert('exam_plans', candidate.row, 'user_id,course');
-    if (!result || !('error' in result)) {
-      return { ok: false, message: 'your exam date could not be saved. please try again' };
+    const updated = await db.update('exam_plans', candidate.row.course, candidate.row.exam_date);
+    if (!updated || updated.error) {
+      return { ok: false, message: databaseFailure(updated?.error) };
     }
-    if (result.error) {
-      if (result.error.code === '54000') {
-        return { ok: false, message: 'you can save no more than ten exam plans' };
-      }
-      if (result.error.code === '23514') {
-        return { ok: false, message: 'that exam date is outside the allowed window' };
-      }
-      if (result.error.code === '23505') {
-        return { ok: false, message: 'an exam plan for this course already exists' };
-      }
-      if (result.error.code === '42501') {
-        return { ok: false, message: 'sign in before saving your exam date' };
-      }
-      return { ok: false, message: 'your exam date could not be saved. please try again' };
+    if (updated.data?.length) return { ok: true, row: candidate.row, message: 'your exam date was saved' };
+
+    const inserted = await db.insert('exam_plans', candidate.row);
+    if (!inserted) return { ok: false, message: databaseFailure(null) };
+    if (!inserted.error) return { ok: true, row: candidate.row, message: 'your exam date was saved' };
+    if (inserted.error.code !== '23505') return { ok: false, message: databaseFailure(inserted.error) };
+
+    // Another tab inserted this course between the update and insert. Update it now.
+    const retried = await db.update('exam_plans', candidate.row.course, candidate.row.exam_date);
+    if (retried?.data?.length && !retried.error) {
+      return { ok: true, row: candidate.row, message: 'your exam date was saved' };
     }
-    return { ok: true, row: candidate.row, message: 'your exam date was saved' };
+    return { ok: false, message: databaseFailure(retried?.error) };
   } catch {
     return { ok: false, message: 'your exam date could not be saved. please try again' };
   }
+}
+
+function databaseFailure(error: { code?: string; message?: string } | null | undefined): string {
+  if (error?.code === '54000') return 'you can save no more than ten exam plans';
+  if (error?.code === '23514') return 'that exam date is outside the allowed window';
+  if (error?.code === '23505') return 'an exam plan for this course already exists';
+  if (error?.code === '42501') return 'sign in before saving your exam date';
+  return 'your exam date could not be saved. please try again';
 }
