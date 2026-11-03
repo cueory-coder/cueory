@@ -2,11 +2,24 @@
 
 Content is data, not code. Edit these files to change what students see; no programming needed.
 
-## Adding a lesson
+## How to add a lesson in 3 steps
 
-A lesson is a set of JSON files that share one name: the lesson's id from
-[docs/curriculum/medsurg-lesson-map.csv](../docs/curriculum/medsurg-lesson-map.csv), in lowercase. Lesson `U00-T01-L01`
-is `u00-t01-l01.json`. Drop the files in and the site builds the pages on its own; no page or code needs editing.
+1. **Name the files after the lesson.** Find the lesson's id in
+   [docs/curriculum/medsurg-lesson-map.csv](../docs/curriculum/medsurg-lesson-map.csv) and write it in lowercase:
+   lesson `U00-T01-L01` is `u00-t01-l01.json`. Put `lessons/u00-t01-l01.json` in this folder, plus any of
+   `cards/`, `fill-in/` and `organizer/` with the same name (the table below says what each one makes). Start with
+   `"status": "draft"`, so nothing shows yet (fill-in and organizer files can only be `"sample"` for now). A draft stays
+   on your computer: this repository is public, so unreleased lessons never go into it (CLAUDE.md rule 7).
+2. **Check them.** In the cueory folder, run `node scripts/check-content.mjs` (or ask Claude to). It reads every file
+   here with the same rules the build uses and prints one line per problem, with the file and what to fix, for
+   example `content/cards/u00-t01-l01.json: card 4 has no back text`. Fix each line and run it again until it says
+   "no problems found". It also lists which lessons become pages, which show as labeled samples and which are drafts
+   that won't appear.
+3. **Publish.** When you have approved the text, change `"status"` to `"published"` in each file, run the check once
+   more, and hand the files to Claude to send for review. Only published files go into the repository. The lesson appears on the staging site first, then on the
+   live site when you merge the release.
+
+Drop the files in and the site builds the pages on its own; no page or code needs editing.
 
 | File | Makes |
 | --- | --- |
