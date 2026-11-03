@@ -80,6 +80,16 @@ export function pickedStructure(
   return hitsNearestFirst[0] ?? null;
 }
 
+/**
+ * Never put loader or renderer exception text in student-facing messages.
+ * Browser and network errors can contain raw URLs, file paths and internal details.
+ */
+export function anatomyFailureMessage(kind: 'layer' | 'picture', _cause: unknown): string {
+  return kind === 'layer'
+    ? 'please try this layer again. if it still fails, choose another body system.'
+    : 'could not save the picture. please try again.';
+}
+
 /** Where a structure's name comes from, shown on its name card. */
 export function nameSourceFor(system: Pick<AnatomySystem, 'fixture'>): string {
   return system.fixture ? 'name from the test fixture' : 'name from the BodyParts3D parts list';
