@@ -427,6 +427,8 @@ test.describe('anatomy lab whole body loads layers on demand', () => {
     await page.goto('/preview/anatomy-lab');
     await page.getByRole('button', { name: 'open the anatomy lab' }).click();
     await expect(page.locator('canvas')).toBeVisible({ timeout: 15_000 });
+    // The canvas exists during "opening" too. Focus is set only after the viewer reaches "open".
+    await expect(page.locator('canvas')).toBeFocused({ timeout: 15_000 });
     const picker = page.getByRole('group', { name: 'body system' });
     test.skip((await picker.getByRole('button', { name: 'whole body' }).count()) === 0, 'no real whole-body models in this build');
     await page.waitForLoadState('networkidle');
@@ -490,6 +492,8 @@ test.describe('anatomy lab whole body loads layers on demand', () => {
     await page.goto('/preview/anatomy-lab');
     await page.getByRole('button', { name: 'open the anatomy lab' }).click();
     await expect(page.locator('canvas')).toBeVisible({ timeout: 15_000 });
+    // Do not treat an unfinished WebGL startup as evidence that the combined system is absent.
+    await expect(page.locator('canvas')).toBeFocused({ timeout: 15_000 });
     const wholeBody = page.getByRole('group', { name: 'body system' }).getByRole('button', { name: 'whole body' });
     test.skip((await wholeBody.count()) === 0, 'real whole-body draft models are not included in this build');
     await wholeBody.click();
