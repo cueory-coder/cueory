@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { IdMap } from './guestimport';
 import {
-  acceptOffer, cardsDbFrom, contentsWords, declineOffer, isMarkerEvent, offerDecision, plansDbFrom,
+  acceptOffer, cardsDbFrom, contentsWords, declineOffer, isMarkerEvent, offerDecision, plansDbFrom, sessionUserId,
   type ImportClient, type LockRunner, type OfferContents,
 } from './guestimportoffer';
 import { getSessionState, getSupabase } from './supabaseclient';
@@ -30,6 +30,21 @@ function browserLock(): LockRunner | undefined {
 
 const isPlural = ({ cards, examPlan }: OfferContents) => cards > 1 || (cards > 0 && examPlan);
 
+/** The part of the shared client this island listens to for sign-in and sign-out, in this tab or another. */
+interface AuthEvents {
+  auth: {
+    onAuthStateChange(
+      callback: (event: string, session: { user?: { id?: unknown } | null } | null) => void,
+    ): { data: { subscription: { unsubscribe(): void } } };
+  };
+}
+
+/** Who the shared client is signed in as right now, read fresh from its session. */
+async function signedInNow(): Promise<string | null> {
+  const session = await getSessionState();
+  return session.signedIn ? session.userId : null;
+}
+
 /**
  * The one-time offer to bring this device's guest progress into the account just signed in to (Task 143).
  * Accounts off, signed out, or nothing to bring in: renders nothing and touches no storage.
@@ -38,15 +53,19 @@ export default function GuestImportOffer({ idMap = NO_CARD_MATCHES }: { idMap?: 
   const [view, setView] = useState<View>({ kind: 'hidden' });
   const account = useRef<{ client: ImportClient; userId: string } | null>(null);
   const doneRef = useRef<HTMLParagraphElement>(null);
+  /** Bumped whenever the signed-in account changes, so a decision or import begun for the old one is dropped. */
+  const generation = useRef(0);
 
   useEffect(() => {
     let active = true;
+    let subscription: { unsubscribe(): void } | null = null;
     const decide = async () => {
+      const started = generation.current;
       try {
         const client = await getSupabase();
         if (!client || !active) return;
         const session = await getSessionState();
-        if (!active || !session.signedIn) return;
+        if (!active || started !== generation.current || !session.signedIn) return;
         account.current = { client: client as unknown as ImportClient, userId: session.userId };
         const decision = offerDecision(session, browserStorage(), idMap, localDay(new Date()));
         setView((current) => {
@@ -57,7 +76,30 @@ export default function GuestImportOffer({ idMap = NO_CARD_MATCHES }: { idMap?: 
         // An unavailable network or blocked storage leaves the page as it was.
       }
     };
+    // Signed out, or signed in as someone else (here or in another tab): the offer shown was for the old account,
+    // so it goes away, and the new account gets its own decision.
+    const onAuth = (_event: string, session: { user?: { id?: unknown } | null } | null) => {
+      if (!active) return;
+      const now = sessionUserId(session);
+      const shown = account.current?.userId ?? null;
+      if (now === shown) return;
+      if (shown === null && now === null) return;
+      generation.current += 1;
+      account.current = null;
+      setView({ kind: 'hidden' });
+      if (now) void decide();
+    };
+    const listen = async () => {
+      try {
+        const client = (await getSupabase()) as unknown as AuthEvents | null;
+        if (!client || !active) return;
+        subscription = client.auth.onAuthStateChange(onAuth).data.subscription;
+      } catch {
+        // No client: there is no offer to keep in step either.
+      }
+    };
     void decide();
+    void listen();
     // Another tab brought it in or said "not now": stop offering here too.
     const onStorage = (event: StorageEvent) => {
       const userId = account.current?.userId;
@@ -66,6 +108,7 @@ export default function GuestImportOffer({ idMap = NO_CARD_MATCHES }: { idMap?: 
     window.addEventListener('storage', onStorage);
     return () => {
       active = false;
+      subscription?.unsubscribe();
       window.removeEventListener('storage', onStorage);
     };
   }, [idMap]);
@@ -90,6 +133,7 @@ export default function GuestImportOffer({ idMap = NO_CARD_MATCHES }: { idMap?: 
     const current = account.current;
     if (!current || view.kind !== 'offer') return;
     const { contents } = view;
+    const started = generation.current;
     setView({ kind: 'working', contents });
     const outcome = await acceptOffer({
       storage: browserStorage(),
@@ -99,8 +143,15 @@ export default function GuestImportOffer({ idMap = NO_CARD_MATCHES }: { idMap?: 
       cardsDb: cardsDbFrom(current.client),
       plansDb: plansDbFrom(current.client),
       lock: browserLock(),
+      currentUserId: signedInNow,
     });
-    if (outcome.kind === 'done') setView({ kind: 'done', contents: outcome.contents });
+    // The account changed while this ran: whatever is on screen now belongs to the new account.
+    if (started !== generation.current) return;
+    if (outcome.kind === 'account-changed') {
+      generation.current += 1;
+      account.current = null;
+      setView({ kind: 'hidden' });
+    } else if (outcome.kind === 'done') setView({ kind: 'done', contents: outcome.contents });
     else if (outcome.kind === 'handled') setView({ kind: 'hidden' });
     else setView({ kind: 'offer', contents, message: outcome.message });
   };

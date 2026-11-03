@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   acceptOffer, cardsDbFrom, contentsWords, declineOffer, DECLINED_MARKER, IMPORTED_MARKER, isMarkerEvent, markerKey,
-  offerDecision, plansDbFrom, type AcceptOptions, type ImportClient, type LockRunner,
+  offerDecision, plansDbFrom, sessionUserId, type AcceptOptions, type ImportClient, type LockRunner,
 } from '../../src/islands/guestimportoffer';
 import { runGuestImport, type GuestImportDb } from '../../src/islands/guestimportrun';
 import type { ExamPlanDb } from '../../src/islands/examplanimport';
@@ -42,9 +42,11 @@ function databases(plan: { error: { code?: string } | null } = { error: null }, 
   return { plansDb: { upsert } as ExamPlanDb, cardsDb: { insert } as GuestImportDb, upsert, insert };
 }
 
+const stillUser = async () => USER;
+
 function accept(storage: KeyValueStorage, extra: Partial<AcceptOptions> = {}) {
   const dbs = databases();
-  return { dbs, run: () => acceptOffer({ storage, userId: USER, idMap: NO_MATCHES, today: TODAY, ...dbs, ...extra }) };
+  return { dbs, run: () => acceptOffer({ storage, userId: USER, idMap: NO_MATCHES, today: TODAY, currentUserId: stillUser, ...dbs, ...extra }) };
 }
 
 beforeEach(() => {
@@ -161,7 +163,7 @@ describe('acceptOffer', () => {
     const storage = memoryStorage();
     withExamDate(storage);
     const failing = databases({ error: { code: '08006' } });
-    const result = await acceptOffer({ storage, userId: USER, idMap: NO_MATCHES, today: TODAY, ...failing });
+    const result = await acceptOffer({ storage, userId: USER, idMap: NO_MATCHES, today: TODAY, currentUserId: stillUser, ...failing });
     expect(result).toEqual({ kind: 'error', message: 'your exam date could not be saved. please try again.' });
     expect(storage.getItem(markerKey(USER))).toBeNull();
   });
@@ -170,7 +172,7 @@ describe('acceptOffer', () => {
     const storage = memoryStorage();
     withCard(storage);
     const failing = databases({ error: null }, { error: { code: '08006' } });
-    const result = await acceptOffer({ storage, userId: USER, idMap: MATCHES, today: TODAY, ...failing });
+    const result = await acceptOffer({ storage, userId: USER, idMap: MATCHES, today: TODAY, currentUserId: stillUser, ...failing });
     expect(result).toEqual({ kind: 'error', message: "that didn't work. please try again." });
     expect(storage.getItem(markerKey(USER))).toBeNull();
   });
@@ -205,6 +207,41 @@ describe('acceptOffer', () => {
     expect(dbs.upsert).toHaveBeenCalledTimes(1);
   });
 
+  it('writes nothing and marks nothing when another tab switched to a different account', async () => {
+    const storage = memoryStorage();
+    saveProgress(storage, withPile(withOnboarding(emptyProgress(), { course: 'fundamentals', examDate: '2026-12-10' }), 'deck-a', 'card-a', 'know'));
+    for (const now of [OTHER, null]) {
+      const { dbs, run } = accept(storage, { idMap: MATCHES, currentUserId: async () => now });
+      expect(await run()).toEqual({ kind: 'account-changed' });
+      expect(dbs.upsert).not.toHaveBeenCalled();
+      expect(dbs.insert).not.toHaveBeenCalled();
+    }
+    expect(storage.getItem(markerKey(USER))).toBeNull();
+    expect(storage.getItem(markerKey(OTHER))).toBeNull();
+  });
+
+  it('checks the account inside the lock, after waiting for another tab', async () => {
+    const storage = memoryStorage();
+    withExamDate(storage);
+    let signedInAs = USER;
+    const lock: LockRunner = async (_name, task) => {
+      signedInAs = OTHER; // the switch happened while this tab waited for the lock
+      return task();
+    };
+    const { dbs, run } = accept(storage, { lock, currentUserId: async () => signedInAs });
+    expect(await run()).toEqual({ kind: 'account-changed' });
+    expect(dbs.upsert).not.toHaveBeenCalled();
+  });
+
+  it('turns a failed session check into a retry message', async () => {
+    const storage = memoryStorage();
+    withExamDate(storage);
+    const { dbs, run } = accept(storage, { currentUserId: async () => { throw new Error('storage blocked'); } });
+    expect((await run()).kind).toBe('error');
+    expect(dbs.upsert).not.toHaveBeenCalled();
+    expect(storage.getItem(markerKey(USER))).toBeNull();
+  });
+
   it('turns a thrown lock or adapter into a retry message', async () => {
     const storage = memoryStorage();
     withExamDate(storage);
@@ -221,6 +258,15 @@ describe('helpers', () => {
     expect(contentsWords({ cards: 0, examPlan: true })).toBe('your exam date');
     expect(contentsWords({ cards: 1, examPlan: false })).toBe('1 card');
     expect(contentsWords({ cards: 3, examPlan: true })).toBe('your exam date and 3 cards');
+  });
+
+  it('reads the account ID from a session or an auth event', () => {
+    expect(sessionUserId({ user: { id: USER } })).toBe(USER);
+    expect(sessionUserId(null)).toBeNull();
+    expect(sessionUserId(undefined)).toBeNull();
+    expect(sessionUserId({ user: null })).toBeNull();
+    expect(sessionUserId({ user: { id: '' } })).toBeNull();
+    expect(sessionUserId({ user: { id: 42 } })).toBeNull();
   });
 
   it('recognizes storage events for this account marker only', () => {

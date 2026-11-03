@@ -4,7 +4,9 @@ import { build } from 'esbuild';
 import { readFileSync } from 'node:fs';
 
 const USER = '550e8400-e29b-41d4-a716-446655440001';
+const OTHER = '550e8400-e29b-41d4-a716-446655440002';
 const MARKER = `cueory-guest-imported:${USER}`;
+const OTHER_MARKER = `cueory-guest-imported:${OTHER}`;
 
 test.describe('/progress with accounts off', () => {
   test('shows no offer and contacts no account service, even with saved progress', async ({ page }) => {
@@ -65,8 +67,22 @@ test.beforeAll(async () => {
         const answer = () => new Promise(resolve => setTimeout(() => resolve({
           error: params.has('fail') ? { code: '08006', message: 'provider-private-detail' } : null,
         }), 200));
+        // The signed-in account can be switched through localStorage ('none' = signed out). Like supabase-js's
+        // cross-tab broadcast, a switch made in another tab is announced to onAuthStateChange listeners here;
+        // a switch made in this tab is not, which stands in for a missed announcement.
+        const signedInAs = () => localStorage.getItem('fixture-user') ?? '${USER}';
         const client = {
-          auth: {},
+          auth: {
+            onAuthStateChange: (callback) => {
+              const onStorage = (event) => {
+                if (event.key !== 'fixture-user') return;
+                const id = signedInAs();
+                callback(id === 'none' ? 'SIGNED_OUT' : 'SIGNED_IN', id === 'none' ? null : { user: { id } });
+              };
+              window.addEventListener('storage', onStorage);
+              return { data: { subscription: { unsubscribe: () => window.removeEventListener('storage', onStorage) } } };
+            },
+          },
           from: (table) => ({
             insert: (row) => { record(['insert', table, row]); return answer(); },
             update: (patch) => ({ eq: (column, value) => { record(['update', table, patch, column, value]); return answer(); } }),
@@ -74,7 +90,8 @@ test.beforeAll(async () => {
         };
         export async function getSupabase() { return params.get('client') === 'off' ? null : client; }
         export async function getSessionState() {
-          return params.has('signed-out') ? { signedIn: false } : { signedIn: true, userId: '${USER}', email: 'student@example.test' };
+          const id = signedInAs();
+          return params.has('signed-out') || id === 'none' ? { signedIn: false } : { signedIn: true, userId: id, email: 'student@example.test' };
         }
       `, loader: 'js' }));
     } }],
@@ -195,5 +212,32 @@ test.describe('guest import offer after sign-in', () => {
     await page.getByRole('button', { name: 'not now' }).click();
     await expect(offer(second)).toHaveCount(0);
     expect(await dbCalls(second)).toEqual([]);
+  });
+
+  test('signing out or into another account in another tab moves the offer to that account', async ({ page, context }) => {
+    await open(page, 'seed=1');
+    await expect(offer(page)).toBeVisible();
+    const second = await context.newPage();
+    await open(second, 'signed-out=1');
+    await second.evaluate(() => localStorage.setItem('fixture-user', 'none'));
+    await expect(offer(page)).toHaveCount(0);
+
+    await second.evaluate(id => localStorage.setItem('fixture-user', id), OTHER);
+    await expect(offer(page)).toBeVisible();
+    await page.getByRole('button', { name: 'bring it in' }).click();
+    await expect(page.getByRole('status')).toHaveText('your exam date is in your account now.');
+    expect(await page.evaluate(key => localStorage.getItem(key), OTHER_MARKER)).toBe('1');
+    expect(await marker(page)).toBeNull();
+  });
+
+  test('a switch this tab never heard about is caught before anything is written', async ({ page }) => {
+    await open(page, 'seed=1');
+    await expect(offer(page)).toBeVisible();
+    await page.evaluate(id => localStorage.setItem('fixture-user', id), OTHER);
+    await page.getByRole('button', { name: 'bring it in' }).click();
+    await expect(offer(page)).toHaveCount(0);
+    expect(await dbCalls(page)).toEqual([]);
+    expect(await marker(page)).toBeNull();
+    expect(await page.evaluate(key => localStorage.getItem(key), OTHER_MARKER)).toBeNull();
   });
 });

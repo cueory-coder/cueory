@@ -92,16 +92,31 @@ export interface AcceptOptions {
   cardsDb: GuestImportDb;
   plansDb: ExamPlanDb;
   lock?: LockRunner;
+  /**
+   * Who the shared client is signed in as right now (read fresh from its session), or null when signed out.
+   * The database writes as `auth.uid()`, not as `userId`, so another tab may have switched accounts since the
+   * offer was shown. Checked inside the lock, right before anything is written.
+   */
+  currentUserId: () => Promise<string | null>;
 }
 
 export type AcceptOutcome =
   | { kind: 'done'; contents: OfferContents }
   | { kind: 'handled' }
+  | { kind: 'account-changed' }
   | { kind: 'error'; message: string };
+
+/** The account ID in a session from the client (or an auth-state event), or null when there is none. */
+export function sessionUserId(session: { user?: { id?: unknown } | null } | null | undefined): string | null {
+  const id = session?.user?.id;
+  return typeof id === 'string' && id !== '' ? id : null;
+}
 
 const RETRY = "that didn't work. please try again.";
 
-async function acceptLocked({ storage, userId, idMap, today, cardsDb, plansDb }: AcceptOptions): Promise<AcceptOutcome> {
+async function acceptLocked({
+  storage, userId, idMap, today, cardsDb, plansDb, currentUserId,
+}: AcceptOptions): Promise<AcceptOutcome> {
   if (!storage || !userId) return { kind: 'error', message: RETRY };
   const key = markerKey(userId);
   try {
@@ -110,6 +125,8 @@ async function acceptLocked({ storage, userId, idMap, today, cardsDb, plansDb }:
   } catch {
     return { kind: 'error', message: RETRY };
   }
+  // The client writes as whoever is signed in now. Anyone else: write nothing and mark nothing.
+  if ((await currentUserId()) !== userId) return { kind: 'account-changed' };
 
   const progress = readProgress(storage);
   const wanted = contentsOf(progress, idMap, today);
