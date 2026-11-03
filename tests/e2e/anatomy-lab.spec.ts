@@ -280,6 +280,37 @@ test.describe('anatomy lab whole body loads layers on demand', () => {
     expect(glb.length).toBeLessThan(10);
     expect(glb.some((p) => p.endsWith('skin.glb'))).toBe(false);
   });
+
+  test('the organs button loads missing files when only the heart is visible from the vessels layer', async ({ page }, info) => {
+    test.skip(!isDesktopOfEachEngine(info), 'one real-model download test per browser engine');
+    await page.goto('/preview/anatomy-lab');
+    await page.getByRole('button', { name: 'open the anatomy lab' }).click();
+    await expect(page.locator('canvas')).toBeVisible({ timeout: 15_000 });
+    const wholeBody = page.getByRole('group', { name: 'body system' }).getByRole('button', { name: 'whole body' });
+    test.skip((await wholeBody.count()) === 0, 'real whole-body draft models are not included in this build');
+    await wholeBody.click();
+
+    const files = page.getByTestId('anatomy-files');
+    await expect(files).toContainText('model files loaded: 1 of 11', { timeout: 20_000 });
+    const layers = page.getByRole('group', { name: 'layers, skin to bone' });
+    await layers.getByRole('button', { name: /^vessels \(/ }).press('Enter');
+    // The vessels layer needs heart.glb as well as vessels.glb.
+    await expect(files).toContainText('model files loaded: 3 of 11', { timeout: 20_000 });
+
+    const showHeart = list(page).getByRole('button', { name: 'show heart', exact: true });
+    await expect(showHeart).toBeVisible();
+    await showHeart.press('Enter');
+    const organs = layers.getByRole('button', { name: /^organs \(/ });
+    await expect(organs).toHaveAttribute('aria-pressed', 'true');
+
+    // Heart being visible does NOT mean the lungs, kidneys and digestive
+    // models are loaded. The organs button must fetch them, not hide heart.
+    await organs.press('Enter');
+    await expect(files).toContainText('model files loaded: 6 of 11', { timeout: 20_000 });
+    await expect(organs).toHaveAttribute('aria-pressed', 'true');
+    await expect(list(page).getByRole('button', { name: 'hide heart', exact: true })).toBeVisible();
+  });
+
 });
 
 test.describe('anatomy lab system switch', () => {
