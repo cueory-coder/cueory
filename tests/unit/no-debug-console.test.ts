@@ -42,76 +42,128 @@ function scan(text: string, extension: string): Logging[] {
   const masked = markup.split('');
   const lower = markup.toLowerCase();
 
-  let quote = '';
+  let inTag = false;
+  let attrQuote = '';
+  let exprQuote = '';
   let braces = 0;
   let i = 0;
 
   while (i < markup.length) {
     const char = markup[i]!;
-    if (quote) {
-      if (char === '\\') i++;
-      else if (char === quote) quote = '';
-      i++;
-    } else if (braces > 0 && (char === '"' || char === "'" || char === '`')) {
-      quote = char;
-      i++;
-    } else if (char === '{') {
-      braces++;
-      i++;
-    } else if (char === '}') {
-      braces = Math.max(0, braces - 1);
-      i++;
-    } else if (braces === 0 && markup.startsWith('<!--', i)) {
-      const endComment = markup.indexOf('-->', i + 4);
-      i = endComment === -1 ? markup.length : endComment + 3;
-    } else if (braces === 0 && char === '<') {
-      const match = /^<(script|style)\b/i.exec(markup.slice(i, i + 8));
-      if (!match) {
-        i++;
-        continue;
-      }
-      const tagName = match[1]!.toLowerCase();
-      // Attribute expressions may contain > inside a string, function or object.
-      // Keep the complete opening tag for the template-expression AST below.
-      let tagQuote = '';
-      let tagBraces = 0;
-      let at = i + match[0].length;
-      for (; at < markup.length; at++) {
-        const c = markup[at]!;
-        if (tagQuote) {
-          if (c === '\\') at++;
-          else if (c === tagQuote) tagQuote = '';
-        } else if (c === '"' || c === "'" || c === '`') tagQuote = c;
-        else if (c === '{') tagBraces++;
-        else if (c === '}') tagBraces = Math.max(0, tagBraces - 1);
-        else if (c === '>' && tagBraces === 0) break;
-      }
-      const contentStart = Math.min(at + 1, markup.length);
-      if (markup.slice(i, contentStart).trimEnd().endsWith('/>')) {
-        i = contentStart;
-        continue;
-      }
-      // Read HTML raw-text end-tag boundaries explicitly. HTML permits whitespace
-      // and ignored attributes on an end tag, such as </script\t\n ignored>.
-      const endName = `</${tagName}`;
-      let close = lower.indexOf(endName, contentStart);
-      while (close !== -1 && !/[\s/>]/.test(lower[close + endName.length] ?? '')) {
-        close = lower.indexOf(endName, close + endName.length);
-      }
-      const closingEnd = close === -1 ? -1 : markup.indexOf('>', close + endName.length);
-      const contentEnd = close === -1 ? markup.length : close;
-      const end = closingEnd === -1 ? markup.length : closingEnd + 1;
 
-      if (tagName === 'script') {
-        const start = markupStart + contentStart;
-        found.push(...debugReferences(markup.slice(contentStart, contentEnd), text.slice(0, start).split('\n').length - 1));
+    if (inTag) {
+      if (attrQuote) {
+        if (char === '\\') i++;
+        else if (char === attrQuote) attrQuote = '';
+        i++;
+      } else if (braces > 0) {
+        if (exprQuote) {
+          if (char === '\\') i++;
+          else if (char === exprQuote) exprQuote = '';
+          i++;
+        } else if (char === '"' || char === "'" || char === '`') {
+          exprQuote = char;
+          i++;
+        } else if (char === '{') {
+          braces++;
+          i++;
+        } else if (char === '}') {
+          braces = Math.max(0, braces - 1);
+          i++;
+        } else {
+          i++;
+        }
+      } else if (char === '"' || char === "'") {
+        attrQuote = char;
+        i++;
+      } else if (char === '{') {
+        braces++;
+        i++;
+      } else if (char === '>') {
+        inTag = false;
+        i++;
+      } else {
+        i++;
       }
-      for (let index = contentStart; index < contentEnd; index++) {
-        if (markup[index] !== '\n') masked[index] = ' ';
-      }
-      i = end;
     } else {
-      i++;
+      // Outside a tag
+      if (braces > 0) {
+        if (exprQuote) {
+          if (char === '\\') i++;
+          else if (char === exprQuote) exprQuote = '';
+          i++;
+        } else if (char === '"' || char === "'" || char === '`') {
+          exprQuote = char;
+          i++;
+        } else if (char === '{') {
+          braces++;
+          i++;
+        } else if (char === '}') {
+          braces = Math.max(0, braces - 1);
+          i++;
+        } else {
+          i++;
+        }
+      } else if (char === '{') {
+        braces++;
+        i++;
+      } else if (markup.startsWith('<!--', i)) {
+        const endComment = markup.indexOf('-->', i + 4);
+        const commentEnd = endComment === -1 ? markup.length : endComment + 3;
+        for (let index = i; index < commentEnd; index++) {
+          if (markup[index] !== '\n') masked[index] = ' ';
+        }
+        i = commentEnd;
+      } else if (char === '<') {
+        const match = /^<(script|style)\b/i.exec(markup.slice(i, i + 8));
+        if (match) {
+          const tagName = match[1]!.toLowerCase();
+          // Attribute expressions may contain > inside a string, function or object.
+          // Keep the complete opening tag for the template-expression AST below.
+          let tagQuote = '';
+          let tagBraces = 0;
+          let at = i + match[0].length;
+          for (; at < markup.length; at++) {
+            const c = markup[at]!;
+            if (tagQuote) {
+              if (c === '\\') at++;
+              else if (c === tagQuote) tagQuote = '';
+            } else if (c === '"' || c === "'" || c === '`') tagQuote = c;
+            else if (c === '{') tagBraces++;
+            else if (c === '}') tagBraces = Math.max(0, tagBraces - 1);
+            else if (c === '>' && tagBraces === 0) break;
+          }
+          const contentStart = Math.min(at + 1, markup.length);
+          if (markup.slice(i, contentStart).trimEnd().endsWith('/>')) {
+            i = contentStart;
+            continue;
+          }
+          // Read HTML raw-text end-tag boundaries explicitly. HTML permits whitespace
+          // and ignored attributes on an end tag, such as </script\t\n ignored>.
+          const endName = `</${tagName}`;
+          let close = lower.indexOf(endName, contentStart);
+          while (close !== -1 && !/[\s/>]/.test(lower[close + endName.length] ?? '')) {
+            close = lower.indexOf(endName, close + endName.length);
+          }
+          const closingEnd = close === -1 ? -1 : markup.indexOf('>', close + endName.length);
+          const contentEnd = close === -1 ? markup.length : close;
+          const end = closingEnd === -1 ? markup.length : closingEnd + 1;
+
+          if (tagName === 'script') {
+            const start = markupStart + contentStart;
+            found.push(...debugReferences(markup.slice(contentStart, contentEnd), text.slice(0, start).split('\n').length - 1));
+          }
+          for (let index = contentStart; index < contentEnd; index++) {
+            if (markup[index] !== '\n') masked[index] = ' ';
+          }
+          i = end;
+        } else {
+          inTag = true;
+          i++;
+        }
+      } else {
+        i++;
+      }
     }
   }
   // JSX parsing also visits executable {...} expressions in Astro attributes and
@@ -174,6 +226,15 @@ describe('debug-console source guard', () => {
     expect(scan('<script define:vars={{ value: ">", log: console.log("server") }}>alert(value)</script>', '.astro'))
       .toEqual([{ line: 1, method: 'log' }]);
     expect(scan('<script>const identity = <T>(value: T) => value;\nconsole.debug("client");</script>', '.astro'))
+      .toEqual([{ line: 2, method: 'debug' }]);
+  });
+
+  it('tracks quoted markup attributes without misinterpreting literal braces as expressions', () => {
+    expect(scan('<p title="{">Text</p><script>console.log("actual")</script>', '.astro'))
+      .toEqual([{ line: 1, method: 'log' }]);
+    expect(scan('<p title="}">Text</p><script>console.debug("actual")</script>', '.astro'))
+      .toEqual([{ line: 1, method: 'debug' }]);
+    expect(scan('<!-- {console.log("comment")} -->\n<p>{console.debug("actual")}</p>', '.astro'))
       .toEqual([{ line: 2, method: 'debug' }]);
   });
 
