@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 21087)
-Total output lines: 1672
-
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { socials } from '../../src/config/site';
@@ -791,7 +788,94 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
       const { x, y } = await centre();
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
       for (let step = 1; step <= 6; step++) {
-        const point = { x: Math.round(x + (dx * step) / 6), y: Math.round(…1087 tokens truncated…opertyValue('--ring-turn')]);
+        const point = { x: Math.round(x + (dx * step) / 6), y: Math.round(y + (dy * step) / 6) };
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [point] });
+      }
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      await cdp.detach();
+    };
+    const swipes = browserName === 'chromium' ? [dispatchedSwipe, realSwipe] : [dispatchedSwipe];
+    for (const swipe of swipes) {
+      await swipe(-120);
+      await expect.poll(() => middleCard(page)).toBe('cards');
+      await swipe(120);
+      await expect.poll(() => middleCard(page)).toBe('video');
+      await swipe(-30);
+      await swipe(-30, 160);
+      await page.waitForTimeout(500);
+      expect(await middleCard(page)).toBe('video');
+      // A swipe is never a tap: no preview opened on the way.
+      await expect(page.locator('#mode-preview')).toBeHidden();
+      // The vertical swipe may have scrolled the page (real touch input does); bring the cards back for the next round.
+      await section(page).scrollIntoViewIfNeeded();
+    }
+  });
+
+  test('each card links to its mode when it is open, and says "coming soon" otherwise', async ({ page }) => {
+    await page.goto('/');
+    const open: Record<string, [string, string]> = {
+      cards: ['try the cards', '/learn/study-skills/cards'],
+      learn: ['try learn mode', '/learn/study-skills/learn-mode'],
+      matching: ['try matching', '/learn/study-skills/matching'],
+      organizer: ['try the organizer', '/learn/study-skills/organizer'],
+      'fill-in': ['try fill-in', '/learn/study-skills/fill-in'],
+      'label-it': ['try label it', '/learn/study-skills/label-it'],
+      questions: ['try the questions', '/learn/study-skills/questions'],
+    };
+    const modes = [
+      ['video', 'video'],
+      ['cards', 'cards'],
+      ['learn', 'learn'],
+      ['fill-in', 'fill-in'],
+      ['matching', 'matching'],
+      ['organizer', 'organizer'],
+      ['questions', 'questions'],
+      ['review', 'review'],
+      ['label-it', 'label it'],
+      ['adaptive-quiz', 'adaptive quiz'],
+      ['level-test', 'level test'],
+    ];
+    for (const [id, name] of modes) {
+      const card = page.locator(`#mode-${id}`);
+      await expect(card.locator('h3')).toHaveText(name!);
+      const link = open[id!];
+      if (link) await expect(card.locator(`a[href="${link[1]}"]`)).toHaveText(link[0]);
+      else await expect(card.getByText('coming soon', { exact: true })).toHaveCount(1);
+    }
+  });
+
+  test('the pause button stops the motion, and with reduced motion it just switches, without a glide or a turn', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    const press = section(page).locator('#mode-video .ill-video-press');
+    await expect.poll(() => press.evaluate((el) => getComputedStyle(el).animationName)).toBe('ill-video-press');
+    await section(page).getByRole('button', { name: 'pause the slideshow' }).click();
+    await expect(section(page).getByRole('button', { name: 'play the slideshow' })).toBeVisible();
+    expect(await press.evaluate((el) => getComputedStyle(el).animationName)).toBe('none');
+    await section(page).getByRole('button', { name: 'play the slideshow' }).click();
+    await expect(section(page).getByRole('button', { name: 'pause the slideshow' })).toBeVisible();
+
+    // A turn glides, and the side cards are turned away.
+    await section(page).getByRole('button', { name: 'next study mode' }).click();
+    const learn = section(page).locator('#mode-learn');
+    expect(await learn.evaluate((el) => getComputedStyle(el).transitionDuration)).toContain('0.24s');
+    expect(await learn.evaluate((el) => el.style.getPropertyValue('--ring-turn'))).toBe('10');
+
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.reload();
+    await expect(section(page).getByRole('button', { name: 'next study mode' })).toBeVisible();
+    await expect(section(page).locator('[data-modes-pause]')).toBeHidden();
+    expect(
+      await section(page)
+        .locator('#mode-video .ill-video-press')
+        .evaluate((el) => getComputedStyle(el).animationName),
+    ).toBe('none');
+    await section(page).getByRole('button', { name: 'next study mode' }).click();
+    await expect.poll(() => middleCard(page)).toBe('cards');
+    const still = await section(page)
+      .locator('#mode-learn')
+      .evaluate((el) => [getComputedStyle(el).transitionDuration, el.style.getPropertyValue('--ring-turn')]);
     // Instant: no transition at all (the site-wide reduced-motion rule leaves 0.01 ms at most).
     expect(Math.max(...still[0]!.split(',').map((d) => parseFloat(d)))).toBeLessThan(0.001);
     expect(still[1]).toBe('0');
