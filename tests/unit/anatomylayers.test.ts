@@ -131,6 +131,29 @@ describe('the whole-body view', () => {
     expect(unavailableLayersNote([])).toBeNull();
   });
 
+  it('fetches a shared GLB once even when separate systems use it for different layers', () => {
+    const sharedFile = '/models/anatomy/shared.glb';
+    const outer: AnatomySystem = {
+      ...system('outer', ['a']),
+      model: { file: sharedFile, release: 'sample release' },
+      structures: [{ id: 'a', text: 'sample outer', layer: 'vessels' }],
+    };
+    const inner: AnatomySystem = {
+      ...system('inner', ['b']),
+      model: { file: sharedFile, release: 'sample release' },
+      structures: [{ id: 'b', text: 'sample inner', layer: 'organs' }],
+    };
+    const separate = system('other', ['c']);
+    const body = wholeBody([outer, inner, separate])!;
+
+    expect(body.model.file).toBe(sharedFile);
+    expect(body.model.files).toEqual([sharedFile, '/models/anatomy/other.glb']);
+    expect(body.structures.map((structure) => structure.id)).toEqual(['a', 'b', 'c']);
+    // Both layers can reference the shared asset, but neither creates a duplicate request.
+    expect(body.model.layerFiles?.['vessels']).toEqual([sharedFile]);
+    expect(body.model.layerFiles?.['organs']).toEqual([sharedFile, '/models/anatomy/other.glb']);
+  });
+
   it('needs two systems of one release, and leaves the test fixture out', () => {
     expect(wholeBody([system('a', ['x'])])).toBeNull();
     const other = { ...system('b', ['z']), model: { file: '/models/anatomy/b.glb', release: 'other release' } };
