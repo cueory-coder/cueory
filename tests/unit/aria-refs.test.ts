@@ -49,6 +49,9 @@ export function brokenAriaRefs(html: string): string[] {
 
     for (const match of attrs.matchAll(/([^\s"'<>\/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g)) {
       const attrName = match[1].toLowerCase();
+      if (attrName !== 'id' && attrName !== 'aria-labelledby' && attrName !== 'aria-describedby' && attrName !== 'aria-controls' && attrName !== 'for') {
+        continue;
+      }
       const val = identifier(match[2] ?? match[3] ?? match[4] ?? '');
 
       if (attrName === 'id') {
@@ -97,6 +100,11 @@ describe('aria and for reference regression fixtures', () => {
 
   it('ignores references inside comments, scripts, and other attributes', () => {
     const html = '<!-- <label for="fake"></label> --><script>const x = \'<label for="fake">\';</script><div id="real"><button aria-describedby="real">Ok</button></div>';
+    expect(brokenAriaRefs(html)).toEqual([]);
+  });
+
+  it('ignores entities in unrelated attributes such as title and href', () => {
+    const html = '<a href="/learn?one=1&two=2" title="&copy; 2026" id="link-1">Home</a>';
     expect(brokenAriaRefs(html)).toEqual([]);
   });
 });
