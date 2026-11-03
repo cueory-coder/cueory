@@ -8,7 +8,7 @@ import {
   type MutableRefObject,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import { createGeneration, createOnDemandLoader, filesForLayer, firstLayer, layerNeedsReveal, lazyPeel, lazyRestore, PartialLoadError, revealTargetPlan, showAllPlan, type OnDemandLoader } from './anatomylazy';
+import { createGeneration, createOnDemandLoader, filesForLayer, firstLayer, layerNeedsReveal, lazyPeel, lazyRestore, PartialLoadError, revealTargetPlan, showAllPlan, structureLoadNote, type OnDemandLoader } from './anatomylazy';
 import type { LabColors, LabScene, LoadResult } from './anatomyscene';
 import { checkTriangleBudget } from './bodyviewer-logic';
 import {
@@ -894,6 +894,10 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                   {group.items.map((item) => {
                     const inModel = foundSet.has(item.id);
                     const isHidden = hidden.has(item.id);
+                    const loadNote = structureLoadNote(
+                      item, foundSet, lazy, (id) => filesForLayer(system, id),
+                      system.model.files ?? [], (url) => loaderRef.current?.isLoaded(url) ?? false,
+                    );
                     return (
                       <li key={item.id} className="flex items-stretch gap-1">
                         <button
@@ -904,8 +908,8 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                           className="min-h-11 min-w-0 flex-1 rounded-md border border-line px-3 py-2 text-left text-sm text-ink aria-pressed:border-button aria-pressed:bg-button aria-pressed:text-on-button disabled:opacity-60"
                         >
                           {item.text}
-                          {isHidden && <span> (hidden)</span>}
-                          {ready && !inModel && <span> (not in this model)</span>}
+                          {isHidden && inModel && <span> (hidden)</span>}
+                          {ready && !inModel && loadNote && <span> ({loadNote})</span>}
                         </button>
                         {inModel && (
                           <button

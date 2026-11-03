@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { AnatomyStructure } from '../../src/islands/anatomylab';
 import { LAYERS, wholeBody, layerShown, type Layer } from '../../src/islands/anatomylayers';
 import { onlyThis } from '../../src/islands/anatomylab';
-import { PartialLoadError, revealTargetPlan, showAllPlan, createGeneration, createOnDemandLoader, filesForLayer, firstLayer, layerNeedsReveal, lazyPeel, lazyRestore } from '../../src/islands/anatomylazy';
+import { PartialLoadError, revealTargetPlan, showAllPlan, createGeneration, createOnDemandLoader, filesForLayer, firstLayer, layerNeedsReveal, lazyPeel, lazyRestore, structureLoadNote } from '../../src/islands/anatomylazy';
 
 const layers: Layer[] = [
   { id: 'skin', ids: ['s1'] },
@@ -44,6 +44,30 @@ describe('show only this in the lazy view', () => {
     const files: Record<string, string[]> = { skin: ['s'], muscle: ['m'], skeleton: ['k'] };
     const plan = showAllPlan(layers, hidden, (id) => files[id]!, (url) => url === 's');
     expect(plan.fetch.map((l) => l.id)).toEqual(['muscle', 'skeleton']);
+  });
+});
+
+describe('on-demand structure status', () => {
+  const files: Record<string, string[]> = { organs: ['heart.glb', 'lungs.glb'], vessels: ['heart.glb', 'vessels.glb'] };
+  const allFiles = ['skin.glb', 'heart.glb', 'vessels.glb', 'lungs.glb'];
+  const loaded = new Set(['skin.glb', 'heart.glb', 'vessels.glb']);
+  const filesOf = (id: string) => files[id] ?? [];
+  const isLoaded = (url: string) => loaded.has(url);
+
+  it('says not loaded yet for an absent-looking structure whose file has not been fetched', () => {
+    expect(structureLoadNote({ id: 'part-b', layer: 'organs' }, new Set(), true, filesOf, allFiles, isLoaded)).toBe('not loaded yet');
+    // A file may be shared between multiple layers; one loaded structure
+    // must already be shown instead of marked missing or waiting.
+    expect(structureLoadNote({ id: 'part-a', layer: 'organs' }, new Set(['part-a']), true, filesOf, allFiles, isLoaded)).toBeNull();
+  });
+
+  it('reserves not in this model for files whose download finished but mesh is absent', () => {
+    expect(structureLoadNote({ id: 'missing', layer: 'organs' }, new Set(), true, filesOf, allFiles, () => true)).toBe('not in this model');
+    expect(structureLoadNote({ id: 'missing', layer: 'organs' }, new Set(), false, filesOf, allFiles, isLoaded)).toBe('not in this model');
+  });
+
+  it('treats an unlayered structure as pending while whole-body files remain unfetched', () => {
+    expect(structureLoadNote({ id: 'unlayered' }, new Set(), true, filesOf, allFiles, isLoaded)).toBe('not loaded yet');
   });
 });
 

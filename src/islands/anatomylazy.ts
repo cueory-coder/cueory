@@ -5,7 +5,7 @@
  * Pure logic, unit tested in tests/unit/anatomylazy.test.ts.
  */
 import { layerShown, type Layer } from './anatomylayers';
-import type { AnatomySystem } from './anatomylab';
+import type { AnatomyStructure, AnatomySystem } from './anatomylab';
 
 export interface OnDemandLoader<R> {
   /** Fetches the files not yet loaded (once each) and resolves with the results of the ones fetched now. */
@@ -51,6 +51,24 @@ export function layerNeedsReveal(
   isLoaded: (url: string) => boolean,
 ): boolean {
   return !layerShown(layer, hidden) || files.some((url) => !isLoaded(url));
+}
+
+/** A missing mesh can be waiting for a download, or truly absent after its model file loaded. */
+export function structureLoadNote(
+  structure: Pick<AnatomyStructure, 'id' | 'layer'>,
+  found: ReadonlySet<string>,
+  lazy: boolean,
+  filesOfLayer: (layerId: string) => readonly string[],
+  filesOfSystem: readonly string[],
+  isLoaded: (url: string) => boolean,
+): 'not loaded yet' | 'not in this model' | null {
+  if (found.has(structure.id)) return null;
+  if (lazy) {
+    const layerFiles = structure.layer ? filesOfLayer(structure.layer) : [];
+    const files = layerFiles.length ? layerFiles : filesOfSystem;
+    if (files.some((url) => !isLoaded(url))) return 'not loaded yet';
+  }
+  return 'not in this model';
 }
 
 /**

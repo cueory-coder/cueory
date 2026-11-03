@@ -292,10 +292,16 @@ test.describe('anatomy lab whole body loads layers on demand', () => {
 
     const files = page.getByTestId('anatomy-files');
     await expect(files).toContainText('model files loaded: 1 of 11', { timeout: 20_000 });
+    // The heart is a valid structure whose model has not yet been requested.
+    // Its disabled list button must say this in its accessible name.
+    await expect(list(page).getByRole('button', { name: 'heart (not loaded yet)', exact: true })).toBeDisabled();
     const layers = page.getByRole('group', { name: 'layers, skin to bone' });
     await layers.getByRole('button', { name: /^vessels \(/ }).press('Enter');
     // The vessels layer needs heart.glb as well as vessels.glb.
     await expect(files).toContainText('model files loaded: 3 of 11', { timeout: 20_000 });
+    // Once heart.glb arrived via vessels, the name is present and its list
+    // button is enabled (though it stays hidden until chosen).
+    await expect(list(page).getByRole('button', { name: 'heart (hidden)', exact: true })).toBeEnabled();
 
     const showHeart = list(page).getByRole('button', { name: 'show heart', exact: true });
     await expect(showHeart).toBeVisible();
