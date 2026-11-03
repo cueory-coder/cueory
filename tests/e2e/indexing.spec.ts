@@ -28,6 +28,7 @@ const noindexPages = [
   '/subscribed',
   '/progress',
   '/breaks', // until Christian approves its sample ideas
+  '/account/two-factor',
 ];
 
 // Known gaps: pages that should be noindex but aren't yet. Listed on issue #11 for their owners; never fixed here.
