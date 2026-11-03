@@ -60,7 +60,8 @@ create policy "no website role reads or writes admins"
 
 -- -------------------------------------------------------------------- is_admin
 
--- True only when the caller's account is in public.admins AND this session used a second factor. Security invoker (the
+-- True only when the caller is a signed-in user (role claim `authenticated`, so a service or anon context carrying
+-- copied claims never counts) whose account is in public.admins AND whose session used a second factor. Security invoker (the
 -- docs' default) and run by no website role: it adds no rights of its own and is only called from inside the security
 -- definer functions below, which run as the owner and so can read public.admins. A missing `aal` claim is aal1.
 create function public.is_admin()
@@ -70,7 +71,8 @@ stable
 security invoker
 set search_path = ''
 as $$
-  select coalesce((select auth.jwt() ->> 'aal') = 'aal2', false)
+  select coalesce((select auth.role()) = 'authenticated', false)
+     and coalesce((select auth.jwt() ->> 'aal') = 'aal2', false)
      and exists (select 1 from public.admins a where a.user_id = (select auth.uid()));
 $$;
 
