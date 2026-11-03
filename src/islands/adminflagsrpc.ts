@@ -105,7 +105,7 @@ export function parseAdminFlagRow(input: unknown): AdminFlagRow | null {
   const handled_at = input.handled_at ?? null;
   if (!isUuid(id) || !isUuid(user_id) || !isPage(page)) return null;
   if ((item_id !== null && !isUuid(item_id)) || (item_version_id !== null && !isUuid(item_version_id))) return null;
-  if ((item_id === null) !== (item_version_id === null)) return null;
+  // item_id and item_version_id are set to null independently (a deleted draft version leaves item_id set), so each is checked alone.
   if (typeof reason !== 'string' || !(REASONS as readonly string[]).includes(reason)) return null;
   if (comment !== null && (typeof comment !== 'string' || comment.length < 1 || [...comment].length > 1000)) return null;
   if (status !== 'open' && status !== 'handled') return null;
@@ -199,7 +199,7 @@ export async function listAllFlags(
  * calls, so wiring the page is `inboxAdapter((fn, args) => supabase.rpc(fn, args))`. Typed here by shape only, because
  * that file is not merged yet.
  */
-export type InboxOutcome = { kind: 'ok'; value: unknown } | { kind: 'refused' } | { kind: 'failed' };
+export type InboxOutcome = { kind: 'ok'; value: unknown; complete?: boolean } | { kind: 'refused' } | { kind: 'failed' };
 export interface InboxAdapter {
   loadFlags(status: FlagStatus): Promise<InboxOutcome>;
   markHandled(flagId: string): Promise<InboxOutcome>;
@@ -209,7 +209,12 @@ export function inboxAdapter(rpc: AdminRpc, maxRows = 2000): InboxAdapter {
   const outcome = <T>(result: AdminResult<T>, value: (v: T) => unknown): InboxOutcome =>
     result.ok ? { kind: 'ok', value: value(result.value) } : result.problem === 'refused' ? { kind: 'refused' } : { kind: 'failed' };
   return {
-    loadFlags: async (status) => outcome(await listAllFlags(rpc, status, maxRows), (v) => v.rows),
+    loadFlags: async (status) => {
+      const result = await listAllFlags(rpc, status, maxRows);
+      const base = outcome(result, (v) => v.rows);
+      // Keep the cap signal: the page must not show a cut-off list as the whole list.
+      return base.kind === 'ok' && result.ok && !result.value.complete ? { ...base, complete: false } : base;
+    },
     markHandled: async (flagId) => outcome(await markFlagHandled(rpc, flagId), (v) => v.handledAt),
   };
 }

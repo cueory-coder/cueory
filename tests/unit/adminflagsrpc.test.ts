@@ -139,7 +139,6 @@ describe('parseAdminFlagRow', () => {
     ['a bad user', { user_id: 12 }],
     ['a page on another site', { page: '//evil.example/x' }],
     ['a page with markup', { page: '/<script>' }],
-    ['an item without its version', { item_id: id(0xe1) }],
     ['an unknown reason', { reason: 'rude' }],
     ['a comment over 1,000 characters', { comment: 'a'.repeat(1001) }],
     ['an empty comment', { comment: '' }],
@@ -149,6 +148,13 @@ describe('parseAdminFlagRow', () => {
     ['open with a handled time', { handled_at: '2026-11-02T11:00:00Z' }],
   ] as const)('refuses %s', (_label, change) => {
     expect(parseAdminFlagRow({ ...row(), ...change })).toBeNull();
+  });
+
+  it('accepts an item whose version was deleted, and a version without its item', () => {
+    const noVersion = row({ item_id: id(0xe1), item_version_id: null });
+    expect(parseAdminFlagRow(noVersion)).toEqual(noVersion);
+    const noItem = row({ item_id: null, item_version_id: id(0xf1) });
+    expect(parseAdminFlagRow(noItem)).toEqual(noItem);
   });
 
   it('refuses things that are not rows', () => {
@@ -285,6 +291,14 @@ describe('inboxAdapter (the shape the /admin/flags page takes)', () => {
     const adapter = inboxAdapter(rpc);
     expect(await adapter.loadFlags('open')).toEqual({ kind: 'ok', value: [row()] });
     expect(await adapter.markHandled(flagId)).toEqual({ kind: 'ok', value: '2026-11-02T12:00:00+00:00' });
+  });
+
+  it('says so when the list was cut off at the cap, and not otherwise', async () => {
+    const full = Array.from({ length: 200 }, (_, i) => row({ id: id(1000 - i) }));
+    const capped = await inboxAdapter(fake({ data: full, error: null }), 200).loadFlags('open');
+    expect(capped).toMatchObject({ kind: 'ok', complete: false });
+    const whole = await inboxAdapter(fake({ data: [row()], error: null })).loadFlags('open');
+    expect(whole.kind === 'ok' && whole.complete).toBeUndefined();
   });
 
   it('turns a refusal into refused and anything else into failed', async () => {
