@@ -263,6 +263,11 @@ export function toggleHidden(hidden: ReadonlySet<string>, id: string): Set<strin
   return next;
 }
 
+/** A hidden selected structure remains named in the UI, but cannot dim the structures still visible. */
+export function visibleSelection(selected: string | null, hidden: ReadonlySet<string>): string | null {
+  return selected !== null && !hidden.has(selected) ? selected : null;
+}
+
 /** "show only this": every other structure hidden. */
 export function onlyThis(all: readonly string[], id: string): Set<string> {
   return new Set(all.filter((other) => other !== id));
