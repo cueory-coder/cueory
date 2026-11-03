@@ -97,6 +97,20 @@ describe.skipIf(!existsSync(dist))('built site', () => {
     expect(htmlFiles(join(dist, 'pagefind'))).toEqual([]);
   });
 
+  it('the generated search index contains only indexable, non-preview pages (Task 249)', () => {
+    const entry = JSON.parse(readFileSync(join(dist, 'pagefind', 'pagefind-entry.json'), 'utf8')) as {
+      languages?: { en?: { page_count?: number } };
+    };
+    const searchablePages = pages.filter((page) => {
+      const html = readFileSync(page, 'utf8');
+      return /<main[^>]*\sdata-pagefind-body(?:="")?[\s>]/.test(html);
+    });
+
+    expect(entry.languages?.en?.page_count).toBe(searchablePages.length);
+    expect(searchablePages).not.toEqual(expect.arrayContaining(pages.filter((page) => page.includes('/preview/'))));
+    expect(searchablePages.every((page) => !readFileSync(page, 'utf8').includes('content="noindex'))).toBe(true);
+  });
+
   it.each(pages.map((p) => [p.replace(dist, '')]))('%s: site search indexes it only if search engines may (D-49)', (page) => {
     const html = readFileSync(join(dist, page), 'utf8');
     const noindex = html.includes('<meta name="robots" content="noindex');
