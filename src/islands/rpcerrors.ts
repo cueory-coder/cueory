@@ -6,6 +6,8 @@
  *   check_answer:  supabase/migrations/20261101100000_attempts_and_check_answer.sql
  *   submit_flag:   supabase/migrations/20261101120000_flags_and_submit_flag.sql (PR #110)
  *   both:          supabase/migrations/20261102120000_confirmed_accounts_only.sql (Task 169)
+ *   any function:  "confirm your email to use this" (Task 169). check_answer and submit_flag name the action; any
+ *                  other function that gains the check falls back to one general sentence (Task 171).
  *
  * Never echoes raw database text, SQL, table names or error codes to a student.
  */
@@ -74,6 +76,12 @@ export function studentMessage(fn: RpcFunction, error: unknown): string {
     if (msg === 'that is a lot of reports; please try again later') {
       return "you've sent a lot of reports recently — please try again later.";
     }
+  }
+
+  // Task 169: any other function that refuses an unconfirmed account gets one general sentence. check_answer and
+  // submit_flag map it above with the action named (Task 171 added this fallback).
+  if (msg === 'confirm your email to use this') {
+    return 'please confirm your email first. the link is in the email we sent you.';
   }
 
   return 'something went wrong — please try again.';
