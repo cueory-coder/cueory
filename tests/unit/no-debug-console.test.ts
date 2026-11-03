@@ -14,8 +14,8 @@ function isConsole(node: ts.Expression): boolean {
 }
 
 /** Inspect property references too, so saving console.log in a callback cannot bypass the guard. */
-function debugReferences(text: string, offset = 0): Logging[] {
-  const source = ts.createSourceFile('source.tsx', text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+function debugReferences(text: string, offset = 0, kind = ts.ScriptKind.TS): Logging[] {
+  const source = ts.createSourceFile('source', text, ts.ScriptTarget.Latest, true, kind);
   const found: Logging[] = [];
   function visit(node: ts.Node) {
     let method: string | undefined;
@@ -32,7 +32,7 @@ function debugReferences(text: string, offset = 0): Logging[] {
 }
 
 function scan(text: string, extension: string): Logging[] {
-  if (extension !== '.astro') return debugReferences(text);
+  if (extension !== '.astro') return debugReferences(text, 0, extension === '.tsx' ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
   const found: Logging[] = [];
   const frontmatter = /^(?:\uFEFF)?---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(text);
   if (frontmatter) found.push(...debugReferences(frontmatter[1]!, 1));
@@ -41,10 +41,29 @@ function scan(text: string, extension: string): Logging[] {
   const markup = text.slice(markupStart);
   const masked = markup.split('');
   const lower = markup.toLowerCase();
-  const opening = /<(script|style)\b[^>]*>/gi;
+  const opening = /<(script|style)\b/gi;
   let match: RegExpExecArray | null;
   while ((match = opening.exec(markup)) !== null) {
-    const contentStart = match.index! + match[0].length;
+    // Attribute expressions may contain > inside a string, function or object.
+    // Keep the complete opening tag for the template-expression AST below.
+    let quote = '';
+    let braces = 0;
+    let at = opening.lastIndex;
+    for (; at < markup.length; at++) {
+      const char = markup[at]!;
+      if (quote) {
+        if (char === '\\') at++;
+        else if (char === quote) quote = '';
+      } else if (char === '"' || char === "'" || char === '`') quote = char;
+      else if (char === '{') braces++;
+      else if (char === '}') braces = Math.max(0, braces - 1);
+      else if (char === '>' && braces === 0) break;
+    }
+    const contentStart = Math.min(at + 1, markup.length);
+    if (markup.slice(match.index!, contentStart).trimEnd().endsWith('/>')) {
+      opening.lastIndex = contentStart;
+      continue;
+    }
     // Read HTML raw-text end-tag boundaries explicitly. HTML permits whitespace
     // and ignored attributes on an end tag, such as </script\t\n ignored>.
     const name = `</${match[1]!.toLowerCase()}`;
@@ -59,7 +78,7 @@ function scan(text: string, extension: string): Logging[] {
       const start = markupStart + contentStart;
       found.push(...debugReferences(markup.slice(contentStart, contentEnd), text.slice(0, start).split('\n').length - 1));
     }
-    for (let index = match.index!; index < end; index++) {
+    for (let index = contentStart; index < contentEnd; index++) {
       if (markup[index] !== '\n') masked[index] = ' ';
     }
     // Ignore script-looking strings within this raw-text block.
@@ -67,7 +86,7 @@ function scan(text: string, extension: string): Logging[] {
   }
   // JSX parsing also visits executable {...} expressions in Astro attributes and
   // templates, while ordinary element text remains JSX text rather than code.
-  found.push(...debugReferences(`<>${masked.join('')}</>`, text.slice(0, markupStart).split('\n').length - 1));
+  found.push(...debugReferences(`<>${masked.join('')}</>`, text.slice(0, markupStart).split('\n').length - 1, ts.ScriptKind.TSX));
   return found;
 }
 
@@ -89,6 +108,17 @@ describe('debug-console source guard', () => {
       .toEqual([]);
   });
 
+  it('uses TypeScript grammar for generic arrows and angle-bracket assertions', () => {
+    expect(scan('const identity = <T>(value: T) => value;\nconsole.log("leak");', '.ts'))
+      .toEqual([{ line: 2, method: 'log' }]);
+    expect(scan('const value = <number>1;\nconsole.debug(value);', '.ts'))
+      .toEqual([{ line: 2, method: 'debug' }]);
+    expect(scan('---\nconst identity = <T>(value: T) => value;\nconsole.log("server");\n---', '.astro'))
+      .toEqual([{ line: 3, method: 'log' }]);
+    expect(scan('const view = <p>console.log("text")</p>;\nconsole.debug("code");', '.tsx'))
+      .toEqual([{ line: 2, method: 'debug' }]);
+  });
+
   it('inspects Astro frontmatter and scripts, without treating markup as code', () => {
     expect(scan('---\nconsole.log("server");\n---\n<p>console.debug is documentation</p>\n<script>\nconsole.debug("client");\n</script>', '.astro'))
       .toEqual([{ line: 2, method: 'log' }, { line: 6, method: 'debug' }]);
@@ -102,6 +132,17 @@ describe('debug-console source guard', () => {
       .toEqual([{ line: 1, method: 'log' }, { line: 3, method: 'debug' }]);
     expect(scan('<style>.x { content: "console.log()"; }</style\t\n ignored>\n<p>{console.debug("template")}</p>', '.astro'))
       .toEqual([{ line: 3, method: 'debug' }]);
+  });
+
+  it('inspects script opening attributes including self-closing set:html', () => {
+    expect(scan('<script define:vars={{ value: console.log("server") }}>alert(value)</script>', '.astro'))
+      .toEqual([{ line: 1, method: 'log' }]);
+    expect(scan('<script set:html={console.debug("server")} />', '.astro'))
+      .toEqual([{ line: 1, method: 'debug' }]);
+    expect(scan('<script define:vars={{ value: ">", log: console.log("server") }}>alert(value)</script>', '.astro'))
+      .toEqual([{ line: 1, method: 'log' }]);
+    expect(scan('<script>const identity = <T>(value: T) => value;\nconsole.debug("client");</script>', '.astro'))
+      .toEqual([{ line: 2, method: 'debug' }]);
   });
 
   it('contains no console.log or console.debug references in src', () => {
