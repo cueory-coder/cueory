@@ -54,6 +54,8 @@ export const socials = [
 ] as const;
 
 export const footerLinks = [
+  { href: '/courses', label: 'courses' },
+  { href: '/coming-soon', label: 'coming soon' },
   { href: '/privacy', label: 'privacy' },
   { href: '/terms', label: 'terms' },
   { href: '/disclaimer', label: 'disclaimer' },

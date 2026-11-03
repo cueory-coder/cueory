@@ -32,4 +32,26 @@ export const courses: readonly Course[] = [
     status: 'coming-soon',
     description: 'Dosage calculations, conversions, and IV infusion rates.',
   },
+export interface RoadmapItem {
+  id: string;
+  title: string;
+  description: string;
+}
+
+export const roadmap: readonly RoadmapItem[] = [
+  {
+    id: 'notebook',
+    title: 'clinical notebook',
+    description: 'Personal study notes, bookmarking, and concept sheets.',
+  },
+  {
+    id: 'name-it-quiz',
+    title: 'name-it quiz',
+    description: 'Rapid identification practice for terms and anatomy landmarks.',
+  },
+  {
+    id: 'label-it-lab',
+    title: 'label-it from the lab',
+    description: 'Structure labeling directly based on 3D anatomy models.',
+  },
 ] as const;
