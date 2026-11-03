@@ -46,6 +46,9 @@ const sampleRows: FlagRow[] = [
     <p class="text-sm text-ink-soft">internal preview · not linked from the site · made-up sample rows, kept in this browser only</p>
     <div class="mt-6">
       <AdminFlags client:only="react" sampleRows={sampleRows} />
+      <noscript>
+        <p class="text-sm text-ink-soft">the sample report inbox needs javascript. no reports are sent or changed on this preview page.</p>
+      </noscript>
     </div>
   </div>
 </Layout>
