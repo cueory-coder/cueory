@@ -68,9 +68,27 @@ test.describe('640 CSS px reflow', () => {
 
     const controls = page.locator('a[href], button, input:not([type="hidden"]), select, textarea, [tabindex]');
     const problems: string[] = [];
+    // Side cards are deliberately partial navigation targets. Check every card
+    // when active instead of demanding that all ring neighbours fit at once.
+    const carousel = page.locator('[data-modes][data-ring]');
+    if (await carousel.count()) {
+      const cards = carousel.locator('[data-mode-card]');
+      const count = await cards.count();
+      for (let index = 0; index < count; index++) {
+        const card = cards.nth(index);
+        for (let turn = 0; turn < count && !(await card.getAttribute('data-active') !== null); turn++) {
+          await carousel.locator('[data-modes-next]').click();
+        }
+        await expect(card).toHaveAttribute('data-active', '');
+        const opener = card.locator('[data-mode-open]');
+        await opener.scrollIntoViewIfNeeded();
+        problems.push(...await horizontalClipping(opener));
+      }
+    }
     for (const control of await controls.all()) {
       if (!(await control.isVisible())) continue;
       if (await control.evaluate((element) => !!element.closest('[inert], [hidden], [aria-hidden="true"]'))) continue;
+      if (await control.evaluate((element) => element.matches('[data-modes][data-ring] [data-mode-open]'))) continue;
       await control.scrollIntoViewIfNeeded();
       problems.push(...await horizontalClipping(control));
     }
