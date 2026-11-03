@@ -1,6 +1,7 @@
 ---
 import { getEntry } from 'astro:content';
 import Layout from '../../../layouts/Layout.astro';
+import ContentLabel from '../../../components/ContentLabel.astro';
 import LearnSession from '../../../islands/LearnSession';
 
 const deck = await getEntry('cards', 'study-skills-01');
@@ -32,4 +33,7 @@ const learnCards = cards.map(({ front, back, blank }) => (blank ? { front, back,
       <a href="/learn/study-skills">back to the lesson</a>
     </p>
   </div>
-</Layout>
+    <div class="mt-8">
+      <ContentLabel />
+    </div>
+  </Layout>

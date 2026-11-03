@@ -1,0 +1,15 @@
+---
+import { site } from '../config/site';
+
+interface Props {
+  class?: string;
+}
+
+const { class: className = '' } = Astro.props;
+---
+
+<div class={`rounded-md border border-line bg-surface/50 px-3 py-2 text-xs text-ink-soft ${className}`}>
+  <p>
+    {site.contentNotice} · <a href="/disclaimer" class="underline hover:text-ink">disclaimer</a>
+  </p>
+</div>

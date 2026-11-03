@@ -1,6 +1,7 @@
 ---
 import { getEntry } from 'astro:content';
 import Layout from '../../../layouts/Layout.astro';
+import ContentLabel from '../../../components/ContentLabel.astro';
 import QuestionsSample from '../../../islands/QuestionsSample';
 
 const lesson = await getEntry('lessons', 'study-skills-01');
@@ -73,7 +74,10 @@ if (!lesson) {
       </ul>
     </nav>
   </div>
-</Layout>
+    <div class="mt-8">
+      <ContentLabel />
+    </div>
+  </Layout>
 
 <style is:global>
   /* Task 77 owns the shared shadow token. Until it lands, use the existing soft shadow rather than a raw value. */

@@ -10,6 +10,7 @@ import ModeTile from '../../../components/ModeTile.astro';
 import SentenceStepper from '../../../islands/SentenceStepper';
 import LessonVideo from '../../../islands/LessonVideo';
 import LessonVisuals from '../../../components/LessonVisuals.astro';
+import ContentLabel from '../../../components/ContentLabel.astro';
 import { studyModes, type StudyMode } from '../../../config/modes';
 import { isShowable } from '../../../videos/schema';
 
@@ -102,6 +103,10 @@ const availableModes = modeOrder.map((id) => {
 
     <div class="mx-auto max-w-prose">
       <LessonVisuals lessonId="study-skills-01" />
+    </div>
+
+    <div class="mx-auto max-w-prose pt-4">
+      <ContentLabel />
     </div>
   </div>
 </Layout>

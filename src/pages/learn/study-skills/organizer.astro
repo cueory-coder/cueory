@@ -1,6 +1,7 @@
 ---
 import { getEntry } from 'astro:content';
 import Layout from '../../../layouts/Layout.astro';
+import ContentLabel from '../../../components/ContentLabel.astro';
 import OrganizerBoard from '../../../islands/OrganizerBoard';
 import { parseSet } from '../../../islands/organizer';
 
@@ -37,4 +38,7 @@ const set = parseSet({ id: entry.id, title: entry.data.title, groups: entry.data
       <a href="/learn/study-skills">back to the lesson</a>
     </p>
   </div>
-</Layout>
+    <div class="mt-8">
+      <ContentLabel />
+    </div>
+  </Layout>

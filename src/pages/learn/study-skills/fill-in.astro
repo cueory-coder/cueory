@@ -1,6 +1,7 @@
 ---
 import { getEntry } from 'astro:content';
 import Layout from '../../../layouts/Layout.astro';
+import ContentLabel from '../../../components/ContentLabel.astro';
 import FillInBoard from '../../../islands/FillInBoard';
 import { parseItems } from '../../../islands/fillin';
 
@@ -37,4 +38,7 @@ const items = parseItems(entry.data.items);
       <a href="/learn/study-skills">back to the lesson</a>
     </p>
   </div>
-</Layout>
+    <div class="mt-8">
+      <ContentLabel />
+    </div>
+  </Layout>
