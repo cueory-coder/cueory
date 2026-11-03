@@ -13,6 +13,7 @@ import type { LabColors, LabScene, LoadResult } from './anatomyscene';
 import { checkTriangleBudget } from './bodyviewer-logic';
 import {
   WHOLE_BODY_KEY,
+  systemsForView,
   type Layer,
   layerShown,
   layersOf,
@@ -128,13 +129,13 @@ function measureLabel(font: string, fontPx: number): (s: string) => number {
  * Nothing from three.js loads before the student taps "open the anatomy lab". Rendered client:only.
  */
 export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Props) {
+  const [phase, setPhase] = useState<Phase>('cover');
   const systems = useMemo(() => {
     const wantsFixture = fixture && new URLSearchParams(window.location.search).has('fixture');
-    // The fixture comes first, so the tests open it whatever real systems the build also has.
-    return wantsFixture ? [fixture, ...baseSystems] : baseSystems;
-  }, [baseSystems, fixture]);
-
-  const [phase, setPhase] = useState<Phase>('cover');
+    // Only build the duplicated whole-body grouping after the viewer opens.
+    // The fixture stays first, so all existing fixture and real-system navigation is preserved.
+    return systemsForView(baseSystems, phase === 'open', wantsFixture ? fixture : null);
+  }, [baseSystems, fixture, phase]);
   const [systemKey, setSystemKey] = useState(systems[0]?.key ?? '');
   const [load, setLoad] = useState<SystemLoad>({ state: 'loading' });
   const [initialRetry, setInitialRetry] = useState(0);

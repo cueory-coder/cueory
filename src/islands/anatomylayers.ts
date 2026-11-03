@@ -123,3 +123,17 @@ export function wholeBody(systems: readonly AnatomySystem[]): AnatomySystem | nu
   if (real[0]!.model.via) out.model.via = real[0]!.model.via;
   return out;
 }
+
+/**
+ * The page sends individual systems only. Build the combined whole-body grouping in the client once the lab
+ * is open, not in the serialized Astro island props or on the closed cover screen. The optional fixture comes
+ * first and is never included in the whole-body aggregate.
+ */
+export function systemsForView(
+  baseSystems: readonly AnatomySystem[],
+  includeWholeBody: boolean,
+  fixture: AnatomySystem | null = null,
+): AnatomySystem[] {
+  const body = includeWholeBody ? wholeBody(baseSystems) : null;
+  return [...(fixture ? [fixture] : []), ...baseSystems, ...(body ? [body] : [])];
+}
