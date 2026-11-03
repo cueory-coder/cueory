@@ -149,6 +149,25 @@ describe('reading the 4.0 zip', () => {
     expect(() => readZip(zip([{ path: 'a/E1.obj', data: obj(0) }, { path: 'b/E1.obj', data: obj(0) }]), 'z.zip')).toThrow('two entries are called E1.obj');
     expect(() => readZip(Buffer.alloc(100), 'z.zip')).toThrow('z.zip: is not a zip file');
   });
+
+  it('stops with a plain message on a zip whose offsets or sizes do not fit the file', () => {
+    const good = () => zip([{ path: 'E1.obj', data: obj(40), deflate: true }]);
+    const patch = (edit: (b: Buffer, end: number, dir: number) => void) => {
+      const b = good();
+      const end = b.length - 22;
+      edit(b, end, b.readUInt32LE(end + 16));
+      return b;
+    };
+    const plain = (b: Buffer) => () => readZip(b, 'z.zip').get('E1.obj')!();
+    expect(plain(good().subarray(0, good().length - 10))).toThrow('z.zip: is not a zip file');
+    expect(plain(patch((b, end) => b.writeUInt32LE(b.length + 1000, end + 16)))).toThrow('z.zip: is damaged (its file directory');
+    expect(plain(patch((b, end) => b.writeUInt16LE(500, end + 10)))).toThrow('z.zip: is damaged (its entry count');
+    expect(plain(patch((b, _end, dir) => b.writeUInt32LE(b.length * 2, dir + 42)))).toThrow('z.zip: E1.obj: its local header is damaged');
+    expect(plain(patch((b, _end, dir) => b.writeUInt32LE(b.length * 2, dir + 20)))).toThrow('z.zip: E1.obj is damaged (its data runs past');
+    expect(plain(patch((b, _end, dir) => b.writeUInt32LE(3, dir + 24)))).toThrow('z.zip: E1.obj is damaged (it cannot be unpacked');
+    expect(plain(patch((b, _end, dir) => b.writeUInt32LE(100 * 1_048_576, dir + 24)))).toThrow('z.zip: E1.obj is too large');
+    expect(plain(patch((b, _end, dir) => b.writeUInt32LE(obj(40).length + 5, dir + 24)))).toThrow('z.zip: E1.obj is damaged (its size or checksum');
+  });
 });
 
 describe('the structures of a system in 4.0', () => {

@@ -79,6 +79,8 @@ export function readTable(text, columns, file) {
   return rows;
 }
 
+const MAX_ENTRY_BYTES = 64 * 1_048_576;
+
 /**
  * The files in a zip, by file name (the last part of the path), each read only when asked for. Stops on ZIP64, an
  * unknown compression method, a damaged entry or two entries with the same file name (A5).
@@ -102,10 +104,13 @@ export function readZip(bytes, file) {
   const size = bytes.readUInt32LE(end + 12);
   const start = bytes.readUInt32LE(end + 16);
   if (count === 0xffff || size === 0xffffffff || start === 0xffffffff) fail('is a ZIP64 file, which this script does not read');
+  if (start + size > end) fail('is damaged (its file directory lies outside the file)');
+  if (count * 46 > size) fail('is damaged (its entry count does not fit its file directory)');
+  const dirEnd = start + size;
   const entries = new Map();
   let at = start;
   for (let n = 0; n < count; n++) {
-    if (bytes.readUInt32LE(at) !== 0x02014b50) fail(`directory entry ${n + 1} is damaged`);
+    if (at + 46 > dirEnd || bytes.readUInt32LE(at) !== 0x02014b50) fail(`directory entry ${n + 1} is damaged`);
     const method = bytes.readUInt16LE(at + 10);
     const crc = bytes.readUInt32LE(at + 16);
     const compressed = bytes.readUInt32LE(at + 20);
@@ -114,6 +119,7 @@ export function readZip(bytes, file) {
     const extraLength = bytes.readUInt16LE(at + 30);
     const commentLength = bytes.readUInt16LE(at + 32);
     const local = bytes.readUInt32LE(at + 42);
+    if (at + 46 + nameLength + extraLength + commentLength > dirEnd) fail(`directory entry ${n + 1} is damaged`);
     const path = bytes.subarray(at + 46, at + 46 + nameLength).toString('utf8');
     at += 46 + nameLength + extraLength + commentLength;
     if (path.endsWith('/')) continue; // a folder
@@ -122,10 +128,17 @@ export function readZip(bytes, file) {
     const name = path.split('/').pop();
     if (entries.has(name)) fail(`two entries are called ${name}`);
     entries.set(name, () => {
-      if (bytes.readUInt32LE(local) !== 0x04034b50) fail(`${path}: its local header is damaged`);
+      if (local + 30 > start || bytes.readUInt32LE(local) !== 0x04034b50) fail(`${path}: its local header is damaged`);
       const dataStart = local + 30 + bytes.readUInt16LE(local + 26) + bytes.readUInt16LE(local + 28);
+      if (dataStart + compressed > start) fail(`${path} is damaged (its data runs past the end of the file)`);
+      if (uncompressed > MAX_ENTRY_BYTES) fail(`${path} is too large (over ${MAX_ENTRY_BYTES / 1_048_576} MB unpacked)`);
       const raw = bytes.subarray(dataStart, dataStart + compressed);
-      const data = method === 0 ? Buffer.from(raw) : inflateRawSync(raw);
+      let data;
+      try {
+        data = method === 0 ? Buffer.from(raw) : inflateRawSync(raw, { maxOutputLength: Math.max(uncompressed, 1) });
+      } catch {
+        fail(`${path} is damaged (it cannot be unpacked, or is larger than its listed size)`);
+      }
       if (data.length !== uncompressed || crc32(data) !== crc) fail(`${path} is damaged (its size or checksum is wrong)`);
       return data;
     });
