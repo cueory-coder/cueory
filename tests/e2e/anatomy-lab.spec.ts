@@ -328,8 +328,9 @@ test.describe('anatomy lab', () => {
 
     // Hiding an entire layer after revealing an answer must not hide that answer.
     const layer = target.startsWith('fixture cube') ? 'organs' : target === 'fixture block C' ? 'vessels' : 'skeleton';
+    const layerCount = layer === 'vessels' ? 1 : 2;
     await page.getByRole('group', { name: 'layers, skin to bone' })
-      .getByRole('button', { name: new RegExp(`^${layer} \\(`) }).click();
+      .getByRole('button', { name: `${layer} (${layerCount})`, exact: true }).click();
     await expect(targetButton).toHaveAttribute('aria-pressed', 'true');
     await expect(targetButton).not.toContainText('(hidden)');
   });
