@@ -54,7 +54,9 @@ export function showAllPlan(
   const ready = layers.filter((l) => filesOf(l.id).every(isLoaded));
   return {
     unhide: [...hidden].filter((id) => !inLayer.has(id) || ready.some((l) => l.ids.includes(id))),
-    fetch: layers.filter((l) => !ready.includes(l) && !layerShown(l, hidden)),
+    // By loaded files, not by what is visible: a file loaded for another layer (a heart in the vessels' file) can show
+    // some of a layer's structures while the rest of its files are still missing.
+    fetch: layers.filter((l) => !ready.includes(l)),
   };
 }
 

@@ -47,6 +47,22 @@ describe('show only this in the lazy view', () => {
   });
 });
 
+describe('show all with a mixed-layer model file', () => {
+  it('still fetches the organs layer when only the heart (in the vessels file) is loaded and shown', () => {
+    const mixed: Layer[] = [
+      { id: 'skin', ids: ['s1'] },
+      { id: 'vessels', ids: ['v1'] },
+      { id: 'organs', ids: ['heart', 'lung', 'kidney'] },
+    ];
+    const files: Record<string, string[]> = { skin: ['skin'], vessels: ['vessels', 'heart'], organs: ['heart', 'lungs', 'kidneys'] };
+    const loaded = new Set(['skin', 'vessels', 'heart']);
+    const hidden = new Set(['lung', 'kidney']); // the heart was shown from the list
+    const plan = showAllPlan(mixed, hidden, (id) => files[id]!, (url) => loaded.has(url));
+    expect(plan.fetch.map((l) => l.id)).toEqual(['organs']);
+    expect(plan.unhide).not.toContain('lung');
+  });
+});
+
 describe('show me in the quiz', () => {
   const files: Record<string, string[]> = { skin: ['s'], muscle: ['m'], skeleton: ['k'] };
   const filesOf = (id: string) => files[id]!;
