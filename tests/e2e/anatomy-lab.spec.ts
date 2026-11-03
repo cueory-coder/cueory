@@ -118,6 +118,9 @@ test.describe('anatomy lab', () => {
 
   test('tapping a highlighted inner shape prefers it through a translucent outer shape', async ({ page }, info) => {
     test.skip(!isDesktopOfEachEngine(info), 'one overlapping 3D pick test per browser engine');
+    // No OrbitControls damping: each quarter-turn step reaches its exact angle
+    // before checking overlap, instead of depending on animation timing in CI.
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await openLab(page);
     // Block C overlaps the center ray from this side. Hide it so the
     // regression isolates cube A in front of the highlighted cube B.
