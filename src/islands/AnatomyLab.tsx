@@ -463,7 +463,8 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     const p = pointerRef.current;
     pointerRef.current = null;
     if (!p || p.id !== e.pointerId || p.moved) return; // a drag or a pinch turns the view; only a tap picks
-    const id = sceneRef.current?.pick(e.clientX, e.clientY) ?? null;
+    // In quizzes, choose the nearest hit rather than favoring a previous selection.
+    const id = sceneRef.current?.pick(e.clientX, e.clientY, quiz === null) ?? null;
     pickStructure(id);
   };
   const onPointerCancel = (e: ReactPointerEvent<HTMLCanvasElement>) => {
