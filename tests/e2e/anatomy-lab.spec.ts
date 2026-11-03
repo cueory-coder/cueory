@@ -116,6 +116,31 @@ test.describe('anatomy lab', () => {
     await expect(page.getByRole('region', { name: 'fixture cube A' })).toBeVisible();
   });
 
+  test('tapping a highlighted inner shape prefers it through a translucent outer shape', async ({ page }, info) => {
+    test.skip(!isDesktopOfEachEngine(info), 'one overlapping 3D pick test per browser engine');
+    await openLab(page);
+    // At a quarter turn the fixture's cube B sits behind the larger cube A.
+    // The old nearest-only raycast picked A even when B was highlighted.
+    const left = page.getByRole('button', { name: 'turn left' });
+    for (let index = 0; index < 12; index++) await left.click();
+    const box = (await page.locator('canvas').boundingBox())!;
+    const point = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    const cubeA = list(page).getByRole('button', { name: 'fixture cube A', exact: true });
+    const cubeB = list(page).getByRole('button', { name: 'fixture cube B', exact: true });
+
+    // Without a highlight the nearest outer mesh wins.
+    await page.mouse.click(point.x, point.y);
+    await expect(cubeA).toHaveAttribute('aria-pressed', 'true');
+    // Picking cube B from the keyboard-accessible list fades A.
+    await cubeB.click();
+    await expect(cubeB).toHaveAttribute('aria-pressed', 'true');
+    // Tapping the same projected point now picks the visibly opaque B,
+    // rather than taking focus back to the translucent A.
+    await page.mouse.click(point.x, point.y);
+    await expect(cubeB).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('region', { name: 'fixture cube B' })).toBeVisible();
+  });
+
   test('labels toggle draws a label with a leader line for every visible structure', async ({ page }) => {
     await openLab(page);
     const labels = page.getByRole('button', { name: 'labels' });
