@@ -1,0 +1,1 @@
+status: Task 233 adds a deterministic light-palette axe contrast sweep for every built HTML route, including the not-found route. It sets the existing theme choice before navigation, checks the expected response status, and leaves the Evening palette to its existing coverage. No application behavior changes.
