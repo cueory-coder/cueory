@@ -100,7 +100,7 @@ test.beforeAll(async () => {
       };
       const client = {
         auth: {
-          getSession: async () => ({ data: { session: params.has('signed-out') ? null : { user: { id: uuid(9), email: 'student@example.test' } } }, error: null }),
+          getSession: async () => ({ data: { session: params.has('signed-out') ? null : { user: { id: uuid(9), email: 'student@example.test', user_metadata: { full_name: 'Sample Student' } } } }, error: null }),
           signOut: async options => { calls.push('signOut:' + options.scope); return { error: null }; },
         },
         from(table) {
@@ -251,16 +251,18 @@ test.describe('/account signed in (fake client)', () => {
     // The display-name limit's two profile fields are personal data too (Codex on #230).
     expect(saved.profile).toMatchObject({ nameChangeWindowStart: '2026-11-01T08:00:00.000Z', nameChangesInWindow: 1 });
     expect(saved.studyEvents).toHaveLength(1);
+    // The session's user_metadata: what the sign-in provider shared.
+    expect(saved.signInDetails).toEqual([{ name: 'full_name', value: 'Sample Student' }]);
     await expect(page.getByText('your data file is downloading.')).toBeVisible();
 
     const files: Download[] = [];
     page.on('download', download => files.push(download));
     await page.getByRole('button', { name: 'download spreadsheet files', exact: true }).click();
     await expect(page.getByText('your spreadsheet files are downloading.')).toBeVisible();
-    await expect.poll(() => files.length, { timeout: 15_000 }).toBe(11);
+    await expect.poll(() => files.length, { timeout: 15_000 }).toBe(12);
     expect(files.map(download => download.suggestedFilename())).toContain(`${file.suggestedFilename().slice(0, -5)}-studyEvents.csv`);
-    await expect.poll(async () => (await urls(page)).revoked, { timeout: 15_000 }).toBe(12);
-    expect((await urls(page)).made).toBe(12);
+    await expect.poll(async () => (await urls(page)).revoked, { timeout: 15_000 }).toBe(13);
+    expect((await urls(page)).made).toBe(13);
   });
 
   test('offers no file when a read fails, and never shows provider detail', async ({ page }) => {
