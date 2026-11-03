@@ -8,7 +8,7 @@ import {
   type MutableRefObject,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import { createOnDemandLoader, filesForLayer, firstLayer, lazyPeel, lazyRestore, type OnDemandLoader } from './anatomylazy';
+import { createGeneration, createOnDemandLoader, filesForLayer, firstLayer, lazyPeel, lazyRestore, type OnDemandLoader } from './anatomylazy';
 import type { LabColors, LabScene, LoadResult } from './anatomyscene';
 import { checkTriangleBudget } from './bodyviewer-logic';
 import {
@@ -131,6 +131,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
   const [pending, setPending] = useState<ReadonlySet<string>>(new Set());
   const [layerError, setLayerError] = useState<{ layer: string; message: string; retry: () => void } | null>(null);
   const [filesLoaded, setFilesLoaded] = useState(0);
+  const generation = useMemo(() => createGeneration(), []);
   const loaderRef = useRef<OnDemandLoader<LoadResult> | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -254,6 +255,9 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     // Drop the previous system's model and any layer still downloading before anything else (loading state follows).
     loaderRef.current?.retire();
     loaderRef.current = null;
+    generation.bump();
+    setExporting(null);
+    setExportNote('');
     scene.clear();
     setLoad({ state: 'loading' });
     setSelected(null);
@@ -439,6 +443,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
   const exportPicture = async (size: ExportSize) => {
     const scene = sceneRef.current;
     if (!scene || !system) return;
+    const mine = generation.token();
     setExporting(size);
     setExportNote('');
     try {
@@ -451,6 +456,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
         credit: pictureCreditFor(system),
         labels: ids.map((id) => ({ id, text: names.get(id) ?? id })),
       });
+      if (!generation.isCurrent(mine)) return; // the system changed while the picture was drawn
       const fileName = exportFileName(system.key, selected ? (names.get(selected) ?? null) : null, size);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -462,9 +468,10 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
       setTimeout(() => URL.revokeObjectURL(url), 10_000);
       setExportNote([`saved ${fileName}.`, ...labelNotes(names, leftOut, behind.length > 0)].join(' '));
     } catch (err) {
+      if (!generation.isCurrent(mine)) return;
       setExportNote(`could not save the picture: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
-      setExporting(null);
+      if (generation.isCurrent(mine)) setExporting(null);
     }
   };
 

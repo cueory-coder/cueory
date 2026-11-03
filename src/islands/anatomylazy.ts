@@ -20,6 +20,16 @@ export interface OnDemandLoader<R> {
   isRetired(): boolean;
 }
 
+/** A counter for work that must be dropped when the system changes: take a token, then ask if it is still current. */
+export function createGeneration() {
+  let n = 0;
+  return {
+    bump: () => ++n,
+    token: () => n,
+    isCurrent: (token: number) => token === n,
+  };
+}
+
 export function createOnDemandLoader<R>(fetchOne: (url: string) => Promise<R>): OnDemandLoader<R> {
   const done = new Set<string>();
   const inFlight = new Map<string, Promise<R | null>>();

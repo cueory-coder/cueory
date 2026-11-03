@@ -1,13 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import type { AnatomyStructure } from '../../src/islands/anatomylab';
 import { LAYERS, wholeBody, type Layer } from '../../src/islands/anatomylayers';
-import { createOnDemandLoader, filesForLayer, firstLayer, lazyPeel, lazyRestore } from '../../src/islands/anatomylazy';
+import { createGeneration, createOnDemandLoader, filesForLayer, firstLayer, lazyPeel, lazyRestore } from '../../src/islands/anatomylazy';
 
 const layers: Layer[] = [
   { id: 'skin', ids: ['s1'] },
   { id: 'muscle', ids: ['m1', 'm2'] },
   { id: 'skeleton', ids: ['b1'] },
 ];
+
+describe('system generation', () => {
+  it('a token taken before a system change is no longer current', () => {
+    const gen = createGeneration();
+    const mine = gen.token();
+    expect(gen.isCurrent(mine)).toBe(true);
+    gen.bump();
+    expect(gen.isCurrent(mine)).toBe(false);
+    expect(gen.isCurrent(gen.token())).toBe(true);
+  });
+});
 
 describe('on-demand loader', () => {
   it('fetches each file once, even when asked twice at the same time', async () => {
