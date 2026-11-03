@@ -2,7 +2,8 @@
  * A download DTO, not a database reader. The caller supplies only their own data and the export date.
  *
  * Sections (JSON key and CSV file share the name): profile, onboarding, progress, reviewState and gameStats come from
- * the account page or this browser; attempts, examPlans and reviewRows mirror the student's own rows in the database
+ * the account page or this browser; signInDetails holds the signed-in session's `user_metadata`, which keeps the
+ * profile details a sign-in provider such as Google shared, one name and plain value per row; attempts, examPlans and reviewRows mirror the student's own rows in the database
  * tables `attempts`, `exam_plans` and `review_state` (supabase/migrations 20261101100000 and 20261101110000), and
  * reports holds the student's own "Flag or comment" reports as the database function `my_flags()` returns them (D-88):
  * never the admin fields (user, status, handled time), which are dropped by name like any other unknown field.
@@ -25,6 +26,12 @@ export interface ExportData {
     /** The display-name limit (20261102140000_update_display_name.sql): when the current hour of changes began, and how many. */
     nameChangeWindowStart?: string | null; nameChangesInWindow?: number;
   };
+  /**
+   * The signed-in session's `user.user_metadata` (https://supabase.com/docs/guides/auth/users), one row per top-level
+   * field, so the student gets the details their sign-in provider shared. A field whose value is not plain text, a
+   * number, true/false or empty is dropped and listed by its row, like any other bad field.
+   */
+  signInDetails?: readonly { name: string; value: unknown }[];
   onboarding?: { course?: string | null; examDate?: string | null; done?: boolean; school?: string | null };
   progress?: readonly { id: string; result: string | boolean; date: string }[] | Progress;
   reviewState?: readonly { id: string; nextDueDate: string; interval: number }[];
@@ -83,6 +90,11 @@ const profileSchema: Schema = {
   nameChangeWindowStart: value => value === null || date(value),
   nameChangesInWindow: value => typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 10,
 };
+const signInDetailSchema: Schema = {
+  name: value => typeof value === 'string' && value.length >= 1 && value.length <= 100,
+  value: value => value === null || typeof value === 'boolean' || (typeof value === 'number' && Number.isFinite(value)) ||
+    (typeof value === 'string' && value.length <= 2048),
+};
 const onboardingSchema: Schema = {
   course: nullableText, examDate: value => value === null || day(value), done: bool, school: nullableText,
 };
@@ -130,9 +142,9 @@ const reviewSchema: Schema = { id: value => text(value) && !!(value as string).t
 const gameSchema: Schema = {
   game: value => dailyGames.some(game => game.id === value), day, solved: bool, tries: whole,
 };
-const sections = ['profile', 'onboarding', 'progress', 'reviewState', 'gameStats', 'attempts', 'examPlans', 'reviewRows', 'reports', 'studyEvents'] as const;
+const sections = ['profile', 'signInDetails', 'onboarding', 'progress', 'reviewState', 'gameStats', 'attempts', 'examPlans', 'reviewRows', 'reports', 'studyEvents'] as const;
 const rowCaps: Partial<Record<Section, number>> = {
-  attempts: 50_000, examPlans: 10, reviewRows: 50_000, reports: 10_000,
+  signInDetails: 100, attempts: 50_000, examPlans: 10, reviewRows: 50_000, reports: 10_000,
 };
 type Section = typeof sections[number];
 interface GuestSnapshot {
@@ -142,6 +154,7 @@ interface GuestSnapshot {
 }
 interface Sections {
   profile: Row;
+  signInDetails: Row[];
   onboarding: Row;
   progress: Row[] | GuestSnapshot;
   reviewState: Row[];
@@ -332,6 +345,7 @@ function prepare(data: unknown): { data: Sections; dropped: string[] } {
   return {
     data: {
       profile,
+      signInDetails: listSection('signInDetails', signInDetailSchema),
       onboarding: recordSection('onboarding', onboardingSchema),
       progress,
       reviewState: listSection('reviewState', reviewSchema),
@@ -414,6 +428,7 @@ function csvParts(data: unknown): { fileName: string; parts: (string | Blob)[] }
   const file = (fileName: string, headers: string[], rows: Row[]) => ({ fileName, parts: [csv(headers, rows)] });
   return [
     file('profile.csv', Object.keys(profileSchema), recordRows(clean.data.profile)),
+    file('signInDetails.csv', Object.keys(signInDetailSchema), clean.data.signInDetails),
     file('onboarding.csv', Object.keys(onboardingSchema), recordRows(clean.data.onboarding)),
     file('progress.csv', [...Object.keys(progressSchema), 'deckId', 'progressVersion', 'course', 'examDate', 'done'], progressRows),
     file('reviewState.csv', Object.keys(reviewSchema), clean.data.reviewState),

@@ -129,7 +129,15 @@ function DataSection({ adapters, email }: { adapters: AccountAdapters; email: st
     setMessage('');
     setCsv(null);
     const today = localDay(new Date());
-    const files = await prepareDownload(adapters.reader, { email, storage: browserStorage(), today });
+    let signInDetails: unknown;
+    try {
+      signInDetails = await adapters.signInDetails?.();
+    } catch {
+      // All or nothing, like the database sections: no file without the sign-in details.
+      setBusy(false);
+      return setMessage(accountMessage('export-failed'));
+    }
+    const files = await prepareDownload(adapters.reader, { email, signInDetails, storage: browserStorage(), today });
     setBusy(false);
     if (!files.ok) return setMessage(files.message);
     offerFile(files.json, dom());

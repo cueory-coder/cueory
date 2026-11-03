@@ -106,6 +106,37 @@ describe('download my data', () => {
     expect(result.data.gameStats).toEqual([]);
   });
 
+  it("adds the sign-in provider's details from the session, one row per field in name order, without running getters", async () => {
+    const details = { full_name: 'Sample Student', avatar_url: 'https://example.invalid/sample.png', email_verified: true };
+    Object.defineProperty(details, 'secret', { enumerable: true, get: () => { throw new Error('getter ran'); } });
+    const result = await gatherExport(reader(), { email: 'student@example.test', signInDetails: details, storage: undefined, today });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.signInDetails).toEqual([
+      { name: 'avatar_url', value: 'https://example.invalid/sample.png' },
+      { name: 'email_verified', value: true },
+      { name: 'full_name', value: 'Sample Student' },
+      { name: 'secret', value: undefined },
+    ]);
+    const files = downloadFiles(result.data, today);
+    expect(files.ok).toBe(true);
+    if (!files.ok) return;
+    const json = JSON.parse(await files.json.blob.text());
+    expect(json.signInDetails).toEqual([
+      { name: 'avatar_url', value: 'https://example.invalid/sample.png' },
+      { name: 'email_verified', value: true },
+      { name: 'full_name', value: 'Sample Student' },
+    ]);
+    expect(json.dropped).toContain('signInDetails[3]');
+  });
+
+  it('has an empty sign-in details section when the session has none', async () => {
+    for (const signInDetails of [undefined, null, ['not', 'an', 'object']]) {
+      const result = await gatherExport(reader(), { email: '', signInDetails, storage: undefined, today });
+      expect(result.ok && result.data.signInDetails).toEqual([]);
+    }
+  });
+
   it('leaves game stats out when they are off in this browser', async () => {
     const result = await gatherExport(reader(), { email: '', storage: new MemoryStorage(), today });
     expect(result.ok && 'gameStats' in result.data).toBe(false);
@@ -313,7 +344,10 @@ describe('adaptersFor', () => {
     const calls: unknown[][] = [];
     const client = {
       auth: {
-        async getSession() { return { data: { session: { user: { id: 'user-1', email: 'student@example.test' } } }, error: null }; },
+        async getSession() {
+          const user_metadata = { full_name: 'Sample Student', avatar_url: 'https://example.invalid/sample.png' };
+          return { data: { session: { user: { id: 'user-1', email: 'student@example.test', user_metadata } } }, error: null };
+        },
         signOut(this: unknown, options: unknown) {
           if (this !== client.auth) throw new Error('auth receiver was lost');
           calls.push(['signOut', options]);
@@ -342,6 +376,12 @@ describe('adaptersFor', () => {
     expect(await adapters.session()).toEqual({ signedIn: true, userId: 'user-1', email: 'student@example.test' });
     expect(await adapters.readName('user-1')).toBe('Sample');
     expect(calls).toEqual([['read', 'profiles', 'display_name', 'id', 'user-1']]);
+  });
+
+  it("reads the session's user_metadata for the download", async () => {
+    const { client } = fakeClient();
+    expect(await adaptersFor(client).signInDetails!())
+      .toEqual({ full_name: 'Sample Student', avatar_url: 'https://example.invalid/sample.png' });
   });
 
   it('saves the name only through update_display_name, never a direct table update (Codex on #230)', async () => {

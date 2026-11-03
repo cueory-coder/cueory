@@ -69,6 +69,8 @@ export interface AccountAdapters {
   /** Saves the signed-in student's own display name and resolves with it as saved, or rejects with the database error as `cause`. */
   writeName(name: string): Promise<string>;
   reader: ExportReader;
+  /** The signed-in session's `user.user_metadata` (the sign-in provider's profile details), for the download. */
+  signInDetails?(): Promise<unknown>;
   /** Deletes the signed-in student's account, or rejects with the database error as `cause`. Null while deletion isn't open. */
   deleteAccount: (() => Promise<void>) | null;
   /** Signs out this device only, or rejects. */
@@ -97,6 +99,13 @@ export function adaptersFor(client: AccountClient): AccountAdapters {
       return data;
     },
     reader: fromSupabase(client),
+    async signInDetails() {
+      // https://supabase.com/docs/reference/javascript/auth-getsession: the session's user carries user_metadata.
+      const { data, error } = await client.auth.getSession();
+      if (error != null) throw new Error('sign-in details not read');
+      const user: unknown = data?.session?.user;
+      return typeof user === 'object' && user !== null ? (user as { user_metadata?: unknown }).user_metadata : undefined;
+    },
     async deleteAccount() {
       const { error } = await client.rpc('delete_my_account');
       if (error != null) throw new Error('account deletion failed', { cause: error });
@@ -141,6 +150,8 @@ export async function saveDisplayName(write: AccountAdapters['writeName'], input
 export interface GatherOptions {
   /** The signed-in email from the session. profiles doesn't store one. */
   email: string;
+  /** The session's `user.user_metadata`, as `AccountAdapters.signInDetails` reads it. Left out, the section is empty. */
+  signInDetails?: unknown;
   storage: KeyValueStorage | undefined;
   /** Today in the student's own time zone, YYYY-MM-DD. */
   today: string;
@@ -150,9 +161,10 @@ export type GatherResult = { ok: true; data: ExportData } | { ok: false; message
 
 /**
  * Everything the student has saved: the database's sections (all or nothing, from loadExport), the signed-in email,
- * and this browser's own progress and game stats. A partial load is never returned.
+ * the sign-in provider's profile details from the session, and this browser's own progress and game stats. A partial
+ * load is never returned.
  */
-export async function gatherExport(reader: ExportReader, { email, storage, today }: GatherOptions): Promise<GatherResult> {
+export async function gatherExport(reader: ExportReader, { email, signInDetails, storage, today }: GatherOptions): Promise<GatherResult> {
   const loaded = await loadExport(reader);
   if (!loaded.ok) return { ok: false, message: loaded.message };
   // The same reading /progress uses: older per-deck stars move into the record first, so the file has all of it.
@@ -163,10 +175,23 @@ export async function gatherExport(reader: ExportReader, { email, storage, today
     data: {
       ...loaded.data,
       profile: { ...loaded.data.profile, email: email || null },
+      signInDetails: detailRows(signInDetails),
       progress,
       ...(stats.on ? { gameStats: stats.stats } : {}),
     },
   };
+}
+
+/**
+ * One row per top-level field of `user_metadata`, in name order. Only own data properties are read, so a getter never
+ * runs; exportdata.ts checks each value and drops anything that isn't plain.
+ */
+function detailRows(details: unknown): { name: string; value: unknown }[] {
+  if (typeof details !== 'object' || details === null || Array.isArray(details)) return [];
+  return Object.keys(details).sort().map(name => {
+    const descriptor = Object.getOwnPropertyDescriptor(details, name);
+    return { name, value: descriptor && 'value' in descriptor ? descriptor.value : undefined };
+  });
 }
 
 export interface DownloadFile { fileName: string; blob: Blob }
