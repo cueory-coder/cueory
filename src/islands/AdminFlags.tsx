@@ -159,7 +159,9 @@ export default function AdminFlags({ sampleRows }: Props) {
           role="region"
           aria-labelledby="admin-flags-caption"
           tabIndex={0}
-          className="mt-4 max-w-full overflow-x-auto"
+          // relative: the table's screen-reader-only text is absolutely positioned; without a positioned ancestor here
+          // it escapes this scroll box, widens the whole page on phones and covers the footer's buttons.
+          className="relative mt-4 max-w-full overflow-x-auto"
           data-testid="admin-flags-table"
         >
           <table className="w-full border-collapse text-left text-sm">

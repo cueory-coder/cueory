@@ -67,6 +67,16 @@ test.describe('/admin/flags table (sample rows on the preview page)', () => {
     await axe(page);
   });
 
+  test('scrolls the wide table inside its own box, so the page never gets wider than the screen', async ({ page }) => {
+    await page.goto('/preview/admin-flags');
+    await expect(page.getByTestId('admin-flags-row').first()).toBeVisible();
+    const widths = await page.evaluate(() => ({
+      page: document.documentElement.scrollWidth,
+      screen: document.documentElement.clientWidth,
+    }));
+    expect(widths.page).toBeLessThanOrEqual(widths.screen);
+  });
+
   test('shows a comment that looks like HTML as plain text', async ({ page }) => {
     await page.goto('/preview/admin-flags');
     const comment = page.getByTestId('admin-flags-comment').filter({ hasText: 'onerror' });
