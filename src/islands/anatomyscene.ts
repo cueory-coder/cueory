@@ -7,6 +7,7 @@
  * Colors come from the brand tokens at runtime (getComputedStyle), so the model follows the Daytime and Evening palettes.
  */
 import * as THREE from 'three';
+import { createDemandFrameScheduler } from './anatomyframe';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
@@ -202,7 +203,9 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
   camera.add(key); // the light moves with the camera, so the side facing the student is always lit
 
   let needsRender = true;
-  let raf = 0;
+  // Event handlers can wake the scheduler without keeping a WebGL loop alive while idle.
+  let scheduleFrame: () => void = () => {};
+  let scheduleVisibility: () => void = () => {};
   // Which labeled structures the camera can see is worked out from an ID picture once the camera has been still for
   // VISIBILITY_IDLE_MS (and after any change to what is shown), not on every frame.
   let visibilityDirty = true;
@@ -211,6 +214,7 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
   let visibility = new Map<string, { behind: boolean; world: THREE.Vector3 }>();
   const requestRender = () => {
     needsRender = true;
+    scheduleFrame();
   };
 
   const controls = new OrbitControls(camera, canvas);
@@ -223,6 +227,7 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
     lastMove = performance.now();
     visibilityDirty = true;
     requestRender();
+    scheduleVisibility();
   };
   controls.addEventListener('change', onCameraChange);
 
@@ -245,14 +250,11 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
     visibilityDirty = true;
     requestRender();
   };
-  resize();
-  const observer = new ResizeObserver(resize);
-  observer.observe(canvas);
-
-  const tick = () => {
-    raf = requestAnimationFrame(tick);
-    if (controls.enableDamping) controls.update(); // fires 'change' while the camera is still gliding
-    if (visibilityDirty && root && performance.now() - lastMove > VISIBILITY_IDLE_MS) {
+  // OrbitControls.update() returns true while damping still moves the camera (three.js r187).
+  // Only those moving frames are repeated. Camera changes reset a single delayed visibility check.
+  const tick = (time: number): boolean => {
+    const moving = controls.enableDamping ? controls.update() : false;
+    if (visibilityDirty && root && time - lastMove >= VISIBILITY_IDLE_MS) {
       visibilityDirty = false;
       if (labelIds.length > 0) {
         const w = canvas.clientWidth || 1;
@@ -263,12 +265,22 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
         visibility = new Map();
       }
     }
-    if (!needsRender) return;
-    needsRender = false;
-    renderer.render(scene, camera);
-    onRender();
+    if (needsRender) {
+      needsRender = false;
+      renderer.render(scene, camera);
+      onRender();
+    }
+    return moving;
   };
-  tick();
+  const scheduler = createDemandFrameScheduler(tick);
+  scheduleFrame = scheduler.request;
+  scheduleVisibility = () => {
+    if (root && labelIds.length > 0) scheduler.afterIdle(VISIBILITY_IDLE_MS);
+  };
+
+  resize(); // schedules one initial frame
+  const observer = new ResizeObserver(resize);
+  observer.observe(canvas);
 
   function disposeModel() {
     if (!root) return;
@@ -788,6 +800,8 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
       if (ids.length !== labelIds.length || ids.some((id, i) => id !== labelIds[i])) {
         labelIds = [...ids];
         visibilityDirty = true;
+        requestRender();
+        scheduleVisibility();
       }
       return projectWith(camera, ids, canvas.clientWidth, canvas.clientHeight);
     },
@@ -806,7 +820,7 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
     },
     dispose() {
       loadId++;
-      cancelAnimationFrame(raf);
+      scheduler.dispose();
       observer.disconnect();
       controls.removeEventListener('change', onCameraChange);
       controls.dispose();
