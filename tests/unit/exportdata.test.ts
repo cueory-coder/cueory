@@ -342,7 +342,7 @@ const id2 = '00000000-0000-4000-8000-000000000001';
 const account = {
   attempts: [{ itemVersionId: id1, picked: ['a', 'c'], correct: false, createdAt: '2026-11-01T01:00:00-07:00' }],
   examPlans: [{ course: 'med-surg-1', examDate: '2026-12-15', createdAt: '2026-10-31T12:00:00.5+00:00' }],
-  reviewRows: [{ itemId: id2, level: 3, lastReviewed: '2026-10-30', nextReview: '2026-11-13' }],
+  reviewRows: [{ itemId: id2, level: 3, lastReviewed: '2026-10-30', nextReview: '2026-11-13', updatedAt: '2026-10-30T18:15:00-07:00' }],
 };
 
 describe('account study progress sections', () => {
@@ -350,16 +350,16 @@ describe('account study progress sections', () => {
     const result = json(account);
     expect(result.attempts).toEqual([{ itemVersionId: id1, picked: ['a', 'c'], correct: false, createdAt: '2026-11-01T08:00:00.000Z' }]);
     expect(result.examPlans).toEqual([{ course: 'med-surg-1', examDate: '2026-12-15', createdAt: '2026-10-31T12:00:00.500Z' }]);
-    expect(result.reviewRows).toEqual(account.reviewRows);
+    expect(result.reviewRows).toEqual([{ ...account.reviewRows[0], updatedAt: '2026-10-31T01:15:00.000Z' }]);
     expect(result.dropped).toEqual([]);
-    const reordered = { reviewRows: [{ nextReview: '2026-11-13', lastReviewed: '2026-10-30', level: 3, itemId: id2 }], attempts: [{ createdAt: account.attempts[0].createdAt, correct: false, picked: ['a', 'c'], itemVersionId: id1 }], examPlans: account.examPlans };
+    const reordered = { reviewRows: [{ updatedAt: account.reviewRows[0].updatedAt, nextReview: '2026-11-13', lastReviewed: '2026-10-30', level: 3, itemId: id2 }], attempts: [{ createdAt: account.attempts[0].createdAt, correct: false, picked: ['a', 'c'], itemVersionId: id1 }], examPlans: account.examPlans };
     expect(exportJson(reordered, exportDate)).toBe(exportJson(account, exportDate));
   });
 
   it('keeps the guest reviewState section separate from reviewRows', () => {
     const result = json({ ...account, reviewState: sample.reviewState });
     expect(result.reviewState).toEqual(sample.reviewState);
-    expect(result.reviewRows).toEqual(account.reviewRows);
+    expect(result.reviewRows).toEqual([{ ...account.reviewRows[0], updatedAt: '2026-10-31T01:15:00.000Z' }]);
   });
 
   it('writes a CSV file per section, joining picked letters and keeping row order', () => {
@@ -367,7 +367,7 @@ describe('account study progress sections', () => {
       ['itemVersionId', 'picked', 'correct', 'createdAt'], [id1, 'a;c', 'false', '2026-11-01T08:00:00.000Z'],
     ]);
     expect(parseRows(file(account, 'examPlans'))).toEqual([['course', 'examDate', 'createdAt'], ['med-surg-1', '2026-12-15', '2026-10-31T12:00:00.500Z']]);
-    expect(parseRows(file(account, 'reviewRows'))).toEqual([['itemId', 'level', 'lastReviewed', 'nextReview'], [id2, '3', '2026-10-30', '2026-11-13']]);
+    expect(parseRows(file(account, 'reviewRows'))).toEqual([['itemId', 'level', 'lastReviewed', 'nextReview', 'updatedAt'], [id2, '3', '2026-10-30', '2026-11-13', '2026-10-31T01:15:00.000Z']]);
     expect(file(account, 'attempts').endsWith('\r\n')).toBe(true);
   });
 
@@ -461,12 +461,12 @@ describe('account study progress sections', () => {
     const input = {
       attempts: [{ ...account.attempts[0], userId: hidden, rationale: hidden, key: hidden }],
       examPlans: [{ ...account.examPlans[0], userId: hidden, id: hidden }],
-      reviewRows: [{ ...account.reviewRows[0], userId: hidden, updatedAt: hidden }],
+      reviewRows: [{ ...account.reviewRows[0], userId: hidden, userEmail: hidden }],
     };
     const result = json(input);
     expect(result.dropped).toEqual([
       'attempts[0].key', 'attempts[0].rationale', 'attempts[0].userId', 'examPlans[0].id', 'examPlans[0].userId',
-      'reviewRows[0].updatedAt', 'reviewRows[0].userId',
+      'reviewRows[0].userEmail', 'reviewRows[0].userId',
     ]);
     expect({ ...result, dropped: [] }).toEqual({ ...json(account), dropped: [] });
     const everything = exportJson(input, exportDate) + exportCsv(input).map(entry => entry.text).join('');
@@ -497,14 +497,15 @@ describe('account study progress sections', () => {
 
   it.each([['attempts', account.attempts[0]], ['reviewRows', account.reviewRows[0]]])('caps %s at 50,000 rows and reports truncation', (section, row) => {
     const exact = Array.from({ length: 50_000 }, () => row);
-    expect(json({ [section]: exact })[section]).toHaveLength(50_000);
-    expect(json({ [section]: exact }).dropped).toEqual([]);
+    const exactResult = json({ [section]: exact });
+    expect(exactResult[section]).toHaveLength(50_000);
+    expect(exactResult.dropped).toEqual([]);
     const over = [...exact, row, row];
     const result = json({ [section]: over });
     expect(result[section]).toHaveLength(50_000);
     expect(result.dropped).toEqual([`${section}[50000+]`]);
     expect(parseRows(file({ [section]: over }, section))).toHaveLength(50_001);
-  });
+  }, 60_000); // This intentionally exercises the 50,000-row export boundary on small CI runners.
 
   it('refuses non-array account sections without fabricating rows', () => {
     expect(json({ attempts: {}, examPlans: 'x', reviewRows: null }).dropped).toEqual(['attempts', 'examPlans', 'reviewRows']);

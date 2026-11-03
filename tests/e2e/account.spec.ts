@@ -140,6 +140,13 @@ test.beforeAll(async () => {
       builder.onResolve({ filter: /\/supabaseclient(?:\.ts)?$/ }, () => ({ path: 'client', namespace: 'fixture' }));
       builder.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({ contents: `
         export const AUTH_STORAGE_KEY = 'cueory-auth';
+        // Task 170's PKCE verifier names, which deleteaccount.ts imports (same values as supabaseclient.ts).
+        export const PKCE_VERIFIER_STORAGE_KEY = AUTH_STORAGE_KEY + '-code-verifier';
+        export const PKCE_FLOW_LIST_STORAGE_KEY = AUTH_STORAGE_KEY + '-flows-code-verifier';
+        export const pkceFlowStorageKey = flowId => AUTH_STORAGE_KEY + '-flow-' + flowId + '-code-verifier';
+        export function isPkceVerifierKey(key) {
+          return key.startsWith(AUTH_STORAGE_KEY + '-') && key.endsWith('-code-verifier');
+        }
         export async function getSupabase() {
           return new URLSearchParams(location.search).has('off') ? null : window.fixtureClient;
         }
@@ -271,7 +278,10 @@ test.describe('/account signed in (fake client)', () => {
   test('delete stays disabled until "delete" is typed, then deletes, signs out and clears this device', async ({ page }) => {
     await fixture(page);
     await page.evaluate(() => {
-      for (const key of ['cueory-auth', 'cueory-progress', 'cueory-theme', 'cueory-stars-old-deck']) localStorage.setItem(key, '1');
+      for (const key of [
+        'cueory-auth', 'cueory-progress', 'cueory-theme', 'cueory-stars-old-deck',
+        'cueory-auth-code-verifier', 'cueory-auth-flow-abc-code-verifier', 'cueory-auth-flows-code-verifier',
+      ]) localStorage.setItem(key, '1');
       localStorage.setItem('not-cueory', 'kept');
       sessionStorage.setItem('cueory-break-timer', '1');
     });

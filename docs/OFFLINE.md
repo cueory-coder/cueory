@@ -20,6 +20,8 @@ opened opens again with no connection. This is what is built, what it never keep
 - Never kept: `/play` (today's puzzles are inside the page), `/admin`, `/progress`, `/start`, `/privacy`, any address
   with a query string, any other site, anything that is not a GET, any redirect (a locked preview's sign-in page), any
   answer that is not a complete success, and anything the server marks `no-store` or `private`.
+- This boundary is intentional: offline support is limited to public lesson and site assets. Account, progress, admin,
+  privacy, and puzzle pages are always fetched from the network and are never copied into the offline cache.
 - Pages ask the network first. A page with a saved copy waits 4 seconds, then shows the copy; a server error (5xx) also
   shows the copy. Only the hashed build files under `/_astro/` come from the saved copy first.
 

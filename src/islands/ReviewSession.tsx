@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { answer, currentCard, sessionHistories, startSession, summaryInWords, type ReviewSessionCard, type SessionHistories } from './reviewsession';
 import type { Review } from './review';
+import type { ReviewSync, SyncOutcome } from './reviewsync';
 
 interface Props {
   cards: ReviewSessionCard[];
@@ -8,6 +9,8 @@ interface Props {
   today: string;
   examDay?: string;
   onSave: (histories: SessionHistories) => void | Promise<void>;
+  /** Signed in with published questions only (reviewsync.ts). Left out: the review stays on this device, as before. */
+  sync?: ReviewSync;
 }
 const primary = 'min-h-11 rounded-pill bg-button px-5 py-2.5 text-on-button hover:bg-button-hover';
 const secondary = 'min-h-11 rounded-pill border border-control px-5 py-2.5 text-ink';
@@ -19,15 +22,17 @@ export default function ReviewSession(props: Props) {
   return <Session key={JSON.stringify([props.cards, props.today, props.examDay])} {...props} saveQueue={saveQueue} />;
 }
 
-function Session({ cards, histories, today, examDay, onSave, saveQueue }: Props & { saveQueue: { current: Promise<void> } }) {
+function Session({ cards, histories, today, examDay, onSave, sync, saveQueue }: Props & { saveQueue: { current: Promise<void> } }) {
   const [state, setState] = useState(() => startSession(cards, histories, today, examDay));
   const [revealed, setRevealed] = useState(false);
   const [focusRequest, setFocusRequest] = useState(0);
   const [saveError, setSaveError] = useState('');
+  const [syncError, setSyncError] = useState('');
   const face = useRef<HTMLDivElement>(null);
   const end = useRef<HTMLDivElement>(null);
   const answeredId = useRef<string | undefined>(undefined);
   const saveRequest = useRef(0);
+  const syncRequest = useRef(0);
   const alive = useRef(true);
   const card = currentCard(state);
 
@@ -45,6 +50,14 @@ function Session({ cards, histories, today, examDay, onSave, saveQueue }: Props 
     // Keep asynchronous saves in order so an older snapshot cannot finish last.
     saveQueue.current = saveQueue.current.then(() => onSave(snapshot)).then(() => undefined, failed);
   };
+  // The account copy (reviewsync.ts keeps unsaved rows and their order); only the newest outcome is shown.
+  const syncSaved = (pending: Promise<SyncOutcome>) => {
+    const token = ++syncRequest.current;
+    setSyncError('');
+    void pending.then((outcome) => {
+      if (alive.current && token === syncRequest.current) setSyncError(outcome.ok ? '' : outcome.message);
+    });
+  };
   const record = (result: Review['result']) => {
     if (!card || !revealed || answeredId.current === card.id) return;
     answeredId.current = card.id;
@@ -53,6 +66,7 @@ function Session({ cards, histories, today, examDay, onSave, saveQueue }: Props 
     setRevealed(false);
     setFocusRequest((request) => request + 1);
     save(sessionHistories(updated));
+    if (sync) syncSaved(sync.record(card.id, updated.histories[card.id]!, updated.today, updated.examDay));
   };
 
   return (
@@ -75,9 +89,11 @@ function Session({ cards, histories, today, examDay, onSave, saveQueue }: Props 
           </div>
         </>
       ) : <div ref={end} tabIndex={-1} className="mt-4 text-lg">{summaryInWords(state)}</div>}
-      <p className="mt-4 text-sm" aria-live="polite" aria-atomic="true">{saveError}</p>
-      {saveError && <button type="button" className={secondary} onClick={() => {
-        save(sessionHistories(state)); setFocusRequest((request) => request + 1);
+      <p className="mt-4 text-sm" aria-live="polite" aria-atomic="true">{[saveError, syncError].filter(Boolean).join(' ')}</p>
+      {(saveError || syncError) && <button type="button" className={secondary} onClick={() => {
+        if (saveError) save(sessionHistories(state));
+        if (syncError && sync) syncSaved(sync.retry());
+        setFocusRequest((request) => request + 1);
       }}>try saving again</button>}
     </div>
   );

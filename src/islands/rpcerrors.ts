@@ -5,9 +5,10 @@
  * Error messages are read verbatim from the migrations:
  *   check_answer:  supabase/migrations/20261101100000_attempts_and_check_answer.sql
  *   submit_flag:   supabase/migrations/20261101120000_flags_and_submit_flag.sql (PR #110)
- *   delete_my_account: Task 60's migration (branch task-60/delete-my-account-rpc); its only refusal is
+ *   delete_my_account: supabase/migrations/20261102110000_delete_my_account.sql (Task 60); its only refusal is
  *                      'sign in to delete your account' (errcode 28000).
  *   update_display_name: supabase/migrations/20261102140000_update_display_name.sql
+ *   any function:  "confirm your email to use this" (Task 169) gets one general sentence (Task 171).
  *
  * Never echoes raw database text, SQL, table names or error codes to a student.
  */
@@ -71,7 +72,7 @@ export function studentMessage(fn: RpcFunction, error: unknown): string {
   }
 
   if (fn === 'delete_my_account') {
-    // Task 60 (branch task-60/delete-my-account-rpc)
+    // supabase/migrations/20261102110000_delete_my_account.sql (Task 60)
     if (msg === 'sign in to delete your account') return 'please sign in again to delete your account.';
   }
 
@@ -83,6 +84,12 @@ export function studentMessage(fn: RpcFunction, error: unknown): string {
       return "you've changed your name a lot this hour. please try again later.";
     }
     if (msg === 'your profile was not found') return 'your account could not load. please try again.';
+  }
+
+  // Task 169: a signed-in account whose email is not confirmed yet is refused with this one message, from any
+  // function. None of the mappings above match it, so it is checked last (Task 171 added it).
+  if (msg === 'confirm your email to use this') {
+    return 'please confirm your email first. the link is in the email we sent you.';
   }
 
   return 'something went wrong — please try again.';

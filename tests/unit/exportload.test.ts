@@ -11,14 +11,14 @@ const fields = {
   profiles: 'display_name,created_at,name_change_window_start,name_changes_in_window',
   attempts: 'id,item_version_id,picked,correct,created_at',
   exam_plans: 'id,course,exam_date,created_at',
-  review_state: 'item_id,level,last_reviewed,next_review',
+  review_state: 'item_id,level,last_reviewed,next_review,updated_at',
   study_events: 'id,item_id,item_version_id,kind,ms_on_item,mark,at,created_at',
 } as const;
 const rows = {
   profiles: [{ display_name: 'Sample', created_at: when, name_change_window_start: when, name_changes_in_window: 2, user_id: 'private' }],
   attempts: [{ id: id(1), item_version_id: versionId, picked: ['a', 'c'], correct: true, created_at: when, user_id: 'private' }],
   exam_plans: [{ id: id(2), course: 'med-surg-1', exam_date: '2026-12-15', created_at: when }],
-  review_state: [{ item_id: itemId, level: 2, last_reviewed: '2026-10-30', next_review: '2026-11-03', user_id: 'private' }],
+  review_state: [{ item_id: itemId, level: 2, last_reviewed: '2026-10-30', next_review: '2026-11-03', updated_at: when, user_id: 'private' }],
   study_events: [
     { id: id(3), item_id: itemId, item_version_id: versionId, kind: 'marked', ms_on_item: 4200, mark: 'learning',
       at: '2026-11-01T07:59:58.5+00:00', created_at: when, user_id: 'private' },
@@ -58,7 +58,7 @@ describe('loadExport — personal data boundaries', () => {
       profile: { displayName: 'Sample', createdAt: when, nameChangeWindowStart: when, nameChangesInWindow: 2 },
       attempts: [{ itemVersionId: versionId, picked: ['a', 'c'], correct: true, createdAt: when }],
       examPlans: [{ course: 'med-surg-1', examDate: '2026-12-15', createdAt: when }],
-      reviewRows: [{ itemId, level: 2, lastReviewed: '2026-10-30', nextReview: '2026-11-03' }],
+      reviewRows: [{ itemId, level: 2, lastReviewed: '2026-10-30', nextReview: '2026-11-03', updatedAt: when }],
       reports: [{ id: reportId, page: '/learn/study-skills', itemId: null, itemVersionId: null,
         reason: 'confusing', comment: 'Sample report', createdAt: when }],
     });

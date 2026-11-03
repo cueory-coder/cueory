@@ -53,7 +53,7 @@ const COLUMNS = {
   profiles: 'display_name,created_at,name_change_window_start,name_changes_in_window',
   attempts: 'id,item_version_id,picked,correct,created_at',
   exam_plans: 'id,course,exam_date,created_at',
-  review_state: 'item_id,level,last_reviewed,next_review',
+  review_state: 'item_id,level,last_reviewed,next_review,updated_at',
   study_events: 'id,item_id,item_version_id,kind,ms_on_item,mark,at,created_at',
 } as const;
 
@@ -240,6 +240,7 @@ export async function loadExport(reader: ExportReader): Promise<ExportLoadResult
         level,
         lastReviewed: calendarDay(r, 'last_reviewed'),
         nextReview: calendarDay(r, 'next_review'),
+        updatedAt: timestamp(r, 'updated_at'),
       };
     });
     // Each page is checked strictly (one bad row refuses the export) and written out before the next is read.

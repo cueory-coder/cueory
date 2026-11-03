@@ -35,7 +35,7 @@ export interface ExportData {
   /** The student's own `exam_plans` rows (at most 10). */
   examPlans?: readonly { course: string; examDate: string; createdAt: string }[];
   /** The signed-in student's `review_state` rows; the guest `reviewState` section is separate. */
-  reviewRows?: readonly { itemId: string; level: number; lastReviewed: string; nextReview: string }[];
+  reviewRows?: readonly { itemId: string; level: number; lastReviewed: string; nextReview: string; updatedAt: string }[];
   /** The student's own "Flag or comment" reports, as `my_flags()` returns them. */
   reports?: readonly {
     id: string; page: string; itemId: string | null; itemVersionId: string | null; reason: string; comment: string | null; createdAt: string;
@@ -125,7 +125,7 @@ const studyEventSchema: Schema = {
   mark: value => value === null || (typeof value === 'string' && studyEventMarks.includes(value)),
   at: date, createdAt: date,
 };
-const reviewRowSchema: Schema = { itemId: uuid, level, lastReviewed: day, nextReview: day };
+const reviewRowSchema: Schema = { itemId: uuid, level, lastReviewed: day, nextReview: day, updatedAt: date };
 const reviewSchema: Schema = { id: value => text(value) && !!(value as string).trim(), nextDueDate: day, interval: whole };
 const gameSchema: Schema = {
   game: value => dailyGames.some(game => game.id === value), day, solved: bool, tries: whole,
@@ -315,6 +315,8 @@ function prepare(data: unknown): { data: Sections; dropped: string[] } {
   for (const row of examPlans) row.createdAt = utcDate(row.createdAt)!;
   const reports = listSection('reports', reportSchema);
   for (const row of reports) row.createdAt = utcDate(row.createdAt)!;
+  const reviewRows = listSection('reviewRows', reviewRowSchema);
+  for (const row of reviewRows) row.updatedAt = utcDate(row.updatedAt)!;
   const supplied = own(source, 'studyEvents');
   let studyEvents: StudyEventText = { count: 0, json: [], csv: [] };
   if (supplied instanceof StudyEventPages) {
@@ -336,7 +338,7 @@ function prepare(data: unknown): { data: Sections; dropped: string[] } {
       gameStats: listSection('gameStats', gameSchema),
       attempts,
       examPlans,
-      reviewRows: listSection('reviewRows', reviewRowSchema),
+      reviewRows,
       reports,
       studyEvents,
     },
