@@ -8,6 +8,7 @@
  *
  * The review scheduler (Task 8) reads progress through `readProgress` and `deckProgress` only.
  */
+import { clearResume } from './resume';
 import type { KeyValueStorage } from './storage';
 
 export const PROGRESS_STORAGE_KEY = 'cueory-progress';
@@ -186,8 +187,9 @@ export function migrateLegacyStars(storage: KeyValueStorage | undefined): Progre
 }
 
 /**
- * Removes everything this store keeps on the device: the record and every pre-D-69 stars key, for any deck (the named
- * decks' keys too, for storage that can't be listed). The theme pick and the promo panel's date are not progress and
+ * Removes everything this store keeps on the device: the record, every pre-D-69 stars key, for any deck (the named
+ * decks' keys too, for storage that can't be listed), and the saved place in a study session (cueory-resume), which
+ * holds the same piles as answers (Codex on #221). The theme pick and the promo panel's date are not progress and
  * stay. False when the browser refused.
  */
 export function forgetProgress(storage: KeyValueStorage | undefined, deckIds: readonly string[]): boolean {
@@ -195,7 +197,7 @@ export function forgetProgress(storage: KeyValueStorage | undefined, deckIds: re
   try {
     storage.removeItem(PROGRESS_STORAGE_KEY);
     for (const key of new Set([...legacyStarKeys(storage), ...deckIds.map(legacyStarsKey)])) storage.removeItem(key);
-    return true;
+    return clearResume(storage);
   } catch {
     return false;
   }

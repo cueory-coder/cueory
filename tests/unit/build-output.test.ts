@@ -57,9 +57,15 @@ describe.skipIf(!existsSync(dist))('built site', () => {
       expect(hrefs, page).toContain('/fonts/bodoni-moda-latin-opsz-normal.woff2');
       for (const href of hrefs) expect(existsSync(join(dist, href)), href).toBe(true);
     }
-    expect(preloads(readFileSync(join(dist, 'index.html'), 'utf8'))).toContain('/fonts/bodoni-moda-latin-opsz-italic.woff2');
     // Study screens stay quiet: no display font, nothing extra to download.
     expect(preloads(readFileSync(join(dist, 'learn/study-skills.html'), 'utf8'))).toEqual([]);
+  });
+
+  it('does not preload unused italic Bodoni on home, while retaining its font file (Task 187)', () => {
+    const home = readFileSync(join(dist, 'index.html'), 'utf8');
+    const preloads = [...home.matchAll(/<link\b[^>]*rel="preload"[^>]*>/g)].map((match) => match[0]);
+    expect(preloads.some((link) => link.includes('/fonts/bodoni-moda-latin-opsz-italic.woff2'))).toBe(false);
+    expect(existsSync(join(dist, 'fonts/bodoni-moda-latin-opsz-italic.woff2'))).toBe(true);
   });
 
   it('ships the font license with the fonts', () => {
@@ -86,9 +92,48 @@ describe.skipIf(!existsSync(dist))('built site', () => {
     expect(csp!.replace(scriptSrc, '')).not.toContain('wasm-unsafe-eval');
   });
 
+  it('gives every indexable page complete, unique social metadata', () => {
+    const indexableTitles = new Map<string, string>();
+    const meta = (html: string, property: string) =>
+      new RegExp(`<meta property="${property}" content="([^"]*)"`).exec(html)?.[1];
+
+    for (const pagePath of pages) {
+      const page = pagePath.replace(`${dist}/`, '');
+      const html = readFileSync(pagePath, 'utf8');
+      if (html.includes('<meta name="robots" content="noindex')) continue;
+
+      const title = /<title>([^<]+)<\/title>/.exec(html)?.[1];
+      const description = /<meta name="description" content="([^"]*)"/.exec(html)?.[1];
+      expect(title, `${page}: title`).toBeTruthy();
+      expect(description, `${page}: description`).toBeTruthy();
+      expect(indexableTitles.has(title!), `${page}: duplicate title`).toBe(false);
+      indexableTitles.set(title!, page);
+
+      expect(html, `${page}: canonical`).toContain(`rel="canonical" href="https://cueory.app/`);
+      expect(meta(html, 'og:title'), `${page}: og:title`).toBe(title);
+      expect(meta(html, 'og:description'), `${page}: og:description`).toBe(description);
+      expect(meta(html, 'og:image'), `${page}: og:image`).toBe('https://cueory.app/share/study-ivory.png');
+      expect(existsSync(join(dist, 'share/study-ivory.png')), `${page}: og:image file`).toBe(true);
+    }
+  });
+
   it('builds the site search index next to the pages (D-49)', () => {
     expect(existsSync(join(dist, 'pagefind', 'pagefind.js'))).toBe(true);
     expect(htmlFiles(join(dist, 'pagefind'))).toEqual([]);
+  });
+
+  it('the generated search index contains only indexable, non-preview pages (Task 249)', () => {
+    const entry = JSON.parse(readFileSync(join(dist, 'pagefind', 'pagefind-entry.json'), 'utf8')) as {
+      languages?: { en?: { page_count?: number } };
+    };
+    const searchablePages = pages.filter((page) => {
+      const html = readFileSync(page, 'utf8');
+      return /<main[^>]*\sdata-pagefind-body(?:="")?[\s>]/.test(html);
+    });
+
+    expect(entry.languages?.en?.page_count).toBe(searchablePages.length);
+    expect(searchablePages).not.toEqual(expect.arrayContaining(pages.filter((page) => page.includes('/preview/'))));
+    expect(searchablePages.every((page) => !readFileSync(page, 'utf8').includes('content="noindex'))).toBe(true);
   });
 
   it.each(pages.map((p) => [p.replace(dist, '')]))('%s: site search indexes it only if search engines may (D-49)', (page) => {
