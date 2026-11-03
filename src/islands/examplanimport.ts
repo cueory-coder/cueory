@@ -46,15 +46,28 @@ export function examPlanRow(onboarding: Onboarding, today: string): ExamPlanResu
   return { ok: true, row: { course: onboarding.course, exam_date: onboarding.examDate } };
 }
 
+type DbError = { code?: string; message?: string };
+
+/** The old adapter remains supported while callers move to the safer update/insert pair. */
+interface LegacyExamPlanDb {
+  upsert(
+    table: 'exam_plans',
+    row: ExamPlanRow,
+    onConflict: 'user_id,course',
+  ): Promise<{ error: DbError | null }>;
+}
+
 /** A small adapter supplied by the account page, so these rules need no network or SDK. */
-export interface ExamPlanDb {
+export type ExamPlanDb =
+  | LegacyExamPlanDb
+  | {
   update(
     table: 'exam_plans',
     course: ExamPlanRow['course'],
     examDate: ExamPlanRow['exam_date'],
-  ): Promise<{ data: readonly unknown[] | null; error: { code?: string; message?: string } | null }>;
-  insert(table: 'exam_plans', row: ExamPlanRow): Promise<{ error: { code?: string; message?: string } | null }>;
-}
+  ): Promise<{ data: readonly unknown[] | null; error: DbError | null }>;
+  insert(table: 'exam_plans', row: ExamPlanRow): Promise<{ error: DbError | null }>;
+};
 
 export type ImportExamPlanResult =
   | { ok: true; row: ExamPlanRow; message: string }
@@ -70,6 +83,13 @@ export async function importExamPlan(
   if (!candidate.ok) return candidate;
 
   try {
+    if ('upsert' in db) {
+      const result = await db.upsert('exam_plans', candidate.row, 'user_id,course');
+      if (!result) return { ok: false, message: databaseFailure(null) };
+      if (!result.error) return { ok: true, row: candidate.row, message: 'your exam date was saved' };
+      return { ok: false, message: databaseFailure(result.error) };
+    }
+
     const updated = await db.update('exam_plans', candidate.row.course, candidate.row.exam_date);
     if (!updated || updated.error) {
       return { ok: false, message: databaseFailure(updated?.error) };

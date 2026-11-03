@@ -79,6 +79,16 @@ describe('examPlanRow — migration constraints', () => {
 });
 
 describe('importExamPlan — database ownership, uniqueness, and ten-plan guard', () => {
+  it('keeps the existing import adapter compatible during the update/insert migration', async () => {
+    const db: ExamPlanDb = { upsert: vi.fn().mockResolvedValue(outcome()) };
+    expect(await importExamPlan(db, filled(), TODAY)).toMatchObject({ ok: true });
+    expect(db.upsert).toHaveBeenCalledExactlyOnceWith(
+      'exam_plans',
+      { course: 'med-surg-1', exam_date: '2026-11-30' },
+      'user_id,course',
+    );
+  });
+
   it('does not touch the database for missing or invalid input', async () => {
     const db = dbWith();
     expect(await importExamPlan(db, filled(null), TODAY)).toMatchObject({ ok: false });
