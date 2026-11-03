@@ -14,16 +14,19 @@ import {
   BODYPARTS3D_CREDIT_LEAD,
   BODYPARTS3D_LICENSE_NAME,
   BODYPARTS3D_LICENSE_URL,
+  BEHIND_MARK,
   EXPORT_SIZES,
   answerQuiz,
   creditFor,
   exportFileName,
   groupStructures,
+  labelLines,
   labelsToShow,
-  layoutLabels,
+  leftOutNote,
   nameSourceFor,
   nextQuiz,
   pictureCreditFor,
+  placeLabels,
   releaseNoteFor,
   onlyThis,
   revealQuiz,
@@ -59,6 +62,22 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
+/** A label on the 3D view: its box, and its name's lines (with "(behind)" for a structure hidden from this side). */
+type OverlayLabel = PlacedLabel & Pick<ReturnType<typeof labelLines>, 'lines' | 'mark'>;
+
+/** The overlay label's line height (15px text, line spacing 1.5) and the box's padding above and below. */
+const LABEL_LINE = 22.5;
+const LABEL_PAD_Y = 4;
+
+/** The notes under the view about labels: which found no room, and what "(behind)" means. */
+function labelNotes(names: ReadonlyMap<string, string>, leftOut: readonly string[], anyBehind: boolean): string[] {
+  const notes: string[] = [];
+  const missing = leftOutNote(leftOut.map((id) => names.get(id) ?? id));
+  if (missing) notes.push(`${missing} turn or zoom the model, or hide some structures, to make room.`);
+  if (anyBehind) notes.push(`a label marked ${BEHIND_MARK} names a structure hidden behind others from this side: turn the model to see it.`);
+  return notes;
+}
+
 /** The label overlay's font, matching the label's text-sm class (15px Lato). */
 function measureLabel(font: string): (s: string) => number {
   const ctx = document.createElement('canvas').getContext('2d');
@@ -92,6 +111,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
   const [exporting, setExporting] = useState<ExportSize | null>(null);
   const [exportNote, setExportNote] = useState('');
   const [announce, setAnnounce] = useState('');
+  const [labelNote, setLabelNote] = useState<string[]>([]);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<LabScene | null>(null);
@@ -100,8 +120,9 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
   const pointerRef = useRef<{ id: number; x: number; y: number; moved: boolean } | null>(null);
   const activePointers = useRef(new Set<number>());
   const labelIdsRef = useRef<string[]>([]);
-  const measureRef = useRef<((s: string) => number) | null>(null);
-  const setPlacedRef = useRef<((labels: PlacedLabel[]) => void) | null>(null);
+  const setPlacedRef = useRef<((labels: OverlayLabel[]) => void) | null>(null);
+  const labelNoteRef = useRef('');
+  const measureRef = useRef<{ font: string; measure: (s: string) => number } | null>(null);
 
   const system = systems.find((s) => s.key === systemKey) ?? systems[0];
   const names = useMemo(() => new Map(system?.structures.map((s) => [s.id, s.text]) ?? []), [system]);
@@ -123,25 +144,43 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     const ids = labelIdsRef.current;
     const setPlaced = setPlacedRef.current;
     if (!setPlaced) return;
+    // Always tell the scene which labels are wanted (none too), so it checks what the camera sees only when needed.
+    const points = scene && canvas ? scene.project(ids) : [];
+    const showNotes = (notes: string[]) => {
+      const key = notes.join('\n');
+      if (key !== labelNoteRef.current) {
+        labelNoteRef.current = key;
+        setLabelNote(notes);
+      }
+    };
     if (!scene || !canvas || ids.length === 0) {
       setPlaced([]);
+      showNotes([]);
       return;
     }
-    const measure = measureRef.current ?? (measureRef.current = measureLabel(colorsRef.current?.font ?? 'sans-serif'));
-    const anchors = scene.project(ids).map((point) => ({
-      ...point,
-      width: Math.ceil(measure(names.get(point.id) ?? '')) + 20,
-      height: 30,
-    }));
+    const font = colorsRef.current?.font ?? 'sans-serif';
+    if (measureRef.current?.font !== font) measureRef.current = { font, measure: measureLabel(font) };
+    const { measure } = measureRef.current;
+    const maxText = Math.min(240, Math.max(120, canvas.clientWidth * 0.42));
+    const text = new Map<string, ReturnType<typeof labelLines>>();
+    const anchors = points.map((point) => {
+      const lines = labelLines(names.get(point.id) ?? point.id, point.behind, maxText, measure);
+      text.set(point.id, lines);
+      const count = lines.lines.length + (lines.mark === 'line' ? 1 : 0);
+      return { ...point, width: Math.ceil(lines.width) + 20, height: Math.ceil(count * LABEL_LINE + 2 * LABEL_PAD_Y) };
+    });
     const model = scene.extent();
-    setPlaced(
-      layoutLabels(anchors, {
-        width: canvas.clientWidth,
-        height: canvas.clientHeight,
-        offset: 16,
-        ...(model ? { columns: { left: model.x, right: model.x + model.width } } : {}),
-      }),
-    );
+    const layout = placeLabels(anchors, {
+      width: canvas.clientWidth,
+      height: canvas.clientHeight,
+      offset: 16,
+      ...(model ? { columns: { left: model.x, right: model.x + model.width } } : {}),
+    });
+    setPlaced(layout.placed.map((label) => ({ ...label, lines: text.get(label.id)!.lines, mark: text.get(label.id)!.mark })));
+    // Labels off the edge of the view count as left out too, so a missing name is never silent.
+    const projected = new Set(points.map((point) => point.id));
+    const leftOut = [...ids.filter((id) => !projected.has(id)), ...layout.leftOut];
+    showNotes(labelNotes(names, leftOut, layout.placed.some((label) => label.behind)));
   }, [names]);
   const updateLabelsRef = useRef(updateLabels);
   updateLabelsRef.current = updateLabels;
@@ -220,7 +259,6 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
       const read = readColorsRef.current;
       if (!read) return;
       colorsRef.current = read();
-      measureRef.current = null;
       sceneRef.current?.setColors(colorsRef.current);
     };
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
@@ -307,7 +345,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     try {
       // The labels on screen, or else the selected structure's name.
       const ids = labelIds.length ? labelIds : selected && !hidden.has(selected) ? [selected] : [];
-      const blob = await scene.exportPicture({
+      const { blob, leftOut, behind } = await scene.exportPicture({
         size,
         transparent,
         title: system.title,
@@ -323,7 +361,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
       link.click();
       link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 10_000);
-      setExportNote(`saved ${fileName}`);
+      setExportNote([`saved ${fileName}.`, ...labelNotes(names, leftOut, behind.length > 0)].join(' '));
     } catch (err) {
       setExportNote(`could not save the picture: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -408,10 +446,10 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
               onPointerUp={onPointerUp}
               onPointerCancel={onPointerCancel}
               onKeyDown={onCanvasKey}
-              className="block aspect-square w-full rounded-lg border border-line bg-page md:aspect-video"
+              className="block aspect-square w-full rounded-lg border border-line bg-page md:aspect-[4/3]"
               style={{ touchAction: 'none' }}
             />
-            <LabelOverlay setterRef={setPlacedRef} names={names} onMount={updateLabels} />
+            <LabelOverlay setterRef={setPlacedRef} onMount={updateLabels} />
             {(phase === 'opening' || load.state === 'loading') && (
               <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-surface">
                 <span className="text-sm text-ink-soft">loading {system.title}…</span>
@@ -453,6 +491,11 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
             <p className="text-sm text-ink-soft">
               {selected ? 'with this many structures showing, only the selected one is labeled.' : 'with this many structures showing, select one to label it.'}
             </p>
+          )}
+          {labelNote.length > 0 && (
+            <div className="space-y-1 text-sm text-ink-soft" data-testid="anatomy-label-note">
+              {labelNote.map((note) => <p key={note}>{note}</p>)}
+            </div>
           )}
 
           <div className="space-y-1 text-sm text-ink-soft">
@@ -635,14 +678,12 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
  */
 function LabelOverlay({
   setterRef,
-  names,
   onMount,
 }: {
-  setterRef: MutableRefObject<((labels: PlacedLabel[]) => void) | null>;
-  names: ReadonlyMap<string, string>;
+  setterRef: MutableRefObject<((labels: OverlayLabel[]) => void) | null>;
   onMount: () => void;
 }) {
-  const [placed, setPlaced] = useState<PlacedLabel[]>([]);
+  const [placed, setPlaced] = useState<OverlayLabel[]>([]);
   useEffect(() => {
     setterRef.current = setPlaced;
     onMount();
@@ -652,23 +693,45 @@ function LabelOverlay({
   }, [setterRef, onMount]);
   if (placed.length === 0) return null;
   return (
-    // The names are in the structure list too, so screen readers skip this copy.
+    // The names are in the structure list too, so screen readers skip this copy. A label whose structure is hidden
+    // behind others from this side says "(behind)" and has a dashed line, box and hollow dot: never color alone.
     <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-lg" data-testid="anatomy-labels" aria-hidden="true">
       <svg className="absolute inset-0 size-full" aria-hidden="true">
         {placed.map((p) => (
-          <g key={p.id}>
-            <line x1={p.anchorX} y1={p.anchorY} x2={p.lineX} y2={p.lineY} className="stroke-ink" strokeWidth={1.5} />
-            <circle cx={p.anchorX} cy={p.anchorY} r={3} className="fill-ink" />
+          <g key={p.id} data-behind={p.behind ? '' : undefined}>
+            <line
+              x1={p.anchorX}
+              y1={p.anchorY}
+              x2={p.lineX}
+              y2={p.lineY}
+              className={p.behind ? 'stroke-ink-soft' : 'stroke-ink'}
+              strokeWidth={1.5}
+              strokeDasharray={p.behind ? '5 4' : undefined}
+            />
+            <circle
+              cx={p.anchorX}
+              cy={p.anchorY}
+              r={3}
+              className={p.behind ? 'fill-page stroke-ink-soft' : 'fill-ink'}
+              strokeWidth={p.behind ? 1.5 : undefined}
+            />
           </g>
         ))}
       </svg>
       {placed.map((p) => (
         <span
           key={p.id}
-          className="absolute flex items-center whitespace-nowrap rounded-md border border-line bg-page px-2 text-sm text-ink"
+          data-behind={p.behind ? '' : undefined}
+          className={`absolute flex flex-col justify-center rounded-md border bg-page px-2 text-sm leading-normal whitespace-nowrap text-ink ${p.behind ? 'border-dashed border-ink-soft' : 'border-line'}`}
           style={{ left: `${p.x}px`, top: `${p.y}px`, width: `${p.width}px`, height: `${p.height}px` }}
         >
-          {names.get(p.id)}
+          {p.lines.map((line, i) => (
+            <span key={i} className="block">
+              {line}
+              {p.mark === 'inline' && i === p.lines.length - 1 && <span className="text-ink-soft"> {BEHIND_MARK}</span>}
+            </span>
+          ))}
+          {p.mark === 'line' && <span className="block text-ink-soft">{BEHIND_MARK}</span>}
         </span>
       ))}
     </div>

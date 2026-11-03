@@ -124,12 +124,37 @@ test.describe('anatomy lab', () => {
     await expect(labels).toHaveAttribute('aria-pressed', 'true');
     const overlay = page.getByTestId('anatomy-labels');
     await expect(overlay).toBeVisible();
-    const shown = await overlay.locator('span').allTextContents();
-    expect(shown.length).toBeGreaterThan(0);
-    for (const text of shown) expect(NAMES).toContain(text);
+    // Every one of the five shapes is in front from the starting view, so each gets a label and none is left out.
+    await expect(overlay.locator(':scope > span')).toHaveCount(NAMES.length);
+    const shown = await overlay.locator(':scope > span').allTextContents();
+    expect([...shown].sort()).toEqual([...NAMES].sort());
     await expect(overlay.locator('line')).toHaveCount(shown.length);
+    await expect(page.getByTestId('anatomy-label-note')).toHaveCount(0);
     await labels.click();
     await expect(overlay).toHaveCount(0);
+  });
+
+  test('marks the label of a structure hidden behind another, in words and with a dashed line', async ({ page }) => {
+    await openLab(page);
+    await page.getByRole('button', { name: 'labels' }).click();
+    // Twelve turns of 7.5° look from the side where cube A (40 units) stands in front of cube B (30 units).
+    const left = page.getByRole('button', { name: 'turn left' });
+    for (let i = 0; i < 12; i++) await left.click();
+    const overlay = page.getByTestId('anatomy-labels');
+    const cubeB = overlay.locator(':scope > span', { hasText: 'fixture cube B' });
+    // The mark is in words, on the name's line or (in a narrow view) on a line of its own.
+    await expect(cubeB).toContainText(/fixture cube B\s*\(behind\)/);
+    await expect(cubeB).toHaveAttribute('data-behind', '');
+    // The shapes above and below (D and E) are in nobody's shadow from that side. (Cube A is mostly hidden by block C
+    // in perspective, so it may be marked too.)
+    for (const name of ['fixture point D', 'fixture slab E']) {
+      await expect(overlay.locator(':scope > span', { hasText: name })).not.toContainText('(behind)');
+    }
+    expect(await overlay.locator('g[data-behind] line').count()).toBeGreaterThanOrEqual(1);
+    await expect(page.getByTestId('anatomy-label-note')).toContainText('a label marked (behind) names a structure hidden behind others');
+    // Back to the front, where every shape can be seen again.
+    await page.getByRole('button', { name: 'reset view' }).click();
+    await expect(overlay.locator(':scope > span[data-behind]')).toHaveCount(0);
   });
 
   test('"find it": right and wrong answers in words and an icon, score, next and show me', async ({ page }) => {
@@ -174,7 +199,15 @@ test.describe('anatomy lab', () => {
     expect(bytes.subarray(1, 4).toString('latin1')).toBe('PNG');
     expect(bytes.readUInt32BE(16)).toBe(1080);
     expect(bytes.readUInt32BE(20)).toBe(1920);
-    await expect(page.getByText('saved cueory-fixture-fixture-cube-a-phone.png')).toBeVisible();
+    await expect(page.getByText('saved cueory-fixture-fixture-cube-a-phone.png.')).toBeVisible();
+
+    // With labels on, a wide picture labels all five shapes: the note names none as left out.
+    await page.getByRole('button', { name: 'clear selection' }).click();
+    await page.getByRole('button', { name: 'labels' }).click();
+    const wide = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'wide 1920×1080' }).click();
+    expect((await wide).suggestedFilename()).toBe('cueory-fixture-wide.png');
+    await expect(page.getByText(/^saved cueory-fixture-wide\.png\.$/)).toBeVisible();
   });
 
   test('fits a 320 px screen without sideways scrolling', async ({ page }) => {

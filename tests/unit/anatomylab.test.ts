@@ -1,25 +1,34 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
+  BEHIND_MARK,
   BODYPARTS3D_CREDIT,
+  EXPORT_PAD,
   EXPORT_SIZES,
+  FIT_MARGIN,
   FIXTURE_CREDIT,
   answerQuiz,
   creditFor,
   draftsAllowed,
+  encodeId,
   exportFileName,
   exportRegion,
+  findVisibleAnchors,
   fitDistance,
   groupStructures,
   labDataForBuild,
+  labelLines,
+  labelRoomFor,
   labelsToShow,
   layoutLabels,
+  leftOutNote,
   matchesSearch,
   nameSourceFor,
   nextQuiz,
   onlyThis,
   parseAnatomyFile,
   pictureCreditFor,
+  placeLabels,
   releaseNoteFor,
   pickQuizTarget,
   revealQuiz,
@@ -30,6 +39,7 @@ import {
   wrapText,
   type LabelAnchor,
   type PlacedLabel,
+  type VisibilityTarget,
 } from '../../src/islands/anatomylab';
 import { fixtureGlb, fixtureShapes } from '../fixtures/anatomyfixture';
 
@@ -334,9 +344,103 @@ describe('labels with leader lines', () => {
     expect(sort(layoutLabels([...anchors].reverse(), { width: 320, height: 200 }))).toEqual(sort(layoutLabels(anchors, { width: 320, height: 200 })));
   });
 
-  it('skips a label wider than the view and an anchor that did not project', () => {
+  it('skips a label wider than the view and an anchor that did not project, and names them as left out', () => {
     expect(layoutLabels([{ id: 'wide', x: 10, y: 10, width: 500, height: 20 }], { width: 320, height: 200 })).toEqual([]);
     expect(layoutLabels([{ id: 'nan', x: Number.NaN, y: 10, width: 50, height: 20 }], { width: 320, height: 200 })).toEqual([]);
+    expect(placeLabels([{ id: 'wide', x: 10, y: 10, width: 500, height: 20 }], { width: 320, height: 200 }).leftOut).toEqual(['wide']);
+  });
+
+  it('labels all seven structures of the wide lungs picture that used to lose one (QA, Task 178)', () => {
+    // The geometry of the old wide export (/tmp/t178-shots/15): a 1920 × 589 view, 96 px boxes, seven anchors, four of
+    // them right of the model's middle. The old slot search left "lower lobe of right lung" (lrl) out.
+    const at = (id: string, x: number, y: number, width: number): LabelAnchor => ({ id, x, y, width, height: 96 });
+    const anchors = [
+      at('trachea', 960, 137, 230), at('url', 867, 217, 590), at('ull', 1057, 272, 560), at('bronchus', 963, 305, 270),
+      at('ml', 860, 360, 490), at('lll', 1070, 360, 560), at('lrl', 870, 455, 590),
+    ];
+    const options = { width: 1920, height: 589, margin: 42, offset: 71, gap: 14, columns: { left: 760, right: 1160 } };
+    const { placed, leftOut } = placeLabels(anchors, options);
+    expect(leftOut).toEqual([]);
+    expect(placed.map((p) => p.id).sort()).toEqual(anchors.map((a) => a.id).sort());
+    for (const a of placed) for (const b of placed) if (a !== b) expect(overlap(a, b)).toBe(false);
+    for (const p of placed) expect(p.y + p.height).toBeLessThanOrEqual(589 - 42);
+  });
+
+  it('keeps the labels of one side in their anchors\' top-to-bottom order, so leader lines do not cross', () => {
+    const anchors: LabelAnchor[] = [300, 120, 200, 160].map((y, i) => ({ id: `s${i}`, x: 400, y, width: 80, height: 40 }));
+    const placed = layoutLabels(anchors, { width: 500, height: 400 });
+    const byAnchor = [...placed].sort((a, b) => a.anchorY - b.anchorY).map((p) => p.id);
+    const byBox = [...placed].sort((a, b) => a.y - b.y).map((p) => p.id);
+    expect(byBox).toEqual(byAnchor);
+  });
+
+  it('moves a label to the other side when its own side is full, and leaves out labels only when both are', () => {
+    // Three 80 px boxes fit one 284 px column (8 px margins); the fourth goes to the other side.
+    const four: LabelAnchor[] = [50, 100, 150, 200].map((y, i) => ({ id: `r${i}`, x: 250 + i, y, width: 60, height: 80 }));
+    const moved = placeLabels(four, { width: 400, height: 300 });
+    expect(moved.leftOut).toEqual([]);
+    expect(moved.placed.filter((p) => p.x < 200)).toHaveLength(1);
+    // Eight boxes: three a side fit, two are left out and named.
+    const eight: LabelAnchor[] = Array.from({ length: 8 }, (_, i) => ({ id: `s${i}`, x: i < 4 ? 150 : 250, y: 30 * i, width: 60, height: 80 }));
+    const full = placeLabels(eight, { width: 400, height: 300 });
+    expect(full.placed).toHaveLength(6);
+    expect(full.leftOut).toHaveLength(2);
+    expect(leftOutNote(['lower lobe of right lung'])).toBe('no room to label: lower lobe of right lung.');
+    expect(leftOutNote([])).toBe('');
+  });
+
+  it('keeps the "behind" mark of an anchor', () => {
+    const [p] = layoutLabels([{ id: 'b', x: 300, y: 100, width: 80, height: 30, behind: true }], { width: 500, height: 300 });
+    expect(p!.behind).toBe(true);
+    expect(layoutLabels([{ id: 'v', x: 300, y: 100, width: 80, height: 30 }], { width: 500, height: 300 })[0]!.behind).toBe(false);
+  });
+
+  it('wraps a long name and marks a hidden structure in words', () => {
+    const measure = (s: string) => s.length * 10;
+    expect(labelLines('one two three four', false, 100, measure)).toEqual({ lines: ['one two', 'three four'], mark: 'none', width: 100 });
+    expect(labelLines('one', true, 200, measure)).toEqual({ lines: ['one'], mark: 'inline', width: measure(`one ${BEHIND_MARK}`) });
+    expect(labelLines('one two three four', true, 100, measure)).toMatchObject({ lines: ['one two', 'three four'], mark: 'line' });
+  });
+});
+
+describe('what the camera can see (the ID picture)', () => {
+  /** A 4 × 3 RGBA picture, rows bottom-up as readPixels gives them, from a top-down grid of structure codes. */
+  function picture(rows: number[][]): Uint8Array {
+    const height = rows.length;
+    const width = rows[0]!.length;
+    const bytes = new Uint8Array(width * height * 4);
+    rows.forEach((row, y) =>
+      row.forEach((code, x) => {
+        const i = ((height - 1 - y) * width + x) * 4;
+        bytes.set([code & 255, (code >> 8) & 255, (code >> 16) & 255, 255], i);
+      }),
+    );
+    return bytes;
+  }
+
+  it('codes each structure as its index + 1, so 0 means nothing', () => {
+    expect(encodeId(0)).toEqual([1, 0, 0]);
+    expect(encodeId(300)).toEqual([45, 1, 0]);
+  });
+
+  it('keeps the center when it can be seen, finds a visible point when it is covered, and marks a hidden one', () => {
+    const px = picture([
+      [1, 1, 2, 2],
+      [1, 1, 2, 3],
+      [0, 0, 2, 3],
+    ]);
+    const targets = new Map<string, VisibilityTarget>([
+      ['a', { index: 0, x: 0.4, y: 0.6 }], // center on its own pixel
+      ['b', { index: 1, x: 0, y: 2 }], // center covered by nothing it owns: its visible pixels are in column 2
+      ['c', { index: 2, x: 1, y: 1 }], // center covered by a; two pixels show, fewer than the minimum
+      ['d', { index: 3, x: 2, y: 1 }], // never drawn: entirely behind
+    ]);
+    const found = findVisibleAnchors(px, 4, 3, targets, 3);
+    expect(found.get('a')).toEqual({ visible: true, x: 0.4, y: 0.6 });
+    expect(found.get('b')).toMatchObject({ visible: true, x: 2 });
+    expect(found.get('c')).toEqual({ visible: false, x: 1, y: 1 });
+    expect(found.get('d')).toEqual({ visible: false, x: 2, y: 1 });
+    expect(findVisibleAnchors(px, 4, 3, new Map([['c', targets.get('c')!]]), 2).get('c')).toMatchObject({ visible: true, x: 3 });
   });
 });
 
@@ -366,7 +470,7 @@ describe('exported pictures', () => {
   it('crops the picture to the visible model, keeping its shape and leaving room for labels', () => {
     const view = { width: 1600, height: 900 };
     const extent = { x: 700, y: 300, width: 200, height: 300 };
-    const phone = exportRegion(extent, view, 9 / 16, false);
+    const phone = exportRegion(extent, view, 9 / 16);
     expect(phone.width / phone.height).toBeCloseTo(9 / 16, 6);
     // centred on the model, and holds all of it
     expect(phone.x + phone.width / 2).toBeCloseTo(800, 6);
@@ -375,18 +479,37 @@ describe('exported pictures', () => {
     expect(phone.y).toBeLessThanOrEqual(300);
     expect(phone.x + phone.width).toBeGreaterThanOrEqual(900);
     expect(phone.y + phone.height).toBeGreaterThanOrEqual(600);
-    const withLabels = exportRegion(extent, view, 9 / 16, true);
+    const withLabels = exportRegion(extent, view, 9 / 16, { left: 0.3, right: 0.3 });
     expect(withLabels.width).toBeGreaterThan(phone.width);
+  });
+
+  it('fills a phone picture with a tall model from top to bottom (QA, Task 178)', () => {
+    // A tall model (200 × 600 on screen) in a 9:16 picture: its height decides, with only the padding above and below.
+    const view = { width: 1600, height: 900 };
+    const tall = exportRegion({ x: 700, y: 150, width: 200, height: 600 }, view, 9 / 16);
+    expect(600 / tall.height).toBeCloseTo(1 - 2 * EXPORT_PAD.y, 6);
+    // With one label column, the model moves over to make room for it, and still fills the height.
+    const oneSide = exportRegion({ x: 700, y: 150, width: 200, height: 600 }, view, 9 / 16, { left: 0.3, right: 0 });
+    expect(600 / oneSide.height).toBeCloseTo(1 - 2 * EXPORT_PAD.y, 6);
+    const modelMiddle = (800 - oneSide.x) / oneSide.width;
+    expect(modelMiddle).toBeGreaterThan(0.5);
+  });
+
+  it('gives each label column room for its widest label', () => {
+    const anchors = [{ x: 100, width: 200 }, { x: 120, width: 300 }, { x: 600, width: 100 }];
+    expect(labelRoomFor(anchors, 400, 1000, 50)).toEqual({ left: 0.35, right: 0.15 });
+    expect(labelRoomFor([], 400, 1000, 50)).toEqual({ left: 0, right: 0 });
   });
 
   it('uses only the part of the model that is on screen, or the whole view when none is', () => {
     const view = { width: 1000, height: 1000 };
-    const clipped = exportRegion({ x: -5000, y: -5000, width: 20000, height: 20000 }, view, 1, false);
-    expect(clipped.width).toBeCloseTo(1000 * 1.2, 6);
+    const whole = 1000 / (1 - 2 * EXPORT_PAD.y); // the tighter way round: the height, with its padding
+    const clipped = exportRegion({ x: -5000, y: -5000, width: 20000, height: 20000 }, view, 1);
+    expect(clipped.width).toBeCloseTo(whole, 6);
     expect(clipped.x + clipped.width / 2).toBeCloseTo(500, 6);
-    const offScreen = exportRegion({ x: 2000, y: 2000, width: 10, height: 10 }, view, 1, false);
+    const offScreen = exportRegion({ x: 2000, y: 2000, width: 10, height: 10 }, view, 1);
     expect(offScreen.x + offScreen.width / 2).toBeCloseTo(500, 6);
-    expect(exportRegion(null, view, 1, false).width).toBeCloseTo(1200, 6);
+    expect(exportRegion(null, view, 1).width).toBeCloseTo(whole, 6);
   });
 
   it('wraps the credit into lines that fit', () => {
@@ -400,9 +523,9 @@ describe('exported pictures', () => {
   it('frames a box seen from the front, the tighter way round deciding', () => {
     const tan = Math.tan((17.5 * Math.PI) / 180);
     const tall = fitDistance({ x: 1, y: 10, z: 2 }, 35, 1);
-    expect(tall).toBeCloseTo((5 / tan) * 1.12 + 1, 6);
+    expect(tall).toBeCloseTo((5 / tan) * FIT_MARGIN + 1, 6);
     const wide = fitDistance({ x: 10, y: 1, z: 0 }, 35, 0.5);
-    expect(wide).toBeCloseTo((5 / (tan * 0.5)) * 1.12, 6);
+    expect(wide).toBeCloseTo((5 / (tan * 0.5)) * FIT_MARGIN, 6);
     expect(fitDistance({ x: 0, y: 0, z: 0 }, 35, 1)).toBeGreaterThan(0);
   });
 });

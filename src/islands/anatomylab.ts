@@ -341,12 +341,14 @@ export function nextQuiz(state: QuizState, pool: readonly string[], random: () =
 
 export interface LabelAnchor {
   id: string;
-  /** The structure's projected center, in pixels from the view's top left. */
+  /** Where the leader line starts: a visible point of the structure (or its center), in pixels from the view's top left. */
   x: number;
   y: number;
   /** The label's box size in pixels. */
   width: number;
   height: number;
+  /** True when no part of the structure can be seen from the camera (another structure is in front of it). */
+  behind?: boolean;
 }
 
 export interface PlacedLabel {
@@ -361,6 +363,8 @@ export interface PlacedLabel {
   /** Where the leader line meets the label box (the middle of its near side). */
   lineX: number;
   lineY: number;
+  /** The structure is hidden behind others from this side: the label is drawn marked "(behind)". */
+  behind: boolean;
 }
 
 export interface LayoutOptions {
@@ -379,57 +383,227 @@ export interface LayoutOptions {
   columns?: { left: number; right: number };
 }
 
-function overlaps(a: { x: number; y: number; width: number; height: number }, b: typeof a, gap: number): boolean {
+export interface LabelLayout {
+  placed: PlacedLabel[];
+  /** The labels that found no room, so the student can be told which names are missing (in the order asked). */
+  leftOut: string[];
+}
+
+type Box = { x: number; y: number; width: number; height: number };
+
+function overlaps(a: Box, b: Box, gap: number): boolean {
   return a.x < b.x + b.width + gap && b.x < a.x + a.width + gap && a.y < b.y + b.height + gap && b.y < a.y + a.height + gap;
 }
 
 /**
- * Places each label beside its anchor (or outside the model's columns), on the side away from the view's middle, then slides it up or down (or to the
- * other side) until it overlaps no label placed before it. Labels that can't fit anywhere are left out, never drawn on
- * top of each other. Anchors are placed top to bottom, so the result doesn't depend on the input order.
+ * Places labels in two columns, one each side of the model (or of the view's middle). Each label goes to the side of
+ * its anchor; inside a column the labels keep their anchors' top-to-bottom order and are pushed apart just enough not
+ * to overlap, so a column holds as many labels as its height allows. When a column is too full, the label whose
+ * anchor is nearest the middle moves to the other column if that has room; only when both are full is a label left
+ * out (the lowest one), and `leftOut` names it. Labels are never drawn on top of each other, and the result doesn't
+ * depend on the input order.
  */
-export function layoutLabels(anchors: readonly LabelAnchor[], options: LayoutOptions): PlacedLabel[] {
+export function placeLabels(anchors: readonly LabelAnchor[], options: LayoutOptions): LabelLayout {
   const { width, height, margin = 8, offset = 28, gap = 4, columns } = options;
-  const placed: PlacedLabel[] = [];
-  const sorted = [...anchors]
+  const top = margin;
+  const bottom = height - margin;
+  const room = bottom - top;
+  const mid = columns ? (columns.left + columns.right) / 2 : width / 2;
+  const byOrder = (a: LabelAnchor, b: LabelAnchor) => a.y - b.y || a.x - b.x || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  const usable = anchors
     .filter((a) => Number.isFinite(a.x) && Number.isFinite(a.y))
-    .sort((a, b) => a.y - b.y || a.x - b.x || (a.id < b.id ? -1 : 1));
-  for (const anchor of sorted) {
-    if (anchor.width + 2 * margin > width || anchor.height + 2 * margin > height) continue;
-    const preferRight = anchor.x >= width / 2;
-    const sides = preferRight ? (['right', 'left'] as const) : (['left', 'right'] as const);
-    const clampX = (x: number) => Math.max(margin, Math.min(width - margin - anchor.width, x));
-    const clampY = (y: number) => Math.max(margin, Math.min(height - margin - anchor.height, y));
-    const step = anchor.height + gap;
-    const tries: number[] = [0];
-    for (let k = 1; k * step <= height; k++) tries.push(k * step, -k * step);
-    let done = false;
-    for (const delta of tries) {
-      for (const side of sides) {
-        const right = Math.max(anchor.x, columns?.right ?? anchor.x) + offset;
-        const left = Math.min(anchor.x, columns?.left ?? anchor.x) - offset - anchor.width;
-        const x = clampX(side === 'right' ? right : left);
-        const wantY = anchor.y - anchor.height / 2 + delta;
-        const y = clampY(wantY);
-        if (Math.abs(y - wantY) > 0.5 && delta !== 0) continue; // ran off the edge: try the next distance
-        const box = { x, y, width: anchor.width, height: anchor.height };
-        if (placed.some((other) => overlaps(box, other, gap))) continue;
-        const onRight = x + anchor.width / 2 >= anchor.x;
-        placed.push({
-          id: anchor.id,
-          anchorX: anchor.x,
-          anchorY: anchor.y,
-          ...box,
-          lineX: onRight ? x : x + anchor.width,
-          lineY: y + anchor.height / 2,
-        });
-        done = true;
-        break;
+    .filter((a) => a.width + 2 * margin <= width && a.height + 2 * margin <= height)
+    .sort(byOrder);
+  const side = { left: usable.filter((a) => a.x < mid), right: usable.filter((a) => a.x >= mid) };
+  const need = (list: LabelAnchor[]) => list.reduce((sum, a) => sum + a.height, 0) + gap * Math.max(0, list.length - 1);
+  for (const [here, there] of [['left', 'right'], ['right', 'left']] as const) {
+    while (need(side[here]) > room) {
+      // Move the label nearest the middle across, if it fits there; otherwise leave out the lowest one.
+      const nearest = [...side[here]].sort((a, b) => Math.abs(a.x - mid) - Math.abs(b.x - mid) || byOrder(a, b))[0]!;
+      if (need([...side[there], nearest]) <= room) {
+        side[here] = side[here].filter((a) => a !== nearest);
+        side[there] = [...side[there], nearest].sort(byOrder);
+      } else {
+        side[here].pop();
       }
-      if (done) break;
     }
   }
-  return placed;
+  const clampX = (x: number, w: number) => Math.max(margin, Math.min(width - margin - w, x));
+  const placed: PlacedLabel[] = [];
+  for (const where of ['left', 'right'] as const) {
+    const list = side[where];
+    // Top to bottom: each label at its anchor's height, or just below the one above.
+    const ys: number[] = [];
+    list.forEach((a, i) => {
+      const want = a.y - a.height / 2;
+      ys.push(Math.max(top, want, i > 0 ? ys[i - 1]! + list[i - 1]!.height + gap : top));
+    });
+    // Bottom to top: pull labels back up where the column ran past the bottom.
+    for (let i = list.length - 1; i >= 0; i--) {
+      const limit = i === list.length - 1 ? bottom - list[i]!.height : ys[i + 1]! - gap - list[i]!.height;
+      ys[i] = Math.min(ys[i]!, limit);
+    }
+    list.forEach((a, i) => {
+      const x =
+        where === 'right'
+          ? clampX(Math.max(a.x, columns?.right ?? a.x) + offset, a.width)
+          : clampX(Math.min(a.x, columns?.left ?? a.x) - offset - a.width, a.width);
+      const y = ys[i]!;
+      const onRight = x + a.width / 2 >= a.x;
+      placed.push({
+        id: a.id,
+        anchorX: a.x,
+        anchorY: a.y,
+        x,
+        y,
+        width: a.width,
+        height: a.height,
+        lineX: onRight ? x : x + a.width,
+        lineY: y + a.height / 2,
+        behind: a.behind === true,
+      });
+    });
+  }
+  // A label pushed against the view's edge can reach into the other column: leave out the lower of any such pair.
+  placed.sort((a, b) => a.y - b.y || a.x - b.x || (a.id < b.id ? -1 : 1));
+  const kept: PlacedLabel[] = [];
+  for (const label of placed) {
+    if (!kept.some((other) => overlaps(label, other, gap))) kept.push(label);
+  }
+  const keptIds = new Set(kept.map((label) => label.id));
+  const leftOut = anchors.map((a) => a.id).filter((id, i, all) => !keptIds.has(id) && all.indexOf(id) === i);
+  return { placed: kept, leftOut };
+}
+
+/** The placed labels only (see `placeLabels`). */
+export function layoutLabels(anchors: readonly LabelAnchor[], options: LayoutOptions): PlacedLabel[] {
+  return placeLabels(anchors, options).placed;
+}
+
+/**
+ * The line under the view (and after "saved …") naming labels that found no room, so a missing name is never silent:
+ * "no room to label: lower lobe of right lung." Empty when every label fits.
+ */
+export function leftOutNote(names: readonly string[]): string {
+  return names.length === 0 ? '' : `no room to label: ${names.join('; ')}.`;
+}
+
+/** What a label marked "(behind)" says, on screen and on pictures. */
+export const BEHIND_MARK = '(behind)';
+
+/**
+ * A label's lines: the official name wrapped to `maxWidth`, then "(behind)" when the structure is hidden behind others,
+ * on the last line if it fits there or on a line of its own. `width` is the widest line.
+ */
+export function labelLines(
+  name: string,
+  behind: boolean,
+  maxWidth: number,
+  measure: (s: string) => number,
+): { lines: string[]; mark: 'none' | 'inline' | 'line'; width: number } {
+  const lines = wrapText(name, maxWidth, measure);
+  let mark: 'none' | 'inline' | 'line' = 'none';
+  let width = Math.max(0, ...lines.map(measure));
+  if (behind) {
+    const last = lines[lines.length - 1] ?? '';
+    const inline = measure(`${last} ${BEHIND_MARK}`);
+    if (inline <= Math.max(maxWidth, width)) {
+      mark = 'inline';
+      width = Math.max(width, inline);
+    } else {
+      mark = 'line';
+      width = Math.max(width, measure(BEHIND_MARK));
+    }
+  }
+  return { lines, mark, width };
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Which labeled structures the camera can see (an ID picture: every structure drawn flat in its own color)
+// ---------------------------------------------------------------------------------------------------------------------
+
+/** The color a structure is drawn in for the ID picture: its index + 1 in red, green and blue bytes (0 = nothing). */
+export function encodeId(index: number): [number, number, number] {
+  const n = index + 1;
+  return [n & 255, (n >> 8) & 255, (n >> 16) & 255];
+}
+
+export interface VisibilityTarget {
+  /** The structure's index, as given to encodeId. */
+  index: number;
+  /** Its center, projected into the ID picture (pixels from the top left). */
+  x: number;
+  y: number;
+}
+
+export interface VisibleAnchor {
+  /** False when fewer than `minPixels` of the structure's pixels can be seen: it is behind other structures. */
+  visible: boolean;
+  /** Where its label's line should start: the center when that is visible, else a visible point of it near its middle. */
+  x: number;
+  y: number;
+}
+
+/**
+ * Reads an ID picture (RGBA bytes, as WebGL's readPixels gives them: rows from the bottom up) and finds, for each
+ * labeled structure, whether any of it can be seen and a good visible point for its label's leader line.
+ */
+export function findVisibleAnchors(
+  pixels: Uint8Array,
+  width: number,
+  height: number,
+  targets: ReadonlyMap<string, VisibilityTarget>,
+  minPixels = 3,
+): Map<string, VisibleAnchor> {
+  const at = (x: number, y: number) => {
+    const i = ((height - 1 - y) * width + x) * 4;
+    return pixels[i]! | (pixels[i + 1]! << 8) | (pixels[i + 2]! << 16);
+  };
+  const out = new Map<string, VisibleAnchor>();
+  const pending = new Map<number, { id: string; count: number; sx: number; sy: number; t: VisibilityTarget }>();
+  for (const [id, t] of targets) {
+    const cx = Math.round(t.x);
+    const cy = Math.round(t.y);
+    if (cx >= 0 && cy >= 0 && cx < width && cy < height && at(cx, cy) === t.index + 1) {
+      out.set(id, { visible: true, x: t.x, y: t.y });
+    } else {
+      pending.set(t.index + 1, { id, count: 0, sx: 0, sy: 0, t });
+    }
+  }
+  if (pending.size === 0) return out;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const p = pending.get(at(x, y));
+      if (p) {
+        p.count++;
+        p.sx += x;
+        p.sy += y;
+      }
+    }
+  }
+  for (const [code, p] of pending) {
+    if (p.count < minPixels) {
+      out.set(p.id, { visible: false, x: p.t.x, y: p.t.y });
+      continue;
+    }
+    const mx = Math.round(p.sx / p.count);
+    const my = Math.round(p.sy / p.count);
+    if (at(mx, my) === code) {
+      out.set(p.id, { visible: true, x: mx, y: my });
+      continue;
+    }
+    // The middle of what can be seen is not on the structure (a curved or broken shape): take its nearest pixel.
+    let best = { x: mx, y: my, d: Infinity };
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (at(x, y) !== code) continue;
+        const d = (x - mx) ** 2 + (y - my) ** 2;
+        if (d < best.d) best = { x, y, d };
+      }
+    }
+    out.set(p.id, { visible: true, x: best.x, y: best.y });
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -463,20 +637,31 @@ export interface Rect {
   height: number;
 }
 
+/** Room kept free for labels at each side of an exported picture, as a share of the picture's width. */
+export interface LabelRoom {
+  left: number;
+  right: number;
+}
+
+/** Space around the model in an exported picture, as a share of the picture's width and height. */
+export const EXPORT_PAD = { x: 0.04, y: 0.05 };
+/** At most this share of a picture's width goes to the label columns together, so the model always keeps some. */
+const MOST_LABEL_ROOM = 0.66;
+
 /**
  * The part of the student's view an exported picture shows, in screen pixels: the visible model (clipped to what is on
- * screen), with room around it (more at the sides when labels are drawn), stretched to the picture's shape. The camera's
- * position and angle stay the student's; only the crop changes (three.js's setViewOffset), so the model fills the
- * picture instead of sitting small in the middle of a tall frame. With nothing on screen, the whole view is used.
+ * screen), scaled to fill the picture's free space, which is the picture minus a little padding and minus the label
+ * columns on the sides that have labels. The camera's position and angle stay the student's; only the crop changes
+ * (three.js's setViewOffset), so a tall system fills a phone picture from top to bottom instead of sitting small in
+ * the middle. With nothing on screen, the whole view is used.
  */
 export function exportRegion(
   extent: Rect | null,
   view: { width: number; height: number },
   exportAspect: number,
-  labels: boolean,
+  room: LabelRoom = { left: 0, right: 0 },
 ): Rect {
-  const screen = { x: 0, y: 0, width: view.width, height: view.height };
-  let r = screen;
+  let r: Rect = { x: 0, y: 0, width: view.width, height: view.height };
   if (extent) {
     const x0 = Math.max(0, extent.x);
     const y0 = Math.max(0, extent.y);
@@ -484,16 +669,37 @@ export function exportRegion(
     const y1 = Math.min(view.height, extent.y + extent.height);
     if (x1 > x0 && y1 > y0) r = { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
   }
-  const floor = Math.max(r.width, r.height, 1) * 0.04;
-  const padX = Math.max(floor, r.width * (labels ? 0.35 : 0.1));
-  const padY = Math.max(floor, r.height * 0.08);
-  let width = r.width + 2 * padX;
-  let height = r.height + 2 * padY;
-  if (width / height < exportAspect) width = height * exportAspect;
-  else height = width / exportAspect;
-  const cx = r.x + r.width / 2;
-  const cy = r.y + r.height / 2;
-  return { x: cx - width / 2, y: cy - height / 2, width, height };
+  let left = Math.max(0, room.left);
+  let right = Math.max(0, room.right);
+  if (left + right > MOST_LABEL_ROOM) {
+    const k = MOST_LABEL_ROOM / (left + right);
+    left *= k;
+    right *= k;
+  }
+  /** The share of the picture's width the model may use. */
+  const share = 1 - left - right - 2 * EXPORT_PAD.x;
+  const width = Math.max(r.width / share, (r.height / (1 - 2 * EXPORT_PAD.y)) * exportAspect, 1e-6);
+  const height = width / exportAspect;
+  // The model sits in the middle of its share, between the label columns.
+  const x = r.x - (left + EXPORT_PAD.x) * width - (share * width - r.width) / 2;
+  const y = r.y + r.height / 2 - height / 2;
+  return { x, y, width, height };
+}
+
+/**
+ * How much of an exported picture's width each label column needs: its widest label plus `extra` (the leader line's
+ * offset and the margin), as a share of `pictureWidth`; 0 for a side with no label. A label goes to the side of the
+ * model's middle (`mid`) that its anchor is on, as in `placeLabels`.
+ */
+export function labelRoomFor(
+  anchors: ReadonlyArray<{ x: number; width: number }>,
+  mid: number,
+  pictureWidth: number,
+  extra: number,
+): LabelRoom {
+  const widest = (list: ReadonlyArray<{ width: number }>) => list.reduce((most, a) => Math.max(most, a.width), 0);
+  const share = (w: number) => (w > 0 ? (w + extra) / pictureWidth : 0);
+  return { left: share(widest(anchors.filter((a) => a.x < mid))), right: share(widest(anchors.filter((a) => a.x >= mid))) };
 }
 
 /** Splits text into lines no wider than `maxWidth`, by words. `measure` gives a string's width. */
@@ -513,6 +719,9 @@ export function wrapText(value: string, maxWidth: number, measure: (s: string) =
   return lines;
 }
 
+/** Room around the model in the lab's starting view: 1.08 leaves 4% at the tighter edges. */
+export const FIT_MARGIN = 1.08;
+
 /**
  * Camera distance, from the box's center, that fits a box of `size` (width, height, depth) seen from the front, with a
  * little room around it. Fitting the box rather than its bounding sphere lets tall, thin systems fill the view.
@@ -521,5 +730,5 @@ export function fitDistance(size: { x: number; y: number; z: number }, fovDeg: n
   const tanV = Math.tan((fovDeg * Math.PI) / 360);
   const tanH = tanV * Math.max(aspect, 1e-3);
   const fit = Math.max(size.y / 2 / tanV, size.x / 2 / tanH, 1e-6);
-  return fit * 1.12 + size.z / 2;
+  return fit * FIT_MARGIN + size.z / 2;
 }

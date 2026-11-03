@@ -49,9 +49,11 @@
   --color-player: #3e2c23;      /* Espresso — behind the lesson video player (D-82) */
 
   /* ---------- Anatomy lab 3D models (Task 178): read at runtime by src/islands/anatomyscene.ts ---------- */
-  --color-model: #d3b7a1;          /* Taupe    — a structure */
-  --color-model-alt: #eadccf;      /* Linen    — every other structure, so neighbours stand apart */
-  --color-model-selected: #8b6f5b; /* Mocha    — the selected structure (the others also fade: never color alone) */
+  /* Mocha and Taupe alternate, so neighbouring structures stand apart from each other and from the Ivory page (Linen
+     on Ivory was too pale to read). The selected structure is Espresso, and the others also fade: never color alone. */
+  --color-model: #8b6f5b;          /* Mocha    — a structure */
+  --color-model-alt: #d3b7a1;      /* Taupe    — every other structure */
+  --color-model-selected: #3e2c23; /* Espresso — the selected structure */
 
   /* ---------- Fonts ---------- */
   --font-body: "Lato", system-ui, -apple-system, "Segoe UI", sans-serif; /* headings, body, UI, buttons */
