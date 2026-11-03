@@ -7,7 +7,7 @@ const contentRoot = join(root, 'content');
 const lessonMap = new Set(
   readFileSync(join(root, 'docs/curriculum/medsurg-lesson-map.csv'), 'utf8')
     .split('\n')
-    .map((line) => /^"?(\\U\d{2}-T\d{2}-L\d{2})"?/.exec(line)?.[1])
+    .map((line) => /^"?(U\d{2}-T\d{2}-L\d{2})"?/.exec(line)?.[1])
     .filter((lessonId): lessonId is string => lessonId !== undefined),
 );
 
