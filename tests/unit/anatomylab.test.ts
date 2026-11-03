@@ -160,7 +160,7 @@ describe('the draft gate (D-56)', () => {
     const data = labDataForBuild({}, fixtureJson, {});
     expect(data.fixture).toBeNull();
     expect(data.drafts).toBe(false);
-    expect(JSON.stringify(data)).not.toContain(draft.structures[0]!.name);
+    expect(JSON.stringify(data)).not.toContain(draft.structures[0]!.text);
   });
 
   it('shows drafts only with the explicit local flag outside Workers Builds', () => {
