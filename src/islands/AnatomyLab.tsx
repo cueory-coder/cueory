@@ -28,6 +28,7 @@ import {
   BODYPARTS3D_LICENSE_NAME,
   BODYPARTS3D_LICENSE_URL,
   BEHIND_MARK,
+  TEXT_FALLBACK_BATCH,
   EXPORT_SIZES,
   answerQuiz,
   anatomyFailureMessage,
@@ -46,6 +47,7 @@ import {
   revealQuiz,
   revealedQuizTarget,
   startQuiz,
+  textFallbackItems,
   toggleHidden,
   type AnatomySystem,
   type ExportSize,
@@ -131,6 +133,7 @@ function measureLabel(font: string, fontPx: number): (s: string) => number {
  */
 export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Props) {
   const [phase, setPhase] = useState<Phase>('cover');
+  const [textLimit, setTextLimit] = useState(TEXT_FALLBACK_BATCH);
   const systems = useMemo(() => {
     const wantsFixture = fixture && new URLSearchParams(window.location.search).has('fixture');
     // Only build the duplicated whole-body grouping after the viewer opens.
@@ -159,6 +162,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
   const visibilityIntent = useMemo(() => createGeneration(), []);
   const loaderRef = useRef<OnDemandLoader<LoadResult> | null>(null);
 
+  const fallbackHeadingRef = useRef<HTMLHeadingElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<LabScene | null>(null);
   const colorsRef = useRef<LabColors | null>(null);
@@ -284,6 +288,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     } catch {
       sceneRef.current?.dispose();
       sceneRef.current = null;
+      // The original WebGL or network exception may contain internal paths and URLs.
       setPhase('error');
     }
   }, []);
@@ -438,6 +443,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
 
   useEffect(() => {
     if (phase === 'open') canvasRef.current?.focus();
+    if (phase === 'error') fallbackHeadingRef.current?.focus();
   }, [phase]);
 
   // ── Theme: Daytime / Evening, from the device or the footer's pick ───────────────────────────────────────────────
@@ -585,13 +591,70 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
   }
 
   if (phase === 'error') {
+    const rows = textFallbackItems(groups, textLimit);
     return (
-      <div className="space-y-3 rounded-lg bg-surface p-4 text-sm">
-        <p role="alert">the anatomy lab could not open. try again, or browse the lessons instead.</p>
-        <div className="flex flex-wrap gap-3">
-          <button type="button" className={secondaryButton} onClick={() => void open()}>try opening again</button>
-          <a href="/learn" className="inline-flex min-h-11 items-center underline">browse the lessons</a>
+      <div className="space-y-6">
+        <div className="space-y-3 rounded-lg border border-line bg-surface p-4">
+          <h2 ref={fallbackHeadingRef} tabIndex={-1} role="alert" className="text-lg text-ink">
+            the 3D anatomy lab could not open.
+          </h2>
+          <p className="text-sm text-ink-soft">you can still search the original structure names below.</p>
+          <div className="flex flex-wrap gap-3">
+            <button type="button" className={secondaryButton} onClick={() => void open()}>try 3D again</button>
+            <a href="/learn" className="inline-flex min-h-11 items-center text-sm underline">browse the lessons</a>
+          </div>
         </div>
+
+        {systems.length > 1 && (
+          <fieldset className="space-y-2">
+            <legend className="text-sm text-ink-soft">body system</legend>
+            <div className="flex flex-wrap gap-2">
+              {systems.map((choice) => (
+                <button key={choice.key} type="button" className={secondaryButton}
+                  aria-pressed={choice.key === system.key}
+                  onClick={() => { setSystemKey(choice.key); setQuery(''); setTextLimit(TEXT_FALLBACK_BATCH); }}>
+                  {choice.title}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        )}
+
+        <section aria-labelledby="anatomy-text-fallback-heading" className="space-y-3">
+          <h2 id="anatomy-text-fallback-heading" className="text-lg text-ink">structure names: {system.title}</h2>
+          {drafts && system.status === 'draft' && (
+            <p className="rounded-md border border-line px-3 py-2 text-sm text-ink">
+              draft · labels waiting for review
+            </p>
+          )}
+          <p className="text-sm text-ink-soft">{nameSourceFor(system)}</p>
+          <label className="block text-sm text-ink" htmlFor="anatomy-fallback-search">find a structure</label>
+          <input id="anatomy-fallback-search" type="search" value={query} autoComplete="off"
+            onChange={(event) => { setQuery(event.target.value); setTextLimit(TEXT_FALLBACK_BATCH); }}
+            className="min-h-11 w-full rounded-md border border-control bg-page px-3 text-ink"
+          />
+          <p role="status" className="text-sm text-ink-soft">
+            showing {rows.length} of {shownCount} matching structures
+          </p>
+          {rows.length === 0 ? (
+            <p className="text-sm text-ink-soft">no structure names match this search.</p>
+          ) : (
+            <ul className="space-y-2">
+              {rows.map((item) => (
+                <li key={item.id} className="rounded-md border border-line px-3 py-2 text-sm text-ink">
+                  {item.text}
+                  {item.group && <span className="block text-ink-soft">{item.group}</span>}
+                </li>
+              ))}
+            </ul>
+          )}
+          {rows.length < shownCount && (
+            <button type="button" className={secondaryButton}
+              onClick={() => setTextLimit((limit) => limit + TEXT_FALLBACK_BATCH)}>
+              show {Math.min(TEXT_FALLBACK_BATCH, shownCount - rows.length)} more structures
+            </button>
+          )}
+        </section>
       </div>
     );
   }
