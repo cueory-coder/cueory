@@ -1,0 +1,1 @@
+status: Task 403, disclaimer page-specific E2E coverage: verify the page's heading, Christian-owned disclaimer placeholder, footer legal links, responsive overflow, and accessibility at phone and desktop sizes.
