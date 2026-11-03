@@ -559,6 +559,9 @@ test.describe('anatomy lab whole body loads layers on demand', () => {
 
     const files = page.getByTestId('anatomy-files');
     await expect(files).toContainText('model files loaded: 1 of 11', { timeout: 20_000 });
+    // The whole-body catalog shows only its first 40 entries until expanded.
+    // Search the full catalog for heart, which is not guaranteed to be in that first page.
+    await page.getByLabel('find a structure').fill('heart');
     // The heart is a valid structure whose model has not yet been requested.
     // Its disabled list button must say this in its accessible name.
     await expect(list(page).getByRole('button', { name: 'heart (not loaded yet)', exact: true })).toBeDisabled();
