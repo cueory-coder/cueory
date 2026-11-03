@@ -10,7 +10,7 @@ import {
 } from 'react';
 import { createGeneration, createOnDemandLoader, filesForLayer, idsForFiles, initialLayerPlan, firstLayer, layerNeedsReveal, visibilityAfterLayerDownload, lazyPeel, lazyRestore, PartialLoadError, revealTargetPlan, showAllPlan, structureLoadNote, type OnDemandLoader } from './anatomylazy';
 import type { LabColors, LabScene, LoadResult } from './anatomyscene';
-import { checkTriangleBudget } from './bodyviewer-logic';
+import { anatomyTriangleNote } from './anatomybudget';
 import {
   WHOLE_BODY_KEY,
   systemsForView,
@@ -586,7 +586,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
 
   const selectedName = selected ? (names.get(selected) ?? selected) : null;
   const selectedGroup = selected ? system.structures.find((s) => s.id === selected)?.group : undefined;
-  const budget = load.state === 'ready' ? checkTriangleBudget(load.result.triangles) : null;
+  const budget = load.state === 'ready' ? anatomyTriangleNote(load.result.triangles, filesLoaded, lazy) : null;
   const ready = load.state === 'ready';
   const targetName = quiz?.target ? (names.get(quiz.target) ?? quiz.target) : null;
 
@@ -785,7 +785,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
               )}
             </p>
             <p>{releaseNoteFor(system)}</p>
-            {budget && <p className="text-ink">{budget}</p>}
+            {budget && <p className="text-ink" data-testid="anatomy-budget-note">{budget}</p>}
             {ready && load.result.missing.length > 0 && (
               <p>{load.result.missing.length} listed structures aren't in this model file.</p>
             )}
