@@ -1,13 +1,25 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import DailyGamesSection from '../components/DailyGamesSection.astro';
+import FeatureGrid from '../components/FeatureGrid.astro';
+import HowItWorks from '../components/HowItWorks.astro';
 import ModesCarousel from '../components/ModesCarousel.astro';
 import SignupForm from '../components/SignupForm.astro';
 import Wordmark from '../components/Wordmark.astro';
+import ContinueBar from '../islands/ContinueBar';
 import { accountHref, site } from '../config/site';
 ---
 
 <Layout title={site.name} variant="home">
+  <!--
+    The continue strip (Task 104) renders nothing for a first-time visitor. On home the corner buttons float over the
+    top of the page (Layout.astro), so when the strip does show, this slot first leaves room for them; otherwise the
+    floating header would sit on the strip and swallow its taps.
+  -->
+  <div class="continue-slot">
+    <ContinueBar client:only="react" />
+  </div>
+
   <!--
     Full-screen hero (D-41, D-46, D-55): the logo, a serif headline on one line, the accent line, one glassy button and
     one short line under it, on draped silk, the first of the page's silk scenes (D-53). Lowercase brand voice (D-47).
@@ -28,9 +40,17 @@ import { accountHref, site } from '../config/site';
     </div>
   </section>
 
+  <!--
+    Below the hero the silk scenes alternate Ivory and Linen (D-53), and daily games stays right after "ways to study"
+    (D-61): how it works (Ivory), ways to study (Linen), daily games (Ivory), features (Linen), launch updates (Ivory).
+  -->
+  <HowItWorks />
+
   <ModesCarousel />
 
   <DailyGamesSection />
+
+  <FeatureGrid />
 
   <SignupForm />
 </Layout>
@@ -40,3 +60,10 @@ import { accountHref, site } from '../config/site';
 
   revealSections();
 </script>
+
+<style>
+  /* The corner row's height: two 1rem paddings (py-4) around the 44 px buttons. */
+  .continue-slot:has(aside) {
+    padding-top: calc(var(--tap-min) + var(--spacing) * 8);
+  }
+</style>

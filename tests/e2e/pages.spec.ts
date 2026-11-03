@@ -559,23 +559,25 @@ test.describe('marketing look (D-41)', () => {
   }) => {
     await page.goto('/');
     const sections = page.locator('[data-reveal-section]');
-    // "ways to study", daily games (D-61) and the launch-updates panel.
-    await expect(sections).toHaveCount(3);
+    // How it works, "ways to study", daily games (D-61), the features and the launch-updates panel (Task 83).
+    await expect(sections).toHaveCount(5);
+    const all = [0, 1, 2, 3, 4];
+    const ways = 1;
     const look = (index: number) =>
       sections.nth(index).evaluate((el) => [el.getAttribute('data-reveal'), getComputedStyle(el).opacity, getComputedStyle(el).translate]);
-    // All three start below the first screen, so they wait, lowered and clear.
-    for (const index of [0, 1, 2]) expect(await look(index)).toEqual(['waiting', '0', '0px 10px']);
+    // All of them start below the first screen, so they wait, lowered and clear.
+    for (const index of all) expect(await look(index)).toEqual(['waiting', '0', '0px 10px']);
     await page.locator('#ways-to-study').scrollIntoViewIfNeeded();
-    await expect.poll(() => look(0)).toEqual(['shown', '1', 'none']);
+    await expect.poll(() => look(ways)).toEqual(['shown', '1', 'none']);
     // Once only: scrolling away and back changes nothing.
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.locator('#ways-to-study').scrollIntoViewIfNeeded();
-    expect(await look(0)).toEqual(['shown', '1', 'none']);
+    expect(await look(ways)).toEqual(['shown', '1', 'none']);
 
     // With reduced motion nothing waits or moves.
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.reload();
-    for (const index of [0, 1, 2]) expect(await look(index)).toEqual([null, '1', 'none']);
+    for (const index of all) expect(await look(index)).toEqual([null, '1', 'none']);
   });
 
   test('study screens stay plain, with no texture behind lesson text', async ({ page }) => {
@@ -607,6 +609,8 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
   }) => {
     await page.goto('/');
     await section(page).scrollIntoViewIfNeeded();
+    await expect(section(page)).toHaveAttribute('role', 'region');
+    await expect(section(page)).toHaveAttribute('aria-roledescription', 'carousel');
     await expect(page.getByRole('heading', { name: 'ways to study' })).toBeVisible();
     // The first card in the middle, with the last card as its left neighbour: one on each side, two on wider screens.
     await expect
@@ -904,7 +908,7 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
 });
 
 test.describe('silk scenes down the home page (D-53)', () => {
-  test('three scenes in order, each its own layer behind its section, with no section numbers or decorative lines', async ({
+  test('the scenes in order, each its own layer behind its section, with no section numbers or decorative lines', async ({
     page,
   }) => {
     await page.goto('/');
@@ -919,7 +923,11 @@ test.describe('silk scenes down the home page (D-53)', () => {
         };
       }),
     );
-    expect(scenes.map((scene) => scene.kind)).toEqual(['scene-hero', 'scene-tint', 'scene-play', 'scene-low']);
+    // Task 83: how it works and the features join the hero, "ways to study", daily games and launch updates, so
+    // Ivory and Linen still alternate below the hero.
+    expect(scenes.map((scene) => scene.kind)).toEqual([
+      'scene-hero', 'scene-play', 'scene-tint', 'scene-play', 'scene-tint', 'scene-low',
+    ]);
     for (const scene of scenes) expect(scene).toMatchObject({ drawn: true, behind: '-20', fades: true });
 
     // Calm, not a template (D-60): no numbered labels, no figure caption, no rhythm line.
@@ -962,7 +970,7 @@ test.describe('silk scenes down the home page (D-53)', () => {
       }
       return { bands: bands.length, hits };
     });
-    expect(covered.bands).toBe(4);
+    expect(covered.bands).toBe(6); // a fade above each of the five scenes after the hero, and one into the footer
     expect(covered.hits).toEqual([]);
   });
 });

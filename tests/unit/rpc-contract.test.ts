@@ -9,9 +9,11 @@ import { studentMessage } from '../../src/islands/rpcerrors';
 const sql = [
   '20261101100000_attempts_and_check_answer.sql',
   '20261101120000_flags_and_submit_flag.sql',
+  '20261102100000_study_events.sql',
+  '20261102110000_delete_my_account.sql',
 ].map(name => readFileSync(new URL(`../../supabase/migrations/${name}`, import.meta.url), 'utf8')).join('\n');
 
-type FunctionName = 'submit_flag' | 'check_answer' | 'my_flags';
+type FunctionName = 'submit_flag' | 'check_answer' | 'my_flags' | 'record_study_events' | 'delete_my_account';
 
 /** Read the actual declarations and dollar-quoted bodies, rather than copying their contracts into a fixture. */
 function declaration(name: FunctionName) {
@@ -100,5 +102,82 @@ describe('my_flags and the exported reports contract', () => {
     const csv = exportCsv(data).find(file => file.fileName === 'reports.csv');
     expect(csv).toBeDefined();
     expect(csv!.text.split('\r\n')[0]!.split(',')).toEqual(expected);
+  });
+});
+
+describe('record_study_events contract (Task 140)', () => {
+  const studyEventsSql = readFileSync(
+    new URL('../../supabase/migrations/20261102100000_study_events.sql', import.meta.url), 'utf8',
+  );
+  const body = /create\s+function\s+public\.record_study_events[\s\S]*?as\s*\$\$([\s\S]*?)\$\$;/i.exec(studyEventsSql)![1]!;
+
+  it('takes one jsonb argument named events and returns the number stored', () => {
+    expect(declaration('record_study_events').arguments).toEqual(['events']);
+    expect(studyEventsSql).toMatch(/create\s+function\s+public\.record_study_events\(events jsonb\)\s+returns integer\s/i);
+  });
+
+  it('raises exactly these literal refusals, which the Task 146 recorder handles', () => {
+    // A change here is a contract change for the browser recorder: update it in the same pull request.
+    expect(declaration('record_study_events').messages).toEqual([
+      'sign in to record study activity',
+      'send between 1 and 50 study events',
+      'a study event has the wrong shape',
+      'a study event time must be between 7 days ago and 5 minutes from now',
+      'a study event names a question that was not found',
+      'too many study events recorded recently; try again later',
+    ]);
+  });
+
+  it('accepts exactly the agreed event keys, kinds and marks', () => {
+    const list = (pattern: RegExp) => [...pattern.exec(body)![1]!.matchAll(/'([^']*)'/g)].map(m => m[1]);
+    expect(list(/k\s*<>\s*all\s*\(array\[([^\]]*)\]\)/i).sort())
+      .toEqual(['at', 'item_id', 'kind', 'mark', 'ms_on_item', 'version_id']);
+    expect(list(/'kind'\)\s*<>\s*all\s*\(array\[([^\]]*)\]\)/i)).toEqual(['answered', 'marked', 'skipped']);
+    expect(list(/'mark'\)\s*<>\s*all\s*\(array\[([^\]]*)\]\)/i)).toEqual(['know', 'learning']);
+    expect(body).toMatch(/> 1800000/);
+    expect(body).toMatch(/n_events < 1 or n_events > 50/);
+  });
+
+  it('is signed-in only, security definer with an empty search_path, and writes as the caller', () => {
+    expect(studyEventsSql).toMatch(/returns integer\s+language plpgsql\s+security definer\s+set search_path = ''/i);
+    expect(studyEventsSql).toContain('revoke execute on function public.record_study_events(jsonb) from public, anon, authenticated;');
+    expect(studyEventsSql).toContain('grant execute on function public.record_study_events(jsonb) to authenticated;');
+    expect(body).toMatch(/select uid, \(e ->> 'item_id'\)::uuid/);
+  });
+
+  it('gives students only select on their own rows, which the export loader reads', () => {
+    expect(studyEventsSql).toContain('grant select on table public.study_events to authenticated;');
+    expect(studyEventsSql).not.toMatch(/grant\s+(insert|update|delete)[^;]*to\s+authenticated/i);
+    expect(studyEventsSql).toContain('alter table public.study_events enable row level security;');
+    expect(studyEventsSql).toMatch(/for select\s+to authenticated\s+using \(\(select auth\.uid\(\)\) = user_id\)/);
+    // Every column the export loader selects exists in the table.
+    const table = /create table public\.study_events \(([\s\S]*?)\n\);/.exec(studyEventsSql)![1]!;
+    for (const column of 'id,item_id,item_version_id,kind,ms_on_item,mark,at,created_at'.split(',')) {
+      expect(table).toMatch(new RegExp(`^\\s+${column} `, 'm'));
+    }
+    expect(table).toMatch(/user_id uuid not null references auth\.users \(id\) on delete cascade/);
+  });
+});
+
+describe('delete_my_account contract (Task 60)', () => {
+  const deleteSql = readFileSync(
+    new URL('../../supabase/migrations/20261102110000_delete_my_account.sql', import.meta.url), 'utf8',
+  );
+
+  it('takes no arguments and returns nothing, so the browser calls supabase.rpc(\'delete_my_account\')', () => {
+    expect(declaration('delete_my_account').arguments).toEqual([]);
+    expect(deleteSql).toMatch(/create\s+function\s+public\.delete_my_account\(\)\s+returns void\s/i);
+  });
+
+  it('raises exactly this literal refusal, which the account page handles', () => {
+    // A change here is a contract change for the /account page: update it in the same pull request.
+    expect(declaration('delete_my_account').messages).toEqual(['sign in to delete your account']);
+  });
+
+  it('is signed-in only and security definer with an empty search_path', () => {
+    expect(deleteSql).toMatch(/returns void\s+language plpgsql\s+security definer\s+set search_path = ''/i);
+    expect(deleteSql).toContain('revoke execute on function public.delete_my_account() from public, anon, authenticated;');
+    expect(deleteSql).toContain('grant execute on function public.delete_my_account() to authenticated;');
+    expect(deleteSql).not.toMatch(/grant\s+execute[^;]*to\s+(anon|public)\b/i);
   });
 });

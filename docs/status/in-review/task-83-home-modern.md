@@ -1,0 +1,1 @@
+status: Task 83, modern home page: the approved hero unchanged, the device-local continue strip at the top (clear of the floating corner buttons), three plain "how it works" steps, two linked feature tiles (cards and offline lessons) on frosted panels after daily games, Ivory and Linen silk scenes still alternating, and the existing reveal motion reused without a new script.

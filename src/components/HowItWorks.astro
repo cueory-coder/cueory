@@ -1,0 +1,45 @@
+---
+/** Three plain steps. No readiness prediction or unbuilt scheduling promise. */
+const steps = [
+  {
+    number: '01',
+    title: 'pick a lesson',
+    detail: 'start with a short explanation and the ideas you want to understand.',
+  },
+  {
+    number: '02',
+    title: 'study it your way',
+    detail: 'switch between cards, questions and other ways to practice.',
+  },
+  {
+    number: '03',
+    title: "come back to what you're still learning",
+    detail: 'return to the cards and topics you want to practice again.',
+  },
+] as const;
+---
+
+<section id="how-it-works" class="scene scene-play scroll-mt-section py-section" aria-labelledby="how-it-works-heading">
+  <div class="mx-auto max-w-page px-gutter" data-reveal-section>
+    <div class="mx-auto max-w-prose text-center">
+      <h2 id="how-it-works-heading" class="display text-title sm:text-title-lg">how it works</h2>
+      <p class="mt-4 text-ink-soft">one idea at a time, with a way to practice already made.</p>
+    </div>
+    <ol class="mt-10 grid gap-5 md:grid-cols-3">
+      {
+        steps.map((step) => (
+          <li class="veil flex min-w-0 flex-col p-6 sm:p-8">
+            <span class="text-sm font-bold text-ink-soft" aria-hidden="true">{step.number}</span>
+            <h3 class="mt-5 text-xl font-medium text-ink">{step.title}</h3>
+            <p class="mt-3 text-ink-soft">{step.detail}</p>
+          </li>
+        ))
+      }
+    </ol>
+    <div class="mt-8 text-center">
+      <a href="/learn/study-skills" class="inline-flex min-h-11 items-center rounded-pill border border-control px-6 py-3 text-ink no-underline hover:bg-surface">
+        start with a lesson
+      </a>
+    </div>
+  </div>
+</section>

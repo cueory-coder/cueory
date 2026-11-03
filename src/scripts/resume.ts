@@ -59,7 +59,8 @@ const ROUTE = /^\/(?:learn(?:\/[a-z0-9_-]+)*|play|review(?:\/[a-z0-9_-]+)*|sharp
 const ID = /^[a-z0-9][a-z0-9_-]{0,79}$/i;
 const MAX_ITEMS = 500;
 const MAX_ANSWERS = 500;
-const MAX_ANSWER_TEXT = 500;
+/** The most characters (code points) one saved answer string may hold. */
+export const MAX_ANSWER_TEXT = 500;
 const MAX_TIMER_MS = 24 * 60 * 60 * 1000;
 const MAX_FUTURE_MS = 0;
 const BLOCKED_KEYS = new Set(['__proto__', 'prototype', 'constructor']);

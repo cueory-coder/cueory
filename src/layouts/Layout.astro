@@ -23,7 +23,10 @@ interface Props {
    * because its visitor has just joined); study screens never do.
    */
   promo?: boolean;
-  /** Optional item context forwarded to the flag form (added by Task 64; pages pass this once their item IDs exist). */
+  /**
+   * The real item a question page shows, for its flag reports: the database item id and item version id (uuids).
+   * Sample pages pass none (Task 171). A slug or half a pair fails the build.
+   */
   flagItem?: { itemId: string; itemVersionId: string };
   /** Hide the flag-or-comment button (D-pending, Task 64): set true during sharpening rounds and timed reviews. */
   hideFlag?: boolean;
@@ -63,7 +66,6 @@ const searchTitle = isHome ? 'home' : title;
         <link rel="preload" href="/fonts/bodoni-moda-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin />
       )
     }
-    {isHome && <link rel="preload" href="/fonts/bodoni-moda-latin-opsz-italic.woff2" as="font" type="font/woff2" crossorigin />}
   </head>
   <body class:list={['flex flex-col', isStudy ? 'bg-page' : 'silk-quiet']}>
     <a

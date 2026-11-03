@@ -5,8 +5,11 @@ import { RESUME_STORAGE_KEY } from '../../src/scripts/resume';
 import { BREAK_STORAGE_KEY } from '../../src/scripts/breakstore';
 import { NOTE_SOUND_STORAGE_KEY } from '../../src/scripts/notesound';
 import { LAST_WELCOME_STORAGE_KEY, VISIT_STORAGE_KEY } from '../../src/islands/stickynote';
-import { AUTH_STORAGE_KEY } from '../../src/islands/supabaseclient';
-import type { ExportData } from '../../src/islands/exportdata';
+import {
+  AUTH_STORAGE_KEY, PKCE_FLOW_LIST_STORAGE_KEY, PKCE_VERIFIER_STORAGE_KEY, pkceFlowStorageKey,
+} from '../../src/islands/supabaseclient';
+import { getCodeChallengeAndMethod } from '@supabase/auth-js/dist/module/lib/helpers.js';
+import { StudyEventPages, type ExportData, type StudyEventRow } from '../../src/islands/exportdata';
 import {
   emptyProgress, forgetProgress, legacyStarsKey, loadDeckStars, migrateLegacyStars, PROGRESS_STORAGE_KEY,
   saveProgress, withOnboarding, withPile, withStars,
@@ -241,6 +244,35 @@ describe('afterDeletion', () => {
     const keys = afterDeletion(new MemoryStorage());
     expect(new Set(keys).size).toBe(keys.length);
   });
+
+  it('includes the PKCE sign-in verifier keys, and each sign-in slot found in storage', () => {
+    const storage = new MemoryStorage();
+    storage.setItem(pkceFlowStorageKey('0123456789abcdef0123456789abcdef'), '"sample"');
+    storage.setItem('cueory-authx-code-verifier', '"sample"');
+    storage.setItem('other-cueory-auth-code-verifier', '"sample"');
+    const keys = afterDeletion(storage);
+    expect(PKCE_VERIFIER_STORAGE_KEY).toBe('cueory-auth-code-verifier');
+    expect(PKCE_FLOW_LIST_STORAGE_KEY).toBe('cueory-auth-flows-code-verifier');
+    expect(keys).toContain(PKCE_VERIFIER_STORAGE_KEY);
+    expect(keys).toContain(PKCE_FLOW_LIST_STORAGE_KEY);
+    expect(keys).toContain('cueory-auth-flow-0123456789abcdef0123456789abcdef-code-verifier');
+    expect(keys).not.toContain('cueory-authx-code-verifier');
+    expect(keys).not.toContain('other-cueory-auth-code-verifier');
+    expect(keys).not.toContain(AUTH_STORAGE_KEY);
+  });
+
+  it('covers every key the installed supabase-js writes when a PKCE sign-in starts', async () => {
+    const storage = new MemoryStorage();
+    // Two abandoned sign-ins, written by the library itself under Cueory's storage key.
+    await getCodeChallengeAndMethod(storage, AUTH_STORAGE_KEY);
+    await getCodeChallengeAndMethod(storage, AUTH_STORAGE_KEY);
+    const written = [...storage.values.keys()];
+    expect(written.length).toBeGreaterThanOrEqual(3);
+    const keys = afterDeletion(storage);
+    for (const key of written) expect(keys, key).toContain(key);
+    for (const key of keys) storage.removeItem(key);
+    expect(storage.length).toBe(0);
+  });
 });
 
 describe('the current export contract in the deletion summary', () => {
@@ -288,7 +320,7 @@ describe('the current export contract in the deletion summary', () => {
     const data: ExportData = {
       attempts: [{ itemVersionId: '00000000-0000-4000-8000-000000000001', picked: ['a'], correct: false, createdAt: '2026-11-01T00:00:00Z' }],
       examPlans: [{ course: 'fundamentals', examDate: '2027-01-01', createdAt: '2026-11-01T00:00:00Z' }],
-      reviewRows: [{ itemId: '00000000-0000-4000-8000-000000000002', level: 0, lastReviewed: '2026-11-01', nextReview: '2026-11-02' }],
+      reviewRows: [{ itemId: '00000000-0000-4000-8000-000000000002', level: 0, lastReviewed: '2026-11-01', nextReview: '2026-11-02', updatedAt: '2026-11-01T12:00:00Z' }],
     };
     expect(deletionSummary(data)).toEqual(['1 question attempt', '1 exam date', '1 account review schedule']);
     expect(deletionSummary({ attempts: [...data.attempts!, ...data.attempts!], examPlans: [...data.examPlans!, ...data.examPlans!], reviewRows: [...data.reviewRows!, ...data.reviewRows!] }))
@@ -389,5 +421,30 @@ describe('legacy browser data in the cleanup plan', () => {
     blocked.setItem(legacyStarsKey('sample-retired'), '[]');
     expect(() => afterDeletion(blocked)).toThrow('storage blocked');
     expect(blocked.getItem(legacyStarsKey('sample-retired'))).toBe('[]');
+  });
+});
+
+describe('study history in the deletion summary (Task 140)', () => {
+  const event: StudyEventRow = Object.freeze({
+    itemId: '00000000-0000-4000-8000-000000000001', itemVersionId: '00000000-0000-4000-8000-000000000002',
+    kind: 'marked', msOnItem: 4200, mark: 'know', at: '2026-11-01T00:00:00Z', createdAt: '2026-11-01T00:00:01Z',
+  });
+
+  it('counts one entry and many entries in plain words, after reports', () => {
+    expect(deletionSummary({ studyEvents: [event] })).toEqual(['1 study history entry']);
+    expect(deletionSummary({ reports: [], studyEvents: [event, { ...event, kind: 'skipped', mark: null }] }))
+      .toEqual(['2 study history entries']);
+  });
+
+  it.each([{}, { studyEvents: [] }] satisfies ExportData[])('omits study history when absent or empty: %j', data => {
+    expect(deletionSummary(data)).toEqual([]);
+  });
+
+  it('counts a history read page by page, as loadExport supplies it', () => {
+    const pages = new StudyEventPages();
+    pages.add([event, event]);
+    pages.add([{ ...event, kind: 'skipped', mark: null }]);
+    expect(deletionSummary({ studyEvents: pages })).toEqual(['3 study history entries']);
+    expect(deletionSummary({ studyEvents: new StudyEventPages() })).toEqual([]);
   });
 });

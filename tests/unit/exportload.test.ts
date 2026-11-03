@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { exportJson } from '../../src/islands/exportdata';
+import { exportCsvBlobs, exportJsonBlob, StudyEventPages } from '../../src/islands/exportdata';
 import { fromSupabase, loadExport, type ExportReader, type ExportTable, type SupabaseExportClient } from '../../src/islands/exportload';
 
 const when = '2026-11-01T08:00:00.000Z';
@@ -11,13 +11,20 @@ const fields = {
   profiles: 'display_name,created_at',
   attempts: 'id,item_version_id,picked,correct,created_at',
   exam_plans: 'id,course,exam_date,created_at',
-  review_state: 'item_id,level,last_reviewed,next_review',
+  review_state: 'item_id,level,last_reviewed,next_review,updated_at',
+  study_events: 'id,item_id,item_version_id,kind,ms_on_item,mark,at,created_at',
 } as const;
 const rows = {
   profiles: [{ display_name: 'Sample', created_at: when, user_id: 'private' }],
   attempts: [{ id: id(1), item_version_id: versionId, picked: ['a', 'c'], correct: true, created_at: when, user_id: 'private' }],
   exam_plans: [{ id: id(2), course: 'med-surg-1', exam_date: '2026-12-15', created_at: when }],
-  review_state: [{ item_id: itemId, level: 2, last_reviewed: '2026-10-30', next_review: '2026-11-03', user_id: 'private' }],
+  review_state: [{ item_id: itemId, level: 2, last_reviewed: '2026-10-30', next_review: '2026-11-03', updated_at: when, user_id: 'private' }],
+  study_events: [
+    { id: id(3), item_id: itemId, item_version_id: versionId, kind: 'marked', ms_on_item: 4200, mark: 'learning',
+      at: '2026-11-01T07:59:58.5+00:00', created_at: when, user_id: 'private' },
+    { id: id(4), item_id: itemId, item_version_id: versionId, kind: 'answered', ms_on_item: 0, mark: null,
+      at: when, created_at: when, user_id: 'private' },
+  ],
   my_flags: [{ id: reportId, page: '/learn/study-skills', item_id: null, item_version_id: null,
     reason: 'confusing', comment: 'Sample report', created_at: when, status: 'private' }],
 };
@@ -34,44 +41,60 @@ function reader(overrides: Partial<Record<Source, Reply | Error>> = {}) {
   };
   const db: ExportReader = {
     async select(table, columns) { calls.push(table + ':' + columns); return fetch(table) as Reply; },
+    async *selectPages(table, columns) { calls.push(table + ':' + columns); yield fetch(table) as Reply; },
     async rpc(name) { calls.push('rpc:' + name); return fetch(name) as Reply; },
   };
   return { db, calls };
 }
 
 describe('loadExport — personal data boundaries', () => {
-  it('maps the four owned tables and my_flags with no extra fields or lost records', async () => {
+  it('maps the five owned tables and my_flags with no extra fields or lost records', async () => {
     const { db, calls } = reader();
     const result = await loadExport(db);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.data).toEqual({
+    const { studyEvents, ...rest } = result.data;
+    expect(rest).toEqual({
       profile: { displayName: 'Sample', createdAt: when },
       attempts: [{ itemVersionId: versionId, picked: ['a', 'c'], correct: true, createdAt: when }],
       examPlans: [{ course: 'med-surg-1', examDate: '2026-12-15', createdAt: when }],
-      reviewRows: [{ itemId, level: 2, lastReviewed: '2026-10-30', nextReview: '2026-11-03' }],
+      reviewRows: [{ itemId, level: 2, lastReviewed: '2026-10-30', nextReview: '2026-11-03', updatedAt: when }],
       reports: [{ id: reportId, page: '/learn/study-skills', itemId: null, itemVersionId: null,
         reason: 'confusing', comment: 'Sample report', createdAt: when }],
     });
-    const exported = JSON.parse(exportJson(result.data, when));
+    expect(studyEvents).toBeInstanceOf(StudyEventPages);
+    expect((studyEvents as StudyEventPages).count).toBe(2);
+    const text = await exportJsonBlob(result.data, when).text();
+    const exported = JSON.parse(text);
     expect(exported.dropped).toEqual([]);
     expect(exported.attempts).toEqual(result.data.attempts);
     expect(exported.reports).toEqual(result.data.reports);
-    expect(JSON.stringify(result.data)).not.toContain('private');
+    expect(exported.studyEvents).toEqual([
+      { itemId, itemVersionId: versionId, kind: 'marked', msOnItem: 4200, mark: 'learning',
+        at: '2026-11-01T07:59:58.500Z', createdAt: when },
+      { itemId, itemVersionId: versionId, kind: 'answered', msOnItem: 0, mark: null, at: when, createdAt: when },
+    ]);
+    expect(JSON.stringify(rest) + text).not.toContain('private');
     expect(calls).toEqual([
       'profiles:' + fields.profiles, 'attempts:' + fields.attempts,
-      'exam_plans:' + fields.exam_plans, 'review_state:' + fields.review_state, 'rpc:my_flags',
+      'exam_plans:' + fields.exam_plans, 'review_state:' + fields.review_state,
+      'study_events:' + fields.study_events, 'rpc:my_flags',
     ]);
   });
 
   it('has empty sections when the account has no rows, without inventing email', async () => {
     const overrides = Object.fromEntries(Object.keys(rows).map(key => [key, { data: [], error: null }]));
-    expect(await loadExport(reader(overrides).db)).toEqual({
-      ok: true, data: { profile: {}, attempts: [], examPlans: [], reviewRows: [], reports: [] },
+    const result = await loadExport(reader(overrides).db);
+    expect(result).toEqual({
+      ok: true,
+      data: { profile: {}, attempts: [], examPlans: [], reviewRows: [], reports: [], studyEvents: expect.any(StudyEventPages) },
     });
+    if (!result.ok) return;
+    expect((result.data.studyEvents as StudyEventPages).count).toBe(0);
+    expect(JSON.parse(await exportJsonBlob(result.data, when).text()).studyEvents).toEqual([]);
   });
 
-  it.each(['profiles', 'attempts', 'exam_plans', 'review_state', 'my_flags'] as const)(
+  it.each(['profiles', 'attempts', 'exam_plans', 'review_state', 'study_events', 'my_flags'] as const)(
     'fails closed on a %s refusal without returning any personal data', async table => {
       const response = { data: rows[table], error: { message: 'private SQL error' } };
       expect(await loadExport(reader({ [table]: response }).db)).toEqual(failed);
@@ -90,6 +113,14 @@ describe('loadExport — personal data boundaries', () => {
     ['attempts', { ...rows.attempts[0], created_at: '2026-11-01T24:00:00Z' }],
     ['exam_plans', { ...rows.exam_plans[0], course: 'Med Surg' }],
     ['review_state', { ...rows.review_state[0], next_review: '2026-02-30' }],
+    ['study_events', { ...rows.study_events[0], kind: 'viewed' }],
+    ['study_events', { ...rows.study_events[0], mark: null }],
+    ['study_events', { ...rows.study_events[1], mark: 'know' }],
+    ['study_events', { ...rows.study_events[0], mark: 'maybe' }],
+    ['study_events', { ...rows.study_events[0], ms_on_item: 1_800_001 }],
+    ['study_events', { ...rows.study_events[0], ms_on_item: '4200' }],
+    ['study_events', { ...rows.study_events[0], at: '2026-02-30T08:00:00Z' }],
+    ['study_events', { ...rows.study_events[0], item_version_id: 'private' }],
     ['my_flags', { ...rows.my_flags[0], page: '//outside.example' }],
     ['my_flags', { ...rows.my_flags[0], reason: 'not-allowed' }],
     ['my_flags', { ...rows.my_flags[0], comment: 'x'.repeat(1001) }],
@@ -183,8 +214,105 @@ describe('fromSupabase — no silent row truncation', () => {
     ]);
   });
 
+  it('pages study events by their id and reads them only from study_events', async () => {
+    const events = Array.from({ length: 501 }, (_, i) => ({ ...rows.study_events[1], id: id(i + 10) }));
+    const { client, calls } = supabase({ ...rows, study_events: events });
+    const result = await loadExport(fromSupabase(client));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect((result.data.studyEvents as StudyEventPages).count).toBe(501);
+    expect(calls.filter(x => x.startsWith('study_events:'))).toEqual([
+      'study_events:0-499:id',
+      'study_events:0-499:id.gt(' + id(509) + ')',
+    ]);
+  });
+
   it('refuses to silently truncate an oversized exam-plan result', async () => {
     const source = { ...rows, exam_plans: Array(11).fill(rows.exam_plans[0]) };
     expect(await loadExport(fromSupabase(supabase(source).client))).toEqual(failed);
   });
+
+  it('fails the whole export when a later study-event page is unavailable or has a bad row', async () => {
+    const events = Array.from({ length: 501 }, (_, i) => ({ ...rows.study_events[1], id: id(i + 10) }));
+    expect(await loadExport(fromSupabase(supabase({ ...rows, study_events: events }, { name: 'study_events', page: 2 }).client)))
+      .toEqual(failed);
+    const bad = events.map((event, i) => i === 500 ? { ...event, kind: 'viewed' } : event);
+    expect(await loadExport(fromSupabase(supabase({ ...rows, study_events: bad }).client))).toEqual(failed);
+  });
+});
+
+/** A study_events table of `total` rows that makes each page only when it is asked for, so the test holds no full set. */
+function generatedEvents(total: number) {
+  const pages: { size: number; first: string | undefined }[] = [];
+  const at = (n: number) => new Date(Date.UTC(2026, 9, 1) + n * 1000).toISOString();
+  const query = () => {
+    let after = -1;
+    const q = {
+      order(column: string) { expect(column).toBe('id'); return q; },
+      gt(field: string, value: string) { expect(field).toBe('id'); after = parseInt(value.slice(0, 8), 16); return q; },
+      async range(from: number, to: number): Promise<Reply> {
+        const start = after + 1 + from;
+        const data = [];
+        for (let n = start; n <= Math.min(after + 1 + to, total - 1); n++) {
+          data.push({ id: id(n), item_id: itemId, item_version_id: versionId, kind: n % 3 === 0 ? 'marked' : 'answered',
+            ms_on_item: n % 1_800_000, mark: n % 3 === 0 ? 'know' : null, at: at(n), created_at: at(n), user_id: 'private' });
+        }
+        pages.push({ size: data.length, first: data[0]?.id });
+        return { data, error: null };
+      },
+    };
+    return q;
+  };
+  const small = supabase(rows).client;
+  const client = {
+    from: (name: ExportTable) => name === 'study_events'
+      ? { select: (columns: string) => { expect(columns).toBe(fields.study_events); return query(); } }
+      : small.from(name),
+    rpc: small.rpc,
+  } as SupabaseExportClient;
+  return { client, pages, at };
+}
+
+describe('a study history longer than 200,000 events (Task 140)', () => {
+  it('exports every event, a page at a time, with every other section beside it', async () => {
+    const total = 250_001;
+    const { client, pages, at } = generatedEvents(total);
+    const result = await loadExport(fromSupabase(client));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    // Bounded memory: the loader asked for 500 rows at a time and kept none of them as one array of rows. Its
+    // pages hold one written Blob per database page, each the size of a page, not the size of the history.
+    expect(pages.every(page => page.size <= 500)).toBe(true);
+    expect(pages).toHaveLength(Math.ceil(total / 500));
+    const events = result.data.studyEvents;
+    expect(events).toBeInstanceOf(StudyEventPages);
+    if (!(events instanceof StudyEventPages)) return;
+    expect(events.count).toBe(total);
+    const written = events.written();
+    expect(written.dropped).toEqual([]);
+    expect(written.text.json).toHaveLength(Math.ceil(total / 500));
+    expect(written.text.csv).toHaveLength(Math.ceil(total / 500));
+    for (const part of [...written.text.json, ...written.text.csv]) {
+      expect(part).toBeInstanceOf(Blob);
+      expect((part as Blob).size).toBeLessThan(500 * 400);
+    }
+
+    const exported = JSON.parse(await exportJsonBlob(result.data, when).text());
+    expect(exported.studyEvents).toHaveLength(total);
+    expect(exported.studyEvents[0]).toEqual({ itemId, itemVersionId: versionId, kind: 'marked', msOnItem: 0, mark: 'know',
+      at: at(0), createdAt: at(0) });
+    expect(exported.studyEvents[total - 1].at).toBe(at(total - 1));
+    expect(exported.dropped).toEqual([]);
+    expect(exported.attempts).toHaveLength(1);
+    expect(exported.reports).toHaveLength(1);
+    expect(exported.profile).toEqual({ displayName: 'Sample', createdAt: when });
+
+    const files = exportCsvBlobs(result.data);
+    const lines = (await files.find(file => file.fileName === 'studyEvents.csv')!.blob.text()).split('\r\n');
+    expect(lines).toHaveLength(total + 2);
+    expect(lines[0]).toBe('itemId,itemVersionId,kind,msOnItem,mark,at,createdAt');
+    expect(lines[total]).toBe([itemId, versionId, 'answered', total - 1, '', at(total - 1), at(total - 1)].join(','));
+    expect(await files.find(file => file.fileName === 'attempts.csv')!.blob.text()).toContain(versionId);
+  }, 120_000);
 });

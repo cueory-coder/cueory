@@ -17,8 +17,8 @@ import { newsletter, promo, site } from '../config/site';
 
     <h2>Right now</h2>
     <p>
-      {site.name} has no accounts yet. You can read lessons without giving us anything. Nothing you do on a lesson is
-      sent to us.
+      You can read lessons without an account and without giving us anything. Nothing you do on a lesson is sent to
+      us.
     </p>
     <p>
       If you pick Light or Dark at the bottom of a page, your browser remembers that choice as
@@ -27,12 +27,12 @@ import { newsletter, promo, site } from '../config/site';
 
     <h2>Your progress on this device</h2>
     <p>
-      Until accounts exist, your study progress is kept by your browser, on your device only. It never reaches us. It is
-      only:
+      Your study progress is kept by your browser, on your device only. It never reaches us. It is only:
     </p>
     <ul>
       <li>your answers to the two setup questions (which course, and your exam date), if you answer them;</li>
-      <li>for each card deck, which cards you sorted into "know it" or "still learning", and which you starred.</li>
+      <li>for each card deck, which cards you sorted into "know it" or "still learning", and which you starred;</li>
+      <li>where you stopped in a study activity, with the answers you had given so far.</li>
     </ul>
     <p>
       The saved setup answers, card piles and stars are stored as <code>cueory-progress</code> in your browser's local
@@ -43,8 +43,13 @@ import { newsletter, promo, site } from '../config/site';
       <code>cueory-progress</code>.
     </p>
     <p>
-      On <a href="/progress">your progress page</a> you can see all of it, download a copy, or forget it on this device.
-      Clearing this site's data in your browser also removes it.
+      Where you stopped is stored as <code>cueory-resume</code>: the activity, the page, the question you were on and
+      your answers so far, so you can pick up from the same question. It never holds the answer key, but it can hold
+      answers you got right. It holds nothing about your account, and it is forgotten after 14 days.
+    </p>
+    <p>
+      On <a href="/progress">your progress page</a> you can see your setup answers, piles and stars, download a copy of
+      them, or forget them on this device. Clearing this site's data in your browser removes all of the above.
     </p>
     <p>
       On your first visit, a small panel about the launch list may slide down from the top of the page. Your browser
@@ -88,11 +93,6 @@ import { newsletter, promo, site } from '../config/site';
         <code>cueory-break-timer</code>: when this feature is on, it will remember your break timer's current state
         in this browser tab, for up to two hours.
       </li>
-      <li>
-        <code>cueory-resume</code>: when this feature is on, it will remember where you stopped in a study session on
-        this device, with the answers you had given so far, so you can continue from the same question. It never holds
-        correct answers or anything about your account, and it is forgotten after 14 days.
-      </li>
     </ul>
 
     <h2>Launch-updates emails</h2>
@@ -100,6 +100,10 @@ import { newsletter, promo, site } from '../config/site';
       If you sign up for launch updates, your email address is stored by {newsletter.provider}, the service that sends
       those emails for us. You'll get a confirmation email first, and every email has an unsubscribe link. We use your
       address only for {site.name} updates.
+    </p>
+    <p>
+      This list is separate from {site.name} accounts, so deleting an account doesn't take you off it. To leave it, use
+      the unsubscribe link in any of those emails, or write to us.
     </p>
 
     <h2>Lesson videos</h2>
@@ -114,28 +118,41 @@ import { newsletter, promo, site } from '../config/site';
       We count page visits with Cloudflare Web Analytics. It doesn't use cookies, and it doesn't build a profile of you.
     </p>
 
-    <h2>When accounts arrive</h2>
-    <p>Accounts are not open yet. If you choose to create one when they arrive, we plan to store only:</p>
+    <h2>If you create an account</h2>
+    <p>An account is optional. When you create one, we store only:</p>
     <ul>
       <li>Your email address, so you can sign in.</li>
       <li>A display name, if you choose one.</li>
       <li>Your answers to a few setup questions, such as your exam date.</li>
-      <li>Your study progress: what you've studied, your answers, and when to review next.</li>
+      <li>Your study progress: what you've studied, your answers, how long you spent on each question, which ones you marked know it or still learning, and when to review next. We use it to show your progress and to find which lessons and questions need improving.</li>
+      <li>
+        Reports you send with the "Flag or comment" button: the page you were on, the question if there was one, the
+        reason you picked and your comment, if you wrote one. We keep a report after we've dealt with it, until your
+        account is deleted. Your account data download will include them.
+      </li>
     </ul>
     <p>
-      If you choose Google sign-in, you will be sent to Google to complete sign-in. Once accounts are on, the browser
-      will keep your sign-in session under <code>cueory-auth</code>. That is different from the study progress kept
-      on your device today.
+      If you choose Google sign-in, you are sent to Google to finish signing in. Google then gives Supabase, which runs
+      our accounts, some details from your Google account, such as its email address, and Supabase keeps them with
+      your account.
+    </p>
+    <p>
+      When you're signed in, the browser keeps your sign-in session under <code>cueory-auth</code>. It includes your
+      account details, such as your email address. That is different from the study progress kept on your device.
+      While you sign in, the browser also keeps a one-time sign-in code under
+      <code>cueory-auth-code-verifier</code>, <code>{'cueory-auth-flow-<id>-code-verifier'}</code> and
+      <code>cueory-auth-flows-code-verifier</code>. Signing out removes them.
     </p>
     <p>
       If you choose to bring your saved guest progress into an account, the browser will use
-      <code>{'cueory-guest-imported:<id>'}</code> to remember that it has already imported for that account. Here,
+      <code>{'cueory-guest-imported:<id>'}</code> to remember that it has already imported for that account, or that you chose not to. Here,
       <code>{'<id>'}</code> stands for that account's identifier, not a public name.
     </p>
     <p>
       When account controls launch, the <code>/account</code> page will let you download your account data and
       request deletion of your account and linked study data. That page and those controls are not available yet.
-      Today, <a href="/progress">your progress page</a> lets you download or delete the progress stored on this device.
+      Today, <a href="/progress">your progress page</a> lets you download or forget the setup answers, piles and stars
+      stored on this device.
       When account deletion becomes available, it will also clear Cueory study progress and settings saved in this
       browser on this device.
     </p>
@@ -145,8 +162,8 @@ import { newsletter, promo, site } from '../config/site';
       <li>Cloudflare hosts the website and counts visits.</li>
       <li>{newsletter.provider} stores newsletter signups and sends launch-update emails.</li>
       <li>
-        When accounts open, Supabase will handle saved account and study data. Google will handle Google sign-in if
-        you choose it.
+        Supabase stores account and study data for people who create an account. Google handles Google sign-in if you
+        choose it.
       </li>
       <li>
         YouTube plays lesson videos. Nothing loads from YouTube until you tap play, and it may set cookies once a video

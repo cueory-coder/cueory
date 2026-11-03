@@ -14,6 +14,7 @@ import { GUEST_IMPORT_MARKER_PREFIX } from './guestimportrun';
 import { LAST_WELCOME_STORAGE_KEY, VISIT_STORAGE_KEY } from './stickynote';
 import { RESUME_STORAGE_KEY } from '../scripts/resume';
 import type { ExportData } from './exportdata';
+import { isPkceVerifierKey, PKCE_FLOW_LIST_STORAGE_KEY, PKCE_VERIFIER_STORAGE_KEY } from './supabaseclient';
 
 // Keep the download and confirmation contracts together, including the actual saved Progress record.
 export type { ExportData } from './exportdata';
@@ -67,6 +68,10 @@ export function deletionSummary(data: ExportData): string[] {
   if (data.examPlans?.length) lines.push(`${data.examPlans.length} exam date${data.examPlans.length === 1 ? '' : 's'}`);
   if (data.reviewRows?.length) lines.push(`${data.reviewRows.length} account review schedule${data.reviewRows.length === 1 ? '' : 's'}`);
   if (data.reports?.length) lines.push(`${data.reports.length} report${data.reports.length === 1 ? '' : 's'}`);
+  // loadExport supplies the history as pages, which know their count; a short list can also be passed as rows.
+  const events = data.studyEvents;
+  const eventCount = events === undefined ? 0 : 'count' in events ? events.count : events.length;
+  if (eventCount) lines.push(`${eventCount} study history entr${eventCount === 1 ? 'y' : 'ies'}`);
 
   return lines;
 }
@@ -91,8 +96,10 @@ export type DeletionStorageKeys = string[] & { readonly sessionKeys: readonly st
 
 /**
  * Plan cleanup only after the server confirms account deletion. This reads key names, never removes data.
- * Include every legacy stars key, even for retired decks, and all account-specific guest-import markers.
+ * Include every legacy stars key, even for retired decks, all account-specific guest-import markers, and every PKCE
+ * sign-in verifier key (sign-out removes those too, but one left by an abandoned sign-in should not outlive the account).
  * The caller signs out and removes the auth key separately. Unlistable localStorage is an error.
+ * The offline copies (Cache Storage, `cueory-offline-*`) stay: they hold only public pages and site files.
  */
 export function afterDeletion(storage: KeyValueStorage | undefined): DeletionStorageKeys {
   if (!storage || typeof storage.length !== 'number' || !Number.isSafeInteger(storage.length) || storage.length < 0 || typeof storage.key !== 'function') {
@@ -106,12 +113,16 @@ export function afterDeletion(storage: KeyValueStorage | undefined): DeletionSto
     RESUME_STORAGE_KEY,
     LAST_WELCOME_STORAGE_KEY,
     NOTE_SOUND_STORAGE_KEY,
+    PKCE_VERIFIER_STORAGE_KEY,
+    PKCE_FLOW_LIST_STORAGE_KEY,
   ]);
   const prefix = legacyStarsKey('');
   const length = storage.length;
   for (let index = 0; index < length; index++) {
     const key = storage.key(index);
-    if (key?.startsWith(prefix) || key?.startsWith(GUEST_IMPORT_MARKER_PREFIX)) keys.add(key);
+    if (key?.startsWith(prefix) || key?.startsWith(GUEST_IMPORT_MARKER_PREFIX) || (key && isPkceVerifierKey(key))) {
+      keys.add(key);
+    }
   }
   return Object.assign([...keys], { sessionKeys: [VISIT_STORAGE_KEY, BREAK_STORAGE_KEY] });
 }
