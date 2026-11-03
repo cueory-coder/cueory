@@ -16,7 +16,7 @@ import {
   type Layer,
   layerShown,
   layersOf,
-  missingLayers,
+  unavailableLayersNote,
   nextToPeel,
   nextToRestore,
   toggleLayer,
@@ -183,6 +183,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
   const peelPlan = lazy ? lazyPeel(layers, hidden) : null;
   const toPeel = lazy ? (peelPlan ? peelPlan.show : null) : nextToPeel(layers, hidden);
   const toRestore = lazy ? lazyRestore(layers, hidden) : nextToRestore(layers, hidden);
+  const layerGapNote = system?.key === WHOLE_BODY_KEY ? unavailableLayersNote(system.structures) : null;
   const labelIds = useMemo(
     () => (labelsOn && !quiz ? labelsToShow(visible, selected) : []),
     [labelsOn, quiz, visible, selected],
@@ -729,10 +730,9 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                   put a layer back{toRestore ? `: ${toRestore.id}` : ''}
                 </button>
               </div>
-              {system.key === WHOLE_BODY_KEY && missingLayers(system.structures).length > 0 && (
+              {layerGapNote && (
                 <p className="text-sm text-ink-soft" data-testid="anatomy-layer-gaps">
-                  no 3D models yet for {missingLayers(system.structures).join(', ')}: the BodyParts3D release these
-                  models are built from has none.
+                  {layerGapNote}
                 </p>
               )}
               {system.key === WHOLE_BODY_KEY && (
