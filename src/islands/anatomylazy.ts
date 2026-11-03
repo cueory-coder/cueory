@@ -140,8 +140,11 @@ export function showAllPlan(
 }
 
 /**
- * What "show me" must do so the quiz target is really on screen: unhide the target (and its whole layer, when the whole
- * layer was hidden), or fetch its layer first when the layer's model files are not loaded yet.
+ * "Show me" always reveals a quiz target that is already in the scene. A target
+ * chosen from the visible quiz pool has already been fetched, even if some
+ * other model files for its layer have not loaded. Do not download unrelated
+ * anatomy (or wait for a failing file) just to display a known target.
+ * For a target not in the scene, retain the existing on-demand layer fallback.
  */
 export function revealTargetPlan(
   layers: readonly Layer[],
@@ -149,7 +152,9 @@ export function revealTargetPlan(
   targetId: string,
   filesOf: (layerId: string) => readonly string[],
   isLoaded: (url: string) => boolean,
+  found: ReadonlySet<string>,
 ): { unhide: string[]; fetch: Layer | null } {
+  if (found.has(targetId)) return { unhide: [targetId], fetch: null };
   const layer = layers.find((l) => l.ids.includes(targetId));
   if (layer && !filesOf(layer.id).every(isLoaded) && filesOf(layer.id).length > 0) return { unhide: [], fetch: layer };
   const wholeLayerHidden = layer !== undefined && layer.ids.every((id) => hidden.has(id));
