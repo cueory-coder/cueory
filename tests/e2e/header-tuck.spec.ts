@@ -53,6 +53,19 @@ test('keyboard focus restores the header instead of being trapped off-screen', a
   expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(80);
 });
 
+test('header tucks again after focus leaves while the page is scrolled', async ({ page }) => {
+  await page.goto('/play');
+  await scrollTo(page, 700);
+  await expect(header(page)).toHaveClass(/\\bis-tucked\\b/);
+
+  await homeLink(page).evaluate((link) => (link as HTMLAnchorElement).focus({ preventScroll: true }));
+  await expect(homeLink(page)).toBeFocused();
+  await expect(header(page)).not.toHaveClass(/\\bis-tucked\\b/);
+
+  await page.locator('main a').first().focus({ preventScroll: true });
+  await expect(header(page)).toHaveClass(/\\bis-tucked\\b/);
+});
+
 test('reduced motion leaves the header visible and clickable, even with a stale tucked class', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/play');
