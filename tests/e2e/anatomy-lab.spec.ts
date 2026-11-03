@@ -522,6 +522,30 @@ test.describe('anatomy lab whole body loads layers on demand', () => {
     expect(extraRequests).toEqual([]);
   });
 
+  test('explains loaded triangles across files without a false per-model warning', async ({ page }, info) => {
+    test.skip(!isDesktopOfEachEngine(info), 'one real-model performance-note test per browser engine');
+    await page.goto('/preview/anatomy-lab');
+    await page.getByRole('button', { name: 'open the anatomy lab' }).click();
+    await expect(page.locator('canvas')).toBeVisible({ timeout: 15_000 });
+    const wholeBody = page.getByRole('group', { name: 'body system' }).getByRole('button', { name: 'whole body' });
+    test.skip((await wholeBody.count()) === 0, 'real whole-body models are not included in this build');
+    await wholeBody.click();
+    const files = page.getByTestId('anatomy-files');
+    await expect(files).toContainText('model files loaded: 1 of 11', { timeout: 20_000 });
+    await expect(page.getByTestId('anatomy-budget-note')).toHaveCount(0);
+
+    // The skin and muscle files are individually within the 150k budget.
+    // Peeling downloads muscle but retains skin in memory: their sum is not
+    // a per-file budget failure.
+    await page.getByRole('button', { name: /^peel a layer/ }).press('Enter');
+    await expect(files).toContainText('model files loaded: 2 of 11', { timeout: 20_000 });
+    const note = page.getByTestId('anatomy-budget-note');
+    await expect(note).toContainText('loaded triangles across 2 model files');
+    await expect(note).toContainText('phone budget applies to each file, not their combined total');
+    await expect(note).not.toContainText('Model has');
+  });
+  });
+
   test('the organs button loads missing files when only the heart is visible from the vessels layer', async ({ page }, info) => {
     test.skip(!isDesktopOfEachEngine(info), 'one real-model download test per browser engine');
     await page.goto('/preview/anatomy-lab');
