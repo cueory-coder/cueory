@@ -360,7 +360,7 @@ function visualFor(system, structures, partsLines, release, retrieved) {
       { id: 'bp3d-readme', quote: README_QUOTE, book: 'BodyParts3D', section: release.readmeSection, url: release.url, license: 'CC BY 4.0', retrieved },
       ...structures.map((s) => ({
         id: `bp3d-${s.id}`,
-        quote: partsLines.get(s.id).replace('\t', ' '),
+        quote: partsLines.get(s.id).replaceAll('\t', ' '),
         book: 'BodyParts3D',
         section: release.partsSection,
         url: release.url,
