@@ -4,7 +4,7 @@
 -- local database; the accounts and rows below exist only inside this test.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(70);
+select plan(78);
 
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-0000000000a1', 'admin@example.com'),
@@ -123,6 +123,20 @@ select is(public.is_admin(), false, 'is_admin: a student with two-factor is not 
 set local "request.jwt.claims" to '{"role": "anon"}';
 set local "request.jwt.claim.sub" to '';
 select is(public.is_admin(), false, 'is_admin: a signed-out visitor is not');
+
+-- ---- A context that is not `authenticated`, carrying the admin's id and aal2 (defense in depth).
+do $$ begin perform set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-0000000000a1', true); end $$;
+set local "request.jwt.claims" to '{"sub": "00000000-0000-4000-8000-0000000000a1", "role": "anon", "aal": "aal2"}';
+select is(public.is_admin(), false, 'is_admin: admin id and aal2 under the anon role claim is not enough');
+select throws_ok($$ select * from public.admin_list_flags('open') $$, '42501', 'only the site owner, signed in with two-factor, can do this', 'anon claims: list refused');
+select throws_ok($$ select public.admin_mark_flag_handled('00000000-0000-4000-8000-000000000f01') $$, '42501', null, 'anon claims: mark refused');
+select throws_ok($$ select public.admin_reopen_flag('00000000-0000-4000-8000-000000000f06') $$, '42501', null, 'anon claims: reopen refused');
+set local "request.jwt.claims" to '{"sub": "00000000-0000-4000-8000-0000000000a1", "role": "service_role", "aal": "aal2"}';
+select is(public.is_admin(), false, 'is_admin: the service_role claim is not enough either');
+select throws_ok($$ select * from public.admin_list_flags('open') $$, '42501', null, 'service_role claims: list refused');
+set local "request.jwt.claims" to '{"sub": "00000000-0000-4000-8000-0000000000a1", "aal": "aal2"}';
+select is(public.is_admin(), false, 'is_admin: no role claim is refused');
+select is((select count(*)::int from public.flags where status = 'open'), 5, 'and nothing changed');
 
 -- ---- Signed out.
 set local role anon;
