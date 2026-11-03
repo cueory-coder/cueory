@@ -84,13 +84,14 @@ tells it to serve the built site as static files.
 ## Part F — Approve Task 1 into staging (10 minutes)
 
 1. Open the Task 1 pull request (Claude sends you the link).
-2. Scroll to the bottom. Wait until every check shows a green ✓. ("CodeQL" shows as skipped because the repository
-   is private. That's expected; Semgrep does the code scan instead.)
+2. Scroll to the bottom. Wait until every check shows a green ✓. (The repository is public, so CodeQL runs as well as
+   Semgrep, D-75.)
 3. Read Codex's review. If Codex found problems, tell Claude before merging.
 4. Click **Merge pull request**, then **Confirm merge**.
 5. In Cloudflare, open **Workers & Pages** → **cueory** → **Deployments**.
    Within a few minutes you should see a **Preview** deployment for branch `staging` with status **Success**.
-6. Open a private (incognito) browser window and go to `https://staging.cueory.pages.dev`.
+6. Open a private (incognito) browser window and go to the `staging` preview's address (in the Worker's **Previews**
+   section; it ends in `workers.dev`, see docs/GO-LIVE.md 1.2).
    You should see a **Cloudflare sign-in page**, not the site. That means the lock works.
 7. Enter your business Gmail, then the code Cloudflare emails you.
    You should see the Cueory home page with the "we're still building" bar.
@@ -104,7 +105,8 @@ tells it to serve the built site as static files.
 1. Claude opens a pull request from `staging` into `main` and sends you the link.
 2. Wait for green checks, then click **Merge pull request** → **Confirm merge**. Only you merge into `main`.
 3. In Cloudflare **Deployments**, you should see a **Production** deployment for `main` with status **Success**.
-4. Open `https://cueory.pages.dev`. You should see the site with no sign-in.
+4. Open the Worker's live `workers.dev` address (listed under **Settings** → **Domains & Routes**). You should see
+   the site with no sign-in.
 
 ---
 
@@ -127,8 +129,9 @@ tells it to serve the built site as static files.
 10. Open `https://cueory.app`. You should see the Cueory home page.
 
 ### Turn on visit counting
-11. In the cueory Pages project, click **Metrics**.
-12. Under **Web Analytics**, click **Enable**.
+11. In the Cloudflare dashboard, open **Web Analytics** and click **Add a site**.
+12. Pick `cueory.app` and click **Done**. Source:
+    [Cloudflare: Web Analytics, get started](https://developers.cloudflare.com/web-analytics/get-started/).
 
 ---
 
@@ -197,7 +200,8 @@ You should see both projects, `cueory-staging` and `cueory-prod`, on your Supaba
 This puts the empty tables and their locks into **`cueory-staging` only**. No questions and no student data go in.
 **Don't do this on `cueory-prod`.** Prod comes later, with the same steps, only when Claude says so.
 
-There are nine files. Run each one **exactly once, in this order**. Later files build on earlier ones (questions need
+There are nine files on `staging` today, and four more once their pull requests merge (marked "after PR #N": run
+those only after that pull request merges). Run each one **exactly once, in this order**. Later files build on earlier ones (questions need
 topics, attempts need questions), and the first file's "locked by default" rule only covers what is made after it. A
 file run out of order or twice fails or leaves a gap.
 
@@ -212,23 +216,28 @@ file run out of order or twice fails or leaves a gap.
 | 7 | [flags_and_submit_flag](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261101120000_flags_and_submit_flag.sql) | "Flag or comment" reports, and the checked ways to send and read them |
 | 8 | [publish_item_version](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261102090000_publish_item_version.sql) | Publishing a new version of a question in one safe step |
 | 9 | [study_events](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261102100000_study_events.sql) | Study events (answered, marked, skipped, time on each question) |
+| 10 | [delete_my_account](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261102110000_delete_my_account.sql) (after PR #229) | Delete-my-account: a signed-in student deletes their own account and everything it owns |
+| 11 | [confirmed_accounts_only](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261102120000_confirmed_accounts_only.sql) (after PR #235) | Answers, flags and study events only for accounts with a confirmed email |
+| 12 | [profile_display_name_from_signup](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261102130000_profile_display_name_from_signup.sql) (after PR #236) | The name typed at email sign-up is saved in the profile |
+| 13 | [update_display_name](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261102140000_update_display_name.sql) (after PR #230) | Changing the display name, a few times an hour at most |
 
 ### Open the right project
 1. Open https://github.com/lilchristxan/Cueory/tree/staging/supabase/migrations.
-   You should see exactly the nine files above. If there are more, or other names, stop and tell Claude.
+   You should see the nine files above, plus any of files 10 to 13 whose pull request has merged. If there are other
+   names, stop and tell Claude.
 2. Open https://supabase.com/dashboard and click the **cueory-staging** project.
 3. Check that the project name near the top of the page says `cueory-staging`. If it says `cueory-prod`, go back and
    pick `cueory-staging`. If it says the project is paused, stop and tell Claude.
 4. Go to the **SQL Editor** section of the project.
 
-### Run the nine files (steps 5 to 9, once per file)
+### Run the files (steps 5 to 9, once per file)
 5. Click file 1's link in the table above. A new tab shows plain text whose first line names its subject, like
    `-- Locked by default`.
 6. Press **Cmd+A**, then **Cmd+C**, to copy all of it.
 7. Back in the SQL Editor, click **New Query**.
 8. Click in the empty editor and press **Cmd+V**.
 9. Click **Run** (or press **Cmd+Enter**). You should see it finish with no error. Then do steps 5 to 9 again with the
-   next file, until all nine have run once.
+   next file, until every file on `staging` has run once.
 
 **If a file shows an error, or a box asks you to confirm something:**
 - Stop. Don't run that file again, don't run the next one, and don't try to fix anything.
@@ -258,12 +267,14 @@ file run out of order or twice fails or leaves a gap.
     profiles, review_state, rights_records, sources, study_events. Then 11 functions: check_answer, exam_plans_guard,
     handle_new_user, item_parts_guard, item_versions_guard, items_guard, my_flags, publish_item_version,
     record_study_events, review_state_guard, submit_flag.
+    File 10 adds the function delete_my_account and file 13 adds update_display_name (one more row each); files 11
+    and 12 change existing functions and add no rows.
     If any table says `RLS OFF`, or the rows differ, take a screenshot and send it to Claude.
 12. Tell Claude "staging database done".
 
 Supabase's docs prefer the command-line tool for migrations; the SQL Editor is used here because it needs no terminal.
 Running SQL there skips Supabase's migration history, so before anyone uses the command-line tool on this project,
-Claude marks these nine files as already run (`supabase migration repair`), so they never run twice. Sources:
+Claude marks every file run here as already run (`supabase migration repair <version> --status applied`), so they never run twice. Sources:
 [Supabase: Database functions](https://supabase.com/docs/guides/database/functions) (SQL Editor, **New Query**,
 **Run**), [Supabase: Use Supabase with Next.js](https://supabase.com/docs/guides/getting-started/quickstarts/nextjs)
 (paste into the SQL Editor, then **Run**),
