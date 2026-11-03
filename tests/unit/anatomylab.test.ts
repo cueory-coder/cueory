@@ -7,6 +7,7 @@ import {
   EXPORT_SIZES,
   FIT_MARGIN,
   FIXTURE_CREDIT,
+  anatomyFailureMessage,
   answerQuiz,
   creditFor,
   draftsAllowed,
@@ -131,6 +132,29 @@ describe('anatomy files', () => {
     );
     expect(BODYPARTS3D_CREDIT).toContain('BodyParts3D, © The Database Center for Life Science licensed under CC Attribution 4.0 International');
     expect(nameSourceFor(system)).toBe('name from the BodyParts3D parts list');
+  });
+});
+
+describe('safe anatomy recovery messages', () => {
+  it('does not expose raw model URL, network or renderer details after a layer failure', () => {
+    const raw = new Error('Fetch failed at /models/anatomy/private-path.glb: HTTP 500');
+    const message = anatomyFailureMessage('layer', raw);
+    expect(message).toBe('please try this layer again. if it still fails, choose another body system.');
+    expect(message).not.toContain('private-path.glb');
+    expect(message).not.toContain('500');
+  });
+
+  it('does not expose browser stack traces or internal file paths after picture export fails', () => {
+    const raw = { message: '/internal/export-worker.ts failed', stack: 'private internal details' };
+    const message = anatomyFailureMessage('picture', raw);
+    expect(message).toBe('could not save the picture. please try again.');
+    expect(message).not.toContain('internal');
+    expect(message).not.toContain('export-worker');
+  });
+
+  it('works even when the thrown value is missing or not an Error', () => {
+    expect(anatomyFailureMessage('layer', null)).toContain('try this layer again');
+    expect(anatomyFailureMessage('picture', 'raw failure')).not.toContain('raw failure');
   });
 });
 
