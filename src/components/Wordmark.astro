@@ -19,7 +19,7 @@ interface Props {
   /** Accessible name, when nothing around the logo names the brand. */
   label?: string;
   class?: string;
-  /** Only the initial home hero opts out of lazy loading. */
+  /** Header logos and home hero opt out of lazy loading. */
   loading?: 'lazy' | 'eager';
 }
 
@@ -46,7 +46,7 @@ const shownAt = sizes ?? (variant === 'full' ? '15rem' : '2.25rem');
     alt=""
     aria-hidden="true"
     loading={loading}
-    data-image-priority={loading === 'eager' ? 'hero' : undefined}
+    data-image-priority={loading === 'eager' ? 'header' : undefined}
     decoding="async"
     draggable="false"
   />
@@ -60,7 +60,7 @@ const shownAt = sizes ?? (variant === 'full' ? '15rem' : '2.25rem');
     alt=""
     aria-hidden="true"
     loading={loading}
-    data-image-priority={loading === 'eager' ? 'hero' : undefined}
+    data-image-priority={loading === 'eager' ? 'header' : undefined}
     decoding="async"
     draggable="false"
   />
