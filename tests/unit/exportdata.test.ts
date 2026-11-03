@@ -488,14 +488,15 @@ describe('account study progress sections', () => {
 
   it.each([['attempts', account.attempts[0]], ['reviewRows', account.reviewRows[0]]])('caps %s at 50,000 rows and reports truncation', (section, row) => {
     const exact = Array.from({ length: 50_000 }, () => row);
-    expect(json({ [section]: exact })[section]).toHaveLength(50_000);
-    expect(json({ [section]: exact }).dropped).toEqual([]);
+    const exactResult = json({ [section]: exact });
+    expect(exactResult[section]).toHaveLength(50_000);
+    expect(exactResult.dropped).toEqual([]);
     const over = [...exact, row, row];
     const result = json({ [section]: over });
     expect(result[section]).toHaveLength(50_000);
     expect(result.dropped).toEqual([`${section}[50000+]`]);
     expect(parseRows(file({ [section]: over }, section))).toHaveLength(50_001);
-  });
+  }, 60_000); // This intentionally exercises the 50,000-row export boundary on small CI runners.
 
   it('refuses non-array account sections without fabricating rows', () => {
     expect(json({ attempts: {}, examPlans: 'x', reviewRows: null }).dropped).toEqual(['attempts', 'examPlans', 'reviewRows']);
