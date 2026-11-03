@@ -5,7 +5,7 @@ import {
 } from '../scripts/progress';
 import { browserStorage } from '../scripts/storage';
 import {
-  connectExamPlans, loadExamPlans, resolveAccountAnswers, saveSetupToAccount, SYNC_MESSAGES, withServerPlan,
+  connectExamPlans, isConnectFailure, type ConnectFailure, loadExamPlans, resolveAccountAnswers, saveSetupToAccount, SYNC_MESSAGES, withServerPlan,
   type ExamPlanSyncDb, type ScreenAnswers, type ServerPlan, type Touched,
 } from './examplansync';
 
@@ -49,7 +49,7 @@ export default function Onboarding() {
   const [accountSave, setAccountSave] = useState<'pending' | 'done' | 'retry'>('done');
   const retrySave = useRef<() => void>(() => {});
   /** Resolves once the account is known: its adapter and plans (null plans: they couldn't be read). Null: no account. */
-  const account = useRef<Promise<{ db: ExamPlanSyncDb; plans: ServerPlan[] | null } | null>>(Promise.resolve(null));
+  const account = useRef<Promise<{ db: ExamPlanSyncDb; plans: ServerPlan[] | null } | ConnectFailure | null>>(Promise.resolve(null));
   /** The account's plans once loaded, for keeping an untouched date in step with the course. */
   const plans = useRef<ServerPlan[] | null>(null);
   const finished = useRef(false);
@@ -73,10 +73,11 @@ export default function Onboarding() {
     show({ ...answers.current, examDate: value, dateFromAccount: false });
   };
 
-  useEffect(() => {
-    account.current = (async () => {
+  const connectAccount = () =>
+    (async () => {
       const db = await connectExamPlans();
       if (!db) return null;
+      if (isConnectFailure(db)) return db;
       const loaded = await loadExamPlans(db);
       if (!loaded.ok) {
         if (!finished.current) setSyncNote(loaded.message);
@@ -92,6 +93,9 @@ export default function Onboarding() {
       }
       return { db, plans: loaded.plans };
     })();
+
+  useEffect(() => {
+    account.current = connectAccount();
   }, [storage]);
 
   /**
@@ -102,6 +106,19 @@ export default function Onboarding() {
   const saveToAccount = async (deviceBefore: Answers, done: ScreenAnswers, acted: Touched, outcome: 'saved' | 'skipped') => {
     const known = await account.current;
     if (!known) return setAccountSave('done');
+    if (isConnectFailure(known)) {
+      // The session couldn't be checked, so don't say it was saved: keep the device save and offer another try.
+      if (outcome === 'skipped') return setAccountSave('done');
+      setSyncNote(SYNC_MESSAGES.connectFailed);
+      retrySave.current = () => {
+        setSyncNote('');
+        setAccountSave('pending');
+        account.current = connectAccount();
+        void saveToAccount(deviceBefore, done, acted, outcome).catch(() => setAccountSave('done'));
+        resultRef.current?.focus();
+      };
+      return setAccountSave('retry');
+    }
     let final: ScreenAnswers = done;
     if (known.plans) {
       // The load may have landed after the student finished: untouched answers take the account's values now.

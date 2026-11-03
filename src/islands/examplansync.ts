@@ -40,6 +40,7 @@ export const SYNC_MESSAGES = {
   outOfWindow: 'your account keeps exam dates from two days ago to two years ahead, so this one is saved on this device only.',
   tooMany: 'your account already has ten exam plans, so this one is saved on this device only.',
   signedOut: 'your sign-in has ended, so your exam date is saved on this device only. sign in again to save it to your account.',
+  connectFailed: 'your exam date is saved on this device, but we couldn’t check your sign-in, so it hasn’t been saved to your account. try again, or carry on and it stays on this device.',
   failed: 'your exam date is saved on this device, but it couldn’t be saved to your account. try again later.',
   removeFailed: 'your exam date is cleared on this device, but it couldn’t be cleared from your account. try again later.',
 } as const;
@@ -292,13 +293,18 @@ interface ClientModule {
   sessionStateFrom(client: never): Promise<{ signedIn: boolean }>;
 }
 
+/** The session or client couldn't be checked: unlike `null` (accounts off, or confirmed signed out). */
+export interface ConnectFailure { error: true }
+export const isConnectFailure = (value: unknown): value is ConnectFailure =>
+  typeof value === 'object' && value !== null && (value as ConnectFailure).error === true;
+
 /**
  * The account adapter when accounts are on and someone is signed in on this browser; otherwise `null`, and the exam
- * date stays on the device. The Supabase module is loaded only when this is called.
+ * date stays on the device. `{ error: true }` when the check itself failed. The Supabase module is loaded only when this is called.
  */
 export async function connectExamPlans(
   load: () => Promise<ClientModule> = () => import('./supabaseclient') as unknown as Promise<ClientModule>,
-): Promise<ExamPlanSyncDb | null> {
+): Promise<ExamPlanSyncDb | ConnectFailure | null> {
   try {
     const { getSupabase, sessionStateFrom } = await load();
     const client = await getSupabase();
@@ -306,6 +312,7 @@ export async function connectExamPlans(
     const session = await sessionStateFrom(client as never);
     return session.signedIn ? supabaseExamPlans(client as ExamPlanClient) : null;
   } catch {
-    return null;
+    // Not the same as signed out: the session couldn't be checked, so a signed-in student may still have an account.
+    return { error: true };
   }
 }

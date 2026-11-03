@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   connectExamPlans,
+  isConnectFailure,
   loadExamPlan,
   saveExamPlan,
   serverPlans,
@@ -418,13 +419,22 @@ describe('connectExamPlans', () => {
     sessionStateFrom: vi.fn(async () => ({ signedIn })),
   });
 
-  it('is null with accounts off, signed out, or when loading fails', async () => {
+  it('is null with accounts off or confirmed signed out', async () => {
     expect(await connectExamPlans(module(null, true))).toBeNull();
     expect(await connectExamPlans(module({ from: vi.fn() }, false))).toBeNull();
-    expect(await connectExamPlans(() => Promise.reject(new Error('offline')))).toBeNull();
+  });
+
+  it('reports a failure, not signed out, when loading or the session check fails', async () => {
+    expect(await connectExamPlans(() => Promise.reject(new Error('offline')))).toEqual({ error: true });
     expect(await connectExamPlans(async () => ({
       getSupabase: () => Promise.reject(new Error('x')), sessionStateFrom: async () => ({ signedIn: true }),
-    }))).toBeNull();
+    }))).toEqual({ error: true });
+    const rejected = await connectExamPlans(async () => ({
+      getSupabase: async () => ({ from: vi.fn() }), sessionStateFrom: () => Promise.reject(new Error('session')),
+    }));
+    expect(rejected).toEqual({ error: true });
+    expect(isConnectFailure(rejected)).toBe(true);
+    expect(isConnectFailure(null)).toBe(false);
   });
 
   it('gives the adapter when someone is signed in', async () => {

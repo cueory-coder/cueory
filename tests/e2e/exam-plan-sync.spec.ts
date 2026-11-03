@@ -85,7 +85,10 @@ test.beforeAll(async () => {
         export async function getSupabase() {
           return params.get('accounts') === 'off' ? null : window.fixtureClient;
         }
+        let checks = 0;
         export async function sessionStateFrom(client) {
+          // '&session=fail-once': the first session check is rejected, as a dropped connection would.
+          if (params.get('session') === 'fail-once' && checks++ === 0) throw new Error('session-private-detail');
           if (!client || params.has('signed-out')) return { signedIn: false };
           return { signedIn: true, userId: '00000000-0000-4000-8000-000000000001', email: '' };
         }
@@ -336,6 +339,25 @@ test.describe('exam date, signed in', () => {
     await expect(retry).toHaveCount(0);
     await expect(page.locator(':focus')).toContainText('saved on this device.');
     expect(await calls(page)).toEqual(['list course,exam_date 10', 'delete med-surg-1', 'delete med-surg-1']);
+  });
+
+  test('a failed session check never claims the date reached the account, and the retry sends it', async ({ page }) => {
+    await open(page, 'start', { course: 'med-surg-1', examDate: SERVER_DATE, done: true }, '&session=fail-once', [
+      { course: 'med-surg-1', exam_date: SERVER_DATE },
+    ]);
+    await toExam(page);
+    await page.getByRole('button', { name: 'skip', exact: true }).click();
+    const note = page.getByTestId('exam-sync');
+    await expect(note).toContainText('hasn’t been saved to your account');
+    await expect(page.locator('body')).not.toContainText('session-private-detail');
+    await expect(page.locator('body')).not.toContainText('saved to your account too');
+    await expect(page.getByRole('link', { name: 'start studying' })).toBeVisible();
+    expect(await deviceAnswers(page)).toMatchObject({ course: 'med-surg-1', examDate: null });
+    const retry = page.getByRole('button', { name: 'try saving again' });
+    await retry.focus();
+    await page.keyboard.press('Enter');
+    await expect(note).toHaveText('your exam date is cleared from your account too.');
+    await expect(retry).toHaveCount(0);
   });
 
   test('a failed load leaves the device date and says so', async ({ page }) => {

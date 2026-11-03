@@ -14,7 +14,7 @@ import {
 } from '../scripts/progress';
 import { browserStorage } from '../scripts/storage';
 import { readResume } from '../scripts/resume';
-import { connectExamPlans, loadExamPlan, loadTickets } from './examplansync';
+import { connectExamPlans, isConnectFailure, loadExamPlan, loadTickets } from './examplansync';
 import ProgressRing from './ProgressRing';
 import { examCountdown, progressView } from './progressview';
 
@@ -58,7 +58,7 @@ export default function ProgressPanel({ decks }: Props) {
     let live = true;
     void (async () => {
       const db = await connectExamPlans();
-      if (!db || !live) return;
+      if (!db || isConnectFailure(db) || !live) return;
       setSignedIn(true);
       if (!current()) return;
       const loaded = await loadExamPlan(db, readProgress(storage).onboarding);
