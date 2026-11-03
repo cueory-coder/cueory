@@ -36,6 +36,17 @@ export function missingLayers(structures: readonly AnatomyStructure[]): LayerId[
   return LAYERS.filter((id) => !structures.some((s) => s.layer === id));
 }
 
+/**
+ * Describe only what this lab build offers. Production may exclude draft
+ * systems, so a missing layer does not mean BodyParts3D lacks that anatomy.
+ */
+export function unavailableLayersNote(structures: readonly AnatomyStructure[]): string | null {
+  const missing = missingLayers(structures);
+  return missing.length > 0
+    ? `3D layers not available in this version of the lab: ${missing.join(', ')}.`
+    : null;
+}
+
 /** A layer is shown while any of its structures is. */
 export function layerShown(layer: Layer, hidden: ReadonlySet<string>): boolean {
   return layer.ids.some((id) => !hidden.has(id));
