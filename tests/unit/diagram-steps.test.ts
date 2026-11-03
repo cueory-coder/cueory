@@ -36,6 +36,32 @@ describe('diagram step validation', () => {
     expect(() => parseSteps([{ ...steps[0], durationMs: 10001 }])).toThrow(/1000 to 10000/);
     expect(() => parseSteps([{ ...steps[0], durationMs: 1500.5 }])).toThrow(/whole number/);
   });
+
+  it.each([null, undefined, [], 'step', 7])('rejects a non-object row without accepting partial data: %j', value => {
+    expect(() => parseSteps([steps[0], value])).toThrow(/step 2 must be an object/);
+  });
+
+  it.each([undefined, null, 42, {}])('rejects a missing or non-text caption: %j', caption => {
+    expect(() => parseSteps([{ ...steps[0], caption }])).toThrow(/needs a caption/);
+  });
+
+  it.each([undefined, null, '1000', NaN, Infinity, -Infinity])('rejects a missing, non-numeric or non-finite duration: %j', durationMs => {
+    expect(() => parseSteps([{ ...steps[0], durationMs }])).toThrow(/whole number/);
+  });
+
+  it('accepts exact size and timing limits, trims captions and drops untrusted extra fields', () => {
+    const input = Array.from({ length: 12 }, (_, index) => Object.freeze({
+      id: `step-${index}`, caption: `  ${'a'.repeat(200)}  `,
+      durationMs: index % 2 ? 10000 : 1000, extra: 'not part of a diagram step',
+    }));
+    const parsed = parseSteps(Object.freeze(input));
+    expect(parsed).toHaveLength(12);
+    expect(parsed[0]).toEqual({ id: 'step-0', caption: 'a'.repeat(200), durationMs: 1000 });
+    expect(parsed[11]).toEqual({ id: 'step-11', caption: 'a'.repeat(200), durationMs: 10000 });
+    expect(parsed.every(step => !('extra' in step))).toBe(true);
+    expect(input[0]!.caption).toBe(`  ${'a'.repeat(200)}  `);
+    expect(parseSteps([input[0]])).toHaveLength(1);
+  });
 });
 
 describe('diagram step state', () => {
@@ -55,6 +81,19 @@ describe('diagram step state', () => {
     expect(goTo(playing, steps, 2)).toEqual({ index: 2, playing: false });
     expect(goTo(playing, steps, -20)).toEqual({ index: 0, playing: false });
     expect(goTo(playing, steps, 20)).toEqual({ index: 2, playing: false });
+  });
+
+  it.each([NaN, Infinity, -Infinity])('a non-finite seek preserves the visible step and pauses: %s', target => {
+    const state = Object.freeze({ index: 1, playing: true });
+    expect(goTo(state, steps, target)).toEqual({ index: 1, playing: false });
+    expect(state).toEqual({ index: 1, playing: true });
+  });
+
+  it('truncates fractional seeks and completes a single-step playback without advancing out of range', () => {
+    expect(goTo({ index: 0, playing: true }, steps, 1.9)).toEqual({ index: 1, playing: false });
+    expect(goTo({ index: 1, playing: true }, steps, -0.9)).toEqual({ index: 0, playing: false });
+    const onlyStep = [steps[0]!];
+    expect(advance(play(startSteps(), onlyStep), onlyStep)).toEqual({ index: 0, playing: false });
   });
 
   it('plays in place, but restarts from step one when the last step is showing', () => {
