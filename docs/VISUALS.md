@@ -48,7 +48,7 @@ fluids).
 | A visual's labels, sources and review status | `content/visuals/<visual-id>.json` |
 | The allowed books and the checks on every source file | `src/visuals/sources.ts` |
 | A 2D diagram's drawing (SVG and its animation) | `src/visuals/` |
-| 3D models (compressed glTF) and their license | `public/models/` |
+| 3D models (compressed glTF) and their license | `public/models/` (built by `scripts/build-anatomy.mjs`) |
 | Review sheets, one per batch | the batch's pull request |
 
 A visual's source file looks like this (shortened):
@@ -86,7 +86,7 @@ The build checks every source file and stops with a plain message when one break
 - ids are unique, and every lesson id exists in the lesson map (the unit tests check this one);
 - a drawing gets its label text only from the file, so a label that isn't in the file stops the build.
 
-The only allowed book so far is Open RN *Nursing Fundamentals, 2nd Edition*. A new book joins the list in
+The allowed books so far are Open RN *Nursing Fundamentals, 2nd Edition*, and BodyParts3D for 3D models only. A new book joins the list in
 `src/visuals/sources.ts` only after its license is checked, and nothing NonCommercial ever joins.
 
 ## Review and release
@@ -119,11 +119,31 @@ The only allowed book so far is Open RN *Nursing Fundamentals, 2nd Edition*. A n
 - BodyParts3D's parts list has no conduction pathway (SA node, AV node, bundle of His, bundle branches, Purkinje
   fibers), and whether Z-Anatomy added one isn't confirmed yet. If neither has it, we draw it on the heart ourselves,
   from a cited source.
-- Pipeline: Blender in the background exports the named structures, then gltfpack compresses them with meshopt and
-  keeps each structure separate (D-58). Models are restyled in brand colors.
+- Pipeline (Task 177): `node scripts/build-anatomy.mjs --source <folder> --release <3.0|4.0> [--system <id>]` turns
+  BodyParts3D's own files into one compressed model per body system. `scripts/anatomy-systems.json` names each system's
+  root concepts; the script takes every structure under them in the database's own hierarchy
+  (`conventional_part_of.txt`), minus the listed exclusions, and stops if that list ever differs from the stored one.
+  gltfpack (npm, MIT) adds normals, simplifies only when a system is over the phone budget (one ratio for every
+  structure, within its 1% error limit) and compresses with meshopt, keeping each structure a separate mesh node named
+  with its id, such as `FMA7204` (D-58). No textures and one neutral material: the viewer colors the structures. All
+  systems share one coordinate system, so they line up: BodyParts3D's millimetres (+x left, +y back, +z up) become
+  glTF's metres with +y up and the body facing +z. The same files give the same models, byte for byte.
+- Output: `public/models/anatomy/<system>.glb` and `content/visuals/anatomy-<system>.json`, a draft whose labels are
+  the database's official English names (`parts_list_e.txt`), each cited to its own line. A name is shown exactly as
+  written, including the ", nsn" some names end with: the README doesn't say what it means, so it isn't removed.
+  Each label's `group` is the concept the structure is part of in the same hierarchy, for the viewer's list headings.
+  BodyParts3D may be cited only by a 3D model (`kind: "model"`), and the unit tests check that every node in each
+  model has exactly one label.
+- Stopgap: the first models come from Release 3.0 (2011-09-15) by way of the GitHub mirror
+  Kevin-Mattheus-Moerman/BodyParts3D, which converted the official `BodyParts3D_3.0_obj_95.zip` meshes to STL, because
+  the official site can't be reached from the build machine. Release 3.0 has no separate heart chambers (the heart is
+  one "wall of heart" with valves, papillary muscles and coronary vessels). When Christian downloads the official 4.0
+  files, the models are rebuilt with `--release 4.0 --retrieved <the download day>`, after checking that release's
+  file names, hierarchy and coordinate system in its README.
 - Viewer: a three.js React island. One body system loads at a time; a system filter and layer peeling (skin to bone)
   with buttons; rotate and zoom by drag, pinch, buttons and the keyboard; no auto-rotate with reduced motion.
 - Phone budget per system: at most 3 MB to download and 150,000 triangles, and it must stay smooth on a mid-range
   phone. The viewer loads only when a student opens it.
-- Credit under every 3D view, for example: "3D model: Cueory, adapted from BodyParts3D, © The Database Center for Life
-  Science, CC BY 4.0."
+- Credit under every 3D view, word for word as BodyParts3D's license page asks (updated 27 February 2025), linked to
+  the license: "BodyParts3D, © The Database Center for Life Science licensed under CC Attribution 4.0 International".
+  Each model file also carries it as its copyright.
