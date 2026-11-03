@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useState, type FormEvent } from 'react';
 
 export interface SurveySubmission {
   usedForFinal: boolean | null;
@@ -69,7 +69,7 @@ export default function SurveyPrompt({
     onDismiss?.();
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const cleanFeedback = feedback.trim().slice(0, MAX_FEEDBACK_CHARS);
     const data: SurveySubmission = {
