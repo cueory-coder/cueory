@@ -107,7 +107,11 @@ const barButton =
             {
               footerLinks.map((link) => (
                 <li>
-                  <a href={link.href} class="text-ink-soft hover:text-ink">
+                  <a
+                    href={link.href}
+                    class="text-ink-soft hover:text-ink"
+                    aria-current={link.href === Astro.url.pathname ? 'page' : undefined}
+                  >
                     {link.label}
                   </a>
                 </li>
