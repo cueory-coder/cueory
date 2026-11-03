@@ -52,7 +52,8 @@ const exceptions: Exception[] = [
       /text-decoration-thickness: [12]px/.test(text) ||
       /--scene-fade-(?:top|bottom): 0px/.test(text) ||
       /background-size: 220px 220px/.test(text) ||
-      /^(?:border(?:-[^:]+)?|inset|block-size|text-decoration-thickness|max-block-size):/.test(text.trim()) ||
+      /^(?:border(?:-[^:]+)?|block-size|text-decoration-thickness|max-block-size):/.test(text.trim()) ||
+      /^inset\b/.test(text.trim()) ||
       /env\(safe-area-inset-[^,]+, 0px\)/.test(text) ||
       /(?:backdrop-filter: blur\([12]px\)|@supports .*blur\(1px\)|transform: translate(?:X|Y)?\([^)]*px)/.test(text),
     reason: 'responsive, safe-area, hairline, texture-tile, blur and animation geometry are CSS primitives',
