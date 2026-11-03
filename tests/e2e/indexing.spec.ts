@@ -1,7 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 import { existsSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { indexablePages } from '../../src/config/routes';
+import { indexablePages as fixedPages } from '../../src/config/routes';
+import { lessonRoutes } from '../lessonroutes';
+
+// The fixed pages plus every lesson page generated from /content (Task 300), as the sitemap lists them.
+const indexablePages = [...new Set([...fixedPages, ...lessonRoutes])];
 
 /**
  * Task 127: which pages search engines may index. `Layout.astro` writes

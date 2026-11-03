@@ -4,7 +4,8 @@ import { browserStorage } from '../scripts/storage';
 import ResumePrompt from './ResumePrompt';
 import { canCheck, check, isDone, parseSet, placeItem, resultInWords, startOrganizer, summary, type OrganizerSet } from './organizer';
 
-interface Props { set: OrganizerSet }
+/** `page` is this page's own address, for the saved place (Task 300: every lesson has its own organizer page). */
+interface Props { set: OrganizerSet; page?: string }
 interface Drag { id: string; pointer: number; x: number; y: number; active: boolean }
 const control = 'min-h-11 min-w-11 rounded-md border border-control bg-page px-4 py-2 text-ink';
 const card = `${control} shadow-card lift press`;
@@ -13,9 +14,9 @@ const chip = 'min-h-11 min-w-11 rounded-pill border border-control bg-surface px
 const ORGANIZER_PAGE = '/learn/study-skills/organizer';
 
 /** Save only placements the student submitted and the checker locked. */
-function organizerDraft(state: ReturnType<typeof startOrganizer>, set: OrganizerSet): ResumeDraft {
+function organizerDraft(state: ReturnType<typeof startOrganizer>, set: OrganizerSet, page: string): ResumeDraft {
   return {
-    tool: 'organizer', page: ORGANIZER_PAGE, module: set.id, step: `checks-${state.tries}`,
+    tool: 'organizer', page, module: set.id, step: `checks-${state.tries}`,
     itemIndex: Math.min(state.locked.length, set.items.length - 1), totalItems: set.items.length,
     answers: Object.fromEntries(state.locked.map(id => [id, state.positions[id]!])),
     timer: null, phase: isDone(state) ? 'results' : 'working',
@@ -23,8 +24,8 @@ function organizerDraft(state: ReturnType<typeof startOrganizer>, set: Organizer
 }
 
 /** Recheck each saved student placement using the same rule as the live board. */
-function restoreOrganizer(set: OrganizerSet, seed: number, snapshot: ResumeSnapshot) {
-  if (snapshot.tool !== 'organizer' || snapshot.page !== ORGANIZER_PAGE ||
+function restoreOrganizer(set: OrganizerSet, seed: number, snapshot: ResumeSnapshot, page: string) {
+  if (snapshot.tool !== 'organizer' || snapshot.page !== page ||
       snapshot.module !== set.id || snapshot.totalItems !== set.items.length) return null;
   const matched = /^checks-([1-9]\d*)$/.exec(snapshot.step ?? '');
   if (!matched) return null;
@@ -39,18 +40,18 @@ function restoreOrganizer(set: OrganizerSet, seed: number, snapshot: ResumeSnaps
     if (!state.locked.includes(id)) return null;
   }
   const restored = { ...state, tries: attempts, last: null };
-  const draft = organizerDraft(restored, set);
+  const draft = organizerDraft(restored, set, page);
   if (draft.itemIndex !== snapshot.itemIndex || draft.phase !== snapshot.phase ||
       Object.keys(draft.answers).length !== Object.keys(snapshot.answers).length) return null;
   return restored;
 }
 
-function Board({ set }: Props) {
+function Board({ set, page = ORGANIZER_PAGE }: Props) {
   const seed = useRef(Date.now() >>> 0);
   const [state, setState] = useState(() => startOrganizer(set, seed.current));
   const [resumePending, setResumePending] = useState(() => {
     const stored = readResume(browserStorage());
-    return stored?.tool === 'organizer' && stored.page === ORGANIZER_PAGE;
+    return stored?.tool === 'organizer' && stored.page === page;
   });
   const [picked, setPicked] = useState<string>();
   const [said, setSaid] = useState('');
@@ -195,14 +196,14 @@ function Board({ set }: Props) {
   };
 
   const continueSaved = (snapshot: ResumeSnapshot) => {
-    const restored = restoreOrganizer(set, seed.current, snapshot);
+    const restored = restoreOrganizer(set, seed.current, snapshot, page);
     if (!restored) {
       restart();
       return;
     }
     // Restoring already checked placements is not a new check or animation.
     previousLocked.current = restored.locked;
-    latestDraft.current = organizerDraft(restored, set);
+    latestDraft.current = organizerDraft(restored, set, page);
     setResumePending(false);
     focusItem.current = undefined;
     setState(restored);
@@ -216,14 +217,14 @@ function Board({ set }: Props) {
     setPicked(undefined);
     setSaid(resultInWords(next));
     if (next !== state) {
-      const draft = organizerDraft(next, set);
+      const draft = organizerDraft(next, set, page);
       latestDraft.current = draft;
       saveResume(browserStorage(), draft);
     }
   };
 
   return <section aria-label="organizer" data-testid="organizer">
-    <ResumePrompt page={ORGANIZER_PAGE} onContinue={continueSaved} onStartOver={restart} />
+    <ResumePrompt page={page} onContinue={continueSaved} onStartOver={restart} />
     {/* Keep the board inactive until a saved session is continued or discarded. */}
     <div inert={resumePending}>
     <h2 className="text-lg font-medium">{set.title}</h2>
@@ -257,9 +258,9 @@ function Board({ set }: Props) {
   </section>;
 }
 
-export default function OrganizerBoard({ set }: Props) {
+export default function OrganizerBoard({ set, page }: Props) {
   try {
     const parsed = parseSet(set);
-    return <Board key={JSON.stringify(parsed)} set={parsed} />;
+    return <Board key={JSON.stringify(parsed)} set={parsed} page={page} />;
   } catch { return <p role="alert">this set could not be loaded. please try again later.</p>; }
 }

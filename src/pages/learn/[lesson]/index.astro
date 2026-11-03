@@ -1,8 +1,8 @@
 ---
 /**
- * Task 81: preserve the existing study-skills reader, video and illustrations.
- * The new hub cards read from the canonical study-mode configuration. Their
- * visible links preserve the established labels used by students and tests.
+ * A lesson's hub (Task 81), built for every lesson in /content whose status lets it show (Task 300,
+ * src/lessons/catalog.ts). Its reader, video and illustrations are unchanged from the study-skills page, and the mode
+ * tiles link only to this lesson's own pages. /learn/study-skills keeps its address.
  */
 import { getCollection, getEntry } from 'astro:content';
 import Layout from '../../../layouts/Layout.astro';
@@ -12,14 +12,20 @@ import LessonVideo from '../../../islands/LessonVideo';
 import LessonVisuals from '../../../components/LessonVisuals.astro';
 import { studyModes, type StudyMode } from '../../../config/modes';
 import { isShowable } from '../../../videos/schema';
+import { countInWords, pathsFor, type CatalogLesson, type ModeId } from '../../../lessons/catalog';
+import { lessonCatalog } from '../../../lessons/load';
 
-const lesson = await getEntry('lessons', 'study-skills-01');
-if (!lesson) {
-  throw new Error('Lesson file content/lessons/study-skills-01.json is missing.');
+export async function getStaticPaths() {
+  return pathsFor(await lessonCatalog(), 'hub');
 }
-const lessonCount = (await getCollection('lessons')).length;
-const { title, summary, sentences, status } = lesson.data;
-const video = await getEntry('videos', 'study-skills-01');
+
+const { lesson } = Astro.props as { lesson: CatalogLesson };
+const entry = await getEntry('lessons', lesson.id);
+if (!entry) throw new Error(`Lesson file content/lessons/${lesson.id}.json is missing.`);
+const { title, summary, sentences, status } = entry.data;
+const olderLessons = (await lessonCatalog()).lessons.filter((candidate) => !candidate.curriculumId).length;
+const context = !lesson.curriculumId && olderLessons > 1 ? `${lesson.context} of ${olderLessons}` : lesson.context;
+const video = (await getCollection('videos')).find((candidate) => candidate.data.lesson === lesson.id);
 
 const modeLabels = {
   cards: 'practice this lesson with cards',
@@ -29,22 +35,20 @@ const modeLabels = {
   'fill-in': 'recall the missing word with fill-in',
   'label-it': "uncover a diagram's labels with label it",
   questions: 'practice questions with rationales',
-} as const satisfies Partial<Record<StudyMode['id'], string>>;
+} as const satisfies Record<ModeId, string>;
 
-const modeOrder = ['cards', 'learn', 'matching', 'organizer', 'fill-in', 'label-it', 'questions'] as const;
-const availableModes = modeOrder.map((id) => {
-  const mode = studyModes.find((candidate) => candidate.id === id);
-  if (!mode?.link) throw new Error('Study mode is missing its built page: ' + id);
-  return { mode, linkLabel: modeLabels[id] };
+const availableModes = lesson.modes.map(({ id, href }) => {
+  const mode = studyModes.find((candidate) => candidate.id === id) as StudyMode | undefined;
+  if (!mode) throw new Error('Study mode is missing from src/config/modes.ts: ' + id);
+  return { mode, href, linkLabel: modeLabels[id] };
 });
+const ways = availableModes.length;
 ---
 
 <Layout title={title} description={summary} variant="study">
   <div class="mx-auto max-w-page pb-section pt-8 sm:pt-12">
     <header class="mx-auto max-w-prose">
-      <p class="text-sm text-ink-soft">
-        how to study for nursing school · lesson 1{lessonCount > 1 ? ` of ${lessonCount}` : ''}
-      </p>
+      <p class="text-sm text-ink-soft">{context}</p>
       <h1 class="mt-3 text-2xl">{title}</h1>
       <p class="mt-3 text-ink-soft">{summary}</p>
       {status === 'placeholder' && (
@@ -54,25 +58,27 @@ const availableModes = modeOrder.map((id) => {
       )}
     </header>
 
-    <section class="mt-section" aria-labelledby="study-modes-heading">
-      <div class="mx-auto max-w-prose">
-        <h2 id="study-modes-heading" class="text-xl">choose how to study</h2>
-        <p class="mt-3 text-ink-soft">
-          seven ways to practice this lesson. choose a mode that works for you.
-        </p>
-      </div>
-      <ul
-        class="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4"
-        data-testid="mode-grid"
-        aria-label="ways to study this lesson"
-      >
-        {availableModes.map(({ mode, linkLabel }) => (
-          <li class="min-w-0">
-            <ModeTile mode={mode} linkLabel={linkLabel} />
-          </li>
-        ))}
-      </ul>
-    </section>
+    {ways > 0 && (
+      <section class="mt-section" aria-labelledby="study-modes-heading">
+        <div class="mx-auto max-w-prose">
+          <h2 id="study-modes-heading" class="text-xl">choose how to study</h2>
+          <p class="mt-3 text-ink-soft">
+            {countInWords(ways)} {ways === 1 ? 'way' : 'ways'} to practice this lesson. choose a mode that works for you.
+          </p>
+        </div>
+        <ul
+          class="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4"
+          data-testid="mode-grid"
+          aria-label="ways to study this lesson"
+        >
+          {availableModes.map(({ mode, href, linkLabel }) => (
+            <li class="min-w-0">
+              <ModeTile mode={mode} href={href} linkLabel={linkLabel} />
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
 
     <section class="mx-auto mt-section max-w-prose" aria-labelledby="lesson-reader-heading" data-testid="study-reader">
       <h2 id="lesson-reader-heading" class="text-xl">read the lesson</h2>
@@ -101,7 +107,7 @@ const availableModes = modeOrder.map((id) => {
     )}
 
     <div class="mx-auto max-w-prose">
-      <LessonVisuals lessonId="study-skills-01" />
+      <LessonVisuals lessonId={lesson.curriculumId ?? lesson.id} />
     </div>
   </div>
 </Layout>

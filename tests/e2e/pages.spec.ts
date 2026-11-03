@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { socials } from '../../src/config/site';
 import { isDesktopOfEachEngine } from './projects';
+import { lessonRoutes } from '../lessonroutes';
 
 // The once-only promo panel (D-59) slides down after 5 seconds and takes keyboard focus, which would interrupt these
 // tests part-way, so every page here starts as if it had already been shown. tests/e2e/promo.spec.ts tests the panel.
@@ -46,9 +47,11 @@ const pages = [
   '/start',
   '/progress',
   '/learn/video-sample',
+  // Every lesson page generated from /content (Task 300), so a new lesson is checked without editing this list.
+  ...lessonRoutes,
 ];
 
-for (const path of pages) {
+for (const path of [...new Set(pages)]) {
   test(`${path} loads, shows the notice, and passes accessibility checks`, async ({ page }) => {
     const errors: string[] = [];
     page.on('console', (msg) => msg.type() === 'error' && errors.push(msg.text()));

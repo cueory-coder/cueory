@@ -9,10 +9,12 @@ import type { StudyMode } from '../config/modes';
 interface Props {
   mode: StudyMode;
   linkLabel: string;
+  /** This lesson's own page for the mode (Task 300); without it, the mode's page in modes.ts. */
+  href?: string;
 }
 
 const { mode, linkLabel } = Astro.props;
-const href = mode.link?.href;
+const href = Astro.props.href ?? mode.link?.href;
 if (!href) throw new Error('Only available study modes may be linked from the lesson hub.');
 ---
 

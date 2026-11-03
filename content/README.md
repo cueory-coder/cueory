@@ -2,6 +2,38 @@
 
 Content is data, not code. Edit these files to change what students see; no programming needed.
 
+## Adding a lesson
+
+A lesson is a set of JSON files that share one name: the lesson's id from
+[docs/curriculum/medsurg-lesson-map.csv](../docs/curriculum/medsurg-lesson-map.csv), in lowercase. Lesson `U00-T01-L01`
+is `u00-t01-l01.json`. Drop the files in and the site builds the pages on its own; no page or code needs editing.
+
+| File | Makes |
+| --- | --- |
+| `lessons/u00-t01-l01.json` (needed) | the lesson page, `/learn/u00-t01-l01`, with its reader |
+| `cards/u00-t01-l01.json` | the cards, learn mode and matching pages for it |
+| `fill-in/u00-t01-l01.json` | its fill-in page |
+| `organizer/u00-t01-l01.json` | its organizer page |
+| `videos/u00-t01-l01.json` | its video, once the video's status allows it |
+
+Each cards, fill-in and organizer file says which lesson it belongs to in its `lesson` field (`"lesson":
+"u00-t01-l01"`). The lesson page shows a tile for each study mode that has a file, and the course library (`/learn`)
+lists the lesson and links to it from its unit. The unit and topic names on the page come from the lesson map.
+
+The `status` field decides whether a file appears:
+
+- `published`: you approved it. It appears normally.
+- `placeholder` or `sample`: it appears with its label ("these cards are placeholders", "this is a sample…") (D-92).
+- `draft` or `in_review`: it never appears. A lesson that doesn't appear takes its cards and sets with it.
+
+Only approved, public text goes in this folder (CLAUDE.md rule 7): lessons and cards (your decision of 2 Nov 2026).
+Questions, answer keys and rationales never do; they go through a batch into the database. Fill-in and organizer
+files can only be `sample` for now, so real ones aren't possible yet (see the Task 300 note).
+
+The build stops with a plain message if a file name isn't a lesson id in the map, if a file names a lesson that has no
+lesson file, or if one lesson has two files of the same kind. The older study-skills lesson (`study-skills-01`) keeps
+its address, `/learn/study-skills`, and its label it and sample questions pages.
+
 - `lessons/` — one JSON file per lesson. Each sentence is one short, standalone idea.
   The build checks every file and stops with a clear message if something is missing.
 - `cards/` — one JSON file per lesson's card deck. `lesson` is the lesson's file name without `.json`; each card has a
