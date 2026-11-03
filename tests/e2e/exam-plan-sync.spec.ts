@@ -60,6 +60,11 @@ test.beforeAll(async () => {
             },
             delete: () => ({ eq: (column, value) => {
               log('delete ' + value);
+              // '&fail=delete-once': the first removal fails, as a dropped connection would.
+              if (fail === 'delete-once' && !window.deleteFailed) {
+                window.deleteFailed = true;
+                return reply({ error: refused });
+              }
               rows.splice(0, rows.length, ...rows.filter(r => r[column] !== value));
               return reply({ error: null });
             } }),
@@ -275,6 +280,62 @@ test.describe('exam date, signed in', () => {
     }, SERVER_DATE);
     await expect(page.getByText(`exam: ${words}.`)).toBeVisible();
     expect(await calls(page)).toEqual(['list course,exam_date 10']);
+  });
+
+  test('an account date clears when the course changes, after the load, to one with no plan (Codex on #232)', async ({ page }) => {
+    await open(page, 'start', { course: 'med-surg-1', examDate: null, done: true }, '', [
+      { course: 'med-surg-1', exam_date: SERVER_DATE },
+    ]);
+    await expect.poll(() => deviceAnswers(page)).toEqual({ course: 'med-surg-1', examDate: SERVER_DATE, done: true });
+    await toExam(page);
+    await expect(page.getByLabel('when is your exam?')).toHaveValue(SERVER_DATE);
+    await page.getByRole('button', { name: 'back' }).click();
+    await page.getByRole('radio', { name: 'fundamentals', exact: true }).check();
+    await toExam(page);
+    await expect(page.getByLabel('when is your exam?')).toHaveValue('');
+    await page.getByRole('button', { name: 'save my answers' }).click();
+    await expect(page.locator(':focus')).toContainText('no exam date.');
+    await expect(page.getByRole('link', { name: 'see what’s saved on this device' })).toBeVisible();
+    expect(await calls(page)).toEqual(['list course,exam_date 10']);
+    expect(await deviceAnswers(page)).toEqual({ course: 'fundamentals', examDate: null, done: true });
+  });
+
+  test('the result links wait until the account has the change, so leaving early cannot undo it (Codex on #232)', async ({ page }) => {
+    await open(page, 'start', { course: 'med-surg-1', examDate: null, done: true }, '&slow=list', [
+      { course: 'med-surg-1', exam_date: SERVER_DATE },
+    ]);
+    await toExam(page);
+    await page.getByRole('button', { name: 'skip', exact: true }).click();
+    await expect(page.locator(':focus')).toContainText('saved on this device.');
+    await expect(page.locator(':focus')).toContainText('saving to your account…');
+    await expect(page.getByRole('link', { name: 'see what’s saved on this device' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'start studying' })).toHaveCount(0);
+    // The plans are still on their way, so the removal hasn't been sent yet.
+    expect(await calls(page)).toEqual(['list course,exam_date 10']);
+
+    await expect(page.getByTestId('exam-sync')).toHaveText('your exam date is cleared from your account too.', { timeout: 5000 });
+    await expect(page.getByTestId('exam-sync-pending')).toHaveCount(0);
+    expect(await calls(page)).toEqual(['list course,exam_date 10', 'delete med-surg-1']);
+    await expect(page.getByRole('link', { name: 'see what’s saved on this device' })).toBeVisible();
+  });
+
+  test('a failed account save says so, offers a retry, and the retry sends it (Codex on #232)', async ({ page }) => {
+    await open(page, 'start', { course: 'med-surg-1', examDate: SERVER_DATE, done: true }, '&fail=delete-once', [
+      { course: 'med-surg-1', exam_date: SERVER_DATE },
+    ]);
+    await toExam(page);
+    await page.getByRole('button', { name: 'skip', exact: true }).click();
+    const note = page.getByTestId('exam-sync');
+    await expect(note).toHaveText('your exam date is cleared on this device, but it couldn’t be cleared from your account. try again later.');
+    await expect(page.locator('body')).not.toContainText('provider-private-detail');
+    await expect(page.getByRole('link', { name: 'see what’s saved on this device' })).toBeVisible();
+    const retry = page.getByRole('button', { name: 'try saving again' });
+    await retry.focus();
+    await page.keyboard.press('Enter');
+    await expect(note).toHaveText('your exam date is cleared from your account too.');
+    await expect(retry).toHaveCount(0);
+    await expect(page.locator(':focus')).toContainText('saved on this device.');
+    expect(await calls(page)).toEqual(['list course,exam_date 10', 'delete med-surg-1', 'delete med-surg-1']);
   });
 
   test('a failed load leaves the device date and says so', async ({ page }) => {

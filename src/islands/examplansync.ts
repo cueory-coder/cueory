@@ -114,22 +114,33 @@ export interface Touched {
   examDate: boolean;
 }
 
+/** The answers on the setup screen. `dateFromAccount`: the date shown was filled in from the account, not typed. */
+export interface ScreenAnswers {
+  course: string;
+  examDate: string;
+  dateFromAccount?: boolean;
+}
+
 /**
  * The setup answers to show once the account's plans are known, worked out for the course on screen at that moment.
  * - The course: the student's pick (or skip) stands. Untouched and blank, it takes the account's only plan's course.
  * - The date: the student's answer (or clear) stands. Untouched, it takes the account's date for the course resolved
- *   above, and is left alone when the account has no plan for that course. It never takes another course's date.
+ *   above. When the account has no plan for that course, a date the account filled in for another course is cleared
+ *   (Codex on #232), and a date from this device is left alone. It never takes another course's date.
  * Called when the plans arrive and whenever the course changes afterwards, so the date always belongs to the course.
  */
 export function resolveAccountAnswers(
-  current: { course: string; examDate: string },
+  current: ScreenAnswers,
   touched: Touched,
   plans: readonly ServerPlan[],
-): { course: string; examDate: string } {
+): Required<ScreenAnswers> {
   const course = touched.course || current.course ? current.course : plans.length === 1 ? plans[0]!.course : '';
-  if (touched.examDate) return { course, examDate: current.examDate };
+  if (touched.examDate) return { course, examDate: current.examDate, dateFromAccount: false };
   const plan = course ? plans.find((p) => p.course === course) : undefined;
-  return { course, examDate: plan ? plan.examDate : current.examDate };
+  if (plan) return { course, examDate: plan.examDate, dateFromAccount: true };
+  return current.dateFromAccount
+    ? { course, examDate: '', dateFromAccount: false }
+    : { course, examDate: current.examDate, dateFromAccount: false };
 }
 
 /**

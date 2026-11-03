@@ -5,8 +5,8 @@ import {
 } from '../scripts/progress';
 import { browserStorage } from '../scripts/storage';
 import {
-  connectExamPlans, loadExamPlans, resolveAccountAnswers, saveSetupToAccount, withServerPlan,
-  type ExamPlanSyncDb, type ServerPlan, type Touched,
+  connectExamPlans, loadExamPlans, resolveAccountAnswers, saveSetupToAccount, SYNC_MESSAGES, withServerPlan,
+  type ExamPlanSyncDb, type ScreenAnswers, type ServerPlan, type Touched,
 } from './examplansync';
 
 const primaryButton = 'min-h-11 rounded-pill bg-button px-5 py-2.5 text-on-button hover:bg-button-hover';
@@ -41,6 +41,13 @@ export default function Onboarding() {
   const dateHeadingRef = useRef<HTMLHeadingElement>(null);
   const dateRef = useRef<HTMLInputElement>(null);
   const [syncNote, setSyncNote] = useState('');
+  /**
+   * The one record of the account save after finishing (Codex on #232): 'pending' until it is sent or nothing needs
+   * sending, 'retry' after a failure worth trying again. The result's links wait while it is pending, so leaving the
+   * page can't drop a change the account hasn't had yet.
+   */
+  const [accountSave, setAccountSave] = useState<'pending' | 'done' | 'retry'>('done');
+  const retrySave = useRef<() => void>(() => {});
   /** Resolves once the account is known: its adapter and plans (null plans: they couldn't be read). Null: no account. */
   const account = useRef<Promise<{ db: ExamPlanSyncDb; plans: ServerPlan[] | null } | null>>(Promise.resolve(null));
   /** The account's plans once loaded, for keeping an untouched date in step with the course. */
@@ -49,8 +56,8 @@ export default function Onboarding() {
   // Set as soon as the student picks, types, clears or skips, so a late account load never replaces that answer.
   const touched = useRef<Touched>({ course: false, examDate: false });
   // The answers on screen, readable from the load and save callbacks without waiting for a render.
-  const answers = useRef({ course: saved.course ?? '', examDate: saved.examDate ?? '' });
-  const show = (next: { course: string; examDate: string }) => {
+  const answers = useRef<ScreenAnswers>({ course: saved.course ?? '', examDate: saved.examDate ?? '', dateFromAccount: false });
+  const show = (next: ScreenAnswers) => {
     answers.current = next;
     setCourse(next.course);
     setExamDate(next.examDate);
@@ -63,7 +70,7 @@ export default function Onboarding() {
   };
   const changeExamDate = (value: string) => {
     touched.current.examDate = true;
-    show({ ...answers.current, examDate: value });
+    show({ ...answers.current, examDate: value, dateFromAccount: false });
   };
 
   useEffect(() => {
@@ -89,12 +96,13 @@ export default function Onboarding() {
 
   /**
    * After the device save: waits for the account's plans, then reconciles with them and saves to the account.
-   * `acted` is what the student had acted on when they finished.
+   * `acted` is what the student had acted on when they finished. Ends with accountSave 'done' or 'retry', never
+   * left 'pending'.
    */
-  const saveToAccount = async (deviceBefore: Answers, done: { course: string; examDate: string }, acted: Touched, outcome: 'saved' | 'skipped') => {
+  const saveToAccount = async (deviceBefore: Answers, done: ScreenAnswers, acted: Touched, outcome: 'saved' | 'skipped') => {
     const known = await account.current;
-    if (!known) return;
-    let final = done;
+    if (!known) return setAccountSave('done');
+    let final: ScreenAnswers = done;
     if (known.plans) {
       // The load may have landed after the student finished: untouched answers take the account's values now.
       const resolved = resolveAccountAnswers(done, acted, known.plans);
@@ -105,15 +113,28 @@ export default function Onboarding() {
       }
     }
     // "skip for now" keeps what was saved: the account fills in the device, but nothing is sent back.
-    if (outcome === 'skipped') return;
-    const result = await saveSetupToAccount(known.db, {
-      plans: known.plans,
-      deviceBefore,
-      after: withOnboarding(emptyProgress(), final).onboarding,
-      clearedDate: acted.examDate && !final.examDate,
-      today: localDay(new Date()),
-    });
-    if (result.status !== 'unchanged') setSyncNote(result.message);
+    if (outcome === 'skipped') return setAccountSave('done');
+    const send = async () => {
+      setAccountSave('pending');
+      const result = await saveSetupToAccount(known.db, {
+        plans: known.plans,
+        deviceBefore,
+        after: withOnboarding(emptyProgress(), final).onboarding,
+        clearedDate: acted.examDate && !final.examDate,
+        today: localDay(new Date()),
+      });
+      if (result.status !== 'unchanged') setSyncNote(result.message);
+      // Only a failed connection is worth another try; the other refusals would give the same answer again.
+      const retry = result.status === 'failed' &&
+        (result.message === SYNC_MESSAGES.failed || result.message === SYNC_MESSAGES.removeFailed);
+      retrySave.current = () => {
+        setSyncNote('');
+        void send();
+        resultRef.current?.focus();
+      };
+      setAccountSave(retry ? 'retry' : 'done');
+    };
+    await send();
   };
 
   const focusQuestion = (next: 0 | 1) => {
@@ -123,15 +144,16 @@ export default function Onboarding() {
     });
   };
 
-  const finish = (done: { course: string; examDate: string }, outcome: 'saved' | 'skipped', acted: Touched = touched.current) => {
+  const finish = (done: ScreenAnswers, outcome: 'saved' | 'skipped', acted: Touched = touched.current) => {
     const before = readProgress(storage).onboarding;
     const next = withOnboarding(readProgress(storage), done);
     const kept = saveProgress(storage, next);
     finished.current = true;
     setSyncNote('');
+    setAccountSave(kept ? 'pending' : 'done');
     setResult(kept ? outcome : 'not-kept');
     requestAnimationFrame(() => resultRef.current?.focus());
-    if (kept) void saveToAccount(before, done, { ...acted }, outcome);
+    if (kept) void saveToAccount(before, done, { ...acted }, outcome).catch(() => setAccountSave('done'));
   };
 
   const saveAnswers = () => {
@@ -184,11 +206,17 @@ export default function Onboarding() {
       <div ref={resultRef} tabIndex={-1} aria-live="polite">
         <p className="text-lg">{result === 'saved' ? 'saved on this device.' : 'all set.'}</p>
         <p className="mt-2 text-ink-soft">{summary}</p>
+        {accountSave === 'pending' && <p className="mt-2 text-ink-soft" data-testid="exam-sync-pending">saving to your account…</p>}
         {syncNote && <p className="mt-2 text-ink-soft" data-testid="exam-sync">{syncNote}</p>}
-        <ul className="mt-stack space-y-2">
-          <li><a href="/learn/study-skills">start studying</a></li>
-          <li><a href="/progress">see what’s saved on this device</a></li>
-        </ul>
+        {accountSave === 'retry' && (
+          <button type="button" className={`${quietButton} mt-2`} onClick={() => retrySave.current()}>try saving again</button>
+        )}
+        {accountSave !== 'pending' && (
+          <ul className="mt-stack space-y-2">
+            <li><a href="/learn/study-skills">start studying</a></li>
+            <li><a href="/progress">see what’s saved on this device</a></li>
+          </ul>
+        )}
       </div>
     );
   }

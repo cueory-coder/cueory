@@ -138,35 +138,49 @@ describe('resolveAccountAnswers — the date belongs to the course on screen (Co
 
   it("fills an untouched date with the account's date for the course on screen", () => {
     expect(resolveAccountAnswers({ course: 'med-surg-1', examDate: '' }, untouched, plans))
-      .toEqual({ course: 'med-surg-1', examDate: '2026-12-10' });
+      .toMatchObject({ course: 'med-surg-1', examDate: '2026-12-10' });
   });
 
   it('uses the course picked now, not the one saved on the device, and never borrows another course\'s date', () => {
     const picked = { course: true, examDate: false };
     expect(resolveAccountAnswers({ course: 'fundamentals', examDate: '' }, picked, plans))
-      .toEqual({ course: 'fundamentals', examDate: '2027-01-20' });
+      .toMatchObject({ course: 'fundamentals', examDate: '2027-01-20' });
     expect(resolveAccountAnswers({ course: 'fundamentals', examDate: '' }, picked, [plans[0]]))
-      .toEqual({ course: 'fundamentals', examDate: '' });
+      .toMatchObject({ course: 'fundamentals', examDate: '' });
     expect(resolveAccountAnswers({ course: 'both', examDate: '2027-03-01' }, picked, plans))
-      .toEqual({ course: 'both', examDate: '2027-03-01' });
+      .toMatchObject({ course: 'both', examDate: '2027-03-01' });
   });
 
   it('keeps a skipped course blank, and then has no course to take a date from', () => {
     expect(resolveAccountAnswers({ course: '', examDate: '' }, { course: true, examDate: false }, [plans[0]]))
-      .toEqual({ course: '', examDate: '' });
+      .toMatchObject({ course: '', examDate: '' });
   });
 
   it("takes the account's only plan when the course is untouched and blank", () => {
     expect(resolveAccountAnswers({ course: '', examDate: '' }, untouched, [plans[0]]))
-      .toEqual({ course: 'med-surg-1', examDate: '2026-12-10' });
-    expect(resolveAccountAnswers({ course: '', examDate: '' }, untouched, plans)).toEqual({ course: '', examDate: '' });
+      .toMatchObject({ course: 'med-surg-1', examDate: '2026-12-10' });
+    expect(resolveAccountAnswers({ course: '', examDate: '' }, untouched, plans)).toMatchObject({ course: '', examDate: '' });
+  });
+
+  it('clears a date the account filled in when the course switches to one with no plan (Codex on #232)', () => {
+    const picked = { course: true, examDate: false };
+    const loaded = resolveAccountAnswers({ course: 'med-surg-1', examDate: '' }, untouched, [plans[0]]);
+    expect(loaded).toEqual({ course: 'med-surg-1', examDate: '2026-12-10', dateFromAccount: true });
+    expect(resolveAccountAnswers({ ...loaded, course: 'fundamentals' }, picked, [plans[0]]))
+      .toEqual({ course: 'fundamentals', examDate: '', dateFromAccount: false });
+    // A date from this device (not the account) stays, as it would without an account.
+    expect(resolveAccountAnswers({ course: 'fundamentals', examDate: '2027-03-01', dateFromAccount: false }, picked, [plans[0]]))
+      .toEqual({ course: 'fundamentals', examDate: '2027-03-01', dateFromAccount: false });
+    // Switching back finds the account's date again.
+    expect(resolveAccountAnswers({ course: 'med-surg-1', examDate: '' }, picked, [plans[0]]))
+      .toEqual({ course: 'med-surg-1', examDate: '2026-12-10', dateFromAccount: true });
   });
 
   it('never replaces a date the student typed, cleared or skipped', () => {
     expect(resolveAccountAnswers({ course: 'med-surg-1', examDate: '' }, { course: false, examDate: true }, plans))
-      .toEqual({ course: 'med-surg-1', examDate: '' });
+      .toMatchObject({ course: 'med-surg-1', examDate: '' });
     expect(resolveAccountAnswers({ course: 'med-surg-1', examDate: '2027-02-02' }, { course: false, examDate: true }, plans))
-      .toEqual({ course: 'med-surg-1', examDate: '2027-02-02' });
+      .toMatchObject({ course: 'med-surg-1', examDate: '2027-02-02' });
   });
 });
 
