@@ -8,7 +8,7 @@ import {
   type MutableRefObject,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import { createGeneration, createOnDemandLoader, filesForLayer, firstLayer, lazyPeel, lazyRestore, PartialLoadError, revealTargetPlan, showAllPlan, type OnDemandLoader } from './anatomylazy';
+import { createGeneration, createOnDemandLoader, filesForLayer, firstLayer, layerNeedsReveal, lazyPeel, lazyRestore, PartialLoadError, revealTargetPlan, showAllPlan, type OnDemandLoader } from './anatomylazy';
 import type { LabColors, LabScene, LoadResult } from './anatomyscene';
 import { checkTriangleBudget } from './bodyviewer-logic';
 import {
@@ -659,7 +659,9 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                     aria-disabled={pending.has(layer.id) || undefined}
                     onClick={() => {
                       if (pending.has(layer.id)) return;
-                      if (lazy && !layerShown(layer, hidden)) reveal(layer);
+                      if (lazy && layerNeedsReveal(
+                        layer, hidden, filesForLayer(system, layer.id), (url) => loaderRef.current?.isLoaded(url) ?? false,
+                      )) reveal(layer);
                       else setHidden((h) => toggleLayer(h, layer));
                     }}
                   >
