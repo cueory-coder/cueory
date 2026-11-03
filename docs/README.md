@@ -15,7 +15,6 @@ Use this page to find the project guides. The root [README](../README.md) explai
 - [Setup](SETUP.md): account, hosting, and release setup.
 - [Accessibility](ACCESSIBILITY.md): supported accessibility behavior and test coverage.
 - [Offline behavior](OFFLINE.md): what the service worker may cache.
-- [Operations recovery](OPERATIONS.md): recovery and operational references, when available.
 
 ## Content and design
 
