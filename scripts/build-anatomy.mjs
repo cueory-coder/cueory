@@ -49,7 +49,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { basename, extname, join } from 'node:path';
 import { pack } from 'gltfpack';
-import { groupHeadings } from './anatomy-groups.mjs';
+import { ancestorsOf, groupHeadings } from './anatomy-groups.mjs';
 import { checkCoordinates, readRelease4Tables, readZip, release4Files, resolveSystem4 } from './anatomy-release4.mjs';
 
 const SYSTEMS_FILE = 'scripts/anatomy-systems.json';
@@ -476,7 +476,7 @@ function visualFor(system, structures, partsLines, release, { retrieved, tree })
     lessonIds: system.lessonIds,
     status: 'draft',
     model: { file: `/models/anatomy/${system.id}.glb`, release: release.label, via: release.via },
-    labels: structures.map((s) => ({ id: s.id, text: s.name, group: s.group, source: `bp3d-${s.id}` })),
+    labels: structures.map((s) => ({ id: s.id, text: s.name, group: s.group, layer: s.layer, source: `bp3d-${s.id}` })),
     depictions: [
       {
         id: 'geometry',
@@ -514,9 +514,24 @@ async function main() {
   const chosen = definitions.systems.filter((system) => !options.system || system.id === options.system);
   if (chosen.length === 0) fail(`no system called ${options.system} in ${SYSTEMS_FILE}`);
 
+  const layers = definitions.layers?.order ?? [];
+  for (const layer of layers) {
+    for (const concept of layer.concepts) {
+      if (data.names.get(concept.id) !== concept.name) {
+        fail(`layer ${layer.id}: ${concept.id} is "${data.names.get(concept.id)}" in the release's files, not "${concept.name}"`);
+      }
+    }
+  }
+  /** The first layer (outside in) whose concepts the structure is under or is; else "organs". */
+  const layerOf = (id) => {
+    const above = new Set([id, ...ancestorsOf(id, data.hierarchy.parents)]);
+    return layers.find((layer) => layer.concepts.some((concept) => above.has(concept.id)))?.id ?? 'organs';
+  };
+
   let changed = false;
   for (const system of chosen) {
     const structures = resolveSystem(system, data);
+    for (const structure of structures) structure.layer = layerOf(structure.id);
     const ids = structures.map((s) => s.id);
     if (JSON.stringify(ids) !== JSON.stringify(system.structures)) {
       if (!options.update) {
@@ -557,7 +572,7 @@ async function main() {
         `(ratio ${packed.ratio === 1 ? '1, not simplified' : packed.ratio.toFixed(4)}), ${packed.bytes.length} bytes\n`,
     );
     for (const s of structures) {
-      process.stdout.write(`  ${s.id}\t${s.mesh.indices.length / 3} -> ${packed.triangles.get(s.id)}\t${s.name}\t[${s.path.join(' > ')}]\n`);
+      process.stdout.write(`  ${s.id}\t${s.layer}\t${s.mesh.indices.length / 3} -> ${packed.triangles.get(s.id)}\t${s.name}\t[${s.path.join(' > ')}]\n`);
     }
   }
   if (changed) writeFileSync(SYSTEMS_FILE, `${JSON.stringify(definitions, null, 2)}\n`);

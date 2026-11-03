@@ -73,6 +73,8 @@ export interface VisualLabel {
   source: string;
   /** A 3D model's heading for the label: the concept the structure is part of, from the atlas's own hierarchy. */
   group?: string;
+  /** A 3D model's layer for peeling the whole body (scripts/anatomy-systems.json "layers"), from the same hierarchy. */
+  layer?: 'skin' | 'muscle' | 'nerves' | 'vessels' | 'organs' | 'skeleton';
 }
 
 /** A 3D model's file (kind "model" only). */

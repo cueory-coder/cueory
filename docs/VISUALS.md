@@ -136,6 +136,12 @@ The allowed books so far are Open RN *Nursing Fundamentals, 2nd Edition*, and Bo
   path at a time while the concept holds more than 12 structures and the next one holds at least 3; a structure that is a
   root itself is headed by the concept all the system's roots are part of. So the heart's list has seven headings
   (such as "cardiac vein" and "right coronary artery"), not one heading per branch.
+  Each label's `layer` (skin, muscle, nerves, vessels, organs or skeleton, outside in) is the first layer in
+  `scripts/anatomy-systems.json` whose listed concepts the structure is under in the same hierarchy; anything under
+  none of them is "organs". The lab peels the whole body by these layers. The Release 3.0 mirror we use has 302 meshes
+  (composite_parts.txt names 1,420 primitives), and none under the integumentary, muscular or nervous systems, so skin,
+  muscle and nerves have no models yet; vessels are only the heart's and great vessels (20). Those layers come with the
+  official 4.0 rebuild.
   BodyParts3D may be cited only by a 3D model (`kind: "model"`), and the unit tests check that every node in each
   model has exactly one label.
 - Stopgap: the first models come from Release 3.0 (2011-09-15) by way of the GitHub mirror

@@ -250,6 +250,14 @@ describe('the anatomy models', () => {
         }
       });
 
+      it('puts every structure in one layer for peeling, named in scripts/anatomy-systems.json', () => {
+        const layers = (JSON.parse(readFileSync(new URL('../../scripts/anatomy-systems.json', import.meta.url), 'utf8')) as {
+          layers: { order: { id: string }[] };
+        }).layers.order.map((layer) => layer.id);
+        expect(layers).toEqual(['skin', 'muscle', 'nerves', 'vessels', 'organs', 'skeleton']);
+        for (const label of visual.labels) expect(layers, label.id).toContain(label.layer);
+      });
+
       it('groups the list under a few headings, not one or two structures each', () => {
         const sizes = new Map<string, number>();
         for (const label of visual.labels) sizes.set(label.group!, (sizes.get(label.group!) ?? 0) + 1);

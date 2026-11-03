@@ -536,5 +536,81 @@
         "FMA24526"
       ]
     }
-  ]
+  ],
+  "layers": {
+    "about": "Layers for peeling the whole body, outside in. A structure belongs to the first layer whose concepts it is under (or is) in the release's hierarchy; anything under none of them is in 'organs'. Names are checked against the release's files.",
+    "order": [
+      {
+        "id": "skin",
+        "title": "skin",
+        "concepts": [
+          {
+            "id": "FMA72979",
+            "name": "integumentary system"
+          }
+        ]
+      },
+      {
+        "id": "muscle",
+        "title": "muscle",
+        "concepts": [
+          {
+            "id": "FMA72954",
+            "name": "muscular system"
+          }
+        ]
+      },
+      {
+        "id": "nerves",
+        "title": "nerves",
+        "concepts": [
+          {
+            "id": "FMA7157",
+            "name": "nervous system"
+          }
+        ]
+      },
+      {
+        "id": "vessels",
+        "title": "vessels",
+        "concepts": [
+          {
+            "id": "FMA50720",
+            "name": "artery"
+          },
+          {
+            "id": "FMA50723",
+            "name": "vein"
+          },
+          {
+            "id": "FMA3734",
+            "name": "aorta"
+          },
+          {
+            "id": "FMA4720",
+            "name": "superior vena cava"
+          },
+          {
+            "id": "FMA10951",
+            "name": "inferior vena cava"
+          }
+        ]
+      },
+      {
+        "id": "organs",
+        "title": "organs",
+        "concepts": []
+      },
+      {
+        "id": "skeleton",
+        "title": "skeleton",
+        "concepts": [
+          {
+            "id": "FMA23881",
+            "name": "skeletal system"
+          }
+        ]
+      }
+    ]
+  }
 }

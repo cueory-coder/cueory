@@ -240,9 +240,9 @@ describe('building from a 4.0 download, end to end', () => {
     const visual = JSON.parse(readFileSync(join(repo, 'content', 'visuals', 'anatomy-sample.json'), 'utf8'));
     expect(visual.model).toEqual({ file: '/models/anatomy/sample.glb', release: 'BodyParts3D 4.0', via: 'official download from dbarchive.biosciencedbc.jp' });
     expect(visual.labels).toEqual([
-      { id: 'FMA90002', text: 'sample chamber', group: 'sample root', source: 'bp3d-FMA90002' },
-      { id: 'FMA90004', text: 'sample other part', group: 'sample root', source: 'bp3d-FMA90004' },
-      { id: 'FMA90003', text: 'sample part', group: 'sample root', source: 'bp3d-FMA90003' },
+      { id: 'FMA90002', text: 'sample chamber', group: 'sample root', layer: 'organs', source: 'bp3d-FMA90002' },
+      { id: 'FMA90004', text: 'sample other part', group: 'sample root', layer: 'organs', source: 'bp3d-FMA90004' },
+      { id: 'FMA90003', text: 'sample part', group: 'sample root', layer: 'organs', source: 'bp3d-FMA90003' },
     ]);
     const source = visual.sources.find((s: { id: string }) => s.id === 'bp3d-FMA90002');
     expect(source).toMatchObject({ quote: 'FMA90002 BP90002 sample chamber', section: 'partof_parts_list_e.txt, Release 4.0', retrieved: '2026-11-20' });
