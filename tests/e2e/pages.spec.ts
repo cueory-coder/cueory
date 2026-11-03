@@ -188,7 +188,7 @@ test('Learn mode brings back what you miss until you know every card', async ({ 
   await page.goto('/learn/study-skills');
   await page.getByRole('link', { name: "learn this lesson's cards in learn mode" }).click();
   await expect(page).toHaveURL(/\/learn\/study-skills\/learn-mode$/);
-  await expect(page.getByText('Mastered 0 of 3')).toBeVisible();
+  await expect(page.getByText('recalled today 0 of 3')).toBeVisible();
 
   const steps: string[] = [];
   let missedOnce = false;
@@ -244,7 +244,7 @@ test('Learn mode brings back what you miss until you know every card', async ({ 
   expect(steps.filter((s) => s === 'Type the answer')).toHaveLength(2);
 
   await page.getByRole('button', { name: 'Start again' }).click();
-  await expect(page.getByText('Mastered 0 of 3')).toBeVisible();
+  await expect(page.getByText('recalled today 0 of 3')).toBeVisible();
 });
 
 test('Matching pairs terms with meanings by keyboard, counting misses', async ({ page }) => {

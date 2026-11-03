@@ -109,12 +109,12 @@ export default function LearnSession({ cards, lessonHref = '/learn/study-skills'
   const progressBar = (
     <div className="flex items-center gap-4">
       <p className="shrink-0 text-sm text-ink-soft">
-        Mastered {mastered} of {total}
+        recalled today {mastered} of {total}
       </p>
       <div
         className="progress-track min-w-0 flex-1"
         role="progressbar"
-        aria-label="Cards mastered"
+        aria-label="Cards recalled today"
         aria-valuemin={0}
         aria-valuemax={total}
         aria-valuenow={mastered}
@@ -136,7 +136,7 @@ export default function LearnSession({ cards, lessonHref = '/learn/study-skills'
           </p>
           <p className="mt-2 text-sm text-ink-soft">Each one was seen, chosen and recalled.</p>
           <p className="mt-stack text-sm text-ink-soft">
-            Mastered: {total} · Still learning: 0
+            recalled today: {total} · still learning: 0
           </p>
         </div>
         <div className="mt-stack flex flex-wrap gap-3">
