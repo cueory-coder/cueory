@@ -112,7 +112,7 @@ export default function SurveyPrompt({
           type="button"
           onClick={handleDismiss}
           aria-label="dismiss survey"
-          className="text-xs text-ink-soft hover:text-ink"
+          className="min-h-11 px-2 text-xs leading-relaxed text-ink-soft hover:text-ink"
         >
           dismiss
         </button>
@@ -152,7 +152,7 @@ export default function SurveyPrompt({
             <label htmlFor={`${id}-feedback`} className="text-sm font-medium text-ink">
               what would make it more useful?
             </label>
-            <span className="text-xs text-ink-soft">
+            <span className="text-xs leading-relaxed text-ink-soft">
               {feedback.length}/{MAX_FEEDBACK_CHARS}
             </span>
           </div>

@@ -1,5 +1,7 @@
 # Task 523: Finals survey component (UI only)
 
+status: Task 523, finals survey UI, test coverage and accessibility review pending latest-head CI and staging preview.
+
 ## Summary
 - Created `SurveyPrompt.tsx` island asking two questions:
   1. "did you use Cueory for a final or exit exam this semester?" (yes/no radio selection)

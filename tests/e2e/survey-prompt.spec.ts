@@ -2,17 +2,21 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 test('finals survey prompt renders, validates character limits, passes axe, and dismisses', async ({ page }) => {
-  // Clear initial survey state before first load
+  // Set the promo state for every navigation without clearing survey dismissal.
+  // Clearing the survey key in addInitScript would also erase it on reload.
   await page.addInitScript(() => {
     try {
       localStorage.setItem('cueory-promo-seen', String(Date.now()));
-      localStorage.removeItem('cueory-preview-survey');
     } catch {
       // storage blocked
     }
   });
 
   await page.goto('/preview/survey');
+  await page.evaluate(() => {
+    try { localStorage.removeItem('cueory-preview-survey'); } catch { /* storage blocked */ }
+  });
+  await page.reload();
   const prompt = page.getByTestId('finals-survey-prompt');
   await expect(prompt).toBeVisible();
 
