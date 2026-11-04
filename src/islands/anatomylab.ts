@@ -631,15 +631,28 @@ export function findVisibleAnchors(
     return pixels[i]! | (pixels[i + 1]! << 8) | (pixels[i + 2]! << 16);
   };
   const out = new Map<string, VisibleAnchor>();
-  const pending = new Map<number, { id: string; count: number; sx: number; sy: number; t: VisibilityTarget }>();
+  const pending = new Map<number, {
+    id: string;
+    count: number;
+    sx: number;
+    sy: number;
+    t: VisibilityTarget;
+    centerVisible: boolean;
+    minX: number;
+    maxX: number;
+    minY: number;
+    maxY: number;
+  }>();
   for (const [id, t] of targets) {
     const cx = Math.round(t.x);
     const cy = Math.round(t.y);
-    if (cx >= 0 && cy >= 0 && cx < width && cy < height && at(cx, cy) === t.index + 1) {
-      out.set(id, { visible: true, x: t.x, y: t.y });
-    } else {
-      pending.set(t.index + 1, { id, count: 0, sx: 0, sy: 0, t });
-    }
+    const centerVisible = cx >= 0 && cy >= 0 && cx < width && cy < height && at(cx, cy) === t.index + 1;
+    // Count pixels even when the projected center is visible. The minimum
+    // visible area must be the same for center hits and off-center structures.
+    pending.set(t.index + 1, {
+      id, count: 0, sx: 0, sy: 0, t, centerVisible,
+      minX: width, maxX: -1, minY: height, maxY: -1,
+    });
   }
   if (pending.size === 0) return out;
   for (let y = 0; y < height; y++) {
@@ -649,12 +662,24 @@ export function findVisibleAnchors(
         p.count++;
         p.sx += x;
         p.sy += y;
+        // Center-visible labels never need the nearest-pixel fallback.
+        if (!p.centerVisible) {
+          if (x < p.minX) p.minX = x;
+          if (x > p.maxX) p.maxX = x;
+          if (y < p.minY) p.minY = y;
+          if (y > p.maxY) p.maxY = y;
+        }
       }
     }
   }
   for (const [code, p] of pending) {
-    if (p.count < minPixels) {
+    if (p.count === 0 || p.count < minPixels) {
       out.set(p.id, { visible: false, x: p.t.x, y: p.t.y });
+      continue;
+    }
+    // Preserve the exact projected center when enough pixels are visible.
+    if (p.centerVisible) {
+      out.set(p.id, { visible: true, x: p.t.x, y: p.t.y });
       continue;
     }
     const mx = Math.round(p.sx / p.count);
@@ -663,10 +688,13 @@ export function findVisibleAnchors(
       out.set(p.id, { visible: true, x: mx, y: my });
       continue;
     }
-    // The middle of what can be seen is not on the structure (a curved or broken shape): take its nearest pixel.
+    // For a curved or disconnected structure, the centroid can land in
+    // empty space. Search only its occupied bounding rectangle, not the
+    // entire ID picture again for every such structure. The scan order and
+    // nearest-pixel tie-break remain unchanged.
     let best = { x: mx, y: my, d: Infinity };
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
+    for (let y = p.minY; y <= p.maxY; y++) {
+      for (let x = p.minX; x <= p.maxX; x++) {
         if (at(x, y) !== code) continue;
         const d = (x - mx) ** 2 + (y - my) ** 2;
         if (d < best.d) best = { x, y, d };
