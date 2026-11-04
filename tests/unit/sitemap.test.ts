@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { indexablePages } from '../../src/config/routes';
 import { GET, sitemapXml } from '../../src/pages/sitemap.xml';
@@ -21,6 +22,11 @@ describe('sitemap', () => {
     expect(response.headers.get('Content-Type')).toBe('application/xml; charset=utf-8');
     expect(response.headers.get('Cache-Control')).toBe('public, max-age=3600, s-maxage=86400');
     expect(await response.text()).toContain('<urlset');
+  });
+
+  it('configures real Cloudflare static-asset cache headers for /sitemap.xml', () => {
+    const headers = readFileSync(new URL('../../public/_headers', import.meta.url), 'utf8');
+    expect(headers).toMatch(/^\/sitemap\.xml\r?\n[ \t]+Cache-Control: public, max-age=3600, s-maxage=86400(?:\r?\n|$)/m);
   });
 
   it('escapes XML values in the generated loc', () => {
