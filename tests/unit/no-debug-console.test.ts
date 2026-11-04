@@ -36,6 +36,7 @@ function isRegexStart(text: string, index: number): boolean {
   while (prev >= 0 && /\s/.test(text[prev]!)) prev--;
   if (prev < 0) return true;
   const prevChar = text[prev]!;
+  if ((prevChar === '+' || prevChar === '-') && prev > 0 && text[prev - 1] === prevChar) return false;
   if ('(,=:[!&|?{};~^%*+-<>'.includes(prevChar)) return true;
   let wordEnd = prev + 1;
   let wordStart = prev;
@@ -295,6 +296,10 @@ describe('debug-console source guard', () => {
       .toEqual([{ line: 1, method: 'log' }]);
     expect(scan("{ /'/.test('hello') }\n<script>console.log('actual')</script>", '.astro'))
       .toEqual([{ line: 2, method: 'log' }]);
+    expect(scan('{count++ / 2}<script>console.log("actual")</script>', '.astro'))
+      .toEqual([{ line: 1, method: 'log' }]);
+    expect(scan('{count-- / 2}<script>console.log("actual")</script>', '.astro'))
+      .toEqual([{ line: 1, method: 'log' }]);
   });
 
   it('contains no console.log or console.debug references in src', () => {
