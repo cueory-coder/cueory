@@ -78,6 +78,10 @@ export interface SignInAuth {
   }): Promise<AuthResult>;
   signInWithPassword(credentials: { email: string; password: string }): Promise<AuthResult>;
   resetPasswordForEmail(email: string, options: { redirectTo: string }): Promise<AuthResult>;
+  /** On the real client. Read only to send a two-factor account to its code page after signing in (Task 301). */
+  mfa?: {
+    getAuthenticatorAssuranceLevel?(): Promise<{ data: { currentLevel: string | null; nextLevel: string | null } | null; error: unknown }>;
+  };
 }
 export interface ResetPasswordAuth {
   updateUser(attributes: { password: string }): Promise<AuthResult>;
