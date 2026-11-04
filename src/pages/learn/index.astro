@@ -3,6 +3,7 @@
  * The course library publishes only the source-checked curriculum unit and topic titles.
  * Planning notes, internal statuses and unreleased nursing lessons remain private.
  * All counts on the page come from actual content, never the approved design's sample numbers.
+ * Task 300: "open now" lists every lesson the site builds (src/lessons/catalog.ts), each with its own deck's progress.
  */
 import { getEntry } from 'astro:content';
 import { readFileSync } from 'node:fs';
@@ -10,7 +11,7 @@ import { resolve } from 'node:path';
 import Layout from '../../layouts/Layout.astro';
 import UnitCard from '../../components/UnitCard.astro';
 import { parseLessonMap } from '../../islands/lessonmap';
-import { studyModes } from '../../config/modes';
+import { lessonCatalog } from '../../lessons/load';
 
 const csvText = readFileSync(resolve('docs/curriculum/medsurg-lesson-map.csv'), 'utf8');
 const { units, problems } = parseLessonMap(csvText);
@@ -20,11 +21,20 @@ if (problems.length) {
 }
 const lessonCount = units.reduce((sum, unit) =>
   sum + unit.topics.reduce((count, topic) => count + topic.lessons.length, 0), 0);
-const sampleDeck = await getEntry('cards', 'study-skills-01');
-if (!sampleDeck) throw new Error('the sample study-skills card deck is missing');
-const cardCount = sampleDeck.data.cards.length;
-const cardIds = sampleDeck.data.cards.map((card) => card.id).join(',');
-const openModeCount = studyModes.filter((mode) => mode.link).length;
+const openLessons = await Promise.all((await lessonCatalog()).lessons.map(async (lesson) => {
+  const deck = lesson.cards ? await getEntry('cards', lesson.cards.id) : undefined;
+  return {
+    lesson,
+    deckId: deck?.id,
+    cardIds: deck ? deck.data.cards.map((card) => card.id) : [],
+    sampleCards: !!lesson.cards?.labeled,
+  };
+}));
+const openByUnit = new Map<string, { href: string; name: string }[]>();
+for (const { lesson } of openLessons) {
+  if (!lesson.unitId) continue;
+  openByUnit.set(lesson.unitId, [...(openByUnit.get(lesson.unitId) ?? []), { href: lesson.href, name: lesson.name }]);
+}
 ---
 
 <Layout
@@ -42,31 +52,48 @@ const openModeCount = studyModes.filter((mode) => mode.link).length;
         </p>
       </header>
 
-      <section class="mt-6" aria-labelledby="available-lesson-title">
-        <article class="featured-lesson lift rounded-xl border border-line bg-surface p-5 sm:p-6">
-          <span class="inline-block rounded-full border border-control px-3 py-1 text-sm font-medium">open now · sample</span>
-          <h2 id="available-lesson-title" class="mt-3 text-lg font-semibold">how to study for nursing school</h2>
-          <p class="mt-2 text-sm text-ink-soft">
-            {openModeCount} ways to study · {cardCount} {sampleDeck.data.status === 'placeholder' ? 'sample ' : ''}{cardCount === 1 ? 'card' : 'cards'}
-          </p>
-          <div class="mt-4">
-            <label for="library-progress" class="sr-only">cards studied on this device</label>
-            <progress
-              id="library-progress"
-              class="library-progress block w-full"
-              data-testid="library-progress-bar"
-              data-library-progress-bar
-              data-card-ids={cardIds}
-              value="0"
-              max={cardCount || 1}
-            ></progress>
-            <output class="mt-2 block text-sm text-ink-soft" for="library-progress" data-testid="library-progress-text" data-library-progress-text>
-              0 of {cardCount} cards studied on this device
-            </output>
-          </div>
-          <a href="/learn/study-skills" aria-label="start the lesson: how to study for nursing school"
-            class="mt-4 inline-block font-medium underline underline-offset-4">start the lesson</a>
-        </article>
+      <section class="mt-6" aria-labelledby="available-lessons-title">
+        <h2 id="available-lessons-title" class="sr-only">open lessons</h2>
+        <ul class="space-y-4" data-testid="open-lessons">
+          {openLessons.map(({ lesson, deckId, cardIds, sampleCards }, index) => {
+            const cardCount = cardIds.length;
+            const progressId = `library-progress-${index + 1}`;
+            return (
+              <li data-open-lesson={lesson.id}>
+                <article class="featured-lesson lift rounded-xl border border-line bg-surface p-5 sm:p-6">
+                  <span class="inline-block rounded-full border border-control px-3 py-1 text-sm font-medium">
+                    {lesson.labeled ? 'open now · sample' : 'open now'}
+                  </span>
+                  <h3 class="mt-3 text-lg font-semibold">{lesson.name}</h3>
+                  <p class="mt-2 text-sm text-ink-soft">
+                    {lesson.modes.length} {lesson.modes.length === 1 ? 'way' : 'ways'} to study
+                    {deckId && ` · ${cardCount} ${sampleCards ? 'sample ' : ''}${cardCount === 1 ? 'card' : 'cards'}`}
+                  </p>
+                  {deckId && (
+                    <div class="mt-4">
+                      <label for={progressId} class="sr-only">cards studied on this device</label>
+                      <progress
+                        id={progressId}
+                        class="library-progress block w-full"
+                        data-testid="library-progress-bar"
+                        data-library-progress-bar
+                        data-deck-id={deckId}
+                        data-card-ids={cardIds.join(',')}
+                        value="0"
+                        max={cardCount || 1}
+                      ></progress>
+                      <output class="mt-2 block text-sm text-ink-soft" for={progressId} data-testid="library-progress-text" data-library-progress-text>
+                        0 of {cardCount} cards studied on this device
+                      </output>
+                    </div>
+                  )}
+                  <a href={lesson.href} aria-label={`start the lesson: ${lesson.name}`}
+                    class="mt-4 inline-flex min-h-(--tap-min) items-center font-medium underline underline-offset-4">start the lesson</a>
+                </article>
+              </li>
+            );
+          })}
+        </ul>
       </section>
 
       <section class="mt-8" aria-labelledby="planned-units-title">
@@ -78,7 +105,7 @@ const openModeCount = studyModes.filter((mode) => mode.link).length;
           data-testid="unit-grid" aria-label="planned nursing units">
           {units.map((unit, index) => (
             <li class="min-w-0">
-              <UnitCard unit={unit} position={index + 1} />
+              <UnitCard unit={unit} position={index + 1} open={openByUnit.get(unit.id) ?? []} />
             </li>
           ))}
         </ol>
@@ -120,23 +147,27 @@ const openModeCount = studyModes.filter((mode) => mode.link).length;
 <script>
   import { deckProgress, PROGRESS_STORAGE_KEY, readProgress } from '../../scripts/progress';
 
-  const progressBar = document.querySelector<HTMLProgressElement>('[data-library-progress-bar]');
-  const progressLabel = document.querySelector<HTMLOutputElement>('[data-library-progress-text]');
-
   function refreshLibraryProgress(): void {
-    if (!progressBar || !progressLabel) return;
-    const cardIds = (progressBar.dataset.cardIds ?? '').split(',').filter(Boolean);
-    let studied = 0;
+    let saved: ReturnType<typeof readProgress> | undefined;
     try {
-      const saved = deckProgress(readProgress(window.localStorage), 'study-skills-01');
-      const recorded = new Set([...saved.know, ...saved.learning]);
-      studied = cardIds.filter((id) => recorded.has(id)).length;
+      saved = readProgress(window.localStorage);
     } catch {
-      // Blocked storage: the published card count still shows, without exposing private data.
+      // Blocked storage: the published card counts still show, without exposing private data.
     }
-    progressBar.max = cardIds.length || 1;
-    progressBar.value = studied;
-    progressLabel.textContent = studied + ' of ' + cardIds.length + ' cards studied on this device';
+    for (const progressBar of document.querySelectorAll<HTMLProgressElement>('[data-library-progress-bar]')) {
+      const progressLabel = progressBar.parentElement?.querySelector<HTMLOutputElement>('[data-library-progress-text]');
+      if (!progressLabel) continue;
+      const cardIds = (progressBar.dataset.cardIds ?? '').split(',').filter(Boolean);
+      let studied = 0;
+      if (saved) {
+        const deck = deckProgress(saved, progressBar.dataset.deckId ?? '');
+        const recorded = new Set([...deck.know, ...deck.learning]);
+        studied = cardIds.filter((id) => recorded.has(id)).length;
+      }
+      progressBar.max = cardIds.length || 1;
+      progressBar.value = studied;
+      progressLabel.textContent = studied + ' of ' + cardIds.length + ' cards studied on this device';
+    }
   }
 
   refreshLibraryProgress();
