@@ -9,7 +9,7 @@ import type { StudyMode } from '../config/modes';
 interface Props {
   mode: StudyMode;
   linkLabel: string;
-  /** This lesson's own page for the mode (Task 300); without it, the mode's page in modes.ts. */
+  /** Override the destination for a generated lesson's mode page. */
   href?: string;
 }
 
