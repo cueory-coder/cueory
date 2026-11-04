@@ -90,11 +90,21 @@ function Board({ set, page = ORGANIZER_PAGE }: Props) {
     const duration = durationValue.endsWith('ms') ? amount : durationValue.endsWith('s') ? amount * 1000 : 0;
     if (!Number.isFinite(duration) || duration <= 0) return;
     const easing = rootStyles.getPropertyValue('--ease-soft').trim() || 'ease';
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const frames: Keyframe[] = reduced
-      ? [{ opacity: 0.75 }, { opacity: 1 }]
-      : [{ opacity: 0.75, transform: 'scale(0.97)' }, { opacity: 1, transform: 'scale(1)' }];
-    for (const id of fresh) itemButtons.current.get(id)?.animate(frames, { duration, easing });
+    const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (motion.matches) return;
+    const frames: Keyframe[] = [{ opacity: 0.75, transform: 'scale(0.97)' }, { opacity: 1, transform: 'scale(1)' }];
+    const animations: Animation[] = [];
+    for (const id of fresh) {
+      const animation = itemButtons.current.get(id)?.animate(frames, { duration, easing });
+      if (animation) animations.push(animation);
+    }
+    const cancel = () => { for (const animation of animations) animation.cancel(); };
+    const changed = () => { if (motion.matches) cancel(); };
+    motion.addEventListener('change', changed);
+    return () => {
+      motion.removeEventListener('change', changed);
+      cancel();
+    };
   }, [state.locked]);
 
   const moveItem = (id: string, place: string) => {
