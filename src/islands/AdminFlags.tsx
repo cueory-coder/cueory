@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { groupByItem } from './flaginbox';
+import { getSupabase } from './supabaseclient';
+import { codePageFor, needsCode } from './twofactor';
 import {
   REFUSAL_SENTENCE,
   STATUSES,
@@ -93,9 +95,26 @@ export default function AdminFlags({ sampleRows }: Props) {
     setAnnouncement(`marked handled: ${reasonLabel(row.reason)}, ${formatWhen(row.created_at, timeZone)}.`);
   };
 
+  // A signed-in account with two-factor on that hasn't entered its code this sign-in is refused by the database (aal1).
+  // Offer the code page, which comes back here (Task 301). Nobody else sees anything new.
+  const [codeStep, setCodeStep] = useState(false);
+  useEffect(() => {
+    if (screen.kind !== 'refused' || sampleRows) return;
+    let live = true;
+    getSupabase().then((client) => needsCode(client?.auth)).then((value) => { if (live) setCodeStep(value); }, () => {});
+    return () => {
+      live = false;
+    };
+  }, [screen.kind, sampleRows]);
+
   // Refused (signed out, not an admin, or no two-factor): the one sentence and nothing else, no counts. It is the
   // page's heading, so the page still has exactly one h1.
-  if (screen.kind === 'refused') return <h1 className="text-xl text-ink">{REFUSAL_SENTENCE}</h1>;
+  if (screen.kind === 'refused') return <>
+    <h1 className="text-xl text-ink">{REFUSAL_SENTENCE}</h1>
+    {codeStep && <a href={codePageFor('/admin/flags')} className="mt-4 inline-flex min-h-12 items-center text-ink underline">
+      enter your two-factor code
+    </a>}
+  </>;
 
   if (!admitted) {
     return screen.kind === 'failed' ? (
