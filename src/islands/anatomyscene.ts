@@ -25,6 +25,7 @@ import {
   labelRoomFor,
   placeLabels,
   pickedStructure,
+  pictureTitleLayout,
   preparePictureFonts,
   wrapText,
   type ExportSize,
@@ -653,11 +654,17 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
     const ctx = out.getContext('2d');
     if (!ctx) throw new Error('This browser cannot draw the picture.');
 
+    // Measure the saved picture's title before fitting the camera crop.
+    // The output canvas has already been allocated and stale-load guards have passed.
+    ctx.font = `700 ${titleSize}px ${font}`;
+    const titleLayout = pictureTitleLayout(
+      request.title, width, pad, titleSize, tk.leading, (value) => ctx.measureText(value).width,
+    );
     // The credit's lines decide how much room the bottom band needs.
     ctx.font = `400 ${creditSize}px ${font}`;
     const creditLines = wrapText(request.credit, width - 2 * pad, (s) => ctx.measureText(s).width);
     const creditLineHeight = Math.round(creditSize * tk.leading);
-    const top = pad + Math.round(titleSize * tk.leading) + Math.round(pad / 2);
+    const top = titleLayout.top;
     const bottom = pad + creditLines.length * creditLineHeight + Math.round(pad / 2);
     const viewHeight = Math.max(1, height - top - bottom);
 
@@ -778,7 +785,10 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
       ctx.textBaseline = 'alphabetic';
       ctx.fillStyle = colors.ink;
       ctx.font = `700 ${titleSize}px ${font}`;
-      ctx.fillText(request.title, pad, pad + titleSize);
+      titleLayout.lines.forEach((line, index) => {
+        // Bound even a single unbroken title word to the canvas text width.
+        ctx.fillText(line, pad, pad + titleSize + index * titleLayout.lineHeight, titleLayout.maxWidth);
+      });
       ctx.fillStyle = colors.inkSoft;
       ctx.font = `400 ${creditSize}px ${font}`;
       creditLines.forEach((line, i) => {

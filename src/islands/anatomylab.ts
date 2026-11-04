@@ -850,6 +850,40 @@ export function wrapText(value: string, maxWidth: number, measure: (s: string) =
   return lines;
 }
 
+/** The title band of a saved picture, measured with the same font used by the canvas renderer. */
+export interface PictureTitleLayout {
+  lines: string[];
+  lineHeight: number;
+  /** The y-coordinate where the 3D picture may begin, after the title and its padding. */
+  top: number;
+  /** Also passed to canvas fillText so even an unusually long unbroken word stays inside the picture. */
+  maxWidth: number;
+}
+
+/**
+ * A long system title must not run off the right edge of a saved phone, square or wide picture.
+ * Every wrapped line gets vertical space above the 3D view. The canvas renderer constrains single
+ * words longer than the available width with fillText's maxWidth (without truncating the text).
+ */
+export function pictureTitleLayout(
+  title: string,
+  pictureWidth: number,
+  padding: number,
+  fontSize: number,
+  leading: number,
+  measure: (value: string) => number,
+): PictureTitleLayout {
+  const maxWidth = Math.max(1, pictureWidth - 2 * padding);
+  const lines = wrapText(title, maxWidth, measure);
+  const lineHeight = Math.max(1, Math.round(fontSize * leading));
+  return {
+    lines,
+    lineHeight,
+    top: padding + lines.length * lineHeight + Math.round(padding / 2),
+    maxWidth,
+  };
+}
+
 /** Room around the model in the lab's starting view: 1.08 leaves 4% at the tighter edges. */
 export const FIT_MARGIN = 1.08;
 

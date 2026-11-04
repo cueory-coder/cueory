@@ -30,6 +30,7 @@ import {
   onlyThis,
   parseAnatomyFile,
   pictureCreditFor,
+  pictureTitleLayout,
   preparePictureFonts,
   pickedStructure,
   placeLabels,
@@ -679,6 +680,42 @@ describe('picture export font fallback', () => {
 });
 
 describe('exported pictures', () => {
+  it('keeps short picture titles on one line with the original title-band height', () => {
+    const size = 40;
+    const pad = 48;
+    const leading = 1.25;
+    const layout = pictureTitleLayout('fixture system', 1080, pad, size, leading, (s) => s.length * 12);
+    expect(layout.lines).toEqual(['fixture system']);
+    expect(layout.maxWidth).toBe(1080 - 2 * pad);
+    expect(layout.lineHeight).toBe(50);
+    expect(layout.top).toBe(pad + 50 + Math.round(pad / 2));
+  });
+
+  it('reserves extra vertical space when a picture title wraps, preserving its words', () => {
+    const title = 'fixture example with a very long descriptive collection title for a picture';
+    const measure = (s: string) => s.length * 12;
+    const width = 400;
+    const padding = 24;
+    const short = pictureTitleLayout('fixture example', width, padding, 30, 1.3, measure);
+    const wrapped = pictureTitleLayout(title, width, padding, 30, 1.3, measure);
+    expect(wrapped.lines.length).toBeGreaterThan(1);
+    expect(wrapped.lines.join(' ')).toBe(title);
+    expect(wrapped.maxWidth).toBe(width - 2 * padding);
+    for (const line of wrapped.lines) expect(measure(line)).toBeLessThanOrEqual(wrapped.maxWidth);
+    expect(wrapped.top - short.top).toBe((wrapped.lines.length - 1) * wrapped.lineHeight);
+  });
+
+  it('preserves a very long single word for width-constrained canvas drawing', () => {
+    // A canvas fillText(..., layout.maxWidth) must bound any word that cannot wrap.
+    const title = 'x'.repeat(120);
+    const layout = pictureTitleLayout(title, 300, 20, 28, 1.2, (s) => s.length * 10);
+    // Compatible with the separate long-word wrapping improvement in PR #427.
+    expect(layout.lines.join('')).toBe(title);
+    expect(layout.maxWidth).toBe(260);
+    expect(layout.top).toBeGreaterThan(20);
+  });
+
+
   it('offers the three sizes', () => {
     expect(EXPORT_SIZES).toEqual({
       phone: { width: 1080, height: 1920, label: 'phone 1080×1920' },
