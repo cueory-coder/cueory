@@ -4,13 +4,17 @@
 -- local database; the accounts and rows below exist only inside this test.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(78);
+select plan(82);
 
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-0000000000a1', 'admin@example.com'),
   ('00000000-0000-4000-8000-0000000000a2', 'student@example.com'),
   ('00000000-0000-4000-8000-0000000000a3', 'reporter@example.com');
 insert into public.admins (user_id) values ('00000000-0000-4000-8000-0000000000a1');
+-- The owner has verified MFA. These are fake test-only factor IDs and have no usable secret.
+insert into auth.mfa_factors (id, user_id, friendly_name, factor_type, status, created_at, updated_at) values
+  ('00000000-0000-4000-8000-0000000000a4', '00000000-0000-4000-8000-0000000000a1',
+   'fake verified admin', 'totp', 'verified', now(), now());
 
 -- A published question, so a report can name its item and version.
 insert into public.concepts (id, slug, title, published) values
@@ -347,6 +351,27 @@ select throws_ok(
 select throws_ok(
   $$ select public.admin_mark_flag_handled(null) $$, '22023', 'that report was not found', 'no report id is refused'
 );
+
+-- ---- An old aal2 JWT cannot keep access after the admin's authenticator is removed.
+reset role;
+update auth.mfa_factors set status = 'unverified'
+  where user_id = '00000000-0000-4000-8000-0000000000a1';
+select is(public.is_admin(), false,
+  'a stale aal2 token fails without a currently verified factor');
+set local role authenticated;
+select throws_ok($ select * from public.admin_list_flags('open') $, '42501',
+  'only the site owner, signed in with two-factor, can do this',
+  'removing the factor blocks reading private admin reports');
+select throws_ok($ select public.admin_mark_flag_handled('00000000-0000-4000-8000-000000000f02') $, '42501',
+  'only the site owner, signed in with two-factor, can do this',
+  'removing the factor blocks writing handled status');
+select throws_ok($ select public.admin_reopen_flag('00000000-0000-4000-8000-000000000f06') $, '42501',
+  'only the site owner, signed in with two-factor, can do this',
+  'removing the factor blocks reopening reports');
+reset role;
+update auth.mfa_factors set status = 'verified'
+  where user_id = '00000000-0000-4000-8000-0000000000a1';
+set local role authenticated;
 
 -- ---- Removing the admin takes effect on the next call, even with the same two-factor token.
 reset role;

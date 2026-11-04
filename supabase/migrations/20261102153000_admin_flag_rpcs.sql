@@ -3,7 +3,7 @@
 -- Christian reads "Flag or comment" reports and marks them handled or reopens them. The `flags` table stays closed to
 -- every website role (D-88): these three functions are the only way the website reaches it, and each one first checks
 -- `public.is_admin()`, which is true only for an account listed in `public.admins` whose current sign-in used a second
--- factor (aal2).
+-- factor (aal2) that still has a verified factor in Supabase's auth records.
 --
 -- Supabase docs read first (2 Nov 2026):
 --   - Row Level Security, https://supabase.com/docs/guides/database/postgres/row-level-security : name the role with
@@ -12,9 +12,9 @@
 --     security definer function in an exposed schema "is callable over the Data API with the creator's privileges".
 --   - Database Functions, https://supabase.com/docs/guides/database/functions : "Prefer security invoker"; with
 --     security definer "you must set the search_path"; any role can run a function until execute is revoked.
---   - Multi-Factor Authentication, https://supabase.com/docs/guides/auth/auth-mfa : the assurance level "is encoded in
---     the `aal` claim in the JWT"; "JWTs without an `aal` claim are at the `aal1` level"; the check is
---     `(select auth.jwt()->>'aal') = 'aal2'`; unenrolling a factor drops a session to aal1 only after the token refreshes.
+--   - Multi-Factor Authentication, https://supabase.com/docs/guides/auth/auth-mfa : JWT aal2 is required, but
+--     previously issued aal2 JWTs can remain valid after unenrollment. Verify the current Supabase MFA factor is
+--     still marked verified before each administrator operation.
 --   - PostgREST errors, https://docs.postgrest.org/en/v14/references/errors.html : error 42501 is HTTP 403 for a signed-in
 --     caller and 401 for a signed-out one; 22023 is HTTP 400.
 --
@@ -73,11 +73,14 @@ set search_path = ''
 as $$
   select coalesce((select auth.role()) = 'authenticated', false)
      and coalesce((select auth.jwt() ->> 'aal') = 'aal2', false)
-     and exists (select 1 from public.admins a where a.user_id = (select auth.uid()));
+     and exists (select 1 from public.admins a where a.user_id = (select auth.uid()))
+     -- Do not trust a stale aal2 JWT after the factor has been removed.
+     and exists (select 1 from auth.mfa_factors f
+                 where f.user_id = (select auth.uid()) and f.status = 'verified');
 $$;
 
 comment on function public.is_admin() is
-  'True for an account in public.admins signed in with two-factor (JWT aal = aal2). Used inside the admin functions (Task 65).';
+  'True only for a listed admin with JWT aal2 and a currently verified MFA factor. Used inside the admin functions (Task 65).';
 
 revoke execute on function public.is_admin() from public, anon, authenticated, service_role;
 
