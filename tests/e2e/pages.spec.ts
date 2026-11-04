@@ -504,6 +504,7 @@ test.describe('marketing look (D-41)', () => {
     await expect(page.locator('footer').getByText('by nursing students, for nursing students.')).toBeVisible();
     await expect(page.locator('link[rel="icon"][sizes="32x32"]')).toHaveAttribute('href', '/brand/v1/icon-32.png');
     await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute('href', '/brand/v1/icon-180.png');
+    await expect(page.locator('link[rel="manifest"]')).toHaveCount(1);
     await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/manifest.webmanifest');
 
     // Other pages: the logo in the header, named by its link. The full logo where it fits (640px and wider), the
