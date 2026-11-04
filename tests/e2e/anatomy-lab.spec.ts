@@ -172,7 +172,7 @@ test.describe('anatomy lab', () => {
     const search = page.getByLabel('find a structure');
     const picker = page.getByRole('group', { name: 'body system' });
     const whole = picker.getByRole('button', { name: 'whole body', exact: true });
-    test.skip((await whole.count()) === 0, 'the real whole-body catalog is not included in this build');
+    await expect(whole).toBeVisible({ timeout: 15_000 });
 
     await search.fill('fixture cube B');
     await expect(list(page).getByRole('button', { name: 'fixture cube B', exact: true })).toBeVisible();
@@ -502,7 +502,7 @@ test.describe('anatomy lab whole body loads layers on demand', () => {
     const response = await page.goto('/preview/anatomy-lab');
     expect(response).not.toBeNull();
     const html = await response!.text();
-    test.skip(!html.includes(sourceId), 'no draft anatomy sources in this build');
+    expect(html).toContain(sourceId);
     expect(html.split(sourceId).length - 1).toBe(1);
 
     await expect(page.getByRole('button', { name: 'whole body', exact: true })).toHaveCount(0);
@@ -523,7 +523,7 @@ test.describe('anatomy lab whole body loads layers on demand', () => {
     // The canvas exists during "opening" too. Focus is set only after the viewer reaches "open".
     await expect(page.locator('canvas')).toBeFocused({ timeout: 15_000 });
     const picker = page.getByRole('group', { name: 'body system' });
-    test.skip((await picker.getByRole('button', { name: 'whole body' }).count()) === 0, 'no real whole-body models in this build');
+    await expect(picker.getByRole('button', { name: 'whole body' })).toBeVisible({ timeout: 15_000 });
     await page.waitForLoadState('networkidle');
     glb.length = 0;
     await picker.getByRole('button', { name: 'whole body' }).click();
@@ -546,7 +546,7 @@ test.describe('anatomy lab whole body loads layers on demand', () => {
     await page.getByRole('button', { name: 'open the anatomy lab' }).click();
     await expect(page.locator('canvas')).toBeVisible({ timeout: 15_000 });
     const whole = page.getByRole('group', { name: 'body system' }).getByRole('button', { name: 'whole body' });
-    test.skip((await whole.count()) === 0, 'whole-body draft model is absent from this build');
+    await expect(whole).toBeVisible({ timeout: 15_000 });
     await whole.click();
     const files = page.getByTestId('anatomy-files');
     await expect(files).toContainText('model files loaded: 1 of 11', { timeout: 20_000 });
@@ -586,7 +586,7 @@ test.describe('anatomy lab whole body loads layers on demand', () => {
     await page.getByRole('button', { name: 'open the anatomy lab' }).click();
     await expect(page.locator('canvas')).toBeVisible({ timeout: 15_000 });
     const wholeBody = page.getByRole('group', { name: 'body system' }).getByRole('button', { name: 'whole body' });
-    test.skip((await wholeBody.count()) === 0, 'real whole-body models are not included in this build');
+    await expect(wholeBody).toBeVisible({ timeout: 15_000 });
     await wholeBody.click();
     const files = page.getByTestId('anatomy-files');
     await expect(files).toContainText('model files loaded: 1 of 11', { timeout: 20_000 });
@@ -611,7 +611,7 @@ test.describe('anatomy lab whole body loads layers on demand', () => {
     // Do not treat an unfinished WebGL startup as evidence that the combined system is absent.
     await expect(page.locator('canvas')).toBeFocused({ timeout: 15_000 });
     const wholeBody = page.getByRole('group', { name: 'body system' }).getByRole('button', { name: 'whole body' });
-    test.skip((await wholeBody.count()) === 0, 'real whole-body draft models are not included in this build');
+    await expect(wholeBody).toBeVisible({ timeout: 15_000 });
     await wholeBody.click();
 
     const files = page.getByTestId('anatomy-files');
@@ -659,7 +659,7 @@ test.describe('anatomy lab system switch', () => {
     await expect(page.locator('canvas')).toBeVisible({ timeout: 15_000 });
     const picker = page.getByRole('group', { name: 'body system' });
     const buttons = picker.getByRole('button');
-    test.skip((await buttons.count()) < 2, 'no real models in this build');
+    await expect.poll(() => buttons.count()).toBeGreaterThanOrEqual(2);
     await expect.poll(() => release.length).toBeGreaterThan(0);
     release.splice(0).forEach((r) => r());
     await expect(page.getByText(/^loading /)).toHaveCount(0, { timeout: 20_000 });
