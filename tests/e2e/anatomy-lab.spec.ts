@@ -223,6 +223,8 @@ test.describe('anatomy lab', () => {
 
   test('switching body systems clears a stale search but reselecting the same system does not', async ({ page }) => {
     await openLab(page);
+    // The picker is composed after the canvas finishes opening, not when it first appears.
+    await expect(page.locator('canvas')).toBeFocused({ timeout: 15_000 });
     const search = page.getByLabel('find a structure');
     const picker = page.getByRole('group', { name: 'body system' });
     const whole = picker.getByRole('button', { name: 'whole body', exact: true });
@@ -695,6 +697,7 @@ test.describe('anatomy lab whole body loads layers on demand', () => {
     await page.goto('/preview/anatomy-lab');
     await page.getByRole('button', { name: 'open the anatomy lab' }).click();
     await expect(page.locator('canvas')).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('canvas')).toBeFocused({ timeout: 15_000 });
     const whole = page.getByRole('group', { name: 'body system' }).getByRole('button', { name: 'whole body' });
     test.skip((await whole.count()) === 0, 'whole-body draft model is absent from this build');
     await whole.click();
@@ -735,6 +738,7 @@ test.describe('anatomy lab whole body loads layers on demand', () => {
     await page.goto('/preview/anatomy-lab');
     await page.getByRole('button', { name: 'open the anatomy lab' }).click();
     await expect(page.locator('canvas')).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('canvas')).toBeFocused({ timeout: 15_000 });
     const wholeBody = page.getByRole('group', { name: 'body system' }).getByRole('button', { name: 'whole body' });
     test.skip((await wholeBody.count()) === 0, 'real whole-body models are not included in this build');
     await wholeBody.click();
