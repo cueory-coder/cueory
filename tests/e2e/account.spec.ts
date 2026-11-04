@@ -269,7 +269,7 @@ test.describe('/account signed in (fake client)', () => {
       providers: ['google'], userMetadata: { full_name: 'Sample Student' },
     });
     expect(saved.sessions).toEqual([{
-      createdAt: when, updatedAt: when, notAfter: null,
+      createdAt: '2026-11-01T08:00:00.000Z', updatedAt: '2026-11-01T08:00:00.000Z', notAfter: null,
       userAgent: 'sample browser', ip: '203.0.113.5',
     }]);
     await expect(page.getByText('your data file is downloading.')).toBeVisible();
