@@ -126,7 +126,7 @@ export default function ProgressPanel({ decks }: Props) {
         {view.overall.total > 0 && (
           <div className="mt-4 rounded-xl border border-line bg-surface p-5">
             <h3 className="text-lg">across current decks</h3>
-            <div className="mt-3 flex items-center gap-4">
+            <div className="mt-3 flex flex-wrap items-center gap-4">
               <ProgressRing
                 label="overall card progress"
                 know={view.overall.know}
@@ -141,9 +141,9 @@ export default function ProgressPanel({ decks }: Props) {
         )}
         <ul className="mt-4 grid gap-4 sm:grid-cols-2">
           {view.decks.map((line) => (
-            <li key={line.id} className="rounded-xl border border-line p-5">
+            <li key={line.id} className="min-w-0 rounded-xl border border-line p-5">
               <h3 className="text-lg">{line.title}</h3>
-              <div className="mt-3 flex items-center gap-4">
+              <div className="mt-3 flex flex-wrap items-center gap-4">
                 {line.notStarted !== null && (
                   <ProgressRing
                     label={line.title}

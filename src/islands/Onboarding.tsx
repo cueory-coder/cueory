@@ -113,7 +113,7 @@ export default function Onboarding() {
 
       {step === 0 ? (
         <fieldset
-          className="space-y-4"
+          className="min-w-0 space-y-4"
           onKeyDown={(event) => {
             // Enter advances from a selected radio. Arrow keys continue to
             // change the selection using the browser's normal radio behavior.
@@ -127,7 +127,7 @@ export default function Onboarding() {
             which course are you studying for?
           </legend>
           <p className="text-sm text-ink-soft">optional.</p>
-          <div className="grid gap-3">
+          <div className="grid min-w-0 gap-3">
             {[...COURSES, { id: '', label: 'not sure yet' }].map((option) => (
               <label
                 key={option.id || 'none'}
