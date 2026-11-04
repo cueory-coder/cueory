@@ -95,6 +95,7 @@ export function auditAnatomyProduction(distDir, contentDir) {
         for (const source of data.sources) {
           if (!source || typeof source.id !== 'string' || !source.id.trim()) {
             errors.push(`${name}: invalid approved source ID`);
+            continue;
           } else if (sourceIds.has(source.id)) {
             errors.push(`${name}: duplicate approved source ID ${source.id}`);
           } else {
