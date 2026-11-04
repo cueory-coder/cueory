@@ -197,7 +197,7 @@ You should see both projects, `cueory-staging` and `cueory-prod`, on your Supaba
 This puts the empty tables and their locks into **`cueory-staging` only**. No questions and no student data go in.
 **Don't do this on `cueory-prod`.** Prod comes later, with the same steps, only when Claude says so.
 
-There are nine files. Run each one **exactly once, in this order**. Later files build on earlier ones (questions need
+There are thirteen files. Run each one **exactly once, in this order**. Later files build on earlier ones (questions need
 topics, attempts need questions), and the first file's "locked by default" rule only covers what is made after it. A
 file run out of order or twice fails or leaves a gap.
 
@@ -212,23 +212,27 @@ file run out of order or twice fails or leaves a gap.
 | 7 | [flags_and_submit_flag](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261101120000_flags_and_submit_flag.sql) | "Flag or comment" reports, and the checked ways to send and read them |
 | 8 | [publish_item_version](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261102090000_publish_item_version.sql) | Publishing a new version of a question in one safe step |
 | 9 | [study_events](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261102100000_study_events.sql) | Study events (answered, marked, skipped, time on each question) |
+| 10 | [delete_my_account](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261102110000_delete_my_account.sql) | The checked way for a student to delete their own account and everything linked to it |
+| 11 | [profile_display_name_from_signup](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261102130000_profile_display_name_from_signup.sql) | Copies the display name chosen at email sign-up into the profile |
+| 12 | [confirmed_accounts_only](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261102135000_confirmed_accounts_only.sql) | Answer checks, reports and study events only for accounts with a confirmed email |
+| 13 | [update_display_name](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261102140000_update_display_name.sql) | The checked, rate-limited way to change a display name |
 
 ### Open the right project
 1. Open https://github.com/lilchristxan/Cueory/tree/staging/supabase/migrations.
-   You should see exactly the nine files above. If there are more, or other names, stop and tell Claude.
+   You should see exactly the thirteen files above. If there are more, or other names, stop and tell Claude.
 2. Open https://supabase.com/dashboard and click the **cueory-staging** project.
 3. Check that the project name near the top of the page says `cueory-staging`. If it says `cueory-prod`, go back and
    pick `cueory-staging`. If it says the project is paused, stop and tell Claude.
 4. Go to the **SQL Editor** section of the project.
 
-### Run the nine files (steps 5 to 9, once per file)
+### Run the thirteen files (steps 5 to 9, once per file)
 5. Click file 1's link in the table above. A new tab shows plain text whose first line names its subject, like
    `-- Locked by default`.
 6. Press **Cmd+A**, then **Cmd+C**, to copy all of it.
 7. Back in the SQL Editor, click **New Query**.
 8. Click in the empty editor and press **Cmd+V**.
 9. Click **Run** (or press **Cmd+Enter**). You should see it finish with no error. Then do steps 5 to 9 again with the
-   next file, until all nine have run once.
+   next file, until all thirteen have run once.
 
 **If a file shows an error, or a box asks you to confirm something:**
 - Stop. Don't run that file again, don't run the next one, and don't try to fix anything.
@@ -253,17 +257,17 @@ file run out of order or twice fails or leaves a gap.
     order by kind desc, name;
     ```
 
-11. You should see 24 rows. First 13 tables, **every one with `RLS on`** (RLS is the lock that lets each student see
+11. You should see 26 rows. First 13 tables, **every one with `RLS on`** (RLS is the lock that lets each student see
     only their own rows): attempts, concepts, exam_plans, flags, item_answers, item_choices, item_versions, items,
-    profiles, review_state, rights_records, sources, study_events. Then 11 functions: check_answer, exam_plans_guard,
-    handle_new_user, item_parts_guard, item_versions_guard, items_guard, my_flags, publish_item_version,
-    record_study_events, review_state_guard, submit_flag.
+    profiles, review_state, rights_records, sources, study_events. Then 13 functions: check_answer, delete_my_account,
+    exam_plans_guard, handle_new_user, item_parts_guard, item_versions_guard, items_guard, my_flags,
+    publish_item_version, record_study_events, review_state_guard, submit_flag, update_display_name.
     If any table says `RLS OFF`, or the rows differ, take a screenshot and send it to Claude.
 12. Tell Claude "staging database done".
 
 Supabase's docs prefer the command-line tool for migrations; the SQL Editor is used here because it needs no terminal.
 Running SQL there skips Supabase's migration history, so before anyone uses the command-line tool on this project,
-Claude marks these nine files as already run (`supabase migration repair`), so they never run twice. Sources:
+Claude marks these thirteen files as already run (`supabase migration repair`), so they never run twice. Sources:
 [Supabase: Database functions](https://supabase.com/docs/guides/database/functions) (SQL Editor, **New Query**,
 **Run**), [Supabase: Use Supabase with Next.js](https://supabase.com/docs/guides/getting-started/quickstarts/nextjs)
 (paste into the SQL Editor, then **Run**),
