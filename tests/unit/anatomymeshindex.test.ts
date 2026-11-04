@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import * as THREE from 'three';
-import { indexAnatomyGroup } from '../../src/islands/anatomymeshindex';
+import { disposeAnatomyMeshResources, indexAnatomyGroup } from '../../src/islands/anatomymeshindex';
 
 /** Test-only boxes and made-up IDs, never real anatomical content. */
 function sampleGroup(id: string, meshName = ''): { group: THREE.Group; mesh: THREE.Mesh; material: THREE.Material } {
@@ -89,5 +89,50 @@ describe('anatomy GLB mesh registration', () => {
     expect(indexed.has('TEST_OUTER')).toBe(true);
     expect(mesh.userData['structureId']).toBe('TEST_INNER');
     expect(oldDispose).toHaveBeenCalledOnce();
+  });
+});
+
+describe('anatomy GLB mesh cleanup', () => {
+  it('disposes shared geometry and material only once across nested meshes', () => {
+    const group = new THREE.Group();
+    const nested = new THREE.Group();
+    group.add(nested);
+    const geometry = new THREE.BoxGeometry();
+    const material = new THREE.MeshBasicMaterial();
+    const disposeGeometry = vi.spyOn(geometry, 'dispose');
+    const disposeMaterial = vi.spyOn(material, 'dispose');
+    group.add(new THREE.Mesh(geometry, material));
+    nested.add(new THREE.Mesh(geometry, material));
+
+    disposeAnatomyMeshResources(group);
+
+    expect(disposeGeometry).toHaveBeenCalledOnce();
+    expect(disposeMaterial).toHaveBeenCalledOnce();
+  });
+
+  it('continues cleanup after geometry and material disposal throw', () => {
+    const group = new THREE.Group();
+    const brokenGeometry = new THREE.BoxGeometry();
+    const brokenMaterial = new THREE.MeshBasicMaterial();
+    const healthyGeometry = new THREE.BoxGeometry();
+    const healthyMaterial = new THREE.MeshBasicMaterial();
+    const firstGeometry = vi.spyOn(brokenGeometry, 'dispose')
+      .mockImplementation(() => { throw new Error('lost geometry context'); });
+    const firstMaterial = vi.spyOn(brokenMaterial, 'dispose')
+      .mockImplementation(() => { throw new Error('lost material context'); });
+    const laterGeometry = vi.spyOn(healthyGeometry, 'dispose');
+    const laterMaterial = vi.spyOn(healthyMaterial, 'dispose');
+    group.add(new THREE.Mesh(brokenGeometry, brokenMaterial));
+    group.add(new THREE.Mesh(healthyGeometry, healthyMaterial));
+
+    expect(() => disposeAnatomyMeshResources(group)).not.toThrow();
+    expect(firstGeometry).toHaveBeenCalledOnce();
+    expect(firstMaterial).toHaveBeenCalledOnce();
+    expect(laterGeometry).toHaveBeenCalledOnce();
+    expect(laterMaterial).toHaveBeenCalledOnce();
+  });
+
+  it('handles empty GLB groups without attempting resource disposal', () => {
+    expect(() => disposeAnatomyMeshResources(new THREE.Group())).not.toThrow();
   });
 });
