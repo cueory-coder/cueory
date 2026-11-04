@@ -62,17 +62,26 @@ export async function loadModelsOrDispose<T>(
 ): Promise<T[]> {
   const completed: T[] = [];
   let failed = false;
+  // A graphics-context failure can throw during disposal. This cleanup is
+  // best effort: preserve the original GLB failure and try every other group.
+  const disposeBestEffort = (value: T): void => {
+    try {
+      dispose(value);
+    } catch {
+      // Resource cleanup errors must not prevent the other groups from being freed.
+    }
+  };
   try {
     // Promise.all preserves input order even when model requests finish out of order.
     return await Promise.all(loads.map(async (load) => {
       const value = await load();
-      if (failed) dispose(value);
+      if (failed) disposeBestEffort(value);
       else completed.push(value);
       return value;
     }));
   } catch (error) {
     failed = true;
-    for (const value of completed) dispose(value);
+    for (const value of completed) disposeBestEffort(value);
     throw error;
   }
 }
