@@ -186,7 +186,7 @@ describe('makeFlagSend', () => {
 
   it.each([
     ['sign in to send a report', 'please sign in to send a report.'],
-    ['confirm your email to use this', 'please confirm your email first. the link is in the email we sent you.'],
+    ['confirm your email to use this', 'please confirm your email to send a report — look for the link in your inbox.'],
     ['the page must be an address on this site', 'something went wrong — please try again from the page you were on.'],
     ['pick what is wrong from the list', 'choose what is wrong from the list.'],
     ['the comment is up to 1,000 characters of plain text', 'keep the comment to 1,000 characters or fewer.'],

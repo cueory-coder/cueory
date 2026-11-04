@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { auditAnatomyProduction, modelUrls } from '../../scripts/anatomy-production-audit.mjs';
+import { keepsDrafts } from '../../src/visuals/prunedrafts';
 
 const roots: string[] = [];
 afterEach(() => roots.splice(0).forEach((p) => rmSync(p, { recursive: true, force: true })));
@@ -133,15 +134,40 @@ describe('anatomy production artifact audit', () => {
   });
 });
 
+/** Keep the built-output audit on the same branch gate as GLB pruning. */
+type AuditBuildEnv = Parameters<typeof keepsDrafts>[0] & { CI?: string | undefined };
+function shouldAuditBuiltAnatomy(env: AuditBuildEnv): boolean {
+  return env.CI === 'true' && !keepsDrafts(env);
+}
+
 /** CI builds dist/ before running unit tests. Audit those real files, not only synthetic examples. */
 describe('built production artifact gate', () => {
-  it('checks the actual dist output in CI, unless this was explicitly a draft preview build', () => {
-    if (process.env.CI !== 'true') return;
-    const workersBranch = process.env.WORKERS_CI_BRANCH?.trim();
-    const preview = process.env.CUEORY_ANATOMY_DRAFTS === '1' ||
-      (process.env.WORKERS_CI === '1' && !!workersBranch && workersBranch !== 'main');
-    if (preview) return;
-    // A missing dist/ is an error, too. The CI workflow runs npm run build before npm test.
+  const cases: { name: string; env: AuditBuildEnv; audit: boolean }[] = [
+    { name: 'short main', env: { CI: 'true', WORKERS_CI: '1', WORKERS_CI_BRANCH: 'main' }, audit: true },
+    { name: 'full main with local override', env: { CI: 'true', WORKERS_CI: '1', WORKERS_CI_BRANCH: ' refs/heads/main ', CUEORY_ANATOMY_DRAFTS: '1' }, audit: true },
+    { name: 'unknown Workers branch', env: { CI: 'true', WORKERS_CI: '1' }, audit: true },
+    { name: 'empty full ref', env: { CI: 'true', WORKERS_CI: '1', WORKERS_CI_BRANCH: 'refs/heads/' }, audit: true },
+    { name: 'production-style CI build', env: { CI: 'true' }, audit: true },
+    { name: 'preview full ref', env: { CI: 'true', WORKERS_CI: '1', WORKERS_CI_BRANCH: 'refs/heads/staging' }, audit: false },
+    { name: 'preview short branch', env: { CI: 'true', WORKERS_CI: '1', WORKERS_CI_BRANCH: 'task-178/anatomy-lab' }, audit: false },
+    { name: 'local draft build', env: { CI: 'true', CUEORY_ANATOMY_DRAFTS: '1' }, audit: false },
+    { name: 'outside CI', env: { WORKERS_CI: '1', WORKERS_CI_BRANCH: 'main' }, audit: false },
+  ];
+  it.each(cases)('$name: audit = $audit', ({ env, audit }) => {
+    expect(shouldAuditBuiltAnatomy(env)).toBe(audit);
+  });
+
+  it('audits full-ref main and catches a draft model in output', () => {
+    const env = { CI: 'true', WORKERS_CI: '1', WORKERS_CI_BRANCH: 'refs/heads/main', CUEORY_ANATOMY_DRAFTS: '1' };
+    const f = setup();
+    f.file('models/anatomy/draft.glb', 'synthetic fixture only');
+    expect(shouldAuditBuiltAnatomy(env)).toBe(true);
+    expect(f.check().errors).toContain('unapproved model exposed in production: /models/anatomy/draft.glb');
+  });
+
+  it('checks the actual dist output in CI unless the shared gate permits a preview', () => {
+    if (!shouldAuditBuiltAnatomy(process.env)) return;
+    // Missing dist/ is also an error. CI builds before Vitest.
     expect(auditAnatomyProduction('dist', 'content/visuals').errors).toEqual([]);
   });
 });
