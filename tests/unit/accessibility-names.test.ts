@@ -147,8 +147,8 @@ function elementById(html: string, id: string): { attrs: string; content: string
   let match: RegExpExecArray | null;
   while ((match = openRegex.exec(html))) {
     const [fullTag, name, attrs] = match;
-    const idMatch = /\bid="([^"]+)"/i.exec(attrs);
-    if (idMatch && idMatch[1] === id) {
+    // Match a real id attribute, not a suffix in data-id or x-id.
+    if (attribute(attrs, 'id') === id) {
       const tagLower = name.toLowerCase();
       if (
         fullTag.endsWith('/>') ||
@@ -204,6 +204,13 @@ describe('accessible-name text extraction', () => {
     expect(computeAccessibleName(withHeading, 'data-aria-labelledby="heading"', '')).toBe('');
     expect(computeAccessibleName('', 'aria-label="real"', '')).toBe('real');
     expect(computeAccessibleName(withHeading, 'aria-labelledby="heading"', '')).toBe('heading text');
+  });
+
+  it('rejects pseudo-id attributes as aria-labelledby targets', () => {
+    const fakeIds = '<span data-id="target">not a label</span><span x-id="target">still not a label</span>';
+    expect(computeAccessibleName(fakeIds, 'aria-labelledby="target"', '')).toBe('');
+    const realId = fakeIds + '<span id="target">valid label</span>';
+    expect(computeAccessibleName(realId, 'aria-labelledby="target"', '')).toBe('valid label');
   });
 
   it('resolves referenced label text and rejects empty referenced elements', () => {
