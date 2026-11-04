@@ -30,7 +30,8 @@ for (const size of [
       await expect(page.locator('main h1')).toHaveText('nursing school is hard enough.');
       await expect(page.locator('#hero-heading + p')).toHaveText('cueory makes studying simpler.');
       await expect(page.getByRole('link', { name: 'create your free account' })).toHaveAttribute('href', '/#signup');
-      await expect(page.getByText('save your progress and pick up where you left off.')).toBeVisible();
+      // No line under the button restates it (Christian, 2026-11-02).
+      await expect(page.getByText('save your progress and pick up where you left off.')).toHaveCount(0);
       await expect(page.getByRole('heading', { level: 2, name: 'how it works' })).toBeVisible();
       await expect(page.locator('#how-it-works li')).toHaveCount(3);
       await expect(page.getByRole('heading', { level: 3, name: "come back to what you're still learning" })).toBeVisible();
