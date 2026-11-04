@@ -47,6 +47,12 @@ function isRegexStart(text: string, index: number): boolean {
   return keywords.includes(word);
 }
 
+function isComparisonOperator(text: string, index: number): boolean {
+  let prev = index - 1;
+  while (prev >= 0 && /\s/.test(text[prev]!)) prev--;
+  return prev >= 0 && /[a-zA-Z0-9_$)\]'"`]/.test(text[prev]!);
+}
+
 function scan(text: string, extension: string): Logging[] {
   if (extension !== '.astro') return debugReferences(text, 0, extension === '.tsx' ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
   const found: Logging[] = [];
@@ -209,7 +215,9 @@ function scan(text: string, extension: string): Logging[] {
       inRegex = true;
       i++;
     } else if (c === '<') {
-      if (/^<(?:script|style)\b/i.test(markup.slice(i, i + 8))) {
+      if (isComparisonOperator(markup, i)) {
+        i++;
+      } else if (/^<(?:script|style)\b/i.test(markup.slice(i, i + 8))) {
         inspectRawElement();
       } else if (markup.startsWith('</', i)) {
         inExprTag = true;
@@ -372,6 +380,10 @@ describe('debug-console source guard', () => {
     expect(scan('<script title="C:\\">console.log("actual")</script>', '.astro'))
       .toEqual([{ line: 1, method: 'log' }]);
     expect(scan('{true && <p>don\'t</p>}<script>console.log("actual")</script>', '.astro'))
+      .toEqual([{ line: 1, method: 'log' }]);
+    expect(scan('{count<limit}<script>console.log("actual")</script>', '.astro'))
+      .toEqual([{ line: 1, method: 'log' }]);
+    expect(scan('{count < limit}<script>console.log("actual")</script>', '.astro'))
       .toEqual([{ line: 1, method: 'log' }]);
   });
 
