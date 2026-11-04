@@ -81,16 +81,38 @@ test.describe('Task 270: sticky header overlap', () => {
       await expect.poll(() => header.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThan(0);
       await assertNotCovered(heading, route, 'first heading');
 
-      const controls = page.locator('main a[href], main button, main input, main select, main textarea, main [tabindex]:not([tabindex="-1"])');
-      const count = await controls.count();
-      for (let index = 0; index < count; index++) {
-        const control = controls.nth(index);
-        if (!(await control.isVisible()) || await control.isDisabled().catch(() => false)) continue;
-        await control.evaluate((element) => element.scrollIntoView({ block: 'start', inline: 'nearest' }));
-        await control.evaluate((element) => (element as HTMLElement).focus({ preventScroll: true }));
-        await expect(control).toBeFocused();
-        await assertNotCovered(control, route, `control ${index}`);
-      }
+      // One browser-side scan avoids a separate Playwright round trip for every
+      // control. Large pages such as /play otherwise exceed the test timeout.
+      const scan = await page.evaluate(() => {
+        const stickyHeader = document.querySelector<HTMLElement>('header[data-scroll-header]');
+        if (!stickyHeader) throw new Error('Sticky header disappeared before the control scan');
+        const controls = Array.from(document.querySelectorAll<HTMLElement>(
+          'main a[href], main button, main input, main select, main textarea, main [tabindex]:not([tabindex="-1"])',
+        ));
+        const failures: string[] = [];
+        let checked = 0;
+        for (const [index, control] of controls.entries()) {
+          if (!control.isConnected || control.getClientRects().length === 0 ||
+              getComputedStyle(control).visibility === 'hidden' || control.matches(':disabled') ||
+              control.closest('[inert], [aria-disabled="true"]')) continue;
+          control.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'instant' });
+          control.focus({ preventScroll: true });
+          checked++;
+          if (document.activeElement !== control) {
+            failures.push('control ' + index + ': focus did not land on the target');
+            continue;
+          }
+          const headerRect = stickyHeader.getBoundingClientRect();
+          const targetRect = control.getBoundingClientRect();
+          if (headerRect.height > 0 && headerRect.bottom > 0 &&
+              targetRect.top < headerRect.bottom && targetRect.bottom > headerRect.top) {
+            failures.push('control ' + index + ': covered (header bottom ' + headerRect.bottom +
+              ', target top ' + targetRect.top + ')');
+          }
+        }
+        return { found: controls.length, checked, failures };
+      });
+      expect(scan.failures, `${route}: ${scan.checked}/${scan.found} focus targets checked`).toEqual([]);
     });
   }
 });
