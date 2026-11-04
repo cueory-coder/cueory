@@ -701,8 +701,15 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                   setListLimit(STRUCTURE_PAGE_SIZE);
                   // A search for one system must not make the next system appear to have no structures.
                   setQuery('');
-                  // Invalidate an in-progress PNG before the asynchronous load effect runs.
+                  // Invalidate the old picture and any pending layer-visibility intent now,
+                  // before React's passive load-effect cleanup can run.
                   generation.bump();
+                  visibilityIntent.bump();
+                  loaderRef.current?.retire();
+                  loaderRef.current = null;
+                  // Invalidate an in-flight initial GLB and clear the old 3D geometry
+                  // immediately. A late result cannot repopulate the previous scene.
+                  sceneRef.current?.clear();
                   // Hide all actions tied to the previous model in this click update.
                   setLoad({ state: 'loading' });
                   setSelected(null);
