@@ -193,8 +193,26 @@ function scan(text: string, extension: string): Logging[] {
       const startTagRegex = new RegExp(`^<${tagName}[\\s/>]`, 'i');
       let depth = 1;
       let pos = contentStart;
+      let insideTag = false;
+      let tagQuote = '';
       while (pos < markup.length) {
-        if (markup[pos] === '<') {
+        if (tagQuote) {
+          if (markup[pos] === tagQuote) tagQuote = '';
+          pos++;
+        } else if (insideTag) {
+          if (markup[pos] === '"' || markup[pos] === "'") {
+            tagQuote = markup[pos]!;
+            pos++;
+          } else if (markup[pos] === '>') {
+            insideTag = false;
+            pos++;
+          } else {
+            pos++;
+          }
+        } else if (markup.startsWith('<!--', pos)) {
+          const endComment = markup.indexOf('-->', pos + 4);
+          pos = endComment === -1 ? markup.length : endComment + 3;
+        } else if (markup[pos] === '<') {
           if (lower.startsWith(endName, pos) && /[\s/>]/.test(lower[pos + endName.length] ?? '')) {
             depth--;
             if (depth === 0) {
@@ -202,16 +220,17 @@ function scan(text: string, extension: string): Logging[] {
               break;
             }
             pos += endName.length;
+            insideTag = true;
           } else if (startTagRegex.test(markup.slice(pos))) {
             let atPos = pos + tagName.length + 1;
-            let tagQuote = '';
+            let tQuote = '';
             let selfClosing = false;
             while (atPos < markup.length && markup[atPos] !== '>') {
               const c = markup[atPos]!;
-              if (tagQuote) {
-                if (c === tagQuote) tagQuote = '';
+              if (tQuote) {
+                if (c === tQuote) tQuote = '';
               } else if (c === '"' || c === "'") {
-                tagQuote = c;
+                tQuote = c;
               } else if (c === '/' && markup[atPos + 1] === '>') {
                 selfClosing = true;
                 break;
@@ -221,6 +240,7 @@ function scan(text: string, extension: string): Logging[] {
             if (!selfClosing) depth++;
             pos = atPos + 1;
           } else {
+            insideTag = true;
             pos++;
           }
         } else {
@@ -545,6 +565,10 @@ describe('debug-console source guard', () => {
       .toEqual([{ line: 1, method: 'log' }]);
     expect(scan('<div is:raw><div>text</div>{console.log("example")}</div>\n<p>{console.debug("actual")}</p>', '.astro'))
       .toEqual([{ line: 2, method: 'debug' }]);
+    expect(scan('<div is:raw><!-- <div> --></div><p>{console.log("actual")}</p>', '.astro'))
+      .toEqual([{ line: 1, method: 'log' }]);
+    expect(scan('<div is:raw><span title="<div>">text</span></div><p>{console.log("actual")}</p>', '.astro'))
+      .toEqual([{ line: 1, method: 'log' }]);
   });
 
   it('contains no console.log or console.debug references in src', () => {
