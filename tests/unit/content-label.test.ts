@@ -14,10 +14,15 @@ const routes = [
 ];
 
 describe('content disclosure label (Task 520)', () => {
-  it('defines the required content vetting notice text in site configuration', () => {
+  it('warns truthfully about uncited samples and placeholders', () => {
     expect(site.contentNotice).toBe(
-      'researched against cited sources, with citations; not yet reviewed by a licensed nurse',
+      'some lessons are samples or placeholders. content may not have citations or licensed-nurse review',
     );
+    const lesson = JSON.parse(readFileSync(new URL('../../content/lessons/study-skills-01.json', import.meta.url), 'utf8'));
+    const deck = JSON.parse(readFileSync(new URL('../../content/cards/study-skills-01.json', import.meta.url), 'utf8'));
+    if (lesson.status === 'placeholder' || lesson.status === 'sample' || deck.status === 'placeholder' || deck.status === 'sample') {
+      expect(site.contentNotice).not.toMatch(/researched against cited sources|with citations/i);
+    }
   });
 
   it('renders ContentLabel in every lesson and study-mode route', () => {

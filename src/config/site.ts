@@ -26,7 +26,7 @@ export const site = {
   contactEmail: 'hello@cueory.app',
 
   /** Student-facing status of nursing-content review (Task 520). */
-  contentNotice: 'researched against cited sources, with citations; not yet reviewed by a licensed nurse',
+  contentNotice: 'some lessons are samples or placeholders. content may not have citations or licensed-nurse review',
 } as const;
 
 /**
