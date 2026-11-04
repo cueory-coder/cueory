@@ -61,9 +61,13 @@ export function releaseNoteFor(system: Pick<AnatomySystem, 'status' | 'model' | 
     : `model release: ${system.model.release}`;
 }
 
-/** The full credit drawn at the bottom of an exported picture: the credit, then the release note. */
+/**
+ * A saved picture cannot retain the clickable license link below the 3D viewer.
+ * Print the license URL for real anatomy models, but never misattribute the synthetic fixture.
+ */
 export function pictureCreditFor(system: Pick<AnatomySystem, 'status' | 'model' | 'fixture'>): string {
-  return `${creditFor(system)} · ${releaseNoteFor(system)}`;
+  const license = system.fixture ? '' : ` · license: ${BODYPARTS3D_LICENSE_URL}`;
+  return `${creditFor(system)}${license} · ${releaseNoteFor(system)}`;
 }
 
 /**
