@@ -1,0 +1,1 @@
+status: Task 222 adds a route-wide Playwright regression sweep for visible CSS and Web Animations under prefers-reduced-motion: reduce. It covers every built HTML route, waits for Astro islands and settled requests, skips only the duplicate Evening project, and changes no application behavior.
