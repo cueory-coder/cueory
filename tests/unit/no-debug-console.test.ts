@@ -31,6 +31,21 @@ function debugReferences(text: string, offset = 0, kind = ts.ScriptKind.TS): Log
   return found;
 }
 
+function isRegexStart(text: string, index: number): boolean {
+  let prev = index - 1;
+  while (prev >= 0 && /\s/.test(text[prev]!)) prev--;
+  if (prev < 0) return true;
+  const prevChar = text[prev]!;
+  if ('(,=:[!&|?{};~^%*+-<>'.includes(prevChar)) return true;
+  let wordEnd = prev + 1;
+  let wordStart = prev;
+  while (wordStart >= 0 && /[a-zA-Z0-9_$]/.test(text[wordStart]!)) wordStart--;
+  wordStart++;
+  const word = text.slice(wordStart, wordEnd);
+  const keywords = ['return', 'case', 'throw', 'yield', 'typeof', 'void', 'delete', 'instanceof', 'in', 'of'];
+  return keywords.includes(word);
+}
+
 function scan(text: string, extension: string): Logging[] {
   if (extension !== '.astro') return debugReferences(text, 0, extension === '.tsx' ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
   const found: Logging[] = [];
@@ -45,8 +60,111 @@ function scan(text: string, extension: string): Logging[] {
   let inTag = false;
   let attrQuote = '';
   let exprQuote = '';
+  let inRegex = false;
   let braces = 0;
   let i = 0;
+
+  function inspectRawElement() {
+    const match = /^<(script|style)\b/i.exec(markup.slice(i, i + 8));
+    if (!match) {
+      i++;
+      return;
+    }
+    const tagName = match[1]!.toLowerCase();
+    // Attribute expressions may contain > inside a string, function or object.
+    // Keep the complete opening tag for the template-expression AST below.
+    let tagQuote = '';
+    let tagBraces = 0;
+    let at = i + match[0].length;
+    for (; at < markup.length; at++) {
+      const c = markup[at]!;
+      if (tagQuote) {
+        if (c === '\\') at++;
+        else if (c === tagQuote) tagQuote = '';
+      } else if (tagBraces > 0 && markup.startsWith('/*', at)) {
+        const end = markup.indexOf('*/', at + 2);
+        at = end === -1 ? markup.length : end + 1;
+      } else if (tagBraces > 0 && markup.startsWith('//', at)) {
+        const end = markup.indexOf('\n', at + 2);
+        at = end === -1 ? markup.length : end;
+      } else if (c === '"' || c === "'" || c === '`') tagQuote = c;
+      else if (c === '{') tagBraces++;
+      else if (c === '}') tagBraces = Math.max(0, tagBraces - 1);
+      else if (c === '>' && tagBraces === 0) break;
+    }
+    const contentStart = Math.min(at + 1, markup.length);
+    if (markup.slice(i, contentStart).trimEnd().endsWith('/>')) {
+      i = contentStart;
+      return;
+    }
+    // Read HTML raw-text end-tag boundaries explicitly. HTML permits whitespace
+    // and ignored attributes on an end tag, such as </script\t\n ignored>.
+    const endName = `</${tagName}`;
+    let close = lower.indexOf(endName, contentStart);
+    while (close !== -1 && !/[\s/>]/.test(lower[close + endName.length] ?? '')) {
+      close = lower.indexOf(endName, close + endName.length);
+    }
+    const closingEnd = close === -1 ? -1 : markup.indexOf('>', close + endName.length);
+    const contentEnd = close === -1 ? markup.length : close;
+    const end = closingEnd === -1 ? markup.length : closingEnd + 1;
+
+    if (tagName === 'script') {
+      const start = markupStart + contentStart;
+      found.push(...debugReferences(markup.slice(contentStart, contentEnd), text.slice(0, start).split('\n').length - 1));
+    }
+    for (let index = contentStart; index < contentEnd; index++) {
+      if (markup[index] !== '\n') masked[index] = ' ';
+    }
+    i = end;
+  }
+
+  function handleExpressionChar(c: string) {
+    if (exprQuote) {
+      if (c === '\\') i++;
+      else if (c === exprQuote) exprQuote = '';
+      i++;
+    } else if (inRegex) {
+      if (c === '\\') {
+        i += 2;
+      } else if (c === '[') {
+        i++;
+        while (i < markup.length) {
+          const rc = markup[i]!;
+          if (rc === '\\') i += 2;
+          else if (rc === ']') { i++; break; }
+          else if (rc === '\n') break;
+          else i++;
+        }
+      } else if (c === '/') {
+        inRegex = false;
+        i++;
+      } else {
+        i++;
+      }
+    } else if (markup.startsWith('/*', i)) {
+      const end = markup.indexOf('*/', i + 2);
+      i = end === -1 ? markup.length : end + 2;
+    } else if (markup.startsWith('//', i)) {
+      const end = markup.indexOf('\n', i + 2);
+      i = end === -1 ? markup.length : end + 1;
+    } else if (c === '"' || c === "'" || c === '`') {
+      exprQuote = c;
+      i++;
+    } else if (c === '/' && isRegexStart(markup, i)) {
+      inRegex = true;
+      i++;
+    } else if (c === '<' && /^<(?:script|style)\b/i.test(markup.slice(i, i + 8))) {
+      inspectRawElement();
+    } else if (c === '{') {
+      braces++;
+      i++;
+    } else if (c === '}') {
+      braces = Math.max(0, braces - 1);
+      i++;
+    } else {
+      i++;
+    }
+  }
 
   while (i < markup.length) {
     const char = markup[i]!;
@@ -57,28 +175,7 @@ function scan(text: string, extension: string): Logging[] {
         else if (char === attrQuote) attrQuote = '';
         i++;
       } else if (braces > 0) {
-        if (exprQuote) {
-          if (char === '\\') i++;
-          else if (char === exprQuote) exprQuote = '';
-          i++;
-        } else if (markup.startsWith('/*', i)) {
-          const end = markup.indexOf('*/', i + 2);
-          i = end === -1 ? markup.length : end + 2;
-        } else if (markup.startsWith('//', i)) {
-          const end = markup.indexOf('\n', i + 2);
-          i = end === -1 ? markup.length : end + 1;
-        } else if (char === '"' || char === "'" || char === '`') {
-          exprQuote = char;
-          i++;
-        } else if (char === '{') {
-          braces++;
-          i++;
-        } else if (char === '}') {
-          braces = Math.max(0, braces - 1);
-          i++;
-        } else {
-          i++;
-        }
+        handleExpressionChar(char);
       } else if (char === '"' || char === "'") {
         attrQuote = char;
         i++;
@@ -94,28 +191,7 @@ function scan(text: string, extension: string): Logging[] {
     } else {
       // Outside a tag
       if (braces > 0) {
-        if (exprQuote) {
-          if (char === '\\') i++;
-          else if (char === exprQuote) exprQuote = '';
-          i++;
-        } else if (markup.startsWith('/*', i)) {
-          const end = markup.indexOf('*/', i + 2);
-          i = end === -1 ? markup.length : end + 2;
-        } else if (markup.startsWith('//', i)) {
-          const end = markup.indexOf('\n', i + 2);
-          i = end === -1 ? markup.length : end + 1;
-        } else if (char === '"' || char === "'" || char === '`') {
-          exprQuote = char;
-          i++;
-        } else if (char === '{') {
-          braces++;
-          i++;
-        } else if (char === '}') {
-          braces = Math.max(0, braces - 1);
-          i++;
-        } else {
-          i++;
-        }
+        handleExpressionChar(char);
       } else if (char === '{') {
         braces++;
         i++;
@@ -129,52 +205,7 @@ function scan(text: string, extension: string): Logging[] {
       } else if (char === '<') {
         const match = /^<(script|style)\b/i.exec(markup.slice(i, i + 8));
         if (match) {
-          const tagName = match[1]!.toLowerCase();
-          // Attribute expressions may contain > inside a string, function or object.
-          // Keep the complete opening tag for the template-expression AST below.
-          let tagQuote = '';
-          let tagBraces = 0;
-          let at = i + match[0].length;
-          for (; at < markup.length; at++) {
-            const c = markup[at]!;
-            if (tagQuote) {
-              if (c === '\\') at++;
-              else if (c === tagQuote) tagQuote = '';
-            } else if (tagBraces > 0 && markup.startsWith('/*', at)) {
-              const end = markup.indexOf('*/', at + 2);
-              at = end === -1 ? markup.length : end + 1;
-            } else if (tagBraces > 0 && markup.startsWith('//', at)) {
-              const end = markup.indexOf('\n', at + 2);
-              at = end === -1 ? markup.length : end;
-            } else if (c === '"' || c === "'" || c === '`') tagQuote = c;
-            else if (c === '{') tagBraces++;
-            else if (c === '}') tagBraces = Math.max(0, tagBraces - 1);
-            else if (c === '>' && tagBraces === 0) break;
-          }
-          const contentStart = Math.min(at + 1, markup.length);
-          if (markup.slice(i, contentStart).trimEnd().endsWith('/>')) {
-            i = contentStart;
-            continue;
-          }
-          // Read HTML raw-text end-tag boundaries explicitly. HTML permits whitespace
-          // and ignored attributes on an end tag, such as </script\t\n ignored>.
-          const endName = `</${tagName}`;
-          let close = lower.indexOf(endName, contentStart);
-          while (close !== -1 && !/[\s/>]/.test(lower[close + endName.length] ?? '')) {
-            close = lower.indexOf(endName, close + endName.length);
-          }
-          const closingEnd = close === -1 ? -1 : markup.indexOf('>', close + endName.length);
-          const contentEnd = close === -1 ? markup.length : close;
-          const end = closingEnd === -1 ? markup.length : closingEnd + 1;
-
-          if (tagName === 'script') {
-            const start = markupStart + contentStart;
-            found.push(...debugReferences(markup.slice(contentStart, contentEnd), text.slice(0, start).split('\n').length - 1));
-          }
-          for (let index = contentStart; index < contentEnd; index++) {
-            if (markup[index] !== '\n') masked[index] = ' ';
-          }
-          i = end;
+          inspectRawElement();
         } else {
           inTag = true;
           i++;
@@ -259,6 +290,10 @@ describe('debug-console source guard', () => {
     expect(scan("<script define:vars={{ /* don't fail */ val: console.debug('server') }}>alert(val)</script>", '.astro'))
       .toEqual([{ line: 1, method: 'debug' }]);
     expect(scan("{// don't fail\nconsole.log('actual')}", '.astro'))
+      .toEqual([{ line: 2, method: 'log' }]);
+    expect(scan('{true && <script is:inline>console.log("actual")</script>}', '.astro'))
+      .toEqual([{ line: 1, method: 'log' }]);
+    expect(scan("{ /'/.test('hello') }\n<script>console.log('actual')</script>", '.astro'))
       .toEqual([{ line: 2, method: 'log' }]);
   });
 
