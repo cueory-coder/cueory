@@ -29,6 +29,7 @@ const noindexPages = [
   '/progress',
   '/learn/video-sample',
   '/breaks', // until Christian approves its sample ideas
+  '/learn/questions', // real questions (Task 172), until launch
 ];
 
 // Known gaps: pages that should be noindex but aren't yet. Listed on issue #11 for their owners; never fixed here.
