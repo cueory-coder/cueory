@@ -1,0 +1,5 @@
+STATUS: READY_FOR_REVIEW — W01 Task 251 adds direct firstVisitUrls cache-list coverage for preview, account, admin and authentication URLs. Existing offlineplan tests cover the underlying URL decisions; this test covers their first-visit-list integration. Scope: tests/unit/private-cache-list.test.ts and this note only. No source behavior or dependencies change.
+
+Tested source: staging 770a56586218db4b2ceeab807c6605367c6e7ff6, reconstructed from verified local 2763c0a plus its 26 exact GitHub delta files and both filename renames. Every delta file matched its Git blob SHA. Check passed (0 errors, 0 warnings, 12 existing hints), build passed (33 pages), all 37 focused tests passed, and all 3,729 tests in 131 files passed with maxWorkers=1 under the shared validation lock. No browser specs changed and no browser pass claimed.
+
+Coverage includes private URLs as the first document and as discovered resources, relative and absolute forms, fragment removal, filtering before the resource-count limit, and retaining allowed public documents/assets. No synthetic account tokens are real credentials.

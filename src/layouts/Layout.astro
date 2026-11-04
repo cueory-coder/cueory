@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import '../styles/print.css';
 import BuildingNotice from '../components/BuildingNotice.astro';
 import PromoPanel from '../components/PromoPanel.astro';
 import SiteFooter from '../components/SiteFooter.astro';
@@ -36,6 +37,7 @@ const { title, description = site.description, variant = 'default', noindex = fa
 // Browser-tab titles use the lowercase brand voice: "privacy · cueory" (D-47).
 const fullTitle = title === site.name || title === site.wordmarkName ? site.wordmarkName : `${title} · ${site.wordmarkName}`;
 const canonical = new URL(Astro.url.pathname, site.url).href;
+const socialImage = new URL('/share/study-ivory.png', site.url).href;
 const isStudy = variant === 'study';
 const isHome = variant === 'home';
 const showPromo = promoSettings.show && promo && !isStudy;
@@ -51,6 +53,9 @@ const searchTitle = isHome ? 'home' : title;
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={socialImage} />
     <!-- Brand v1.0 icons (D-55): the emblem on Ivory, built by scripts/build-brand-v1.mjs. -->
     <link rel="icon" type="image/png" sizes="32x32" href="/brand/v1/icon-32.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="/brand/v1/icon-192.png" />
