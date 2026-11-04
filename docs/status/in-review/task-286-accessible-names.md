@@ -1,5 +1,7 @@
 # Task 286: validate built control names
 
+status: Task 286, validate built control names: enforces visible text, aria-label, or valid aria-labelledby naming on all built links and buttons, excluding hidden descendants and checking referenced label content.
+
 ## Scope
 
 Touched only `tests/unit/accessibility-names.test.ts` and this status note. The test checks every built link and button has visible text, an `aria-label`, or valid `aria-labelledby` references.
