@@ -85,6 +85,22 @@ export function auditAnatomyProduction(distDir, contentDir) {
     if (data.status === 'approved') {
       approvedSystems++;
       urls.forEach((url) => approved.add(url));
+      // Independently verify the source links even when dist/ is older than the
+      // current manifest. A nonempty citation string is not proof of a source.
+      const sourceIds = new Set();
+      if (!Array.isArray(data.sources) || data.sources.length === 0) {
+        errors.push(`${name}: approved source records are missing`);
+      } else {
+        for (const source of data.sources) {
+          if (!source || typeof source.id !== 'string' || !source.id.trim()) {
+            errors.push(`${name}: invalid approved source ID`);
+          } else if (sourceIds.has(source.id)) {
+            errors.push(`${name}: duplicate approved source ID ${source.id}`);
+          } else {
+            sourceIds.add(source.id);
+          }
+        }
+      }
       // A production-style audit must also reject a damaged *approved* record.
       // Otherwise a stale dist/ can pass despite having no reviewed source names.
       if (!Array.isArray(data.labels) || data.labels.length === 0) {
@@ -103,6 +119,8 @@ export function auditAnatomyProduction(distDir, contentDir) {
           }
           if (typeof label.source !== 'string' || label.source.trim().length === 0) {
             errors.push(`${name}: approved label ${label.id} has no source citation`);
+          } else if (!sourceIds.has(label.source)) {
+            errors.push(`${name}: approved label ${label.id} references unknown source ${label.source}`);
           }
         }
       }

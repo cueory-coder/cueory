@@ -24,6 +24,7 @@ function setup() {
       status,
       model: { file: urls[0], files: urls.slice(1) },
       labels: ids.map((id) => ({ id, text: 'fixture label', source: 'synthetic-test-source' })),
+      sources: [{ id: 'synthetic-test-source' }],
     }));
   };
   system('draft', 'draft', ['/models/anatomy/draft.glb'], ['FMA999991']);
@@ -59,10 +60,48 @@ describe('anatomy production artifact audit', () => {
         { id: 'FMA999992', text: ' ', source: 'synthetic-test-source' },
         { id: 'FMA999993', text: 'fixture only', source: '' },
       ],
+      sources: [{ id: 'synthetic-test-source' }],
     }));
     expect(f.check().errors).toEqual(expect.arrayContaining([
       'anatomy-approved.json: approved label FMA999992 has no official name',
       'anatomy-approved.json: approved label FMA999993 has no source citation',
+    ]));
+  });
+
+  it('rejects missing source records and source IDs absent from an approved manifest', () => {
+    const f = setup();
+    writeFileSync(join(f.content, 'anatomy-approved.json'), JSON.stringify({
+      status: 'approved',
+      model: { file: '/models/anatomy/approved.glb' },
+      labels: [{ id: 'FMA999992', text: 'fixture label', source: 'orphan-source' }],
+    }));
+    expect(f.check().errors).toEqual(expect.arrayContaining([
+      'anatomy-approved.json: approved source records are missing',
+      'anatomy-approved.json: approved label FMA999992 references unknown source orphan-source',
+    ]));
+
+    writeFileSync(join(f.content, 'anatomy-approved.json'), JSON.stringify({
+      status: 'approved',
+      model: { file: '/models/anatomy/approved.glb' },
+      labels: [{ id: 'FMA999992', text: 'fixture label', source: 'orphan-source' }],
+      sources: [{ id: 'valid-source' }],
+    }));
+    expect(f.check().errors).toContain(
+      'anatomy-approved.json: approved label FMA999992 references unknown source orphan-source',
+    );
+  });
+
+  it('rejects an invalid or duplicated approved source record identifier', () => {
+    const f = setup();
+    writeFileSync(join(f.content, 'anatomy-approved.json'), JSON.stringify({
+      status: 'approved',
+      model: { file: '/models/anatomy/approved.glb' },
+      labels: [{ id: 'FMA999992', text: 'fixture label', source: 'valid-source' }],
+      sources: [{ id: 'valid-source' }, { id: 'valid-source' }, { id: '' }],
+    }));
+    expect(f.check().errors).toEqual(expect.arrayContaining([
+      'anatomy-approved.json: duplicate approved source ID valid-source',
+      'anatomy-approved.json: invalid approved source ID',
     ]));
   });
 
