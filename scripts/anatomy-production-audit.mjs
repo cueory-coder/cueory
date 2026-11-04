@@ -301,7 +301,8 @@ export function auditAnatomyProduction(distDir, contentDir) {
     const variants = [contents];
     if (SCRIPT_ESCAPES_ASSET.test(file)) variants.push(decodeAsciiEscapesForAudit(contents, 'script'));
     if (MARKUP_ESCAPES_ASSET.test(file)) variants.push(decodeAsciiEscapesForAudit(contents, 'markup'));
-    if (CSS_ESCAPES_ASSET.test(file)) variants.push(decodeAsciiEscapesForAudit(contents, 'css'));
+    // Inline <style> and style attributes in HTML/SVG can carry active CSS escapes too.
+    if (CSS_ESCAPES_ASSET.test(file) || MARKUP_ESCAPES_ASSET.test(file)) variants.push(decodeAsciiEscapesForAudit(contents, 'css'));
     if (draftTokens.size) {
       let exposedDraft = null;
       for (const variant of variants) {
