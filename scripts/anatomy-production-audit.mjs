@@ -14,6 +14,8 @@ const MODEL_URL = /^\/models\/anatomy\/[a-z0-9][a-z0-9_-]*\.glb$/;
 const STRUCTURE_ID = /^(?:FMA|BP)\d+[a-z]*$/;
 const STRUCTURE_TOKEN = /\b(?:FMA|BP)\d+[a-z]*\b/g;
 const BODYPARTS3D_URL_PREFIX = 'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/';
+// Fail closed on any publicly shipped 3D geometry, including misplaced copies and raw source meshes.
+const MODEL_ASSET = /\.(?:glb|gltf|obj|stl)$/i;
 // Scan all ordinary published text assets, not just the anatomy page or hashed JavaScript chunks.
 // Site search, manifests or unrelated pages can otherwise accidentally expose a draft identifier.
 const TEXT_ASSET = /\.(?:html?|js|mjs|json|map|xml|svg|txt|css|csv|tsv|md|webmanifest)$/i;
@@ -172,16 +174,17 @@ export function auditAnatomyProduction(distDir, contentDir) {
     if (draft.has(url)) errors.push(`ambiguous approval: ${url} is also referenced by a draft`);
   }
 
-  const modelRoot = join(dist, 'models', 'anatomy');
-  const shipped = walkFiles(modelRoot).filter((p) => p.toLowerCase().endsWith('.glb'));
-  for (const path of shipped) {
-    const url = '/models/anatomy/' + path.slice(modelRoot.length + 1).replaceAll('\\', '/');
+  // Inspect the entire output, not only dist/models/anatomy: a misplaced file is just as public.
+  // The source manifest approves exact .glb URLs; any other 3D asset must be explicitly reviewed.
+  const shipped = [...new Set(walkFiles(dist)
+    .filter((path) => MODEL_ASSET.test(path))
+    .map((path) => '/' + path.slice(dist.length + 1).replaceAll('\\', '/')))];
+
+  for (const url of shipped) {
     if (!approved.has(url)) errors.push(`unapproved model exposed in production: ${url}`);
   }
   for (const url of approved) {
-    if (!shipped.some((p) => '/models/anatomy/' + p.slice(modelRoot.length + 1).replaceAll('\\', '/') === url)) {
-      errors.push(`approved model missing from production: ${url}`);
-    }
+    if (!shipped.includes(url)) errors.push(`approved model missing from production: ${url}`);
   }
 
   const fixtureRoot = join(dist, 'preview', 'anatomy-fixture');

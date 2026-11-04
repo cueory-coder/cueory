@@ -235,6 +235,30 @@ describe('anatomy production artifact audit', () => {
     ]));
   });
 
+  it('rejects 3D models copied outside the expected anatomy directory', () => {
+    const f = setup();
+    f.file('assets/copied-draft.glb', 'fixture');
+    f.file('downloads/source.gltf', '{"asset":{"version":"2.0"}}');
+    f.file('backup/source.obj', 'v 0 0 0');
+    f.file('backup/source.stl', 'solid sample');
+    expect(f.check().errors).toEqual(expect.arrayContaining([
+      'unapproved model exposed in production: /assets/copied-draft.glb',
+      'unapproved model exposed in production: /downloads/source.gltf',
+      'unapproved model exposed in production: /backup/source.obj',
+      'unapproved model exposed in production: /backup/source.stl',
+    ]));
+  });
+
+  it('does not treat an approved model copied to a different URL as published approval', () => {
+    const f = setup();
+    rmSync(join(f.dist, 'models', 'anatomy', 'approved.glb'));
+    f.file('other/approved.glb', 'fixture');
+    expect(f.check().errors).toEqual(expect.arrayContaining([
+      'unapproved model exposed in production: /other/approved.glb',
+      'approved model missing from production: /models/anatomy/approved.glb',
+    ]));
+  });
+
   it('rejects a fixture endpoint even when no draft model is present', () => {
     const f = setup();
     f.file('preview/anatomy-fixture/fixture.glb', 'fixture');
