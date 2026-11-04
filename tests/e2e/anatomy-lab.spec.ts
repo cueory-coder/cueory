@@ -545,6 +545,43 @@ test.describe('anatomy lab', () => {
 });
 
 test.describe('anatomy lab whole body loads layers on demand', () => {
+  test('a completed shared GLB becomes searchable while a sibling GLB is still loading', async ({ page }, info) => {
+    test.skip(!isDesktopOfEachEngine(info), 'one progressive-load check per browser engine');
+    await page.goto('/preview/anatomy-lab');
+    await page.getByRole('button', { name: 'open the anatomy lab' }).click();
+    await expect(page.locator('canvas')).toBeFocused({ timeout: 15_000 });
+    const whole = page.getByRole('group', { name: 'body system' }).getByRole('button', { name: 'whole body' });
+    // This browser fixture has draft models enabled. If the whole-body picker
+    // disappears, that is a regression, not a reason to skip the assertion.
+    await expect(whole).toBeVisible({ timeout: 15_000 });
+    await whole.click();
+    const files = page.getByTestId('anatomy-files');
+    await expect(files).toContainText('model files loaded: 1 of 11', { timeout: 20_000 });
+    // Block vessels.glb only. The shared heart.glb should become usable without
+    // waiting for this second file from the same requested layer.
+    const held: Array<() => void> = [];
+    await page.route('**/models/anatomy/vessels.glb', async (route) => {
+      await new Promise<void>((resolve) => { held.push(resolve); });
+      await route.continue();
+    });
+    await page.getByLabel('find a structure').fill('heart');
+    await expect(list(page).getByRole('button', { name: 'heart (not loaded yet)', exact: true })).toBeDisabled();
+    const layers = page.getByRole('group', { name: 'layers, skin to bone' });
+    await layers.getByRole('button', { name: /^vessels \(/ }).click();
+    await expect.poll(() => held.length, { timeout: 20_000 }).toBe(1);
+    try {
+      await expect(files).toContainText('model files loaded: 2 of 11', { timeout: 20_000 });
+      await expect(list(page).getByRole('button', { name: 'heart (hidden)', exact: true }))
+        .toBeEnabled({ timeout: 20_000 });
+    } finally {
+      // Even if a regression assertion fails, do not leave a model request
+      // pending into browser teardown or hold up unrelated tests.
+      held.splice(0).forEach((release) => release());
+    }
+    await expect(files).toContainText('model files loaded: 3 of 11', { timeout: 20_000 });
+  });
+
+
   test('initial HTML contains each source structure once, then offers whole body after opening', async ({ page }, info) => {
     test.skip(!isDesktopOfEachEngine(info), 'one HTML payload check per browser engine');
     const heart = JSON.parse(

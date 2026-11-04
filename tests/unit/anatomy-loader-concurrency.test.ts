@@ -96,6 +96,52 @@ describe('anatomy on-demand download limit', () => {
     expect(await loader.ensure(['new'])).toEqual([]);
   });
 
+  it('resolves active, shared and queued callers as soon as their system retires', async () => {
+    const started: string[] = [];
+    const complete = new Map<string, (value: string) => void>();
+    const published: string[] = [];
+    const loader = createOnDemandLoader<string>(
+      (url) => {
+        started.push(url);
+        return new Promise<string>((resolve) => complete.set(url, resolve));
+      },
+      (url) => published.push(url),
+    );
+    const firstLayer = loader.ensure(['a', 'b', 'c']);
+    const overlappingLayer = loader.ensure(['a', 'd']);
+    expect(started).toEqual(['a', 'b']);
+
+    // Deliberately do NOT resolve the active a/b requests yet. The older loader
+    // hung here until they completed, even though the student left the system.
+    loader.retire();
+    await expect(firstLayer).resolves.toEqual([]);
+    await expect(overlappingLayer).resolves.toEqual([]);
+    expect(started).toEqual(['a', 'b']);
+    expect(loader.loadedCount()).toBe(0);
+
+    // If a network request eventually completes after retirement, never
+    // publish its structures or wake the retired queue.
+    complete.get('a')!('old a');
+    complete.get('b')!('old b');
+    await flushQueue();
+    expect(published).toEqual([]);
+    expect(started).toEqual(['a', 'b']);
+    expect(loader.loadedCount()).toBe(0);
+  });
+
+  it('does not reject a retired batch if an active network request fails later', async () => {
+    let fail!: (error: Error) => void;
+    const loader = createOnDemandLoader<string>(
+      () => new Promise<string>((_resolve, reject) => { fail = reject; }),
+    );
+    const pending = loader.ensure(['slow.glb']);
+    loader.retire();
+    await expect(pending).resolves.toEqual([]);
+    fail(new Error('old network request rejected'));
+    await flushQueue();
+    expect(loader.loadedCount()).toBe(0);
+  });
+
   it('keeps successful queued downloads after a partial failure and retries only the failed file', async () => {
     const started: string[] = [];
     let fail = true;

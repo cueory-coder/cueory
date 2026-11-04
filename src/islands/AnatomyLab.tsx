@@ -8,7 +8,7 @@ import {
   type MutableRefObject,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import { createGeneration, createOnDemandLoader, filesForLayer, idsForFiles, initialLayerPlan, firstLayer, layerNeedsReveal, visibilityAfterLayerDownload, lazyPeel, lazyRestore, PartialLoadError, revealTargetPlan, showAllPlan, structureLoadNote, type OnDemandLoader } from './anatomylazy';
+import { createGeneration, createOnDemandLoader, filesForLayer, idsForFiles, initialLayerPlan, firstLayer, layerNeedsReveal, visibilityAfterLayerDownload, lazyPeel, lazyRestore, revealTargetPlan, showAllPlan, structureLoadNote, type OnDemandLoader } from './anatomylazy';
 import type { LabColors, LabScene, LoadResult } from './anatomyscene';
 import { STRUCTURE_PAGE_SIZE, visibleStructureGroups } from './anatomy-list-window';
 import { anatomyTriangleNote } from './anatomybudget';
@@ -325,13 +325,39 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
         if (initial) {
           // Apply the first-layer visibility before the React ready-state effect runs.
           scene.setAppearance({ hidden: initial.hidden, selected: null });
-          const loader = createOnDemandLoader<LoadResult>((url) => {
-            const ids = idsForFiles(system, wholeLayers!, [url]);
-            return scene.add(url, ids).then((r) => {
-              if (!r || !current) throw new Error('The view changed while this layer downloaded.');
-              return r;
-            });
-          });
+          const loader = createOnDemandLoader<LoadResult>(
+            (url) => {
+              const ids = idsForFiles(system, wholeLayers!, [url]);
+              return scene.add(url, ids).then((r) => {
+                if (!r || !current) throw new Error('The view changed while this layer downloaded.');
+                return r;
+              });
+            },
+            (_url, result) => {
+              // Publish every completed file immediately. A sibling GLB may
+              // be slow or fail, but this file's meshes are already available.
+              setFilesLoaded((count) => count + 1);
+              setLoad((prev) => prev.state !== 'ready'
+                ? prev
+                : {
+                    state: 'ready',
+                    result: {
+                      found: [...prev.result.found, ...result.found],
+                      missing: prev.result.missing.filter((id) => !result.found.includes(id)),
+                      triangles: prev.result.triangles + result.triangles,
+                    },
+                  });
+            },
+            () => {
+              // The downloaded model is valid. Surface a recoverable list
+              // problem rather than reporting a false network/model failure.
+              setLayerError({
+                layer: 'structure list',
+                message: 'a model loaded, but its names could not be updated. reload the system to recover.',
+                retry: () => setInitialRetry((count) => count + 1),
+              });
+            },
+          );
           for (const url of initial.files) loader.markLoaded(url);
           loaderRef.current = loader;
         }
@@ -357,26 +383,10 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
         const intent = visibilityIntent.token();
         setLayerError(null);
         setPending((p) => new Set(p).add(layer.id));
-        const take = (results: LoadResult[]) => {
-          setFilesLoaded(loader.loadedCount());
-          setLoad((prev) =>
-            prev.state !== 'ready'
-              ? prev
-              : {
-                  state: 'ready',
-                  result: {
-                    found: [...prev.result.found, ...results.flatMap((r) => r.found)],
-                    missing: prev.result.missing.filter((id) => !results.some((r) => r.found.includes(id))),
-                    triangles: prev.result.triangles + results.reduce((n, r) => n + r.triangles, 0),
-                  },
-                },
-          );
-        };
         loader
           .ensure(filesForLayer(system, layer.id))
-          .then((results) => {
+          .then(() => {
             if (loader.isRetired()) return; // the system changed while this layer downloaded
-            take(results);
             // Geometry and structure counts always update. An older download must not
             // overwrite a newer "show only this", hide or layer choice.
             setHidden((h) => visibilityAfterLayerDownload(
@@ -388,8 +398,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
           })
           .catch((err: unknown) => {
             if (loader.isRetired()) return;
-            // Files that did arrive are already in the scene: count them, so their structures are listed and quizzable.
-            if (err instanceof PartialLoadError) take(err.results as LoadResult[]);
+            // Completed files were already published individually, even if this batch failed.
             if (visibilityIntent.isCurrent(intent)) {
               setLayerError({
                 layer: layer.id,
