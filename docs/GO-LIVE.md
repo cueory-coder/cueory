@@ -85,7 +85,7 @@ Rule 4: every file runs on `cueory-staging` first (SETUP Part L), and only then 
 Use exactly the steps of SETUP Part L, with three changes:
 - open **cueory-prod** instead of `cueory-staging`, and check the name at the top says `cueory-prod`;
 - run the files in the table below, in this order, once each;
-- the check query and SQL list must match **actual staging files already verified on cueory-staging**. If PR #235 merges, get a newly reviewed migration order before production work.
+- the check query and SQL list must match **actual staging files already verified on cueory-staging**. This table includes merged PR #235. Confirm its migration passed on staging before production work.
 
 | # | File | Run it |
 | --- | --- | --- |
@@ -100,10 +100,11 @@ Use exactly the steps of SETUP Part L, with three changes:
 | 9 | `20261102100000_study_events` | now |
 | 10 | `20261102110000_delete_my_account` | after Claude verifies it passed on cueory-staging |
 | 11 | `20261102130000_profile_display_name_from_signup` | after Claude verifies it passed on cueory-staging |
-| 12 | `20261102140000_update_display_name` | after Claude verifies it passed on cueory-staging |
+| 12 | `20261102135000_confirmed_accounts_only` | after Claude verifies it passed on cueory-staging |
+| 13 | `20261102140000_update_display_name` | after Claude verifies it passed on cueory-staging |
 
 1. Open https://github.com/lilchristxan/Cueory/tree/staging/supabase/migrations.
-   You should see exactly the twelve files above. The proposed `20261102135000_confirmed_accounts_only.sql` is not on `staging` yet. If the list differs, stop and ask Claude for a new reviewed order.
+   You should see exactly the thirteen files above, including `20261102135000_confirmed_accounts_only.sql`. If the list differs, stop and ask Claude for a new reviewed order.
 2. Open https://supabase.com/dashboard, click **cueory-prod**, and check the name at the top says `cueory-prod`.
 3. Go to the **SQL Editor** section. [SB functions]
 4. For each file, in table order: open it on GitHub (SETUP Part L's links, or click the file above and then **Raw**),
@@ -112,7 +113,7 @@ Use exactly the steps of SETUP Part L, with three changes:
 5. If a file shows an error or a box asks you to confirm something: stop, don't run it again, don't run the next
    one, and send Claude the error text and the file's number (SETUP Part L explains why).
 6. Run the check query from SETUP Part L, step 10.
-   You should see 13 tables, every one `RLS on`, and 13 functions after all twelve listed migrations, provided those files passed on staging first. File 10 adds `delete_my_account` and file 12 adds `update_display_name`. Pending PR #235 would change existing functions, not add any. If the count, names, or RLS values differ, stop and tell Claude.
+   You should see 13 tables, every one `RLS on`, and 13 functions after all thirteen listed migrations, provided those files passed on staging first. File 10 adds `delete_my_account` and file 13 adds `update_display_name`. The confirmed-accounts migration changes existing functions without adding new ones. If the count, names, or RLS values differ, stop and tell Claude.
 7. Tell Claude "prod database done through file N".
 
 If a later pull request adds a file with an earlier date than one you've already run, tell Claude before running it.
@@ -139,8 +140,8 @@ This is SETUP Part O, step 1. The settings, briefly:
    URLs]
 5. Do SETUP Part M, steps 9 to 26, on **cueory-prod**: **Confirm Email** on (in the Email provider's settings),
    **Allow anonymous sign-ins** off, **Allow new users to sign up** on, minimum password 10, default email templates,
-   default rate limits, authenticator two-factor on. [SB general config] The confirmed-account policy in still-open PR #235 requires **Confirm Email** to be on. Do not apply that PR's migration or rely on its policy until independently tested and merged into staging:
-   without it, new accounts can't use questions, flags or study events.
+   default rate limits, authenticator two-factor on. [SB general config] The confirmed-account policy from merged PR #235 requires **Confirm Email** to be on. Do not apply this migration to production until it has passed staging verification:
+   unconfirmed or anonymous accounts cannot answer questions, submit flags, or record study events.
 
 ### 1.7 Google sign-in for the live site, and publish the consent screen (25 minutes)
 
@@ -216,7 +217,7 @@ cueory.app rather than cueory.app itself. [Resend domains] Those are email DNS r
 - **B. Google-only sign-in at launch.** No DNS change. Email-and-password sign-up stays off the live site until you
   say yes; students sign in with Google, which needs no email from Cueory. Claude makes the code change that hides
   email sign-up and "forgot password" on the live site (it touches sign-in, so you approve it), and on staging checks
-  that a Google account can answer a real question (PR #235 lets only confirmed accounts do that).
+  that a Google account can answer a real question (merged PR #235 requires a confirmed, non-anonymous account for those actions).
 
 ---
 

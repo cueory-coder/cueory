@@ -216,7 +216,7 @@ You should see both projects, `cueory-staging` and `cueory-prod`, on your Supaba
 This puts the empty tables and their locks into **`cueory-staging` only**. No questions and no student data go in.
 **Don't do this on `cueory-prod`.** Prod comes later, with the same steps, only when Claude says so.
 
-There are twelve migration files currently on `staging`. Run each one **exactly once, in this order**, after Claude verifies the staging database. PR #235 proposes `20261102135000_confirmed_accounts_only.sql`, which is **not on staging** and must not be run unless it merges and is separately verified on staging. Later files build on earlier ones (questions need
+There are thirteen migration files currently on `staging`. Run each one **exactly once, in this order**, after Claude verifies the staging database. Merged PR #235 added `20261102135000_confirmed_accounts_only.sql`. Test this migration on `cueory-staging` before using it in production. Later files build on earlier ones (questions need
 topics, attempts need questions), and the first file's "locked by default" rule only covers what is made after it. A
 file run out of order or twice fails or leaves a gap.
 
@@ -233,24 +233,25 @@ file run out of order or twice fails or leaves a gap.
 | 9 | [study_events](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261102100000_study_events.sql) | Study events (answered, marked, skipped, time on each question) |
 | 10 | [delete_my_account](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261102110000_delete_my_account.sql) | The checked way for a student to delete their own account and everything linked to it |
 | 11 | [profile_display_name_from_signup](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261102130000_profile_display_name_from_signup.sql) | Copies the display name chosen at email sign-up into the profile |
-| 12 | [update_display_name](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261102140000_update_display_name.sql) | The checked, rate-limited way to change a display name |
+| 12 | [confirmed_accounts_only](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261102135000_confirmed_accounts_only.sql) | Requires confirmed, non-anonymous accounts to check answers, submit flags, and record study events |
+| 13 | [update_display_name](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261102140000_update_display_name.sql) | The checked, rate-limited way to change a display name |
 
 ### Open the right project
 1. Open https://github.com/lilchristxan/Cueory/tree/staging/supabase/migrations.
-   You should see exactly the twelve files above. If there are more, or other names, stop and tell Claude before running anything. Recheck the list if PR #235 merges.
+   You should see exactly the thirteen files above. If any are missing, added, or named differently, stop and tell Claude before running anything.
 2. Open https://supabase.com/dashboard and click the **cueory-staging** project.
 3. Check that the project name near the top of the page says `cueory-staging`. If it says `cueory-prod`, go back and
    pick `cueory-staging`. If it says the project is paused, stop and tell Claude.
 4. Go to the **SQL Editor** section of the project.
 
-### Run the twelve files (steps 5 to 9, once per file)
+### Run the thirteen files (steps 5 to 9, once per file)
 5. Click file 1's link in the table above. A new tab shows plain text whose first line names its subject, like
    `-- Locked by default`.
 6. Press **Cmd+A**, then **Cmd+C**, to copy all of it.
 7. Back in the SQL Editor, click **New Query**.
 8. Click in the empty editor and press **Cmd+V**.
 9. Click **Run** (or press **Cmd+Enter**). You should see it finish with no error. Then do steps 5 to 9 again with the
-   next file, until all twelve have run once.
+   next file, until all thirteen have run once.
 
 **If a file shows an error, or a box asks you to confirm something:**
 - Stop. Don't run that file again, don't run the next one, and don't try to fix anything.
@@ -285,7 +286,7 @@ file run out of order or twice fails or leaves a gap.
 
 Supabase's docs prefer the command-line tool for migrations; the SQL Editor is used here because it needs no terminal.
 Running SQL there skips Supabase's migration history, so before anyone uses the command-line tool on this project,
-Claude marks only each of the twelve migrations actually run in the SQL Editor as applied (`supabase migration repair <version> --status applied`), so it never runs twice. Never mark the unmerged PR #235 migration as applied. Sources:
+Claude marks only each of the thirteen migrations actually run in the SQL Editor as applied (`supabase migration repair <version> --status applied`), so it never runs twice. Never mark a migration that has not successfully run in that database. Sources:
 [Supabase: Database functions](https://supabase.com/docs/guides/database/functions) (SQL Editor, **New Query**,
 **Run**), [Supabase: Use Supabase with Next.js](https://supabase.com/docs/guides/getting-started/quickstarts/nextjs)
 (paste into the SQL Editor, then **Run**),
