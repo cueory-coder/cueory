@@ -71,7 +71,7 @@ test.describe('Task 216: printed lesson pages', () => {
 
     // noscript fallback is hidden in print so sentences are not duplicated
     await expect(page.locator('noscript ol')).toBeHidden();
-    await expect(page.locator('main [data-testid="study-reader"] ol:visible li')).toHaveCount(3);
+    await expect(page.locator('main [data-testid="study-reader"] [data-print-only] li:visible')).toHaveCount(3);
 
     await context.close();
   });
