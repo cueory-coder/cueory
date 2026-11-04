@@ -8,8 +8,9 @@ import {
   type MutableRefObject,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import { createGeneration, createOnDemandLoader, fileReadyForStructureStatus, knownMissingStructureIds, filesForLayer, idsForFiles, initialLayerPlan, firstLayer, layerNeedsReveal, visibilityAfterLayerDownload, lazyPeel, lazyRestore, revealTargetPlan, showAllPlan, structureLoadNote, type OnDemandLoader } from './anatomylazy';
+import { createGeneration, createOnDemandLoader, publishAnatomyFile, knownMissingStructureIds, filesForLayer, idsForFiles, initialLayerPlan, firstLayer, layerNeedsReveal, visibilityAfterLayerDownload, lazyPeel, lazyRestore, revealTargetPlan, showAllPlan, structureLoadNote, type OnDemandLoader } from './anatomylazy';
 import type { LabColors, LabScene, LoadResult } from './anatomyscene';
+import { createAnatomyOpenGate } from './anatomyopen';
 import { STRUCTURE_PAGE_SIZE, visibleStructureGroups } from './anatomy-list-window';
 import { anatomyTriangleNote } from './anatomybudget';
 import {
@@ -64,7 +65,7 @@ interface Props {
 }
 
 type Phase = 'cover' | 'opening' | 'open' | 'error';
-type SystemLoad = { state: 'loading' } | { state: 'ready'; result: LoadResult } | { state: 'error'; message: string };
+type SystemLoad = { state: 'loading' } | { state: 'ready'; result: LoadResult; publishedFiles: ReadonlySet<string> } | { state: 'error'; message: string };
 
 const primaryButton =
   'min-h-11 rounded-pill bg-button px-5 py-2.5 text-on-button hover:bg-button-hover disabled:opacity-60';
@@ -158,6 +159,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
   const [layerError, setLayerError] = useState<{ layer: string; message: string; retry: () => void } | null>(null);
   const [filesLoaded, setFilesLoaded] = useState(0);
   const generation = useMemo(() => createGeneration(), []);
+  const openGate = useMemo(() => createAnatomyOpenGate(), []);
   // Every explicit show/hide choice supersedes the visibility effect of earlier downloads.
   const visibilityIntent = useMemo(() => createGeneration(), []);
   const loaderRef = useRef<OnDemandLoader<LoadResult> | null>(null);
@@ -266,32 +268,48 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
 
   // ── Open: load three.js and the scene module only now ─────────────────────────────────────────────────────────────
   const open = useCallback(async () => {
+    // A double tap must not start two competing WebGL scenes. An unmount invalidates the
+    // ticket before either the dynamic import or the next animation frame can finish.
+    const attempt = openGate.begin();
+    if (attempt === null) return;
     setPhase('opening');
     try {
       const { createLabScene, readColors } = await import('./anatomyscene');
+      if (!openGate.current(attempt)) return;
       // Wait a frame so React has put the canvas on the page (the timeout covers background tabs, which get no frames).
       await new Promise<void>((resolve) => {
         requestAnimationFrame(() => resolve());
         setTimeout(resolve, 250);
       });
+      if (!openGate.current(attempt)) return;
       const canvas = canvasRef.current;
       if (!canvas) throw new Error('The 3D view could not start.');
-      readColorsRef.current = () => readColors();
-      colorsRef.current = readColors();
-      sceneRef.current = createLabScene({
+      const getColors = () => readColors();
+      const nextColors = getColors();
+      const nextScene = createLabScene({
         canvas,
         reducedMotion: prefersReducedMotion(),
-        colors: colorsRef.current,
+        colors: nextColors,
         onRender: () => updateLabelsRef.current(),
       });
+      if (!openGate.current(attempt)) {
+        nextScene.dispose();
+        return;
+      }
+      readColorsRef.current = getColors;
+      colorsRef.current = nextColors;
+      sceneRef.current = nextScene;
       setPhase('open');
     } catch {
+      if (!openGate.current(attempt)) return;
       sceneRef.current?.dispose();
       sceneRef.current = null;
       // The original WebGL or network exception may contain internal paths and URLs.
       setPhase('error');
+    } finally {
+      openGate.finish(attempt);
     }
-  }, []);
+  }, [openGate]);
 
   // ── Load the chosen system (and only it); the scene disposes the previous one ────────────────────────────────────
   useEffect(() => {
@@ -303,6 +321,8 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     loaderRef.current?.retire();
     loaderRef.current = null;
     generation.bump();
+    // A system-picker click invalidates this initial load before React effect cleanup runs.
+    const initialLoadToken = generation.token();
     visibilityIntent.bump();
     setExporting(null);
     setExportNote('');
@@ -322,7 +342,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     scene
       .load(initial?.files ?? (system.model.files ?? system.model.file), initial?.ids ?? system.structures.map((s) => s.id))
       .then((result) => {
-        if (!current || !result) return;
+        if (!current || !generation.isCurrent(initialLoadToken) || !result) return;
         if (initial) {
           // Apply the first-layer visibility before the React ready-state effect runs.
           scene.setAppearance({ hidden: initial.hidden, selected: null });
@@ -330,24 +350,19 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
             (url) => {
               const ids = idsForFiles(system, wholeLayers!, [url]);
               return scene.add(url, ids).then((r) => {
-                if (!r || !current) throw new Error('The view changed while this layer downloaded.');
+                if (!r || !current || !generation.isCurrent(initialLoadToken)) {
+                  throw new Error('The view changed while this layer downloaded.');
+                }
                 return r;
               });
             },
-            (_url, result) => {
-              // Publish every completed file immediately. A sibling GLB may
-              // be slow or fail, but this file's meshes are already available.
+            (url, result) => {
+              // Commit the file URL and found IDs together. A slow, unrelated
+              // GLB must not hide an already verified missing-structure note.
               setFilesLoaded((count) => count + 1);
               setLoad((prev) => prev.state !== 'ready'
                 ? prev
-                : {
-                    state: 'ready',
-                    result: {
-                      found: [...prev.result.found, ...result.found],
-                      missing: prev.result.missing.filter((id) => !result.found.includes(id)),
-                      triangles: prev.result.triangles + result.triangles,
-                    },
-                  });
+                : { state: 'ready', ...publishAnatomyFile(prev, url, result) });
             },
             () => {
               // The downloaded model is valid. Surface a recoverable list
@@ -366,11 +381,13 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
           // Eager model counts are also based on completed, not requested, files.
           setFilesLoaded((system.model.files ?? [system.model.file]).length);
         }
-        setLoad({ state: 'ready', result });
+        // The initial GLBs become published only after scene.load succeeds.
+        setLoad({ state: 'ready', result, publishedFiles: new Set(initial?.files ?? (system.model.files ?? [system.model.file])) });
         setAnnounce(`${system.title}: ${result.found.length} structures loaded.`);
       })
       .catch((err: unknown) => {
-        if (!current) return;
+        // An obsolete GLB rejection must not show a failure for the newly chosen system.
+        if (!current || !generation.isCurrent(initialLoadToken)) return;
         setLoad({ state: 'error', message: err instanceof Error ? err.message : String(err) });
       });
     return () => {
@@ -453,7 +470,17 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     if (load.state === 'ready') sceneRef.current?.setAppearance({ hidden, selected });
   }, [hidden, selected, load]);
 
-  useEffect(() => () => sceneRef.current?.dispose(), []);
+  useEffect(() => {
+    // Invalidate pending lazy imports and releases on actual unmount.
+    // React's development-only effect replay may mount the same island twice.
+    openGate.mount();
+    return () => {
+      openGate.unmount();
+      loaderRef.current?.retire();
+      sceneRef.current?.dispose();
+      sceneRef.current = null;
+    };
+  }, [openGate]);
 
   useEffect(() => {
     if (phase === 'open') canvasRef.current?.focus();
@@ -510,7 +537,9 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     activePointers.current.delete(e.pointerId);
     const p = pointerRef.current;
     pointerRef.current = null;
-    if (!p || p.id !== e.pointerId || p.moved) return; // a drag or a pinch turns the view; only a tap picks
+    // OrbitControls may handle secondary mouse gestures, but only a primary
+    // mouse click, touch contact or pen-tip release can select a structure.
+    if (!p || p.id !== e.pointerId || p.moved || e.button !== 0) return;
     // In quizzes, choose the nearest hit rather than favoring a previous selection.
     const id = sceneRef.current?.pick(e.clientX, e.clientY, quiz === null) ?? null;
     pickStructure(id);
@@ -696,10 +725,10 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
   const selectedGroup = selected ? system.structures.find((s) => s.id === selected)?.group : undefined;
   const budget = load.state === 'ready' ? anatomyTriangleNote(load.result.triangles, filesLoaded, lazy) : null;
   const ready = load.state === 'ready';
-  // A downloaded URL is not enough to label a mesh genuinely absent while
-  // another batch may still be publishing its found IDs to React state.
+  // Only files whose meshes and IDs were committed to this exact ready state
+  // can verify missing structures. Other pending layers leave known statuses.
   const fileIntegratedForStatus = (url: string) =>
-    fileReadyForStructureStatus(loaderRef.current?.isLoaded(url) ?? false, pending.size);
+    load.state === 'ready' && load.publishedFiles.has(url);
   const missingCount = !ready
     ? 0
     : lazy
@@ -1034,9 +1063,19 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                       </button>
                     </>
                   ) : (
-                    <button type="button" className={primaryButton} onClick={() => setQuiz(startQuiz(quizPool, Math.random))}>
-                      start again
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        className={primaryButton}
+                        disabled={quizPool.length === 0}
+                        onClick={() => setQuiz(startQuiz(quizPool, Math.random))}
+                      >
+                        start again
+                      </button>
+                      {quizPool.length === 0 && (
+                        <p className="text-sm text-ink-soft">show a structure to start another round.</p>
+                      )}
+                    </>
                   )}
                 </div>
               </div>

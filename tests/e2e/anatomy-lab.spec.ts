@@ -223,10 +223,12 @@ test.describe('anatomy lab', () => {
 
   test('switching body systems clears a stale search but reselecting the same system does not', async ({ page }) => {
     await openLab(page);
+    // The picker is composed after the canvas finishes opening, not when it first appears.
+    await expect(page.locator('canvas')).toBeFocused({ timeout: 15_000 });
     const search = page.getByLabel('find a structure');
     const picker = page.getByRole('group', { name: 'body system' });
     const whole = picker.getByRole('button', { name: 'whole body', exact: true });
-    test.skip((await whole.count()) === 0, 'the real whole-body catalog is not included in this build');
+    await expect(whole).toBeVisible({ timeout: 15_000 });
 
     await search.fill('fixture cube B');
     await expect(list(page).getByRole('button', { name: 'fixture cube B', exact: true })).toBeVisible();
@@ -248,6 +250,26 @@ test.describe('anatomy lab', () => {
     await expect(search).toHaveValue('');
     await expect(list(page).getByRole('button', { name: 'fixture cube A', exact: true })).toBeVisible({ timeout: 20_000 });
     await expect(list(page).getByText('5 structures', { exact: true })).toBeVisible();
+  });
+
+  test('secondary and middle mouse clicks do not clear a selected structure', async ({ page }, info) => {
+    test.skip(!isDesktopOfEachEngine(info), 'one pointer-button regression per browser engine');
+    await openLab(page);
+    const cube = list(page).getByRole('button', { name: 'fixture cube A', exact: true });
+    await cube.click();
+    await expect(cube).toHaveAttribute('aria-pressed', 'true');
+    const nameCard = page.getByRole('region', { name: 'fixture cube A' });
+    await expect(nameCard).toBeVisible();
+
+    // Select a real fixture first. A non-primary click near the canvas edge
+    // previously raycast (often to nothing) and silently cleared selection.
+    const canvas = page.locator('canvas');
+    for (const button of ['right', 'middle'] as const) {
+      await canvas.click({ button, position: { x: 3, y: 3 } });
+      await expect(cube, `${button} click must not change the selected mesh`)
+        .toHaveAttribute('aria-pressed', 'true');
+      await expect(nameCard).toBeVisible();
+    }
   });
 
   test('tapping the structure in the middle of the view selects it (raycasting)', async ({ page }) => {
@@ -490,6 +512,36 @@ test.describe('anatomy lab', () => {
     await expect(list(page).getByRole('button', { name: `hide ${target}` })).toBeDisabled();
   });
 
+  test('a finished quiz cannot restart with every structure hidden', async ({ page }) => {
+    await openLab(page);
+    const quiz = page.getByRole('region', { name: 'find it' });
+    const remaining = NAMES[0]!;
+
+    // Start a one-structure round so the result is deterministic, regardless
+    // of which random target a longer round might otherwise choose.
+    for (const name of NAMES.slice(1)) {
+      await list(page).getByRole('button', { name: `hide ${name}`, exact: true }).click();
+    }
+    await quiz.getByRole('button', { name: 'start the quiz' }).click();
+    await expect(quiz.getByText(/^find: /)).toContainText(remaining);
+
+    // The learner can hide the last visible shape before completing the round.
+    await list(page).getByRole('button', { name: `hide ${remaining}`, exact: true }).click();
+    await quiz.getByRole('button', { name: 'next' }).click();
+    await expect(quiz.getByText(/^round done:/)).toBeVisible();
+
+    const restart = quiz.getByRole('button', { name: 'start again' });
+    await expect(restart).toBeDisabled();
+    await expect(quiz.getByText('show a structure to start another round.')).toBeVisible();
+
+    // The same completed round becomes restartable as soon as a shape is shown.
+    const next = NAMES[1]!;
+    await list(page).getByRole('button', { name: `show ${next}`, exact: true }).click();
+    await expect(restart).toBeEnabled();
+    await restart.click();
+    await expect(quiz.getByText(/^find: /)).toContainText(next);
+  });
+
   test('exports a phone picture as a 1080 × 1920 PNG with the right file name', async ({ page }, info) => {
     test.skip(!isDesktopOfEachEngine(info), 'one export run per engine is enough');
     await openLab(page);
@@ -652,7 +704,7 @@ test.describe('anatomy lab whole body loads layers on demand', () => {
     const response = await page.goto('/preview/anatomy-lab');
     expect(response).not.toBeNull();
     const html = await response!.text();
-    test.skip(!html.includes(sourceId), 'no draft anatomy sources in this build');
+    expect(html, 'draft-enabled Playwright builds must include this source structure').toContain(sourceId);
     expect(html.split(sourceId).length - 1).toBe(1);
 
     await expect(page.getByRole('button', { name: 'whole body', exact: true })).toHaveCount(0);
@@ -673,7 +725,7 @@ test.describe('anatomy lab whole body loads layers on demand', () => {
     // The canvas exists during "opening" too. Focus is set only after the viewer reaches "open".
     await expect(page.locator('canvas')).toBeFocused({ timeout: 15_000 });
     const picker = page.getByRole('group', { name: 'body system' });
-    test.skip((await picker.getByRole('button', { name: 'whole body' }).count()) === 0, 'no real whole-body models in this build');
+    await expect(picker.getByRole('button', { name: 'whole body' })).toBeVisible({ timeout: 15_000 });
     await page.waitForLoadState('networkidle');
     glb.length = 0;
     await picker.getByRole('button', { name: 'whole body' }).click();
@@ -695,8 +747,9 @@ test.describe('anatomy lab whole body loads layers on demand', () => {
     await page.goto('/preview/anatomy-lab');
     await page.getByRole('button', { name: 'open the anatomy lab' }).click();
     await expect(page.locator('canvas')).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('canvas')).toBeFocused({ timeout: 15_000 });
     const whole = page.getByRole('group', { name: 'body system' }).getByRole('button', { name: 'whole body' });
-    test.skip((await whole.count()) === 0, 'whole-body draft model is absent from this build');
+    await expect(whole).toBeVisible({ timeout: 15_000 });
     await whole.click();
     const files = page.getByTestId('anatomy-files');
     await expect(files).toContainText('model files loaded: 1 of 11', { timeout: 20_000 });
@@ -735,8 +788,9 @@ test.describe('anatomy lab whole body loads layers on demand', () => {
     await page.goto('/preview/anatomy-lab');
     await page.getByRole('button', { name: 'open the anatomy lab' }).click();
     await expect(page.locator('canvas')).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('canvas')).toBeFocused({ timeout: 15_000 });
     const wholeBody = page.getByRole('group', { name: 'body system' }).getByRole('button', { name: 'whole body' });
-    test.skip((await wholeBody.count()) === 0, 'real whole-body models are not included in this build');
+    await expect(wholeBody).toBeVisible({ timeout: 15_000 });
     await wholeBody.click();
     const files = page.getByTestId('anatomy-files');
     await expect(files).toContainText('model files loaded: 1 of 11', { timeout: 20_000 });
@@ -761,7 +815,7 @@ test.describe('anatomy lab whole body loads layers on demand', () => {
     // Do not treat an unfinished WebGL startup as evidence that the combined system is absent.
     await expect(page.locator('canvas')).toBeFocused({ timeout: 15_000 });
     const wholeBody = page.getByRole('group', { name: 'body system' }).getByRole('button', { name: 'whole body' });
-    test.skip((await wholeBody.count()) === 0, 'real whole-body draft models are not included in this build');
+    await expect(wholeBody).toBeVisible({ timeout: 15_000 });
     await wholeBody.click();
 
     const files = page.getByTestId('anatomy-files');

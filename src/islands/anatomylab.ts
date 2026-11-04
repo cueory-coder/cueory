@@ -67,6 +67,33 @@ export function pictureCreditFor(system: Pick<AnatomySystem, 'status' | 'model' 
 }
 
 /**
+ * The picture can use a browser fallback font if a self-hosted face fails.
+ * A rejected FontFaceSet.load() (or one that throws) must never prevent
+ * drawing the model, its title, labels and mandatory source credit.
+ */
+export async function preparePictureFonts(
+  declarations: readonly string[],
+  load: (declaration: string) => Promise<unknown>,
+  maxWaitMs = 1_500,
+): Promise<void> {
+  // A font request can stay pending indefinitely. Give both faces a short
+  // chance to load, then let Canvas use a fallback so exporting still works.
+  // allSettled also observes late rejections after the deadline.
+  const finished = Promise.allSettled(
+    declarations.map((declaration) => Promise.resolve().then(() => load(declaration))),
+  ).then(() => {});
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      finished,
+      new Promise<void>((resolve) => { timer = setTimeout(resolve, maxWaitMs); }),
+    ]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
+/**
  * The selected mesh is opaque while other structures become translucent.
  * When two visible meshes overlap under the pointer, prefer the selected one
  * if the ray actually crosses its geometry. Otherwise choose the nearest hit.
@@ -102,8 +129,9 @@ export function systemKeyFromPath(path: string): string | null {
 }
 
 const STRUCTURE_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
-/** A same-site address of a .glb: starts with one slash, plain path characters only, no `..`. */
-const MODEL_FILE = /^\/(?!\/)[A-Za-z0-9/_-]+(?:\.[A-Za-z0-9_-]+)*\.glb$/;
+// The synthetic fixture has a preview-only route. Every real source manifest
+// must point to the GLB generated for its own anatomy-<system>.json file.
+const FIXTURE_MODEL_FILE = '/preview/anatomy-fixture/fixture.glb';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -125,15 +153,19 @@ export function parseAnatomyFile(json: unknown, path: string, options: { fixture
   if (!key) fail('an anatomy file is named anatomy-<system>.json');
   if (!isRecord(json)) fail('the file must hold one JSON object');
   const file = json as Record<string, unknown>;
+  // Refuse unrelated visual kinds and sources bound to the wrong anatomy model.
+  if (file['id'] !== `anatomy-${key}`) fail('"id" must match the anatomy source filename');
+  if (file['kind'] !== 'model') fail('"kind" must be "model"');
   if (!text(file['title'], 120)) fail('"title" must be a short line of text');
   const status = file['status'];
   if (status !== 'draft' && status !== 'approved') fail('"status" must be "draft" or "approved"');
   const model = file['model'];
   if (!isRecord(model)) fail('"model" must be { file, release }');
   const m = model as Record<string, unknown>;
-  if (typeof m['file'] !== 'string' || !MODEL_FILE.test(m['file']) || m['file'].includes('..')) {
-    fail('"model.file" must be this site\'s address of a .glb, such as /models/anatomy/heart.glb');
-  }
+  // Accept an exact per-system GLB or the explicit synthetic fixture, never
+  // an arbitrary public path or another system's 3D model.
+  const expectedModel = options.fixture ? FIXTURE_MODEL_FILE : `/models/anatomy/${key}.glb`;
+  if (m['file'] !== expectedModel) fail(`"model.file" must be ${expectedModel}`);
   if (!text(m['release'], 80)) fail('"model.release" must name the model release');
   if (m['via'] !== undefined && !text(m['via'], 200)) fail('"model.via", when given, must be a short line of text');
   const labels = file['labels'];
@@ -196,7 +228,12 @@ export const PRODUCTION_BRANCH = 'main';
  */
 export function draftsAllowed(env: BuildEnv): boolean {
   if (env.WORKERS_CI !== '1') return env.CUEORY_ANATOMY_DRAFTS === '1';
-  const branch = env.WORKERS_CI_BRANCH?.trim();
+  const rawBranch = env.WORKERS_CI_BRANCH?.trim();
+  // Cloudflare normally supplies a short branch name. A full Git ref for
+  // refs/heads/main must also be recognized as production.
+  const branch = rawBranch?.startsWith('refs/heads/')
+    ? rawBranch.slice('refs/heads/'.length)
+    : rawBranch;
   return Boolean(branch) && branch !== PRODUCTION_BRANCH;
 }
 
@@ -811,6 +848,40 @@ export function wrapText(value: string, maxWidth: number, measure: (s: string) =
   }
   if (line) lines.push(line);
   return lines;
+}
+
+/** The title band of a saved picture, measured with the same font used by the canvas renderer. */
+export interface PictureTitleLayout {
+  lines: string[];
+  lineHeight: number;
+  /** The y-coordinate where the 3D picture may begin, after the title and its padding. */
+  top: number;
+  /** Also passed to canvas fillText so even an unusually long unbroken word stays inside the picture. */
+  maxWidth: number;
+}
+
+/**
+ * A long system title must not run off the right edge of a saved phone, square or wide picture.
+ * Every wrapped line gets vertical space above the 3D view. The canvas renderer constrains single
+ * words longer than the available width with fillText's maxWidth (without truncating the text).
+ */
+export function pictureTitleLayout(
+  title: string,
+  pictureWidth: number,
+  padding: number,
+  fontSize: number,
+  leading: number,
+  measure: (value: string) => number,
+): PictureTitleLayout {
+  const maxWidth = Math.max(1, pictureWidth - 2 * padding);
+  const lines = wrapText(title, maxWidth, measure);
+  const lineHeight = Math.max(1, Math.round(fontSize * leading));
+  return {
+    lines,
+    lineHeight,
+    top: padding + lines.length * lineHeight + Math.round(padding / 2),
+    maxWidth,
+  };
 }
 
 /** Room around the model in the lab's starting view: 1.08 leaves 4% at the tighter edges. */

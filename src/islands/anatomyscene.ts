@@ -25,6 +25,8 @@ import {
   labelRoomFor,
   placeLabels,
   pickedStructure,
+  pictureTitleLayout,
+  preparePictureFonts,
   wrapText,
   type ExportSize,
   type Rect,
@@ -621,6 +623,9 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
   }
 
   async function exportPicture(request: ExportRequest): Promise<ExportResult> {
+    // A system picker click invalidates this picture while fonts may still be loading.
+    // Do not allocate another large canvas or GPU renderer for an obsolete model.
+    const pictureLoadId = loadId;
     const { width, height } = EXPORT_SIZES[request.size];
     // Type is set for the picture's shorter side (1080 in every size), so a wide picture's labels are no taller than
     // a phone picture's and as many fit down its side.
@@ -632,11 +637,16 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
     const pad = Math.round(tk.pad * scale);
     const font = colors.font;
     if (document.fonts) {
-      await Promise.all([
-        document.fonts.load(`700 ${titleSize}px ${font}`),
-        document.fonts.load(`400 ${labelSize}px ${font}`),
-      ]);
+      // Offline or stalled font requests must not hide title, labels, or source credits.
+      // Wait briefly, then let Canvas use its browser fallback font.
+      await preparePictureFonts(
+        [`700 ${titleSize}px ${font}`, `400 ${labelSize}px ${font}`],
+        (declaration) => document.fonts.load(declaration),
+      );
     }
+
+    // scene.clear() and scene.dispose() advance loadId synchronously.
+    if (pictureLoadId !== loadId) throw new Error('The anatomy model changed during picture preparation.');
 
     const out = document.createElement('canvas');
     out.width = width;
@@ -644,11 +654,17 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
     const ctx = out.getContext('2d');
     if (!ctx) throw new Error('This browser cannot draw the picture.');
 
+    // Measure the saved picture's title before fitting the camera crop.
+    // The output canvas has already been allocated and stale-load guards have passed.
+    ctx.font = `700 ${titleSize}px ${font}`;
+    const titleLayout = pictureTitleLayout(
+      request.title, width, pad, titleSize, tk.leading, (value) => ctx.measureText(value).width,
+    );
     // The credit's lines decide how much room the bottom band needs.
     ctx.font = `400 ${creditSize}px ${font}`;
     const creditLines = wrapText(request.credit, width - 2 * pad, (s) => ctx.measureText(s).width);
     const creditLineHeight = Math.round(creditSize * tk.leading);
-    const top = pad + Math.round(titleSize * tk.leading) + Math.round(pad / 2);
+    const top = titleLayout.top;
     const bottom = pad + creditLines.length * creditLineHeight + Math.round(pad / 2);
     const viewHeight = Math.max(1, height - top - bottom);
 
@@ -769,7 +785,10 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
       ctx.textBaseline = 'alphabetic';
       ctx.fillStyle = colors.ink;
       ctx.font = `700 ${titleSize}px ${font}`;
-      ctx.fillText(request.title, pad, pad + titleSize);
+      titleLayout.lines.forEach((line, index) => {
+        // Bound even a single unbroken title word to the canvas text width.
+        ctx.fillText(line, pad, pad + titleSize + index * titleLayout.lineHeight, titleLayout.maxWidth);
+      });
       ctx.fillStyle = colors.inkSoft;
       ctx.font = `400 ${creditSize}px ${font}`;
       creditLines.forEach((line, i) => {

@@ -66,9 +66,12 @@ export async function loadModelsOrDispose<T>(
   dispose: (value: T) => void,
 ): Promise<T[]> {
   const completed: T[] = [];
+  // Reserve the results by input index, not completion order.
+  const results = new Array<T>(loads.length);
+  let next = 0;
   let failed = false;
-  // A damaged WebGL context may throw during cleanup. Keep the original load
-  // error, and attempt to release every other successfully decoded scene.
+  // A damaged WebGL context may throw during cleanup. Preserve the original
+  // load failure and continue releasing all completed or late-arriving scenes.
   const disposeBestEffort = (value: T): void => {
     try {
       dispose(value);
@@ -76,14 +79,33 @@ export async function loadModelsOrDispose<T>(
       // Resource disposal is best effort after a failed batch.
     }
   };
-  try {
-    // Promise.all preserves input order even when model requests finish out of order.
-    return await Promise.all(loads.map(async (load) => {
-      const value = await load();
+  const worker = async (): Promise<void> => {
+    while (!failed && next < loads.length) {
+      const index = next++;
+      let value: T;
+      try {
+        value = await loads[index]!();
+      } catch (error) {
+        // Stop the queue before another worker can start another decode.
+        // In-flight peers are still observed and their results disposed.
+        failed = true;
+        throw error;
+      }
       if (failed) disposeBestEffort(value);
-      else completed.push(value);
-      return value;
-    }));
+      else {
+        results[index] = value;
+        completed.push(value);
+      }
+    }
+  };
+  try {
+    // The same two-file limit used by the on-demand loader protects the
+    // initial whole-body batch from starting every GLB decode at once.
+    await Promise.all(Array.from(
+      { length: Math.min(loads.length, MAX_CONCURRENT_ANATOMY_MODELS) },
+      () => worker(),
+    ));
+    return results;
   } catch (error) {
     failed = true;
     for (const value of completed) disposeBestEffort(value);
@@ -172,6 +194,35 @@ export function structureLoadNote(
  */
 export function fileReadyForStructureStatus(isLoaded: boolean, pendingLayerBatches: number): boolean {
   return isLoaded && pendingLayerBatches === 0;
+}
+
+/**
+ * One atomic publication for a completed GLB: its structure IDs and URL
+ * become visible in the same React state update. This prevents a new download
+ * from retracting confirmed missing statuses for unrelated owner files.
+ *
+ * The returned state never mutates its input (including publishedFiles).
+ */
+export interface PublishedAnatomyFileState {
+  result: { found: string[]; missing: string[]; triangles: number };
+  publishedFiles: ReadonlySet<string>;
+}
+
+export function publishAnatomyFile(
+  previous: PublishedAnatomyFileState,
+  url: string,
+  incoming: PublishedAnatomyFileState['result'],
+): PublishedAnatomyFileState {
+  const found = [...new Set([...previous.result.found, ...incoming.found])];
+  const foundSet = new Set(found);
+  return {
+    result: {
+      found,
+      missing: previous.result.missing.filter((id) => !foundSet.has(id)),
+      triangles: previous.result.triangles + incoming.triangles,
+    },
+    publishedFiles: new Set([...previous.publishedFiles, url]),
+  };
 }
 
 /** Count only verified missing IDs using the same owning-file rule as the list. */
