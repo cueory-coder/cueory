@@ -737,6 +737,48 @@ test.describe('anatomy lab whole body loads layers on demand', () => {
 
 });
 
+test.describe('anatomy whole-body initial file count', () => {
+  test('does not count a pending or failed first GLB, then counts its successful retry', async ({ page }, info) => {
+    test.skip(!isDesktopOfEachEngine(info), 'one initial-file check per browser engine');
+    await page.goto('/preview/anatomy-lab');
+    await page.getByRole('button', { name: 'open the anatomy lab' }).click();
+    await expect(page.locator('canvas')).toBeFocused({ timeout: 15_000 });
+    const whole = page.getByRole('group', { name: 'body system' })
+      .getByRole('button', { name: 'whole body', exact: true });
+    // This preview has draft models enabled. Missing whole-body is a test failure.
+    await expect(whole).toBeVisible({ timeout: 15_000 });
+
+    let attempts = 0;
+    const releases: Array<() => void> = [];
+    await page.route('**/models/anatomy/skin.glb', async (route) => {
+      attempts++;
+      if (attempts === 1) {
+        await new Promise<void>((resolve) => releases.push(resolve));
+        await route.abort('failed');
+      } else {
+        await route.continue();
+      }
+    });
+    try {
+      await whole.click();
+      await expect.poll(() => releases.length, { timeout: 20_000 }).toBe(1);
+      const files = page.getByTestId('anatomy-files');
+      await expect(files).toContainText('model files loaded: 0 of 11');
+      releases.splice(0).forEach((release) => release());
+      await expect(page.getByRole('alert').filter({ hasText: 'could not load whole body.' }))
+        .toBeVisible({ timeout: 20_000 });
+      await expect(files).toContainText('model files loaded: 0 of 11');
+
+      await page.getByRole('button', { name: 'try loading again' }).click();
+      await expect(files).toContainText('model files loaded: 1 of 11', { timeout: 20_000 });
+      expect(attempts).toBe(2);
+    } finally {
+      // An assertion failure must not leave a route pending during teardown.
+      releases.splice(0).forEach((release) => release());
+    }
+  });
+});
+
 test.describe('anatomy lab system switch', () => {
   test('the old model is not shown after switching, and a late layer from the old system changes nothing', async ({ page }) => {
     const release: Array<() => void> = [];
