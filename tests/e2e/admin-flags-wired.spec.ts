@@ -42,11 +42,14 @@ test.beforeAll(async () => {
           reason: 'other', comment: 'sample comment: already looked at.', status: 'handled',
           created_at: '2026-11-01T09:00:00+00:00', handled_at: '2026-11-01T12:00:00+00:00' },
       ];
-      if (who === 'capped') {
-        // 2,000 open reports: ten full pages of 200 (more than the page will load).
+      if (who === 'capped' || who === 'capped-handled') {
+        // More than 2,000 open or handled reports, so older records are hidden until the filter changes.
+        const handled = who === 'capped-handled';
         rows = Array.from({ length: 2100 }, (_, i) => ({ id: id(5000 + i), user_id: id(900), page: '/play', item_id: null,
-          item_version_id: null, reason: 'typo', comment: 'sample ' + i, status: 'open',
-          created_at: new Date(Date.UTC(2026, 10, 2, 10, 0, 0) - i * 1000).toISOString(), handled_at: null }));
+          item_version_id: null, reason: 'typo', comment: 'sample ' + i,
+          status: handled ? 'handled' : 'open',
+          created_at: new Date(Date.UTC(2026, 10, 2, 10, 0, 0) - i * 1000).toISOString(),
+          handled_at: handled ? '2026-11-02T12:00:00+00:00' : null }));
       }
       let failures = who === 'broken' ? 1 : 0;
       const refusal = { code: '42501', message: 'only the site owner, signed in with two-factor, can do this', details: null, hint: null };
@@ -58,7 +61,7 @@ test.beforeAll(async () => {
       const rpc = (fn, args) => {
         window.rpcCalls.push([fn, args]);
         if (failures > 0) { failures -= 1; return later({ data: null, error: { code: '57014', message: 'provider-private-detail' } }); }
-        if (who !== 'admin' && who !== 'broken' && who !== 'capped') return later({ data: null, error: refusal });
+        if (who !== 'admin' && who !== 'broken' && who !== 'capped' && who !== 'capped-handled') return later({ data: null, error: refusal });
         if (fn === 'admin_list_flags') {
           const sorted = rows.filter(r => r.status === args.flag_status)
             .sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id));
@@ -95,7 +98,7 @@ test.beforeAll(async () => {
           },
           mfa: { getAuthenticatorAssuranceLevel: () => later({
             data: {
-              currentLevel: who === 'admin' || who === 'broken' || who === 'capped' ? 'aal2' : 'aal1',
+              currentLevel: who === 'admin' || who === 'broken' || who === 'capped' || who === 'capped-handled' ? 'aal2' : 'aal1',
               nextLevel: who === 'student' ? 'aal1' : 'aal2',
             },
             error: null,
@@ -168,7 +171,15 @@ test.describe('/admin/flags wired to the database functions', () => {
   test('a list cut off at 2,000 reports says so in plain words', async ({ page }) => {
     await fixture(page, 'who=capped');
     await expect(page.getByTestId('admin-flags-capped')).toHaveText(
-      'showing the newest 2,000 reports; older ones are not shown. mark some handled to see more.');
+      'showing the newest 2,000 reports. older ones may be hidden. mark some handled to see more.');
+    await expect(page.getByTestId('admin-flags-row')).toHaveCount(2000);
+  });
+
+  test('the handled-report cap tells the admin to reopen reports instead of marking them handled', async ({ page }) => {
+    await fixture(page, 'who=capped-handled');
+    await page.getByRole('radio', { name: 'handled', exact: true }).check();
+    await expect(page.getByTestId('admin-flags-capped')).toHaveText(
+      'showing the newest 2,000 reports. older ones may be hidden. reopen some handled reports to see more.');
     await expect(page.getByTestId('admin-flags-row')).toHaveCount(2000);
   });
 

@@ -260,7 +260,8 @@ export default function AdminFlags({ sampleRows }: Props) {
 
       {screen.kind === 'ok' && !screen.complete && (
         <p className="mt-4" data-testid="admin-flags-capped">
-          showing the newest 2,000 reports; older ones are not shown. mark some handled to see more.
+          showing the newest 2,000 reports. older ones may be hidden.{' '}
+          {status === 'open' ? 'mark some handled' : 'reopen some handled reports'} to see more.
         </p>
       )}
 
