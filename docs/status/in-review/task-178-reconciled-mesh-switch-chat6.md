@@ -4,7 +4,7 @@ Status: in review. Branch begins at the exact head of PR #414, `5085cce47985d6ec
 
 ## Fixes
 - Register later GLB meshes under their already-known structure ID and refresh bounds for every touched ID. The isolated `anatomymeshindex.ts` helper and synthetic Vitest cases are copied from the previously reviewed mesh correction in PR #494/#482.
-- Invalidate in-flight PNG exports immediately in the system-picker handler. Mark the newly chosen model loading and clear the former selection and quiz before the passive React load effect runs. Preserve the existing reset of search and keyboard list pagination from PR #414.
+- Invalidate in-flight PNG exports and stale layer-visibility intents in the system-picker handler. Retire the prior on-demand loader and clear its scene immediately, so late initial GLBs and on-demand results cannot repopulate the old model. Mark the newly chosen model loading and clear the former selection and quiz before the passive React load effect runs. Preserve the existing reset of search and keyboard list pagination from PR #414.
 - Include the synthetic same-tick PNG-race Playwright test from the PR #469 work, and assert the quiz and PNG controls are disabled while a held new-system GLB is still loading.
 
 ## Merge guidance
