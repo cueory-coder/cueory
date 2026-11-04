@@ -3,7 +3,7 @@
 -- students and sessions below exist only inside this test.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(11);
+select plan(14);
 
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-000000000001', 'one@example.com'),
@@ -65,6 +65,25 @@ select results_eq(
   $$ values ('2026-11-02 08:00:00+00'::timestamptz, '2026-11-02 08:30:00+00'::timestamptz, '2026-12-02 08:00:00+00'::timestamptz) $$,
   'with the times as Supabase stored them'
 );
+
+-- ---- A verified TOTP factor blocks a stolen aal1 session from exporting IP/device history.
+reset role;
+insert into auth.mfa_factors (id, user_id, friendly_name, factor_type, status, created_at, updated_at) values
+  ('00000000-0000-4000-8000-0000000000f1', '00000000-0000-4000-8000-000000000001',
+   'test verified', 'totp', 'verified', now(), now()),
+  ('00000000-0000-4000-8000-0000000000f2', '00000000-0000-4000-8000-000000000002',
+   'test pending', 'totp', 'unverified', now(), now());
+set local role authenticated;
+set local "request.jwt.claims" to '{"sub":"00000000-0000-4000-8000-000000000001","role":"authenticated","aal":"aal1"}';
+select is_empty($ select id from public.my_sessions() $,
+  'verified-factor account at aal1 cannot export IP or user-agent history');
+set local "request.jwt.claims" to '{"sub":"00000000-0000-4000-8000-000000000001","role":"authenticated","aal":"aal2"}';
+select results_eq($ select count(*)::int from public.my_sessions() $,
+  $ values (2) $,
+  'verified-factor account at aal2 can export its own two sessions');
+set local "request.jwt.claims" to '{"sub":"00000000-0000-4000-8000-000000000001","role":"authenticated"}';
+select is_empty($ select id from public.my_sessions() $,
+  'a missing aal claim also refuses a verified-factor account');
 
 -- ---- Student two sees only their own.
 set local "request.jwt.claims" to '{"sub": "00000000-0000-4000-8000-000000000002", "role": "authenticated"}';

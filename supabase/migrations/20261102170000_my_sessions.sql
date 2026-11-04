@@ -9,7 +9,9 @@
 -- security definer with an empty search_path and schema-qualified names (Supabase docs, "Database Functions"). It runs
 -- as its owner, postgres, which Supabase Auth lets read auth.sessions (supabase/auth migration
 -- 20240612123726_enable_rls_update_grants). Signed-out visitors can't run it, and auth.uid() limits the rows to the
--- caller's own. Grants are in this file, together (D-73).
+-- caller's own. A verified TOTP user also needs an aal2 JWT, even if someone calls the RPC directly instead of
+-- using the browser's MFA screen. An unfinished enrollment alone never locks the account out. Grants are in this file,
+-- together (D-73).
 
 create function public.my_sessions()
 returns table (
@@ -28,11 +30,20 @@ as $$
   select s.id, s.created_at, s.updated_at, s.not_after, s.user_agent, host(s.ip)
   from auth.sessions s
   where s.user_id = (select auth.uid())
+    and coalesce(
+      case when exists (
+        select 1 from auth.mfa_factors f
+        where f.user_id = (select auth.uid()) and f.status = 'verified'
+      ) then (select auth.jwt() ->> 'aal') = 'aal2'
+      else coalesce((select auth.jwt() ->> 'aal'), 'aal1') in ('aal1', 'aal2')
+      end,
+      false
+    )
   order by s.created_at, s.id;
 $$;
 
 comment on function public.my_sessions() is
-  'A signed-in student''s own sign-in sessions: when, browser and IP address (Task 309, export-my-data).';
+  'A signed-in student''s own sessions: timestamps, browser and IP, with opt-in verified-factor MFA enforcement (Task 309).';
 
 revoke execute on function public.my_sessions() from public, anon, authenticated;
 grant execute on function public.my_sessions() to authenticated;
