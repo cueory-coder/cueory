@@ -1286,7 +1286,7 @@ test.describe('☰ side panel and account corner (D-46)', () => {
   test('corner buttons are at least 44 by 44 px', async ({ page }) => {
     for (const path of ['/', '/learn/study-skills']) {
       await page.goto(path);
-      for (const name of ['menu', 'account']) {
+      for (const name of ['open site menu', 'account']) {
         const box = (await page.getByRole('button', { name, exact: true }).boundingBox())!;
         expect(box.width).toBeGreaterThanOrEqual(44);
         expect(box.height).toBeGreaterThanOrEqual(44);
