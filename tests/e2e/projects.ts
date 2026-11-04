@@ -25,3 +25,26 @@ export function isEveningProject(info: TestInfo): boolean {
 export function isDesktopOfEachEngine(info: TestInfo): boolean {
   return sizeOf(info) === 'desktop' && !info.project.use.hasTouch && !isEveningProject(info);
 }
+
+/**
+ * True only for Chromium's `desktop` project: the one project where a static check runs (Task 308). A static check
+ * reads only what the server sends or what the built HTML says (status codes, headers, meta tags, titles, link
+ * targets, structured data), so the window size, touch screen, palette and engine can't change its answer.
+ */
+export function isStaticCheckProject(info: TestInfo): boolean {
+  const engine = info.project.use.browserName ?? info.project.use.defaultBrowserType ?? 'chromium';
+  return engine === 'chromium' && isDesktopOfEachEngine(info);
+}
+
+/**
+ * Opt-in for static route sweeps: put this first in the sweep's `test.describe`, and its tests run once instead of in
+ * every project. It runs before the test asks for a page, so the other projects skip without opening one:
+ *
+ *   test.beforeEach(({}, testInfo) => runStaticCheckOnce(testInfo));
+ *
+ * Never use it for anything a person sees or touches (layout, focus, scrolling, colors, taps, axe): those run in every
+ * project (D-48).
+ */
+export function runStaticCheckOnce(info: TestInfo): void {
+  info.skip(!isStaticCheckProject(info), 'static check: runs once, in Chromium at desktop size (Task 308)');
+}
