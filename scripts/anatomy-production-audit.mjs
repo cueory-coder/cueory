@@ -10,6 +10,9 @@ import { pathToFileURL } from 'node:url';
 
 const ANATOMY_FILE = /^anatomy-[a-z0-9-]+\.json$/;
 const MODEL_URL = /^\/models\/anatomy\/[a-z0-9][a-z0-9_-]*\.glb$/;
+// Match the canonical BodyParts3D IDs accepted by src/content.config.ts.
+const STRUCTURE_ID = /^(?:FMA|BP)\d+[a-z]*$/;
+const STRUCTURE_TOKEN = /\b(?:FMA|BP)\d+[a-z]*\b/g;
 const BODYPARTS3D_URL_PREFIX = 'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/';
 // Scan all ordinary published text assets, not just the anatomy page or hashed JavaScript chunks.
 // Site search, manifests or unrelated pages can otherwise accidentally expose a draft identifier.
@@ -129,7 +132,7 @@ export function auditAnatomyProduction(distDir, contentDir) {
       } else {
         const seenIds = new Set();
         for (const label of data.labels) {
-          if (!label || typeof label.id !== 'string' || !/^FMA\d{3,}$/.test(label.id)) {
+          if (!label || typeof label.id !== 'string' || !STRUCTURE_ID.test(label.id)) {
             errors.push(`${name}: invalid approved label ID`);
             continue;
           }
@@ -155,7 +158,7 @@ export function auditAnatomyProduction(distDir, contentDir) {
         errors.push(`${name}: draft labels are missing`);
       } else {
         for (const label of data.labels) {
-          if (!label || typeof label.id !== 'string' || !/^FMA\d{3,}$/.test(label.id)) {
+          if (!label || typeof label.id !== 'string' || !STRUCTURE_ID.test(label.id)) {
             errors.push(`${name}: invalid draft label ID`);
           } else {
             draftIds.add(label.id);
@@ -189,13 +192,13 @@ export function auditAnatomyProduction(distDir, contentDir) {
   // Draft labels must not be baked into static HTML/JS data, even if their .glb files were pruned.
   // The identifiers are original data keys, not guessed medical wording. Only match exact token boundaries.
   // Search every static text asset, including Pagefind/search data and other public routes.
-  // Token boundaries avoid confusing FMA999991 with FMA9999910. Unknown ID formats fail source validation above.
+  // Token boundaries distinguish BP24 from BP240 and FMA999991 from FMA9999910. Unsupported IDs fail source validation above.
   const textFiles = walkFiles(dist).filter((path) => TEXT_ASSET.test(path));
   const draftTokens = draftIds;
   if (draftTokens.size) {
     for (const file of textFiles) {
       const contents = readFileSync(file, 'utf8');
-      for (const match of contents.matchAll(/\bFMA\d{3,}\b/g)) {
+      for (const match of contents.matchAll(STRUCTURE_TOKEN)) {
         if (draftTokens.has(match[0])) {
           errors.push(`draft anatomy ID exposed in built text: ${file.slice(dist.length + 1)} (${match[0]})`);
           break;

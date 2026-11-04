@@ -71,6 +71,22 @@ describe('anatomy production artifact audit', () => {
       message === 'anatomy-approved.json: invalid approved source ID')).toHaveLength(3);
   });
 
+  it('accepts canonical BP IDs and FMA IDs with lowercase suffixes for approved anatomy', () => {
+    const f = setup();
+    f.system('approved', 'approved', ['/models/anatomy/approved.glb'], ['BP24', 'FMA7198nsn']);
+    expect(f.check().errors).toEqual([]);
+  });
+
+  it('flags draft BP and suffixed FMA IDs in built text without matching longer tokens', () => {
+    const f = setup();
+    f.system('draft', 'draft', ['/models/anatomy/draft.glb'], ['BP24', 'FMA7198nsn']);
+    f.file('index.html', '<p>BP24 FMA7198nsn BP240 FMA7198nsna</p>');
+    const errors = f.check().errors;
+    expect(errors).toContain('draft anatomy ID exposed in built text: index.html (BP24)');
+    expect(errors).not.toContain('anatomy-draft.json: invalid draft label ID');
+    expect(errors.filter((e) => e.includes('draft anatomy ID exposed in built text: index.html'))).toHaveLength(1);
+  });
+
   it('rejects approved sources with missing, duplicate or unsupported structure IDs', () => {
     const f = setup();
     f.system('approved', 'approved', ['/models/anatomy/approved.glb'], []);
