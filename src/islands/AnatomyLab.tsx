@@ -771,10 +771,19 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                   // Invalidate an in-flight initial GLB and clear the old 3D geometry
                   // immediately. A late result cannot repopulate the previous scene.
                   sceneRef.current?.clear();
-                  // Hide all actions tied to the previous model in this click update.
+                  // Clear the previous body's transient feedback in this click update.
+                  // The passive loading effect runs later and must not show stale progress,
+                  // retry controls, export feedback or label notes under the new title.
                   setLoad({ state: 'loading' });
                   setSelected(null);
                   setQuiz(null);
+                  setPending(new Set());
+                  setLayerError(null);
+                  setFilesLoaded(0);
+                  setExporting(null);
+                  setExportNote('');
+                  setLabelNote([]);
+                  setAnnounce('');
                   setSystemKey(s.key);
                 }}
                 className={secondaryButton}

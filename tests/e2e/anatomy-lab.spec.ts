@@ -893,6 +893,43 @@ test.describe('anatomy whole-body initial file count', () => {
 });
 
 test.describe('anatomy lab system switch', () => {
+  test('clears previous-layer progress and messages immediately on a system change', async ({ page }, info) => {
+    test.skip(!isDesktopOfEachEngine(info), 'one old-layer-state regression per browser engine');
+    await page.goto('/preview/anatomy-lab');
+    await page.getByRole('button', { name: 'open the anatomy lab' }).click();
+    await expect(page.locator('canvas')).toBeFocused({ timeout: 15_000 });
+    const picker = page.getByRole('group', { name: 'body system' });
+    const whole = picker.getByRole('button', { name: 'whole body', exact: true });
+    await expect(whole).toBeVisible({ timeout: 15_000 });
+    await whole.click();
+    await expect(page.getByTestId('anatomy-files')).toContainText('model files loaded: 1 of 11', { timeout: 20_000 });
+
+    // Hold a request from the previous body system while switching to a new one.
+    const held: Array<() => void> = [];
+    await page.route('**/models/anatomy/vessels.glb', async (route) => {
+      await new Promise<void>((resolve) => held.push(resolve));
+      await route.continue();
+    });
+    try {
+      const vessels = page.getByRole('group', { name: 'layers, skin to bone' })
+        .getByRole('button', { name: /^vessels \(/ });
+      await vessels.click();
+      await expect.poll(() => held.length, { timeout: 20_000 }).toBeGreaterThan(0);
+      await expect(page.getByTestId('anatomy-layer-loading')).toBeVisible();
+
+      const nextSystem = picker.getByRole('button').first();
+      await nextSystem.click();
+      await expect(nextSystem).toHaveAttribute('aria-pressed', 'true');
+      await expect(page.getByTestId('anatomy-layer-loading')).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'try vessels again' })).toHaveCount(0);
+      await expect(page.getByTestId('anatomy-label-note')).toHaveCount(0);
+    } finally {
+      // Always unblock network requests, including when an assertion fails.
+      held.splice(0).forEach((release) => release());
+    }
+  });
+
+
   test('the old model is not shown after switching, and a late layer from the old system changes nothing', async ({ page }) => {
     const release: Array<() => void> = [];
     let holdRequests = true;
