@@ -266,6 +266,17 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
 
   // ── Open: load three.js and the scene module only now ─────────────────────────────────────────────────────────────
   const open = useCallback(async () => {
+    // Clear stale model and interaction state before showing a retry canvas.
+    // Otherwise a previously loaded structure can appear usable before the new GLB request starts.
+    setLoad({ state: 'loading' });
+    setSelected(null);
+    setQuiz(null);
+    setPending(new Set());
+    setLayerError(null);
+    setFilesLoaded(0);
+    setExporting(null);
+    setExportNote('');
+    setAnnounce('');
     setPhase('opening');
     try {
       const { createLabScene, readColors } = await import('./anatomyscene');
