@@ -11,7 +11,8 @@ function studentFacingLiterals(source: string): string[] {
   const text: string[] = [];
 
   // Native JSX/Astro text nodes. Interpolated {expressions} are program code, not literal wording.
-  const nodeText = /<(?:h[1-6]|p|span|button|label|a|div|li|strong|em|small|output|summary|option|figcaption)\b[^<>]*>([^<]*)</gi;
+  // Self-closing JSX tags never have text children. Do not read adjacent code comments as page text.
+  const nodeText = /<(?:h[1-6]|p|span|button|label|a|div|li|strong|em|small|output|summary|option|figcaption)\b[^<>]*?(?<!\/)>([^<]*)</gi;
   for (const match of source.matchAll(nodeText)) {
     const literal = match[1]!.replace(/\{[^{}]*\}/g, ' ').replace(/\s+/g, ' ').trim();
     if (literal) text.push(literal);
@@ -43,6 +44,7 @@ describe('Task 522 student-facing progress words', () => {
     expect(studentFacingLiterals('<p>recalled today {mastered} of {total}</p>')).toEqual(['recalled today of']);
     expect(studentFacingLiterals('<p>Mastered {mastered} of {total}</p>')).toContain('Mastered of');
     expect(studentFacingLiterals('<div aria-label="Cards mastered" />')).toContain('Cards mastered');
+    expect(studentFacingLiterals('<span aria-hidden="true" />;\n/** internal implementation: mastered */\n<p>recalled today</p>')).toEqual(['recalled today']);
   });
 
   it('uses no forbidden progress words in static student-visible text or accessible labels', () => {
