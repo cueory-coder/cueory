@@ -34,6 +34,8 @@ export interface FactorInfo { id: string; factor_type: string; status: string; f
 export interface TwoFactorAuth {
   getSession(): Reply<{ session: unknown }>;
   refreshSession(): Promise<{ error: AuthErr | null }>;
+  /** Clear this device's session if the JWT cannot be safely refreshed after removing a factor. */
+  signOut(options: { scope: 'local' }): Promise<{ error: AuthErr | null }>;
   mfa: {
     getAuthenticatorAssuranceLevel(): Reply<{ currentLevel: string | null; nextLevel: string | null }>;
     listFactors(): Reply<{ all: FactorInfo[]; totp: FactorInfo[] }>;
@@ -62,7 +64,7 @@ export interface Enrollment {
   secret: string;
 }
 
-export type CodeProblem = 'format' | 'wrong' | 'expired' | 'too-many' | 'failed';
+export type CodeProblem = 'format' | 'wrong' | 'expired' | 'too-many' | 'failed' | 'session-reset';
 export type CodeResult = { ok: true } | { ok: false; problem: CodeProblem; message: string };
 
 export const TWO_FACTOR_PATH = '/account/two-factor';
@@ -75,6 +77,7 @@ export const CODE_MESSAGES: Readonly<Record<CodeProblem, string>> = Object.freez
   expired: 'that code timed out. enter the newest code from your app.',
   'too-many': 'too many tries. please wait a minute, then try again.',
   failed: 'something went wrong. please try again.',
+  'session-reset': 'we could not update your session, so you were signed out. please sign in again.'
 });
 
 const codeFail = (problem: CodeProblem): CodeResult => ({ ok: false, problem, message: CODE_MESSAGES[problem] });
@@ -200,8 +203,19 @@ export async function removeFactor(auth: TwoFactorAuth, factorId: string, input:
   } catch {
     return codeFail('failed');
   }
-  try { await auth.refreshSession(); } catch { /* removed either way; the token downgrades at its next refresh */ }
-  return { ok: true };
+  // A stale aal2 access token must not remain on this device after unenrollment.
+  // Supabase cannot revoke an issued JWT until expiration, so refresh it immediately.
+  try {
+    const refreshed = await auth.refreshSession();
+    if (refreshed && !refreshed.error) return { ok: true };
+  } catch { /* fall back to local sign-out */ }
+  // Supabase's local scope clears this device without signing out other devices.
+  // Never report success if neither refresh nor local sign-out succeeded.
+  try {
+    const signedOut = await auth.signOut({ scope: 'local' });
+    if (signedOut && !signedOut.error) return codeFail('session-reset');
+  } catch { /* still failed: do not claim that two-factor is safely removed */ }
+  return codeFail('failed');
 }
 
 /** The part of the client a sign-in page may have. Pages without it skip the two-factor step. */
