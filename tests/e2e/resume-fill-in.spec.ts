@@ -57,7 +57,7 @@ for (const width of [390, 1440]) {
     await expect(board.getByText('round 1 · item 3 of 4')).toBeVisible();
     await expect(board.getByRole('region', { name: 'your submitted answers' })).toContainText('item 1: honey');
     await expect(board.getByRole('region', { name: 'your submitted answers' })).toContainText('item 2: days');
-    await expect(board.getByRole('textbox', { name: 'the missing word' })).toBeFocused();
+    await expect(board.getByRole('combobox', { name: 'the missing word' })).toBeFocused();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 }
@@ -70,7 +70,7 @@ test('start over discards the snapshot and restores an empty first item', async 
   await page.getByRole('button', { name: 'start over' }).click();
   await expect(board.getByText('round 1 · item 1 of 4')).toBeVisible();
   await expect(board.getByRole('region', { name: 'your submitted answers' })).toHaveCount(0);
-  await expect(board.getByRole('textbox', { name: 'the missing word' })).toHaveValue('');
+  await expect(board.getByRole('combobox', { name: 'the missing word' })).toHaveValue('');
   expect(await page.evaluate(() => localStorage.getItem('cueory-resume'))).toBeNull();
 });
 
@@ -90,6 +90,7 @@ test('a hint keeps its repeat-round meaning through a reload and ends on results
   await page.reload();
   await page.getByRole('button', { name: 'continue question 1' }).click();
   await expect(board.getByText('round 2 · item 1 of 1')).toBeVisible();
+  await board.getByRole('button', { name: 'type instead' }).click();
   await submit(page, 'honey');
   await board.getByRole('button', { name: 'next' }).click();
   await expect(board.getByText('all 4 recalled in 2 rounds.')).toBeVisible();
@@ -119,6 +120,7 @@ test('an almost-correct attempt is saved as a student submission and can be retr
   expect(saved.answers['item-2']).toEqual(['n:pencil']);
   await page.reload();
   await page.getByRole('button', { name: 'continue question 3' }).click();
+  await board.getByRole('button', { name: 'type instead' }).click();
   await expect(board.getByRole('textbox', { name: 'the missing word' })).toHaveValue('pencil');
   await expect(board.getByRole('button', { name: 'next' })).toBeVisible();
 });
@@ -214,6 +216,7 @@ test('close tries in a later round keep the earlier round that brought the item 
   await page.getByRole('button', { name: 'continue question 1' }).click();
   await expect(board.getByText('round 2 · item 1 of 1')).toBeVisible();
   await expect(board.getByText('almost. check the spelling.')).toBeVisible();
+  await board.getByRole('button', { name: 'type instead' }).click();
   await submit(page, 'honey');
   await board.getByRole('button', { name: 'next' }).click();
   await expect(board.getByText('all 4 recalled in 2 rounds.')).toBeVisible();
