@@ -3,8 +3,8 @@
  * Christian's "Flag or comment" inbox (Task 66). Not linked from anywhere on the site, kept out of search engines and
  * never cached for offline use (offlineplan.ts only keeps /, /play and lesson pages).
  *
- * Nothing is pre-rendered: the island asks the database who is visiting. Until Task 65's admin functions are merged
- * and wired in, it uses the unwired adapter, so every visitor sees only "this page is for the site owner."
+ * Nothing is pre-rendered: the island asks the database who is visiting, through Task 65's admin functions (Task 305).
+ * Anyone but the admin signed in with two-factor sees only "this page is for the site owner."
  */
 import Layout from '../../layouts/Layout.astro';
 import AdminFlags from '../../islands/AdminFlags';
