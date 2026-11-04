@@ -451,7 +451,8 @@ test.describe('marketing look (D-41)', () => {
     await expect(page.getByText('Short, clear lessons')).toHaveCount(0);
     const button = page.getByRole('link', { name: 'create your free account', exact: true });
     await expect(button).toHaveAttribute('href', '/#signup');
-    await expect(page.getByText('save your progress and pick up where you left off.')).toBeVisible();
+    // No line under the button restates it (Christian, 2026-11-02).
+    await expect(page.getByText('save your progress and pick up where you left off.')).toHaveCount(0);
     // A calmer hero (D-55): no course link, no motto line and no embossed logo behind the headline.
     const hero = page.locator('.scene-hero');
     await expect(hero.getByRole('link')).toHaveCount(1);
@@ -613,9 +614,6 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
           .map((card) => (card as HTMLElement).dataset.name),
       );
 
-  /** True when the window is wide enough for two cards on each side (64rem, src/styles/global.css), in any project. */
-  const wide = (page: Page) => page.evaluate(() => window.matchMedia('(min-width: 64rem)').matches);
-
   test('the card in the middle has neighbours on both sides, and the arrows, keys and side cards turn it, endlessly', async ({
     page,
   }) => {
@@ -624,14 +622,11 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
     await expect(section(page)).toHaveAttribute('role', 'region');
     await expect(section(page)).toHaveAttribute('aria-roledescription', 'carousel');
     await expect(page.getByRole('heading', { name: 'ways to study' })).toBeVisible();
-    // The first card in the middle, with the last card as its left neighbour: one on each side, two on wider screens.
+    // The first vial in front, with the last one as its left neighbour: four on each side stand on the arc (Task 109;
+    // on phones the outer ones run past the window's edges), and the one straight behind is hidden.
     await expect
       .poll(() => onScreen(page))
-      .toEqual(
-        (await wide(page))
-          ? ['adaptive quiz', 'level test', 'video', 'cards', 'learn']
-          : ['level test', 'video', 'cards'],
-      );
+      .toEqual(['review', 'label it', 'adaptive quiz', 'level test', 'video', 'cards', 'learn', 'fill-in', 'matching']);
     await expect(section(page).getByRole('group', { name: '1 of 11', exact: true })).toHaveAttribute('data-active', '');
 
     // Previous from the first card goes round to the last, and next from the last comes back to the first.
@@ -641,8 +636,11 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
     await section(page).getByRole('button', { name: 'next study mode' }).click();
     await expect.poll(() => middleCard(page)).toBe('cards');
 
-    // A tap on a side card brings it to the middle (on phones only its edge shows, so the tap is near its edge).
-    await section(page).getByRole('button', { name: 'show learn' }).click({ position: { x: 16, y: 120 } });
+    // A tap on a side vial brings it to the front (the front vial overlaps its inner edge, so the tap is near its
+    // outer edge).
+    const learn = section(page).getByRole('button', { name: 'show learn' });
+    const learnBox = (await learn.boundingBox())!;
+    await learn.click({ position: { x: learnBox.width - 16, y: learnBox.height / 2 } });
     await expect.poll(() => middleCard(page)).toBe('learn');
     await expect(section(page).getByRole('button', { name: 'preview learn' })).toBeVisible();
 
@@ -673,35 +671,39 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
     expect(axe.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
   });
 
-  test("neighbours step back, smaller, turned away and quieter, but no card's words are ever faded", async ({
+  test("neighbours step back, smaller, higher, further back and dimmer, but no vial's words are ever faded", async ({
     page,
   }) => {
     await page.goto('/');
     await section(page).scrollIntoViewIfNeeded();
     await section(page).getByRole('button', { name: 'next study mode' }).click();
     await expect.poll(() => middleCard(page)).toBe('cards');
+    // Let the 700 ms glide finish (Task 109).
     await waitForCardTurn(page);
     const look = (id: string) =>
-      page.locator(`#mode-${id}`).evaluate((card) => ({
-        width: card.getBoundingClientRect().width,
-        turn: (card as HTMLElement).style.getPropertyValue('--ring-turn'),
-        heading: getComputedStyle(card.querySelector('h3')!).color,
-        shadow: getComputedStyle(card).boxShadow,
-      }));
+      page.locator(`#mode-${id}`).evaluate((card) => {
+        const box = card.getBoundingClientRect();
+        return {
+          width: box.width,
+          bottom: box.bottom,
+          bright: (card as HTMLElement).style.getPropertyValue('--ring-bright'),
+          glass: getComputedStyle(card.querySelector('.vial-img')!).filter,
+        };
+      });
     const front = await look('cards');
     const near = await look('learn');
     const left = await look('video');
+    const far = await look('fill-in');
     expect(near.width / front.width).toBeGreaterThan(0.78);
     expect(near.width / front.width).toBeLessThan(0.9);
-    expect([front.turn, near.turn, left.turn]).toEqual(['0', '10', '-10']);
-    expect(near.heading).not.toBe(front.heading);
-    expect(near.shadow).toBe('none');
-    // The second card out shows only on wide windows.
-    if (await wide(page)) {
-      const far = await look('fill-in');
-      expect(far.width / front.width).toBeGreaterThan(0.6);
-      expect(far.width / front.width).toBeLessThan(0.78);
-    }
+    expect(far.width / front.width).toBeGreaterThan(0.6);
+    expect(far.width / front.width).toBeLessThan(0.78);
+    // The arc: each step out stands higher.
+    expect(near.bottom).toBeLessThan(front.bottom);
+    expect(far.bottom).toBeLessThan(near.bottom);
+    // Quieter: the glass (only the bottle image, never the words) is dimmer per step out.
+    expect([front.bright, near.bright, left.bright, far.bright]).toEqual(['1', '0.95', '0.95', '0.9']);
+    expect(near.glass).not.toBe(front.glass);
 
     // Nothing fades a card's words: from each card's words up to the page there is no mask, no filter and full
     // opacity, so the text keeps the frosted-panel contrast checked in tests/unit/tokens.test.ts. (First the section's
@@ -856,41 +858,43 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
     }
   });
 
-  test('the pause button stops the motion, and with reduced motion it just switches, without a glide or a turn', async ({
+  test('the pause button stops the motion, and with reduced motion it just switches, without a glide', async ({
     page,
   }) => {
     await page.goto('/');
-    const press = section(page).locator('#mode-video .ill-video-press');
-    await expect.poll(() => press.evaluate((el) => getComputedStyle(el).animationName)).toBe('ill-video-press');
+    // The pause button stops the auto-advance (the vials have no loops of their own: Task 109).
     await section(page).getByRole('button', { name: 'pause the slideshow' }).click();
     await expect(section(page).getByRole('button', { name: 'play the slideshow' })).toBeVisible();
-    expect(await press.evaluate((el) => getComputedStyle(el).animationName)).toBe('none');
+    await expect(section(page)).toHaveAttribute('data-paused', '');
     await section(page).getByRole('button', { name: 'play the slideshow' }).click();
     await expect(section(page).getByRole('button', { name: 'pause the slideshow' })).toBeVisible();
+    await expect(section(page)).not.toHaveAttribute('data-paused', '');
 
-    // A turn glides, and the side cards are turned away.
+    // A turn glides, in the approved 700 ms, and the side vials step back.
     await section(page).getByRole('button', { name: 'next study mode' }).click();
     const learn = section(page).locator('#mode-learn');
-    expect(await learn.evaluate((el) => getComputedStyle(el).transitionDuration)).toContain('0.24s');
-    expect(await learn.evaluate((el) => el.style.getPropertyValue('--ring-turn'))).toBe('10');
+    expect(await learn.evaluate((el) => getComputedStyle(el).transitionDuration)).toContain('0.7s');
+    expect(await learn.evaluate((el) => el.style.getPropertyValue('--ring-scale'))).toBe('0.87');
 
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.reload();
     await expect(section(page).getByRole('button', { name: 'next study mode' })).toBeVisible();
     await expect(section(page).locator('[data-modes-pause]')).toBeHidden();
-    expect(
-      await section(page)
-        .locator('#mode-video .ill-video-press')
-        .evaluate((el) => getComputedStyle(el).animationName),
-    ).toBe('none');
     await section(page).getByRole('button', { name: 'next study mode' }).click();
     await expect.poll(() => middleCard(page)).toBe('cards');
     const still = await section(page)
       .locator('#mode-learn')
-      .evaluate((el) => [getComputedStyle(el).transitionDuration, el.style.getPropertyValue('--ring-turn')]);
+      .evaluate((el) => [
+        getComputedStyle(el).transitionDuration,
+        getComputedStyle(el.querySelector('.vial-img')!).transitionDuration,
+        el.style.getPropertyValue('--ring-scale'),
+      ]);
     // Instant: no transition at all (the site-wide reduced-motion rule leaves 0.01 ms at most).
-    expect(Math.max(...still[0]!.split(',').map((d) => parseFloat(d)))).toBeLessThan(0.001);
-    expect(still[1]).toBe('0');
+    for (const durations of still.slice(0, 2)) {
+      expect(Math.max(...durations!.split(',').map((d) => parseFloat(d)))).toBeLessThan(0.001);
+    }
+    // The vials still step back; they just don't glide there.
+    expect(still[2]).toBe('0.87');
   });
 
   test('auto-advance moves on after about six seconds, pauses on the cards, and stops once the visitor takes over', async ({
@@ -1011,19 +1015,20 @@ test.describe('study-mode preview (D-51)', () => {
     await bringToMiddle(page, 'cards');
     // Let the turn finish, so the card has come to rest before it is measured.
     await waitForCardTurn(page);
-    // The grow starts with the panel exactly over the card it came from. (A click without moving the mouse there, so
-    // the hover zoom doesn't change the card while it is measured.)
+    // The grow starts with the preview's bottle exactly over the vial it came from (Task 109: the same bottle moves
+    // forward). (A click without moving the mouse there, so the hover lift doesn't change the vial while it is
+    // measured.)
     const start = await page.evaluate(() => {
-      const card = document.querySelector('#mode-cards')!.getBoundingClientRect();
+      const vial = document.querySelector('#mode-cards [data-vial]')!.getBoundingClientRect();
       document.querySelector<HTMLButtonElement>('#mode-cards [data-mode-open]')!.click();
-      const panel = document.querySelector<HTMLElement>('[data-mode-preview-panel]')!;
-      const [grow] = panel.getAnimations();
+      const bottle = document.querySelector<HTMLElement>('[data-mode-preview-vial]')!;
+      const [grow] = bottle.getAnimations();
       if (!grow) return undefined;
       grow.pause();
       grow.currentTime = 0;
-      const box = panel.getBoundingClientRect();
+      const box = bottle.getBoundingClientRect();
       grow.play();
-      return [box.left - card.left, box.top - card.top, box.width - card.width, box.height - card.height];
+      return [box.left - vial.left, box.top - vial.top, box.width - vial.width, box.height - vial.height];
     });
     expect(start).toBeDefined();
     for (const gap of start!) expect(Math.abs(gap)).toBeLessThan(2);
@@ -1031,18 +1036,20 @@ test.describe('study-mode preview (D-51)', () => {
     const preview = page.getByRole('dialog', { name: 'cards' });
     await expect(preview).toBeVisible();
     await expect(preview.getByRole('heading', { level: 2, name: 'cards' })).toBeVisible();
-    await expect(preview.getByText('flip a card to check yourself')).toBeVisible();
-    await expect(preview.getByRole('link', { name: 'try it' })).toHaveAttribute('href', '/learn/study-skills/cards');
-    await expect(preview.getByRole('link', { name: 'create your free account to save progress' })).toHaveAttribute(
+    // Its feature rows wait behind the ⓘ beside the name (Christian, 2026-11-02).
+    await expect(preview.getByRole('button', { name: 'more about cards' })).toHaveAttribute('aria-expanded', 'false');
+    await expect(preview.getByRole('link', { name: 'start cards' })).toHaveAttribute('href', '/learn/study-skills/cards');
+    await expect(preview.getByRole('link', { name: 'create your free account', exact: true })).toHaveAttribute(
       'href',
       '/#signup',
     );
     await expect(preview.getByRole('button', { name: 'close preview' })).toBeFocused();
-    // Its illustration plays in the preview too.
+    // The same bottle, with its label, stands in the preview; its four feature rows are behind the ⓘ.
+    await expect(preview.locator('[data-mode-preview-vial] .vial-name')).toHaveText('cards');
+    await expect(preview.locator('[data-mode-preview-features="cards"] li')).toHaveCount(4);
     await expect
-      .poll(() => preview.locator('.ill-flip-front').evaluate((el) => getComputedStyle(el).animationName))
-      .toBe('ill-flip-front');
-    await expect.poll(() => page.evaluate(() => document.querySelector('[data-mode-preview-panel]')!.getAnimations().length)).toBe(0);
+      .poll(() => page.evaluate(() => document.querySelector('[data-mode-preview]')!.getAnimations({ subtree: true }).length))
+      .toBe(0);
 
     const axe = await new AxeBuilder({ page })
       .include('#mode-preview')
@@ -1062,14 +1069,14 @@ test.describe('study-mode preview (D-51)', () => {
     const preview = dialog(page);
     await preview.getByRole('button', { name: 'next study mode' }).click();
     await expect(page.getByRole('dialog', { name: 'learn' })).toBeVisible();
-    await expect(preview.getByRole('link', { name: 'try it' })).toHaveAttribute('href', '/learn/study-skills/learn-mode');
+    await expect(preview.getByRole('link', { name: 'start learn' })).toHaveAttribute('href', '/learn/study-skills/learn-mode');
     await expect(preview.locator('[data-mode-preview-live]')).toHaveText('learn, 3 of 11');
 
     await preview.getByRole('button', { name: 'previous study mode' }).click();
     await preview.getByRole('button', { name: 'previous study mode' }).click();
     await expect(page.getByRole('dialog', { name: 'video' })).toBeVisible();
     await expect(preview.getByText('coming soon')).toBeVisible();
-    await expect(preview.getByRole('link', { name: 'try it' })).toBeHidden();
+    await expect(preview.locator('[data-mode-preview-try]')).toBeHidden();
     await expect(preview.locator('[data-mode-preview-live]')).toHaveText('video, 1 of 11');
     // The merry-go-round behind follows, so closing shrinks the preview into the video card.
     await expect(page.locator('#mode-video')).toHaveAttribute('data-active', '');
@@ -1084,10 +1091,10 @@ test.describe('study-mode preview (D-51)', () => {
     await expect(preview).toBeHidden();
   });
 
-  test('moving to a mode that is not open yet keeps focus in the preview when "try it" had it', async ({ page }) => {
+  test('moving to a mode that is not open yet keeps focus in the preview when "start …" had it', async ({ page }) => {
     await openPreview(page, 'cards');
     const preview = dialog(page);
-    await preview.getByRole('link', { name: 'try it' }).focus();
+    await preview.getByRole('link', { name: 'start cards' }).focus();
     await page.keyboard.press('ArrowLeft');
     await expect(page.getByRole('dialog', { name: 'video' })).toBeVisible();
     await expect(preview.getByRole('button', { name: 'previous study mode' })).toBeFocused();
@@ -1096,16 +1103,16 @@ test.describe('study-mode preview (D-51)', () => {
     await expect(page.getByRole('dialog', { name: 'level test' })).toBeVisible();
   });
 
-  test('closing in the middle of the grow still shrinks the preview exactly back into its card', async ({ page }) => {
+  test('closing in the middle of the grow still shrinks the bottle exactly back into its vial', async ({ page }) => {
     await page.goto('/');
     await page.locator('#ways-to-study').scrollIntoViewIfNeeded();
     const gaps = await page.evaluate(async () => {
       document.querySelector<HTMLButtonElement>('#mode-video [data-mode-open]')!.click();
       // Escape a tenth of a second into the 320 ms grow.
       await new Promise((resolve) => setTimeout(resolve, 100));
-      const card = document.querySelector('#mode-video')!.getBoundingClientRect();
+      const card = document.querySelector('#mode-video [data-vial]')!.getBoundingClientRect();
       document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-      const panel = document.querySelector<HTMLElement>('[data-mode-preview-panel]')!;
+      const panel = document.querySelector<HTMLElement>('[data-mode-preview-vial]')!;
       const [shrink] = panel.getAnimations();
       if (!shrink) return undefined;
       shrink.pause();
@@ -1128,7 +1135,7 @@ test.describe('study-mode preview (D-51)', () => {
   test('with reduced motion it opens and closes at once', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await openPreview(page, 'video');
-    expect(await page.evaluate(() => document.querySelector('[data-mode-preview-panel]')!.getAnimations().length)).toBe(0);
+    expect(await page.evaluate(() => document.querySelector('[data-mode-preview]')!.getAnimations({ subtree: true }).length)).toBe(0);
     await page.keyboard.press('Escape');
     expect(await dialog(page).evaluate((el) => (el as HTMLDialogElement).open)).toBe(false);
   });
