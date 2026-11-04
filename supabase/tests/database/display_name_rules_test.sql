@@ -3,7 +3,7 @@
 -- ones. Run by `supabase test db` on a throwaway local database; every account below exists only inside this test.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(28);
+select plan(33);
 
 -- ---- The helper itself.
 select ok(
@@ -100,6 +100,33 @@ select is(
   (select display_name from public.profiles where id = '00000000-0000-4000-8000-000000000207'), null,
   'a name of only spaces is left out'
 );
+
+
+-- ---- The direct update RPC must enforce the same shared rule, not only the browser/trigger.
+set local role authenticated;
+set local "request.jwt.claims" to '{"sub":"00000000-0000-4000-8000-000000000201","role":"authenticated"}';
+set local "request.jwt.claim.sub" to '00000000-0000-4000-8000-000000000201';
+select throws_ok(
+  $ select public.update_display_name('sam' || chr(x'200b'::int) || 'smith') $,
+  '22023', 'a display name is 1 to 50 characters of plain text',
+  'direct RPC rejects a hidden zero-width character');
+select throws_ok(
+  $ select public.update_display_name('sam' || chr(x'202e'::int) || 'smith') $,
+  '22023', 'a display name is 1 to 50 characters of plain text',
+  'direct RPC rejects a bidi-override character');
+select results_eq(
+  $ select public.update_display_name('  Grace  ') $,
+  $ values ('Grace') $,
+  'direct RPC accepts a plain name and trims its surrounding spaces');
+select results_eq(
+  $ select display_name from public.profiles where id = '00000000-0000-4000-8000-000000000201' $,
+  $ values ('Grace') $,
+  'validated display-name change is stored on the calling profile');
+select is(
+  (select name_changes_in_window::integer from public.profiles where id = '00000000-0000-4000-8000-000000000201'),
+  1,
+  'direct RPC retains the existing per-user rate counter');
+reset role;
 
 select * from finish();
 rollback;

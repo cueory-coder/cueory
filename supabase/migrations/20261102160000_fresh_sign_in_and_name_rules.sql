@@ -81,6 +81,58 @@ $$;
 
 revoke execute on function public.handle_new_user() from public, anon, authenticated;
 
+-- ------------------------------------------------------------ update_display_name
+
+create or replace function public.update_display_name(new_name text)
+returns text
+language plpgsql
+security definer
+set search_path = ''
+as $
+declare
+  uid uuid := (select auth.uid());
+  clean_name text;
+  window_start timestamptz;
+  changes integer;
+  hourly_limit constant integer := 10;
+begin
+  if uid is null then
+    raise exception 'sign in to change your display name' using errcode = '28000';
+  end if;
+
+  -- The same server-side rule as the signup trigger; a direct RPC must not bypass it.
+  -- Trim surrounding spaces before validating, exactly as the trigger does.
+  clean_name := btrim(update_display_name.new_name, ' ');
+  if not public.display_name_ok(clean_name) then
+    raise exception 'a display name is 1 to 50 characters of plain text' using errcode = '22023';
+  end if;
+
+  -- The limit, per person. The lock keeps two quick calls from both slipping under it.
+  perform pg_advisory_xact_lock(hashtextextended('display-name:' || uid::text, 0));
+  select p.name_change_window_start, p.name_changes_in_window into window_start, changes
+    from public.profiles p where p.id = uid;
+  if not found then
+    raise exception 'your profile was not found' using errcode = 'P0002';
+  end if;
+
+  if window_start is null or window_start <= now() - interval '1 hour' then
+    -- No changes in the last hour: this one starts a new window.
+    window_start := now();
+    changes := 1;
+  elsif changes >= hourly_limit then
+    raise exception 'that is a lot of name changes; please try again later' using errcode = '54000';
+  else
+    changes := changes + 1;
+  end if;
+
+  update public.profiles p
+    set display_name = clean_name, name_change_window_start = window_start, name_changes_in_window = changes
+    where p.id = uid;
+  return clean_name;
+end;
+$;
+
+
 -- ------------------------------------------------------------ delete_my_account
 
 create or replace function public.delete_my_account()
