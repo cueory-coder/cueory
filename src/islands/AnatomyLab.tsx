@@ -804,8 +804,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
               onPointerUp={onPointerUp}
               onPointerCancel={onPointerCancel}
               onKeyDown={onCanvasKey}
-              className="block aspect-square w-full rounded-lg border border-line bg-page md:aspect-lab-view"
-              style={{ touchAction: 'none' }}
+              className="block aspect-square w-full touch-none rounded-lg border border-line bg-page md:aspect-lab-view"
             />
             <LabelOverlay setterRef={setPlacedRef} onMount={updateLabels} />
             {(phase === 'opening' || load.state === 'loading') && (
