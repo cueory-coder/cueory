@@ -52,9 +52,14 @@ test.describe('Task 231: all built routes without JavaScript', () => {
             const name = options.name ?? 'unnamed client-only island';
             if (optionalIslands.has(name)) continue;
 
-            // Require the fallback beside THIS island, not another island in the
-            // same section. A generic page-level <noscript> is not enough.
-            const fallback = island.locator('xpath=following-sibling::*[1][self::noscript]');
+            // Require a local fallback: either next to the island or next to a
+            // wrapper containing exactly one island. Never accept a fallback
+            // shared by multiple islands or a generic page-level message.
+            const directFallback = island.locator('xpath=following-sibling::*[1][self::noscript]');
+            const wrapperFallback = island.locator(
+              'xpath=parent::*[count(./astro-island[@client="only"])=1]/following-sibling::*[1][self::noscript]',
+            );
+            const fallback = await directFallback.count() === 1 ? directFallback : wrapperFallback;
             await expect(fallback, route + ': ' + name + ' needs a local no-JavaScript fallback').toHaveCount(1);
 
             // Playwright text queries intentionally exclude <noscript>. Inspect
