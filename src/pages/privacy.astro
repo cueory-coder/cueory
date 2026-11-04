@@ -143,6 +143,10 @@ import { newsletter, promo, site } from '../config/site';
       and Supabase keeps them with your account.
     </p>
     <p>
+      If you turn on two-factor sign-in at <a href="/account/two-factor">/account/two-factor</a>, Supabase keeps your
+      authenticator app's secret key with your account so it can check your codes. Removing two-factor there deletes it.
+    </p>
+    <p>
       When you're signed in, the browser keeps your sign-in session under <code>cueory-auth</code>. It includes your
       account details, such as your email address. That is different from the study progress kept on your device.
       While you sign in, the browser also keeps a one-time sign-in code under
