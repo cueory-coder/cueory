@@ -2,7 +2,7 @@
 -- All accounts, factor IDs and records here are synthetic. Runs on the throwaway Supabase test DB.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(36);
+select plan(43);
 
 insert into auth.users (id, email, email_confirmed_at, is_anonymous) values
   ('00000000-0000-4000-8000-000000000001', 'mfa-one@example.com', now(), false),
@@ -70,10 +70,45 @@ select results_eq($$ select id from public.profiles $$,
   'aal2 can read only its own profile');
 select results_eq($$ select count(*)::int from public.my_flags() $$,
   $$ values (1) $$, 'aal2 can export its own report');
+-- The later MFA override must retain Task 302's strict direct-RPC name rule.
+select throws_ok($$ select public.update_display_name('sam' || chr(x'200b'::int) || 'smith') $$,
+  '22023', 'a display name is 1 to 50 characters of plain text',
+  'aal2 cannot save zero-width characters through the name RPC');
+select throws_ok($$ select public.update_display_name('sam' || chr(x'202e'::int) || 'smith') $$,
+  '22023', 'a display name is 1 to 50 characters of plain text',
+  'aal2 cannot save a bidirectional override through the name RPC');
 select lives_ok($$ select public.update_display_name('verified student') $$,
   'aal2 can change the display name through its existing rate-limited RPC');
 select results_eq($$ select display_name from public.profiles $$,
   $$ values ('verified student') $$, 'aal2 profile change was stored');
+-- Check the later MFA migration also preserves the Task 302 recent-token gate.
+select ok(
+  (select prosrc like '%max_age_seconds constant integer := 600%'
+     from pg_proc where oid = 'public.delete_my_account()'::regprocedure),
+  'the MFA delete RPC retains the ten-minute token check');
+select ok(
+  (select prosrc like '%public.display_name_ok(clean_name)%'
+     from pg_proc where oid = 'public.update_display_name(text)'::regprocedure),
+  'the MFA name RPC retains the single server-side validation rule');
+select throws_ok($$ select public.delete_my_account() $$,
+  '28R01', 'please sign in again to delete your account',
+  'aal2 without a token issue time cannot delete an account');
+select set_config('request.jwt.claims', jsonb_build_object(
+  'sub', '00000000-0000-4000-8000-000000000001', 'role', 'authenticated',
+  'aal', 'aal2', 'iat', extract(epoch from now())::bigint - 601)::text, true);
+select throws_ok($$ select public.delete_my_account() $$,
+  '28R01', 'please sign in again to delete your account',
+  'aal2 with an eleven-minute-old token cannot delete an account');
+select set_config('request.jwt.claims', jsonb_build_object(
+  'sub', '00000000-0000-4000-8000-000000000001', 'role', 'authenticated',
+  'aal', 'aal2', 'iat', 'invalid')::text, true);
+select throws_ok($$ select public.delete_my_account() $$,
+  '28R01', 'please sign in again to delete your account',
+  'aal2 with a nonnumeric token issue time cannot delete an account');
+-- A recently issued token plus verified MFA can still delete this test account.
+select set_config('request.jwt.claims', jsonb_build_object(
+  'sub', '00000000-0000-4000-8000-000000000001', 'role', 'authenticated',
+  'aal', 'aal2', 'iat', extract(epoch from now())::bigint - 540)::text, true);
 select lives_ok($$ select public.delete_my_account() $$,
   'aal2 can still delete its own account');
 
