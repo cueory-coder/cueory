@@ -40,7 +40,7 @@ describe('anatomy GLB mesh registration', () => {
     expect(unlabeled).toEqual([]);
     expect(upper.material).toBeInstanceOf(THREE.MeshLambertMaterial);
     expect(lower.material).toBeInstanceOf(THREE.MeshLambertMaterial);
-    expect(upper.material).not.toBe(lower.material);
+    expect(upper.material).toBe(lower.material);
   });
 
   it('continues registering later meshes if disposing an original material throws', () => {
@@ -64,6 +64,42 @@ describe('anatomy GLB mesh registration', () => {
     expect(indexed.get('TEST_GPU_LOSS')).toEqual([first, second]);
     expect(first.material).toBeInstanceOf(THREE.MeshLambertMaterial);
     expect(second.material).toBeInstanceOf(THREE.MeshLambertMaterial);
+  });
+
+  it('shares viewer materials within an owner, but not between owners or unlabeled meshes', () => {
+    const group = new THREE.Group();
+    const ownerA = new THREE.Group();
+    ownerA.name = 'TEST_OWNER_A';
+    const ownerB = new THREE.Group();
+    ownerB.name = 'TEST_OWNER_B';
+    const a1 = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial());
+    const a2 = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial());
+    const b1 = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial());
+    const unnamed1 = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial());
+    const unnamed2 = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial());
+    ownerA.add(a1, a2);
+    ownerB.add(b1);
+    group.add(ownerA, ownerB, unnamed1, unnamed2);
+    const indexed = new Map<string, THREE.Mesh[]>();
+    const unlabeled: THREE.Mesh[] = [];
+
+    expect(indexAnatomyGroup(group, ['TEST_OWNER_A', 'TEST_OWNER_B'], indexed, unlabeled))
+      .toEqual({ touched: ['TEST_OWNER_A', 'TEST_OWNER_B'], triangles: 60 });
+    expect(indexed.get('TEST_OWNER_A')).toEqual([a1, a2]);
+    expect(indexed.get('TEST_OWNER_B')).toEqual([b1]);
+    expect(unlabeled).toEqual([unnamed1, unnamed2]);
+
+    expect(a1.material).toBeInstanceOf(THREE.MeshLambertMaterial);
+    expect(a1.material).toBe(a2.material);
+    expect(a1.material).not.toBe(b1.material);
+    expect(unnamed1.material).toBe(unnamed2.material);
+    expect(unnamed1.material).not.toBe(a1.material);
+
+    const sharedDispose = vi.spyOn(a1.material as THREE.Material, 'dispose');
+    const unnamedDispose = vi.spyOn(unnamed1.material as THREE.Material, 'dispose');
+    disposeAnatomyMeshResources(group);
+    expect(sharedDispose).toHaveBeenCalledOnce();
+    expect(unnamedDispose).toHaveBeenCalledOnce();
   });
 
   it('adds duplicate structure IDs from later files to the same hide/pick/highlight bucket', () => {
