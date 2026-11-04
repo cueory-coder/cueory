@@ -181,10 +181,52 @@ function scan(text: string, extension: string): Logging[] {
     }
     // Read HTML raw-text end-tag boundaries explicitly. HTML permits whitespace
     // and ignored attributes on an end tag, such as </script\t\n ignored>.
+    // For is:raw elements (other than script/style), track nested elements of the same name.
     const endName = `</${tagName}`;
-    let close = lower.indexOf(endName, contentStart);
-    while (close !== -1 && !/[\s/>]/.test(lower[close + endName.length] ?? '')) {
-      close = lower.indexOf(endName, close + endName.length);
+    let close = -1;
+    if (tagName === 'script' || tagName === 'style') {
+      close = lower.indexOf(endName, contentStart);
+      while (close !== -1 && !/[\s/>]/.test(lower[close + endName.length] ?? '')) {
+        close = lower.indexOf(endName, close + endName.length);
+      }
+    } else {
+      const startTagRegex = new RegExp(`^<${tagName}[\\s/>]`, 'i');
+      let depth = 1;
+      let pos = contentStart;
+      while (pos < markup.length) {
+        if (markup[pos] === '<') {
+          if (lower.startsWith(endName, pos) && /[\s/>]/.test(lower[pos + endName.length] ?? '')) {
+            depth--;
+            if (depth === 0) {
+              close = pos;
+              break;
+            }
+            pos += endName.length;
+          } else if (startTagRegex.test(markup.slice(pos))) {
+            let atPos = pos + tagName.length + 1;
+            let tagQuote = '';
+            let selfClosing = false;
+            while (atPos < markup.length && markup[atPos] !== '>') {
+              const c = markup[atPos]!;
+              if (tagQuote) {
+                if (c === tagQuote) tagQuote = '';
+              } else if (c === '"' || c === "'") {
+                tagQuote = c;
+              } else if (c === '/' && markup[atPos + 1] === '>') {
+                selfClosing = true;
+                break;
+              }
+              atPos++;
+            }
+            if (!selfClosing) depth++;
+            pos = atPos + 1;
+          } else {
+            pos++;
+          }
+        } else {
+          pos++;
+        }
+      }
     }
     const closingEnd = close === -1 ? -1 : markup.indexOf('>', close + endName.length);
     const contentEnd = close === -1 ? markup.length : close;
@@ -501,6 +543,8 @@ describe('debug-console source guard', () => {
       .toEqual([{ line: 1, method: 'log' }]);
     expect(scan('{`x ${"`"}`}<script>console.log("actual")</script>', '.astro'))
       .toEqual([{ line: 1, method: 'log' }]);
+    expect(scan('<div is:raw><div>text</div>{console.log("example")}</div>\n<p>{console.debug("actual")}</p>', '.astro'))
+      .toEqual([{ line: 2, method: 'debug' }]);
   });
 
   it('contains no console.log or console.debug references in src', () => {
