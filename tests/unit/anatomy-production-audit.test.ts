@@ -54,6 +54,18 @@ describe('anatomy production artifact audit', () => {
     ]));
   });
 
+  it('rejects CSS hex-escaped draft and fixture IDs inside generated HTML and SVG styles', () => {
+    const f = setup();
+    f.file('index.html', String.raw`<style>.draft::before { content: "\46 MA999991"; }</style>`);
+    f.file('images/embedded-style.svg', String.raw`<svg><style>.fixture::after { content: "\46 IX001"; }</style></svg>`);
+    expect(f.check().errors).toEqual(expect.arrayContaining([
+      'draft anatomy ID exposed in built text: index.html (FMA999991)',
+      'test fixture ID exposed in built text: images/embedded-style.svg (FIX001)',
+    ]));
+    const literal = setup();
+    literal.file('index.html', String.raw`<style>.literal::before { content: "\\46 MA999991"; }</style>`);
+    expect(literal.check().errors).toEqual([]);
+  });
   it('decodes only active CSS hex escapes with at most six digits', () => {
     expect(decodeAsciiEscapesForAudit(String.raw`\000046 IX001`, 'css')).toBe('FIX001');
     expect(decodeAsciiEscapesForAudit(String.raw`\0042 P24`, 'css')).toBe('BP24');
