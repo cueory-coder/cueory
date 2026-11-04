@@ -4,7 +4,7 @@
  *
  * Usage: node scripts/anatomy-production-audit.mjs [dist-directory] [content/visuals-directory]
  */
-import { closeSync, constants as fsConstants, existsSync, fstatSync, openSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { closeSync, constants as fsConstants, existsSync, fstatSync, lstatSync, openSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -123,6 +123,15 @@ export function auditAnatomyProduction(distDir, contentDir) {
   }
   if (!existsSync(content) || !statSync(content).isDirectory()) {
     return { errors: [`anatomy source directory does not exist: ${content}`], approvedSystems, draftSystems, shippedModels: 0 };
+  }
+
+  // Root paths must be real directories too. A symlink as the audit root
+  // otherwise bypasses walkFiles' per-entry symlink rejection.
+  if (lstatSync(dist).isSymbolicLink()) {
+    return { errors: [`production output root is a symbolic link: ${dist}`], approvedSystems, draftSystems, shippedModels: 0 };
+  }
+  if (lstatSync(content).isSymbolicLink()) {
+    return { errors: [`anatomy source root is a symbolic link: ${content}`], approvedSystems, draftSystems, shippedModels: 0 };
   }
 
   const sources = readdirSync(content).filter((n) => ANATOMY_FILE.test(n)).sort();
