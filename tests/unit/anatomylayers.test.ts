@@ -1,0 +1,97 @@
+import { describe, expect, it } from 'vitest';
+import type { AnatomyStructure, AnatomySystem } from '../../src/islands/anatomylab';
+import {
+  LAYERS,
+  WHOLE_BODY_KEY,
+  isLayer,
+  layerShown,
+  layersOf,
+  missingLayers,
+  nextToPeel,
+  nextToRestore,
+  peel,
+  restore,
+  toggleLayer,
+  wholeBody,
+} from '../../src/islands/anatomylayers';
+
+// Placeholder structures (not anatomy): ids and names are made up; only their layers matter here.
+const structures: AnatomyStructure[] = [
+  { id: 'v1', text: 'sample vessel one', layer: 'vessels' },
+  { id: 'o1', text: 'sample organ one', layer: 'organs' },
+  { id: 'v2', text: 'sample vessel two', layer: 'vessels' },
+  { id: 'b1', text: 'sample bone one', layer: 'skeleton' },
+];
+
+describe('layers', () => {
+  it('are skin to bone, outside in', () => {
+    expect(LAYERS).toEqual(['skin', 'muscle', 'nerves', 'vessels', 'organs', 'skeleton']);
+    expect(isLayer('organs')).toBe(true);
+    expect(isLayer('bones')).toBe(false);
+  });
+
+  it('come from the data: only layers with structures, and the missing ones named', () => {
+    expect(layersOf(structures)).toEqual([
+      { id: 'vessels', ids: ['v1', 'v2'] },
+      { id: 'organs', ids: ['o1'] },
+      { id: 'skeleton', ids: ['b1'] },
+    ]);
+    expect(layersOf(structures, new Set(['v1', 'b1'])).map((l) => l.id)).toEqual(['vessels', 'skeleton']);
+    expect(missingLayers(structures)).toEqual(['skin', 'muscle', 'nerves']);
+    expect(missingLayers([{ id: 'x', text: 'no layer' }])).toEqual([]);
+  });
+
+  it('toggle as a whole', () => {
+    const [vessels] = layersOf(structures);
+    const hidden = toggleLayer(new Set(), vessels!);
+    expect([...hidden].sort()).toEqual(['v1', 'v2']);
+    expect(layerShown(vessels!, hidden)).toBe(false);
+    // A layer with one structure still showing counts as shown; the button hides the rest.
+    expect([...toggleLayer(new Set(['v1']), vessels!)].sort()).toEqual(['v1', 'v2']);
+    expect([...toggleLayer(hidden, vessels!)]).toEqual([]);
+  });
+
+  it('peel from the outside in, never emptying the view, and put back from the inside out', () => {
+    const layers = layersOf(structures);
+    let hidden: Set<string> = new Set();
+    expect(nextToPeel(layers, hidden)?.id).toBe('vessels');
+    hidden = peel(layers, hidden);
+    expect(nextToPeel(layers, hidden)?.id).toBe('organs');
+    hidden = peel(layers, hidden);
+    expect([...hidden].sort()).toEqual(['o1', 'v1', 'v2']);
+    expect(nextToPeel(layers, hidden)).toBeNull(); // only the skeleton is left
+    expect(peel(layers, hidden)).toEqual(hidden);
+    expect(nextToRestore(layers, hidden)?.id).toBe('organs');
+    hidden = restore(layers, hidden);
+    expect([...hidden].sort()).toEqual(['v1', 'v2']);
+    hidden = restore(layers, hidden);
+    expect(hidden.size).toBe(0);
+    expect(nextToRestore(layers, hidden)).toBeNull();
+  });
+});
+
+describe('the whole-body view', () => {
+  const system = (key: string, ids: string[], status: AnatomySystem['status'] = 'draft'): AnatomySystem => ({
+    key,
+    title: `sample ${key}`,
+    status,
+    model: { file: `/models/anatomy/${key}.glb`, release: 'sample release' },
+    structures: ids.map((id) => ({ id, text: `sample ${id}`, layer: 'organs' })),
+  });
+
+  it('loads every system together, each structure once, as a draft when any part is', () => {
+    const body = wholeBody([system('a', ['x', 'y']), system('b', ['y', 'z'], 'approved')])!;
+    expect(body.key).toBe(WHOLE_BODY_KEY);
+    expect(body.title).toBe('whole body');
+    expect(body.status).toBe('draft');
+    expect(body.model.files).toEqual(['/models/anatomy/a.glb', '/models/anatomy/b.glb']);
+    expect(body.structures.map((s) => s.id)).toEqual(['x', 'y', 'z']);
+  });
+
+  it('needs two systems of one release, and leaves the test fixture out', () => {
+    expect(wholeBody([system('a', ['x'])])).toBeNull();
+    const other = { ...system('b', ['z']), model: { file: '/models/anatomy/b.glb', release: 'other release' } };
+    expect(wholeBody([system('a', ['x']), other])).toBeNull();
+    expect(wholeBody([system('a', ['x']), { ...system('f', ['q']), fixture: true }])).toBeNull();
+  });
+});

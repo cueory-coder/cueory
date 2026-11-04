@@ -6,6 +6,7 @@
 
 - [ ] `npm run verify` passes locally (type check, build, unit and browser tests)
 - [ ] Targets `staging` (or is the `staging` → `main` promotion)
+- [ ] Added `docs/status/in-review/<branch-name-with-dashes>.md` with a `status:` line
 - [ ] Checked on the locked staging site (after merging into `staging`)
 
 ## Does this touch a sensitive area?
