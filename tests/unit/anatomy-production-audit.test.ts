@@ -23,11 +23,11 @@ function setup() {
     writeFileSync(join(content, `anatomy-${name}.json`), JSON.stringify({
       status,
       model: { file: urls[0], files: urls.slice(1) },
-      labels: ids.map((id) => ({ id, text: 'fixture label' })),
+      labels: ids.map((id) => ({ id, text: 'fixture label', source: 'synthetic-test-source' })),
     }));
   };
   system('draft', 'draft', ['/models/anatomy/draft.glb'], ['FMA999991']);
-  system('approved', 'approved', ['/models/anatomy/approved.glb']);
+  system('approved', 'approved', ['/models/anatomy/approved.glb'], ['FMA999992']);
   file('models/anatomy/approved.glb', 'fixture only');
   file('preview/anatomy-lab.html', '<html><meta name="robots" content="noindex"></html>');
   return { dist, content, file, system, check: () => auditAnatomyProduction(dist, content) };
@@ -36,6 +36,34 @@ function setup() {
 describe('anatomy production artifact audit', () => {
   it('accepts a build with approved models and no exposed drafts', () => {
     expect(setup().check()).toEqual({ errors: [], approvedSystems: 1, draftSystems: 1, shippedModels: 1 });
+  });
+
+  it('rejects approved sources with missing, duplicate or unsupported structure IDs', () => {
+    const f = setup();
+    f.system('approved', 'approved', ['/models/anatomy/approved.glb'], []);
+    expect(f.check().errors).toContain('anatomy-approved.json: approved labels are missing');
+
+    f.system('approved', 'approved', ['/models/anatomy/approved.glb'], ['FMA999992', 'FMA999992', 'not-a-structure-id']);
+    expect(f.check().errors).toEqual(expect.arrayContaining([
+      'anatomy-approved.json: duplicate approved label ID FMA999992',
+      'anatomy-approved.json: invalid approved label ID',
+    ]));
+  });
+
+  it('rejects approved structure names without an official name or source citation', () => {
+    const f = setup();
+    writeFileSync(join(f.content, 'anatomy-approved.json'), JSON.stringify({
+      status: 'approved',
+      model: { file: '/models/anatomy/approved.glb' },
+      labels: [
+        { id: 'FMA999992', text: ' ', source: 'synthetic-test-source' },
+        { id: 'FMA999993', text: 'fixture only', source: '' },
+      ],
+    }));
+    expect(f.check().errors).toEqual(expect.arrayContaining([
+      'anatomy-approved.json: approved label FMA999992 has no official name',
+      'anatomy-approved.json: approved label FMA999993 has no source citation',
+    ]));
   });
 
   it('rejects a directly fetchable draft model even if the anatomy page is clean', () => {

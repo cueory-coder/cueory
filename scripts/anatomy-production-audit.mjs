@@ -85,6 +85,27 @@ export function auditAnatomyProduction(distDir, contentDir) {
     if (data.status === 'approved') {
       approvedSystems++;
       urls.forEach((url) => approved.add(url));
+      // A production-style audit must also reject a damaged *approved* record.
+      // Otherwise a stale dist/ can pass despite having no reviewed source names.
+      if (!Array.isArray(data.labels) || data.labels.length === 0) {
+        errors.push(`${name}: approved labels are missing`);
+      } else {
+        const seenIds = new Set();
+        for (const label of data.labels) {
+          if (!label || typeof label.id !== 'string' || !/^FMA\d{3,}$/.test(label.id)) {
+            errors.push(`${name}: invalid approved label ID`);
+            continue;
+          }
+          if (seenIds.has(label.id)) errors.push(`${name}: duplicate approved label ID ${label.id}`);
+          seenIds.add(label.id);
+          if (typeof label.text !== 'string' || label.text.trim().length === 0) {
+            errors.push(`${name}: approved label ${label.id} has no official name`);
+          }
+          if (typeof label.source !== 'string' || label.source.trim().length === 0) {
+            errors.push(`${name}: approved label ${label.id} has no source citation`);
+          }
+        }
+      }
     } else {
       draftSystems++;
       urls.forEach((url) => draft.add(url));
