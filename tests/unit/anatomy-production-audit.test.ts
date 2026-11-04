@@ -58,12 +58,15 @@ describe('anatomy production artifact audit', () => {
     const f = setup();
     f.file('index.html', String.raw`<style>.draft::before { content: "\46 MA999991"; }</style>`);
     f.file('images/embedded-style.svg', String.raw`<svg><style>.fixture::after { content: "\46 IX001"; }</style></svg>`);
+    f.file('nested-entity.html', String.raw`<div style="--anatomy-id:'&#92;46 MA999991'"></div>`);
     expect(f.check().errors).toEqual(expect.arrayContaining([
       'draft anatomy ID exposed in built text: index.html (FMA999991)',
       'test fixture ID exposed in built text: images/embedded-style.svg (FIX001)',
+      'draft anatomy ID exposed in built text: nested-entity.html (FMA999991)',
     ]));
     const literal = setup();
     literal.file('index.html', String.raw`<style>.literal::before { content: "\\46 MA999991"; }</style>`);
+    literal.file('paired-entities.html', String.raw`<div style="--anatomy-id:'&#92;&#92;46 MA999991'"></div>`);
     expect(literal.check().errors).toEqual([]);
   });
   it('decodes only active CSS hex escapes with at most six digits', () => {
