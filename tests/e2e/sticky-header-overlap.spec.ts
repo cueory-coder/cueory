@@ -67,7 +67,15 @@ test.describe('Task 270: sticky header overlap', () => {
       const header = page.locator('header[data-scroll-header]');
       const heading = page.locator('main :is(h1, h2, h3, h4, h5, h6)').first();
       await expect(heading, `${route}: expected a heading in main`).toHaveCount(1);
-      if (await header.count() === 0) return;
+      // The home hero deliberately uses an absolute overlay, not a sticky header.
+      // Assert that contract explicitly. Every other route must provide the sticky header.
+      if (route === '/') {
+        await expect(header, 'home must not have a sticky scroll header').toHaveCount(0);
+        const overlay = page.locator('header').first();
+        await expect(overlay, 'home must retain its hero overlay header').toHaveCount(1);
+        await expect(overlay).toHaveCSS('position', 'absolute');
+        return;
+      }
       await expect(header, `${route}: expected a sticky header`).toHaveCount(1);
       await heading.evaluate((element) => element.scrollIntoView({ block: 'start', inline: 'nearest' }));
       await expect.poll(() => header.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThan(0);
