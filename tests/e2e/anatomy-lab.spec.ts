@@ -551,6 +551,70 @@ test.describe('anatomy lab whole body loads layers on demand', () => {
     await expect(files).toContainText('model files loaded: 1 of 11', { timeout: 20_000 });
     await expect(vessels).toBeEnabled();
     await expect(peel).toBeEnabled();
+
+    // A later on-demand download must also prevent conflicting peel/restore actions.
+    let vesselRequested!: () => void;
+    let releaseVessel!: () => void;
+    const reachedVessel = new Promise<void>(resolve => { vesselRequested = resolve; });
+    const blockedVessel = new Promise<void>(resolve => { releaseVessel = resolve; });
+    await page.route('**/models/anatomy/vessels.glb', async route => {
+      vesselRequested();
+      await blockedVessel;
+      await route.continue();
+    });
+    await vessels.click();
+    try {
+      await reachedVessel;
+      await expect(vessels).toBeDisabled();
+      await expect(peel).toBeDisabled();
+      await expect(restore).toBeDisabled();
+    } finally {
+      releaseVessel();
+    }
+    await expect(vessels).toBeEnabled({ timeout: 20_000 });
+  });
+
+  test('keeps initial file count at zero after a failed first GLB and recovers on retry', async ({ page }, info) => {
+    test.skip(!isDesktopOfEachEngine(info), 'one initial-GLB failure/retry check per browser engine');
+    await page.goto('/preview/anatomy-lab');
+    await page.getByRole('button', { name: 'open the anatomy lab' }).click();
+    await expect(page.locator('canvas')).toBeFocused({ timeout: 15_000 });
+    const whole = page.getByRole('group', { name: 'body system' })
+      .getByRole('button', { name: 'whole body', exact: true });
+    await expect(whole).toBeVisible({ timeout: 15_000 });
+
+    let attempts = 0;
+    let releaseFirst!: () => void;
+    let firstRequested!: () => void;
+    const reached = new Promise<void>(resolve => { firstRequested = resolve; });
+    const blocked = new Promise<void>(resolve => { releaseFirst = resolve; });
+    await page.route('**/models/anatomy/skin.glb', async route => {
+      attempts++;
+      if (attempts === 1) {
+        firstRequested();
+        await blocked;
+        await route.abort('failed');
+      } else {
+        await route.continue();
+      }
+    });
+
+    await whole.click();
+    const files = page.getByTestId('anatomy-files');
+    try {
+      await reached;
+      await expect(files).toContainText('model files loaded: 0 of 11');
+    } finally {
+      // The held request must always be released, including if the assertion fails.
+      releaseFirst();
+    }
+    await expect(page.getByRole('alert').filter({ hasText: 'could not load whole body.' }))
+      .toBeVisible({ timeout: 20_000 });
+    await expect(files).toContainText('model files loaded: 0 of 11');
+
+    await page.getByRole('button', { name: 'try loading again' }).click();
+    await expect(files).toContainText('model files loaded: 1 of 11', { timeout: 20_000 });
+    expect(attempts).toBe(2);
   });
 
   test('only the outer layer is requested at first; a deeper layer only when peeled to', async ({ page }) => {
