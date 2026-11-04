@@ -73,6 +73,7 @@ const items = [
     const setOpen = (open: boolean) => {
       menu.hidden = !open;
       toggle.setAttribute('aria-expanded', String(open));
+      toggle.setAttribute('aria-label', open ? 'close account menu' : 'open account menu');
       if (!open && pending) {
         const next = pending;
         pending = null;
