@@ -25,12 +25,22 @@ function fake(options: {
   session?: boolean; current?: string | null; next?: string | null; factors?: FactorInfo[];
   verifyError?: string; challengeError?: string; unenrollError?: string; enrollError?: string; listError?: boolean;
   qr?: string; enrollSecret?: string;
+  refreshError?: boolean; refreshThrows?: boolean; signOutError?: boolean; signOutThrows?: boolean;
 } = {}) {
   const calls: string[] = [];
   const factors = options.factors ?? [];
   const auth: TwoFactorAuth = {
     getSession: vi.fn(() => { calls.push('getSession'); return ok({ session: options.session === false ? null : { access_token: 'x' } }); }),
-    refreshSession: vi.fn(() => { calls.push('refreshSession'); return Promise.resolve({ error: null }); }),
+    refreshSession: vi.fn(() => {
+      calls.push('refreshSession');
+      if (options.refreshThrows) return Promise.reject(new Error('refresh offline'));
+      return Promise.resolve({ error: options.refreshError ? { code: 'refresh_failed' } : null });
+    }),
+    signOut: vi.fn(({ scope }) => {
+      calls.push(`signOut:${scope}`);
+      if (options.signOutThrows) return Promise.reject(new Error('sign-out offline'));
+      return Promise.resolve({ error: options.signOutError ? { code: 'signout_failed' } : null });
+    }),
     mfa: {
       getAuthenticatorAssuranceLevel: vi.fn(() => {
         calls.push('aal');
@@ -202,6 +212,33 @@ describe('removeFactor', () => {
     expect(await removeFactor(auth, factorId, '123456')).toEqual({ ok: true });
     expect(calls).toEqual([`challenge:${factorId}`, `verify:${factorId}:${challengeId}:123456`, `unenroll:${factorId}`, 'refreshSession']);
   });
+
+  it.each(['returned error', 'thrown error'] as const)(
+    'signs out locally rather than keeping aal2 after a %s on session refresh', async kind => {
+      const { auth, calls } = fake({
+        refreshError: kind === 'returned error', refreshThrows: kind === 'thrown error',
+      });
+      expect(await removeFactor(auth, factorId, '123456')).toEqual({
+        ok: false, problem: 'session-reset', message: CODE_MESSAGES['session-reset'],
+      });
+      expect(calls).toEqual([
+        `challenge:${factorId}`, `verify:${factorId}:${challengeId}:123456`,
+        `unenroll:${factorId}`, 'refreshSession', 'signOut:local',
+      ]);
+    },
+  );
+
+  it.each(['returned error', 'thrown error'] as const)(
+    'never reports success after both refresh and local sign-out fail (%s)', async kind => {
+      const { auth, calls } = fake({
+        refreshError: true, signOutError: kind === 'returned error', signOutThrows: kind === 'thrown error',
+      });
+      expect(await removeFactor(auth, factorId, '123456')).toEqual({
+        ok: false, problem: 'failed', message: CODE_MESSAGES.failed,
+      });
+      expect(calls).toContain('signOut:local');
+    },
+  );
 
   it('a wrong code removes nothing', async () => {
     const { auth, calls } = fake({ verifyError: 'mfa_verification_failed' });

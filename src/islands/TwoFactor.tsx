@@ -114,7 +114,14 @@ export default function TwoFactor({ auth: supplied }: Props) {
       show({ kind: 'on', factorId }, screen.kind === 'enrolling' ? 'two-factor is now on.' : 'thanks, you’re signed in with two-factor.');
     } else if (screen.kind === 'removing') {
       const result = await removeFactor(auth, screen.factorId, code);
-      if (!result.ok) { setProblem(result.message); setCode(''); focusTarget.current?.focus(); return; }
+      if (!result.ok) {
+        if (result.problem === 'session-reset') {
+          // A failed refresh forced local sign-out; do not leave a stale authenticated screen.
+          show({ kind: 'signed-out' }, result.message);
+          return;
+        }
+        setProblem(result.message); setCode(''); focusTarget.current?.focus(); return;
+      }
       show({ kind: 'off' }, 'two-factor is off.');
     }
   });
