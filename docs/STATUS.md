@@ -1,6 +1,9 @@
 # Status
 
-Last updated: 2026-11-02 (Task 118)
+Last updated: 2026-11-03 (Task 244)
+
+## Recent documentation
+- Added [docs/TESTING.md](TESTING.md), a plain-language map of the available type, build, unit, browser and batch checks.
 
 ## Done
 - Static site: Astro + React islands + TypeScript + Tailwind, static output, tested at phone and desktop sizes.
