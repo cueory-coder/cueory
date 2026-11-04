@@ -53,10 +53,36 @@ test.describe('Task 280: large-text reflow', () => {
             return { name: element.getAttribute('aria-label') ?? element.textContent?.trim() ?? element.tagName.toLowerCase(), left: box.left, right: box.right };
           })
           .filter(({ left, right }) => left < -1 || right > width + 1);
-        return { scrollWidth: document.documentElement.scrollWidth, width, clipped };
+        // Diagnostic only: surface the elements extending past the 32px-text viewport
+        // without loosening either accessibility assertion.
+        const overflowCandidates = [...document.querySelectorAll<HTMLElement>('body *')]
+          .filter((element) => {
+            const style = getComputedStyle(element);
+            if (style.display === 'none' || style.visibility === 'hidden') return false;
+            const box = element.getBoundingClientRect();
+            return box.width > 0 && box.height > 0 && (box.right > width + 1 || box.left < -1);
+          })
+          .map((element) => {
+            const box = element.getBoundingClientRect();
+            const style = getComputedStyle(element);
+            return {
+              tag: element.tagName.toLowerCase(),
+              id: element.id,
+              classes: typeof element.className === 'string' ? element.className.slice(0, 90) : '',
+              left: Math.round(box.left),
+              right: Math.round(box.right),
+              overflowX: style.overflowX,
+            };
+          })
+          .sort((a, b) => b.right - a.right)
+          .slice(0, 12);
+        return { scrollWidth: document.documentElement.scrollWidth, width, clipped, overflowCandidates };
       });
 
-      expect(findings.scrollWidth, `${route}: horizontal overflow`).toBeLessThanOrEqual(findings.width);
+      expect(
+        findings.scrollWidth,
+        `${route}: horizontal overflow. Out-of-bounds elements: ${JSON.stringify(findings.overflowCandidates)}`,
+      ).toBeLessThanOrEqual(findings.width);
       expect(findings.clipped, `${route}: clipped visible controls`).toEqual([]);
     });
   }
