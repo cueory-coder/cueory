@@ -74,10 +74,22 @@ test.beforeAll(async () => {
         },
         unenroll: ({ factorId }) => { factors = factors.filter(f => f.id !== factorId); return reply('unenroll', { id: factorId }); },
       };
+      const listeners = new Set();
+      let currentUser = state === 'signed-out' ? null : { id: 'fake-user-a' };
       const auth = {
         mfa,
-        getSession: () => reply('getSession', { session: state === 'signed-out' ? null : { access_token: 'x' } }),
+        getSession: () => reply('getSession', { session: currentUser ? { access_token: 'x', user: currentUser } : null }),
         refreshSession: () => { level = 'aal1'; return reply('refreshSession', {}).then(() => ({ error: null })); },
+        signOut: options => { currentUser = null; window.authCalls.push('signOut:' + options.scope); return Promise.resolve({ error: null }); },
+        onAuthStateChange: callback => {
+          listeners.add(callback);
+          queueMicrotask(() => callback('INITIAL_SESSION', currentUser ? { user: currentUser } : null));
+          return { data: { subscription: { unsubscribe: () => listeners.delete(callback) } } };
+        },
+      };
+      window.changeFixtureUser = userId => {
+        currentUser = userId ? { id: userId } : null;
+        for (const callback of listeners) callback(userId ? 'SIGNED_IN' : 'SIGNED_OUT', currentUser ? { user: currentUser } : null);
       };
       window.fixtureAuth = auth;
       createRoot(document.getElementById('fixture')).render(params.get('page') === 'admin' ? <AdminFlags /> : <TwoFactor />);
@@ -171,6 +183,37 @@ test.describe('two-factor with a fake auth client', () => {
     await page.getByRole('button', { name: 'cancel' }).click();
     await expect(page.getByRole('heading', { name: 'two-factor is off' })).toBeFocused();
     expect((await calls(page)).at(-1)).toBe('unenroll');
+  });
+
+  test('sign-out removes an in-progress enrollment secret and QR code immediately', async ({ page }) => {
+    await fixture(page, 'state=off');
+    await expect(page.getByRole('heading', { name: 'two-factor is off' })).toBeVisible();
+    await page.getByRole('button', { name: 'turn on two-factor' }).click();
+    await expect(page.getByTestId('two-factor-secret')).toBeVisible();
+    await page.evaluate(() => (window as unknown as { changeFixtureUser: (id: string | null) => void }).changeFixtureUser(null));
+    await expect(page.getByTestId('two-factor-secret')).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'sign in first' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'sign in' })).toHaveAttribute('href', '/signin?next=%2Faccount%2Ftwo-factor');
+  });
+
+  test('a second account cannot see the first account\'s pending enrollment', async ({ page }) => {
+    await fixture(page, 'state=off');
+    await expect(page.getByRole('heading', { name: 'two-factor is off' })).toBeVisible();
+    await page.getByRole('button', { name: 'turn on two-factor' }).click();
+    await expect(page.getByTestId('two-factor-secret')).toBeVisible();
+    await page.evaluate(() => (window as unknown as { changeFixtureUser: (id: string | null) => void }).changeFixtureUser('fake-user-b'));
+    await expect(page.getByTestId('two-factor-secret')).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'two-factor is off' })).toBeVisible();
+  });
+
+  test('sign-out during slow enrollment prevents its result from restoring the old secret', async ({ page }) => {
+    await fixture(page, 'state=off');
+    await expect(page.getByRole('heading', { name: 'two-factor is off' })).toBeVisible();
+    await page.getByRole('button', { name: 'turn on two-factor' }).click();
+    await page.evaluate(() => (window as unknown as { changeFixtureUser: (id: string | null) => void }).changeFixtureUser(null));
+    await expect(page.getByRole('heading', { name: 'sign in first' })).toBeVisible();
+    await expect.poll(async () => (await calls(page)).includes('enroll')).toBe(true);
+    await expect(page.getByTestId('two-factor-secret')).toHaveCount(0);
   });
 
   test('the code at sign-in, then back to where the student was going', async ({ page }) => {

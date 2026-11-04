@@ -36,6 +36,10 @@ export interface TwoFactorAuth {
   refreshSession(): Promise<{ error: AuthErr | null }>;
   /** Clear this device's session if the JWT cannot be safely refreshed after removing a factor. */
   signOut(options: { scope: 'local' }): Promise<{ error: AuthErr | null }>;
+  /** Supabase broadcasts auth changes across tabs; subscribe while enrollment secrets are displayed. */
+  onAuthStateChange?(callback: (event: string, session: { user?: { id?: string } } | null) => void): {
+    data: { subscription: { unsubscribe(): void } };
+  };
   mfa: {
     getAuthenticatorAssuranceLevel(): Reply<{ currentLevel: string | null; nextLevel: string | null }>;
     listFactors(): Reply<{ all: FactorInfo[]; totp: FactorInfo[] }>;
