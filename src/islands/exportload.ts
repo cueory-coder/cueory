@@ -255,8 +255,14 @@ function studyEvent(value: Record<string, unknown>) {
 }
 
 function entries<T>(data: unknown, map: (value: Record<string, unknown>) => T): T[] {
-  if (!Array.isArray(data)) throw new Error('invalid export result');
-  return data.map((value: unknown) => map(row(value)));
+  if (!Array.isArray(data) || Object.keys(data).length !== data.length) throw new Error('invalid export result');
+  const mapped: T[] = [];
+  for (let index = 0; index < data.length; index++) {
+    const descriptor = Object.getOwnPropertyDescriptor(data, String(index));
+    if (!descriptor || !('value' in descriptor)) throw new Error('invalid export result');
+    mapped.push(map(row(descriptor.value)));
+  }
+  return mapped;
 }
 
 async function fetchRows(reader: ExportReader, table: WholeTable): Promise<unknown> {
@@ -270,12 +276,13 @@ function pickedLetters(value: Record<string, unknown>): string[] {
   const letters = field(value, 'picked');
   if (!Array.isArray(letters) || letters.length < 1 || letters.length > 5 ||
       Object.keys(letters).length !== letters.length) throw new Error('invalid picked choices');
-  const result = letters.map((letter, index) => {
+  const result: string[] = [];
+  for (let index = 0; index < letters.length; index++) {
     const descriptor = Object.getOwnPropertyDescriptor(letters, String(index));
-    if (!descriptor || !('value' in descriptor) || descriptor.value !== letter ||
-        typeof letter !== 'string' || !/^[a-e]$/.test(letter)) throw new Error('invalid picked choices');
-    return letter;
-  });
+    const letter = descriptor && 'value' in descriptor ? descriptor.value : undefined;
+    if (typeof letter !== 'string' || !/^[a-e]$/.test(letter)) throw new Error('invalid picked choices');
+    result.push(letter);
+  }
   if (new Set(result).size !== result.length) throw new Error('duplicate picked choices');
   return result;
 }
