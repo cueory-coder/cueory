@@ -38,40 +38,93 @@ async function waitForIslands(page: Page, route: string): Promise<void> {
 test.describe('Task 210: visible keyboard focus', () => {
   for (const route of routes) {
     test(`${route} gives each Tab stop a visible focus indicator`, async ({ page }) => {
+      await page.addInitScript(() => {
+        try { localStorage.setItem('cueory-promo-seen', String(Date.now())); } catch { /* storage unavailable */ }
+      });
+
       const response = await page.goto(route);
       expect(response?.status()).toBe(route === '/visible-focus-page-does-not-exist' ? 404 : 200);
       await waitForIslands(page, route);
 
-      const controls = await page.locator(selector).evaluateAll((elements) => elements.flatMap((element, index) => {
-        const style = getComputedStyle(element);
-        if (element.tabIndex < 0 || element.matches(':disabled') || style.display === 'none' || style.visibility === 'hidden' || element.closest('[hidden], [inert]') || element.getClientRects().length === 0) return [];
-        if (element instanceof HTMLInputElement && element.type === 'radio' && element.name) {
-          const group = elements.filter((peer): peer is HTMLInputElement =>
-            peer instanceof HTMLInputElement && peer.type === 'radio' && peer.name === element.name && peer.form === element.form,
-          );
-          if (element !== (group.find((peer) => peer.checked) ?? group[0])) return [];
-        }
-        return [{ index, label: element.id ? `#${element.id}` : `${element.tagName.toLowerCase()}[${index}]` }];
-      }));
+      const controls = await page.evaluate((query) => {
+        const elements = [...document.querySelectorAll<HTMLElement>(query)];
+        const isReachable = (el: HTMLElement) =>
+          el.tabIndex >= 0 &&
+          !el.matches(':disabled') &&
+          !el.closest('[hidden], [inert]') &&
+          el.getClientRects().length > 0 &&
+          getComputedStyle(el).display !== 'none' &&
+          getComputedStyle(el).visibility === 'visible';
+
+        return elements.flatMap((el, index) => {
+          if (!isReachable(el)) return [];
+          if (el instanceof HTMLInputElement && el.type === 'radio' && el.name) {
+            const group = elements.filter(
+              (peer): peer is HTMLInputElement =>
+                peer instanceof HTMLInputElement &&
+                peer.type === 'radio' &&
+                peer.name === el.name &&
+                peer.form === el.form &&
+                isReachable(peer),
+            );
+            if (el !== (group.find((peer) => peer.checked) ?? group[0])) return [];
+          }
+          const style = getComputedStyle(el);
+          return [{
+            index,
+            label: el.id ? `#${el.id}` : `${el.tagName.toLowerCase()}[${index}]`,
+            outlineStyle: style.outlineStyle,
+            outlineWidth: style.outlineWidth,
+            outlineColor: style.outlineColor,
+            outlineOffset: style.outlineOffset,
+            boxShadow: style.boxShadow,
+          }];
+        });
+      }, selector);
+
       const failures: string[] = [];
       const visited = new Set<number>();
-      const maxTabs = Math.max(24, controls.length * 3 + 12);
+      const maxTabs = Math.max(24, controls.length * 3 + 20);
 
       for (let step = 0; step < maxTabs && visited.size < controls.length; step++) {
         await page.keyboard.press('Tab');
-        const focused = await page.evaluate((query) => {
+        const focused = await page.evaluate(({ query, baselines }) => {
           const element = document.activeElement;
           if (!(element instanceof HTMLElement) || element === document.body || element === document.documentElement) return null;
           const candidates = [...document.querySelectorAll<HTMLElement>(query)];
           const index = candidates.indexOf(element);
+          const previous = baselines.find((control) => control.index === index);
           const style = getComputedStyle(element);
-          const outlineVisible = style.outlineStyle !== 'none' && Number.parseFloat(style.outlineWidth) > 0 && style.outlineColor !== 'transparent';
-          const shadowVisible = style.boxShadow !== 'none';
-          return { index, visible: element.matches(':focus-visible') && (outlineVisible || shadowVisible) };
-        }, selector);
+
+          const color = style.outlineColor;
+          const transparent = color === 'transparent' ||
+            (color.startsWith('rgba(') && Number.parseFloat(color.slice(color.lastIndexOf(',') + 1)) === 0);
+          const outlineVisible = style.outlineStyle !== 'none' &&
+            Number.parseFloat(style.outlineWidth) > 0 && !transparent;
+          const outlineChanged = !previous ||
+            style.outlineStyle !== previous.outlineStyle ||
+            style.outlineWidth !== previous.outlineWidth ||
+            style.outlineColor !== previous.outlineColor ||
+            style.outlineOffset !== previous.outlineOffset;
+          const shadowChanged = style.boxShadow !== 'none' && style.boxShadow !== previous?.boxShadow;
+
+          return {
+            index,
+            visible: element.matches(':focus-visible') && ((outlineVisible && outlineChanged) || shadowChanged),
+            isCrosswordCell: element.getAttribute('data-cell') !== null || element.classList.contains('crossword-cell'),
+          };
+        }, { query: selector, baselines: controls });
+
         if (!focused || focused.index < 0) continue;
         visited.add(focused.index);
-        if (!focused.visible) failures.push(controls.find(control => control.index === focused.index)?.label ?? `control[${focused.index}]`);
+        if (!focused.visible) {
+          failures.push(controls.find((c) => c.index === focused.index)?.label ?? `control[${focused.index}]`);
+        }
+
+        // On /play, the crossword widget captures Tab to navigate word cells and only releases on Escape.
+        if (route === '/play' && focused.isCrosswordCell) {
+          await page.keyboard.press('Escape');
+        }
       }
 
       expect(failures, `${route} has keyboard stops without visible focus`).toEqual([]);
