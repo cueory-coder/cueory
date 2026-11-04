@@ -359,13 +359,13 @@ update auth.mfa_factors set status = 'unverified'
 select is(public.is_admin(), false,
   'a stale aal2 token fails without a currently verified factor');
 set local role authenticated;
-select throws_ok($ select * from public.admin_list_flags('open') $, '42501',
+select throws_ok($$ select * from public.admin_list_flags('open') $$, '42501',
   'only the site owner, signed in with two-factor, can do this',
   'removing the factor blocks reading private admin reports');
-select throws_ok($ select public.admin_mark_flag_handled('00000000-0000-4000-8000-000000000f02') $, '42501',
+select throws_ok($$ select public.admin_mark_flag_handled('00000000-0000-4000-8000-000000000f02') $$, '42501',
   'only the site owner, signed in with two-factor, can do this',
   'removing the factor blocks writing handled status');
-select throws_ok($ select public.admin_reopen_flag('00000000-0000-4000-8000-000000000f06') $, '42501',
+select throws_ok($$ select public.admin_reopen_flag('00000000-0000-4000-8000-000000000f06') $$, '42501',
   'only the site owner, signed in with two-factor, can do this',
   'removing the factor blocks reopening reports');
 reset role;
