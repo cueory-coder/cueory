@@ -1,7 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-import { readdirSync } from 'node:fs';
-import { join, relative, resolve, sep } from 'node:path';
+import { builtPages } from './built-pages';
 import { isEveningProject, sizeOf } from './projects';
 
 /**
@@ -10,33 +9,8 @@ import { isEveningProject, sizeOf } from './projects';
  * silently missing future pages (including noindex preview pages).
  * The separate Task 74 test owns the general keyboard/skip-link sweep.
  */
-const dist = resolve('dist');
 const missingPage = '/task-94-evening-page-does-not-exist';
-
-function builtPages(folder = dist): string[] {
-  const routes: string[] = [];
-
-  for (const entry of readdirSync(folder, { withFileTypes: true })) {
-    if (entry.name === '_astro' || entry.name === 'pagefind') continue;
-    const file = join(folder, entry.name);
-
-    if (entry.isDirectory()) {
-      routes.push(...builtPages(file));
-      continue;
-    }
-
-    if (!entry.isFile() || !entry.name.endsWith('.html')) continue;
-    const name = relative(dist, file).split(sep).join('/');
-    if (name === '404.html') routes.push(missingPage);
-    else if (name === 'index.html') routes.push('/');
-    else if (name.endsWith('/index.html')) routes.push('/' + name.slice(0, -'/index.html'.length));
-    else routes.push('/' + name.slice(0, -'.html'.length));
-  }
-
-  return routes;
-}
-
-const pages = [...new Set(builtPages())].sort();
+const pages = builtPages(missingPage);
 const axeTags = ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'];
 
 /**
