@@ -80,15 +80,15 @@ for (const path of [...new Set(pages)]) {
 
 test('lesson can be stepped through with the keyboard', async ({ page }) => {
   await page.goto('/learn/study-skills');
-  await expect(page.getByText('Sentence 1 of')).toBeVisible();
+  await expect(page.getByText('sentence 1 of')).toBeVisible();
 
-  const nextButton = page.getByRole('button', { name: 'Next sentence' });
+  const nextButton = page.getByRole('button', { name: 'next sentence' });
   await nextButton.focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByText('Sentence 2 of')).toBeVisible();
+  await expect(page.getByText('sentence 2 of')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Show all' }).click();
-  await expect(page.getByText("That's the whole lesson for now.")).toBeVisible();
+  await page.getByRole('button', { name: 'show all' }).click();
+  await expect(page.getByText("that's the whole lesson for now.")).toBeVisible();
 });
 
 test('cards can be sorted with the keyboard, and "Still learning" cards come back next round', async ({ page }) => {
@@ -303,8 +303,8 @@ test.describe('without JavaScript', () => {
 
   test('the lesson shows every sentence once and no stepper controls', async ({ page }) => {
     await page.goto('/learn/study-skills');
-    await expect(page.getByText('Sentence 1 of')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Next sentence' })).toHaveCount(0);
+    await expect(page.getByText('sentence 1 of')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'next sentence' })).toHaveCount(0);
     const items = page.locator('ol > li');
     const texts = await items.allTextContents();
     expect(texts.length).toBeGreaterThan(1);
