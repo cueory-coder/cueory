@@ -121,6 +121,9 @@ export function auditAnatomyProduction(distDir, contentDir) {
             errors.push(`${name}: approved label ${label.id} has no source citation`);
           } else if (!sourceIds.has(label.source)) {
             errors.push(`${name}: approved label ${label.id} references unknown source ${label.source}`);
+          } else if (label.source !== `bp3d-${label.id}`) {
+            // Each approved BodyParts3D label must cite its own reviewed ID.
+            errors.push(`${name}: approved label ${label.id} source does not match structure ID`);
           }
         }
       }

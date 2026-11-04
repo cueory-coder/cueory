@@ -23,8 +23,8 @@ function setup() {
     writeFileSync(join(content, `anatomy-${name}.json`), JSON.stringify({
       status,
       model: { file: urls[0], files: urls.slice(1) },
-      labels: ids.map((id) => ({ id, text: 'fixture label', source: 'synthetic-test-source' })),
-      sources: [{ id: 'synthetic-test-source' }],
+      labels: ids.map((id) => ({ id, text: 'fixture label', source: `bp3d-${id}` })),
+      sources: ids.map((id) => ({ id: `bp3d-${id}` })),
     }));
   };
   system('draft', 'draft', ['/models/anatomy/draft.glb'], ['FMA999991']);
@@ -57,10 +57,10 @@ describe('anatomy production artifact audit', () => {
       status: 'approved',
       model: { file: '/models/anatomy/approved.glb' },
       labels: [
-        { id: 'FMA999992', text: ' ', source: 'synthetic-test-source' },
+        { id: 'FMA999992', text: ' ', source: 'bp3d-FMA999992' },
         { id: 'FMA999993', text: 'fixture only', source: '' },
       ],
-      sources: [{ id: 'synthetic-test-source' }],
+      sources: [{ id: 'bp3d-FMA999992' }],
     }));
     expect(f.check().errors).toEqual(expect.arrayContaining([
       'anatomy-approved.json: approved label FMA999992 has no official name',
@@ -102,6 +102,37 @@ describe('anatomy production artifact audit', () => {
     expect(f.check().errors).toEqual(expect.arrayContaining([
       'anatomy-approved.json: duplicate approved source ID valid-source',
       'anatomy-approved.json: invalid approved source ID',
+    ]));
+  });
+
+  it('rejects a label citing another structure even when that source exists', () => {
+    const f = setup();
+    writeFileSync(join(f.content, 'anatomy-approved.json'), JSON.stringify({
+      status: 'approved',
+      model: { file: '/models/anatomy/approved.glb' },
+      labels: [
+        { id: 'FMA999992', text: 'fixture only', source: 'bp3d-FMA999993' },
+      ],
+      sources: [{ id: 'bp3d-FMA999993' }],
+    }));
+    expect(f.check().errors).toContain(
+      'anatomy-approved.json: approved label FMA999992 source does not match structure ID',
+    );
+  });
+
+  it('rejects a properly formatted citation if its source object is missing', () => {
+    const f = setup();
+    writeFileSync(join(f.content, 'anatomy-approved.json'), JSON.stringify({
+      status: 'approved',
+      model: { file: '/models/anatomy/approved.glb' },
+      labels: [
+        { id: 'FMA999992', text: 'fixture only', source: 'bp3d-FMA999992' },
+      ],
+      sources: [],
+    }));
+    expect(f.check().errors).toEqual(expect.arrayContaining([
+      'anatomy-approved.json: approved source records are missing',
+      'anatomy-approved.json: approved label FMA999992 references unknown source bp3d-FMA999992',
     ]));
   });
 
