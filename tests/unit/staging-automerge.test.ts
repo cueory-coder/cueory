@@ -349,6 +349,12 @@ describe('checks', () => {
     ]);
   });
 
+  it('blocks on a failed part of the browser tests, which is not itself a required check (Task 308)', () => {
+    expect(checkProblems([...greenChecks(), run('Browser tests, part 2', 'failure')])).toEqual([
+      '"Browser tests, part 2" ended as failure',
+    ]);
+  });
+
   it('uses the newest run when a check was re-run', () => {
     const failedThenPassed = [...greenChecks(), run('Workers Builds: cueory', 'failure'), run('Workers Builds: cueory')];
     expect(checkProblems(failedThenPassed)).toEqual([]);

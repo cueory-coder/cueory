@@ -117,3 +117,13 @@ describe('build output', () => {
     }
   });
 });
+
+describe('sessionCheckFrom', () => {
+  it('reports a thrown or returned error as a failure, not as signed out', async () => {
+    const { sessionCheckFrom } = await import('../../src/islands/supabaseclient');
+    expect(await sessionCheckFrom({ auth: { getSession: () => Promise.reject(new Error('x')) } })).toEqual({ error: true });
+    expect(await sessionCheckFrom({ auth: { getSession: async () => ({ data: { session: null }, error: new Error('x') }) } })).toEqual({ error: true });
+    expect(await sessionCheckFrom({ auth: { getSession: async () => ({ data: { session: null }, error: null }) } })).toEqual({ signedIn: false });
+    expect(await sessionCheckFrom(null)).toEqual({ signedIn: false });
+  });
+});

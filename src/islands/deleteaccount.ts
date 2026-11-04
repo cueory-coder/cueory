@@ -92,6 +92,9 @@ export function confirmState(typed: string): string | null {
 
 // ── Browser-storage keys to clear ────────────────────────────────────────────
 
+/** This tab's sessionStorage keys that deletion clears. Fixed names, so they can be cleared even when localStorage can't be listed. */
+export const SESSION_KEYS_AFTER_DELETION: readonly string[] = Object.freeze([VISIT_STORAGE_KEY, BREAK_STORAGE_KEY]);
+
 /** Iterable localStorage key names with separate keys for this tab's sessionStorage. */
 export type DeletionStorageKeys = string[] & { readonly sessionKeys: readonly string[] };
 
@@ -125,7 +128,7 @@ export function afterDeletion(storage: KeyValueStorage | undefined): DeletionSto
       keys.add(key);
     }
   }
-  return Object.assign([...keys], { sessionKeys: [VISIT_STORAGE_KEY, BREAK_STORAGE_KEY] });
+  return Object.assign([...keys], { sessionKeys: [...SESSION_KEYS_AFTER_DELETION] });
 }
 
 // ── A recent sign-in before deleting (Task 302) ──────────────────────────────
@@ -188,4 +191,3 @@ export function deleteOutcome(error: unknown): DeleteOutcome {
   }
   return { kind: 'failed', message: studentMessage('delete_my_account', error) };
 }
-

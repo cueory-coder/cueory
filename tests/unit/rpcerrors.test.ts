@@ -79,6 +79,33 @@ describe('submit_flag errors', () => {
   });
 });
 
+describe('update_display_name errors', () => {
+  it('maps the sign-in refusal', () => {
+    expect(studentMessage('update_display_name', { message: 'sign in to change your display name' }))
+      .toBe('please sign in again to change your display name.');
+  });
+
+  it('maps the bad-name refusal', () => {
+    expect(studentMessage('update_display_name', { message: 'a display name is 1 to 50 characters of plain text' }))
+      .toBe('a name can be 1 to 50 characters of plain text.');
+  });
+
+  it('maps the rate-limit refusal', () => {
+    expect(studentMessage('update_display_name', { message: 'that is a lot of name changes; please try again later' }))
+      .toBe("you've changed your name a lot this hour. please try again later.");
+  });
+
+  it('maps the missing-profile refusal', () => {
+    expect(studentMessage('update_display_name', { message: 'your profile was not found' }))
+      .toBe('your account could not load. please try again.');
+  });
+
+  it('returns the neutral fallback for an unknown message', () => {
+    expect(studentMessage('update_display_name', { message: 'private database detail' }))
+      .toBe('something went wrong — please try again.');
+  });
+});
+
 // ── unknown / fallback ───────────────────────────────────────────────────────
 
 describe('unknown and edge-case errors', () => {
@@ -122,6 +149,10 @@ describe('unknown and edge-case errors', () => {
       studentMessage('submit_flag', { message: 'the comment is up to 1,000 characters of plain text' }),
       studentMessage('submit_flag', { message: 'that question was not found' }),
       studentMessage('submit_flag', { message: 'that is a lot of reports; please try again later' }),
+      studentMessage('update_display_name', { message: 'sign in to change your display name' }),
+      studentMessage('update_display_name', { message: 'a display name is 1 to 50 characters of plain text' }),
+      studentMessage('update_display_name', { message: 'that is a lot of name changes; please try again later' }),
+      studentMessage('update_display_name', { message: 'your profile was not found' }),
       studentMessage('check_answer', { message: 'unknown' }),
     ];
     for (const msg of allMessages) {
