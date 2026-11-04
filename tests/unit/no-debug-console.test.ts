@@ -63,6 +63,9 @@ function scan(text: string, extension: string): Logging[] {
   let exprQuote = '';
   let inRegex = false;
   let braces = 0;
+  let exprTags = 0;
+  let inExprTag = false;
+  let exprTagQuote = '';
   let i = 0;
 
   function inspectRawElement() {
@@ -121,6 +124,56 @@ function scan(text: string, extension: string): Logging[] {
   }
 
   function handleExpressionChar(c: string) {
+    if (inExprTag) {
+      if (exprTagQuote) {
+        if (c === exprTagQuote) exprTagQuote = '';
+        i++;
+      } else if (c === '"' || c === "'") {
+        exprTagQuote = c;
+        i++;
+      } else if (markup.startsWith('/>', i)) {
+        inExprTag = false;
+        exprTags = Math.max(0, exprTags - 1);
+        i += 2;
+      } else if (c === '>') {
+        inExprTag = false;
+        i++;
+      } else {
+        i++;
+      }
+      return;
+    }
+
+    if (exprTags > 0) {
+      if (c === '<') {
+        if (/^<(?:script|style)\b/i.test(markup.slice(i, i + 8))) {
+          inspectRawElement();
+        } else if (markup.startsWith('</', i)) {
+          exprTags = Math.max(0, exprTags - 1);
+          inExprTag = true;
+          i += 2;
+        } else if (/^<[a-zA-Z]/i.test(markup.slice(i, i + 2))) {
+          exprTags++;
+          inExprTag = true;
+          i++;
+        } else if (markup.startsWith('<>', i)) {
+          exprTags++;
+          i += 2;
+        } else if (markup.startsWith('</>', i)) {
+          exprTags = Math.max(0, exprTags - 1);
+          i += 3;
+        } else {
+          i++;
+        }
+      } else if (c === '{') {
+        braces++;
+        i++;
+      } else {
+        i++;
+      }
+      return;
+    }
+
     if (exprQuote) {
       if (c === '\\') i++;
       else if (c === exprQuote) exprQuote = '';
@@ -155,8 +208,22 @@ function scan(text: string, extension: string): Logging[] {
     } else if (c === '/' && isRegexStart(markup, i)) {
       inRegex = true;
       i++;
-    } else if (c === '<' && /^<(?:script|style)\b/i.test(markup.slice(i, i + 8))) {
-      inspectRawElement();
+    } else if (c === '<') {
+      if (/^<(?:script|style)\b/i.test(markup.slice(i, i + 8))) {
+        inspectRawElement();
+      } else if (markup.startsWith('</', i)) {
+        inExprTag = true;
+        i += 2;
+      } else if (/^<[a-zA-Z]/i.test(markup.slice(i, i + 2))) {
+        exprTags++;
+        inExprTag = true;
+        i++;
+      } else if (markup.startsWith('<>', i)) {
+        exprTags++;
+        i += 2;
+      } else {
+        i++;
+      }
     } else if (c === '{') {
       braces++;
       i++;
@@ -303,6 +370,8 @@ describe('debug-console source guard', () => {
     expect(scan('<p title="C:\\">Text</p><script>console.log("actual")</script>', '.astro'))
       .toEqual([{ line: 1, method: 'log' }]);
     expect(scan('<script title="C:\\">console.log("actual")</script>', '.astro'))
+      .toEqual([{ line: 1, method: 'log' }]);
+    expect(scan('{true && <p>don\'t</p>}<script>console.log("actual")</script>', '.astro'))
       .toEqual([{ line: 1, method: 'log' }]);
   });
 
