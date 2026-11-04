@@ -1,6 +1,18 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
+// The welcome promo takes focus after 5 seconds. Its own spec tests that behavior.
+// Keep this page-specific footer and accessibility test independent of the promo timer.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem('cueory-promo-seen', String(Date.now()));
+    } catch {
+      // With storage blocked, the welcome promo does not appear.
+    }
+  });
+});
+
 const viewports = [
   { name: 'phone', width: 390, height: 844 },
   { name: 'desktop', width: 1440, height: 900 },
