@@ -12,17 +12,20 @@ const sql = [
   '20261101120000_flags_and_submit_flag.sql',
   '20261102100000_study_events.sql',
   '20261102110000_delete_my_account.sql',
+  // Task 169 redefines three RPCs. Read the last declaration for the effective contract.
+  '20261102135000_confirmed_accounts_only.sql',
   '20261102140000_update_display_name.sql',
+  '20261102170000_my_sessions.sql',
 ].map(name => readFileSync(new URL(`../../supabase/migrations/${name}`, import.meta.url), 'utf8')).join('\n');
 
 type FunctionName =
-  | 'submit_flag' | 'check_answer' | 'my_flags' | 'record_study_events' | 'delete_my_account' | 'update_display_name';
+  | 'submit_flag' | 'check_answer' | 'my_flags' | 'record_study_events' | 'delete_my_account' | 'update_display_name' | 'my_sessions';
 
 /** Read the actual declarations and dollar-quoted bodies, rather than copying their contracts into a fixture. */
 function declaration(name: FunctionName) {
-  const match = new RegExp(
-    `create\\s+function\\s+public\\.${name}\\s*\\(([^)]*)\\)\\s*returns([\\s\\S]*?)as\\s*\\$\\$([\\s\\S]*?)\\$\\$;`, 'i',
-  ).exec(sql);
+  const match = [...sql.matchAll(new RegExp(
+    `create\\s+(?:or\\s+replace\\s+)?function\\s+public\\.${name}\\s*\\(([^)]*)\\)\\s*returns([\\s\\S]*?)as\\s*\\$\\$([\\s\\S]*?)\\$\\$;`, 'gi',
+  ))].at(-1);
   if (!match) throw new Error(`The SQL declaration for ${name} was not found; update the contract reader.`);
   const names = (text: string) => text.replace(/--[^\n]*/g, '').split(',')
     .map(part => part.trim().split(/\s+/)[0]!).filter(Boolean);
@@ -123,6 +126,7 @@ describe('record_study_events contract (Task 140)', () => {
     // A change here is a contract change for the browser recorder: update it in the same pull request.
     expect(declaration('record_study_events').messages).toEqual([
       'sign in to record study activity',
+      'confirm your email to use this',
       'send between 1 and 50 study events',
       'a study event has the wrong shape',
       'a study event time must be between 7 days ago and 5 minutes from now',
@@ -216,5 +220,31 @@ describe('update_display_name contract (Task 59, Codex on #230)', () => {
     expect(nameSql).toMatch(/add column name_changes_in_window smallint not null default 0/);
     const exportSource = readFileSync(new URL('../../src/islands/exportload.ts', import.meta.url), 'utf8');
     expect(exportSource).toContain("profiles: 'display_name,created_at,name_change_window_start,name_changes_in_window',");
+  });
+});
+
+describe('my_sessions contract (Task 309)', () => {
+  const sessionsSql = readFileSync(new URL('../../supabase/migrations/20261102170000_my_sessions.sql', import.meta.url), 'utf8');
+
+  it('takes no arguments and returns the cursor id plus exactly the exported session fields', () => {
+    expect(declaration('my_sessions').arguments).toEqual([]);
+    const camel = (name: string) => name.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase());
+    const session: NonNullable<ExportData['sessions']>[number] = {
+      createdAt: '2026-11-01T00:00:00.000Z', updatedAt: null, notAfter: null, userAgent: 'sample browser', ip: '203.0.113.5',
+    };
+    const columns = declaration('my_sessions').columns;
+    expect(columns[0]).toBe('id');
+    const json = JSON.parse(exportJson({ sessions: [session] }, '2026-11-01'));
+    expect(Object.keys(json.sessions[0]).sort()).toEqual(columns.slice(1).map(camel).sort());
+    const csv = exportCsv({ sessions: [session] }).find(file => file.fileName === 'sessions.csv')!;
+    expect(csv.text.split('\r\n')[0]!.split(',').sort()).toEqual(columns.slice(1).map(camel).sort());
+  });
+
+  it('is signed-in only, security definer with an empty search_path, and reads only the caller\'s sessions', () => {
+    expect(sessionsSql).toMatch(/language sql\s+stable\s+security definer\s+set search_path = ''/i);
+    expect(sessionsSql).toContain('revoke execute on function public.my_sessions() from public, anon, authenticated;');
+    expect(sessionsSql).toContain('grant execute on function public.my_sessions() to authenticated;');
+    expect(sessionsSql).not.toMatch(/grant\s+execute[^;]*to\s+(anon|public)\b/i);
+    expect(sessionsSql).toMatch(/where s\.user_id = \(select auth\.uid\(\)\)/);
   });
 });
