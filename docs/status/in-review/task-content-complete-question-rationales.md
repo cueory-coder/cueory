@@ -1,0 +1,1 @@
+STATUS: Task 365, require complete rationales for sample questions (#365): validate that every displayed answer choice has a non-blank explanation, with unit coverage for missing and whitespace-only rationales. No clinical facts or answer keys added.
