@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   BEHIND_MARK,
   TEXT_FALLBACK_BATCH,
@@ -30,6 +30,7 @@ import {
   onlyThis,
   parseAnatomyFile,
   pictureCreditFor,
+  preparePictureFonts,
   pickedStructure,
   placeLabels,
   releaseNoteFor,
@@ -566,6 +567,62 @@ describe('what the camera can see (the ID picture)', () => {
     expect(found.get('c')).toEqual({ visible: false, x: 1, y: 1 });
     expect(found.get('d')).toEqual({ visible: false, x: 2, y: 1 });
     expect(findVisibleAnchors(px, 4, 3, new Map([['c', targets.get('c')!]]), 2).get('c')).toMatchObject({ visible: true, x: 3 });
+  });
+});
+
+describe('picture font wait deadline', () => {
+  it('continues export after a stalled font load, without waiting forever', async () => {
+    vi.useFakeTimers();
+    try {
+      const requested: string[] = [];
+      const stuck = new Promise<void>(() => {});
+      const wait = preparePictureFonts(['700 title', '400 labels'], (face) => {
+        requested.push(face);
+        return face === '700 title' ? stuck : Promise.resolve();
+      }, 300);
+      let finished = false;
+      void wait.then(() => { finished = true; });
+      await vi.advanceTimersByTimeAsync(299);
+      expect(finished).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(wait).resolves.toBeUndefined();
+      expect(finished).toBe(true);
+      expect(requested).toEqual(['700 title', '400 labels']);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('cancels the fallback timer when both fonts finish normally', async () => {
+    vi.useFakeTimers();
+    try {
+      await expect(preparePictureFonts(['700 title', '400 labels'], async () => {}, 1000))
+        .resolves.toBeUndefined();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('picture export font fallback', () => {
+  it('requests both fonts before drawing when the browser can load them', async () => {
+    const requested: string[] = [];
+    await expect(preparePictureFonts(['700 title', '400 labels'], async (face) => {
+      requested.push(face);
+    })).resolves.toBeUndefined();
+    expect(requested).toEqual(['700 title', '400 labels']);
+  });
+
+  it('still allows export when a font rejects or synchronously throws', async () => {
+    const requested: string[] = [];
+    await expect(preparePictureFonts(['700 title', '400 labels'], (face) => {
+      requested.push(face);
+      if (face === '700 title') throw new Error('synthetic font setup failure');
+      return Promise.reject(new Error('synthetic font network failure'));
+    })).resolves.toBeUndefined();
+    expect(requested).toEqual(['700 title', '400 labels']);
   });
 });
 

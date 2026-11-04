@@ -67,6 +67,33 @@ export function pictureCreditFor(system: Pick<AnatomySystem, 'status' | 'model' 
 }
 
 /**
+ * The picture can use a browser fallback font if a self-hosted face fails.
+ * A rejected FontFaceSet.load() (or one that throws) must never prevent
+ * drawing the model, its title, labels and mandatory source credit.
+ */
+export async function preparePictureFonts(
+  declarations: readonly string[],
+  load: (declaration: string) => Promise<unknown>,
+  maxWaitMs = 1_500,
+): Promise<void> {
+  // A font request can stay pending indefinitely. Give both faces a short
+  // chance to load, then let Canvas use a fallback so exporting still works.
+  // allSettled also observes late rejections after the deadline.
+  const finished = Promise.allSettled(
+    declarations.map((declaration) => Promise.resolve().then(() => load(declaration))),
+  ).then(() => {});
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      finished,
+      new Promise<void>((resolve) => { timer = setTimeout(resolve, maxWaitMs); }),
+    ]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
+/**
  * The selected mesh is opaque while other structures become translucent.
  * When two visible meshes overlap under the pointer, prefer the selected one
  * if the ray actually crosses its geometry. Otherwise choose the nearest hit.
