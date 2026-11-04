@@ -9,6 +9,9 @@ const today = '2026-11-02';
 const A = '550e8400-e29b-41d4-a716-446655440001';
 const B = '550e8400-e29b-41d4-a716-446655440002';
 const C = '550e8400-e29b-41d4-a716-446655440003';
+/** The student the sync belongs to, and another one. */
+const OWNER = '00000000-0000-4000-8000-0000000000aa';
+const OTHER = '00000000-0000-4000-8000-0000000000bb';
 
 type Reply = { data?: unknown; error?: unknown };
 type Call =
@@ -19,9 +22,17 @@ type Call =
 /** A fake of the few client calls reviewsync uses. Each reply comes from a script, in call order per kind. */
 function fakeClient(script: { select?: Reply[]; update?: (Reply | Error)[]; insert?: (Reply | Error)[] } = {}) {
   const calls: Call[] = [];
+  /** Who the browser's session says is signed in; tests change it to sign out or switch accounts. */
+  const auth = { userId: OWNER as string | null, reads: 0 };
   const next = <T>(list: T[] | undefined, fallback: T): T => (list && list.length ? list.shift()! : fallback);
   const settle = (reply: Reply | Error) => (reply instanceof Error ? Promise.reject(reply) : Promise.resolve(reply));
   const client: ReviewStateClient = {
+    auth: {
+      async getSession() {
+        auth.reads += 1;
+        return { data: { session: auth.userId ? { user: { id: auth.userId, email: '' } } : null }, error: null };
+      },
+    },
     from(table) {
       expect(table).toBe('review_state');
       return {
@@ -54,7 +65,7 @@ function fakeClient(script: { select?: Reply[]; update?: (Reply | Error)[]; inse
       };
     },
   };
-  return { client, calls };
+  return { client, calls, auth };
 }
 
 const row = (item_id: string, level: 0 | 1 | 2 | 3 = 1, last_reviewed = '2026-11-01', next_review = '2026-11-04'): ReviewStateRow =>
@@ -159,7 +170,7 @@ describe('historiesFor', () => {
 describe('createReviewSync writes', () => {
   it('updates an existing row with only the three update columns', async () => {
     const { client, calls } = fakeClient();
-    const sync = createReviewSync(client);
+    const sync = createReviewSync(client, OWNER);
     expect(await sync.record(A, [{ day: today, result: 'knew' }], today)).toEqual({ ok: true });
     expect(calls).toEqual([{ op: 'update', values: { level: 1, last_reviewed: today, next_review: '2026-11-05' }, eq: ['item_id', A], returning: 'item_id' }]);
     expect(Object.keys((calls[0] as Extract<Call, { op: 'update' }>).values).sort()).toEqual(['last_reviewed', 'level', 'next_review']);
@@ -167,26 +178,26 @@ describe('createReviewSync writes', () => {
 
   it('inserts with only the four insert columns when the student has no row yet', async () => {
     const { client, calls } = fakeClient({ update: [{ data: [], error: null }] });
-    expect(await createReviewSync(client).record(A, [{ day: today, result: 'missed' }], today)).toEqual({ ok: true });
+    expect(await createReviewSync(client, OWNER).record(A, [{ day: today, result: 'missed' }], today)).toEqual({ ok: true });
     expect(calls[1]).toEqual({ op: 'insert', values: { item_id: A, level: 0, last_reviewed: today, next_review: '2026-11-03' } });
     for (const call of calls) expect(call).not.toHaveProperty('values.user_id');
   });
 
   it('updates again when another tab added the row first', async () => {
     const { client, calls } = fakeClient({ update: [{ data: [], error: null }], insert: [{ error: { code: '23505', message: 'duplicate key' } }] });
-    expect(await createReviewSync(client).record(A, [{ day: today, result: 'knew' }], today)).toEqual({ ok: true });
+    expect(await createReviewSync(client, OWNER).record(A, [{ day: today, result: 'knew' }], today)).toEqual({ ok: true });
     expect(calls.map((call) => call.op)).toEqual(['update', 'insert', 'update']);
   });
 
   it('never sends sample-deck cards', async () => {
     const { client, calls } = fakeClient();
-    expect(await createReviewSync(client).record('red', [{ day: today, result: 'knew' }], today)).toEqual({ ok: true });
+    expect(await createReviewSync(client, OWNER).record('red', [{ day: today, result: 'knew' }], today)).toEqual({ ok: true });
     expect(calls).toEqual([]);
   });
 
   it('writes in order and keeps only the newest step per question', async () => {
     const { client, calls } = fakeClient();
-    const sync = createReviewSync(client);
+    const sync = createReviewSync(client, OWNER);
     const first = sync.record(A, [{ day: today, result: 'knew' }], today);
     const second = sync.record(B, [{ day: today, result: 'missed' }], today);
     expect(await Promise.all([first, second])).toEqual([{ ok: true }, { ok: true }]);
@@ -195,7 +206,7 @@ describe('createReviewSync writes', () => {
 
   it('works with the session it is wired into', async () => {
     const { client, calls } = fakeClient();
-    const sync = createReviewSync(client);
+    const sync = createReviewSync(client, OWNER);
     let state = startSession([{ id: A, front: 'front', back: 'back' }], {}, today);
     state = answer(state, 'knew');
     expect(await sync.record(A, state.histories[A]!, state.today, state.examDay)).toEqual({ ok: true });
@@ -212,7 +223,7 @@ describe('createReviewSync failures', () => {
     ['an odd reply', { data: [{ item_id: A }, { item_id: B }], error: null }, MESSAGES.connection],
   ])('tells the student in one sentence on %s', async (_name, reply, message) => {
     const { client } = fakeClient({ update: [reply as Reply | Error] });
-    expect(await createReviewSync(client).record(A, [{ day: today, result: 'knew' }], today)).toEqual({ ok: false, message, failed: [A] });
+    expect(await createReviewSync(client, OWNER).record(A, [{ day: today, result: 'knew' }], today)).toEqual({ ok: false, message, failed: [A] });
   });
 
   it('says when a question is not published (the insert policy refuses it)', async () => {
@@ -220,12 +231,12 @@ describe('createReviewSync failures', () => {
       update: [{ data: [], error: null }],
       insert: [{ error: { code: '42501', message: 'new row violates row-level security policy for table "review_state"' } }],
     });
-    expect(await createReviewSync(client).record(A, [{ day: today, result: 'knew' }], today)).toEqual({ ok: false, message: MESSAGES.unavailable, failed: [A] });
+    expect(await createReviewSync(client, OWNER).record(A, [{ day: today, result: 'knew' }], today)).toEqual({ ok: false, message: MESSAGES.unavailable, failed: [A] });
   });
 
   it('keeps unsaved rows and saves them on retry', async () => {
     const { client, calls } = fakeClient({ update: [new TypeError('Failed to fetch')] });
-    const sync = createReviewSync(client);
+    const sync = createReviewSync(client, OWNER);
     expect(await sync.record(A, [{ day: today, result: 'knew' }], today)).toEqual({ ok: false, message: MESSAGES.connection, failed: [A] });
     expect(await sync.retry()).toEqual({ ok: true });
     expect(calls).toHaveLength(2);
@@ -237,7 +248,7 @@ describe('createReviewSync failures', () => {
     const refused = { error: { code: '42501', message: 'new row violates row-level security policy for table "review_state"' } };
     const noRow = { data: [], error: null };
     const { client, calls } = fakeClient({ update: [noRow, noRow, { data: [{ item_id: B }], error: null }, noRow], insert: [refused, refused, refused] });
-    const sync = createReviewSync(client);
+    const sync = createReviewSync(client, OWNER);
     expect(await sync.record(A, [{ day: today, result: 'knew' }], today)).toEqual({ ok: false, message: MESSAGES.unavailable, failed: [A] });
     // B comes after the refused A in the waiting list and is still saved.
     expect(await sync.record(B, [{ day: today, result: 'missed' }], today)).toEqual({ ok: false, message: MESSAGES.unavailable, failed: [A] });
@@ -256,7 +267,7 @@ describe('createReviewSync failures', () => {
       update: [new TypeError('Failed to fetch'), new TypeError('Failed to fetch'), { data: [], error: null }],
       insert: [refused],
     });
-    const sync = createReviewSync(client);
+    const sync = createReviewSync(client, OWNER);
     expect((await sync.record(A, [{ day: today, result: 'knew' }], today)).ok).toBe(false);
     expect(await sync.record(B, [{ day: today, result: 'knew' }], today)).toEqual({ ok: false, message: MESSAGES.connection, failed: [A, B] });
     // Back online: the next step sends every waiting row, oldest first, then the new one.
@@ -267,7 +278,7 @@ describe('createReviewSync failures', () => {
 
   it('reports a history it cannot schedule instead of sending it', async () => {
     const { client, calls } = fakeClient();
-    expect(await createReviewSync(client).record(A, [{ day: '2026-11-05', result: 'knew' }], today)).toEqual({ ok: false, message: MESSAGES.deviceDate });
+    expect(await createReviewSync(client, OWNER).record(A, [{ day: '2026-11-05', result: 'knew' }], today)).toEqual({ ok: false, message: MESSAGES.deviceDate });
     expect(calls).toEqual([]);
   });
 
@@ -290,18 +301,119 @@ describe('startReviewSync', () => {
 
   it('loads first, then saves to the account', async () => {
     const { client } = fakeClient({ select: [{ data: [row(A)], error: null }] });
-    const started = await startReviewSync(client, { signedIn: true, userId: B, email: '' });
+    const started = await startReviewSync(client, { signedIn: true, userId: OWNER, email: '' });
     expect(started.mode).toBe('account');
     if (started.mode === 'account') expect(started.rows).toEqual([row(A)]);
   });
 
   it('stays on the device and says so when the load fails', async () => {
     const { client } = fakeClient({ select: [{ data: null, error: { code: '500' } }] });
-    expect(await startReviewSync(client, { signedIn: true, userId: B, email: '' })).toEqual({ mode: 'device', message: MESSAGES.load });
+    expect(await startReviewSync(client, { signedIn: true, userId: OWNER, email: '' })).toEqual({ mode: 'device', message: MESSAGES.load });
   });
 
   it('knows a published id from a sample id', () => {
     expect(isItemId(A)).toBe(true);
     expect(isItemId('red')).toBe(false);
+  });
+});
+
+describe('a sync belongs to one account (Task 302)', () => {
+  it('needs the owner id', () => {
+    const { client } = fakeClient();
+    expect(() => createReviewSync(client, '')).toThrow();
+  });
+
+  it('checks the session before every request', async () => {
+    const { client, calls, auth } = fakeClient({ update: [{ data: [], error: null }] });
+    expect(await createReviewSync(client, OWNER).record(A, [{ day: today, result: 'knew' }], today)).toEqual({ ok: true });
+    expect(calls.map((call) => call.op)).toEqual(['update', 'insert']);
+    expect(auth.reads).toBe(2);
+  });
+
+  it('sends nothing and drops the waiting rows when the student signed out', async () => {
+    const { client, calls, auth } = fakeClient({ update: [new TypeError('Failed to fetch')] });
+    const sync = createReviewSync(client, OWNER);
+    expect((await sync.record(A, [{ day: today, result: 'knew' }], today)).ok).toBe(false);
+    expect(calls).toHaveLength(1);
+    auth.userId = null;
+    expect(await sync.retry()).toEqual({ ok: false, message: MESSAGES.signedOut });
+    expect(calls).toHaveLength(1);
+    // Signing back in as the same student does not bring the dropped rows back.
+    auth.userId = OWNER;
+    expect(await sync.retry()).toEqual({ ok: false, message: MESSAGES.signedOut });
+    expect(calls).toHaveLength(1);
+  });
+
+  it("never writes one student's rows under another student's sign-in", async () => {
+    const { client, calls, auth } = fakeClient({ update: [new TypeError('Failed to fetch')] });
+    const sync = createReviewSync(client, OWNER);
+    expect((await sync.record(A, [{ day: today, result: 'knew' }], today)).ok).toBe(false);
+    auth.userId = OTHER;
+    expect(await sync.record(B, [{ day: today, result: 'knew' }], today)).toEqual({ ok: false, message: MESSAGES.signedOut });
+    expect(calls).toHaveLength(1);
+    // The other student's later steps are refused too: this sync is not theirs.
+    expect(await sync.record(C, [{ day: today, result: 'knew' }], today)).toEqual({ ok: false, message: MESSAGES.signedOut });
+    expect(calls).toHaveLength(1);
+  });
+
+  it('stops between the update and the insert if the account changes in between', async () => {
+    const { client, calls, auth } = fakeClient();
+    const sync = createReviewSync(client, OWNER);
+    const noRow = { data: [], error: null } as Reply;
+    let switched = false;
+    const original = client.from.bind(client);
+    client.from = (table) => {
+      const chain = original(table);
+      return {
+        ...chain,
+        update(values) {
+          return {
+            eq(column, value) {
+              return {
+                select(returning) {
+                  calls.push({ op: 'update', values: { ...values }, eq: [column, value], returning });
+                  if (!switched) { switched = true; auth.userId = OTHER; }
+                  return Promise.resolve(noRow);
+                },
+              };
+            },
+          };
+        },
+      };
+    };
+    expect(await sync.record(A, [{ day: today, result: 'knew' }], today)).toEqual({ ok: false, message: MESSAGES.signedOut });
+    expect(calls.map((call) => call.op)).toEqual(['update']);
+  });
+
+  it('a later row waiting behind the change is dropped too, not sent', async () => {
+    const { client, calls, auth } = fakeClient({ update: [new TypeError('Failed to fetch'), new TypeError('Failed to fetch')] });
+    const sync = createReviewSync(client, OWNER);
+    await sync.record(A, [{ day: today, result: 'knew' }], today);
+    await sync.record(B, [{ day: today, result: 'knew' }], today);
+    const sent = calls.length;
+    auth.userId = null;
+    expect(await sync.retry()).toEqual({ ok: false, message: MESSAGES.signedOut });
+    expect(calls).toHaveLength(sent);
+  });
+
+  it('startReviewSync stays on the device if the account changed while the rows loaded', async () => {
+    const { client, auth } = fakeClient();
+    const original = client.from.bind(client);
+    client.from = (table) => {
+      auth.userId = OTHER;
+      return original(table);
+    };
+    expect(await startReviewSync(client, { signedIn: true, userId: OWNER, email: '' }))
+      .toEqual({ mode: 'device', message: MESSAGES.signedOut });
+  });
+
+  it('startReviewSync ties the sync to the student it started for', async () => {
+    const { client, calls, auth } = fakeClient();
+    const started = await startReviewSync(client, { signedIn: true, userId: OWNER, email: '' });
+    expect(started.mode).toBe('account');
+    if (started.mode !== 'account') return;
+    auth.userId = OTHER;
+    expect(await started.sync.record(A, [{ day: today, result: 'knew' }], today)).toEqual({ ok: false, message: MESSAGES.signedOut });
+    expect(calls.filter((call) => call.op !== 'select')).toEqual([]);
   });
 });

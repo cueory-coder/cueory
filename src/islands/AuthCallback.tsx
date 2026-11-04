@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { CALLBACK_ERROR, cleanCallbackUrl, finishCallback, type CallbackOutcome, type CodeExchangeAuth } from './authcallback';
 import { getSupabase } from './supabaseclient';
+import { afterSignIn, type LevelReader } from './twofactor';
 
 export type { CodeExchangeAuth } from './authcallback';
 
@@ -26,22 +27,33 @@ export default function AuthCallback({ auth: suppliedAuth }: { auth?: CodeExchan
   const [state, setState] = useState<Feedback>({ kind: 'working' });
   // React Strict Mode may run effects twice. Exchange a single-use code only once per mounted island.
   const started = useRef<Promise<CallbackOutcome> | null>(null);
+  const authForMfa = useRef<LevelReader | null>(null);
 
   useEffect(() => {
     let active = true;
     if (!started.current) {
       const load = suppliedAuth !== undefined
-        ? () => Promise.resolve(suppliedAuth)
-        // Keep the auth object intact: its methods rely on their receiver.
-        : async () => (await getSupabase())?.auth ?? null;
+        ? () => {
+            authForMfa.current = suppliedAuth as unknown as LevelReader | null;
+            return Promise.resolve(suppliedAuth);
+          }
+        // Keep the shared client's method receivers intact and reuse this exact client for MFA.
+        : async () => {
+            const client = (await getSupabase())?.auth ?? null;
+            authForMfa.current = client;
+            return client;
+          };
       started.current = finishCallback(load, window.location.href).finally(() => {
         window.history.replaceState(window.history.state, '', cleanCallbackUrl(window.location.href));
       });
     }
-    void started.current.then(outcome => {
+    void started.current.then(async outcome => {
       if (!active) return;
-      if (outcome.kind === 'redirect') window.location.replace(outcome.next);
-      else setState(outcome);
+      if (outcome.kind === 'redirect') {
+        // Route verified MFA accounts to the code challenge only after PKCE succeeds.
+        const destination = await afterSignIn(authForMfa.current, outcome.next, window.location.origin);
+        if (active) window.location.replace(destination);
+      } else setState(outcome);
     });
     return () => { active = false; };
   }, [suppliedAuth]);
