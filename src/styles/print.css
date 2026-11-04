@@ -1,0 +1,36 @@
+/* Screen default: print-only elements stay hidden */
+[data-print-only] {
+  display: none;
+}
+
+/* Keep printed lessons focused on their reading content, not the interactive site chrome. */
+@media print {
+  body {
+    background-color: var(--color-page) !important;
+    color: var(--color-ink) !important;
+  }
+
+  body > header,
+  body > footer,
+  body > [data-testid="building-notice"],
+  body > dialog,
+  body > a[href="#main"],
+  [data-print-hidden],
+  noscript[data-print-hidden] {
+    display: none !important;
+  }
+
+  [data-print-only] {
+    display: block !important;
+  }
+
+  main {
+    max-width: none !important;
+    padding-inline: 0 !important;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+}
