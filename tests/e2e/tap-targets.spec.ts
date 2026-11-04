@@ -46,10 +46,13 @@ test.describe('Task 209: main-content tap targets', () => {
 
           // Inline prose links are intentionally exempt. A link with a visual box, padding, or a button role is a
           // deliberate control and must still meet the minimum target size.
+          // Tailwind's zero-width border reset may still report border-style: solid; test visible widths.
           const inlineTextLink = el.tagName === 'A' && style.display === 'inline' &&
             el.getAttribute('role') !== 'button' &&
             [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft].every((value) => value === '0px') &&
-            style.backgroundColor === 'rgba(0, 0, 0, 0)' && style.borderStyle === 'none';
+            style.backgroundColor === 'rgba(0, 0, 0, 0)' && style.backgroundImage === 'none' &&
+            [style.borderTopWidth, style.borderRightWidth, style.borderBottomWidth, style.borderLeftWidth]
+              .every((width) => Number.parseFloat(width) === 0);
           if (inlineTextLink) return [];
           // Task 97 explicitly permits 24 px square letter targets on the fixed 11×11 Suture board.
           // This is limited to that grid. All other interactive controls still require 44 px.
