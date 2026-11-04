@@ -177,6 +177,10 @@ function Session({ items: suppliedItems }: Props) {
     ? blankOptions(parts.answer, item.distractors, allAnswers, (index ?? 0) + state.roundNumber * 7)
     : [];
 
+  // A resumed free-text attempt may not be one of the dropdown's options.
+  // Never enable checking an answer the student cannot see selected.
+  const canSubmit = normalizeAnswer(typed) !== '' && (inputMode === 'type' || options.includes(typed));
+
   // Do not overwrite a different mode's save merely by visiting this page.
   useEffect(() => attachResumeLifecycle(browserStorage(), () => latestDraft.current), []);
 
@@ -205,7 +209,7 @@ function Session({ items: suppliedItems }: Props) {
   const check = () => {
     // Check exactly the text that will be saved, so a resumed replay reaches the same verdict.
     const submitted = boundTyped(typed);
-    if (index === undefined || !parts || normalizeAnswer(submitted) === '' || answered) return;
+    if (index === undefined || !parts || !canSubmit || answered) return;
     const next = answerCurrent(state, items, submitted);
     if (next === state) return;
     const key = itemKey(index);
@@ -364,7 +368,7 @@ function Session({ items: suppliedItems }: Props) {
                 <button ref={nextButton} type="button" className={primaryButton} onClick={advance}>next</button>
               ) : (
                 <>
-                  <button type="button" className={primaryButton} disabled={normalizeAnswer(typed) === ''} onClick={check}>check</button>
+                  <button type="button" className={primaryButton} disabled={!canSubmit} onClick={check}>check</button>
                   <button type="button" className={secondaryButton} disabled={state.hinted} onClick={hint}>hint</button>
                 </>
               )}
