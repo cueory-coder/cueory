@@ -131,10 +131,12 @@ describe.skipIf(!existsSync(dist))('built site', () => {
       'Every built route must have a measured JavaScript budget',
     ).toEqual([]);
     expect(routes.sort()).toEqual(Object.keys(initialJsBudget).sort());
-    for (const [page, budget] of Object.entries(initialJsBudget)) {
+    const overBudget = Object.entries(initialJsBudget).flatMap(([page, budget]) => {
       const actual = initialJsGzipBytes(join(dist, page));
-      expect(actual, `${page} initial JavaScript gzip bytes`).toBeLessThanOrEqual(Math.ceil(budget * 1.1));
-    }
+      const limit = Math.ceil(budget * 1.1);
+      return actual > limit ? [`${page}: ${actual} gzip bytes exceeds limit ${limit} (baseline ${budget})`] : [];
+    });
+    expect(overBudget, 'All route JavaScript budgets must remain within the original 10% limit').toEqual([]);
   });
 
   it('marketing pages preload the self-hosted serif (D-41), and every preloaded file exists', () => {
