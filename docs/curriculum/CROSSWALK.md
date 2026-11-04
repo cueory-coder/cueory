@@ -1,6 +1,8 @@
 # Legacy Lesson ID Crosswalk (Task 525)
 
-Mapping of legacy 19-unit Med-Surg lessons (`docs/curriculum/medsurg-lesson-map.csv`) to Draft 4 Curriculum blocks (`content/curriculum/blocks-v4.csv`).
+Proposed mapping of legacy 19-unit Med-Surg lessons (`docs/curriculum/medsurg-lesson-map.csv`) to Draft 4 Curriculum blocks (`content/curriculum/blocks-v4.csv`).
+
+> **Review draft, not an approved mapping.** The Draft 4 target catalog is proposed in [PR #415 at the pinned `c052d7a` commit](https://github.com/lilchristxan/Cueory/blob/c052d7aeb671e788de1be8cc7c9ef4207195f096/content/curriculum/blocks-v4.csv), but is not yet in `staging`. All retained mappings require source verification and founder approval before lesson migration.
 
 Actions: **retain** (direct 1:1 or close scope match), **split** (divided across multiple blocks), **merge** (combined into one block), **move** (relocated to another track/module), **retire** (legacy topic not included in core draft 4), or **?** (unresolved mapping awaiting lead decision).
 
@@ -125,7 +127,7 @@ Actions: **retain** (direct 1:1 or close scope match), **split** (divided across
 | U05-T01-L04 | anemias | aplastic anemia | ? | ? | Unresolved; lead review required |
 | U05-T02-L01 | bleeding and clotting | thrombocytopenia | ? | ? | Unresolved; lead review required |
 | U05-T02-L02 | bleeding and clotting | hemophilia | ? | ? | Unresolved; lead review required |
-| U05-T02-L03 | bleeding and clotting | DIC | M00-L07 | retain | Aligned with how medicines work in the body |
+| U05-T02-L03 | bleeding and clotting | DIC | ? | ? | Unresolved; lead review required — previous M00-L07 match was unrelated |
 | U05-T02-L04 | bleeding and clotting | anticoagulants: heparin, warfarin, DOACs and reversal | ? | ? | Unresolved; lead review required |
 | U05-T03-L01 | transfusions | blood types and compatibility | ? | ? | Unresolved; lead review required |
 | U05-T03-L02 | transfusions | transfusion steps and monitoring | ? | ? | Unresolved; lead review required |
@@ -223,7 +225,7 @@ Actions: **retain** (direct 1:1 or close scope match), **split** (divided across
 | U10-T04-L02 | chronic and degenerative | Parkinson disease | ? | ? | Unresolved; lead review required |
 | U10-T04-L03 | chronic and degenerative | myasthenia gravis | ? | ? | Unresolved; lead review required |
 | U10-T04-L04 | chronic and degenerative | Guillain-Barré syndrome | ? | ? | Unresolved; lead review required |
-| U10-T04-L05 | chronic and degenerative | ALS | MM1-L02 | retain | Aligned with decimals, ratios and rounding rules |
+| U10-T04-L05 | chronic and degenerative | ALS | ? | ? | Unresolved; lead review required — previous MM1-L02 match was unrelated |
 | U10-T04-L06 | chronic and degenerative | headache and migraine | ? | ? | Unresolved; lead review required |
 | U10-T05-L01 | altered cognition | delirium vs dementia | ? | ? | Unresolved; lead review required |
 | U10-T05-L02 | altered cognition | Alzheimer disease care | ? | ? | Unresolved; lead review required |
