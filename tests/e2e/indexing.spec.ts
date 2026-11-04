@@ -27,7 +27,9 @@ const noindexPages = [
   '/start',
   '/subscribed',
   '/progress',
+  '/learn/video-sample',
   '/breaks', // until Christian approves its sample ideas
+  '/learn/questions', // real questions (Task 172), until launch
   '/account/two-factor',
 ];
 

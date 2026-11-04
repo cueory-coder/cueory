@@ -4,7 +4,7 @@
  */
 import { accountMenu, initialsFor, type AccountMenuItem, type AccountState } from '../islands/account';
 import type { SessionState } from '../islands/supabaseclient';
-import { accountHref } from '../config/site';
+import { accountLaunch, accountsOpen } from '../config/site';
 
 export interface CornerProfile {
   display_name?: string | null;
@@ -44,19 +44,23 @@ export function cornerView(
   session: SessionState,
   profile: CornerProfile | null,
   accountsEnabled: boolean,
+  launchOpen: boolean = accountsOpen,
 ): CornerView {
   const account = cornerState(accountsEnabled ? session : { signedIn: false }, profile);
   const initials = account.signedIn && session.signedIn
     ? initialsFor(profile?.display_name ?? null, session.email)
     : null;
 
+  const launch = accountLaunch(launchOpen);
   const items: CornerItem[] = accountMenu(account).map((item) => {
     if (item.id === 'create-account' || item.id === 'sign-in') {
       return {
         ...item,
-        // Task 58's contract: both routes go to /signin until Task 56 is released.
-        href: accountsEnabled ? '/signin' : accountHref,
-        ...(accountsEnabled ? {} : { note: 'coming soon' }),
+        // Preserve Task 58's current routes until the public launch wording is switched on.
+        href: launchOpen
+          ? (item.id === 'create-account' ? launch.accountHref : launch.signInHref)
+          : (accountsEnabled ? '/signin' : launch.accountHref),
+        ...(accountsEnabled || launchOpen ? {} : { note: 'coming soon' }),
       };
     }
     if (item.id === 'profile' || item.id === 'settings') return { ...item, href: '/account' };
