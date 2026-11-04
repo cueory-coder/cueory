@@ -31,11 +31,13 @@ const requiredPages = [
 
 // Initial route baselines use staging 65a05c3; routes added since then use measured
 // gzip sizes from the exact-head CI merge build in run 41864993683.
+// Added routes below were measured in exact-head CI run 41933505423.
 // This includes external scripts in the HTML, Astro island components and renderers,
 // their static imports, and inline scripts. Dynamic imports are intentionally excluded.
 const initialJsBudget = {
   '404.html': 75978,
   'account.html': 123795,
+  'account/two-factor.html': 110576,
   'admin/flags.html': 92161,
   'auth/callback.html': 76233,
   'breaks.html': 76095,
@@ -54,6 +56,7 @@ const initialJsBudget = {
   'learn.html': 75452,
   'play.html': 91853,
   'preview/admin-flags.html': 92161,
+  'preview/anatomy-lab.html': 89027,
   'preview/body-viewer.html': 79576,
   'preview/email.html': 75055,
   'preview/prose.html': 75055,
