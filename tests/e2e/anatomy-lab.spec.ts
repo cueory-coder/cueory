@@ -103,6 +103,72 @@ test.describe('anatomy lab', () => {
     expect(glb).toEqual([]);
   });
 
+  test('retains searchable structure names after WebGL context loss and can reopen 3D', async ({ page }) => {
+    await openLab(page);
+    // A phone may lose its GPU context while a pointer remains down on the canvas.
+    await page.locator('canvas').dispatchEvent('pointerdown', { pointerId: 71, clientX: 12, clientY: 12 });
+    const prevented = await page.locator('canvas').evaluate((canvas) => {
+      const event = new Event('webglcontextlost', { cancelable: true });
+      canvas.dispatchEvent(event);
+      return event.defaultPrevented;
+    });
+    expect(prevented).toBe(true);
+
+    await expect(page.getByRole('alert')).toContainText('the 3D anatomy lab could not open.');
+    const catalog = page.getByRole('region', { name: 'structure names: test shapes (fixture)' });
+    await expect(catalog).toBeVisible();
+    await expect(catalog.getByRole('status')).toHaveText('showing 5 of 5 matching structures');
+    await catalog.getByLabel('find a structure').fill('cube a');
+    await expect(catalog.getByRole('listitem')).toHaveCount(1);
+    await expect(catalog.getByRole('listitem').first()).toContainText('fixture cube A');
+    // This must remain identified as a synthetic test model, not reviewed clinical anatomy.
+    await expect(page.getByText('test shapes made in code for automated tests: not anatomy, not from BodyParts3D')).toBeVisible();
+
+    await page.getByRole('button', { name: 'try 3D again' }).click();
+    await expect(page.locator('canvas')).toBeVisible({ timeout: 15_000 });
+    const cubeA = list(page).getByRole('button', { name: 'fixture cube A', exact: true });
+    await expect(cubeA).toBeEnabled({ timeout: 20_000 });
+    await cubeA.click();
+    await expect(cubeA).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  test('never saves a delayed picture after WebGL context loss', async ({ page }, info) => {
+    test.skip(!isDesktopOfEachEngine(info), 'one context-loss export race per browser engine');
+    await page.addInitScript(() => {
+      const original = HTMLCanvasElement.prototype.toBlob;
+      HTMLCanvasElement.prototype.toBlob = function (callback, type, quality) {
+        if (this.width === 1080 && this.height === 1080 && type === 'image/png') {
+          (window as Window & { __finishLostContextPicture?: () => void }).__finishLostContextPicture =
+            () => callback(new Blob(['synthetic image bytes'], { type: 'image/png' }));
+          return;
+        }
+        return original.call(this, callback, type, quality);
+      };
+    });
+    await openLab(page);
+    const downloads: string[] = [];
+    page.on('download', (download) => downloads.push(download.suggestedFilename()));
+    await page.getByRole('button', { name: 'square 1080×1080' }).click();
+    await expect.poll(() => page.evaluate(
+      () => typeof (window as Window & { __finishLostContextPicture?: () => void }).__finishLostContextPicture,
+    )).toBe('function');
+
+    // Lose the GPU and finish the held PNG within one browser task.
+    await page.evaluate(() => {
+      const canvas = document.querySelector('canvas');
+      const finish = (window as Window & { __finishLostContextPicture?: () => void }).__finishLostContextPicture;
+      if (!canvas || !finish) throw new Error('Missing the active 3D view or held export.');
+      const event = new Event('webglcontextlost', { cancelable: true });
+      canvas.dispatchEvent(event);
+      if (!event.defaultPrevented) throw new Error('WebGL context loss was not handled.');
+      finish();
+    });
+    await expect(page.getByRole('alert')).toContainText('the 3D anatomy lab could not open.');
+    await page.waitForTimeout(100);
+    expect(downloads).toEqual([]);
+    await expect(page.getByText(/^saved cueory-fixture-square/)).toHaveCount(0);
+  });
+
   test('without ?fixture the preview shows no fixture', async ({ page }) => {
     await page.goto('/preview/anatomy-lab');
     const open = page.getByRole('button', { name: 'open the anatomy lab' });
