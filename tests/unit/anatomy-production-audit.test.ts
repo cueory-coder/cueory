@@ -106,7 +106,8 @@ describe('anatomy production artifact audit', () => {
       status: 'approved',
       model: { file: '/models/anatomy/approved.glb' },
       labels: [{ id: 'FMA999992', text: 'fixture label', source: 'valid-source' }],
-      sources: [{ id: 'valid-source' }, { id: 'valid-source' }, { id: '' }],
+      // A corrupt null record must be reported instead of crashing the audit.
+      sources: [null, { id: 'valid-source' }, { id: 'valid-source' }, { id: '' }],
     }));
     expect(f.check().errors).toEqual(expect.arrayContaining([
       'anatomy-approved.json: duplicate approved source ID valid-source',
