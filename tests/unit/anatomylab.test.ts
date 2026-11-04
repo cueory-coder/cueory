@@ -174,6 +174,34 @@ describe('the draft gate (D-56)', () => {
     expect(draftsAllowed({ WORKERS_CI: '1', WORKERS_CI_BRANCH: 'task-178/anatomy-lab' })).toBe(true);
   });
 
+  it('treats a full main Git ref as production even with a local draft override', () => {
+    const env = {
+      WORKERS_CI: '1',
+      WORKERS_CI_BRANCH: ' refs/heads/main ',
+      CUEORY_ANATOMY_DRAFTS: '1',
+    };
+    expect(draftsAllowed(env)).toBe(false);
+    const data = labDataForBuild(
+      {
+        '../../../content/visuals/anatomy-heart.json': file({ title: 'unreviewed anatomy' }),
+        '../../../content/visuals/anatomy-lungs.json': file({ title: 'reviewed anatomy', status: 'approved' }),
+      },
+      fixtureJson,
+      env,
+    );
+    expect(data.drafts).toBe(false);
+    expect(data.fixture).toBeNull();
+    expect(data.systems.map((system) => system.key)).toEqual(['lungs']);
+    expect(JSON.stringify(data)).not.toContain('unreviewed anatomy');
+  });
+
+  it('allows named preview refs but fails closed on empty full branch refs', () => {
+    expect(draftsAllowed({ WORKERS_CI: '1', WORKERS_CI_BRANCH: 'refs/heads/staging' })).toBe(true);
+    expect(draftsAllowed({ WORKERS_CI: '1', WORKERS_CI_BRANCH: 'refs/heads/task-178/anatomy-lab' })).toBe(true);
+    expect(draftsAllowed({ WORKERS_CI: '1', WORKERS_CI_BRANCH: 'refs/heads/' })).toBe(false);
+    expect(draftsAllowed({ WORKERS_CI: '1', WORKERS_CI_BRANCH: 'refs/heads/main' })).toBe(false);
+  });
+
   it('puts no draft and no fixture in the live site\'s page data', () => {
     const files = {
       '../../../content/visuals/anatomy-heart.json': file({ title: 'sample heart' }),
