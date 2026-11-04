@@ -314,15 +314,56 @@ describe('anatomy production artifact audit', () => {
   });
 });
 
-/** CI builds dist/ before running unit tests. Audit those real files, not only synthetic examples. */
+/**
+ * Production audit must not be skipped for a full Git ref that names main.
+ * Fail closed when Workers provides no branch or an empty refs/heads/ value.
+ * This test gate is independent of the still-separate page/model pruning fix
+ * (existing PR #487) and must catch leaked artifacts even before that lands.
+ */
+interface AuditBuildEnv {
+  CI?: string;
+  WORKERS_CI?: string;
+  WORKERS_CI_BRANCH?: string;
+  CUEORY_ANATOMY_DRAFTS?: string;
+}
+
+function shouldAuditBuiltAnatomy(env: AuditBuildEnv): boolean {
+  if (env.CI !== 'true') return false;
+  if (env.WORKERS_CI !== '1') return env.CUEORY_ANATOMY_DRAFTS !== '1';
+  const ref = env.WORKERS_CI_BRANCH?.trim() ?? '';
+  const branch = ref.startsWith('refs/heads/') ? ref.slice('refs/heads/'.length) : ref;
+  return !branch || branch === 'main';
+}
+
+/** CI builds dist/ before unit tests. Audit actual files, not only synthetic examples. */
 describe('built production artifact gate', () => {
-  it('checks the actual dist output in CI, unless this was explicitly a draft preview build', () => {
-    if (process.env.CI !== 'true') return;
-    const workersBranch = process.env.WORKERS_CI_BRANCH?.trim();
-    const preview = process.env.CUEORY_ANATOMY_DRAFTS === '1' ||
-      (process.env.WORKERS_CI === '1' && !!workersBranch && workersBranch !== 'main');
-    if (preview) return;
-    // A missing dist/ is an error, too. The CI workflow runs npm run build before npm test.
+  it.each([
+    { name: 'short main', env: { CI: 'true', WORKERS_CI: '1', WORKERS_CI_BRANCH: 'main' }, audit: true },
+    { name: 'full main with a local draft override', env: { CI: 'true', WORKERS_CI: '1', WORKERS_CI_BRANCH: ' refs/heads/main ', CUEORY_ANATOMY_DRAFTS: '1' }, audit: true },
+    { name: 'missing branch', env: { CI: 'true', WORKERS_CI: '1' }, audit: true },
+    { name: 'empty full ref', env: { CI: 'true', WORKERS_CI: '1', WORKERS_CI_BRANCH: 'refs/heads/' }, audit: true },
+    { name: 'normal CI', env: { CI: 'true' }, audit: true },
+    { name: 'staging full ref', env: { CI: 'true', WORKERS_CI: '1', WORKERS_CI_BRANCH: 'refs/heads/staging' }, audit: false },
+    { name: 'feature preview', env: { CI: 'true', WORKERS_CI: '1', WORKERS_CI_BRANCH: 'task-178/anatomy-lab' }, audit: false },
+    { name: 'explicit local draft', env: { CI: 'true', CUEORY_ANATOMY_DRAFTS: '1' }, audit: false },
+    { name: 'not in CI', env: { WORKERS_CI: '1', WORKERS_CI_BRANCH: 'main' }, audit: false },
+  ])('$name: production artifact audit runs = $audit', ({ env, audit }) => {
+    expect(shouldAuditBuiltAnatomy(env)).toBe(audit);
+  });
+
+  it('audits a full-ref main build and detects a leaked draft model', () => {
+    const env = { CI: 'true', WORKERS_CI: '1', WORKERS_CI_BRANCH: 'refs/heads/main', CUEORY_ANATOMY_DRAFTS: '1' };
+    const fixture = setup();
+    fixture.file('models/anatomy/draft.glb', 'synthetic test-only GLB');
+    expect(shouldAuditBuiltAnatomy(env)).toBe(true);
+    expect(fixture.check().errors).toContain(
+      'unapproved model exposed in production: /models/anatomy/draft.glb',
+    );
+  });
+
+  it('checks the actual dist output in CI unless this is an authorized draft build', () => {
+    if (!shouldAuditBuiltAnatomy(process.env)) return;
+    // A missing dist/ is an error, too. CI builds before running unit tests.
     expect(auditAnatomyProduction('dist', 'content/visuals').errors).toEqual([]);
   });
 });
