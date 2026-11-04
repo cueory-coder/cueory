@@ -114,7 +114,9 @@ test.describe('without JavaScript', () => {
 
 test('learn mode navigation uses lowercase interface wording', async ({ page }) => {
   await page.goto('/learn/study-skills/learn-mode');
-  await expect(page.getByText('how to study for nursing school · lesson 1 · learn mode')).toBeVisible();
+  await expect(page.getByText('how to study for nursing school · lesson 1', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'learn mode' })).toBeVisible();
+  await expect(page.getByText('how to study for nursing school · lesson 1 · learn mode')).toHaveCount(0);
   await expect(page.locator('meta[name="description"]')).toHaveAttribute(
     'content', 'learn mode for lesson 1 of how to study for nursing school.',
   );
