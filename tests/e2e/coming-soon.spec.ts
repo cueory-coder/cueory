@@ -24,7 +24,12 @@ test.describe('coming soon page', () => {
     await expect(linkOnCourses).toHaveAttribute('href', '/coming-soon');
 
     await page.goto('/');
-    const footerLink = page.locator('footer').getByRole('link', { name: 'coming soon' });
+    const footer = page.locator('footer');
+    const toggle = footer.locator('[data-footer-toggle]');
+    await expect(toggle).toBeVisible();
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    const footerLink = footer.getByRole('link', { name: 'coming soon', exact: true });
     await expect(footerLink).toHaveAttribute('href', '/coming-soon');
   });
 });

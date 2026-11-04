@@ -12,7 +12,7 @@ export const courses: readonly Course[] = [
     title: 'Med-Surg I',
     status: 'available',
     description: 'Foundations of adult medical-surgical nursing, fluids, and body systems.',
-    href: '/learn/study-skills',
+    href: '/learn',
   },
   {
     id: 'med-surg-2',

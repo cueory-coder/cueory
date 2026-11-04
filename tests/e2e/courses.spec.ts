@@ -9,7 +9,7 @@ test.describe('courses page', () => {
     await expect(page.getByRole('heading', { level: 2, name: 'Med-Surg I' })).toBeVisible();
     const openLink = page.getByRole('link', { name: 'open course' });
     await expect(openLink).toBeVisible();
-    await expect(openLink).toHaveAttribute('href', '/learn/study-skills');
+    await expect(openLink).toHaveAttribute('href', '/learn');
 
     // Other courses are coming soon
     await expect(page.getByRole('heading', { level: 2, name: 'Med-Surg II' })).toBeVisible();
