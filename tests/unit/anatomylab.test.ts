@@ -71,6 +71,11 @@ function file(overrides: Record<string, unknown> = {}) {
   };
 }
 
+/** Fake metadata aligned with a specific anatomy-<system>.json path. */
+function sampleSystem(key: string, overrides: Record<string, unknown> = {}) {
+  return file({ id: `anatomy-${key}`, model: { file: `/models/anatomy/${key}.glb`, release: 'r1' }, ...overrides });
+}
+
 /** A seeded random number source, so quiz tests are repeatable. */
 function seeded(seed: number) {
   let s = seed;
@@ -105,10 +110,20 @@ describe('anatomy files', () => {
   });
 
   it.each([
+    ['a missing source id', { id: undefined }, '"id" must match'],
+    ['a mismatched source id', { id: 'anatomy-other' }, '"id" must match'],
+    ['an unrelated visual id', { id: 'sample' }, '"id" must match'],
+    ['a missing visual kind', { kind: undefined }, '"kind" must be "model"'],
+    ['a diagram labeled as a model', { kind: 'diagram' }, '"kind" must be "model"'],
+    ['an overlay labeled as a model', { kind: 'overlay' }, '"kind" must be "model"'],
     ['a model file on another site', { model: { file: 'https://example.com/a.glb', release: 'r1' } }, 'model.file'],
     ['a model path that climbs out', { model: { file: '/models/../secret.glb', release: 'r1' } }, 'model.file'],
     ['a model that is not a .glb', { model: { file: '/models/anatomy/a.gltf', release: 'r1' } }, 'model.file'],
-    ['no release', { model: { file: '/models/anatomy/a.glb' } }, 'model.release'],
+    ['a GLB outside the anatomy directory', { model: { file: '/models/other/sample.glb', release: 'r1' } }, 'model.file'],
+    ['a GLB in a different public directory', { model: { file: '/brand/sample.glb', release: 'r1' } }, 'model.file'],
+    ["another system's GLB", { model: { file: '/models/anatomy/lungs.glb', release: 'r1' } }, 'model.file'],
+    ['a nested model folder', { model: { file: '/models/anatomy/archive/sample.glb', release: 'r1' } }, 'model.file'],
+    ['no release', { model: { file: '/models/anatomy/sample.glb' } }, 'model.release'],
     ['an unknown status', { status: 'published' }, 'status'],
     ['no labels', { labels: [] }, 'labels'],
     ['a duplicate id', { labels: [{ id: 'FMA1', text: 'a', source: 's' }, { id: 'FMA1', text: 'b', source: 's' }] }, 'two labels'],
@@ -123,6 +138,15 @@ describe('anatomy files', () => {
   it('reads the test fixture as a fixture', () => {
     const fixture = parseAnatomyFile(fixtureJson, 'tests/fixtures/anatomy-fixture.json', { fixture: true });
     expect(fixture.fixture).toBe(true);
+    expect(fixture.model.file).toBe('/preview/anatomy-fixture/fixture.glb');
+    expect(() => parseAnatomyFile({ ...fixtureJson, model: { ...fixtureJson.model, file: '/models/anatomy/fixture.glb' } },
+      'tests/fixtures/anatomy-fixture.json', { fixture: true })).toThrow('model.file');
+    expect(() => parseAnatomyFile(file({ model: { file: '/preview/anatomy-fixture/fixture.glb', release: 'r1' } }),
+      'content/visuals/anatomy-sample.json')).toThrow('model.file');
+    expect(() => parseAnatomyFile({ ...fixtureJson, id: 'anatomy-other' },
+      'tests/fixtures/anatomy-fixture.json', { fixture: true })).toThrow('"id" must match');
+    expect(() => parseAnatomyFile({ ...fixtureJson, kind: 'diagram' },
+      'tests/fixtures/anatomy-fixture.json', { fixture: true })).toThrow('"kind" must be "model"');
     expect(fixture.structures.every((s) => s.text.startsWith('fixture '))).toBe(true);
     expect(creditFor(fixture)).toBe(FIXTURE_CREDIT);
     expect(nameSourceFor(fixture)).toBe('name from the test fixture');
@@ -212,8 +236,8 @@ describe('the draft gate (D-56)', () => {
     expect(draftsAllowed(env)).toBe(false);
     const data = labDataForBuild(
       {
-        '../../../content/visuals/anatomy-heart.json': file({ title: 'unreviewed anatomy' }),
-        '../../../content/visuals/anatomy-lungs.json': file({ title: 'reviewed anatomy', status: 'approved' }),
+        '../../../content/visuals/anatomy-heart.json': sampleSystem('heart', { title: 'unreviewed anatomy' }),
+        '../../../content/visuals/anatomy-lungs.json': sampleSystem('lungs', { title: 'reviewed anatomy', status: 'approved' }),
       },
       fixtureJson,
       env,
@@ -233,8 +257,8 @@ describe('the draft gate (D-56)', () => {
 
   it('puts no draft and no fixture in the live site\'s page data', () => {
     const files = {
-      '../../../content/visuals/anatomy-heart.json': file({ title: 'sample heart' }),
-      '../../../content/visuals/anatomy-lungs.json': file({ title: 'sample lungs', status: 'approved' }),
+      '../../../content/visuals/anatomy-heart.json': sampleSystem('heart', { title: 'sample heart' }),
+      '../../../content/visuals/anatomy-lungs.json': sampleSystem('lungs', { title: 'sample lungs', status: 'approved' }),
     };
     const live = labDataForBuild(files, fixtureJson, { WORKERS_CI: '1', WORKERS_CI_BRANCH: 'main' });
     expect(live.drafts).toBe(false);
@@ -242,7 +266,7 @@ describe('the draft gate (D-56)', () => {
     expect(live.systems.map((s) => s.key)).toEqual(['lungs']);
     expect(JSON.stringify(live)).not.toContain('sample heart');
 
-    const none = labDataForBuild({ '../../../content/visuals/anatomy-heart.json': file() }, fixtureJson, { WORKERS_CI: '1', WORKERS_CI_BRANCH: 'main' });
+    const none = labDataForBuild({ '../../../content/visuals/anatomy-heart.json': sampleSystem('heart') }, fixtureJson, { WORKERS_CI: '1', WORKERS_CI_BRANCH: 'main' });
     expect(none.systems).toEqual([]);
 
     const staging = labDataForBuild(files, fixtureJson, { WORKERS_CI: '1', WORKERS_CI_BRANCH: 'staging' });
@@ -254,8 +278,8 @@ describe('the draft gate (D-56)', () => {
   it('builds the system list from whichever anatomy files exist, ignoring other visuals', () => {
     const data = labDataForBuild(
       {
-        '../../../content/visuals/anatomy-skeleton-limbs.json': file({ title: 'b limbs' }),
-        '../../../content/visuals/anatomy-skeleton-axial.json': file({ title: 'a axial' }),
+        '../../../content/visuals/anatomy-skeleton-limbs.json': sampleSystem('skeleton-limbs', { title: 'b limbs' }),
+        '../../../content/visuals/anatomy-skeleton-axial.json': sampleSystem('skeleton-axial', { title: 'a axial' }),
       },
       fixtureJson,
       { CUEORY_ANATOMY_DRAFTS: '1' },
