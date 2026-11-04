@@ -9,21 +9,25 @@ import {
   createStudyRecorder, questionEvents, type QuestionEvents, type StudyEventClient, type StudyRecorder,
 } from './studyrecorder';
 
-type Props = { questions: Question[] } & (
+/** `onCurrent` hears the id of the question on screen (undefined once the set is finished), e.g. for the flag form. */
+type OnCurrent = (questionId: string | undefined) => void;
+type Props = { questions: Question[]; onCurrent?: OnCurrent } & (
   { check: Checker; remote?: undefined } |
   { remote: RemoteQuestions; check?: never }
 );
-interface SessionProps { questions: Question[]; check: Checker; events?: QuestionEvents | undefined }
+interface SessionProps {
+  questions: Question[]; check: Checker; events?: QuestionEvents | undefined; onCurrent?: OnCurrent | undefined;
+}
 const button = 'min-h-11 rounded-pill bg-button px-5 py-2.5 text-on-button hover:bg-button-hover';
 
 /** A new set gets a fresh session, including when props change while a check is pending. */
 export default function QuestionsPlayer(props: Props) {
-  if (props.remote !== undefined) return <RemotePlayer questions={props.questions} remote={props.remote} />;
-  return <Session key={JSON.stringify(props.questions)} questions={props.questions} check={props.check} />;
+  if (props.remote !== undefined) return <RemotePlayer questions={props.questions} remote={props.remote} onCurrent={props.onCurrent} />;
+  return <Session key={JSON.stringify(props.questions)} questions={props.questions} check={props.check} onCurrent={props.onCurrent} />;
 }
 
 /** Keep remote stable for a session; replace it on account or transport changes to discard prior feedback. */
-function RemotePlayer({ questions, remote }: { questions: Question[]; remote: RemoteQuestions }) {
+function RemotePlayer({ questions, remote, onCurrent }: { questions: Question[]; remote: RemoteQuestions; onCurrent?: OnCurrent }) {
   const [source, setSource] = useState({ remote, revision: 0 });
   if (source.remote !== remote) setSource({ remote, revision: source.revision + 1 });
   const contentKey = JSON.stringify([questions, remote.versions]);
@@ -39,7 +43,7 @@ function RemotePlayer({ questions, remote }: { questions: Question[]; remote: Re
     return <p>a free account is needed for real questions. <a className="underline underline-offset-4" href="/signin">sign in</a></p>;
   }
   if (!prepared) return <p role="alert">these questions did not load correctly. please reload the page.</p>;
-  return <Session key={`${source.revision}:${contentKey}`} questions={questions} check={prepared} events={events} />;
+  return <Session key={`${source.revision}:${contentKey}`} questions={questions} check={prepared} events={events} onCurrent={onCurrent} />;
 }
 
 /** Task 147: study events go through the page's one Supabase client. Accounts off means it is null: nothing is sent. */
@@ -68,7 +72,7 @@ function useStudyRecorder(remote: RemoteQuestions): StudyRecorder | undefined {
   return signedIn ? recorder : undefined;
 }
 
-function Session({ questions, check, events }: SessionProps) {
+function Session({ questions, check, events, onCurrent }: SessionProps) {
   const [state, setState] = useState(() => startQuestions(questions));
   const [waiting, setWaiting] = useState(false);
   const [error, setError] = useState('');
@@ -99,6 +103,8 @@ function Session({ questions, check, events }: SessionProps) {
     events.shown(shownId);
     return () => events.left();
   }, [events, shownKey]);
+  const currentId = question?.id;
+  useEffect(() => { onCurrent?.(currentId); }, [currentId, onCurrent]);
   // Start reading above the choice marks and rationales; the live region announces the verdict.
   useEffect(() => { if (answer) stem.current?.focus(); }, [answer]);
   useEffect(() => {

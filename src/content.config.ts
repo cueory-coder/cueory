@@ -7,6 +7,7 @@ import { sampleChecker, type SampleItem } from './islands/questions';
 import { existsSync } from 'node:fs';
 import { modelFileProblems, visualProblems } from './visuals/sources';
 import { videoSchema } from './videos/schema';
+import { repeatedCardIndexes } from './content/card-schema';
 
 /**
  * Lessons are content, not code: they live as JSON files in /content/lessons.
@@ -20,7 +21,7 @@ const lessons = defineCollection({
     order: z.number().int().positive(),
     title: z.string().min(1).max(120),
     summary: z.string().max(300),
-    status: z.enum(['placeholder', 'draft', 'in_review', 'published']),
+    status: z.enum(['placeholder', 'sample', 'draft', 'in_review', 'published']),
     sentences: z
       .array(
         z.object({
@@ -42,7 +43,7 @@ const cards = defineCollection({
   schema: z.object({
     lesson: z.string().regex(/^[a-z0-9-]+$/),
     title: z.string().min(1).max(120),
-    status: z.enum(['placeholder', 'draft', 'in_review', 'published']),
+    status: z.enum(['placeholder', 'sample', 'draft', 'in_review', 'published']),
     cards: z
       .array(
         z
@@ -57,7 +58,16 @@ const cards = defineCollection({
             path: ['blank'],
           }),
       )
-      .min(1),
+      .min(1)
+      .superRefine((cards, context) => {
+        for (const index of repeatedCardIndexes(cards.map((card) => card.id))) {
+          context.addIssue({
+            code: 'custom',
+            path: [index, 'id'],
+            message: 'a card id is repeated in this deck',
+          });
+        }
+      }),
   }),
 });
 

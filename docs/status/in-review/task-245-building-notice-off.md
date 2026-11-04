@@ -1,0 +1,1 @@
+status: Task 245, W02: build an isolated copy with showBuildingNotice:false and assert every normal built route exists without the notice marker. The test verifies the working config is unchanged and cleans its temporary tree. Check/build and all 3,548 unit tests pass. No application config, source, dependencies or workflows changed.
