@@ -46,6 +46,11 @@ export function indexAnatomyGroup(
   // glTF meshes often share their original materials. Release each material
   // at most once as all meshes receive the lab's own Lambert materials.
   const originalMaterials = new Set<THREE.Material>();
+  // Every mesh under one structure uses the same color/opacity state. Share one
+  // viewer material per owner to bound the number of GPU material instances.
+  // Keep this cache local to a GLB group so disposal cannot affect other files.
+  const labMaterials = new Map<string, THREE.MeshLambertMaterial>();
+  let unlabeledMaterial: THREE.MeshLambertMaterial | undefined;
 
   group.traverse((object) => {
     const mesh = object as THREE.Mesh;
@@ -66,7 +71,13 @@ export function indexAnatomyGroup(
       }
     }
     if (!mesh.geometry.getAttribute('normal')) mesh.geometry.computeVertexNormals();
-    mesh.material = new THREE.MeshLambertMaterial();
+    let labMaterial = owner ? labMaterials.get(owner) : unlabeledMaterial;
+    if (!labMaterial) {
+      labMaterial = new THREE.MeshLambertMaterial();
+      if (owner) labMaterials.set(owner, labMaterial);
+      else unlabeledMaterial = labMaterial;
+    }
+    mesh.material = labMaterial;
 
     const index = mesh.geometry.getIndex();
     triangles += (index ? index.count : mesh.geometry.getAttribute('position').count) / 3;
