@@ -15,6 +15,7 @@ import { LAST_WELCOME_STORAGE_KEY, VISIT_STORAGE_KEY } from './stickynote';
 import { RESUME_STORAGE_KEY } from '../scripts/resume';
 import type { ExportData } from './exportdata';
 import { isPkceVerifierKey, PKCE_FLOW_LIST_STORAGE_KEY, PKCE_VERIFIER_STORAGE_KEY } from './supabaseclient';
+import { DELETE_REAUTH, DELETE_REAUTH_CODE, DELETE_SIGNED_OUT, studentMessage } from './rpcerrors';
 
 // Keep the download and confirmation contracts together, including the actual saved Progress record.
 export type { ExportData } from './exportdata';
@@ -128,4 +129,65 @@ export function afterDeletion(storage: KeyValueStorage | undefined): DeletionSto
     }
   }
   return Object.assign([...keys], { sessionKeys: [...SESSION_KEYS_AFTER_DELETION] });
+}
+
+// ── A recent sign-in before deleting (Task 302) ──────────────────────────────
+
+/**
+ * delete_my_account refuses a token issued more than 10 minutes ago (iat), so a copied or shared-device token can't
+ * delete the account (supabase/migrations/20261102160000_fresh_sign_in_and_name_rules.sql). The page checks first, so a
+ * student with an older sign-in goes straight to sign-in instead of seeing a refusal, and then comes back here.
+ */
+export const DELETE_MAX_SIGN_IN_AGE_SECONDS = 600;
+/** Where sign-in sends the student back to: the account page, at the delete step. */
+export const DELETE_RETURN_PATH = '/account#delete';
+
+/** The sign-in page, set to return to the delete step. `/signin` keeps `next` through safeNext (signin.ts). */
+export function reauthHref(returnTo: string = DELETE_RETURN_PATH): string {
+  return `/signin?next=${encodeURIComponent(returnTo)}`;
+}
+
+/**
+ * The access token's `iat` (when it was issued, in seconds), read from its payload. For the page's own check only:
+ * the database checks the signed token itself. Anything that isn't a well-formed token gives undefined.
+ */
+export function tokenIssuedAt(accessToken: unknown): number | undefined {
+  if (typeof accessToken !== 'string' || accessToken.length > 16_384) return undefined;
+  const parts = accessToken.split('.');
+  if (parts.length !== 3 || !/^[A-Za-z0-9_-]+$/.test(parts[1]!)) return undefined;
+  try {
+    const base64 = parts[1]!.replace(/-/g, '+').replace(/_/g, '/');
+    const payload: unknown = JSON.parse(atob(base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=')));
+    if (typeof payload !== 'object' || payload === null) return undefined;
+    const iat = (payload as { iat?: unknown }).iat;
+    return typeof iat === 'number' && Number.isFinite(iat) && iat > 0 ? iat : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * True when the token is recent enough to delete with. It keeps a margin (a minute by default) below the database's
+ * 10 minutes, so a student who taps delete just before the limit isn't refused halfway through.
+ */
+export function freshForDeletion(accessToken: unknown, nowMs: number, marginSeconds = 60): boolean {
+  const iat = tokenIssuedAt(accessToken);
+  if (iat === undefined || !Number.isFinite(nowMs)) return false;
+  return nowMs / 1000 - iat <= DELETE_MAX_SIGN_IN_AGE_SECONDS - marginSeconds;
+}
+
+export type DeleteOutcome =
+  | { kind: 'deleted' }
+  /** Signed in too long ago, or signed out: send the student to `href` (sign-in, then back to the delete step). */
+  | { kind: 'sign-in'; href: string; message: string }
+  | { kind: 'failed'; message: string };
+
+/** What the page does after calling delete_my_account, from the call's error (null or undefined: it worked). */
+export function deleteOutcome(error: unknown): DeleteOutcome {
+  if (error === null || error === undefined) return { kind: 'deleted' };
+  const { code, message } = typeof error === 'object' ? error as { code?: unknown; message?: unknown } : {};
+  if (message === DELETE_REAUTH || code === DELETE_REAUTH_CODE || message === DELETE_SIGNED_OUT) {
+    return { kind: 'sign-in', href: reauthHref(), message: studentMessage('delete_my_account', error) };
+  }
+  return { kind: 'failed', message: studentMessage('delete_my_account', error) };
 }
