@@ -252,6 +252,26 @@ test.describe('anatomy lab', () => {
     await expect(list(page).getByText('5 structures', { exact: true })).toBeVisible();
   });
 
+  test('secondary and middle mouse clicks do not clear a selected structure', async ({ page }, info) => {
+    test.skip(!isDesktopOfEachEngine(info), 'one pointer-button regression per browser engine');
+    await openLab(page);
+    const cube = list(page).getByRole('button', { name: 'fixture cube A', exact: true });
+    await cube.click();
+    await expect(cube).toHaveAttribute('aria-pressed', 'true');
+    const nameCard = page.getByRole('region', { name: 'fixture cube A' });
+    await expect(nameCard).toBeVisible();
+
+    // Select a real fixture first. A non-primary click near the canvas edge
+    // previously raycast (often to nothing) and silently cleared selection.
+    const canvas = page.locator('canvas');
+    for (const button of ['right', 'middle'] as const) {
+      await canvas.click({ button, position: { x: 3, y: 3 } });
+      await expect(cube, `${button} click must not change the selected mesh`)
+        .toHaveAttribute('aria-pressed', 'true');
+      await expect(nameCard).toBeVisible();
+    }
+  });
+
   test('tapping the structure in the middle of the view selects it (raycasting)', async ({ page }) => {
     await openLab(page);
     const box = (await page.locator('canvas').boundingBox())!;

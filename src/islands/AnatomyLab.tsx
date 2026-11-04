@@ -537,7 +537,9 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     activePointers.current.delete(e.pointerId);
     const p = pointerRef.current;
     pointerRef.current = null;
-    if (!p || p.id !== e.pointerId || p.moved) return; // a drag or a pinch turns the view; only a tap picks
+    // OrbitControls may handle secondary mouse gestures, but only a primary
+    // mouse click, touch contact or pen-tip release can select a structure.
+    if (!p || p.id !== e.pointerId || p.moved || e.button !== 0) return;
     // In quizzes, choose the nearest hit rather than favoring a previous selection.
     const id = sceneRef.current?.pick(e.clientX, e.clientY, quiz === null) ?? null;
     pickStructure(id);
