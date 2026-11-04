@@ -512,6 +512,47 @@ test.describe('anatomy lab whole body loads layers on demand', () => {
     ).toBeVisible({ timeout: 15_000 });
   });
 
+  test('counts the first GLB only after it arrives and disables layer actions during its download', async ({ page }, info) => {
+    test.skip(!isDesktopOfEachEngine(info), 'one delayed-initial-model regression per browser engine');
+    await page.goto('/preview/anatomy-lab');
+    await page.getByRole('button', { name: 'open the anatomy lab' }).click();
+    // The canvas exists before WebGL startup completes. Wait until the viewer is actually open.
+    await expect(page.locator('canvas')).toBeFocused({ timeout: 15_000 });
+    const whole = page.getByRole('group', { name: 'body system' }).getByRole('button', { name: 'whole body' });
+    await expect(whole).toBeVisible({ timeout: 15_000 });
+
+    let requested!: () => void;
+    let release!: () => void;
+    const reached = new Promise<void>(resolve => { requested = resolve; });
+    const blocked = new Promise<void>(resolve => { release = resolve; });
+    await page.route(/\/models\/anatomy\/skin\.glb(?:\?|$)/, async route => {
+      requested();
+      await blocked;
+      await route.continue();
+    });
+
+    await whole.click();
+    const files = page.getByTestId('anatomy-files');
+    const layers = page.getByRole('group', { name: 'layers, skin to bone' });
+    const skin = layers.getByRole('button', { name: /^skin \(/ });
+    const vessels = layers.getByRole('button', { name: /^vessels \(/ });
+    const peel = layers.getByRole('button', { name: /^peel a layer/ });
+    const restore = layers.getByRole('button', { name: /^put a layer back/ });
+    try {
+      await reached;
+      await expect(files).toContainText('model files loaded: 0 of 11');
+      for (const button of [skin, vessels, peel, restore]) await expect(button).toBeDisabled();
+      await expect(page.getByTestId('anatomy-layer-loading')).toHaveCount(0);
+    } finally {
+      // Always release the pending network request, even if an assertion fails.
+      release();
+    }
+
+    await expect(files).toContainText('model files loaded: 1 of 11', { timeout: 20_000 });
+    await expect(vessels).toBeEnabled();
+    await expect(peel).toBeEnabled();
+  });
+
   test('only the outer layer is requested at first; a deeper layer only when peeled to', async ({ page }) => {
     const glb: string[] = [];
     page.on('request', (req) => {
