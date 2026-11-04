@@ -24,6 +24,69 @@ describe('anatomy scene URL deduplication', () => {
 });
 
 describe('initial multi-file model cleanup', () => {
+  it('bounds initial decode work to two files and retains manifest order', async () => {
+    const started: number[] = [];
+    const finish = new Map<number, (value: string) => void>();
+    let active = 0;
+    let peak = 0;
+    const tasks = Array.from({ length: 5 }, (_, index) => () => new Promise<string>((resolve) => {
+      started.push(index);
+      active++;
+      peak = Math.max(peak, active);
+      finish.set(index, (value) => { active--; resolve(value); });
+    }));
+    const loaded = loadModelsOrDispose(tasks, () => { throw new Error('successful batch must not dispose'); });
+
+    expect(started).toEqual([0, 1]);
+    finish.get(1)!('second');
+    await Promise.resolve();
+    expect(started).toEqual([0, 1, 2]);
+    finish.get(0)!('first');
+    await Promise.resolve();
+    expect(started).toEqual([0, 1, 2, 3]);
+    finish.get(3)!('fourth');
+    await Promise.resolve();
+    expect(started).toEqual([0, 1, 2, 3, 4]);
+    finish.get(4)!('fifth');
+    finish.get(2)!('third');
+
+    await expect(loaded).resolves.toEqual(['first', 'second', 'third', 'fourth', 'fifth']);
+    expect(peak).toBe(2);
+  });
+
+  it('rejects immediately, never starts queued GLBs after failure, and cleans late results', async () => {
+    const started: number[] = [];
+    const disposed: string[] = [];
+    let finishLate!: (value: string) => void;
+    let rejectSecond!: (error: Error) => void;
+    const failure = new Error('second model failed');
+    const loads = [
+      () => { started.push(0); return new Promise<string>((resolve) => { finishLate = resolve; }); },
+      () => { started.push(1); return new Promise<string>((_, reject) => { rejectSecond = reject; }); },
+      () => { started.push(2); return Promise.resolve('unwanted third'); },
+      () => { started.push(3); return Promise.resolve('unwanted fourth'); },
+    ];
+    const loading = loadModelsOrDispose(loads, (value) => {
+      disposed.push(value);
+      throw new Error('simulated lost GPU during disposal');
+    });
+
+    expect(started).toEqual([0, 1]);
+    rejectSecond(failure);
+    await expect(loading).rejects.toBe(failure);
+    expect(started).toEqual([0, 1]);
+    finishLate('decoded after failure');
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(disposed).toEqual(['decoded after failure']);
+  });
+
+  it('accepts an empty initial scene without starting or releasing models', async () => {
+    const disposed: string[] = [];
+    await expect(loadModelsOrDispose<string>([], (value) => disposed.push(value))).resolves.toEqual([]);
+    expect(disposed).toEqual([]);
+  });
+
   it('preserves file order on success even when requests finish out of order', async () => {
     let finishFirst!: (value: string) => void;
     const disposed: string[] = [];
