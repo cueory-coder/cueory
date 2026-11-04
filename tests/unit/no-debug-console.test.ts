@@ -80,7 +80,7 @@ function scan(text: string, extension: string): Logging[] {
     for (; at < markup.length; at++) {
       const c = markup[at]!;
       if (tagQuote) {
-        if (c === '\\') at++;
+        if (tagBraces > 0 && c === '\\') at++;
         else if (c === tagQuote) tagQuote = '';
       } else if (tagBraces > 0 && markup.startsWith('/*', at)) {
         const end = markup.indexOf('*/', at + 2);
@@ -88,7 +88,8 @@ function scan(text: string, extension: string): Logging[] {
       } else if (tagBraces > 0 && markup.startsWith('//', at)) {
         const end = markup.indexOf('\n', at + 2);
         at = end === -1 ? markup.length : end;
-      } else if (c === '"' || c === "'" || c === '`') tagQuote = c;
+      } else if (tagBraces > 0 && (c === '"' || c === "'" || c === '`')) tagQuote = c;
+      else if (tagBraces === 0 && (c === '"' || c === "'")) tagQuote = c;
       else if (c === '{') tagBraces++;
       else if (c === '}') tagBraces = Math.max(0, tagBraces - 1);
       else if (c === '>' && tagBraces === 0) break;
@@ -172,8 +173,7 @@ function scan(text: string, extension: string): Logging[] {
 
     if (inTag) {
       if (attrQuote) {
-        if (char === '\\') i++;
-        else if (char === attrQuote) attrQuote = '';
+        if (char === attrQuote) attrQuote = '';
         i++;
       } else if (braces > 0) {
         handleExpressionChar(char);
@@ -299,6 +299,10 @@ describe('debug-console source guard', () => {
     expect(scan('{count++ / 2}<script>console.log("actual")</script>', '.astro'))
       .toEqual([{ line: 1, method: 'log' }]);
     expect(scan('{count-- / 2}<script>console.log("actual")</script>', '.astro'))
+      .toEqual([{ line: 1, method: 'log' }]);
+    expect(scan('<p title="C:\\">Text</p><script>console.log("actual")</script>', '.astro'))
+      .toEqual([{ line: 1, method: 'log' }]);
+    expect(scan('<script title="C:\\">console.log("actual")</script>', '.astro'))
       .toEqual([{ line: 1, method: 'log' }]);
   });
 
