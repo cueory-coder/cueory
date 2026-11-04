@@ -7,7 +7,9 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { legacyStarsKey, PROGRESS_STORAGE_KEY } from '../../src/scripts/progress';
 import { BREAK_STORAGE_KEY } from '../../src/scripts/breakstore';
-import { AUTH_STORAGE_KEY } from '../../src/islands/supabaseclient';
+import {
+  AUTH_STORAGE_KEY, PKCE_FLOW_LIST_STORAGE_KEY, PKCE_VERIFIER_STORAGE_KEY, pkceFlowStorageKey,
+} from '../../src/islands/supabaseclient';
 import { GUEST_IMPORT_MARKER_PREFIX } from '../../src/islands/guestimportrun';
 import { STATS_STORAGE_KEY } from '../../src/islands/gameresults';
 import { afterDeletion } from '../../src/islands/deleteaccount';
@@ -45,7 +47,10 @@ describe.skipIf(!existsSync(privacyPath))('privacy page browser storage disclosu
     expect(visibleCodeKeys(privacyHtml())).toContain(key);
   });
 
-  it.each([AUTH_STORAGE_KEY, `${GUEST_IMPORT_MARKER_PREFIX}<id>`, BREAK_STORAGE_KEY])(
+  it.each([
+    AUTH_STORAGE_KEY, PKCE_VERIFIER_STORAGE_KEY, PKCE_FLOW_LIST_STORAGE_KEY, pkceFlowStorageKey('<id>'),
+    `${GUEST_IMPORT_MARKER_PREFIX}<id>`, BREAK_STORAGE_KEY,
+  ])(
     'discloses the planned storage key %s',
     (key) => {
       expect(visibleCodeKeys(privacyHtml())).toContain(key);
@@ -75,7 +80,7 @@ describe.skipIf(!existsSync(privacyPath))('privacy page browser storage disclosu
   it('covers every named Cueory browser key with local cleanup, session cleanup or Task 59 sign-out', () => {
     const legacy = legacyStarsKey('<deck>');
     const imported = `${GUEST_IMPORT_MARKER_PREFIX}<id>`;
-    const examples = [legacy, imported];
+    const examples = [legacy, imported, pkceFlowStorageKey('<id>')];
     const storage = {
       length: examples.length,
       key: (index: number) => examples[index] ?? null,
@@ -86,16 +91,50 @@ describe.skipIf(!existsSync(privacyPath))('privacy page browser storage disclosu
     const plan = afterDeletion(storage);
     const covered = new Set([...plan, ...plan.sessionKeys, AUTH_STORAGE_KEY]);
     const disclosed = visibleCodeKeys(privacyHtml()).filter((key) => key.startsWith('cueory-'));
-    expect(new Set(disclosed).size).toBeGreaterThanOrEqual(12);
+    expect(new Set(disclosed).size).toBeGreaterThanOrEqual(15);
     for (const key of disclosed) {
       expect(covered.has(key), `no deletion or sign-out path for ${key}`).toBe(true);
     }
     expect(plan).not.toContain(AUTH_STORAGE_KEY);
   });
 
-  it('does not imply sign-in, export or deletion for accounts is live', () => {
+  it('lists study resume as in use now, in the "It is only:" list, and words its answers truthfully', () => {
     const html = privacyHtml();
-    expect(html).toContain('Accounts are not open yet.');
+    const [inUse, building] = html.split('Features that are still being built');
+    expect(building, 'missing the still-being-built section').toBeDefined();
+    expect(inUse).toContain(`<code>${RESUME_STORAGE_KEY}</code>`);
+    expect(building).not.toContain(RESUME_STORAGE_KEY);
+    const only = inUse!.slice(inUse!.indexOf('It is only:'));
+    const list = only.slice(0, only.indexOf('</ul>'));
+    expect(list).toContain('where you stopped in a study activity');
+    expect(html).toContain('It never holds the answer key, but it can hold');
+    expect(html).toContain('answers you got right');
+    expect(html).not.toContain('never holds correct answers');
+  });
+
+  it('stays true whether or not accounts are switched on in the build', () => {
+    const html = privacyHtml();
+    for (const stale of ['no accounts yet', 'Accounts are not open yet', 'When accounts arrive', 'Until accounts exist',
+      'When accounts open', 'Once accounts are on']) {
+      expect(html, stale).not.toContain(stale);
+    }
+    expect(html).toContain('When you create one, we store only:');
+  });
+
+  it('names flag reports, what Google sign-in shares and that the launch list is separate', () => {
+    const html = privacyHtml();
+    expect(html).toContain('Reports you send with the "Flag or comment" button');
+    expect(html).toContain('the reason you picked and your comment');
+    expect(html).toContain('until your');
+    expect(html).toContain('account is deleted');
+    expect(html).toContain('Supabase keeps them with');
+    expect(html).toContain('deleting an account doesn\'t take you off it');
+    expect(html).toContain('unsubscribe link');
+    expect(html).toContain('Signing out removes them.');
+  });
+
+  it('does not imply export or deletion for accounts is live', () => {
+    const html = privacyHtml();
     expect(html).toContain('not available yet');
     expect(html).toContain('Google sign-in');
     expect(html).toContain('<code>/account</code>');

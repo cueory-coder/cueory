@@ -32,7 +32,7 @@ import { accountHref, site } from '../config/site';
   >
     <!-- A size container: the headline's size follows this box's width, so it stays on one line on every screen. -->
     <div class="@container flex w-full flex-col items-center">
-      <Wordmark class="w-(--logo-hero)" sizes="20rem" />
+      <Wordmark loading="eager" class="w-(--logo-hero)" sizes="20rem" />
       <h1 id="hero-heading" class="display mt-section text-display-fit">nursing school is hard enough.</h1>
       <p class="mt-4 text-accent text-ink-soft sm:text-accent-lg">cueory makes studying simpler.</p>
       <a href={accountHref} class="glass-button mt-10">create your free account</a>

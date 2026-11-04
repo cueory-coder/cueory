@@ -1,13 +1,13 @@
 ---
 /**
  * The account button in the header (D-46). Without JS it stays hidden, and
- * without configured accounts its signed-out menu is unchanged: both links
- * lead to launch updates and say "coming soon".
+ * before the public launch its signed-out menu links to launch updates and
+ * says "coming soon". The launch switch gives signup and sign-in separate links.
  *
  * After idle, an enabled Supabase client may show the student's initials,
  * own profile name, and account actions. Task 84 owns the surrounding header.
  */
-import { accountHref } from '../config/site';
+import { accountHref, accountsOpen } from '../config/site';
 
 interface Props {
   /** Study screens: the same button without the frosted circle. */
@@ -17,7 +17,7 @@ interface Props {
 const { quiet = false } = Astro.props;
 const items = [
   { label: 'create free account', href: accountHref },
-  { label: 'sign in', href: accountHref },
+  { label: 'sign in', href: accountsOpen ? '/signin' : accountHref },
 ];
 ---
 
@@ -44,7 +44,7 @@ const items = [
           <li>
             <a href={item.href} class="account-link">
               {item.label}
-              <span class="menu-note">coming soon</span>
+              {!accountsOpen && <span class="menu-note">coming soon</span>}
             </a>
           </li>
         ))

@@ -3,6 +3,8 @@ import { expect, test } from '@playwright/test';
 
 const missingPage = '/this-page-does-not-exist-task-89';
 
+const unknownStudyPages = ['/learn/nope', '/learn/study-skills/nope'] as const;
+
 test('a missing address shows a useful branded 404 page', async ({ page }) => {
   const response = await page.goto(missingPage);
   expect(response?.status()).toBe(404);
@@ -17,10 +19,20 @@ test('a missing address shows a useful branded 404 page', async ({ page }) => {
   await expect(nav.getByRole('link')).toHaveCount(3);
 });
 
+for (const path of unknownStudyPages) {
+  test(`${path} returns the branded 404 page`, async ({ page }) => {
+    const response = await page.goto(path);
+    expect(response?.status()).toBe(404);
+    await expect(page.getByRole('heading', { level: 1, name: "that page isn't here." })).toBeVisible();
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
+  });
+}
+
 test('the labeled search uses the site index and stays keyboard accessible', async ({ page }) => {
   await page.goto(missingPage);
   const search = page.getByRole('search', { name: 'search cueory' });
   const input = search.getByRole('searchbox', { name: 'search cueory' });
+  await expect(search.getByRole('status')).toHaveAttribute('aria-atomic', 'true');
   await expect(input).toBeVisible();
   await input.focus();
   await expect(input).toBeFocused();
