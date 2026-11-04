@@ -69,12 +69,11 @@ describe.skipIf(!existsSync(privacyPath))('privacy page browser storage disclosu
     expect(item).toContain('when this feature is on');
   });
 
-  it('discloses legacy stars and promises local settings cleanup only when account deletion launches', () => {
+  it('discloses legacy stars and says account deletion also clears local settings', () => {
     const html = privacyHtml();
     expect(visibleCodeKeys(html)).toContain(legacyStarsKey('<deck>'));
     expect(html).toContain('until they are moved into');
-    expect(html).toContain('When account deletion becomes available');
-    expect(html).toContain('clear Cueory study progress and settings saved in this');
+    expect(html).toContain('Deleting it removes your account and all study data linked to it, and clears Cueory progress and');
   });
 
   it('covers every named Cueory browser key with local cleanup, session cleanup or Task 59 sign-out', () => {
@@ -133,12 +132,34 @@ describe.skipIf(!existsSync(privacyPath))('privacy page browser storage disclosu
     expect(html).toContain('Signing out removes them.');
   });
 
-  it('does not imply export or deletion for accounts is live', () => {
+  it('names each detail Google shares, the sign-in sessions and the service logs (Task 309, CLAUDE.md rule 2)', () => {
+    const text = privacyHtml().replace(/\s+/g, ' ');
+    for (const detail of ['your name', 'a link to your profile photo', 'your Google account id', 'your email address',
+      'whether Google has checked it']) {
+      expect(text).toContain(detail);
+    }
+    expect(text).toContain('never reads or shows your photo');
+    expect(text).toContain('Supabase keeps a sign-in session with your IP address and the kind of browser and device you used, until you sign out');
+    expect(text).toContain('which also include IP addresses, are kept for about a day');
+    expect(text).toContain('Your sign-in sessions, with the IP address and browser of each, until you sign out.');
+  });
+
+  it('describes live account export and deletion without hiding the Google sign-in disclosures', () => {
     const html = privacyHtml();
-    expect(html).toContain('not available yet');
+    const account = html.slice(html.indexOf('If you create an account'));
+    expect(account).toContain('<code>/account</code>');
+    expect(account).toContain('download your account data');
+    expect(account).toContain('delete your');
     expect(html).toContain('Google sign-in');
-    expect(html).toContain('<code>/account</code>');
-    expect(html).toContain('download your account data');
-    expect(html).toContain('request deletion of your account');
+    expect(html).not.toContain('request deletion of your account');
+  });
+
+  it('preserves the newer staging explanation of local and signed-in progress', () => {
+    const html = privacyHtml();
+    expect(html).not.toContain('It never reaches us. It is only:');
+    expect(html).toContain('Without an account, nothing you do on a');
+    expect(html).toContain('Unless you choose to bring it into your account, your study progress is kept by your browser');
+    expect(html).toContain('your work on real questions is also saved to your account');
+    expect(html).toContain('stars stay on this device');
   });
 });

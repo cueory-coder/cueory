@@ -9,8 +9,9 @@ const filled = (course: Onboarding['course'] = 'med-surg-1', examDate: string | 
   done: true,
 });
 const outcome = (code: string | null = null) => ({ error: code ? { code } : null });
-const dbWith = (result = outcome()): ExamPlanDb & { upsert: ReturnType<typeof vi.fn> } => ({
-  upsert: vi.fn().mockResolvedValue(result),
+const dbWith = (result = outcome()): ExamPlanDb & { update: ReturnType<typeof vi.fn>; insert: ReturnType<typeof vi.fn> } => ({
+  update: vi.fn().mockResolvedValue({ data: [{ course: 'med-surg-1' }], error: null }),
+  insert: vi.fn().mockResolvedValue(result),
 });
 
 describe('examPlanRow — migration constraints', () => {
@@ -78,20 +79,9 @@ describe('examPlanRow — migration constraints', () => {
 });
 
 describe('importExamPlan — database ownership, uniqueness, and ten-plan guard', () => {
-  it('does not touch the database for missing or invalid input', async () => {
-    const db = dbWith();
-    expect(await importExamPlan(db, filled(null), TODAY)).toMatchObject({ ok: false });
-    expect(await importExamPlan(db, filled('fundamentals', '2026-10-29'), TODAY)).toMatchObject({ ok: false });
-    expect(db.upsert).not.toHaveBeenCalled();
-  });
-
-  it('upserts one row using (user_id, course) to update a course already saved', async () => {
-    const db = dbWith();
-    expect(await importExamPlan(db, filled(), TODAY)).toEqual({
-      ok: true,
-      row: { course: 'med-surg-1', exam_date: '2026-11-30' },
-      message: 'your exam date was saved',
-    });
+  it('keeps the existing import adapter compatible during the update/insert migration', async () => {
+    const db: ExamPlanDb = { upsert: vi.fn().mockResolvedValue(outcome()) };
+    expect(await importExamPlan(db, filled(), TODAY)).toMatchObject({ ok: true });
     expect(db.upsert).toHaveBeenCalledExactlyOnceWith(
       'exam_plans',
       { course: 'med-surg-1', exam_date: '2026-11-30' },
@@ -99,10 +89,34 @@ describe('importExamPlan — database ownership, uniqueness, and ten-plan guard'
     );
   });
 
-  it('leaves user_id, id and created_at server-generated (no cross-account writes)', async () => {
+  it('does not touch the database for missing or invalid input', async () => {
     const db = dbWith();
+    expect(await importExamPlan(db, filled(null), TODAY)).toMatchObject({ ok: false });
+    expect(await importExamPlan(db, filled('fundamentals', '2026-10-29'), TODAY)).toMatchObject({ ok: false });
+    expect(db.update).not.toHaveBeenCalled();
+    expect(db.insert).not.toHaveBeenCalled();
+  });
+
+  it('updates only exam_date when a course already has a saved plan', async () => {
+    const db = dbWith();
+    expect(await importExamPlan(db, filled(), TODAY)).toEqual({
+      ok: true,
+      row: { course: 'med-surg-1', exam_date: '2026-11-30' },
+      message: 'your exam date was saved',
+    });
+    expect(db.update).toHaveBeenCalledExactlyOnceWith(
+      'exam_plans',
+      'med-surg-1',
+      '2026-11-30',
+    );
+    expect(db.insert).not.toHaveBeenCalled();
+  });
+
+  it('inserts only the two student-owned columns when no course row exists', async () => {
+    const db = dbWith();
+    db.update.mockResolvedValue({ data: [], error: null });
     await importExamPlan(db, filled(), TODAY);
-    const row = db.upsert.mock.calls[0]![1] as Record<string, unknown>;
+    const row = db.insert.mock.calls[0]![1] as Record<string, unknown>;
     expect(Object.keys(row).sort()).toEqual(['course', 'exam_date']);
     expect(row).not.toHaveProperty('user_id');
     expect(row).not.toHaveProperty('id');
@@ -114,7 +128,12 @@ describe('importExamPlan — database ownership, uniqueness, and ten-plan guard'
     // including when two different browser sessions insert concurrently.
     const saved = new Map<string, string>();
     const db: ExamPlanDb = {
-      upsert: vi.fn().mockImplementation(async (_table: string, row: { course: string; exam_date: string }) => {
+      update: vi.fn().mockImplementation(async (_table: string, course: string, examDate: string) => {
+        if (!saved.has(course)) return { data: [], error: null };
+        saved.set(course, examDate);
+        return { data: [{ course }], error: null };
+      }),
+      insert: vi.fn().mockImplementation(async (_table: string, row: { course: string; exam_date: string }) => {
         if (!saved.has(row.course) && saved.size >= 10) return outcome('54000');
         saved.set(row.course, row.exam_date);
         return outcome();
@@ -140,7 +159,8 @@ describe('importExamPlan — database ownership, uniqueness, and ten-plan guard'
   });
 
   it('maps the 11th course error from the database to clear words, without claiming success', async () => {
-    const db = dbWith(outcome('54000'));
+    const db = dbWith();
+    db.update.mockResolvedValue({ data: [], error: { code: '54000' } });
     expect(await importExamPlan(db, filled(), TODAY)).toEqual({
       ok: false,
       message: 'you can save no more than ten exam plans',
@@ -153,18 +173,34 @@ describe('importExamPlan — database ownership, uniqueness, and ten-plan guard'
     ['42501', 'sign in before saving your exam date'],
     ['XX001', 'your exam date could not be saved. please try again'],
   ])('does not swallow database refusals (%s)', async (code, message) => {
-    const db = dbWith(outcome(code));
+    const db = dbWith();
+    db.update.mockResolvedValue({ data: [], error: { code } });
     expect(await importExamPlan(db, filled(), TODAY)).toEqual({ ok: false, message });
   });
 
   it('returns a safe failure for thrown network errors (never leaks internal messages)', async () => {
-    const db: ExamPlanDb = { upsert: vi.fn().mockRejectedValue(new Error('internal secret')) };
+    const db: ExamPlanDb = {
+      update: vi.fn().mockRejectedValue(new Error('internal secret')),
+      insert: vi.fn(),
+    };
     const result = await importExamPlan(db, filled(), TODAY);
     expect(result).toEqual({ ok: false, message: 'your exam date could not be saved. please try again' });
   });
 
   it('fails closed on a missing database reply', async () => {
-    const db: ExamPlanDb = { upsert: vi.fn().mockResolvedValue(undefined) };
+    const db: ExamPlanDb = { update: vi.fn().mockResolvedValue(undefined), insert: vi.fn() };
     expect(await importExamPlan(db, filled(), TODAY)).toMatchObject({ ok: false });
+  });
+
+  it('retries the update when another tab wins the insert race', async () => {
+    const db = dbWith();
+    db.update
+      .mockResolvedValueOnce({ data: [], error: null })
+      .mockResolvedValueOnce({ data: [{ course: 'med-surg-1' }], error: null });
+    db.insert.mockResolvedValue({ error: { code: '23505' } });
+
+    expect(await importExamPlan(db, filled(), TODAY)).toMatchObject({ ok: true });
+    expect(db.update).toHaveBeenCalledTimes(2);
+    expect(db.insert).toHaveBeenCalledOnce();
   });
 });

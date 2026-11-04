@@ -1,7 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 import { existsSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { indexablePages } from '../../src/config/routes';
+import { indexablePages as fixedPages } from '../../src/config/routes';
+import { lessonRoutes } from '../lessonroutes';
+
+// The fixed pages plus every lesson page generated from /content (Task 300), as the sitemap lists them.
+const indexablePages = [...new Set([...fixedPages, ...lessonRoutes])];
 
 /**
  * Task 127: which pages search engines may index. `Layout.astro` writes
@@ -27,7 +31,10 @@ const noindexPages = [
   '/start',
   '/subscribed',
   '/progress',
+  '/account/two-factor',
+  '/learn/video-sample',
   '/breaks', // until Christian approves its sample ideas
+  '/learn/questions', // real questions (Task 172), until launch
 ];
 
 // Known gaps: pages that should be noindex but aren't yet. Listed on issue #11 for their owners; never fixed here.

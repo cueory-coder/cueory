@@ -78,6 +78,10 @@ export interface SignInAuth {
   }): Promise<AuthResult>;
   signInWithPassword(credentials: { email: string; password: string }): Promise<AuthResult>;
   resetPasswordForEmail(email: string, options: { redirectTo: string }): Promise<AuthResult>;
+  /** On the real client. Read only to send a two-factor account to its code page after signing in (Task 301). */
+  mfa?: {
+    getAuthenticatorAssuranceLevel?(): Promise<{ data: { currentLevel: string | null; nextLevel: string | null } | null; error: unknown }>;
+  };
 }
 export interface ResetPasswordAuth {
   updateUser(attributes: { password: string }): Promise<AuthResult>;
@@ -118,7 +122,8 @@ export async function performAuthAction(auth: SignInAuth | null, action: AuthAct
     const email = input.email.trim();
     if (action === 'forgot') {
       // All provider outcomes get identical copy and cooldown. Never reveal whether an email exists.
-      await auth.resetPasswordForEmail(email, { redirectTo: callbackUrl(origin, '/reset-password') });
+      // The link returns to /reset-password, which exchanges the recovery code itself (recovery.ts, Task 165).
+      await auth.resetPasswordForEmail(email, { redirectTo: new URL('/reset-password', origin).href });
       return feedback('reset-sent', true);
     }
     if (action === 'google') {
@@ -142,7 +147,7 @@ export async function performAuthAction(auth: SignInAuth | null, action: AuthAct
   }
 }
 
-/** recoveryReady comes from the authenticated integration, never from a query parameter. */
+/** recoveryReady comes from establishRecovery (recovery.ts), never from a query parameter. */
 export async function changePassword(auth: ResetPasswordAuth | null, recoveryReady: boolean, password: string):
   Promise<{ ok: boolean; message: string }> {
   if (!auth || !recoveryReady) return { ok: false, message: signInMessage('recovery-required') };
