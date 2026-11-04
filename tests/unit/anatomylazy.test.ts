@@ -223,6 +223,29 @@ describe('initial GLB cleanup exceptions', () => {
     )).resolves.toEqual(['retry']);
     expect(attempted).toEqual(['late model']);
   });
+  it('rejects a synchronous decoder error and allows a clean retry', async () => {
+    const failure = new Error('decoder unavailable');
+    const disposed: string[] = [];
+    let startedQueued = false;
+    const loading = loadModelsOrDispose(
+      [
+        () => Promise.resolve('decoded-before-error'),
+        () => { throw failure; },
+        () => { startedQueued = true; return Promise.resolve('unwanted queued model'); },
+      ],
+      (value) => { disposed.push(value); },
+    );
+    await expect(loading).rejects.toBe(failure);
+    expect(disposed).toEqual(['decoded-before-error']);
+    expect(startedQueued).toBe(false);
+
+    await expect(loadModelsOrDispose(
+      [() => Promise.resolve('fresh-model')],
+      (value) => { disposed.push(value); },
+    )).resolves.toEqual(['fresh-model']);
+    expect(disposed).toEqual(['decoded-before-error']);
+  });
+
 });
 
 describe('progressive on-demand model results', () => {
