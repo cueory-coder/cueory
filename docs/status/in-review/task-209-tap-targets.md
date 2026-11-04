@@ -1,14 +1,1 @@
-# Task 209: main-content tap-target sweep
-
-Adds a route-wide Playwright regression test for visible links and buttons in `main`. Inline prose links remain exempt, while visual link controls and every button must measure at least 44 by 44 CSS pixels at the configured phone viewport.
-
-The test discovers built routes, includes the generated 404 response, waits for Astro islands to hydrate, and reports the route and measured control when a target is too small. It does not change application behavior or styling.
-
-Validation on the publishing environment:
-
-- `npm run check` passed with 0 errors, 0 warnings, and 11 existing hints.
-- `npm run build` passed with 31 pages built.
-- `npm test` passed: 3,297 tests in 108 files.
-- `npx playwright test tests/e2e/tap-targets.spec.ts --project=desktop` was attempted, but browser launch was blocked before navigation because Chromium headless shell 1248 is not installed. Browser CI remains required.
-
-Target: `staging`. Do not merge.
+status: Task 209 is in review. Corrected the sweep's generated missing-page expectation to HTTP 404 and retained the documented 24px minimum only for the 11-column Suture letter cells while enforcing 44px for ordinary controls. Existing app links may still be undersized, including lesson navigation and an auth-callback recovery link. Those genuine accessibility defects remain a blocker. Do not merge until all focused phone/desktop browser tests pass, exact-head security and Codex reviews are clean, and any auth-area change has founder approval. No production source, workflow or authentication code changed here.

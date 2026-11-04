@@ -31,7 +31,8 @@ test.describe('Task 209: main-content tap targets', () => {
   for (const route of pages) {
     test(`${route} has usable button and link targets`, async ({ page }) => {
       const response = await page.goto(route);
-      expect(response?.status(), `${route} should load`).toBe(200);
+      const expectedStatus = route === '/tap-targets-page-does-not-exist' ? 404 : 200;
+      expect(response?.status(), `${route} should return HTTP ${expectedStatus}`).toBe(expectedStatus);
       await page.waitForFunction(() => document.querySelectorAll('astro-island[ssr]').length === 0);
       await page.waitForLoadState('networkidle').catch(() => undefined);
 
@@ -50,12 +51,17 @@ test.describe('Task 209: main-content tap targets', () => {
             [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft].every((value) => value === '0px') &&
             style.backgroundColor === 'rgba(0, 0, 0, 0)' && style.borderStyle === 'none';
           if (inlineTextLink) return [];
-          if (rect.width >= 44 && rect.height >= 44) return [];
+          // Task 97 explicitly permits 24 px square letter targets on the fixed 11×11 Suture board.
+          // This is limited to that grid. All other interactive controls still require 44 px.
+          const sutureLetterCell = el.matches('button[data-cell]') && !!el.closest('[data-testid="suture"]');
+          const minimum = sutureLetterCell ? 24 : 44;
+          if (rect.width >= minimum && rect.height >= minimum) return [];
           return [{
             tag: el.tagName.toLowerCase(),
             label: (el.textContent ?? el.getAttribute('aria-label') ?? '').trim().replace(/\s+/g, ' ').slice(0, 80),
             width: Math.round(rect.width * 100) / 100,
             height: Math.round(rect.height * 100) / 100,
+            minimum,
           }];
         }),
       );
