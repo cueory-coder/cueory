@@ -129,10 +129,85 @@ function visibleText(markup: string): string {
     .trim();
 }
 
+function referencedText(html: string, labelledBy?: string): string {
+  if (!labelledBy) return '';
+  const ids = labelledBy.trim().split(/\s+/).filter(Boolean);
+  if (ids.length === 0) return '';
+  const parts: string[] = [];
+  for (const id of ids) {
+    const elem = elementById(html, id);
+    if (!elem) return '';
+    const label = attribute(elem.attrs, 'aria-label')?.trim();
+    const text = label || visibleText(elem.content, true);
+    if (!text) return '';
+    parts.push(text);
+  }
+  return parts.join(' ').trim();
+}
+
+function elementById(html: string, id: string): { attrs: string; content: string } | null {
+  const openRegex = /<([a-zA-Z0-9:-]+)\b([^>]*)>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = openRegex.exec(html))) {
+    const [fullTag, name, attrs] = match;
+    const idMatch = /\bid="([^"]+)"/i.exec(attrs);
+    if (idMatch && idMatch[1] === id) {
+      const tagLower = name.toLowerCase();
+      if (
+        fullTag.endsWith('/>') ||
+        ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'].includes(tagLower)
+      ) {
+        return { attrs, content: '' };
+      }
+      const startIndex = match.index + fullTag.length;
+      let depth = 1;
+      const tagRegex = new RegExp(`</?${name}\\b[^>]*>`, 'gi');
+      tagRegex.lastIndex = startIndex;
+      let next: RegExpExecArray | null;
+      while ((next = tagRegex.exec(html))) {
+        if (next[0].startsWith('</')) {
+          depth -= 1;
+          if (depth === 0) {
+            return { attrs, content: html.slice(startIndex, next.index) };
+          }
+        } else if (!next[0].endsWith('/>')) {
+          depth += 1;
+        }
+      }
+      return { attrs, content: html.slice(startIndex) };
+    }
+  }
+  return null;
+}
+
+export function computeAccessibleName(html: string, attrs: string, content: string): string {
+  const label = attribute(attrs, 'aria-label');
+  if (label?.trim()) return label.trim();
+  const labelledBy = attribute(attrs, 'aria-labelledby');
+  const refText = referencedText(html, labelledBy);
+  if (refText) return refText;
+  return visibleText(content);
+}
+
 describe('accessible-name text extraction', () => {
   it('ignores hidden descendants and executable markup', () => {
     expect(visibleText('<span aria-hidden="true">→</span> <span>learn</span>')).toBe('learn');
     expect(visibleText('<script>"<style>fake</style>"</script><b>real</b>')).toBe('real');
+  });
+
+  it('rejects controls that only contain hidden content', () => {
+    expect(computeAccessibleName('', '', '<span aria-hidden="true">→</span>')).toBe('');
+  });
+
+  it('resolves referenced label text and rejects empty referenced elements', () => {
+    const htmlWithEmpty = '<span id="empty"></span><button aria-labelledby="empty"></button>';
+    expect(computeAccessibleName(htmlWithEmpty, 'aria-labelledby="empty"', '')).toBe('');
+
+    const htmlWithText = '<span id="heading">Learn More</span><button aria-labelledby="heading"></button>';
+    expect(computeAccessibleName(htmlWithText, 'aria-labelledby="heading"', '')).toBe('Learn More');
+
+    const htmlWithMissing = '<button aria-labelledby="nonexistent"></button>';
+    expect(computeAccessibleName(htmlWithMissing, 'aria-labelledby="nonexistent"', '')).toBe('');
   });
 });
 
@@ -140,16 +215,12 @@ describe.skipIf(!existsSync(dist))('built control names', () => {
   it('gives every link and button an accessible name', () => {
     for (const file of htmlFiles(dist)) {
       const html = removeExecutableElements(readFileSync(file, 'utf8'));
-      const ids = new Set([...html.matchAll(/\bid="([^"]+)"/gi)].map((match) => match[1]));
       const controls = /<(a|button)\b([^>]*)>([\s\S]*?)<\/\1>/gi;
       let match: RegExpExecArray | null;
       while ((match = controls.exec(html))) {
         const [, kind, attrs, content] = match;
-        const label = attribute(attrs, 'aria-label');
-        const labelledBy = attribute(attrs, 'aria-labelledby');
-        const text = visibleText(content);
-        const referencesExistingId = labelledBy?.split(/\s+/).every((id) => ids.has(id)) ?? false;
-        expect(label?.trim() || text || (labelledBy && referencesExistingId), `${file}: unnamed ${kind}`).toBeTruthy();
+        const accessibleName = computeAccessibleName(html, attrs, content);
+        expect(accessibleName, `${file}: unnamed ${kind}`).toBeTruthy();
       }
     }
   });

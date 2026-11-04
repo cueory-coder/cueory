@@ -6,10 +6,9 @@ Touched only `tests/unit/accessibility-names.test.ts` and this status note. The 
 
 ## Validation
 
-- `npm run check` passed with 0 errors and 12 existing hints.
-- `npm run build` passed with 33 pages built.
-- `npm test -- --run tests/unit/accessibility-names.test.ts` passed: 1 test.
-- `npm test` passed: 3,548 tests in 119 files.
-- `git diff --check` passed.
+- Addressed Codex review finding: resolved referenced elements (`aria-labelledby`) and verified their naming content, rejecting empty referenced elements and checking referenced labels via `computeAccessibleName`.
+- Added negative fixtures for empty referenced elements and controls containing only hidden text.
+- `tests/unit/accessibility-names.test.ts` passed (4/4 tests).
+- All built pages verified against `computeAccessibleName`.
 
 No sensitive files, application behavior, dependencies, workflows, deployment settings, auth, accounts, database, legal text, or content were changed.
