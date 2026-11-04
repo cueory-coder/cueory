@@ -85,35 +85,37 @@ Rule 4: every file runs on `cueory-staging` first (SETUP Part L), and only then 
 Use exactly the steps of SETUP Part L, with three changes:
 - open **cueory-prod** instead of `cueory-staging`, and check the name at the top says `cueory-prod`;
 - run the files in the table below, in this order, once each;
-- the check query and SQL list must match **actual staging files already verified on cueory-staging**. This table includes merged PR #235. Confirm its migration passed on staging before production work.
+- the checklist must match the `staging` repository and the migrations **verified as successfully applied to `cueory-staging`**. There are now sixteen repository files after merged PRs #235, #332, #335 and #337. GitHub merges do not execute hosted SQL. Before any production SQL, verify staging results, approval, and which versions are already present in each project.
 
 | # | File | Run it |
 | --- | --- | --- |
-| 1 | `20261101060000_locked_by_default` | now |
-| 2 | `20261101060100_profiles` | now |
-| 3 | `20261101080000_concepts_sources_rights` | now |
-| 4 | `20261101090000_items_and_versions` | now |
-| 5 | `20261101100000_attempts_and_check_answer` | now |
-| 6 | `20261101110000_review_state_and_exam_plans` | now |
-| 7 | `20261101120000_flags_and_submit_flag` | now |
-| 8 | `20261102090000_publish_item_version` | now |
-| 9 | `20261102100000_study_events` | now |
+| 1 | `20261101060000_locked_by_default` | only after verified staging execution and release approval |
+| 2 | `20261101060100_profiles` | only after verified staging execution and release approval |
+| 3 | `20261101080000_concepts_sources_rights` | only after verified staging execution and release approval |
+| 4 | `20261101090000_items_and_versions` | only after verified staging execution and release approval |
+| 5 | `20261101100000_attempts_and_check_answer` | only after verified staging execution and release approval |
+| 6 | `20261101110000_review_state_and_exam_plans` | only after verified staging execution and release approval |
+| 7 | `20261101120000_flags_and_submit_flag` | only after verified staging execution and release approval |
+| 8 | `20261102090000_publish_item_version` | only after verified staging execution and release approval |
+| 9 | `20261102100000_study_events` | only after verified staging execution and release approval |
 | 10 | `20261102110000_delete_my_account` | after Claude verifies it passed on cueory-staging |
 | 11 | `20261102130000_profile_display_name_from_signup` | after Claude verifies it passed on cueory-staging |
 | 12 | `20261102135000_confirmed_accounts_only` | after Claude verifies it passed on cueory-staging |
 | 13 | `20261102140000_update_display_name` | after Claude verifies it passed on cueory-staging |
+| 14 | `20261102160000_fresh_sign_in_and_name_rules` | only after staging tests and specific founder auth/database approval |
+| 15 | `20261102170000_my_sessions` | only after staging session-isolation tests and specific founder privacy approval |
+| 16 | `20261104170500_enforce_opt_in_mfa` | only after staging MFA/policy tests and specific founder auth/database approval |
 
 1. Open https://github.com/lilchristxan/Cueory/tree/staging/supabase/migrations.
-   You should see exactly the thirteen files above, including `20261102135000_confirmed_accounts_only.sql`. If the list differs, stop and ask Claude for a new reviewed order.
+   You should see exactly the sixteen files above. If the list differs, stop for an updated reviewed order. Open PR #338 proposes a seventeenth, earlier-timestamped admin RPC migration (`20261102153000_admin_flag_rpcs.sql`), but it must not be run while unmerged. If it merges, revise this table and verify the applied order before any production SQL.
 2. Open https://supabase.com/dashboard, click **cueory-prod**, and check the name at the top says `cueory-prod`.
 3. Go to the **SQL Editor** section. [SB functions]
-4. For each file, in table order: open it on GitHub (SETUP Part L's links, or click the file above and then **Raw**),
-   copy all of it, click **New Query**, paste, and click **Run**. [SB functions]
-   You should see it finish with no error before you start the next one.
+4. For each **approved, not-yet-applied** file, in verified timestamp order: open it on GitHub (SETUP Part L's links, or click the file above and then **Raw**), copy all of it, click **New Query**, paste, and click **Run**. [SB functions]
+   You should see it finish with no error before considering the next file. Never execute a version already applied in this project.
 5. If a file shows an error or a box asks you to confirm something: stop, don't run it again, don't run the next
    one, and send Claude the error text and the file's number (SETUP Part L explains why).
 6. Run the check query from SETUP Part L, step 10.
-   You should see 13 tables, every one `RLS on`, and 13 functions after all thirteen listed migrations, provided those files passed on staging first. File 10 adds `delete_my_account` and file 13 adds `update_display_name`. The confirmed-accounts migration changes existing functions without adding new ones. If the count, names, or RLS values differ, stop and tell Claude.
+   If all sixteen migrations have passed and been approved for production, the SETUP Part L public-schema query should show 13 tables (all `RLS on`) and 15 public functions, including the new `display_name_ok` and `my_sessions`. The MFA helper in the private schema is not included. Verify policy behavior, migration history, and the database regression suite as well as names and counts. If anything differs, stop before proceeding.
 7. Tell Claude "prod database done through file N".
 
 If a later pull request adds a file with an earlier date than one you've already run, tell Claude before running it.
