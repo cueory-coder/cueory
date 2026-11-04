@@ -1,0 +1,12 @@
+---
+import Layout from '../layouts/Layout.astro';
+import AccountSettings from '../islands/AccountSettings';
+---
+
+<Layout title="account settings" description="Your cueory account settings." variant="study" noindex promo={false}>
+  <section class="mx-auto max-w-prose py-section font-body leading-relaxed" aria-labelledby="account-heading">
+    <h1 id="account-heading" class="text-2xl">account settings</h1>
+    <div class="mt-6"><AccountSettings client:load /></div>
+    <noscript><p class="mt-4">account settings need javascript.</p></noscript>
+  </section>
+</Layout>

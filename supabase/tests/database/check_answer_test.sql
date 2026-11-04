@@ -5,11 +5,11 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(48);
 
--- Two students, as Supabase Auth would create them.
-insert into auth.users (id, email) values
-  ('00000000-0000-4000-8000-000000000001', 'one@example.com'),
-  ('00000000-0000-4000-8000-000000000002', 'two@example.com'),
-  ('00000000-0000-4000-8000-000000000003', 'three@example.com');
+-- Three students with confirmed emails, as Supabase Auth would create them (unconfirmed ones are refused, Task 169).
+insert into auth.users (id, email, email_confirmed_at) values
+  ('00000000-0000-4000-8000-000000000001', 'one@example.com', now()),
+  ('00000000-0000-4000-8000-000000000002', 'two@example.com', now()),
+  ('00000000-0000-4000-8000-000000000003', 'three@example.com', now());
 
 insert into public.concepts (id, slug, title, published) values
   ('00000000-0000-4000-8000-0000000000c1', 'sample-concept', 'sample concept', true);
