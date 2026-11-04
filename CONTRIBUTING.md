@@ -21,7 +21,6 @@ Do not commit secrets, private student data, real question-bank content, answer 
 | --- | --- |
 | `npm run dev` | Start the Astro development server. |
 | `npm run check` | Run Astro's type and project checks. |
-| `npm run dev` | Start the local Astro development server. |
 | `npm run build` | Build the static site and its Pagefind search index. |
 | `npm test` | Run the unit test suite once. |
 | `npm run test:e2e` | Run the Playwright browser tests. |
