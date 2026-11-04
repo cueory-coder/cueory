@@ -43,16 +43,37 @@ test.describe('Task 280: large-text reflow', () => {
 
       const findings = await page.evaluate(() => {
         const width = document.documentElement.clientWidth;
+        // Report only the painted portion of a control. A wide crossword or data table
+        // can intentionally scroll inside its own box, and a share-style carousel keeps
+        // offscreen cards mounted. Their offscreen controls are not currently visible.
+        // Still reject any painted control outside the viewport, and independently
+        // reject document-level horizontal scrolling below.
         const clipped = [...document.querySelectorAll<HTMLElement>('a, button, input, select, textarea, [role="button"]')]
           .filter((element) => {
             const style = getComputedStyle(element);
             return element.getClientRects().length > 0 && style.visibility !== 'hidden' && style.display !== 'none';
           })
-          .map((element) => {
+          .flatMap((element) => {
             const box = element.getBoundingClientRect();
-            return { name: element.getAttribute('aria-label') ?? element.textContent?.trim() ?? element.tagName.toLowerCase(), left: box.left, right: box.right };
-          })
-          .filter(({ left, right }) => left < -1 || right > width + 1);
+            if (box.width <= 0 || box.height <= 0) return [];
+            let left = box.left;
+            let right = box.right;
+            for (let ancestor = element.parentElement; ancestor; ancestor = ancestor.parentElement) {
+              const overflowX = getComputedStyle(ancestor).overflowX;
+              if (!['auto', 'scroll', 'hidden', 'clip'].includes(overflowX)) continue;
+              const clip = ancestor.getBoundingClientRect();
+              const clipLeft = clip.left + ancestor.clientLeft;
+              left = Math.max(left, clipLeft);
+              right = Math.min(right, clipLeft + ancestor.clientWidth);
+              if (right <= left) return [];
+            }
+            if (left >= -1 && right <= width + 1) return [];
+            return [{
+              name: element.getAttribute('aria-label') ?? element.textContent?.trim() ?? element.tagName.toLowerCase(),
+              left,
+              right,
+            }];
+          });
         // Diagnostic only: surface the elements extending past the 32px-text viewport
         // without loosening either accessibility assertion.
         const overflowCandidates = [...document.querySelectorAll<HTMLElement>('body *')]
