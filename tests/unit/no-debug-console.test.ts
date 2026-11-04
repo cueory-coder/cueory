@@ -50,7 +50,19 @@ function isRegexStart(text: string, index: number): boolean {
 function isComparisonOperator(text: string, index: number): boolean {
   let prev = index - 1;
   while (prev >= 0 && /\s/.test(text[prev]!)) prev--;
-  return prev >= 0 && /[a-zA-Z0-9_$)\]'"`]/.test(text[prev]!);
+  if (prev < 0) return false;
+  const prevChar = text[prev]!;
+  if (!/[a-zA-Z0-9_$)\]'"`]/.test(prevChar)) return false;
+  if (/[a-zA-Z0-9_$]/.test(prevChar)) {
+    let wordEnd = prev + 1;
+    let wordStart = prev;
+    while (wordStart >= 0 && /[a-zA-Z0-9_$]/.test(text[wordStart]!)) wordStart--;
+    wordStart++;
+    const word = text.slice(wordStart, wordEnd);
+    const exprKeywords = ['return', 'case', 'throw', 'yield', 'typeof', 'void', 'delete', 'await'];
+    if (exprKeywords.includes(word)) return false;
+  }
+  return true;
 }
 
 function scan(text: string, extension: string): Logging[] {
@@ -384,6 +396,8 @@ describe('debug-console source guard', () => {
     expect(scan('{count<limit}<script>console.log("actual")</script>', '.astro'))
       .toEqual([{ line: 1, method: 'log' }]);
     expect(scan('{count < limit}<script>console.log("actual")</script>', '.astro'))
+      .toEqual([{ line: 1, method: 'log' }]);
+    expect(scan('{(() => { return <script is:inline>console.log("actual")</script> })()}', '.astro'))
       .toEqual([{ line: 1, method: 'log' }]);
   });
 
