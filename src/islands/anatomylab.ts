@@ -223,7 +223,12 @@ export const PRODUCTION_BRANCH = 'main';
  */
 export function draftsAllowed(env: BuildEnv): boolean {
   if (env.WORKERS_CI !== '1') return env.CUEORY_ANATOMY_DRAFTS === '1';
-  const branch = env.WORKERS_CI_BRANCH?.trim();
+  const rawBranch = env.WORKERS_CI_BRANCH?.trim();
+  // Cloudflare normally supplies a short branch name. A full Git ref for
+  // refs/heads/main must also be recognized as production.
+  const branch = rawBranch?.startsWith('refs/heads/')
+    ? rawBranch.slice('refs/heads/'.length)
+    : rawBranch;
   return Boolean(branch) && branch !== PRODUCTION_BRANCH;
 }
 
