@@ -303,6 +303,8 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     loaderRef.current?.retire();
     loaderRef.current = null;
     generation.bump();
+    // A system-picker click invalidates this initial load before React effect cleanup runs.
+    const initialLoadToken = generation.token();
     visibilityIntent.bump();
     setExporting(null);
     setExportNote('');
@@ -322,7 +324,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     scene
       .load(initial?.files ?? (system.model.files ?? system.model.file), initial?.ids ?? system.structures.map((s) => s.id))
       .then((result) => {
-        if (!current || !result) return;
+        if (!current || !generation.isCurrent(initialLoadToken) || !result) return;
         if (initial) {
           // Apply the first-layer visibility before the React ready-state effect runs.
           scene.setAppearance({ hidden: initial.hidden, selected: null });
@@ -330,7 +332,9 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
             (url) => {
               const ids = idsForFiles(system, wholeLayers!, [url]);
               return scene.add(url, ids).then((r) => {
-                if (!r || !current) throw new Error('The view changed while this layer downloaded.');
+                if (!r || !current || !generation.isCurrent(initialLoadToken)) {
+                  throw new Error('The view changed while this layer downloaded.');
+                }
                 return r;
               });
             },
@@ -364,7 +368,8 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
         setAnnounce(`${system.title}: ${result.found.length} structures loaded.`);
       })
       .catch((err: unknown) => {
-        if (!current) return;
+        // An obsolete GLB rejection must not show a failure for the newly chosen system.
+        if (!current || !generation.isCurrent(initialLoadToken)) return;
         setLoad({ state: 'error', message: err instanceof Error ? err.message : String(err) });
       });
     return () => {
