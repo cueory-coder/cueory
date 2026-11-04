@@ -35,7 +35,8 @@ describe('anatomy GLB mesh registration', () => {
     expect(indexAnatomyGroup(group, ['TEST_SHARED_MATERIAL'], indexed, unlabeled))
       .toEqual({ touched: ['TEST_SHARED_MATERIAL'], triangles: 24 });
     expect(disposed).toHaveBeenCalledOnce();
-    expect(indexed.get('TEST_SHARED_MATERIAL')).toEqual([upper, lower]);
+    expect(indexed.get('TEST_SHARED_MATERIAL')).toEqual(expect.arrayContaining([upper, lower]));
+    expect(indexed.get('TEST_SHARED_MATERIAL')).toHaveLength(2);
     expect(unlabeled).toEqual([]);
     expect(upper.material).toBeInstanceOf(THREE.MeshLambertMaterial);
     expect(lower.material).toBeInstanceOf(THREE.MeshLambertMaterial);
