@@ -448,7 +448,8 @@ test.describe('marketing look (D-41)', () => {
     await expect(page.getByText('Short, clear lessons')).toHaveCount(0);
     const button = page.getByRole('link', { name: 'create your free account', exact: true });
     await expect(button).toHaveAttribute('href', '/#signup');
-    await expect(page.getByText('save your progress and pick up where you left off.')).toBeVisible();
+    // No line under the button restates it (Christian, 2026-11-02).
+    await expect(page.getByText('save your progress and pick up where you left off.')).toHaveCount(0);
     // A calmer hero (D-55): no course link, no motto line and no embossed logo behind the headline.
     const hero = page.locator('.scene-hero');
     await expect(hero.getByRole('link')).toHaveCount(1);
