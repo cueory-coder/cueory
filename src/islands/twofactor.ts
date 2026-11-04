@@ -179,7 +179,8 @@ export async function confirmCode(auth: TwoFactorAuth, factorId: string, input: 
     const challenge = await auth.mfa.challenge({ factorId });
     if (challenge.error || !challenge.data || !isId(challenge.data.id)) return codeFail(codeProblem(challenge.error));
     const verified = await auth.mfa.verify({ factorId, challengeId: challenge.data.id, code });
-    return verified.error ? codeFail(codeProblem(verified.error)) : { ok: true };
+    // A missing verification result cannot prove that the session was upgraded to aal2.
+    return verified.error || !verified.data ? codeFail(codeProblem(verified.error)) : { ok: true };
   } catch {
     return codeFail('failed');
   }
