@@ -11,20 +11,20 @@ function fakeButton() {
 }
 
 describe('footer links panel (Task 85)', () => {
-  it('closing hides the panel and says "more links"', () => {
+  it('closing hides the panel and says "show footer links"', () => {
     const button = fakeButton();
     const panel = { hidden: false };
     setFooterPanel(button, panel, false);
     expect(panel.hidden).toBe(true);
-    expect(button.attributes).toEqual({ 'aria-expanded': 'false', 'aria-label': 'more links' });
+    expect(button.attributes).toEqual({ 'aria-expanded': 'false', 'aria-label': 'show footer links' });
   });
 
-  it('opening shows the panel and says "fewer links"', () => {
+  it('opening shows the panel and says "hide footer links"', () => {
     const button = fakeButton();
     const panel = { hidden: true };
     setFooterPanel(button, panel, true);
     expect(panel.hidden).toBe(false);
-    expect(button.attributes).toEqual({ 'aria-expanded': 'true', 'aria-label': 'fewer links' });
+    expect(button.attributes).toEqual({ 'aria-expanded': 'true', 'aria-label': 'hide footer links' });
   });
 
   it('a tap flips it each time', () => {
