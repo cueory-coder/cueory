@@ -23,6 +23,37 @@ describe('anatomy scene URL deduplication', () => {
   });
 });
 
+describe('shared GLB scene ownership regression', () => {
+  it('keeps one physical GLB while preserving per-file structure ownership', () => {
+    const shared = '/models/anatomy/shared.glb';
+    const other = '/models/anatomy/other.glb';
+    const systems: AnatomySystem[] = [
+      {
+        key: 'outside', title: 'sample outside', status: 'draft',
+        model: { file: shared, release: 'sample release' },
+        structures: [{ id: 'a', text: 'sample a', layer: 'vessels' }],
+      },
+      {
+        key: 'inside', title: 'sample inside', status: 'draft',
+        model: { file: shared, release: 'sample release' },
+        structures: [{ id: 'b', text: 'sample b', layer: 'organs' }],
+      },
+      {
+        key: 'other', title: 'sample other', status: 'draft',
+        model: { file: other, release: 'sample release' },
+        structures: [{ id: 'c', text: 'sample c', layer: 'organs' }],
+      },
+    ];
+    const body = wholeBody(systems)!;
+    expect(body.model.files).toEqual([shared, other]);
+    expect(uniqueAnatomyModelUrls([...(body.model.files ?? []), shared]))
+      .toEqual(body.model.files);
+    expect(body.model.fileIds?.[shared]).toEqual(['a', 'b']);
+    expect(body.model.layerFiles?.['vessels']).toEqual([shared]);
+    expect(body.model.layerFiles?.['organs']).toEqual([shared, other]);
+  });
+});
+
 describe('initial multi-file model cleanup', () => {
   it('bounds initial decode work to two files and retains manifest order', async () => {
     const started: number[] = [];
