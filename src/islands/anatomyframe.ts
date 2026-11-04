@@ -17,6 +17,11 @@ const browserClock: FrameClock = {
   clearDelay: (id) => window.clearTimeout(id),
 };
 
+/** Remaining milliseconds until the next visibility check, using one monotonic clock. */
+export function remainingIdleDelay(now: number, lastMove: number, idleMs: number): number {
+  return Math.max(0, idleMs - (now - lastMove));
+}
+
 /** The callback returns true only while a camera transition still needs another frame. */
 export function createDemandFrameScheduler(
   onFrame: (time: number) => boolean,
