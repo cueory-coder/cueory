@@ -348,9 +348,9 @@ describe('CSV export', () => {
 
   it('includes only headers for empty sections and the empty dropped report', () => {
     const files = exportCsv({});
-    expect(files).toHaveLength(13);
+    expect(files).toHaveLength(14);
     expect(files.every(entry => parseRows(entry.text).length === 1)).toBe(true);
-    expect(files[12]).toEqual({ fileName: 'dropped.csv', text: 'dropped\r\n' });
+    expect(files[13]).toEqual({ fileName: 'dropped.csv', text: 'dropped\r\n' });
   });
 
   it('returns fresh files and the same stable output for repeated exports', () => {
