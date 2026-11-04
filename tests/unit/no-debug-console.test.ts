@@ -7,10 +7,26 @@ import { describe, expect, it } from 'vitest';
 const sourceRoot = fileURLToPath(new URL('../../src/', import.meta.url));
 type Logging = { line: number; method: string };
 
+function unwrap(node: ts.Expression): ts.Expression {
+  while (
+    ts.isParenthesizedExpression(node) ||
+    ts.isAsExpression(node) ||
+    ts.isTypeAssertionExpression(node) ||
+    ts.isNonNullExpression(node)
+  ) {
+    node = node.expression;
+  }
+  return node;
+}
+
 function isConsole(node: ts.Expression): boolean {
+  node = unwrap(node);
   if (ts.isIdentifier(node)) return node.text === 'console';
-  return ts.isPropertyAccessExpression(node) && ts.isIdentifier(node.expression)
-    && node.expression.text === 'globalThis' && node.name.text === 'console';
+  if (ts.isPropertyAccessExpression(node)) {
+    const expr = unwrap(node.expression);
+    return ts.isIdentifier(expr) && expr.text === 'globalThis' && node.name.text === 'console';
+  }
+  return false;
 }
 
 /** Inspect property references too, so saving console.log in a callback cannot bypass the guard. */
@@ -350,6 +366,8 @@ describe('debug-console source guard', () => {
     expect(scan('console.log("debug");\nconsole?.debug("debug");\nconsole["log"]("debug");\nconst callback = globalThis.console.debug;', '.ts'))
       .toEqual([{ line: 1, method: 'log' }, { line: 2, method: 'debug' }, { line: 3, method: 'log' }, { line: 4, method: 'debug' }]);
     expect(scan('const { log } = console;\nconst { debug: report } = globalThis.console;\n({ log } = console);\n({ debug: renamed } = console);', '.ts'))
+      .toEqual([{ line: 1, method: 'log' }, { line: 2, method: 'debug' }, { line: 3, method: 'log' }, { line: 4, method: 'debug' }]);
+    expect(scan('(console).log("leak");\n(console as Console).debug("leak");\n<Console>console.log("leak");\n(globalThis as any).console.debug("leak");', '.ts'))
       .toEqual([{ line: 1, method: 'log' }, { line: 2, method: 'debug' }, { line: 3, method: 'log' }, { line: 4, method: 'debug' }]);
   });
 
