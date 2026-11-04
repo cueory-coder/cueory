@@ -82,9 +82,9 @@ const availableModes = modeOrder.map((id) => {
           <SentenceStepper client:only="react" sentences={sentences} />
         </div>
         <div data-print-only data-testid="print-lesson-reader">
-          <ol class="space-y-stack">
+          <ul class="space-y-stack list-decimal">
             {sentences.map((sentence) => <li class="text-lg">{sentence.text}</li>)}
-          </ol>
+          </ul>
         </div>
         <noscript data-print-hidden>
           <ol data-print-hidden class="space-y-stack">
