@@ -514,8 +514,13 @@ export function placeLabels(anchors: readonly LabelAnchor[], options: LayoutOpti
   const mid = columns ? (columns.left + columns.right) / 2 : width / 2;
   const byOrder = (a: LabelAnchor, b: LabelAnchor) => a.y - b.y || a.x - b.x || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
   const usable = anchors
-    .filter((a) => Number.isFinite(a.x) && Number.isFinite(a.y))
-    .filter((a) => a.width + 2 * margin <= width && a.height + 2 * margin <= height)
+    // A projected center outside the canvas crop is not a visible anchor.
+    // Report its name as skipped instead of drawing a false leader line.
+    .filter((a) => Number.isFinite(a.x) && Number.isFinite(a.y) &&
+      a.x >= 0 && a.x < width && a.y >= 0 && a.y < height)
+    .filter((a) => Number.isFinite(a.width) && Number.isFinite(a.height) &&
+      a.width > 0 && a.height > 0 &&
+      a.width + 2 * margin <= width && a.height + 2 * margin <= height)
     .sort(byOrder);
   const side = { left: usable.filter((a) => a.x < mid), right: usable.filter((a) => a.x >= mid) };
   const need = (list: LabelAnchor[]) => list.reduce((sum, a) => sum + a.height, 0) + gap * Math.max(0, list.length - 1);
@@ -833,17 +838,33 @@ export function labelRoomFor(
   return { left: share(widest(anchors.filter((a) => a.x < mid))), right: share(widest(anchors.filter((a) => a.x >= mid))) };
 }
 
-/** Splits text into lines no wider than `maxWidth`, by words. `measure` gives a string's width. */
+/** Wrap words and split an oversized unbroken word without losing any source characters. */
 export function wrapText(value: string, maxWidth: number, measure: (s: string) => number): string[] {
   const words = value.split(/\s+/).filter(Boolean);
   const lines: string[] = [];
   let line = '';
   for (const word of words) {
     const candidate = line ? `${line} ${word}` : word;
-    if (!line || measure(candidate) <= maxWidth) line = candidate;
-    else {
+    if (measure(candidate) <= maxWidth) {
+      line = candidate;
+      continue;
+    }
+    if (line) {
       lines.push(line);
+      line = '';
+    }
+    if (measure(word) <= maxWidth) {
       line = word;
+      continue;
+    }
+    // Split only a word too wide on its own; Array.from preserves Unicode surrogate pairs.
+    for (const character of Array.from(word)) {
+      if (line && measure(line + character) > maxWidth) {
+        lines.push(line);
+        line = character;
+      } else {
+        line += character;
+      }
     }
   }
   if (line) lines.push(line);
