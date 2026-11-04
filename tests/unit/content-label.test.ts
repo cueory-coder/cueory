@@ -3,13 +3,13 @@ import { describe, expect, it } from 'vitest';
 import { site } from '../../src/config/site';
 
 const routes = [
-  '../../src/pages/learn/study-skills/index.astro',
-  '../../src/pages/learn/study-skills/cards.astro',
-  '../../src/pages/learn/study-skills/fill-in.astro',
+  '../../src/pages/learn/[lesson]/index.astro',
+  '../../src/pages/learn/[lesson]/cards.astro',
+  '../../src/pages/learn/[lesson]/fill-in.astro',
   '../../src/pages/learn/study-skills/label-it.astro',
-  '../../src/pages/learn/study-skills/learn-mode.astro',
-  '../../src/pages/learn/study-skills/matching.astro',
-  '../../src/pages/learn/study-skills/organizer.astro',
+  '../../src/pages/learn/[lesson]/learn-mode.astro',
+  '../../src/pages/learn/[lesson]/matching.astro',
+  '../../src/pages/learn/[lesson]/organizer.astro',
   '../../src/pages/learn/study-skills/questions.astro',
 ];
 
