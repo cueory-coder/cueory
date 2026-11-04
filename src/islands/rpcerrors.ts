@@ -8,13 +8,19 @@
  *   delete_my_account: supabase/migrations/20261102110000_delete_my_account.sql (Task 60); its only refusal is
  *                      'sign in to delete your account' (errcode 28000).
  *   update_display_name: supabase/migrations/20261102140000_update_display_name.sql
- *   Task 169:    confirmed-email checks in 20261102135000_confirmed_accounts_only.sql use action-specific text
+ *   Task 169: confirmed-email checks in 20261102135000_confirmed_accounts_only.sql use action-specific text
  *                for check_answer/submit_flag and a general message for other RPCs.
  *
  * Never echoes raw database text, SQL, table names or error codes to a student.
  */
 
 export type RpcFunction = 'check_answer' | 'submit_flag' | 'delete_my_account' | 'update_display_name';
+
+/** delete_my_account's refusals (20261102160000_fresh_sign_in_and_name_rules.sql). */
+export const DELETE_SIGNED_OUT = 'sign in to delete your account';
+export const DELETE_REAUTH = 'please sign in again to delete your account';
+/** The SQLSTATE delete_my_account raises when the sign-in is older than 10 minutes. */
+export const DELETE_REAUTH_CODE = '28R01';
 
 interface DbError {
   /** PostgreSQL error message (the string after `raise exception`). */
@@ -75,8 +81,10 @@ export function studentMessage(fn: RpcFunction, error: unknown): string {
   }
 
   if (fn === 'delete_my_account') {
-    // supabase/migrations/20261102110000_delete_my_account.sql (Task 60)
-    if (msg === 'sign in to delete your account') return 'please sign in again to delete your account.';
+    if (msg === DELETE_SIGNED_OUT) return 'please sign in again to delete your account.';
+    if (msg === DELETE_REAUTH || error.code === DELETE_REAUTH_CODE) {
+      return 'for your safety, please sign in again to delete your account.';
+    }
   }
 
   if (fn === 'update_display_name') {
