@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createDemandFrameScheduler, type FrameClock } from '../../src/islands/anatomyframe';
+import { createDemandFrameScheduler, remainingIdleDelay, type FrameClock } from '../../src/islands/anatomyframe';
 
 function manualClock() {
   let id = 0;
@@ -97,6 +97,39 @@ describe('anatomy on-demand frame scheduler', () => {
     expect(draws).toBe(2);
     expect(fake.frames.size).toBe(0);
     expect(fake.delays.size).toBe(0);
+  });
+
+  it('re-arms an early idle wake-up so a label occlusion check is not lost', () => {
+    const fake = manualClock();
+    let now = 1_000;
+    const lastMove = now;
+    let checks = 0;
+    const scheduler = createDemandFrameScheduler(() => {
+      const remaining = remainingIdleDelay(now, lastMove, 120);
+      if (remaining > 0) scheduler.afterIdle(remaining);
+      else checks++;
+      return false;
+    }, fake.clock);
+    scheduler.afterIdle(120);
+    fake.delay();
+    now = 1_119; // the animation frame timestamp is still before the deadline
+    fake.frame();
+    expect(checks).toBe(0);
+    expect(fake.frames.size).toBe(0);
+    expect([...fake.delays.values()][0]?.ms).toBe(1);
+
+    now = 1_121;
+    fake.delay();
+    fake.frame();
+    expect(checks).toBe(1);
+    expect(fake.frames.size).toBe(0);
+    expect(fake.delays.size).toBe(0);
+  });
+
+  it('uses a monotonic idle deadline rather than the earlier RAF timestamp', () => {
+    expect(remainingIdleDelay(1_119, 1_000, 120)).toBe(1);
+    expect(remainingIdleDelay(1_120, 1_000, 120)).toBe(0);
+    expect(remainingIdleDelay(1_125, 1_000, 120)).toBe(0);
   });
 
   it('cancels pending frames and delayed checks when the anatomy scene is disposed', () => {
