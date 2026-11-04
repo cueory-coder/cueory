@@ -90,8 +90,17 @@ test.beforeAll(async () => {
       import { createRoot } from 'react-dom/client';
       import SignIn from './src/islands/SignIn.tsx';
       import ResetPassword from './src/islands/ResetPassword.tsx';
+      import AuthCallback from './src/islands/AuthCallback.tsx';
       const params = new URLSearchParams(location.search);
       window.authCalls = [];
+      // The callback leaves the page on success, so its log survives in this tab's session storage.
+      const log = entry => {
+        const entries = JSON.parse(sessionStorage.getItem('fixture-log') ?? '[]');
+        sessionStorage.setItem('fixture-log', JSON.stringify([...entries, entry]));
+      };
+      const replaceState = history.replaceState.bind(history);
+      history.replaceState = (state, unused, url) => { log('replaced:' + url); replaceState(state, unused, url); };
+      const listeners = new Set();
       window.clientLoads = 0;
       window.clientGate = new Promise(resolve => { window.releaseClient = resolve; });
       const call = async name => {
@@ -108,12 +117,29 @@ test.beforeAll(async () => {
         },
         resetPasswordForEmail: () => call('forgot'),
         updateUser: () => call('update'),
+        onAuthStateChange(listener) {
+          listeners.add(listener);
+          return { data: { subscription: { unsubscribe: () => listeners.delete(listener) } } };
+        },
+        async exchangeCodeForSession(code) {
+          if (this !== auth) throw new Error('auth receiver was lost');
+          window.authCalls.push('exchange');
+          log('exchange:' + code + ' at ' + location.search);
+          await new Promise(resolve => setTimeout(resolve, 150));
+          if (params.has('exchange-fails')) {
+            return { data: { session: null, user: null }, error: { status: 400, message: 'provider-private-detail' } };
+          }
+          const user = { id: 'fake-user-1' };
+          if (params.get('recovery') === 'event') for (const listener of listeners) listener('PASSWORD_RECOVERY', { user });
+          return { data: { session: { user }, user, redirectType: params.get('recovery') === 'typed' ? 'recovery' : null }, error: null };
+        },
       };
       window.fixtureAuth = auth;
       const supplied = params.get('client') === 'injected' ? auth : params.get('client') === 'null' ? null : undefined;
-      createRoot(document.getElementById('fixture')).render(params.get('mode') === 'reset'
-        ? <ResetPassword auth={auth} recoveryReady={!params.has('unverified')} />
-        : <SignIn auth={supplied} mode={params.get('mode') === 'signup' ? 'signup' : 'signin'} />);
+      const mode = params.get('mode');
+      createRoot(document.getElementById('fixture')).render(mode === 'reset' ? <ResetPassword auth={supplied} />
+        : mode === 'callback' ? <AuthCallback auth={supplied} />
+        : <SignIn auth={supplied} mode={mode === 'signup' ? 'signup' : 'signin'} />);
     `, resolveDir: process.cwd(), loader: 'tsx' },
     bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic',
     resolveExtensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
@@ -145,6 +171,9 @@ async function fixture(page: Page, query: string) {
 }
 const fakePassword = 'x'.repeat(12);
 const calls = (page: Page) => page.evaluate(() => (window as unknown as { authCalls: string[] }).authCalls);
+const clientLoads = (page: Page) => page.evaluate(() => (window as unknown as { clientLoads: number }).clientLoads);
+const fixtureLog = (page: Page) => page.evaluate(() => JSON.parse(sessionStorage.getItem('fixture-log') ?? '[]') as string[]);
+const recoveryLink = 'mode=reset&code=fake-code-1&recovery=event';
 
 test.describe('shared client loading', () => {
   test('keeps controls closed until the configured client is ready', async ({ page }) => {
@@ -236,24 +265,46 @@ test.describe('enabled account components with fake shared auth', () => {
   });
 
   test('a query parameter cannot unlock password recovery', async ({ page }) => {
-    await fixture(page, 'mode=reset&unverified=1&recoveryReady=true');
+    await fixture(page, 'mode=reset&recoveryReady=true&recovery=event&type=recovery&redirectType=recovery');
     await expect(page.getByRole('link', { name: 'request a reset link', exact: true })).toBeVisible();
     await expect(page.locator('input')).toHaveCount(0);
     expect(await calls(page)).toEqual([]);
   });
 
+  for (const [label, query] of [
+    ['an ordinary sign-in code', 'mode=reset&code=fake-code-1&recovery=none'],
+    ['a failed exchange', 'mode=reset&code=fake-code-1&recovery=event&exchange-fails=1'],
+  ] as const) test(`${label} keeps the reset form closed`, async ({ page }) => {
+    await fixture(page, query);
+    await expect(page.getByRole('link', { name: 'request a reset link', exact: true })).toBeVisible();
+    await expect(page.locator('input')).toHaveCount(0);
+    expect(await calls(page)).toEqual(['exchange']);
+    expect(page.url()).not.toContain('code=');
+    await expect(page.locator('body')).not.toContainText('provider-private-detail');
+  });
+
+  for (const recovery of ['event', 'typed']) test(`a recovery exchange (${recovery}) opens the form and clears the code`, async ({ page }) => {
+    await fixture(page, `mode=reset&code=fake-code-1&recovery=${recovery}`);
+    await expect(page.getByLabel('password', { exact: true })).toBeVisible();
+    expect(await calls(page)).toEqual(['exchange']);
+    // The code stays in the address during the exchange (supabase-js reads sb_flow_id there), then is removed.
+    expect((await fixtureLog(page))[0]).toBe('exchange:fake-code-1 at ' + `?mode=reset&code=fake-code-1&recovery=${recovery}`);
+    expect(page.url()).not.toContain('code=');
+    expect(await clientLoads(page)).toBe(1);
+  });
+
   test('verified recovery saves once and clears the field', async ({ page }) => {
-    await fixture(page, 'mode=reset');
+    await fixture(page, recoveryLink);
     await page.getByLabel('password', { exact: true }).fill(fakePassword);
     await page.getByRole('button', { name: 'save new password' }).dblclick();
     await expect(page.getByRole('status')).toHaveText('your password has been changed.');
-    expect(await calls(page)).toEqual(['update']);
+    expect(await calls(page)).toEqual(['exchange', 'update']);
     await expect(page.getByLabel('password', { exact: true })).toHaveValue('');
     await expect(page.getByRole('button', { name: 'password changed' })).toHaveAttribute('aria-disabled', 'true');
   });
 
   for (const mode of ['signin', 'signup', 'reset']) test(`${mode} has accessible controls, size and focus`, async ({ page }) => {
-    await fixture(page, `mode=${mode}`);
+    await fixture(page, mode === 'reset' ? recoveryLink : `mode=${mode}`);
     await expect(page.locator('input').first()).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     for (const field of await page.locator('input').all()) {
@@ -280,4 +331,65 @@ test.describe('enabled account components with fake shared auth', () => {
     const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
     expect(result.violations.map(item => item.id)).toEqual([]);
   });
+});
+
+test.describe('sign-in callback with fake shared auth', () => {
+  test('exchanges the code once, removes it, then opens the checked next page', async ({ page }) => {
+    await fixture(page, 'mode=callback&code=fake-code-1&next=%2Fsupport');
+    await page.waitForURL(url => url.pathname === '/support');
+    const entries = await fixtureLog(page);
+    expect(entries).toEqual([
+      'exchange:fake-code-1 at ?mode=callback&code=fake-code-1&next=%2Fsupport',
+      expect.stringMatching(/^replaced:http:\/\/localhost:\d+\/__account-fixture$/),
+    ]);
+  });
+
+  test('sends an unsafe next value to /progress', async ({ page }) => {
+    await fixture(page, `mode=callback&code=fake-code-1&next=${encodeURIComponent('//evil.example')}`);
+    await page.waitForURL(url => url.pathname === '/progress');
+  });
+
+  for (const [label, query, exchanged] of [
+    ['a failed exchange', 'mode=callback&code=fake-code-1&exchange-fails=1', true],
+    ['a provider error', 'mode=callback&error=access_denied&error_description=provider-private-detail', false],
+    ['a missing code', 'mode=callback', false],
+  ] as const) test(`${label} shows one generic sentence and a sign-in link`, async ({ page }) => {
+    await fixture(page, query);
+    await expect(page.getByRole('alert')).toHaveText("sign-in didn't finish. please try again.");
+    await expect(page.getByRole('link', { name: 'back to sign in', exact: true })).toHaveAttribute('href', '/signin');
+    await expect(page.locator('body')).not.toContainText('provider-private-detail');
+    expect(page.url()).not.toMatch(/code=|error/);
+    expect(await calls(page)).toEqual(exchanged ? ['exchange'] : []);
+    // Without a code nothing needs the client, so it is never downloaded.
+    expect(await clientLoads(page)).toBe(exchanged ? 1 : 0);
+    const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+    expect(result.violations.map(item => item.id)).toEqual([]);
+  });
+
+  test('a failed client download is generic too', async ({ page }) => {
+    await fixture(page, 'mode=callback&code=fake-code-1&load-fails=1');
+    await expect(page.getByRole('alert')).toHaveText("sign-in didn't finish. please try again.");
+    await expect(page.locator('body')).not.toContainText('provider-private-detail');
+    expect(await calls(page)).toEqual([]);
+  });
+
+  test('keeps the accounts-off message when the shared client is unconfigured', async ({ page }) => {
+    await fixture(page, 'mode=callback&client=off&code=fake-code-1');
+    await expect(page.getByText("accounts open soon. sign-in isn't available yet.")).toBeVisible();
+    await expect(page.getByRole('link', { name: 'back to home', exact: true })).toHaveAttribute('href', '/#signup');
+    expect(await calls(page)).toEqual([]);
+    expect(page.url()).not.toContain('code=');
+  });
+});
+
+test('/auth/callback with accounts off makes no account requests and drops the code', async ({ page }) => {
+  const remoteRequests: string[] = [];
+  page.on('request', request => {
+    if (/supabase|accounts\.google/.test(new URL(request.url()).hostname)) remoteRequests.push(request.url());
+  });
+  await page.goto('/auth/callback?code=fake-code-1&next=%2Fsupport');
+  await expect(page.getByText("accounts open soon. sign-in isn't available yet.")).toBeVisible();
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
+  expect(new URL(page.url()).search).toBe('');
+  expect(remoteRequests).toEqual([]);
 });

@@ -11,7 +11,7 @@
  */
 import { importRows, type GuestImportRow, type IdMap } from './guestimport';
 import { GUEST_IMPORT_MARKER_PREFIX, runGuestImport, type GuestImportDb } from './guestimportrun';
-import { examPlanRow, importExamPlan, type ExamPlanDb, type ExamPlanRow } from './examplanimport';
+import { examPlanRow, importExamPlan, type ExamPlanDb, type ExamPlanRow, type LegacyExamPlanDb } from './examplanimport';
 import { readProgress, type Progress } from '../scripts/progress';
 import type { KeyValueStorage } from '../scripts/storage';
 import type { SessionState } from './supabaseclient';
@@ -202,7 +202,7 @@ export function cardsDbFrom(client: ImportClient): GuestImportDb {
  * migration), so a real upsert would be refused. Row-level security limits the update to the student's own row, and
  * the update also names the account that accepted the offer.
  */
-export function plansDbFrom(client: ImportClient, userId: string): ExamPlanDb {
+export function plansDbFrom(client: ImportClient, userId: string): LegacyExamPlanDb {
   return {
     async upsert(table, row) {
       const inserted = await client.from(table).insert(row);

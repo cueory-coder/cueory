@@ -5,7 +5,8 @@
 #   and the Release pull request runs everything again before main;
 # - a pull request that only changes Markdown files (outside content/ and src/) skips the build and tests;
 # - pull requests into staging run the browser tests at phone and desktop size, and Release pull requests into main
-#   run every device.
+#   run every device;
+# - the browser tests run in four parts side by side, so each job stays well inside its time limit (Task 308).
 name: CI
 
 on:
@@ -22,12 +23,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  verify:
-    name: Type check, build and test
+  # The work is split so no job comes near its time limit as browser tests grow (Task 308): `checks` type-checks,
+  # builds and runs the unit tests; `browser` runs the Chromium browser tests in four parts side by side, each on its
+  # own runner; `verify` passes only when all of them passed. `verify` keeps the check name "Type check, build and
+  # test" that the staging auto-merge requires (scripts/automerge/decide.ts), so that name still means everything.
+  checks:
+    name: Type check, build and unit tests
     # Drafts wait until they are marked ready for review.
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
+    outputs:
+      docs_only: ${{ steps.scope.outputs.docs_only }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -66,24 +73,79 @@ jobs:
         run: npm run build
       - if: steps.scope.outputs.docs_only != 'true'
         run: npm test
-      - if: steps.scope.outputs.docs_only != 'true'
-        run: npx playwright install --with-deps chromium
+
+  browser:
+    # Playwright's --shard splits the test list into equal parts by test count; every part builds the same commit,
+    # so all parts see the same list and together run every test exactly once. Add a number to `shard` for more parts.
+    name: Browser tests, part ${{ matrix.shard }}
+    needs: checks
+    if: needs.checks.outputs.docs_only != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      # Every part finishes, so one run shows all failing tests at once.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
       - name: Browser tests
-        if: steps.scope.outputs.docs_only != 'true'
+        env:
+          SHARD: ${{ matrix.shard }}
+          SHARDS: ${{ strategy.job-total }}
         run: |
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ] && [ "$GITHUB_BASE_REF" = "staging" ]; then
-            npm run test:e2e -- --project=phone --project=desktop
+            npm run test:e2e -- --project=phone --project=desktop --shard="$SHARD/$SHARDS"
           else
-            npm run test:e2e
+            npm run test:e2e -- --shard="$SHARD/$SHARDS"
           fi
 
       - name: Keep the test report if browser tests fail
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: playwright-report
+          name: playwright-report-part-${{ matrix.shard }}
           path: test-results/
           retention-days: 7
+
+  verify:
+    name: Type check, build and test
+    needs: [checks, browser]
+    # Runs even when a part failed (so this check fails too), but not for drafts or a cancelled run.
+    if: >-
+      !cancelled() &&
+      (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every part passed
+        env:
+          CHECKS: ${{ needs.checks.result }}
+          BROWSER: ${{ needs.browser.result }}
+          DOCS_ONLY: ${{ needs.checks.outputs.docs_only }}
+        run: |
+          echo "Type check, build and unit tests: $CHECKS. Browser tests (all parts): $BROWSER."
+          if [ "$CHECKS" != "success" ]; then
+            echo "::error::Type check, build or unit tests did not pass."
+            exit 1
+          fi
+          # Browser tests are skipped only when the pull request changes nothing but Markdown files.
+          if [ "$DOCS_ONLY" = "true" ] && [ "$BROWSER" = "skipped" ]; then exit 0; fi
+          if [ "$BROWSER" != "success" ]; then
+            echo "::error::At least one part of the browser tests did not pass."
+            exit 1
+          fi
 
   engines:
     # Release pull requests (into main) also run the browser tests in Safari's engine and Firefox (D-48), one job per
