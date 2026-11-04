@@ -19,6 +19,9 @@ import { gameName } from '../../config/games';
       <h2 class="text-lg font-medium text-ink">a game: {gameName('pulse')}</h2>
       <div class="rounded-2xl border border-line p-6">
         <ShareSheet tool="pulse" siteUrl={site.url} client:only="react" />
+        <noscript>
+          <p class="text-sm text-ink-soft">the game share sheet needs javascript. you can copy the page address from your browser instead.</p>
+        </noscript>
       </div>
     </div>
 
@@ -26,6 +29,9 @@ import { gameName } from '../../config/games';
       <h2 class="text-lg font-medium text-ink">study skills</h2>
       <div class="rounded-2xl border border-line p-6">
         <ShareSheet tool="study" siteUrl={site.url} client:only="react" />
+        <noscript>
+          <p class="text-sm text-ink-soft">the study share sheet needs javascript. you can copy the page address from your browser instead.</p>
+        </noscript>
       </div>
     </div>
   </section>

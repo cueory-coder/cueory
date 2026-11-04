@@ -2,9 +2,9 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
 /*
- * Task 66: the /admin/flags inbox. Until Task 65's database functions are wired in, the real page refuses every
- * visitor. The table itself is checked on /preview/admin-flags, which mounts the same island with made-up sample rows
- * kept in the browser.
+ * Task 66: the /admin/flags inbox. This build has accounts off, so the real page refuses every visitor. The table itself
+ * is checked on /preview/admin-flags, which mounts the same island with made-up sample rows kept in the browser. The
+ * page wired to the database functions (Task 305) is checked with a fake client in admin-flags-wired.spec.ts.
  */
 
 const axe = async (page: Page) => {
@@ -94,7 +94,8 @@ test.describe('/admin/flags table (sample rows on the preview page)', () => {
     await page.keyboard.press('Enter');
 
     await expect(target).toContainText('handled');
-    await expect(target.getByRole('button')).toHaveCount(0);
+    await expect(target.getByRole('button', { name: /^mark handled/ })).toHaveCount(0);
+    await expect(target.getByRole('button', { name: /^reopen/ })).toHaveCount(1);
     await expect(target.locator('td:focus')).toHaveCount(1);
     await expect(page.getByRole('status')).toContainText('marked handled: something broken');
     await expect(page.getByTestId('admin-flags-group').nth(0)).toContainText('1 report, 0 not handled');
@@ -104,6 +105,21 @@ test.describe('/admin/flags table (sample rows on the preview page)', () => {
     await expect(rows).toHaveCount(2);
     await page.getByRole('radio', { name: 'not handled' }).check();
     await expect(rows).toHaveCount(2);
+    await axe(page);
+  });
+
+  test('reopen puts a handled report back in the open list (Task 305)', async ({ page }) => {
+    await page.goto('/preview/admin-flags');
+    await page.getByRole('radio', { name: 'handled', exact: true }).check();
+    const rows = page.getByTestId('admin-flags-row');
+    await expect(rows).toHaveCount(1);
+    await rows.first().getByRole('button', { name: /^reopen/ }).click();
+    await expect(rows.first()).toContainText('not handled');
+    await expect(rows.first().getByRole('button', { name: /^mark handled/ })).toHaveCount(1);
+    await expect(rows.first().locator('td:focus')).toHaveCount(1);
+    await expect(page.getByRole('status')).toContainText('reopened:');
+    await page.getByRole('radio', { name: 'not handled' }).check();
+    await expect(rows).toHaveCount(4);
     await axe(page);
   });
 
