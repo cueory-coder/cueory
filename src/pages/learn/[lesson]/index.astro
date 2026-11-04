@@ -24,7 +24,7 @@ const entry = await getEntry('lessons', lesson.id);
 if (!entry) throw new Error(`Lesson file content/lessons/${lesson.id}.json is missing.`);
 const { title, summary, sentences, status } = entry.data;
 const lessonNotice = statusNotice(status, 'lesson');
-const olderLessons = (await lessonCatalog()).lessons.filter((candidate) => !candidate.curriculumId).length;
+const olderLessons = (await lessonCatalog()).lessons.filter((candidate) => !candidate.curriculumId && candidate.name === lesson.name).length;
 const context = !lesson.curriculumId && olderLessons > 1 ? `${lesson.context} of ${olderLessons}` : lesson.context;
 const video = (await getCollection('videos')).find((candidate) => candidate.data.lesson === lesson.id);
 
