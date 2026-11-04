@@ -1,38 +1,39 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-const page = readFileSync(new URL('../../src/pages/learn/study-skills/index.astro', import.meta.url), 'utf8');
-type Lesson = { data: { course: string; order: number } };
+const page = readFileSync(new URL('../../src/pages/learn/[lesson]/index.astro', import.meta.url), 'utf8');
+const catalog = readFileSync(new URL('../../src/lessons/catalog.ts', import.meta.url), 'utf8');
 
-// Execute the page's actual build-time count against a fake content collection.
-// This catches counting unrelated courses without changing public content fixtures.
-const expression = /^const lessonCount = (.+);$/m.exec(page)?.[1];
-if (!expression) throw new Error('The lesson count declaration was not found.');
+type Lesson = { name: string; context: string; curriculumId?: string };
+
+// Execute the generated route's actual build-time count with independent lessons.
+// Legacy lessons from other courses and curriculum lessons must not inflate the total.
+const expression = /^const olderLessons = (.+);$/m.exec(page)?.[1];
+if (!expression) throw new Error('The generated lesson count declaration was not found.');
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
-const countFromPage = new AsyncFunction('getCollection', 'lesson', `return ${expression};`) as (
-  getCollection: (name: string, filter?: (entry: Lesson) => boolean) => Promise<Lesson[]>,
+const countFromPage = new AsyncFunction('lessonCatalog', 'lesson', `return ${expression};`) as (
+  lessonCatalog: () => Promise<{ lessons: Lesson[] }>,
   lesson: Lesson,
 ) => Promise<number>;
 
-function collection(entries: Lesson[]) {
-  return async (name: string, filter?: (entry: Lesson) => boolean) => {
-    expect(name).toBe('lessons');
-    return filter ? entries.filter(filter) : entries;
-  };
-}
+const load = (lessons: Lesson[]) => async () => ({ lessons });
 
-describe('study-skills course lesson count', () => {
-  it('counts only the current course when two courses have lessons', async () => {
-    const first = { data: { course: 'study-skills', order: 1 } };
-    const second = { data: { course: 'study-skills', order: 2 } };
-    const other = { data: { course: 'other-course', order: 1 } };
-    expect(await countFromPage(collection([first, second, other]), second)).toBe(2);
-    expect(await countFromPage(collection([first, second, other]), other)).toBe(1);
+describe('study-skills course lesson count on the generated lesson route', () => {
+  it('counts only legacy lessons in this course, not other courses or curriculum lessons', async () => {
+    const first = { name: 'study skills', context: 'study skills · lesson 1' };
+    const second = { name: 'study skills', context: 'study skills · lesson 2' };
+    const other = { name: 'other course', context: 'other course · lesson 1' };
+    const curriculum = { name: 'study skills', context: 'unit · topic', curriculumId: 'U01-T01-L01' };
+    const entries = [first, second, other, curriculum];
+    expect(await countFromPage(load(entries), second)).toBe(2);
+    expect(await countFromPage(load(entries), other)).toBe(1);
+    expect(await countFromPage(load(entries), curriculum)).toBe(2);
   });
 
-  it('binds the visible lesson number to content order and omits a single-lesson total', async () => {
-    const lesson = { data: { course: 'study-skills', order: 7 } };
-    expect(await countFromPage(collection([lesson, { data: { course: 'other-course', order: 1 } }]), lesson)).toBe(1);
-    expect(page).toContain('lesson {lesson.data.order}{lessonCount > 1 ? ` of ${lessonCount}` : \'\'}');
+  it('gets a legacy lesson number from its content order and hides totals for a single-lesson course', async () => {
+    const single = { name: 'study skills', context: 'study skills · lesson 7' };
+    expect(await countFromPage(load([single, { name: 'other course', context: 'other course · lesson 1' }]), single)).toBe(1);
+    expect(catalog).toContain('const short = place ? file.data.title : `lesson ${file.data.order}`;');
+    expect(page).toContain('const context = !lesson.curriculumId && olderLessons > 1 ? `${lesson.context} of ${olderLessons}` : lesson.context;');
   });
 });
