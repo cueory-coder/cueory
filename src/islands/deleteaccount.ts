@@ -43,6 +43,12 @@ export function deletionSummary(data: ExportData): string[] {
   else if (profile?.displayName) lines.push('your display name');
   else if (profile?.createdAt) lines.push('your account details');
 
+  // The sign-in record Supabase keeps with the account (Task 309): Google's details, sign-in methods and dates.
+  const account = data.account;
+  if (account?.identities?.length || account?.providers?.length || Object.keys(account?.userMetadata ?? {}).length) {
+    lines.push('your sign-in details');
+  }
+
   const guest = isGuestProgress(data.progress) ? data.progress : undefined;
   if (hasSetup(data.onboarding) || hasSetup(guest?.onboarding)) lines.push('your study setup');
 
@@ -69,6 +75,7 @@ export function deletionSummary(data: ExportData): string[] {
   if (data.examPlans?.length) lines.push(`${data.examPlans.length} exam date${data.examPlans.length === 1 ? '' : 's'}`);
   if (data.reviewRows?.length) lines.push(`${data.reviewRows.length} account review schedule${data.reviewRows.length === 1 ? '' : 's'}`);
   if (data.reports?.length) lines.push(`${data.reports.length} report${data.reports.length === 1 ? '' : 's'}`);
+  if (data.sessions?.length) lines.push(`${data.sessions.length} sign-in session${data.sessions.length === 1 ? '' : 's'}`);
   // loadExport supplies the history as pages, which know their count; a short list can also be passed as rows.
   const events = data.studyEvents;
   const eventCount = events === undefined ? 0 : 'count' in events ? events.count : events.length;
