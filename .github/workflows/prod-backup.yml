@@ -1,0 +1,133 @@
+# Nightly encrypted backup of cueory-prod (Task 203, docs/BACKUPS.md option A). DRAFT: waits for Christian's approval.
+#
+# What it does: dumps cueory-prod's roles, schema and data with the pinned Supabase CLI (the commands in Supabase's
+# "Backup and Restore using the CLI" guide), packs the three files and encrypts them with `age` to the public key in
+# .github/age/backup-recipients.txt, then uploads only the encrypted file to an Oracle Cloud Object Storage bucket
+# through a write-only pre-authenticated request. Only Christian's private key can open it.
+#
+# Why it is built this way (the repository is public, D-75, so anyone can read this file and every run's log):
+# - The plain dump exists only in the runner's memory (/dev/shm) and is deleted before upload; nothing unencrypted is
+#   uploaded, kept as an artifact, or printed.
+# - The two secrets are environment secrets of `prod-backup`, which Christian limits to `main`, so a workflow file on
+#   any other branch can't read them. GitHub masks the exact secret values by default. Never echo their contents.
+# - GitHub-hosted runners have no IPv6, so it connects through Supabase's session pooler (IPv4, port 5432).
+# - The log prints each backup's name, size and SHA-256, so a restore can check a file is the one this job uploaded.
+# - Scheduled runs start only from the default branch (`main`), never on the hour (GitHub's busiest time), and GitHub
+#   turns schedules off after 60 days without repository activity.
+name: Production backup
+
+on:
+  schedule:
+    - cron: '41 10 * * *' # 3:41 am in Arizona (UTC-7, no daylight saving)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prod-backup
+  cancel-in-progress: false
+
+defaults:
+  run:
+    # bash with -e and -o pipefail, so a failed dump inside a pipe fails the job.
+    shell: bash
+
+env:
+  # The same pinned Supabase CLI as database.yml.
+  SUPABASE_CLI: supabase@2.122.0
+
+jobs:
+  backup:
+    name: Dump, encrypt and upload cueory-prod
+    if: github.repository == 'lilchristxan/cueory' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: prod-backup
+    steps:
+      # Only the folder with the public key is needed (cone mode also brings the root files, such as .node-version).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/age
+
+      - name: Check the settings without printing them
+        env:
+          PROD_DB_URL: ${{ secrets.PROD_DB_URL }}
+          BACKUP_UPLOAD_URL: ${{ secrets.BACKUP_UPLOAD_URL }}
+        run: |
+          # Validate without printing, splitting, or re-emitting secret material as workflow commands.
+          # Custom dynamic mask commands can themselves become a log/command-injection hazard.
+          case "$PROD_DB_URL" in
+            postgresql://postgres.*@*:5432/postgres) ;;
+            *) echo "PROD_DB_URL must be cueory-prod's Session pooler address (port 5432)."; exit 1 ;;
+          esac
+          case "$BACKUP_UPLOAD_URL" in
+            https://*.oraclecloud.com/p/*/o/) ;;
+            *) echo "BACKUP_UPLOAD_URL must be the Oracle pre-authenticated request address, ending in /o/."; exit 1 ;;
+          esac
+          if ! command grep -qE '^age1[0-9a-z]+$' .github/age/backup-recipients.txt; then
+            echo "Add Christian's age public key to .github/age/backup-recipients.txt first."
+            exit 1
+          fi
+
+      - name: Install age (Ubuntu's signed package)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq age
+          age --version
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+
+      - name: Dump, then encrypt
+        id: dump
+        env:
+          PROD_DB_URL: ${{ secrets.PROD_DB_URL }}
+        run: |
+          umask 077
+          plain="$(mktemp -d /dev/shm/cueory-backup.XXXXXX)"
+          trap 'rm -rf "$plain"' EXIT
+          stamp="$(date -u +%Y-%m-%dT%H%MZ)"
+          out="$RUNNER_TEMP/cueory-prod-$stamp.tar.gz.age"
+          cd "$plain"
+          # Supabase's CLI may include a decoded database password in an error.
+          # Capture its stdout/stderr only in private /dev/shm, deleted by the EXIT trap.
+          # Never rely on GitHub's whole-secret mask for a transformed password fragment.
+          run_private_dump() {
+            local stage="$1"
+            shift
+            if ! npx --yes "$SUPABASE_CLI" db dump --db-url "$PROD_DB_URL" "$@" > "$plain/dump-command.log" 2>&1; then
+              echo "$stage backup failed; no upload attempted."
+              exit 1
+            fi
+          }
+          run_private_dump roles -f roles.sql --role-only
+          run_private_dump schema -f schema.sql
+          run_private_dump data -f data.sql --use-copy --data-only \
+            -x "storage.buckets_vectors" -x "storage.vector_indexes"
+          for f in roles.sql schema.sql data.sql; do
+            if [ ! -s "$f" ]; then echo "$f is empty, so nothing was uploaded."; exit 1; fi
+          done
+          tar -czf - roles.sql schema.sql data.sql \
+            | age --encrypt -R "$GITHUB_WORKSPACE/.github/age/backup-recipients.txt" -o "$out"
+          # An age file always starts with this line; check it before anything leaves the runner.
+          if [ "$(head -c 21 "$out")" != "age-encryption.org/v1" ]; then echo "Encryption check failed."; exit 1; fi
+          echo "file=$out" >> "$GITHUB_OUTPUT"
+          echo "name=prod/$(basename "$out")" >> "$GITHUB_OUTPUT"
+
+      - name: Upload the encrypted file
+        env:
+          BACKUP_UPLOAD_URL: ${{ secrets.BACKUP_UPLOAD_URL }}
+          FILE: ${{ steps.dump.outputs.file }}
+          NAME: ${{ steps.dump.outputs.name }}
+        run: |
+          # --fail stops on an HTTP error; curl's error messages don't include the address. Each name is new, and the
+          # bucket's retention rule refuses overwrites, so a retry after a lost reply can fail even though the file
+          # arrived: check the bucket before running it again.
+          curl --fail --silent --show-error --retry 3 \
+            -X PUT --data-binary "@$FILE" "$BACKUP_UPLOAD_URL$NAME" > /dev/null
+          echo "Uploaded $NAME ($(stat -c %s "$FILE") bytes)"
+          echo "SHA-256 $(sha256sum "$FILE" | cut -d' ' -f1)"
+          rm -f "$FILE"
