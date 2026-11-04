@@ -89,6 +89,14 @@ begin
     raise exception 'sign in to check an answer' using errcode = '28000';
   end if;
 
+  -- Retain Task 169's confirmed, non-anonymous account restriction from merged PR #235.
+  -- MFA alone must never authorize a throwaway or unconfirmed account.
+  if not exists (
+       select 1 from auth.users u
+       where u.id = uid and u.email_confirmed_at is not null and u.is_anonymous is not true
+     ) or coalesce((auth.jwt() ->> 'is_anonymous')::boolean, false) then
+    raise exception 'confirm your email to use this' using errcode = '28000';
+  end if;
   -- A verified second factor makes an aal1 bearer token insufficient, even for this RPC.
   if not (select app_private.mfa_access_allowed()) then
     raise exception 'complete two-factor sign-in to continue' using errcode = '28000';
@@ -133,7 +141,7 @@ begin
   end if;
 
   -- The limit, per person. The lock keeps two quick calls from both slipping under it.
-  perform pg_advisory_xact_lock(hashtextextended(uid::text, 0));
+  perform pg_advisory_xact_lock(hashtextextended('check_answer:' || uid::text, 0));
   if (select count(*) from public.attempts a
         where a.user_id = uid and a.created_at > now() - interval '1 hour') >= hourly_limit then
     raise exception 'too many answers checked this hour; try again later' using errcode = '54000';
@@ -187,6 +195,14 @@ begin
     raise exception 'sign in to send a report' using errcode = '28000';
   end if;
 
+  -- Retain Task 169's confirmed, non-anonymous account restriction from merged PR #235.
+  -- MFA alone must never authorize a throwaway or unconfirmed account.
+  if not exists (
+       select 1 from auth.users u
+       where u.id = uid and u.email_confirmed_at is not null and u.is_anonymous is not true
+     ) or coalesce((auth.jwt() ->> 'is_anonymous')::boolean, false) then
+    raise exception 'confirm your email to use this' using errcode = '28000';
+  end if;
   -- A verified second factor makes an aal1 bearer token insufficient, even for this RPC.
   if not (select app_private.mfa_access_allowed()) then
     raise exception 'complete two-factor sign-in to continue' using errcode = '28000';
@@ -281,6 +297,14 @@ begin
     raise exception 'sign in to record study activity' using errcode = '28000';
   end if;
 
+  -- Retain Task 169's confirmed, non-anonymous account restriction from merged PR #235.
+  -- MFA alone must never authorize a throwaway or unconfirmed account.
+  if not exists (
+       select 1 from auth.users u
+       where u.id = uid and u.email_confirmed_at is not null and u.is_anonymous is not true
+     ) or coalesce((auth.jwt() ->> 'is_anonymous')::boolean, false) then
+    raise exception 'confirm your email to use this' using errcode = '28000';
+  end if;
   -- A verified second factor makes an aal1 bearer token insufficient, even for this RPC.
   if not (select app_private.mfa_access_allowed()) then
     raise exception 'complete two-factor sign-in to continue' using errcode = '28000';

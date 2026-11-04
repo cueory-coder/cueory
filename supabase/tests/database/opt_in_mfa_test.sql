@@ -2,11 +2,11 @@
 -- All accounts, factor IDs and records here are synthetic. Runs on the throwaway Supabase test DB.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(26);
+select plan(36);
 
-insert into auth.users (id, email) values
-  ('00000000-0000-4000-8000-000000000001', 'mfa-one@example.com'),
-  ('00000000-0000-4000-8000-000000000002', 'mfa-two@example.com');
+insert into auth.users (id, email, email_confirmed_at, is_anonymous) values
+  ('00000000-0000-4000-8000-000000000001', 'mfa-one@example.com', now(), false),
+  ('00000000-0000-4000-8000-000000000002', 'mfa-two@example.com', now(), false);
 
 -- User one has an active factor, user two has only an unfinished enrollment.
 insert into auth.mfa_factors (id, user_id, friendly_name, factor_type, status, created_at, updated_at) values
@@ -33,6 +33,11 @@ select results_eq(
   'all five personal data tables have restrictive MFA policies');
 select ok(not has_schema_privilege('anon', 'app_private', 'USAGE'),
   'signed-out visitors cannot resolve the private MFA helper');
+
+select ok(
+  (select prosrc like '%hashtextextended(''check_answer:'' || uid::text, 0)%'
+     from pg_proc where oid = 'public.check_answer(uuid, uuid, text[])'::regprocedure),
+  'the MFA migration preserves the Task 169 distinct answer-check rate-limit lock');
 
 -- A verified factor at aal1 must not expose any personal records or bypass SECURITY DEFINER checks.
 set local role authenticated;
@@ -93,8 +98,47 @@ set local "request.jwt.claim.sub" to '';
 select is((select app_private.mfa_access_allowed()), false,
   'a missing user ID is refused even if the token says aal2');
 
+-- Verify merged Task 169's confirmed-account checks still apply after this later MFA migration.
+-- Each synthetic case is tested with aal2 to ensure MFA cannot bypass account eligibility.
+reset role;
+update auth.users set email_confirmed_at = null where id = '00000000-0000-4000-8000-000000000002';
+set local role authenticated;
+set local "request.jwt.claims" to '{"sub":"00000000-0000-4000-8000-000000000002","role":"authenticated","aal":"aal2"}';
+set local "request.jwt.claim.sub" to '00000000-0000-4000-8000-000000000002';
+select throws_ok($ select public.check_answer(null, null, null) $,
+  '28000', 'confirm your email to use this', 'an unconfirmed user cannot invoke check_answer even with aal2');
+select throws_ok($ select public.submit_flag('/learn/sample', null, null, 'typo', null) $,
+  '28000', 'confirm your email to use this', 'an unconfirmed user cannot invoke submit_flag even with aal2');
+select throws_ok($ select public.record_study_events('[]'::jsonb) $,
+  '28000', 'confirm your email to use this', 'an unconfirmed user cannot invoke record_study_events even with aal2');
+
+reset role;
+update auth.users set email_confirmed_at = now(), is_anonymous = true where id = '00000000-0000-4000-8000-000000000002';
+set local role authenticated;
+set local "request.jwt.claims" to '{"sub":"00000000-0000-4000-8000-000000000002","role":"authenticated","aal":"aal2"}';
+set local "request.jwt.claim.sub" to '00000000-0000-4000-8000-000000000002';
+select throws_ok($ select public.check_answer(null, null, null) $,
+  '28000', 'confirm your email to use this', 'a user marked anonymous in auth.users cannot invoke check_answer even with aal2');
+select throws_ok($ select public.submit_flag('/learn/sample', null, null, 'typo', null) $,
+  '28000', 'confirm your email to use this', 'a user marked anonymous in auth.users cannot invoke submit_flag even with aal2');
+select throws_ok($ select public.record_study_events('[]'::jsonb) $,
+  '28000', 'confirm your email to use this', 'a user marked anonymous in auth.users cannot invoke record_study_events even with aal2');
+
+reset role;
+update auth.users set is_anonymous = false where id = '00000000-0000-4000-8000-000000000002';
+set local role authenticated;
+set local "request.jwt.claims" to '{"sub":"00000000-0000-4000-8000-000000000002","role":"authenticated","aal":"aal2","is_anonymous":true}';
+set local "request.jwt.claim.sub" to '00000000-0000-4000-8000-000000000002';
+select throws_ok($ select public.check_answer(null, null, null) $,
+  '28000', 'confirm your email to use this', 'a caller with the anonymous JWT claim cannot invoke check_answer even with aal2');
+select throws_ok($ select public.submit_flag('/learn/sample', null, null, 'typo', null) $,
+  '28000', 'confirm your email to use this', 'a caller with the anonymous JWT claim cannot invoke submit_flag even with aal2');
+select throws_ok($ select public.record_study_events('[]'::jsonb) $,
+  '28000', 'confirm your email to use this', 'a caller with the anonymous JWT claim cannot invoke record_study_events even with aal2');
+
+reset role;
 set local role anon;
-select throws_ok($$ select public.delete_my_account() $$, '42501', null,
+select throws_ok($ select public.delete_my_account() $, '42501', null,
   'an anonymous visitor still cannot invoke account deletion');
 reset role;
 select results_eq($$ select count(*)::int from auth.users $$,
