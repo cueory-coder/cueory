@@ -170,10 +170,17 @@ describe('loadExport — personal data boundaries', () => {
   it('has empty sections when the account has no rows, without inventing email', async () => {
     const overrides = Object.fromEntries(Object.keys(rows).map(key => [key, { data: [], error: null }]));
     const result = await loadExport(reader(overrides).db);
+    // Empty database tables do not erase the separate signed-in Auth provider metadata.
+    const expectedSignInDetails = Object.entries(googleData)
+      .filter(([, value]) => value === null || ['string', 'number', 'boolean'].includes(typeof value))
+      .map(([name, value]) => ({ name, value }));
     expect(result).toEqual({
       ok: true,
-      data: { profile: {}, account, attempts: [], examPlans: [], reviewRows: [], reports: [], sessions: [],
-        studyEvents: expect.any(StudyEventPages) },
+      data: {
+        profile: {}, account, signInDetails: expectedSignInDetails,
+        attempts: [], examPlans: [], reviewRows: [], reports: [], sessions: [],
+        studyEvents: expect.any(StudyEventPages),
+      },
     });
     if (!result.ok) return;
     expect((result.data.studyEvents as StudyEventPages).count).toBe(0);
