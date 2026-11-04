@@ -18,15 +18,15 @@
 --    profile page's update_display_name (PR #230) also names U+007F to U+009F, because [[:cntrl:]] depends on the
 --    database's locale past ASCII. Neither refused the invisible and direction-changing characters that can make a name
 --    look like someone else's or reverse the text around it. public.display_name_ok is now the one check, and the
---    sign-up trigger uses it; update_display_name calls it once PR #230 is changed to (see the PR notes). The browser's
+--    sign-up trigger and the signed-in update_display_name RPC now both call it. The browser's
 --    checkDisplayName (src/islands/displayname.ts) refuses exactly the same characters. A name is 1 to 50 characters
 --    and has none of:
 --      - control characters: [[:cntrl:]], and U+0001 to U+001F and U+007F to U+009F named outright;
 --      - U+061C, U+200E, U+200F and U+202A to U+202E, U+2066 to U+2069 (direction marks, embeddings, overrides and
 --        isolates);
 --      - U+200B to U+200D, U+2060 to U+2064 and U+FEFF (zero-width and invisible characters).
---    The profiles table's own checks are unchanged. Until PR #230 removes the students' direct update grant on
---    display_name, a direct update still meets only those older table checks.
+--    The profiles table's own checks are unchanged. The already-merged 20261102140000 migration revoked direct
+--    display_name updates from authenticated callers; the RPC now enforces the same shared helper as sign-up.
 --
 -- Grants are re-stated here (D-73). security definer functions keep an empty search_path and schema-qualified names
 -- (Supabase docs, "Database Functions").
