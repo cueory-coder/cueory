@@ -1,6 +1,7 @@
 ---
 import { getEntry } from 'astro:content';
 import Layout from '../../../layouts/Layout.astro';
+import InfoTip from '../../../components/InfoTip.astro';
 import LearnSession from '../../../islands/LearnSession';
 
 const deck = await getEntry('cards', 'study-skills-01');
@@ -14,10 +15,14 @@ const learnCards = cards.map(({ front, back, blank }) => (blank ? { front, back,
 <Layout title={`learn mode: ${title}`} description="learn mode for lesson 1 of how to study for nursing school." variant="study">
   <div class="mx-auto max-w-prose pt-8">
     <p class="text-sm text-ink-soft">how to study for nursing school · lesson 1 · learn mode</p>
-    <h1 class="mt-3 text-2xl">learn mode</h1>
-    <p class="mt-3 text-ink-soft">
-      see each card, choose its answer, then type it. anything you miss comes back until you know every card.
-    </p>
+    <div class="mt-2 flex flex-wrap items-center gap-x-1">
+      <h1 class="text-2xl">learn mode</h1>
+      <InfoTip
+        id="lesson-intro-info"
+        label="learn mode"
+        text="see each card, choose its answer, then type it. anything you miss comes back until you know every card."
+      />
+    </div>
     {status === 'placeholder' && <p class="mt-3 text-sm text-ink-soft">these cards are placeholders.</p>}
 
     <div class="mt-10">
