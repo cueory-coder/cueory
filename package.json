@@ -13,6 +13,7 @@
     "check": "astro check",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "check-sample-content": "node --experimental-strip-types scripts/check-sample-content.ts",
     "check-batch": "node scripts/check_batch.ts",
     "import-batch": "node scripts/import_batch.ts",
     "verify": "npm run check && npm run build && npm test && npm run test:e2e"
