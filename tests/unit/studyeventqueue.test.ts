@@ -211,16 +211,18 @@ describe('Task 146: FIFO sender, batching and retry policy', () => {
     });
   }
 
-  it('clears the queue for a server sign-in refusal and rejects later recordings', async () => {
-    const sender: StudyEventSender = async () => { throw new Error('sign in to record study activity'); };
-    const f = fixture(sender);
-    f.item();
-    f.queue.record('answered');
-    expect((await f.queue.flush()).status).toBe('signed-out');
-    expect(f.queue.state()).toEqual({ pending: 0, nextRetryAt: null, signedOut: true });
-    expect(f.queue.record('skipped')).toBeNull();
-    expect(f.queue.beginItem(ITEM, VERSION)).toBe(false);
-  });
+  for (const refusal of ['sign in to record study activity', 'confirm your email to use this']) {
+    it(`clears the queue for the server refusal "${refusal}" and rejects later recordings`, async () => {
+      const sender: StudyEventSender = async () => { throw new Error(refusal); };
+      const f = fixture(sender);
+      f.item();
+      f.queue.record('answered');
+      expect((await f.queue.flush()).status).toBe('signed-out');
+      expect(f.queue.state()).toEqual({ pending: 0, nextRetryAt: null, signedOut: true });
+      expect(f.queue.record('skipped')).toBeNull();
+      expect(f.queue.beginItem(ITEM, VERSION)).toBe(false);
+    });
+  }
 
   it('does not count a noninteger or malformed RPC return as successful delivery', async () => {
     const f = fixture(async () => Number.NaN);
