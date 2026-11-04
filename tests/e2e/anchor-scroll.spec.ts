@@ -4,30 +4,33 @@ const anchors = ['how-it-works', 'ways-to-study', 'daily-games', 'study-features
 
 test.describe('same-page anchors', () => {
   for (const id of anchors) {
-    test(`#${id} clears the sticky header`, async ({ page }) => {
+    test(`#${id} reaches its home section without overlay obstruction`, async ({ page }) => {
       await page.goto(`/#${id}`);
       const target = page.locator(`#${id}`);
-      const header = page.locator('header[data-scroll-header]');
 
       await expect(target).toBeVisible();
-      await expect(header).toBeVisible();
+      await expect(page).toHaveURL(new RegExp(`#${id}$`));
 
-      const measurements = await page.evaluate((targetId) => {
-        const element = document.getElementById(targetId);
-        const stickyHeader = document.querySelector<HTMLElement>('header[data-scroll-header]');
-        if (!element || !stickyHeader) throw new Error('anchor target or sticky header is missing');
-        const targetStyle = getComputedStyle(element);
+      // The home header is an absolute hero overlay, NOT the sticky header used on other routes.
+      await expect(page.locator('header[data-scroll-header]')).toHaveCount(0);
+      const measurements = await target.evaluate((element) => {
         const targetBox = element.getBoundingClientRect();
-        const headerBox = stickyHeader.getBoundingClientRect();
+        const headerBox = document.querySelector('header')?.getBoundingClientRect();
         return {
-          scrollMarginTop: targetStyle.scrollMarginTop,
-          targetTop: targetBox.top,
-          headerBottom: headerBox.bottom,
+          top: targetBox.top,
+          bottom: targetBox.bottom,
+          viewportHeight: window.innerHeight,
+          overlayBottom: headerBox?.bottom ?? 0,
         };
-      }, id);
+      });
 
-      expect(measurements.scrollMarginTop, id).not.toBe('0px');
-      expect(measurements.targetTop, id).toBeGreaterThanOrEqual(measurements.headerBottom - 1);
+      // The fragment's section must intersect the viewport. If the hero overlay remains
+      // in view, it must not cover the section's beginning.
+      expect(measurements.bottom, id).toBeGreaterThan(0);
+      expect(measurements.top, id).toBeLessThan(measurements.viewportHeight);
+      if (measurements.overlayBottom > 0) {
+        expect(measurements.top, id).toBeGreaterThanOrEqual(measurements.overlayBottom - 1);
+      }
     });
   }
 });
