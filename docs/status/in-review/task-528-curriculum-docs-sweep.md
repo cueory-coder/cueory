@@ -1,0 +1,1 @@
+status: Task 528 curriculum documentation: README, CONTRIBUTING, and ROADMAP describe Draft 4 files and the legacy crosswalk as proposed until their separate reviewed pull requests reach staging. Preserve the historical 19-unit Med-Surg outline. No broken links to absent files, unsupported runnable validator claims, runtime code, or clinical data changes.

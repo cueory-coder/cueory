@@ -1,0 +1,55 @@
+---
+/**
+ * The small ⓘ button (Christian, 2026-11-02): "maybe just add a circle with an i in it if they want the option for more
+ * information". A description that still has some value sits behind it, shown only when the visitor asks.
+ *
+ * It is a real button named "more about <label>" with aria-expanded. A tap, a click, Enter or Space opens the panel
+ * and a second one closes it; Escape closes it too (src/scripts/infotip.ts). Never on hover alone. The panel is in the
+ * page's flow right after the button, so it never covers anything and never needs animating. Without JavaScript the
+ * button couldn't open, so it keeps its space but stays invisible until the script shows it.
+ *
+ * Put it after a label, never inside a heading or a paragraph: the panel is a <div>, and inside a heading its words
+ * would join the heading's name. In a row with `flex flex-wrap items-center`, the button sits beside the label and the
+ * panel takes the next line. Give the text as `text`, or as children for more than one line.
+ *
+ * Keep this file byte-identical wherever a copy exists (Task 109 and Task 168), so whichever pull request merges second
+ * simply drops its copy.
+ */
+interface Props {
+  /** The panel's id, unique on the page. */
+  id: string;
+  /** What the button is about: its name is "more about <label>". */
+  label: string;
+  text?: string;
+}
+
+const { id, label, text } = Astro.props;
+---
+
+<button
+  type="button"
+  class="invisible inline-flex size-(--tap-min) shrink-0 items-center justify-center rounded-pill text-ink-soft hover:text-ink"
+  aria-label={`more about ${label}`}
+  aria-expanded="false"
+  aria-controls={id}
+  data-infotip
+>
+  <svg viewBox="0 0 24 24" class="size-5" aria-hidden="true" focusable="false">
+    <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+    <path d="M12 11v5.5M12 7.6v.1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+  </svg>
+</button>
+<div
+  id={id}
+  class="mt-1 basis-full rounded-md border border-line bg-surface px-4 py-3 text-left text-sm text-ink"
+  hidden
+  data-infotip-panel
+>
+  {text}<slot />
+</div>
+
+<script>
+  import { bindInfoTips } from '../scripts/infotip';
+
+  bindInfoTips(document);
+</script>
