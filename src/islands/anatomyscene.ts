@@ -7,6 +7,7 @@
  * Colors come from the brand tokens at runtime (getComputedStyle), so the model follows the Daytime and Evening palettes.
  */
 import * as THREE from 'three';
+import { indexAnatomyGroup } from './anatomymeshindex';
 import { createDemandFrameScheduler } from './anatomyframe';
 import { loadModelsOrDispose } from './anatomylazy';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -489,37 +490,12 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
       root.add(group);
     }
     group.updateMatrixWorld(true);
-    const wanted = new Set(ids);
-    const owner = new Map<THREE.Object3D, string>();
-    group.traverse((object) => {
-      const name = typeof object.userData['name'] === 'string' ? (object.userData['name'] as string) : object.name;
-      if (wanted.has(name) && !meshesById.has(name)) {
-        meshesById.set(name, []);
-        owner.set(object, name);
-      }
-    });
-    let triangles = 0;
-    group.traverse((object) => {
-      const mesh = object as THREE.Mesh;
-      if (!mesh.isMesh) return;
-      let id: string | undefined;
-      for (let at: THREE.Object3D | null = mesh; at && !id; at = at.parent) id = owner.get(at);
-      for (const material of ([] as THREE.Material[]).concat(mesh.material)) material.dispose();
-      if (!mesh.geometry.getAttribute('normal')) mesh.geometry.computeVertexNormals();
-      mesh.material = new THREE.MeshLambertMaterial();
-      const index = mesh.geometry.getIndex();
-      triangles += (index ? index.count : mesh.geometry.getAttribute('position').count) / 3;
-      if (id) {
-        mesh.userData['structureId'] = id;
-        meshesById.get(id)!.push(mesh);
-      } else {
-        unlabeled.push(mesh);
-      }
-    });
+    const { touched, triangles } = indexAnatomyGroup(group, ids, meshesById, unlabeled);
     const added = ids.filter((id) => (meshesById.get(id)?.length ?? 0) > 0 && !order.includes(id));
     for (const id of ids) if (!added.includes(id) && !order.includes(id)) meshesById.delete(id);
     order = [...order, ...added];
-    for (const id of added) {
+    // Additional GLBs can expand a previously indexed structure's geometry.
+    for (const id of touched) {
       const box = new THREE.Box3();
       for (const mesh of meshesById.get(id)!) box.expandByObject(mesh);
       centers.set(id, box.getCenter(new THREE.Vector3()));
