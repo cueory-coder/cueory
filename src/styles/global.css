@@ -1653,3 +1653,12 @@ html:has(dialog.mode-preview[open]) {
     animation: none !important;
   }
 }
+
+/* Task 234: forced colors removes the segmented labels' background selection.
+   Restore the native radio so the checked state survives the system palette. */
+@media (forced-colors: active) {
+  .segmented-option input[type="radio"] {
+    position: static;
+    opacity: 1;
+  }
+}
