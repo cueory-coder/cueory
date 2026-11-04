@@ -92,9 +92,20 @@ jobs:
           stamp="$(date -u +%Y-%m-%dT%H%MZ)"
           out="$RUNNER_TEMP/cueory-prod-$stamp.tar.gz.age"
           cd "$plain"
-          npx --yes "$SUPABASE_CLI" db dump --db-url "$PROD_DB_URL" -f roles.sql --role-only
-          npx --yes "$SUPABASE_CLI" db dump --db-url "$PROD_DB_URL" -f schema.sql
-          npx --yes "$SUPABASE_CLI" db dump --db-url "$PROD_DB_URL" -f data.sql --use-copy --data-only \
+          # Supabase's CLI may include a decoded database password in an error.
+          # Capture its stdout/stderr only in private /dev/shm, deleted by the EXIT trap.
+          # Never rely on GitHub's whole-secret mask for a transformed password fragment.
+          run_private_dump() {
+            local stage="$1"
+            shift
+            if ! npx --yes "$SUPABASE_CLI" db dump --db-url "$PROD_DB_URL" "$@" > "$plain/dump-command.log" 2>&1; then
+              echo "$stage backup failed; no upload attempted."
+              exit 1
+            fi
+          }
+          run_private_dump roles -f roles.sql --role-only
+          run_private_dump schema -f schema.sql
+          run_private_dump data -f data.sql --use-copy --data-only \
             -x "storage.buckets_vectors" -x "storage.vector_indexes"
           for f in roles.sql schema.sql data.sql; do
             if [ ! -s "$f" ]; then echo "$f is empty, so nothing was uploaded."; exit 1; fi
