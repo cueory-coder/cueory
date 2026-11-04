@@ -70,6 +70,54 @@ describe('initial multi-file model cleanup', () => {
   });
 });
 
+describe('initial GLB cleanup exceptions', () => {
+  it('keeps the original loading error and attempts every decoded scene disposal', async () => {
+    const original = new Error('GLB download unavailable');
+    const attempted: string[] = [];
+    await expect(loadModelsOrDispose(
+      [
+        () => Promise.resolve('first'),
+        () => Promise.resolve('second'),
+        () => Promise.reject(original),
+      ],
+      (value) => {
+        attempted.push(value);
+        if (value === 'first') throw new Error('WebGL disposal failed');
+      },
+    )).rejects.toBe(original);
+    expect(attempted).toEqual(['first', 'second']);
+  });
+
+  it('handles a throwing cleanup for a late GLB without blocking a fresh retry', async () => {
+    const original = new Error('first model failed');
+    let finishLate!: (value: string) => void;
+    let notifyCleanup!: () => void;
+    const cleaned = new Promise<void>((resolve) => { notifyCleanup = resolve; });
+    const attempted: string[] = [];
+    const loading = loadModelsOrDispose(
+      [
+        () => Promise.reject(original),
+        () => new Promise<string>((resolve) => { finishLate = resolve; }),
+      ],
+      (value) => {
+        attempted.push(value);
+        notifyCleanup();
+        throw new Error('GPU context already lost');
+      },
+    );
+    await expect(loading).rejects.toBe(original);
+    finishLate('late model');
+    await cleaned;
+    expect(attempted).toEqual(['late model']);
+
+    await expect(loadModelsOrDispose(
+      [() => Promise.resolve('retry')],
+      (value) => attempted.push(value),
+    )).resolves.toEqual(['retry']);
+    expect(attempted).toEqual(['late model']);
+  });
+});
+
 describe('progressive on-demand model results', () => {
   it('publishes a fast shared GLB before the second file of its layer finishes', async () => {
     let releaseSlow!: (value: string) => void;
