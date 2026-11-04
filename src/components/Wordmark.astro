@@ -19,6 +19,8 @@ interface Props {
   /** Accessible name, when nothing around the logo names the brand. */
   label?: string;
   class?: string;
+  /** Header logos and home hero opt out of lazy loading. */
+  loading?: 'lazy' | 'eager';
 }
 
 const files = {
@@ -26,7 +28,7 @@ const files = {
   emblem: { name: 'emblem', widths: [96, 192, 384], width: 384, height: 428 },
 } as const;
 
-const { variant = 'full', sizes, label, class: className } = Astro.props;
+const { variant = 'full', sizes, label, class: className, loading = 'lazy' } = Astro.props;
 const art = files[variant];
 const path = (mode: 'light' | 'dark', width: number) => `/brand/v1/${art.name}-${mode}-${width}.png`;
 const srcset = (mode: 'light' | 'dark') => art.widths.map((width) => `${path(mode, width)} ${width}w`).join(', ');
@@ -42,6 +44,9 @@ const shownAt = sizes ?? (variant === 'full' ? '15rem' : '2.25rem');
     width={art.width}
     height={art.height}
     alt=""
+    aria-hidden="true"
+    loading={loading}
+    data-image-priority={loading === 'eager' ? 'header' : undefined}
     decoding="async"
     draggable="false"
   />
@@ -53,6 +58,9 @@ const shownAt = sizes ?? (variant === 'full' ? '15rem' : '2.25rem');
     width={art.width}
     height={art.height}
     alt=""
+    aria-hidden="true"
+    loading={loading}
+    data-image-priority={loading === 'eager' ? 'header' : undefined}
     decoding="async"
     draggable="false"
   />
