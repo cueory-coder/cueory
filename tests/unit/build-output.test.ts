@@ -203,6 +203,17 @@ describe.skipIf(!existsSync(dist))('built site', () => {
     expect(served.items.every((item: { status: string }) => item.status === 'sample')).toBe(true);
   });
 
+  it('real questions (Task 172): the page holds no question data and is kept out of search', () => {
+    const html = readFileSync(join(dist, 'learn/questions.html'), 'utf8');
+    expect(html).toContain('<meta name="robots" content="noindex, nofollow">');
+    const props = [...html.matchAll(/<astro-island[^>]*\sprops="([^"]*)"/g)].map((m) => m[1]);
+    expect(props).toEqual([
+      '{}',
+      '{&quot;page&quot;:[0,&quot;/learn/questions.html&quot;],&quot;itemId&quot;:[0],&quot;itemVersionId&quot;:[0],&quot;variant&quot;:[0,&quot;icon&quot;]}',
+    ]);
+    expect(markupOutsideScripts(html)).not.toMatch(/item_answers|is_correct|&quot;(?:key|rationales)&quot;|"(?:key|rationales)"/);
+  });
+
   it('home page: "video" comes first, "learn" is Learn mode, and modes not built yet say coming soon (D-43, D-50, D-60)', () => {
     const html = readFileSync(join(dist, 'index.html'), 'utf8');
     const card = (id: string) => {
