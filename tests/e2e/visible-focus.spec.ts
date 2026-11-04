@@ -86,8 +86,7 @@ test.describe('Task 210: visible keyboard focus', () => {
       const visited = new Set<number>();
       const maxTabs = Math.max(24, controls.length * 3 + 20);
 
-      for (let step = 0; step < maxTabs && visited.size < controls.length; step++) {
-        await page.keyboard.press('Tab');
+      const inspectFocus = async () => {
         const focused = await page.evaluate(({ query, baselines }) => {
           const element = document.activeElement;
           if (!(element instanceof HTMLElement) || element === document.body || element === document.documentElement) return null;
@@ -115,15 +114,41 @@ test.describe('Task 210: visible keyboard focus', () => {
           };
         }, { query: selector, baselines: controls });
 
-        if (!focused || focused.index < 0) continue;
+        if (!focused || focused.index < 0) return null;
         visited.add(focused.index);
         if (!focused.visible) {
           failures.push(controls.find((c) => c.index === focused.index)?.label ?? `control[${focused.index}]`);
         }
+        return focused;
+      };
+
+      for (let step = 0; step < maxTabs && visited.size < controls.length; step++) {
+        await page.keyboard.press('Tab');
+        const focused = await inspectFocus();
 
         // On /play, the crossword widget captures Tab to navigate word cells and only releases on Escape.
-        if (route === '/play' && focused.isCrosswordCell) {
+        // CuewordGame.tsx moves focus directly to the check button on Escape, jumping over the preceding
+        // 26 letters, erase and cue buttons. We inspect the check button destination, then traverse backward
+        // with Shift+Tab through the skipped controls before continuing forward navigation.
+        if (route === '/play' && focused?.isCrosswordCell) {
           await page.keyboard.press('Escape');
+          const checkFocus = await inspectFocus();
+          if (checkFocus) {
+            let backwardSteps = 0;
+            while (backwardSteps < 35) {
+              await page.keyboard.press('Shift+Tab');
+              backwardSteps++;
+              const backFocus = await inspectFocus();
+              if (!backFocus || backFocus.isCrosswordCell) {
+                // Stepped back into the crossword grid or out of the skipped controls; return to check button
+                for (let fwd = 0; fwd < backwardSteps; fwd++) {
+                  await page.keyboard.press('Tab');
+                }
+                await inspectFocus();
+                break;
+              }
+            }
+          }
         }
       }
 
