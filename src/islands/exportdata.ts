@@ -12,15 +12,45 @@
  * Each section has a strict schema: unknown fields are dropped and listed by NAME in `dropped` (never by value), and a
  * bad field reports the field and its row. The database rows never carry a user id, an answer key or a rationale, and
  * if a caller passes one it is dropped like any other unknown field. In CSV, `picked` letters are joined with ";".
- * Row caps: attempts and reviewRows keep their first 50,000 rows, examPlans its first 10 and reports its first 10,000;
- * the rest is reported in `dropped` as `<section>[<cap>+]`. studyEvents has no cap: the whole history is exported.
+ * account is the student's own sign-in record from Supabase Auth (`auth.getUser()`, Task 309): when the account was
+ * made and last signed in, the sign-in methods, `user_metadata` and each identity's `identity_data` (with Google
+ * sign-in: name, profile-photo link, Google account id, email and whether it is verified), copied as plain JSON.
+ * signInDetails retains staging's capped scalar-only user_metadata section and CSV for existing exports.
+ * account.csv lists it one field per line (`identities[0].identityData.name`, …). sessions holds the student's own
+ * sign-in sessions as `my_sessions()` returns them (supabase/migrations/20261102160000): when, browser and IP address,
+ * without the session id, which is only the read cursor.
+ * Row caps: attempts and reviewRows keep their first 50,000 rows, examPlans its first 10, reports and sessions their
+ * first 10,000 and account.identities its first 20; the rest is reported in `dropped` as `<section>[<cap>+]`.
+ * studyEvents has no cap: the whole history is exported.
  */
 import { dailyGames } from '../config/games';
 import { isCourse, isExamDate, PROGRESS_VERSION, type DeckProgress, type Progress } from '../scripts/progress';
 import type { GameStats } from './gamestats';
 
+/** Plain JSON, as Supabase Auth returns `user_metadata` and `identity_data`. */
+export type JsonValue = string | number | boolean | null | readonly JsonValue[] | JsonObject;
+export interface JsonObject { readonly [key: string]: JsonValue }
+
+export interface AccountIdentity {
+  provider: string; identityData: JsonObject; createdAt: string | null; lastSignInAt: string | null;
+}
+export interface SessionRow {
+  createdAt: string | null; updatedAt: string | null; notAfter: string | null; userAgent: string | null; ip: string | null;
+}
+
 export interface ExportData {
-  profile?: { displayName?: string | null; email?: string | null; createdAt?: string | null };
+  profile?: {
+    displayName?: string | null; email?: string | null; createdAt?: string | null;
+    /** Keep the active display-name change limit history already exported on staging. */
+    nameChangeWindowStart?: string | null; nameChangesInWindow?: number;
+  };
+  /** The student's own sign-in record from Supabase Auth, as `auth.getUser()` returns it. */
+  account?: {
+    createdAt?: string | null; lastSignInAt?: string | null; providers?: readonly string[];
+    userMetadata?: JsonObject; identities?: readonly AccountIdentity[];
+  };
+  /** Backward-compatible scalar provider metadata from the signed-in user's own account (staging contract). */
+  signInDetails?: readonly { name: string; value: unknown }[];
   onboarding?: { course?: string | null; examDate?: string | null; done?: boolean; school?: string | null };
   progress?: readonly { id: string; result: string | boolean; date: string }[] | Progress;
   reviewState?: readonly { id: string; nextDueDate: string; interval: number }[];
@@ -36,6 +66,8 @@ export interface ExportData {
   reports?: readonly {
     id: string; page: string; itemId: string | null; itemVersionId: string | null; reason: string; comment: string | null; createdAt: string;
   }[];
+  /** The student's own sign-in sessions, as `my_sessions()` returns them. */
+  sessions?: readonly SessionRow[];
   /**
    * The student's own `study_events` rows: what they did with each question, how long it was on screen, and when.
    * loadExport supplies StudyEventPages; a short list can also be passed as rows.
@@ -47,7 +79,7 @@ export interface StudyEventRow {
 }
 export interface CsvFile { fileName: string; text: string }
 export interface CsvBlob { fileName: string; blob: Blob }
-type Cell = string | number | boolean | null | readonly string[];
+type Cell = string | number | boolean | null | readonly string[] | JsonObject;
 type Row = Record<string, Cell>;
 type Schema = Record<string, (value: unknown) => boolean>;
 const text = (value: unknown) => typeof value === 'string';
@@ -74,7 +106,11 @@ function utcDate(value: unknown): string | undefined {
   return iso.slice(0, -1) + micros + 'Z';
 }
 const date = (value: unknown) => utcDate(value) !== undefined;
-const profileSchema: Schema = { displayName: nullableText, email: nullableText, createdAt: value => value === null || date(value) };
+const profileSchema: Schema = {
+  displayName: nullableText, email: nullableText, createdAt: value => value === null || date(value),
+  nameChangeWindowStart: value => value === null || date(value),
+  nameChangesInWindow: value => typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 10,
+};
 const onboardingSchema: Schema = {
   course: nullableText, examDate: value => value === null || day(value), done: bool, school: nullableText,
 };
@@ -122,10 +158,66 @@ const reviewSchema: Schema = { id: value => text(value) && !!(value as string).t
 const gameSchema: Schema = {
   game: value => dailyGames.some(game => game.id === value), day, solved: bool, tries: whole,
 };
-const sections = ['profile', 'onboarding', 'progress', 'reviewState', 'gameStats', 'attempts', 'examPlans', 'reviewRows', 'reports', 'studyEvents'] as const;
-const rowCaps: Partial<Record<Section, number>> = {
-  attempts: 50_000, examPlans: 10, reviewRows: 50_000, reports: 10_000,
+/**
+ * A fresh copy of plain JSON: own data properties only (getters never run), at most 6 levels deep, 200 entries in an
+ * object or list and 10,000 characters in a text. Anything else gives undefined, so the caller refuses or drops it.
+ */
+export function jsonCopy(value: unknown, depth = 0): JsonValue | undefined {
+  if (value === null || typeof value === 'boolean') return value;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
+  if (typeof value === 'string') return value.length <= 10_000 ? value : undefined;
+  if (depth >= 6) return;
+  if (Array.isArray(value)) {
+    if (value.length > 200 || Object.keys(value).length !== value.length) return;
+    const list: JsonValue[] = [];
+    for (let index = 0; index < value.length; index++) {
+      const copy = jsonCopy(own(value, String(index)), depth + 1);
+      if (copy === undefined) return;
+      list.push(copy);
+    }
+    return list;
+  }
+  if (!plain(value)) return;
+  const keys = Object.keys(value);
+  if (keys.length > 200) return;
+  const entries: [string, JsonValue][] = [];
+  for (const key of keys) {
+    const copy = jsonCopy(own(value, key), depth + 1);
+    if (copy === undefined) return;
+    entries.push([key, copy]);
+  }
+  // fromEntries defines each key as its own property, so a key named __proto__ stays plain data.
+  return Object.fromEntries(entries);
+}
+const jsonObject = (value: unknown) => plain(value) && jsonCopy(value) !== undefined;
+const nullableDate = (value: unknown) => value === null || date(value);
+/** A Supabase Auth provider name, such as google or email. */
+const providerName = (value: unknown) => typeof value === 'string' && /^[a-z0-9_-]{1,40}$/.test(value);
+function providerList(value: unknown): boolean {
+  if (!Array.isArray(value) || value.length > 20 || Object.keys(value).length !== value.length) return false;
+  for (let index = 0; index < value.length; index++) if (!providerName(own(value, String(index)))) return false;
+  return true;
+}
+/** The pre-existing staging sign-in metadata export: a capped list of top-level scalar values. */
+const signInDetailSchema: Schema = {
+  name: value => typeof value === 'string' && value.length >= 1 && value.length <= 100,
+  value: value => value === null || typeof value === 'boolean' || (typeof value === 'number' && Number.isFinite(value)) ||
+    (typeof value === 'string' && value.length <= 2048),
 };
+const accountSchema: Schema = {
+  createdAt: nullableDate, lastSignInAt: nullableDate, providers: providerList, userMetadata: jsonObject,
+  identities: value => Array.isArray(value),
+};
+const identitySchema: Schema = { provider: providerName, identityData: jsonObject, createdAt: nullableDate, lastSignInAt: nullableDate };
+const sessionSchema: Schema = {
+  createdAt: nullableDate, updatedAt: nullableDate, notAfter: nullableDate, userAgent: nullableText, ip: nullableText,
+};
+const sections = ['profile', 'signInDetails', 'account', 'onboarding', 'progress', 'reviewState', 'gameStats', 'attempts', 'examPlans', 'reviewRows', 'reports', 'sessions', 'studyEvents'] as const;
+const rowCaps: Partial<Record<Section, number>> = {
+  signInDetails: 100,
+  attempts: 50_000, examPlans: 10, reviewRows: 50_000, reports: 10_000, sessions: 10_000,
+};
+const IDENTITY_CAP = 20;
 type Section = typeof sections[number];
 interface GuestSnapshot {
   version: typeof PROGRESS_VERSION;
@@ -134,6 +226,9 @@ interface GuestSnapshot {
 }
 interface Sections {
   profile: Row;
+  signInDetails: Row[];
+  /** Row fields, and identities as checked rows. */
+  account: Record<string, Cell | Row[]>;
   onboarding: Row;
   progress: Row[] | GuestSnapshot;
   reviewState: Row[];
@@ -142,6 +237,7 @@ interface Sections {
   examPlans: Row[];
   reviewRows: Row[];
   reports: Row[];
+  sessions: Row[];
   studyEvents: StudyEventText;
 }
 /** Study events already written out: JSON array elements and CSV lines, as text or as one Blob per page. */
@@ -293,6 +389,7 @@ function prepare(data: unknown): { data: Sections; dropped: string[] } {
     ? cleanList(own(source, key), schema, key, dropped, rowCaps[key]) : [];
   const profile = recordSection('profile', profileSchema);
   if (typeof profile.createdAt === 'string') profile.createdAt = utcDate(profile.createdAt)!;
+  if (typeof profile.nameChangeWindowStart === 'string') profile.nameChangeWindowStart = utcDate(profile.nameChangeWindowStart)!;
   const suppliedProgress = own(source, 'progress');
   const progress = !Object.hasOwn(source, 'progress') ? [] : Array.isArray(suppliedProgress)
     ? cleanList(suppliedProgress, progressSchema, 'progress', dropped) : cleanGuest(suppliedProgress, dropped) ?? [];
@@ -308,6 +405,24 @@ function prepare(data: unknown): { data: Sections; dropped: string[] } {
   for (const row of reports) row.createdAt = utcDate(row.createdAt)!;
   const reviewRows = listSection('reviewRows', reviewRowSchema);
   for (const row of reviewRows) row.updatedAt = utcDate(row.updatedAt)!;
+  const sessions = listSection('sessions', sessionSchema);
+  for (const row of sessions) {
+    for (const key of ['createdAt', 'updatedAt', 'notAfter']) if (typeof row[key] === 'string') row[key] = utcDate(row[key])!;
+  }
+  const account: Sections['account'] = recordSection('account', accountSchema);
+  for (const key of ['createdAt', 'lastSignInAt']) if (typeof account[key] === 'string') account[key] = utcDate(account[key])!;
+  if (Object.hasOwn(account, 'providers')) account.providers = Array.from(account.providers as readonly string[]);
+  if (Object.hasOwn(account, 'userMetadata')) account.userMetadata = jsonCopy(account.userMetadata) as JsonObject;
+  if (Object.hasOwn(account, 'identities')) {
+    // The schema only checked that identities is a list; each identity is checked here, from the caller's own list.
+    const identities = cleanList(own(own(source, 'account') as object, 'identities'), identitySchema, 'account.identities',
+      dropped, IDENTITY_CAP);
+    for (const row of identities) {
+      row.identityData = jsonCopy(row.identityData) as JsonObject;
+      for (const key of ['createdAt', 'lastSignInAt']) if (typeof row[key] === 'string') row[key] = utcDate(row[key])!;
+    }
+    account.identities = identities;
+  }
   const supplied = own(source, 'studyEvents');
   let studyEvents: StudyEventText = { count: 0, json: [], csv: [] };
   if (supplied instanceof StudyEventPages) {
@@ -323,6 +438,8 @@ function prepare(data: unknown): { data: Sections; dropped: string[] } {
   return {
     data: {
       profile,
+      signInDetails: listSection('signInDetails', signInDetailSchema),
+      account,
       onboarding: recordSection('onboarding', onboardingSchema),
       progress,
       reviewState: listSection('reviewState', reviewSchema),
@@ -331,6 +448,7 @@ function prepare(data: unknown): { data: Sections; dropped: string[] } {
       examPlans,
       reviewRows,
       reports,
+      sessions,
       studyEvents,
     },
     dropped: [...dropped].sort(),
@@ -376,7 +494,8 @@ export function exportJsonBlob(data: unknown, exportDate: string): Blob {
 }
 
 function csvCell(value: Cell | undefined): string {
-  let cell = value === null || value === undefined ? '' : typeof value === 'object' ? value.join(';') : String(value);
+  let cell = value === null || value === undefined ? '' : typeof value !== 'object' ? String(value)
+    : Array.isArray(value) ? value.join(';') : JSON.stringify(value);
   if (/^[=+\-@\t\r\n]/.test(cell)) cell = `'${cell}`;
   return /[",\r\n]/.test(cell) ? `"${cell.replace(/"/g, '""')}"` : cell;
 }
@@ -385,6 +504,27 @@ function csvLines(headers: string[], rows: Row[]): string {
 }
 function csv(headers: string[], rows: Row[]): string {
   return headers.map(csvCell).join(',') + '\r\n' + csvLines(headers, rows);
+}
+
+/**
+ * account.csv: one line per field, in the JSON's order. Nested JSON is named by its path, such as
+ * `userMetadata.custom_claims.hd` or `identities[0].identityData.name`; sign-in methods are joined with ";".
+ */
+function accountRows(account: Sections['account']): Row[] {
+  const rows: Row[] = [];
+  const add = (field: string, value: unknown) => {
+    if (value === undefined) return;
+    if (value !== null && typeof value === 'object' && !(field === 'providers' && Array.isArray(value))) {
+      const children = Array.isArray(value)
+        ? value.map((child, index) => [`${field}[${index}]`, child] as const)
+        : Object.entries(value).map(([key, child]) => [`${field}.${key}`, child] as const);
+      for (const [name, child] of children) add(name, child);
+      return;
+    }
+    rows.push({ field, value: value as Cell });
+  };
+  for (const key of Object.keys(accountSchema)) add(key, account[key]);
+  return rows;
 }
 
 function csvParts(data: unknown): { fileName: string; parts: (string | Blob)[] }[] {
@@ -405,6 +545,8 @@ function csvParts(data: unknown): { fileName: string; parts: (string | Blob)[] }
   const file = (fileName: string, headers: string[], rows: Row[]) => ({ fileName, parts: [csv(headers, rows)] });
   return [
     file('profile.csv', Object.keys(profileSchema), recordRows(clean.data.profile)),
+    file('signInDetails.csv', Object.keys(signInDetailSchema), clean.data.signInDetails),
+    file('account.csv', ['field', 'value'], accountRows(clean.data.account)),
     file('onboarding.csv', Object.keys(onboardingSchema), recordRows(clean.data.onboarding)),
     file('progress.csv', [...Object.keys(progressSchema), 'deckId', 'progressVersion', 'course', 'examDate', 'done'], progressRows),
     file('reviewState.csv', Object.keys(reviewSchema), clean.data.reviewState),
@@ -413,6 +555,7 @@ function csvParts(data: unknown): { fileName: string; parts: (string | Blob)[] }
     file('examPlans.csv', Object.keys(examPlanSchema), clean.data.examPlans),
     file('reviewRows.csv', Object.keys(reviewRowSchema), clean.data.reviewRows),
     file('reports.csv', Object.keys(reportSchema), clean.data.reports),
+    file('sessions.csv', Object.keys(sessionSchema), clean.data.sessions),
     { fileName: 'studyEvents.csv', parts: [csv(studyEventHeaders, []), ...clean.data.studyEvents.csv] },
     file('dropped.csv', ['dropped'], clean.dropped.map(dropped => ({ dropped }))),
   ];

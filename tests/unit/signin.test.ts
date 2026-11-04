@@ -118,7 +118,7 @@ describe('auth request contracts', () => {
       else vi.mocked(auth.resetPasswordForEmail).mockResolvedValue({ error: kind === 'success' ? null : { status: kind === 'rate-limited' ? 429 : 400 } });
       const result = await performAuthAction(auth, 'forgot', { ...valid, password: '', name: '' }, origin, '//outside.test');
       expect(auth.resetPasswordForEmail).toHaveBeenCalledExactlyOnceWith(valid.email.trim(), {
-        redirectTo: `${origin}/auth/callback?next=%2Freset-password`,
+        redirectTo: `${origin}/reset-password`,
       });
       expect(result).toEqual({ kind: 'feedback', message: signInMessage('reset-sent'), cooldown: true });
     },
@@ -218,15 +218,21 @@ describe('account screen rendering', () => {
     else expect(html).toContain('forgot password?');
     for (const method of Object.values(auth)) expect(method).not.toHaveBeenCalled();
   });
-  it('renders no password field on recovery without a verified session', () => {
-    const auth = { updateUser: vi.fn() };
+  it('renders no password field on recovery before the code is checked', () => {
+    const auth = { updateUser: vi.fn(), exchangeCodeForSession: vi.fn(), onAuthStateChange: vi.fn() };
     const html = renderToStaticMarkup(createElement(ResetPassword, { auth }));
-    expect(html).toContain('request a reset link');
+    expect(html).toContain('checking your reset link');
     expect(html).not.toContain('<input');
-    expect(auth.updateUser).not.toHaveBeenCalled();
+    for (const method of Object.values(auth)) expect(method).not.toHaveBeenCalled();
+  });
+  it('waits for browser hydration before loading the reset client', () => {
+    const html = renderToStaticMarkup(createElement(ResetPassword));
+    expect(html).toContain('checking your reset link');
+    expect(html).not.toContain('<input');
+    expect(getSupabase).not.toHaveBeenCalled();
   });
   it('renders accounts-off on the reset page too', () => {
-    const html = renderToStaticMarkup(createElement(ResetPassword));
+    const html = renderToStaticMarkup(createElement(ResetPassword, { auth: null }));
     expect(html).toContain(signInMessage('unavailable'));
     expect(html).not.toContain('<input');
   });

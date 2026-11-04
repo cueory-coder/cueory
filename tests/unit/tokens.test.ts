@@ -8,6 +8,15 @@ const [eveningDeviceCss, eveningPickedCss] = eveningCss.split(':root[data-theme=
 const daytime = readColorTokens(daytimeCss);
 const evening = { ...daytime, ...readColorTokens(eveningDeviceCss) };
 
+describe('picture export tokens (Task 178)', () => {
+  it('defines every --export-* size the exporter reads', () => {
+    const source = readFileSync(new URL('../../src/islands/anatomyscene.ts', import.meta.url), 'utf8');
+    const names = [...source.matchAll(/'(--export-[a-z-]+)'/g)].map((m) => m[1]!);
+    expect(names.length).toBeGreaterThan(10);
+    for (const name of names) expect(css).toMatch(new RegExp(`${name}:\\s*[0-9.]+;`));
+  });
+});
+
 describe('evening palette copies', () => {
   it('has one copy for Follow device and one for a Dark pick', () => {
     expect(eveningDeviceCss).toContain(':root:not([data-theme="light"])');
