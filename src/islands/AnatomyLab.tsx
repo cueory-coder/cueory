@@ -8,7 +8,7 @@ import {
   type MutableRefObject,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import { createGeneration, createOnDemandLoader, filesForLayer, idsForFiles, initialLayerPlan, firstLayer, layerNeedsReveal, visibilityAfterLayerDownload, lazyPeel, lazyRestore, PartialLoadError, revealTargetPlan, showAllPlan, structureLoadNote, type OnDemandLoader } from './anatomylazy';
+import { createGeneration, createOnDemandLoader, filesForLayer, fileReadyForStructureStatus, knownMissingStructureIds, idsForFiles, initialLayerPlan, firstLayer, layerNeedsReveal, visibilityAfterLayerDownload, lazyPeel, lazyRestore, PartialLoadError, revealTargetPlan, showAllPlan, structureLoadNote, type OnDemandLoader } from './anatomylazy';
 import type { LabColors, LabScene, LoadResult } from './anatomyscene';
 import { STRUCTURE_PAGE_SIZE, visibleStructureGroups } from './anatomy-list-window';
 import { anatomyTriangleNote } from './anatomybudget';
@@ -730,6 +730,21 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
   const selectedGroup = selected ? system.structures.find((s) => s.id === selected)?.group : undefined;
   const budget = load.state === 'ready' ? anatomyTriangleNote(load.result.triangles, filesLoaded, lazy) : null;
   const ready = load.state === 'ready';
+  // A completed download is not yet part of the found-ID set while a layer batch settles.
+  const fileIntegratedForStatus = (url: string) =>
+    fileReadyForStructureStatus(loaderRef.current?.isLoaded(url) ?? false, pending.size);
+  // Check all eligible model files before reporting a missing structure.
+  const missingCount = !ready
+    ? 0
+    : lazy
+      ? knownMissingStructureIds(
+          system.structures,
+          foundSet,
+          (layerId) => filesForLayer(system, layerId),
+          system.model.files ?? [system.model.file],
+          fileIntegratedForStatus,
+        ).length
+      : load.result.missing.length;
   const targetName = quiz?.target ? (names.get(quiz.target) ?? quiz.target) : null;
 
   return (
@@ -933,8 +948,10 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
             </p>
             <p>{releaseNoteFor(system)}</p>
             {budget && <p className="text-ink" data-testid="anatomy-budget-note">{budget}</p>}
-            {ready && load.result.missing.length > 0 && (
-              <p>{load.result.missing.length} listed structures aren't in this model file.</p>
+            {ready && missingCount > 0 && (
+              <p data-testid="anatomy-missing-count">
+                {missingCount} listed structures were not found in the loaded model files.
+              </p>
             )}
           </div>
 
@@ -1095,7 +1112,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                     const isHidden = hidden.has(item.id);
                     const loadNote = structureLoadNote(
                       item, foundSet, lazy, (id) => filesForLayer(system, id),
-                      system.model.files ?? [], (url) => loaderRef.current?.isLoaded(url) ?? false,
+                      system.model.files ?? [], fileIntegratedForStatus,
                     );
                     return (
                       <li

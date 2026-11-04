@@ -128,6 +128,33 @@ export function structureLoadNote(
 }
 
 /**
+ * A downloaded GLB can be marked complete before its found IDs are integrated.
+ * Delay absence decisions until every outstanding layer batch has settled.
+ */
+export function fileReadyForStructureStatus(isLoaded: boolean, pendingLayerBatches: number): boolean {
+  return isLoaded && pendingLayerBatches === 0;
+}
+
+/**
+ * Count only IDs absent from the combined scene once all their candidate
+ * GLB files are loaded. Shared model files can make per-file missing lists
+ * misleading until every eligible file has finished.
+ */
+export function knownMissingStructureIds(
+  structures: readonly Pick<AnatomyStructure, 'id' | 'layer'>[],
+  found: ReadonlySet<string>,
+  filesOfLayer: (layerId: string) => readonly string[],
+  filesOfSystem: readonly string[],
+  isLoaded: (url: string) => boolean,
+): string[] {
+  return structures
+    .filter((structure) =>
+      structureLoadNote(structure, found, true, filesOfLayer, filesOfSystem, isLoaded) === 'not in this model',
+    )
+    .map((structure) => structure.id);
+}
+
+/**
  * "Show all" in the lazy view: the structures to unhide right away (those in layers whose files are all loaded, and any
  * in no layer) and the layers that must be fetched first, each shown only once its files are there.
  */
