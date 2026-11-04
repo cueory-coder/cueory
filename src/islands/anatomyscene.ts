@@ -8,7 +8,7 @@
  */
 import * as THREE from 'three';
 import { indexAnatomyGroup } from './anatomymeshindex';
-import { createDemandFrameScheduler } from './anatomyframe';
+import { createDemandFrameScheduler, remainingIdleDelay } from './anatomyframe';
 import { loadModelsOrDispose } from './anatomylazy';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -256,17 +256,24 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
   };
   // OrbitControls.update() returns true while damping still moves the camera (three.js r187).
   // Only those moving frames are repeated. Camera changes reset a single delayed visibility check.
-  const tick = (time: number): boolean => {
+  const tick = (): boolean => {
     const moving = controls.enableDamping ? controls.update() : false;
-    if (visibilityDirty && root && time - lastMove >= VISIBILITY_IDLE_MS) {
-      visibilityDirty = false;
-      if (labelIds.length > 0) {
-        const w = canvas.clientWidth || 1;
-        const h = canvas.clientHeight || 1;
-        visibility = visibilityFor(camera, labelIds, w, h);
-        needsRender = true; // redraw, so the labels pick up the new anchors and marks
+    if (visibilityDirty && root) {
+      // Both timestamps use performance.now(). A delayed frame that fires early
+      // must re-arm the visibility check rather than leaving stale occlusion labels.
+      const remaining = remainingIdleDelay(performance.now(), lastMove, VISIBILITY_IDLE_MS);
+      if (remaining > 0) {
+        if (labelIds.length > 0) scheduler.afterIdle(remaining);
       } else {
-        visibility = new Map();
+        visibilityDirty = false;
+        if (labelIds.length > 0) {
+          const w = canvas.clientWidth || 1;
+          const h = canvas.clientHeight || 1;
+          visibility = visibilityFor(camera, labelIds, w, h);
+          needsRender = true; // redraw so label anchors and behind marks refresh
+        } else {
+          visibility = new Map();
+        }
       }
     }
     if (needsRender) {
