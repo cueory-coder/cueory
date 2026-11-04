@@ -83,17 +83,17 @@ const ways = availableModes.length;
         {/* Preserve the existing reader, including the printed and no-JavaScript fallbacks. */}
         <div data-print-hidden>
           <SentenceStepper client:only="react" sentences={sentences} />
+          <noscript data-print-hidden>
+            <ol data-print-hidden class="space-y-stack">
+              {sentences.map((sentence) => <li class="text-lg">{sentence.text}</li>)}
+            </ol>
+          </noscript>
         </div>
         <div data-print-only data-testid="print-lesson-reader">
           <ul class="space-y-stack list-decimal">
             {sentences.map((sentence) => <li class="text-lg">{sentence.text}</li>)}
           </ul>
         </div>
-        <noscript data-print-hidden>
-          <ol data-print-hidden class="space-y-stack">
-            {sentences.map((sentence) => <li class="text-lg">{sentence.text}</li>)}
-          </ol>
-        </noscript>
       </div>
     </section>
 
