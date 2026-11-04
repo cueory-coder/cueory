@@ -2,13 +2,26 @@ import { describe, expect, it } from 'vitest';
 import type { AnatomyStructure, AnatomySystem } from '../../src/islands/anatomylab';
 import { LAYERS, wholeBody, layersOf, layerShown, type Layer } from '../../src/islands/anatomylayers';
 import { onlyThis } from '../../src/islands/anatomylab';
-import { PartialLoadError, revealTargetPlan, showAllPlan, createGeneration, loadModelsOrDispose, createOnDemandLoader, visibilityAfterLayerDownload, filesForLayer, firstLayer, idsForFiles, initialLayerPlan, layerNeedsReveal, lazyPeel, lazyRestore, structureLoadNote } from '../../src/islands/anatomylazy';
+import { PartialLoadError, revealTargetPlan, showAllPlan, createGeneration, loadModelsOrDispose, uniqueAnatomyModelUrls, createOnDemandLoader, visibilityAfterLayerDownload, filesForLayer, firstLayer, idsForFiles, initialLayerPlan, layerNeedsReveal, lazyPeel, lazyRestore, structureLoadNote } from '../../src/islands/anatomylazy';
 
 const layers: Layer[] = [
   { id: 'skin', ids: ['s1'] },
   { id: 'muscle', ids: ['m1', 'm2'] },
   { id: 'skeleton', ids: ['b1'] },
 ];
+
+describe('anatomy scene URL deduplication', () => {
+  it('keeps unique URLs in original order without mutating the caller array', () => {
+    const input = Object.freeze(['shared.glb', 'heart.glb', 'shared.glb', 'brain.glb', 'heart.glb']);
+    expect(uniqueAnatomyModelUrls(input)).toEqual(['shared.glb', 'heart.glb', 'brain.glb']);
+    expect(input).toHaveLength(5);
+  });
+
+  it('handles a single URL and an empty batch', () => {
+    expect(uniqueAnatomyModelUrls('skin.glb')).toEqual(['skin.glb']);
+    expect(uniqueAnatomyModelUrls([])).toEqual([]);
+  });
+});
 
 describe('initial multi-file model cleanup', () => {
   it('preserves file order on success even when requests finish out of order', async () => {
