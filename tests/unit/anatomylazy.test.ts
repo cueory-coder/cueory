@@ -269,6 +269,41 @@ describe('on-demand structure status', () => {
     expect(structureLoadNote({ id: 'missing', layer: 'organs' }, new Set(), false, filesOf, allFiles, isLoaded)).toBe('not in this model');
   });
 
+  it('does not wait for an unrelated file when the missing structure owner already loaded', () => {
+    const owners = { 'heart.glb': ['part-a'], 'lungs.glb': ['part-b'] };
+    expect(structureLoadNote(
+      { id: 'part-a', layer: 'organs' }, new Set(), true,
+      filesOf, allFiles, isLoaded, owners,
+    )).toBe('not in this model');
+    expect(structureLoadNote(
+      { id: 'part-b', layer: 'organs' }, new Set(), true,
+      filesOf, allFiles, isLoaded, owners,
+    )).toBe('not loaded yet');
+  });
+
+  it('waits for every owning GLB when a structure ID is shared across files', () => {
+    const owners = { 'heart.glb': ['shared'], 'lungs.glb': ['shared'] };
+    const shared = { id: 'shared', layer: 'organs' as const };
+    expect(structureLoadNote(shared, new Set(), true, filesOf, allFiles, isLoaded, owners))
+      .toBe('not loaded yet');
+    expect(structureLoadNote(shared, new Set(), true, filesOf, allFiles, () => true, owners))
+      .toBe('not in this model');
+    expect(structureLoadNote(shared, new Set(['shared']), true, filesOf, allFiles, isLoaded, owners))
+      .toBeNull();
+  });
+
+  it('uses exact owner metadata when present and legacy layer files when absent', () => {
+    const owners = { 'heart.glb': ['part-a'], 'lungs.glb': ['part-b'] };
+    expect(structureLoadNote(
+      { id: 'not-mapped', layer: 'organs' }, new Set(), true,
+      filesOf, allFiles, isLoaded, owners,
+    )).toBe('not in this model');
+    expect(structureLoadNote(
+      { id: 'not-mapped', layer: 'organs' }, new Set(), true,
+      filesOf, allFiles, isLoaded,
+    )).toBe('not loaded yet');
+  });
+
   it('treats an unlayered structure as pending while whole-body files remain unfetched', () => {
     expect(structureLoadNote({ id: 'unlayered' }, new Set(), true, filesOf, allFiles, isLoaded)).toBe('not loaded yet');
   });

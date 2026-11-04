@@ -108,14 +108,43 @@ export function structureLoadNote(
   filesOfLayer: (layerId: string) => readonly string[],
   filesOfSystem: readonly string[],
   isLoaded: (url: string) => boolean,
+  fileIds?: Readonly<Record<string, readonly string[]>>,
 ): 'not loaded yet' | 'not in this model' | null {
   if (found.has(structure.id)) return null;
   if (lazy) {
     const layerFiles = structure.layer ? filesOfLayer(structure.layer) : [];
-    const files = layerFiles.length ? layerFiles : filesOfSystem;
+    // The whole-body manifest records exact GLB owners for each ID. An
+    // unrelated pending file in the same layer is not an owner.
+    const files = fileIds
+      ? Object.entries(fileIds).filter(([, ids]) => ids.includes(structure.id)).map(([url]) => url)
+      : layerFiles.length ? layerFiles : filesOfSystem;
     if (files.some((url) => !isLoaded(url))) return 'not loaded yet';
   }
   return 'not in this model';
+}
+
+/**
+ * Download completion can precede the React render that publishes the file's
+ * mesh IDs. Suppress missing warnings during a pending layer batch.
+ */
+export function fileReadyForStructureStatus(isLoaded: boolean, pendingLayerBatches: number): boolean {
+  return isLoaded && pendingLayerBatches === 0;
+}
+
+/** Count only verified missing IDs using the same owning-file rule as the list. */
+export function knownMissingStructureIds(
+  structures: readonly Pick<AnatomyStructure, 'id' | 'layer'>[],
+  found: ReadonlySet<string>,
+  filesOfLayer: (layerId: string) => readonly string[],
+  filesOfSystem: readonly string[],
+  isLoaded: (url: string) => boolean,
+  fileIds?: Readonly<Record<string, readonly string[]>>,
+): string[] {
+  return structures
+    .filter((structure) =>
+      structureLoadNote(structure, found, true, filesOfLayer, filesOfSystem, isLoaded, fileIds) === 'not in this model',
+    )
+    .map((structure) => structure.id);
 }
 
 /**
