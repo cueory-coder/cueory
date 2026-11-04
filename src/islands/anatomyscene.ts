@@ -7,7 +7,7 @@
  * Colors come from the brand tokens at runtime (getComputedStyle), so the model follows the Daytime and Evening palettes.
  */
 import * as THREE from 'three';
-import { disposeAnatomyMeshResources, indexAnatomyGroup } from './anatomymeshindex';
+import { disposeAnatomyMaterials, disposeAnatomyMeshResources, indexAnatomyGroup } from './anatomymeshindex';
 import { createDemandFrameScheduler, remainingIdleDelay } from './anatomyframe';
 import { loadModelsOrDispose } from './anatomylazy';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -305,8 +305,9 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
     unlabeled = [];
     visibility = new Map();
     visibilityDirty = true;
-    for (const material of idMaterials) material.dispose();
+    const oldIdMaterials = idMaterials;
     idMaterials = [];
+    disposeAnatomyMaterials(oldIdMaterials);
   }
 
   function applyAppearance() {
@@ -810,7 +811,7 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
       controls.removeEventListener('change', onCameraChange);
       controls.dispose();
       disposeModel();
-      nothing.dispose();
+      disposeAnatomyMaterials([nothing]);
       idTarget.dispose();
       renderer.dispose();
     },
