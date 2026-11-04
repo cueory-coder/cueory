@@ -513,7 +513,9 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
       return null;
     }
     const result = integrate(group, ids, true);
-    order = ids.filter((id) => (meshesById.get(id)?.length ?? 0) > 0);
+    // Keep initial-load order unique as well. integrate() already deduplicates
+    // its result, but reassigning from raw ids here would undo that guarantee.
+    order = [...new Set(ids)].filter((id) => (meshesById.get(id)?.length ?? 0) > 0);
     appearance = { hidden: new Set(), selected: null };
     applyAppearance();
     frame();
