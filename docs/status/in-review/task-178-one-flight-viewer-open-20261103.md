@@ -1,5 +1,7 @@
 # Task 178 — guard duplicate Anatomy Lab viewer starts
 
+status: Task 178 Anatomy Lab single-flight startup and unmount cancellation, in review on PR #547. Exact-head browser CI and lead approval pending.
+
 ## Change
 - One startup at a time, including rapid repeated activation of **open the anatomy lab**.
 - Drop async imports/frame waits when the student navigates away before the viewer opens.
