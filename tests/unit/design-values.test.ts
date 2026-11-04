@@ -48,10 +48,16 @@ const exceptions: Exception[] = [
     reason: 'label boxes are positioned from submitted image percentages at runtime',
   },
   {
+  {
+    kind: 'size',
+    path: 'styles/pillo.css',
+    matches: text => /^@media \(width >= 40rem\) \{$/.test(text.trim()),
+    reason: 'the Pillo board changes layout at a responsive media-query breakpoint',
+  },
     kind: 'size',
     path: 'styles/global.css',
     matches: text =>
-      /@media .*\b(?:40|64)rem\b/.test(text) ||
+      /@media .*\b(?:40|48|64)rem\b/.test(text) ||
       /text-decoration-thickness: [12]px/.test(text) ||
       /--scene-fade-(?:top|bottom): 0px/.test(text) ||
       /background-size: 220px 220px/.test(text) ||
