@@ -63,10 +63,11 @@ test.describe('label it without JavaScript', () => {
     const response = await page.goto('/learn/study-skills/label-it');
     expect(response?.status()).toBe(200);
     await expect(page.locator('main h1')).toHaveText('label it');
-    await expect(page.locator('main')).toContainText('label it needs JavaScript.');
-    await expect(page.getByRole('link', { name: 'lesson page', exact: true })).toHaveAttribute(
-      'href',
-      '/learn/study-skills',
-    );
+    // The no-JavaScript fallback must remain a usable route back to the lesson.
+    // Check the visible link instead of relying on how browsers expose <noscript> text.
+    await expect(page.getByTestId('labelit')).toHaveCount(0);
+    const lessonLink = page.getByRole('link', { name: 'back to the lesson', exact: true });
+    await expect(lessonLink).toBeVisible();
+    await expect(lessonLink).toHaveAttribute('href', '/learn/study-skills');
   });
 });
