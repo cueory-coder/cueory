@@ -131,12 +131,9 @@ function scan(text: string, extension: string): Logging[] {
   let exprTagQuote = '';
   let i = 0;
 
-  function inspectRawElement() {
-    const match = /^<(script|style)\b/i.exec(markup.slice(i, i + 8));
-    if (!match) {
-      i++;
-      return;
-    }
+  function inspectRawElement(): boolean {
+    const match = /^<([a-zA-Z][a-zA-Z0-9:-]*)\b/i.exec(markup.slice(i, i + 40));
+    if (!match) return false;
     const tagName = match[1]!.toLowerCase();
     // Attribute expressions may contain > inside a string, function or object.
     // Keep the complete opening tag for the template-expression AST below.
@@ -160,10 +157,14 @@ function scan(text: string, extension: string): Logging[] {
       else if (c === '}') tagBraces = Math.max(0, tagBraces - 1);
       else if (c === '>' && tagBraces === 0) break;
     }
+    const openTag = markup.slice(i, at + 1);
+    const isRaw = tagName === 'script' || tagName === 'style' || /\bis:raw\b/i.test(openTag);
+    if (!isRaw) return false;
+
     const contentStart = Math.min(at + 1, markup.length);
-    if (markup.slice(i, contentStart).trimEnd().endsWith('/>')) {
+    if (openTag.trimEnd().endsWith('/>')) {
       i = contentStart;
-      return;
+      return true;
     }
     // Read HTML raw-text end-tag boundaries explicitly. HTML permits whitespace
     // and ignored attributes on an end tag, such as </script\t\n ignored>.
@@ -184,6 +185,7 @@ function scan(text: string, extension: string): Logging[] {
       if (markup[index] !== '\n') masked[index] = ' ';
     }
     i = end;
+    return true;
   }
 
   function handleExpressionChar(c: string) {
@@ -209,8 +211,8 @@ function scan(text: string, extension: string): Logging[] {
 
     if (exprTags > 0) {
       if (c === '<') {
-        if (/^<(?:script|style)\b/i.test(markup.slice(i, i + 8))) {
-          inspectRawElement();
+        if (inspectRawElement()) {
+          // Handled raw element
         } else if (markup.startsWith('</', i)) {
           exprTags = Math.max(0, exprTags - 1);
           inExprTag = true;
@@ -274,8 +276,8 @@ function scan(text: string, extension: string): Logging[] {
     } else if (c === '<') {
       if (isComparisonOperator(markup, i)) {
         i++;
-      } else if (/^<(?:script|style)\b/i.test(markup.slice(i, i + 8))) {
-        inspectRawElement();
+      } else if (inspectRawElement()) {
+        // Handled raw element
       } else if (markup.startsWith('</', i)) {
         inExprTag = true;
         i += 2;
@@ -336,10 +338,7 @@ function scan(text: string, extension: string): Logging[] {
         }
         i = commentEnd;
       } else if (char === '<') {
-        const match = /^<(script|style)\b/i.exec(markup.slice(i, i + 8));
-        if (match) {
-          inspectRawElement();
-        } else {
+        if (!inspectRawElement()) {
           inTag = true;
           i++;
         }
@@ -420,6 +419,10 @@ describe('debug-console source guard', () => {
       .toEqual([{ line: 1, method: 'log' }]);
     expect(scan('<p title="}">Text</p><script>console.debug("actual")</script>', '.astro'))
       .toEqual([{ line: 1, method: 'debug' }]);
+    expect(scan('<pre is:raw>{console.log("example")}</pre>\n<p>{console.debug("actual")}</p>', '.astro'))
+      .toEqual([{ line: 2, method: 'debug' }]);
+    expect(scan('<pre is:raw title={console.log("server")}>{console.log("example")}</pre>', '.astro'))
+      .toEqual([{ line: 1, method: 'log' }]);
     expect(scan('<!-- {console.log("comment")} -->\n<p>{console.debug("actual")}</p>', '.astro'))
       .toEqual([{ line: 2, method: 'debug' }]);
     expect(scan("{/* don't render this */}\n<script>console.log('actual')</script>", '.astro'))
