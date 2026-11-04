@@ -94,13 +94,55 @@ function initialJsFiles(page: string): string[] {
   return [...files];
 }
 
+/**
+ * Read script bodies in our built HTML without an incomplete closing-tag regex.
+ * End tags can use mixed case and whitespace or additional text before >.
+ */
+function inlineScriptBodies(html: string): string[] {
+  // ASCII-only case folding preserves positions even around non-ASCII text.
+  const lower = html.replace(/[A-Z]/g, (letter) => letter.toLowerCase());
+  const isBoundary = (character: string | undefined) =>
+    character === undefined || character === '>' || character === '/' || /\s/u.test(character);
+  const bodies: string[] = [];
+  let at = 0;
+  for (;;) {
+    const open = lower.indexOf('<script', at);
+    if (open === -1) return bodies;
+    if (!isBoundary(lower[open + 7])) {
+      at = open + 7;
+      continue;
+    }
+    const startEnd = lower.indexOf('>', open + 7);
+    if (startEnd === -1) return bodies;
+    let close = lower.indexOf('</script', startEnd + 1);
+    while (close !== -1 && !isBoundary(lower[close + 8])) {
+      close = lower.indexOf('</script', close + 8);
+    }
+    if (close === -1) return bodies;
+    const closeEnd = lower.indexOf('>', close + 8);
+    if (closeEnd === -1) return bodies;
+    bodies.push(html.slice(startEnd + 1, close));
+    at = closeEnd + 1;
+  }
+}
+
 function initialJsGzipBytes(page: string): number {
   const html = readFileSync(page, 'utf8');
   const external = initialJsFiles(page).reduce((total, file) => total + gzipSync(readFileSync(file)).length, 0);
-  const inline = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script\s*>/gi)]
-    .reduce((total, match) => total + gzipSync(match[1]!).length, 0);
+  const inline = inlineScriptBodies(html).reduce((total, body) => total + gzipSync(body).length, 0);
   return external + inline;
 }
+
+describe('inline JavaScript collection', () => {
+  it('handles mixed-case script closing tags and extended closing-tag whitespace', () => {
+    expect(inlineScriptBodies('<SCRIPT type="module">const n = 1;</SCRIPT\t\n extra>')).toEqual(['const n = 1;']);
+  });
+
+  it('ignores similarly named tags and preserves Unicode offsets', () => {
+    expect(inlineScriptBodies('<scripture>ignore</scripture>İ<script>const label = "✓";</script>'))
+      .toEqual(['const label = "✓";']);
+  });
+});
 
 /**
  * A built page's markup without the contents of its script elements, found by plain text search in a lowercase copy.
