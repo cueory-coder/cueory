@@ -39,6 +39,7 @@ function reader({ fails = false, events = [] as unknown[] } = {}): ExportReader 
     select: async (table) => fails && table === 'attempts' ? { data: null, error: { message: 'private detail' } } : { data: rows[table], error: null },
     async *selectPages() { yield { data: events, error: null }; },
     rpc: async () => ({ data: [], error: null }),
+    user: async () => ({ data: { user: { created_at: when } }, error: null }),
   };
 }
 

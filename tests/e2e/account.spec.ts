@@ -88,6 +88,11 @@ test.beforeAll(async () => {
         review_state: [],
         study_events: [{ id: uuid(2), item_id: uuid(3), item_version_id: uuid(4), kind: 'answered', ms_on_item: 900, mark: null, at: when, created_at: when }],
         my_flags: [],
+        // Task 309: one made-up signed-in session, read in a separate user-owned RPC.
+        my_sessions: [{
+          id: uuid(5), created_at: when, updated_at: when, not_after: null,
+          user_agent: 'sample browser', ip: '203.0.113.5',
+        }],
       };
       let name = 'Sample Student';
       const query = table => {
@@ -102,6 +107,12 @@ test.beforeAll(async () => {
         auth: {
           getSession: async () => ({ data: { session: params.has('signed-out') ? null : { user: { id: uuid(9), email: 'student@example.test', user_metadata: { full_name: 'Sample Student' } } } }, error: null }),
           signOut: async options => { calls.push('signOut:' + options.scope); return { error: null }; },
+          // Task 309 requires the authenticated user's own Auth record in addition to the five data tables.
+          getUser: async () => ({ data: { user: {
+            id: uuid(9), created_at: when, last_sign_in_at: when,
+            app_metadata: { providers: ['google'] },
+            user_metadata: { full_name: 'Sample Student' }, identities: [],
+          } }, error: null }),
         },
         from(table) {
           return {
@@ -114,7 +125,8 @@ test.beforeAll(async () => {
           };
         },
         rpc(fn, args) {
-          if (fn === 'my_flags') return query('my_flags');
+          // Read-only RPCs do not belong in the mutation-call log used below.
+          if (fn === 'my_flags' || fn === 'my_sessions') return query(fn);
           if (fn === 'update_display_name') {
             calls.push('rpc:update_display_name:' + args.new_name);
             if (params.has('name-limited')) {
@@ -253,16 +265,23 @@ test.describe('/account signed in (fake client)', () => {
     expect(saved.studyEvents).toHaveLength(1);
     // The session's user_metadata: what the sign-in provider shared.
     expect(saved.signInDetails).toEqual([{ name: 'full_name', value: 'Sample Student' }]);
+    expect(saved.account).toMatchObject({
+      providers: ['google'], userMetadata: { full_name: 'Sample Student' },
+    });
+    expect(saved.sessions).toEqual([{
+      createdAt: '2026-11-01T08:00:00.000Z', updatedAt: '2026-11-01T08:00:00.000Z', notAfter: null,
+      userAgent: 'sample browser', ip: '203.0.113.5',
+    }]);
     await expect(page.getByText('your data file is downloading.')).toBeVisible();
 
     const files: Download[] = [];
     page.on('download', download => files.push(download));
     await page.getByRole('button', { name: 'download spreadsheet files', exact: true }).click();
     await expect(page.getByText('your spreadsheet files are downloading.')).toBeVisible();
-    await expect.poll(() => files.length, { timeout: 15_000 }).toBe(12);
+    await expect.poll(() => files.length, { timeout: 15_000 }).toBe(14);
     expect(files.map(download => download.suggestedFilename())).toContain(`${file.suggestedFilename().slice(0, -5)}-studyEvents.csv`);
-    await expect.poll(async () => (await urls(page)).revoked, { timeout: 15_000 }).toBe(13);
-    expect((await urls(page)).made).toBe(13);
+    await expect.poll(async () => (await urls(page)).revoked, { timeout: 15_000 }).toBe(15);
+    expect((await urls(page)).made).toBe(15);
   });
 
   test('offers no file when a read fails, and never shows provider detail', async ({ page }) => {
@@ -291,7 +310,10 @@ test.describe('/account signed in (fake client)', () => {
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    await expect(page.getByRole('listitem')).toHaveText(['your display name and email address', '1 exam date', '1 study history entry']);
+    await expect(page.getByRole('listitem')).toHaveText([
+      'your display name and email address',
+      'your sign-in details', '1 exam date', '1 sign-in session', '1 study history entry',
+    ]);
     const confirm = page.getByLabel('type delete to confirm');
     await expect(confirm).toBeFocused();
     await expect(deleteButton(page)).toHaveAttribute('aria-disabled', 'true');
