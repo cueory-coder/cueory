@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AnatomyStructure, AnatomySystem } from '../../src/islands/anatomylab';
+import { structureLoadNote } from '../../src/islands/anatomylazy';
 import {
   LAYERS,
   WHOLE_BODY_KEY,
@@ -92,6 +93,34 @@ describe('the whole-body view', () => {
       '/models/anatomy/a.glb': ['x', 'y'],
       '/models/anatomy/b.glb': ['y', 'z'],
     });
+  });
+
+  it('shares a physical GLB across layers while preserving exact ID ownership', () => {
+    const shared = '/models/anatomy/shared.glb';
+    const a: AnatomySystem = {
+      ...system('a', ['a']),
+      model: { file: shared, release: 'sample release' },
+      structures: [{ id: 'a', text: 'sample a', layer: 'vessels' }],
+    };
+    const b: AnatomySystem = {
+      ...system('b', ['b']),
+      model: { file: shared, release: 'sample release' },
+      structures: [{ id: 'b', text: 'sample b', layer: 'organs' }],
+    };
+    const body = wholeBody([a, b, system('c', ['c'])])!;
+    expect(body.model.files).toEqual([shared, '/models/anatomy/c.glb']);
+    expect(body.structures.map((s) => s.id)).toEqual(['a', 'b', 'c']);
+    expect(body.model.fileIds?.[shared]).toEqual(['a', 'b']);
+    expect(body.model.layerFiles?.['vessels']).toEqual([shared]);
+    expect(body.model.layerFiles?.['organs']).toEqual([shared, '/models/anatomy/c.glb']);
+    const byId = (id: string, found: ReadonlySet<string>, ready: ReadonlySet<string>) =>
+      structureLoadNote(body.structures.find((part) => part.id === id)!, found, true,
+        (layerId) => body.model.layerFiles?.[layerId] ?? [], body.model.files ?? [],
+        (url) => ready.has(url), body.model.fileIds);
+    expect(byId('b', new Set(), new Set())).toBe('not loaded yet');
+    expect(byId('b', new Set(), new Set([shared]))).toBe('not in this model');
+    expect(byId('b', new Set(['b']), new Set([shared]))).toBeNull();
+    expect(byId('c', new Set(), new Set([shared]))).toBe('not loaded yet');
   });
 
   it('does not blame the source model for layers excluded from an approved-only build', () => {
