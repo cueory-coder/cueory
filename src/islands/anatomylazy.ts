@@ -47,6 +47,11 @@ export function visibilityAfterLayerDownload(
   return next;
 }
 
+/** Deduplicate model downloads at the actual scene-load boundary, preserving source order. */
+export function uniqueAnatomyModelUrls(urls: string | readonly string[]): string[] {
+  return [...new Set(typeof urls === 'string' ? [urls] : urls)];
+}
+
 /**
  * An initial multi-file scene is all-or-nothing. If any model request fails,
  * dispose decoded models that already arrived, including requests that finish
@@ -109,6 +114,35 @@ export function layerNeedsReveal(
   return !layerShown(layer, hidden) || files.some((url) => !isLoaded(url));
 }
 
+/**
+ * A large structure catalog should not rescan every file for every name and
+ * missing-count entry. Immutable per-system manifests are cached by identity.
+ */
+const fileOwnerIndexes = new WeakMap<
+  Readonly<Record<string, readonly string[]>>,
+  ReadonlyMap<string, readonly string[]>
+>();
+
+function filesOwningStructure(
+  fileIds: Readonly<Record<string, readonly string[]>>,
+  structureId: string,
+): readonly string[] {
+  let index = fileOwnerIndexes.get(fileIds);
+  if (!index) {
+    const owners = new Map<string, string[]>();
+    for (const [url, ids] of Object.entries(fileIds)) {
+      for (const id of new Set(ids)) {
+        const paths = owners.get(id);
+        if (paths) paths.push(url);
+        else owners.set(id, [url]);
+      }
+    }
+    index = owners;
+    fileOwnerIndexes.set(fileIds, index);
+  }
+  return index.get(structureId) ?? [];
+}
+
 /** A missing mesh can be waiting for a download, or truly absent after its model file loaded. */
 export function structureLoadNote(
   structure: Pick<AnatomyStructure, 'id' | 'layer'>,
@@ -125,7 +159,7 @@ export function structureLoadNote(
     // The whole-body manifest records exact GLB owners for each ID. An
     // unrelated pending file in the same layer is not an owner.
     const files = fileIds
-      ? Object.entries(fileIds).filter(([, ids]) => ids.includes(structure.id)).map(([url]) => url)
+      ? filesOwningStructure(fileIds, structure.id)
       : layerFiles.length ? layerFiles : filesOfSystem;
     if (files.some((url) => !isLoaded(url))) return 'not loaded yet';
   }
