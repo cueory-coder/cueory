@@ -34,6 +34,8 @@ export default function TwoFactor({ auth: supplied }: Props) {
   const [pending, setPending] = useState(false);
   const [next, setNext] = useState<string | null>(null);
   const busy = useRef(false);
+  // An auth change invalidates every in-flight MFA read or action before it can repopulate a previous user's secret.
+  const sessionEpoch = useRef(0);
   const focusTarget = useRef<HTMLElement | null>(null);
   const shouldFocus = useRef(false);
 
@@ -43,6 +45,7 @@ export default function TwoFactor({ auth: supplied }: Props) {
 
   useEffect(() => {
     let active = true;
+    let unsubscribe: (() => void) | undefined;
     setScreen({ kind: 'loading' });
     const load = async () => {
       let client: TwoFactorAuth | null;
@@ -55,14 +58,38 @@ export default function TwoFactor({ auth: supplied }: Props) {
       if (!active) return;
       setAuth(client);
       if (!client) { setScreen({ kind: 'unavailable' }); return; }
+      const currentEpoch = sessionEpoch.current;
+      // Supabase sends INITIAL_SESSION and subsequent cross-tab SIGNED_OUT / SIGNED_IN events.
+      // Never keep showing a QR seed when the signed-in account changes.
+      if (client.onAuthStateChange) {
+        let lastUserId: string | null | undefined;
+        const listener = client.onAuthStateChange((event, session) => {
+          if (!active) return;
+          const nextId = typeof session?.user?.id === 'string' ? session.user.id : null;
+          if (event === 'INITIAL_SESSION') { lastUserId = nextId; return; }
+          const changed = event === 'SIGNED_OUT'
+            || (event === 'SIGNED_IN' && nextId !== lastUserId)
+            || (lastUserId !== undefined && nextId !== null && nextId !== lastUserId);
+          lastUserId = nextId;
+          if (!changed) return;
+          sessionEpoch.current += 1;
+          setCode('');
+          setProblem('');
+          setNotice('');
+          shouldFocus.current = true;
+          setScreen(nextId ? { kind: 'loading' } : { kind: 'signed-out' });
+          if (nextId) setAttempt(value => value + 1);
+        });
+        unsubscribe = () => listener.data.subscription.unsubscribe();
+      }
       const status = await readStatus(client);
-      if (!active) return;
+      if (!active || currentEpoch !== sessionEpoch.current) return;
       // Arriving to enter a code (after signing in, or from /admin/flags): the code field is the one thing to do.
       if (status.kind === 'needs-code') shouldFocus.current = true;
       setScreen(status.kind === 'failed' ? { kind: 'load-failed' } : status);
     };
     load().catch(() => { if (active) setScreen({ kind: 'load-failed' }); });
-    return () => { active = false; };
+    return () => { active = false; unsubscribe?.(); };
   }, [supplied, attempt]);
 
   // After a change of screen, move focus to its heading or field, so keyboard and screen-reader users follow along.
@@ -93,27 +120,34 @@ export default function TwoFactor({ auth: supplied }: Props) {
   const begin = () => run(async () => {
     if (!auth) return;
     setNotice('');
+    const epoch = sessionEpoch.current;
     const enrollment = await startEnroll(auth);
+    if (epoch !== sessionEpoch.current) return;
     if (enrollment) show({ kind: 'enrolling', enrollment });
     else setNotice('two-factor could not be started. please try again.');
   });
 
   const cancel = (factorId: string) => run(async () => {
     if (!auth) return;
+    const epoch = sessionEpoch.current;
     await cancelEnroll(auth, factorId);
+    if (epoch !== sessionEpoch.current) return;
     show({ kind: 'off' }, 'two-factor was not turned on.');
   });
 
   const submitCode = () => run(async () => {
     if (!auth) return;
+    const epoch = sessionEpoch.current;
     if (screen.kind === 'enrolling' || screen.kind === 'needs-code') {
       const factorId = screen.kind === 'enrolling' ? screen.enrollment.factorId : screen.factorId;
       const result = await confirmCode(auth, factorId, code);
+      if (epoch !== sessionEpoch.current) return;
       if (!result.ok) { setProblem(result.message); setCode(''); focusTarget.current?.focus(); return; }
       if (next) { window.location.assign(next); return; }
       show({ kind: 'on', factorId }, screen.kind === 'enrolling' ? 'two-factor is now on.' : 'thanks, you’re signed in with two-factor.');
     } else if (screen.kind === 'removing') {
       const result = await removeFactor(auth, screen.factorId, code);
+      if (epoch !== sessionEpoch.current) return;
       if (!result.ok) {
         if (result.problem === 'session-reset') {
           // A failed refresh forced local sign-out; do not leave a stale authenticated screen.
