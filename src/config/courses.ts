@@ -32,6 +32,8 @@ export const courses: readonly Course[] = [
     status: 'coming-soon',
     description: 'Dosage calculations, conversions, and IV infusion rates.',
   },
+] as const;
+
 export interface RoadmapItem {
   id: string;
   title: string;
