@@ -72,6 +72,9 @@ test.describe('anatomy lab', () => {
     await expect(catalog).toBeVisible();
     await expect(catalog.getByText('draft · labels waiting for review')).toBeVisible();
     await expect(catalog.getByText('name from the test fixture')).toBeVisible();
+    const fixtureCredit = catalog.getByTestId('anatomy-fallback-attribution');
+    await expect(fixtureCredit).toContainText('test shapes made in code for automated tests: not anatomy, not from BodyParts3D');
+    await expect(fixtureCredit).toContainText('model release: fixture 1 (made in code)');
     await expect(catalog.getByRole('status')).toHaveText('showing 5 of 5 matching structures');
 
     const search = catalog.getByLabel('find a structure');
@@ -82,6 +85,21 @@ test.describe('anatomy lab', () => {
     await expect(catalog.getByText('fixture cube A')).toHaveCount(0);
     await search.fill('not a structure');
     await expect(catalog.getByText('no structure names match this search.')).toBeVisible();
+
+    // A failed 3D startup must not take away the combined text catalog or its required attribution.
+    const wholeBody = page.getByRole('button', { name: 'whole body', exact: true });
+    await expect(wholeBody).toBeVisible();
+    await wholeBody.click();
+    await expect(wholeBody).toHaveAttribute('aria-pressed', 'true');
+    const wholeCatalog = page.getByRole('region', { name: 'structure names: whole body' });
+    await expect(wholeCatalog.getByRole('status')).toContainText('matching structures');
+    const bodyCredit = wholeCatalog.getByTestId('anatomy-fallback-attribution');
+    await expect(bodyCredit).toContainText('3D model: Cueory, adapted from BodyParts3D');
+    await expect(bodyCredit).toContainText('draft model, built from BodyParts3D 4.0');
+    await expect(bodyCredit.getByRole('link', { name: 'CC Attribution 4.0 International' }))
+      .toHaveAttribute('href', 'https://creativecommons.org/licenses/by/4.0/');
+    await expect(bodyCredit.getByRole('link', { name: 'CC Attribution 4.0 International' }))
+      .toHaveAttribute('rel', 'license noopener');
     expect(glb).toEqual([]);
   });
 
@@ -476,7 +494,7 @@ test.describe('anatomy lab whole body loads layers on demand', () => {
   test('initial HTML contains each source structure once, then offers whole body after opening', async ({ page }, info) => {
     test.skip(!isDesktopOfEachEngine(info), 'one HTML payload check per browser engine');
     const heart = JSON.parse(
-      await readFile(new URL('../../content/visuals/anatomy-heart.json', import.meta.url), 'utf8'),
+      await readFile(new globalThis.URL('../../content/visuals/anatomy-heart.json', import.meta.url), 'utf8'),
     ) as { labels: Array<{ id: string }> };
     const sourceId = heart.labels[0]?.id ?? '';
     expect(sourceId).not.toBe('');

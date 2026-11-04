@@ -136,9 +136,9 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
   const [textLimit, setTextLimit] = useState(TEXT_FALLBACK_BATCH);
   const systems = useMemo(() => {
     const wantsFixture = fixture && new URLSearchParams(window.location.search).has('fixture');
-    // Only build the duplicated whole-body grouping after the viewer opens.
-    // The fixture stays first, so all existing fixture and real-system navigation is preserved.
-    return systemsForView(baseSystems, phase === 'open', wantsFixture ? fixture : null);
+    // Build the combined catalog after an open attempt, including when 3D fails and students need the text fallback.
+    // It is never duplicated in the unopened page's hydration data. Keep the fixture first.
+    return systemsForView(baseSystems, phase === 'open' || phase === 'error', wantsFixture ? fixture : null);
   }, [baseSystems, fixture, phase]);
   const [systemKey, setSystemKey] = useState(systems[0]?.key ?? '');
   const [load, setLoad] = useState<SystemLoad>({ state: 'loading' });
@@ -630,6 +630,21 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
             </p>
           )}
           <p className="text-sm text-ink-soft">{nameSourceFor(system)}</p>
+          <div className="space-y-1 text-sm text-ink-soft" data-testid="anatomy-fallback-attribution">
+            <p>
+              {system.fixture ? (
+                creditFor(system)
+              ) : (
+                <>
+                  {BODYPARTS3D_CREDIT_LEAD}{' '}
+                  <a className="underline" href={BODYPARTS3D_LICENSE_URL} rel="license noopener">
+                    {BODYPARTS3D_LICENSE_NAME}
+                  </a>
+                </>
+              )}
+            </p>
+            <p>{releaseNoteFor(system)}</p>
+          </div>
           <label className="block text-sm text-ink" htmlFor="anatomy-fallback-search">find a structure</label>
           <input id="anatomy-fallback-search" type="search" value={query} autoComplete="off"
             onChange={(event) => { setQuery(event.target.value); setTextLimit(TEXT_FALLBACK_BATCH); }}
