@@ -1,7 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-test.beforeEach(async ({ page }) => {
+test('finals survey prompt renders, validates character limits, passes axe, and dismisses', async ({ page }) => {
+  // Clear initial survey state before first load
   await page.addInitScript(() => {
     try {
       localStorage.setItem('cueory-promo-seen', String(Date.now()));
@@ -10,9 +11,7 @@ test.beforeEach(async ({ page }) => {
       // storage blocked
     }
   });
-});
 
-test('finals survey prompt renders, validates character limits, passes axe, and dismisses', async ({ page }) => {
   await page.goto('/preview/survey');
   const prompt = page.getByTestId('finals-survey-prompt');
   await expect(prompt).toBeVisible();
