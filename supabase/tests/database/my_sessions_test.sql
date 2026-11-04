@@ -75,14 +75,14 @@ insert into auth.mfa_factors (id, user_id, friendly_name, factor_type, status, c
    'test pending', 'totp', 'unverified', now(), now());
 set local role authenticated;
 set local "request.jwt.claims" to '{"sub":"00000000-0000-4000-8000-000000000001","role":"authenticated","aal":"aal1"}';
-select is_empty($ select id from public.my_sessions() $,
+select is_empty($$ select id from public.my_sessions() $$,
   'verified-factor account at aal1 cannot export IP or user-agent history');
 set local "request.jwt.claims" to '{"sub":"00000000-0000-4000-8000-000000000001","role":"authenticated","aal":"aal2"}';
-select results_eq($ select count(*)::int from public.my_sessions() $,
-  $ values (2) $,
+select results_eq($$ select count(*)::int from public.my_sessions() $$,
+  $$ values (2) $$,
   'verified-factor account at aal2 can export its own two sessions');
 set local "request.jwt.claims" to '{"sub":"00000000-0000-4000-8000-000000000001","role":"authenticated"}';
-select is_empty($ select id from public.my_sessions() $,
+select is_empty($$ select id from public.my_sessions() $$,
   'a missing aal claim also refuses a verified-factor account');
 
 -- ---- Student two sees only their own.
