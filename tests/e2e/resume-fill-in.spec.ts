@@ -234,6 +234,7 @@ test('a hint taken before answering survives a reload and still repeats the item
   await page.getByRole('button', { name: 'continue question 2' }).click();
   await expect(board.getByText('round 1 · item 2 of 4')).toBeVisible();
   await expect(board.getByText('starts with d.')).toBeVisible();
+  await board.getByRole('button', { name: 'type instead' }).click();
   for (const value of ['days', 'pencil', 'umbrella']) {
     await submit(page, value);
     await board.getByRole('button', { name: 'next' }).click();
