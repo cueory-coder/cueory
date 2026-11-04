@@ -144,11 +144,15 @@ function list(value: unknown, cap: number): unknown[] {
   if (!Array.isArray(value) || value.length > cap || Object.keys(value).length !== value.length) {
     throw new Error('invalid sign-in list');
   }
-  return value.map((entry, index) => {
+  // Array.map reads an element before its callback runs, which would execute a malicious getter.
+  // Inspect each own data descriptor before reading any element.
+  const entries: unknown[] = [];
+  for (let index = 0; index < value.length; index++) {
     const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
     if (!descriptor || !('value' in descriptor)) throw new Error('invalid sign-in list');
-    return descriptor.value as unknown;
-  });
+    entries.push(descriptor.value);
+  }
+  return entries;
 }
 
 /** The sign-in record, from auth.getUser(). Only the fields named in ExportData['account']. */
