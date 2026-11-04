@@ -62,6 +62,12 @@ test.describe('label it without JavaScript', () => {
     test.skip(!supportedProjects.has(test.info().project.name), 'Task 408 covers phone and desktop only');
     const response = await page.goto('/learn/study-skills/label-it');
     expect(response?.status()).toBe(200);
+    // Keep the server-rendered no-script explanation covered even when browser
+    // text locators exclude its text. The visible lesson link is checked below.
+    const html = await response!.text();
+    expect(html).toContain('<noscript>');
+    expect(html).toContain('label it needs JavaScript.');
+    expect(html).toContain('<a href="/learn/study-skills">lesson page</a>');
     await expect(page.locator('main h1')).toHaveText('label it');
     // The no-JavaScript fallback must remain a usable route back to the lesson.
     // Check the visible link instead of relying on how browsers expose <noscript> text.
