@@ -108,6 +108,21 @@ export async function sessionStateFrom(client: SessionReader | null): Promise<Se
   }
 }
 
+/**
+ * Like `sessionStateFrom`, but a failed check is reported as `{ error: true }` instead of reading as signed out, so a
+ * caller that must not mistake "couldn't check" for "signed out" can tell them apart. No client is signed out.
+ */
+export async function sessionCheckFrom(client: SessionReader | null): Promise<SessionState | { error: true }> {
+  if (!client) return { signedIn: false };
+  try {
+    const { data, error } = await client.auth.getSession();
+    if (error) return { error: true };
+    return sessionStateFrom({ auth: { getSession: async () => ({ data, error: null }) } });
+  } catch {
+    return { error: true };
+  }
+}
+
 /** Who is signed in, using the page's client. */
 export async function getSessionState(): Promise<SessionState> {
   return sessionStateFrom((await getSupabase()) as unknown as SessionReader | null);
