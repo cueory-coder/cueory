@@ -12,8 +12,7 @@ Golden rules (the same as [SETUP.md](SETUP.md)):
 - Don't add, change or delete any email DNS record (MX, SPF, DKIM, DMARC, or TXT records for email) until you've
   said yes to the email question in 1.9.
 
-Where this comes from: the Task 141 go-live audit, checked against `staging` on 2 November. Steps marked
-**after PR #N merges** wait for that pull request into `staging`.
+Where this comes from: the Task 141 go-live audit, with actual migration filenames rechecked on `staging` on 4 November. Never run SQL from an unmerged PR. Production changes require Claude's staging-first verification.
 
 ---
 
@@ -86,7 +85,7 @@ Rule 4: every file runs on `cueory-staging` first (SETUP Part L), and only then 
 Use exactly the steps of SETUP Part L, with three changes:
 - open **cueory-prod** instead of `cueory-staging`, and check the name at the top says `cueory-prod`;
 - run the files in the table below, in this order, once each;
-- the check query's expected result depends on how many of the last four have merged (see step 6).
+- the check query and SQL list must match **actual staging files already verified on cueory-staging**. If PR #235 merges, get a newly reviewed migration order before production work.
 
 | # | File | Run it |
 | --- | --- | --- |
@@ -99,14 +98,12 @@ Use exactly the steps of SETUP Part L, with three changes:
 | 7 | `20261101120000_flags_and_submit_flag` | now |
 | 8 | `20261102090000_publish_item_version` | now |
 | 9 | `20261102100000_study_events` | now |
-| 10 | `20261102110000_delete_my_account` | after PR #229 merges and it has run on staging |
-| 11 | `20261102120000_confirmed_accounts_only` | after PR #235 merges and it has run on staging |
-| 12 | `20261102130000_profile_display_name_from_signup` | after PR #236 merges and it has run on staging |
-| 13 | `20261102140000_update_display_name` | after PR #230 merges and it has run on staging |
+| 10 | `20261102110000_delete_my_account` | after Claude verifies it passed on cueory-staging |
+| 11 | `20261102130000_profile_display_name_from_signup` | after Claude verifies it passed on cueory-staging |
+| 12 | `20261102140000_update_display_name` | after Claude verifies it passed on cueory-staging |
 
 1. Open https://github.com/lilchristxan/Cueory/tree/staging/supabase/migrations.
-   You should see the files above that have merged, and no others. If there's a name not in this table, stop and
-   tell Claude.
+   You should see exactly the twelve files above. The proposed `20261102135000_confirmed_accounts_only.sql` is not on `staging` yet. If the list differs, stop and ask Claude for a new reviewed order.
 2. Open https://supabase.com/dashboard, click **cueory-prod**, and check the name at the top says `cueory-prod`.
 3. Go to the **SQL Editor** section. [SB functions]
 4. For each file, in table order: open it on GitHub (SETUP Part L's links, or click the file above and then **Raw**),
@@ -115,9 +112,7 @@ Use exactly the steps of SETUP Part L, with three changes:
 5. If a file shows an error or a box asks you to confirm something: stop, don't run it again, don't run the next
    one, and send Claude the error text and the file's number (SETUP Part L explains why).
 6. Run the check query from SETUP Part L, step 10.
-   You should see 13 tables, every one `RLS on`. Functions: 11 with files 1 to 9; one more after file 10
-   (`delete_my_account`) and one more after file 13 (`update_display_name`), so 13 once all thirteen have run.
-   Files 11 and 12 change existing functions and add none.
+   You should see 13 tables, every one `RLS on`, and 13 functions after all twelve listed migrations, provided those files passed on staging first. File 10 adds `delete_my_account` and file 12 adds `update_display_name`. Pending PR #235 would change existing functions, not add any. If the count, names, or RLS values differ, stop and tell Claude.
 7. Tell Claude "prod database done through file N".
 
 If a later pull request adds a file with an earlier date than one you've already run, tell Claude before running it.
@@ -144,7 +139,7 @@ This is SETUP Part O, step 1. The settings, briefly:
    URLs]
 5. Do SETUP Part M, steps 9 to 26, on **cueory-prod**: **Confirm Email** on (in the Email provider's settings),
    **Allow anonymous sign-ins** off, **Allow new users to sign up** on, minimum password 10, default email templates,
-   default rate limits, authenticator two-factor on. [SB general config] PR #235 (file 11) needs **Confirm Email** on:
+   default rate limits, authenticator two-factor on. [SB general config] The confirmed-account policy in still-open PR #235 requires **Confirm Email** to be on. Do not apply that PR's migration or rely on its policy until independently tested and merged into staging:
    without it, new accounts can't use questions, flags or study events.
 
 ### 1.7 Google sign-in for the live site, and publish the consent screen (25 minutes)
@@ -231,7 +226,7 @@ Do these in order. After each step, check the live site as it says.
 
 1. **Check staging one last time.** Open the staging preview in a private window, sign in through Cloudflare, then
    sign in to Cueory with Google (and email, if you chose A).
-   You should see the account corner with your initials, and `/account` should open (after PR #230 merges).
+   You should see the account corner with your initials, and `/account` should open.
 2. **Put the live settings in.** In the **cueory** Worker, **Settings** → **Build** → **Build variables and
    secrets**, choose **Production** and add `PUBLIC_SUPABASE_URL` = the **cueory-prod** address and
    `PUBLIC_SUPABASE_PUBLISHABLE_KEY` = the **cueory-prod** publishable key. Save. [CF Builds config]
