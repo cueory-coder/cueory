@@ -535,7 +535,7 @@ describe('deleteOutcome', () => {
 
   it('sends a signed-out student to sign in too', () => {
     expect(deleteOutcome({ code: '28000', message: 'sign in to delete your account' })).toEqual({
-      kind: 'sign-in', href: '/signin?next=%2Faccount%23delete', message: 'please sign in to delete your account.',
+      kind: 'sign-in', href: '/signin?next=%2Faccount%23delete', message: 'please sign in again to delete your account.',
     });
   });
 

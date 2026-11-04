@@ -78,7 +78,7 @@ export function studentMessage(fn: RpcFunction, error: unknown): string {
   }
 
   if (fn === 'delete_my_account') {
-    if (msg === DELETE_SIGNED_OUT) return 'please sign in to delete your account.';
+    if (msg === DELETE_SIGNED_OUT) return 'please sign in again to delete your account.';
     if (msg === DELETE_REAUTH || error.code === DELETE_REAUTH_CODE) {
       return 'for your safety, please sign in again to delete your account.';
     }

@@ -176,7 +176,7 @@ describe('confirmed-email refusal (Task 169)', () => {
 describe('delete_my_account errors', () => {
   it('maps the signed-out refusal', () => {
     expect(studentMessage('delete_my_account', { message: 'sign in to delete your account', code: '28000' }))
-      .toBe('please sign in to delete your account.');
+      .toBe('please sign in again to delete your account.');
   });
 
   it('maps the stale sign-in refusal, by message or by its code', () => {
