@@ -43,6 +43,9 @@ export function indexAnatomyGroup(
 
   let triangles = 0;
   const touched = new Set<string>();
+  // glTF meshes often share their original materials. Release each material
+  // at most once as all meshes receive the lab's own Lambert materials.
+  const originalMaterials = new Set<THREE.Material>();
 
   group.traverse((object) => {
     const mesh = object as THREE.Mesh;
@@ -53,7 +56,15 @@ export function indexAnatomyGroup(
       owner = owners.get(at);
     }
 
-    for (const material of ([] as THREE.Material[]).concat(mesh.material)) material.dispose();
+    for (const material of ([] as THREE.Material[]).concat(mesh.material)) {
+      if (originalMaterials.has(material)) continue;
+      originalMaterials.add(material);
+      try {
+        material.dispose();
+      } catch {
+        // A lost WebGL context must not prevent indexing the other meshes.
+      }
+    }
     if (!mesh.geometry.getAttribute('normal')) mesh.geometry.computeVertexNormals();
     mesh.material = new THREE.MeshLambertMaterial();
 
