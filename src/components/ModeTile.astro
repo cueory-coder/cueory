@@ -2,17 +2,21 @@
 /**
  * Task 81 lesson-hub tile. Display copy and destinations come from modes.ts.
  * Keep the full, visible action-link wording for keyboard users and legacy tests.
+ * The mode's line waits behind the ⓘ beside its name (Christian, 2026-11-02).
  */
+import InfoTip from './InfoTip.astro';
 import ModeIllustration from './ModeIllustration.astro';
 import type { StudyMode } from '../config/modes';
 
 interface Props {
   mode: StudyMode;
   linkLabel: string;
+  /** Per-lesson destination while keeping the current accessible tile presentation. */
+  href?: string;
 }
 
 const { mode, linkLabel } = Astro.props;
-const href = mode.link?.href;
+const href = Astro.props.href ?? mode.link?.href;
 if (!href) throw new Error('Only available study modes may be linked from the lesson hub.');
 ---
 
@@ -23,11 +27,13 @@ if (!href) throw new Error('Only available study modes may be linked from the le
   <div class="mode-art mb-3 overflow-hidden" aria-hidden="true">
     <ModeIllustration mode={mode.id} />
   </div>
-  <h3 class="text-lg font-semibold">{mode.name}</h3>
-  <p class="mt-2 flex-1 text-sm text-ink-soft">{mode.text}</p>
+  <div class="-mt-2 mb-2 flex flex-wrap items-center">
+    <h3 class="text-lg font-semibold">{mode.name}</h3>
+    <InfoTip id={`mode-tile-${mode.id}-info`} label={mode.name} text={mode.text} />
+  </div>
   <a
     href={href}
-    class="mt-4 inline-flex min-h-11 items-center rounded-md border border-control px-3 py-2 text-sm font-medium text-ink no-underline hover:bg-page focus-visible:bg-page"
+    class="mt-auto inline-flex min-h-11 items-center rounded-md border border-control px-3 py-2 text-sm font-medium text-ink no-underline hover:bg-page focus-visible:bg-page"
   >
     <span class="min-w-0">{linkLabel}</span>
     <span class="ml-2 shrink-0" aria-hidden="true">→</span>
