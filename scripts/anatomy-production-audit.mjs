@@ -10,6 +10,7 @@ import { pathToFileURL } from 'node:url';
 
 const ANATOMY_FILE = /^anatomy-[a-z0-9-]+\.json$/;
 const MODEL_URL = /^\/models\/anatomy\/[a-z0-9][a-z0-9_-]*\.glb$/;
+const BODYPARTS3D_URL_PREFIX = 'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/';
 // Scan all ordinary published text assets, not just the anatomy page or hashed JavaScript chunks.
 // Site search, manifests or unrelated pages can otherwise accidentally expose a draft identifier.
 const TEXT_ASSET = /\.(?:html?|js|mjs|json|map|xml|svg|txt|css|csv|tsv|md|webmanifest)$/i;
@@ -98,6 +99,19 @@ export function auditAnatomyProduction(distDir, contentDir) {
             errors.push(`${name}: duplicate approved source ID ${source.id}`);
           } else {
             sourceIds.add(source.id);
+          }
+          // Resolving the ID is insufficient when the cited record no longer
+          // contains the open-source quote and rights evidence required by the
+          // visuals-kit contract. Production audits also check stale dist/.
+          const hasQuote = typeof source.quote === 'string' && source.quote.trim().length > 0;
+          const hasSection = typeof source.section === 'string' && source.section.trim().length > 0;
+          const hasPage = typeof source.url === 'string' &&
+            source.url.startsWith(BODYPARTS3D_URL_PREFIX) &&
+            source.url.length > BODYPARTS3D_URL_PREFIX.length;
+          const hasDate = typeof source.retrieved === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(source.retrieved);
+          if (!hasQuote || !hasSection || !hasPage || !hasDate ||
+              source.book !== 'BodyParts3D' || source.license !== 'CC BY 4.0') {
+            errors.push(`${name}: approved source ${source.id} has incomplete or incompatible citation and rights evidence`);
           }
         }
       }
