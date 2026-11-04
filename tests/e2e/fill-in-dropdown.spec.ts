@@ -59,3 +59,29 @@ test('fill-in dropdowns provide 4 options by default and allow toggling to type 
   await next.click();
   await expect(board.getByText('round 1 · item 2 of 4')).toBeVisible();
 });
+
+test('a resumed free-text typo cannot be checked as a hidden dropdown answer', async ({ page }) => {
+  await page.goto('/learn/study-skills/fill-in');
+  const board = page.getByTestId('fill-in');
+  await board.getByRole('button', { name: 'type instead' }).click();
+  const typed = board.getByRole('textbox', { name: 'the missing word' });
+  await typed.fill('hnoey');
+  await typed.press('Enter');
+  await expect(board.getByText('almost. check the spelling.')).toBeVisible();
+
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('cueory-resume') ?? 'null'));
+  expect(saved.answers['item-0']).toEqual(['n:hnoey']);
+
+  await page.reload();
+  await page.getByRole('button', { name: 'continue question 1' }).click();
+  const dropdown = board.getByRole('combobox', { name: 'the missing word' });
+  await expect(dropdown).toBeVisible();
+
+  // The restored typo is not any visible option. It must not be submitted.
+  const check = board.getByRole('button', { name: 'check' });
+  await expect(check).toBeDisabled();
+  await dropdown.selectOption({ label: 'honey' });
+  await expect(check).toBeEnabled();
+  await check.click();
+  await expect(board.getByText('right.', { exact: true })).toBeVisible();
+});
