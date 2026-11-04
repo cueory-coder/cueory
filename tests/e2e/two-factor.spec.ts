@@ -43,8 +43,7 @@ test.beforeAll(async () => {
       import React from 'react';
       import { createRoot } from 'react-dom/client';
       import TwoFactor from './src/islands/TwoFactor.tsx';
-      import AdminFlags from './src/islands/AdminFlags.tsx';
-      const params = new URLSearchParams(location.search);
+            const params = new URLSearchParams(location.search);
       const state = params.get('state') ?? 'off';
       window.authCalls = [];
       const factor = { id: '00000000-0000-4000-8000-0000000000f1', factor_type: 'totp', status: 'verified' };
@@ -92,7 +91,7 @@ test.beforeAll(async () => {
         for (const callback of listeners) callback(userId ? 'SIGNED_IN' : 'SIGNED_OUT', currentUser ? { user: currentUser } : null);
       };
       window.fixtureAuth = auth;
-      createRoot(document.getElementById('fixture')).render(params.get('page') === 'admin' ? <AdminFlags /> : <TwoFactor />);
+      createRoot(document.getElementById('fixture')).render(<TwoFactor />);
     `, resolveDir: process.cwd(), loader: 'tsx' },
     bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic',
     resolveExtensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
@@ -283,18 +282,5 @@ test.describe('two-factor with a fake auth client', () => {
     }
     expect(reached.size).toBe(await controls.count());
   });
-
-  test('/admin/flags at aal1 with two-factor on offers the code page', async ({ page }) => {
-    await fixture(page, 'state=needs-code&page=admin');
-    await expect(page.getByRole('heading', { name: 'this page is for the site owner.' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'enter your two-factor code' }))
-      .toHaveAttribute('href', '/account/two-factor?next=%2Fadmin%2Fflags');
-  });
-
-  test('/admin/flags offers nothing new to an account without two-factor', async ({ page }) => {
-    await fixture(page, 'state=off&page=admin');
-    await expect(page.getByRole('heading', { name: 'this page is for the site owner.' })).toBeVisible();
-    await expect.poll(() => calls(page)).toContain('aal');
-    await expect(page.getByRole('link')).toHaveCount(0);
-  });
+  // /admin/flags' own two-factor step is tested with a wired inbox in admin-flags-wired.spec.ts (Task 305).
 });
