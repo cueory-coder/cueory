@@ -81,6 +81,8 @@ test.beforeAll(async () => {
         return later({ data: null, error: { code: 'PGRST202', message: 'unknown function' } });
       };
       const listeners = new Set();
+      // The stale-response race test must know that the UI has subscribed before simulating sign-out.
+      window.authListenerCount = () => listeners.size;
       window.setFixtureWho = next => {
         who = next;
         // The real Supabase listener emits this after cross-tab sign-out and account changes.
@@ -202,6 +204,9 @@ test.describe('/admin/flags wired to the database functions', () => {
   test('a delayed pre-sign-out response cannot restore private rows', async ({ page }) => {
     await fixture(page, 'who=admin&delay=slow');
     await expect.poll(async () => (await calls(page)).length).toBeGreaterThan(0);
+    // A sign-out broadcast before the fake listener exists would not test the production race at all.
+    await expect.poll(() => page.evaluate(() =>
+      (window as unknown as { authListenerCount: () => number }).authListenerCount())).toBeGreaterThan(0);
     await page.evaluate(() => (window as unknown as { setFixtureWho: (value: string) => void }).setFixtureWho('signed-out'));
 
     await expect(page.getByRole('heading', { level: 1, name: 'this page is for the site owner.' })).toBeVisible();
