@@ -86,6 +86,8 @@ describe('loadExport — personal data boundaries', () => {
       reviewRows: [{ itemId, level: 2, lastReviewed: '2026-10-30', nextReview: '2026-11-03', updatedAt: when }],
       reports: [{ id: reportId, page: '/learn/study-skills', itemId: null, itemVersionId: null,
         reason: 'confusing', comment: 'Sample report', createdAt: when }],
+      signInDetails: Object.entries(googleData).filter(([, value]) => value === null || ['string', 'number', 'boolean'].includes(typeof value))
+        .map(([name, value]) => ({ name, value })),
       account,
       sessions,
     });
@@ -97,6 +99,9 @@ describe('loadExport — personal data boundaries', () => {
     expect(exported.attempts).toEqual(result.data.attempts);
     expect(exported.reports).toEqual(result.data.reports);
     expect(exported.account).toEqual(account);
+    expect(exported.signInDetails).toContainEqual({ name: 'full_name', value: 'Sample Student' });
+    expect(exported.signInDetails).toContainEqual({ name: 'email_verified', value: true });
+    expect(exported.signInDetails).not.toContainEqual(expect.objectContaining({ name: 'custom_claims' }));
     expect(exported.sessions).toEqual([{ ...sessions[0], updatedAt: '2026-11-01T09:00:00.000Z' }]);
     expect(exported.studyEvents).toEqual([
       { itemId, itemVersionId: versionId, kind: 'marked', msOnItem: 4200, mark: 'learning',
@@ -142,6 +147,9 @@ describe('loadExport — personal data boundaries', () => {
     expect(text).not.toContain('private');
     expect(text).not.toContain(id(5));
     const files = exportCsvBlobs(result.data);
+    const signInCsv = await files.find(file => file.fileName === 'signInDetails.csv')!.blob.text();
+    expect(signInCsv).toContain('full_name,Sample Student');
+    expect(signInCsv).not.toContain('custom_claims');
     const accountCsv = await files.find(file => file.fileName === 'account.csv')!.blob.text();
     expect(accountCsv).toContain('identities[0].identityData.picture,https://example.invalid/photo.png\r\n');
     expect(accountCsv).toContain('userMetadata.custom_claims.hd,example.invalid\r\n');

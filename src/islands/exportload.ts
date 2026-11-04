@@ -364,10 +364,21 @@ export async function loadExport(reader: ExportReader): Promise<ExportLoadResult
     });
     const who = await reader.user();
     if (!who || who.error != null) throw new Error('sign-in record read failed');
+    const ownAccount = account(who.data);
+    // Preserve staging's scalar signInDetails download alongside Task 309's richer account record.
+    // account() has already copied metadata without invoking getters or toJSON hooks.
+    const signInDetails = Object.entries(ownAccount.userMetadata ?? {}).flatMap(([name, value]) => {
+      if (name.length < 1 || name.length > 100 ||
+          !(value === null || typeof value === 'boolean' ||
+            (typeof value === 'number' && Number.isFinite(value)) ||
+            (typeof value === 'string' && value.length <= 2048))) return [];
+      return [{ name, value }];
+    }).slice(0, 100);
     return {
       ok: true,
       data: {
-        profile: profiles[0] ?? {}, account: account(who.data), attempts, examPlans, reviewRows, reports, sessions, studyEvents,
+        profile: profiles[0] ?? {}, signInDetails, account: ownAccount,
+        attempts, examPlans, reviewRows, reports, sessions, studyEvents,
       },
     };
   } catch {

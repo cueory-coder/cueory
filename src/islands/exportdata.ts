@@ -15,6 +15,7 @@
  * account is the student's own sign-in record from Supabase Auth (`auth.getUser()`, Task 309): when the account was
  * made and last signed in, the sign-in methods, `user_metadata` and each identity's `identity_data` (with Google
  * sign-in: name, profile-photo link, Google account id, email and whether it is verified), copied as plain JSON.
+ * signInDetails retains staging's capped scalar-only user_metadata section and CSV for existing exports.
  * account.csv lists it one field per line (`identities[0].identityData.name`, …). sessions holds the student's own
  * sign-in sessions as `my_sessions()` returns them (supabase/migrations/20261102160000): when, browser and IP address,
  * without the session id, which is only the read cursor.
@@ -48,6 +49,8 @@ export interface ExportData {
     createdAt?: string | null; lastSignInAt?: string | null; providers?: readonly string[];
     userMetadata?: JsonObject; identities?: readonly AccountIdentity[];
   };
+  /** Backward-compatible scalar provider metadata from the signed-in user's own account (staging contract). */
+  signInDetails?: readonly { name: string; value: unknown }[];
   onboarding?: { course?: string | null; examDate?: string | null; done?: boolean; school?: string | null };
   progress?: readonly { id: string; result: string | boolean; date: string }[] | Progress;
   reviewState?: readonly { id: string; nextDueDate: string; interval: number }[];
@@ -195,6 +198,12 @@ function providerList(value: unknown): boolean {
   for (let index = 0; index < value.length; index++) if (!providerName(own(value, String(index)))) return false;
   return true;
 }
+/** The pre-existing staging sign-in metadata export: a capped list of top-level scalar values. */
+const signInDetailSchema: Schema = {
+  name: value => typeof value === 'string' && value.length >= 1 && value.length <= 100,
+  value: value => value === null || typeof value === 'boolean' || (typeof value === 'number' && Number.isFinite(value)) ||
+    (typeof value === 'string' && value.length <= 2048),
+};
 const accountSchema: Schema = {
   createdAt: nullableDate, lastSignInAt: nullableDate, providers: providerList, userMetadata: jsonObject,
   identities: value => Array.isArray(value),
@@ -203,8 +212,9 @@ const identitySchema: Schema = { provider: providerName, identityData: jsonObjec
 const sessionSchema: Schema = {
   createdAt: nullableDate, updatedAt: nullableDate, notAfter: nullableDate, userAgent: nullableText, ip: nullableText,
 };
-const sections = ['profile', 'account', 'onboarding', 'progress', 'reviewState', 'gameStats', 'attempts', 'examPlans', 'reviewRows', 'reports', 'sessions', 'studyEvents'] as const;
+const sections = ['profile', 'signInDetails', 'account', 'onboarding', 'progress', 'reviewState', 'gameStats', 'attempts', 'examPlans', 'reviewRows', 'reports', 'sessions', 'studyEvents'] as const;
 const rowCaps: Partial<Record<Section, number>> = {
+  signInDetails: 100,
   attempts: 50_000, examPlans: 10, reviewRows: 50_000, reports: 10_000, sessions: 10_000,
 };
 const IDENTITY_CAP = 20;
@@ -216,6 +226,7 @@ interface GuestSnapshot {
 }
 interface Sections {
   profile: Row;
+  signInDetails: Row[];
   /** Row fields, and identities as checked rows. */
   account: Record<string, Cell | Row[]>;
   onboarding: Row;
@@ -427,6 +438,7 @@ function prepare(data: unknown): { data: Sections; dropped: string[] } {
   return {
     data: {
       profile,
+      signInDetails: listSection('signInDetails', signInDetailSchema),
       account,
       onboarding: recordSection('onboarding', onboardingSchema),
       progress,
@@ -533,6 +545,7 @@ function csvParts(data: unknown): { fileName: string; parts: (string | Blob)[] }
   const file = (fileName: string, headers: string[], rows: Row[]) => ({ fileName, parts: [csv(headers, rows)] });
   return [
     file('profile.csv', Object.keys(profileSchema), recordRows(clean.data.profile)),
+    file('signInDetails.csv', Object.keys(signInDetailSchema), clean.data.signInDetails),
     file('account.csv', ['field', 'value'], accountRows(clean.data.account)),
     file('onboarding.csv', Object.keys(onboardingSchema), recordRows(clean.data.onboarding)),
     file('progress.csv', [...Object.keys(progressSchema), 'deckId', 'progressVersion', 'course', 'examDate', 'done'], progressRows),
