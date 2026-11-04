@@ -31,6 +31,18 @@ test('the hub links to exactly this lesson\'s pages, in the hub order', async ({
   const links = page.getByTestId('mode-grid').getByRole('link');
   await expect(links).toHaveCount(lesson.modes.length);
   expect(await links.evaluateAll((items) => items.map((item) => item.getAttribute('href')))).toEqual(lesson.modes.map((mode) => mode.href));
+
+  // Generated lesson tiles must preserve the accessible explanation control
+  // from the existing study-mode hub while using lesson-specific links.
+  const firstTile = page.getByTestId('mode-grid').locator('[data-mode-tile]').first();
+  const help = firstTile.getByRole('button', { name: /^more about / });
+  await expect(help).toBeVisible();
+  await expect(help).toHaveAttribute('aria-expanded', 'false');
+  await help.click();
+  await expect(help).toHaveAttribute('aria-expanded', 'true');
+  await help.press('Escape');
+  await expect(help).toHaveAttribute('aria-expanded', 'false');
+
   for (const mode of lesson.modes) expect((await page.request.get(mode.href)).status(), mode.href).toBe(200);
 });
 
