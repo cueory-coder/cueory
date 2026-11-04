@@ -1,0 +1,117 @@
+---
+/**
+ * A lesson's hub (Task 81), built for every lesson in /content whose status lets it show (Task 300,
+ * src/lessons/catalog.ts). Its reader, video and illustrations are unchanged from the study-skills page, and the mode
+ * tiles link only to this lesson's own pages. /learn/study-skills keeps its address.
+ */
+import { getCollection, getEntry } from 'astro:content';
+import Layout from '../../../layouts/Layout.astro';
+import ModeTile from '../../../components/ModeTile.astro';
+import SentenceStepper from '../../../islands/SentenceStepper';
+import LessonVideo from '../../../islands/LessonVideo';
+import LessonVisuals from '../../../components/LessonVisuals.astro';
+import { studyModes, type StudyMode } from '../../../config/modes';
+import { isShowable } from '../../../videos/schema';
+import { countInWords, pathsFor, statusNotice, type CatalogLesson, type ModeId } from '../../../lessons/catalog';
+import { lessonCatalog } from '../../../lessons/load';
+
+export async function getStaticPaths() {
+  return pathsFor(await lessonCatalog(), 'hub');
+}
+
+const { lesson } = Astro.props as { lesson: CatalogLesson };
+const entry = await getEntry('lessons', lesson.id);
+if (!entry) throw new Error(`Lesson file content/lessons/${lesson.id}.json is missing.`);
+const { title, summary, sentences, status } = entry.data;
+const lessonNotice = statusNotice(status, 'lesson');
+const olderLessons = (await lessonCatalog()).lessons.filter((candidate) => !candidate.curriculumId && candidate.name === lesson.name).length;
+const context = !lesson.curriculumId && olderLessons > 1 ? `${lesson.context} of ${olderLessons}` : lesson.context;
+const video = (await getCollection('videos')).find((candidate) => candidate.data.lesson === lesson.id);
+
+const modeLabels = {
+  cards: 'practice this lesson with cards',
+  learn: "learn this lesson's cards in learn mode",
+  matching: "match this lesson's terms and meanings",
+  organizer: 'sort ideas into groups with the organizer',
+  'fill-in': 'recall the missing word with fill-in',
+  'label-it': "uncover a diagram's labels with label it",
+  questions: 'practice questions with rationales',
+} as const satisfies Record<ModeId, string>;
+
+const availableModes = lesson.modes.map(({ id, href }) => {
+  const mode = studyModes.find((candidate) => candidate.id === id) as StudyMode | undefined;
+  if (!mode) throw new Error('Study mode is missing from src/config/modes.ts: ' + id);
+  return { mode, href, linkLabel: modeLabels[id] };
+});
+const ways = availableModes.length;
+---
+
+<Layout title={title} description={summary} variant="study">
+  <div class="mx-auto max-w-page pb-section pt-8 sm:pt-12">
+    <header class="mx-auto max-w-prose">
+      <p class="text-sm text-ink-soft">{context}</p>
+      <h1 class="mt-3 text-2xl">{title}</h1>
+      <p class="mt-3 text-ink-soft">{summary}</p>
+      {lessonNotice && <p class="mt-3 text-sm text-ink-soft">{lessonNotice}</p>}
+    </header>
+
+    {ways > 0 && (
+      <section class="mt-section" aria-labelledby="study-modes-heading">
+        <div class="mx-auto max-w-prose">
+          <h2 id="study-modes-heading" class="text-xl">choose how to study</h2>
+          <p class="mt-3 text-ink-soft">
+            {countInWords(ways)} {ways === 1 ? 'way' : 'ways'} to practice this lesson.
+          </p>
+        </div>
+        <ul
+          class="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4"
+          data-testid="mode-grid"
+          aria-label="ways to study this lesson"
+        >
+          {availableModes.map(({ mode, href, linkLabel }) => (
+            <li class="min-w-0">
+              <ModeTile mode={mode} href={href} linkLabel={linkLabel} />
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
+
+    <section class="mx-auto mt-section max-w-prose" aria-labelledby="lesson-reader-heading" data-testid="study-reader">
+      <h2 id="lesson-reader-heading" class="text-xl">read the lesson</h2>
+      <div class="mt-6">
+        {/* Preserve the existing reader, including the printed and no-JavaScript fallbacks. */}
+        <div data-print-hidden>
+          <SentenceStepper client:only="react" sentences={sentences} />
+        </div>
+        <div data-print-only data-testid="print-lesson-reader">
+          <ul class="space-y-stack list-decimal">
+            {sentences.map((sentence) => <li class="text-lg">{sentence.text}</li>)}
+          </ul>
+        </div>
+        <noscript data-print-hidden>
+          <ol data-print-hidden class="space-y-stack">
+            {sentences.map((sentence) => <li class="text-lg">{sentence.text}</li>)}
+          </ol>
+        </noscript>
+      </div>
+    </section>
+
+    {video && isShowable(video.data.status) && (
+      <section class="mx-auto mt-section max-w-prose" aria-label="lesson video">
+        <LessonVideo
+          client:only="react"
+          videoId={video.data.videoId}
+          title={video.data.title}
+          thumbnail={video.data.thumbnail}
+          captionsUrl={video.data.captionsUrl || undefined}
+          transcriptUrl={video.data.transcriptUrl || undefined}
+        />
+      </section>
+    )}
+
+    <div class="mx-auto max-w-prose">
+      <LessonVisuals lessonId={lesson.curriculumId ?? lesson.id} />
+    </div>
+  </div>
+</Layout>

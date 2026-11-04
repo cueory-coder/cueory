@@ -49,4 +49,6 @@ npm run check-batch -- content/batches/<folder>
 
 Read `docs/BATCHES.md` for the complete review and import process. Do not put private questions, answer keys, rationales, or student data in this public repository.
 
+Draft 4 curriculum data, its validator and the legacy crosswalk are proposed in separate pull requests. Until those changes reach `staging`, do not assume `content/curriculum/blocks-v4.csv`, `docs/curriculum/CROSSWALK.md` or `scripts/check-curriculum.mjs` is available. The historical lesson map remains in `docs/curriculum/`.
+
 Cueory does not accept outside pull requests. To report a security or privacy problem, use GitHub's private **Report a vulnerability** form or the address documented in `SECURITY.md`, rather than opening a public issue.
