@@ -14,11 +14,15 @@
  *
  * Only published questions (uuid ids) are saved. Sample decks use plain ids and stay on the device.
  * Accounts off or signed out: nothing here runs and the review works exactly as before.
+ *
+ * Each sync belongs to the account that was signed in when it started (Task 302). Before every request it reads the
+ * browser's session again, as studyrecorder.ts does; if nobody is signed in or someone else is, it drops every row
+ * still waiting and stops for good, so one student's reviews are never written under another student's sign-in.
  */
 import { nextReview, type Review } from './review';
 import type { ReviewStateRow } from './reviewqueue';
 import type { SessionHistories } from './reviewsession';
-import type { SessionState } from './supabaseclient';
+import { sessionStateFrom, type SessionReader, type SessionState } from './supabaseclient';
 
 export type { ReviewStateRow };
 
@@ -29,8 +33,11 @@ export type ReviewStateUpdate = Omit<ReviewStateRow, 'item_id'>;
 
 interface Reply { data?: unknown; error?: unknown }
 
-/** The part of the Supabase client this file uses. `from('review_state')` with the chains below, nothing else. */
-export interface ReviewStateClient {
+/**
+ * The part of the Supabase client this file uses: `from('review_state')` with the chains below, and the browser's
+ * session (to check whose rows these are before each write).
+ */
+export interface ReviewStateClient extends SessionReader {
   from(table: 'review_state'): {
     select(columns: typeof COLUMNS): ReadQuery;
     update(values: ReviewStateUpdate): {
@@ -190,26 +197,41 @@ class WriteError extends Error {
   constructor(readonly reason: unknown) { super('review_state write failed'); }
 }
 
+/** The browser's session no longer belongs to the sync's owner. */
+class OwnerChanged extends Error {
+  constructor() { super('the signed-in account changed'); }
+}
+
+/** True only while the owner is the one signed in on this browser. */
+async function ownerSignedIn(client: ReviewStateClient, ownerId: string): Promise<boolean> {
+  const session = await sessionStateFrom(client);
+  return session.signedIn && session.userId === ownerId;
+}
+
 function changed(reply: Reply | undefined): number {
   if (!reply || reply.error != null) throw new WriteError(reply?.error);
   if (!Array.isArray(reply.data) || reply.data.length > 1) throw new WriteError(undefined);
   return reply.data.length;
 }
 
-async function update(client: ReviewStateClient, row: ReviewStateRow): Promise<number> {
+type Guard = () => Promise<void>;
+
+async function update(client: ReviewStateClient, row: ReviewStateRow, guard: Guard): Promise<number> {
+  await guard();
   const values: ReviewStateUpdate = { level: row.level, last_reviewed: row.last_reviewed, next_review: row.next_review };
   return changed(await client.from('review_state').update(values).eq('item_id', row.item_id).select('item_id'));
 }
 
 /** Update the student's row, or add it. If another tab added it in between (23505), update once more. */
-async function writeRow(client: ReviewStateClient, row: ReviewStateRow): Promise<void> {
-  if (await update(client, row) === 1) return;
+async function writeRow(client: ReviewStateClient, row: ReviewStateRow, guard: Guard): Promise<void> {
+  if (await update(client, row, guard) === 1) return;
+  await guard();
   const values: ReviewStateInsert = { item_id: row.item_id, level: row.level, last_reviewed: row.last_reviewed, next_review: row.next_review };
   const reply = await client.from('review_state').insert(values);
   if (!reply) throw new WriteError(undefined);
   if (reply.error == null) return;
   const code = (reply.error as { code?: unknown }).code;
-  if (code === '23505' && await update(client, row) === 1) return;
+  if (code === '23505' && await update(client, row, guard) === 1) return;
   throw new WriteError(reply.error);
 }
 
@@ -225,18 +247,32 @@ export interface ReviewSync {
  * step can never land after a newer one. Questions are independent: a row that is refused (for example a question
  * unpublished before its first save) stays waiting and is reported, and every other row is still sent.
  */
-export function createReviewSync(client: ReviewStateClient): ReviewSync {
+export function createReviewSync(client: ReviewStateClient, ownerId: string): ReviewSync {
+  if (typeof ownerId !== 'string' || ownerId === '') throw new Error('A review sync needs the signed-in account id.');
   const waiting = new Map<string, ReviewStateRow>();
   let queue: Promise<unknown> = Promise.resolve();
+  let dropped = false;
+  const signedOut: SyncOutcome = { ok: false, message: MESSAGES.signedOut };
+  const guard: Guard = async () => {
+    if (dropped || !(await ownerSignedIn(client, ownerId))) throw new OwnerChanged();
+  };
+  const drop = (): SyncOutcome => {
+    dropped = true;
+    waiting.clear();
+    return signedOut;
+  };
 
   const flush = (): Promise<SyncOutcome> => {
     const run = queue.then(async (): Promise<SyncOutcome> => {
+      if (dropped) return signedOut;
       const failed: string[] = [];
       let message: string | undefined;
       for (const [id, row] of [...waiting]) {
         try {
-          await writeRow(client, row);
+          await writeRow(client, row, guard);
         } catch (error) {
+          // Signed out, or another account: nothing waiting may be sent any more, by anyone.
+          if (error instanceof OwnerChanged) return drop();
           failed.push(id);
           const reason = syncMessage(error instanceof WriteError ? error.reason : error);
           if (message === undefined || MESSAGE_ORDER.indexOf(reason) < MESSAGE_ORDER.indexOf(message)) message = reason;
@@ -253,6 +289,7 @@ export function createReviewSync(client: ReviewStateClient): ReviewSync {
   return {
     record(itemId, history, today, examDay) {
       if (!isItemId(itemId)) return Promise.resolve({ ok: true });
+      if (dropped) return Promise.resolve(signedOut);
       let row: ReviewStateRow;
       try {
         row = rowAfterReview(itemId, history, today, examDay);
@@ -280,5 +317,7 @@ export async function startReviewSync(client: ReviewStateClient | null, session:
   if (!client || !session.signedIn) return { mode: 'device' };
   const loaded = await loadReviewState(client);
   if (!loaded.ok) return { mode: 'device', message: loaded.message };
-  return { mode: 'account', sync: createReviewSync(client), rows: loaded.rows };
+  // The rows came back under whoever is signed in now; use them only if that is still the same student.
+  if (!(await ownerSignedIn(client, session.userId))) return { mode: 'device', message: MESSAGES.signedOut };
+  return { mode: 'account', sync: createReviewSync(client, session.userId), rows: loaded.rows };
 }
