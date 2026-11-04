@@ -1,0 +1,5 @@
+STATUS: READY_FOR_REVIEW — W01 Task 260 adds a focused keyboard-only regression for fill-in live feedback and answer-field description associations. Existing suites retain full-round/resume coverage. Scope: tests/e2e/fill-in-announcements.spec.ts and this note only. No product code or dependencies change.
+
+Tested source: staging 20ec8437c761b6272985246272678c9db83a0604. Check passed (0 errors, 0 warnings, 12 existing hints), build passed (33 pages), Playwright discovery found 4 configured-project cases, and all 3,692 unit tests in 130 files passed with maxWorkers=1 under the shared validation lock. Focused phone browser execution was attempted but blocked before assertions by missing chromium_headless_shell-1248. No browser or actual screen-reader pass is claimed; CI must validate the keyboard flow.
+
+The new test complements existing full-round tests by checking polite/atomic live-region attributes, correct/wrong/almost text transitions, feedback association through aria-describedby, clearing stale feedback on advance, and keyboard focus after each action. Uses only existing nonclinical sample answers.
