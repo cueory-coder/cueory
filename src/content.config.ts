@@ -20,7 +20,7 @@ const lessons = defineCollection({
     order: z.number().int().positive(),
     title: z.string().min(1).max(120),
     summary: z.string().max(300),
-    status: z.enum(['placeholder', 'draft', 'in_review', 'published']),
+    status: z.enum(['placeholder', 'sample', 'draft', 'in_review', 'published']),
     sentences: z
       .array(
         z.object({
@@ -42,7 +42,7 @@ const cards = defineCollection({
   schema: z.object({
     lesson: z.string().regex(/^[a-z0-9-]+$/),
     title: z.string().min(1).max(120),
-    status: z.enum(['placeholder', 'draft', 'in_review', 'published']),
+    status: z.enum(['placeholder', 'sample', 'draft', 'in_review', 'published']),
     cards: z
       .array(
         z
