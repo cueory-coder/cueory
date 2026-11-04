@@ -154,6 +154,17 @@ describe('confirmCode (finishing enrollment, or the code at sign-in)', () => {
     expect(calls).toEqual([`challenge:${factorId}`, `verify:${factorId}:${challengeId}:123456`]);
   });
 
+  it('fails closed on a successful-looking MFA response with no verification data', async () => {
+    const { auth } = fake();
+    auth.mfa.verify = vi.fn(async () => ({ data: null, error: null }));
+    expect(await confirmCode(auth, factorId, '123456')).toEqual({
+      ok: false, problem: 'failed', message: CODE_MESSAGES.failed,
+    });
+    // A missing verified session must never allow removal of the existing factor.
+    expect(await removeFactor(auth, factorId, '123456')).toMatchObject({ ok: false, problem: 'failed' });
+    expect(auth.mfa.unenroll).not.toHaveBeenCalled();
+  });
+
   it('a wrong code says so plainly', async () => {
     expect(await confirmCode(fake({ verifyError: 'mfa_verification_failed' }).auth, factorId, '000000')).toEqual({
       ok: false, problem: 'wrong', message: CODE_MESSAGES.wrong,
