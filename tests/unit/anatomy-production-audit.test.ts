@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { auditAnatomyProduction, modelUrls } from '../../scripts/anatomy-production-audit.mjs';
+import { auditAnatomyProduction, decodeAsciiEscapesForAudit, modelUrls, readRegularFileNoFollow } from '../../scripts/anatomy-production-audit.mjs';
 
 const roots: string[] = [];
 afterEach(() => roots.splice(0).forEach((p) => rmSync(p, { recursive: true, force: true })));
@@ -259,6 +259,42 @@ describe('anatomy production artifact audit', () => {
     ]));
   });
 
+  it('rejects file and directory symlinks instead of following or silently skipping them', () => {
+    const f = setup();
+    mkdirSync(join(f.dist, 'assets'), { recursive: true });
+    symlinkSync(join(f.dist, 'models', 'anatomy', 'approved.glb'), join(f.dist, 'assets', 'alias.glb'));
+    symlinkSync(join(f.dist, 'models', 'anatomy'), join(f.dist, 'alias-models'), 'dir');
+    const result = f.check();
+    expect(result.errors).toEqual(expect.arrayContaining([
+      'symbolic link in production output: /assets/alias.glb',
+      'symbolic link in production output: /alias-models',
+    ]));
+    // The approved model counts once. An alias never becomes a reviewed asset.
+    expect(result.shippedModels).toBe(1);
+  });
+
+  it('rejects broken symlinks even if the target no longer exists', () => {
+    const f = setup();
+    symlinkSync(join(f.dist, 'missing.glb'), join(f.dist, 'ghost.glb'));
+    expect(f.check().errors).toContain('symbolic link in production output: /ghost.glb');
+  });
+
+  it('rejects linked anatomy source manifests rather than trusting an aliased approval', () => {
+    const f = setup();
+    symlinkSync(join(f.content, 'anatomy-approved.json'), join(f.content, 'anatomy-aliased.json'));
+    expect(f.check().errors).toContain('anatomy-aliased.json: anatomy source must not be a symbolic link');
+  });
+
+  it('reads regular text through a descriptor and refuses symlink aliases', () => {
+    const f = setup();
+    const original = join(f.dist, 'preview', 'anatomy-lab.html');
+    expect(readRegularFileNoFollow(original)).toContain('noindex');
+    const alias = join(f.dist, 'preview', 'aliased-anatomy.html');
+    symlinkSync(original, alias);
+    expect(() => readRegularFileNoFollow(alias)).toThrow();
+    expect(() => readRegularFileNoFollow(f.dist)).toThrow('not a regular file');
+  });
+
   it('rejects a fixture endpoint even when no draft model is present', () => {
     const f = setup();
     f.file('preview/anatomy-fixture/fixture.glb', 'fixture');
@@ -273,6 +309,190 @@ describe('anatomy production artifact audit', () => {
       'draft anatomy ID exposed in built text: preview/anatomy-lab.html (FMA999991)',
       'draft anatomy ID exposed in built text: _astro/study.js (FMA999991)',
     ]));
+  });
+
+  it('rejects synthetic fixture IDs from produced HTML, JS and search JSON', () => {
+    const f = setup();
+    f.file('preview/anatomy-lab.html', '<div data-test="FIX001">fixture shapes</div>');
+    f.file('_astro/view.js', 'const id="FIX002";');
+    f.file('pagefind/pagefind-entry.json', '{"id":"FIX003"}');
+    expect(f.check().errors).toEqual(expect.arrayContaining([
+      'test fixture ID exposed in built text: preview/anatomy-lab.html (FIX001)',
+      'test fixture ID exposed in built text: _astro/view.js (FIX002)',
+      'test fixture ID exposed in built text: pagefind/pagefind-entry.json (FIX003)',
+    ]));
+  });
+
+  it('detects fixture IDs even when no draft FMA source labels exist', () => {
+    const f = setup();
+    rmSync(join(f.content, 'anatomy-draft.json'));
+    f.file('index.html', '<span>FIX004</span>');
+    expect(f.check().errors).toContain('test fixture ID exposed in built text: index.html (FIX004)');
+  });
+
+  it('rejects escaped synthetic IDs in generated JS, JSON, HTML and SVG', () => {
+    const f = setup();
+    f.file('_astro/fixture.js', 'const id="\\u0046IX001";');
+    f.file('pagefind/fixture.json', '{"id":"FIX\\u0030\\u0030\\u0032"}');
+    f.file('preview/fixture.html', '<span>F&#73;X003</span>');
+    f.file('images/fixture.svg', '<text>&#70;IX004</text>');
+    expect(f.check().errors).toEqual(expect.arrayContaining([
+      'test fixture ID exposed in built text: _astro/fixture.js (FIX001)',
+      'test fixture ID exposed in built text: pagefind/fixture.json (FIX002)',
+      'test fixture ID exposed in built text: preview/fixture.html (FIX003)',
+      'test fixture ID exposed in built text: images/fixture.svg (FIX004)',
+    ]));
+  });
+
+  it('detects numeric HTML references without a semicolon in both decimal and hex', () => {
+    expect(decodeAsciiEscapesForAudit('&#70IX001', 'markup')).toBe('FIX001');
+    expect(decodeAsciiEscapesForAudit('&#x46IX002', 'markup')).toBe('FIX002');
+    expect(decodeAsciiEscapesForAudit('FIX&#48&#48&#53', 'markup')).toBe('FIX005');
+    expect(decodeAsciiEscapesForAudit('FMA&#57&#57&#57&#57&#57&#49', 'markup')).toBe('FMA999991');
+  });
+
+  it('detects valid numeric references with more than seven decimal or six hex digits', () => {
+    expect(decodeAsciiEscapesForAudit('&#00000070IX001', 'markup')).toBe('FIX001');
+    expect(decodeAsciiEscapesForAudit('&#x00000046IX002', 'markup')).toBe('FIX002');
+    expect(decodeAsciiEscapesForAudit('&#00000070MA999991', 'markup')).toBe('FMA999991');
+
+    const f = setup();
+    f.file('index.html', '<span>&#00000070IX001 &#x00000046IX002 &#00000070MA999991</span>');
+    expect(f.check().errors).toEqual(expect.arrayContaining([
+      'test fixture ID exposed in built text: index.html (FIX001)',
+      'draft anatomy ID exposed in built text: index.html (FMA999991)',
+    ]));
+  });
+
+  it('rejects decoded fixture and draft IDs from built HTML even when references omit semicolons', () => {
+    const f = setup();
+    f.file('preview/fixture.html', '<span data-anatomy="&#70IX001">synthetic</span>');
+    f.file('index.html', '<div>FIX&#48&#48&#53</div><span>FMA&#57&#57&#57&#57&#57&#49</span>');
+    expect(f.check().errors).toEqual(expect.arrayContaining([
+      'test fixture ID exposed in built text: preview/fixture.html (FIX001)',
+      'test fixture ID exposed in built text: index.html (FIX005)',
+      'draft anatomy ID exposed in built text: index.html (FMA999991)',
+    ]));
+  });
+
+  it('does not flag a longer unrelated identifier after decoding semicolonless references', () => {
+    const f = setup();
+    f.file('index.html', '<div>FIX&#48&#48&#49extra</div>');
+    expect(f.check().errors).toEqual([]);
+  });
+
+  it('detects encoded fixtures even if no real draft FMA label remains', () => {
+    const f = setup();
+    rmSync(join(f.content, 'anatomy-draft.json'));
+    f.file('_astro/fixtures.js', 'const fixture="FIX\\x30\\x30\\x35";');
+    expect(f.check().errors).toContain('test fixture ID exposed in built text: _astro/fixtures.js (FIX005)');
+  });
+
+  it('preserves token boundaries in encoded and unencoded anatomy data', () => {
+    const f = setup();
+    f.file('_astro/fixture.js', 'const a="FFIX001"; const b="FIX001extra";');
+    f.file('pagefind/other.json', '{"id":"FIX0010extra"}');
+    f.file('index.html', '<span>FIX&#48;&#48;1extra</span>');
+    expect(f.check().errors).toEqual([]);
+  });
+
+  it('rejects reserved FIX IDs even when the number contains more than three digits', () => {
+    const f = setup();
+    f.file('pagefind/long-fixture.json', '{"id":"FIX0010"}');
+    expect(f.check().errors).toContain('test fixture ID exposed in built text: pagefind/long-fixture.json (FIX0010)');
+  });
+
+  it('uses existing context-aware ASCII decoding for both FMA and FIX identifiers', () => {
+    expect(decodeAsciiEscapesForAudit('\\u0046IX001', 'script')).toBe('FIX001');
+    expect(decodeAsciiEscapesForAudit('FIX&#48;&#48;&#49;', 'markup')).toBe('FIX001');
+    expect(decodeAsciiEscapesForAudit('FMA&#57;&#57;&#57;&#57;&#57;&#49;', 'markup')).toBe('FMA999991');
+    expect(decodeAsciiEscapesForAudit('FIX0010', 'script')).toBe('FIX0010');
+  });
+
+  it('rejects padded braced Unicode fixture IDs in generated JavaScript', () => {
+    const f = setup();
+    f.file('_astro/fixture-four.js', 'const id="\\u{0046}IX001";');
+    f.file('_astro/fixture-six.js', 'const id="F\\u{000049}X002";');
+    f.file('_astro/fixture-eight.js', 'const id="FI\\u{00000058}003";');
+    expect(f.check().errors).toEqual(expect.arrayContaining([
+      'test fixture ID exposed in built text: _astro/fixture-four.js (FIX001)',
+      'test fixture ID exposed in built text: _astro/fixture-six.js (FIX002)',
+      'test fixture ID exposed in built text: _astro/fixture-eight.js (FIX003)',
+    ]));
+  });
+
+  it('detects BP and suffixed FMA draft IDs inside encoded built text', () => {
+    const f = setup();
+    f.system('draft', 'draft', ['/models/anatomy/draft.glb'], ['BP24', 'FMA7198nsn']);
+    f.file('_astro/bp-draft.js', String.raw`const id="\u0042P24";`);
+    f.file('preview/fma-draft.html', '<span>FMA7198&#110;sn</span>');
+    expect(f.check().errors).toEqual(expect.arrayContaining([
+      'draft anatomy ID exposed in built text: _astro/bp-draft.js (BP24)',
+      'draft anatomy ID exposed in built text: preview/fma-draft.html (FMA7198nsn)',
+    ]));
+  });
+
+  it('does not flag longer BodyParts3D IDs as the shorter draft ID', () => {
+    const f = setup();
+    f.system('draft', 'draft', ['/models/anatomy/draft.glb'], ['BP24', 'FMA7198nsn']);
+    f.file('index.html', '<div>BP240 FMA7198nsnextra</div>');
+    expect(f.check().errors).toEqual([]);
+  });
+
+  it('rejects padded braced draft IDs but does not invent unrelated tokens', () => {
+    const f = setup();
+    f.file('_astro/draft-braced.js', 'const id="\\u{0046}MA999991";');
+    f.file('_astro/unrelated.js', 'const prefix="PRE\\u{0046}IX001"; const accent="\\u{00E9}";');
+    expect(f.check().errors).toContain(
+      'draft anatomy ID exposed in built text: _astro/draft-braced.js (FMA999991)',
+    );
+    expect(f.check().errors.some((error) => error.includes('_astro/unrelated.js'))).toBe(false);
+    expect(decodeAsciiEscapesForAudit('\\u{0046}IX001', 'script')).toBe('FIX001');
+    expect(decodeAsciiEscapesForAudit('F\\u{000049}X002', 'script')).toBe('FIX002');
+    expect(decodeAsciiEscapesForAudit('\\u{00E9}', 'script')).toBe('\\u{00E9}');
+    expect(decodeAsciiEscapesForAudit('\\u{110000}', 'script')).toBe('\\u{110000}');
+  });
+
+  it('detects JavaScript code-point escapes with more than sixteen padded hex digits', () => {
+    const padded = String.raw`\u{0000000000000000000046}IX001`;
+    expect(decodeAsciiEscapesForAudit(padded, 'script')).toBe('FIX001');
+    const f = setup();
+    f.file('_astro/long-codepoint.js', `const id = "${padded}";`);
+    expect(f.check().errors).toContain(
+      'test fixture ID exposed in built text: _astro/long-codepoint.js (FIX001)',
+    );
+  });
+
+  it('does not misclassify escaped literal backslashes as fixture IDs', () => {
+    const f = setup();
+    f.file('_astro/escaped-backslashes.js', String.raw`const text="\\u0046IX001"; const padded="\\u{0046}IX002"; const hex="\\x46IX003";`);
+    expect(f.check().errors).toEqual([]);
+    expect(decodeAsciiEscapesForAudit(String.raw`\\u0046IX001`, 'script')).toBe(String.raw`\\u0046IX001`);
+    expect(decodeAsciiEscapesForAudit(String.raw`\\u{0046}IX002`, 'script')).toBe(String.raw`\\u{0046}IX002`);
+    expect(decodeAsciiEscapesForAudit(String.raw`\\x46IX003`, 'script')).toBe(String.raw`\\x46IX003`);
+  });
+
+  it('still finds an active Unicode escape following a literal backslash pair', () => {
+    const f = setup();
+    f.file('_astro/odd-slashes.js', String.raw`const id="\\\u0046IX004";`);
+    expect(decodeAsciiEscapesForAudit(String.raw`\\\u0046IX004`, 'script')).toBe(String.raw`\\FIX004`);
+    expect(f.check().errors).toContain('test fixture ID exposed in built text: _astro/odd-slashes.js (FIX004)');
+  });
+
+  it('also catches escaped draft FMA IDs from the earlier audit review', () => {
+    const f = setup();
+    f.file('_astro/draft.js', 'const id="\\u0046MA999991";');
+    f.file('draft.html', '<span>FMA&#57;&#57;&#57;&#57;&#57;&#49;</span>');
+    expect(f.check().errors).toEqual(expect.arrayContaining([
+      'draft anatomy ID exposed in built text: _astro/draft.js (FMA999991)',
+      'draft anatomy ID exposed in built text: draft.html (FMA999991)',
+    ]));
+  });
+
+  it('does not confuse fixture IDs with longer unrelated tokens', () => {
+    const f = setup();
+    f.file('index.html', '<span>BEFOREFIX001 FIX001extra FIX </span>');
+    expect(f.check().errors).toEqual([]);
   });
 
   it('avoids false positives from longer or unrelated structure identifiers', () => {

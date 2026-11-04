@@ -4,7 +4,7 @@
  *
  * Usage: node scripts/anatomy-production-audit.mjs [dist-directory] [content/visuals-directory]
  */
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { closeSync, constants as fsConstants, existsSync, fstatSync, openSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -19,15 +19,71 @@ const MODEL_ASSET = /\.(?:glb|gltf|obj|stl)$/i;
 // Scan all ordinary published text assets, not just the anatomy page or hashed JavaScript chunks.
 // Site search, manifests or unrelated pages can otherwise accidentally expose a draft identifier.
 const TEXT_ASSET = /\.(?:html?|js|mjs|json|map|xml|svg|txt|css|csv|tsv|md|webmanifest)$/i;
+const SCRIPT_ESCAPES_ASSET = /\.(?:js|mjs|json|map|webmanifest|html?)$/i;
+const MARKUP_ESCAPES_ASSET = /\.(?:html?|svg|xml)$/i;
 
-function walkFiles(dir) {
+/** Walk a built artifact without following links outside (or back into) the output. */
+function walkFiles(dir, linked) {
   if (!existsSync(dir)) return [];
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const p = join(dir, entry.name);
-    if (entry.isDirectory()) return walkFiles(p);
+    if (entry.isSymbolicLink()) {
+      linked.push(p); // A link is not proof of a reviewed production asset.
+      return [];
+    }
+    if (entry.isDirectory()) return walkFiles(p, linked);
     if (entry.isFile()) return [p];
     return [];
   });
+}
+
+/**
+ * Read an audited regular file through its opened descriptor, never through a
+ * later pathname lookup. If a file changes into a symlink after directory
+ * enumeration, O_NOFOLLOW rejects it instead of reading its target.
+ */
+export function readRegularFileNoFollow(path) {
+  if (!Number.isInteger(fsConstants.O_NOFOLLOW)) {
+    throw new Error('this platform cannot safely audit symbolic links');
+  }
+  const fd = openSync(path, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
+  try {
+    if (!fstatSync(fd).isFile()) throw new Error('not a regular file');
+    return readFileSync(fd, 'utf8');
+  } finally {
+    closeSync(fd);
+  }
+}
+
+/**
+ * Decode common ASCII escapes before scanning generated text for draft IDs.
+ * Bundlers can emit JSON/JS Unicode escapes, and HTML can use numeric entities.
+ * This is read-only normalization for the audit, not a change to shipped files.
+ */
+export function decodeAsciiEscapesForAudit(text, syntax) {
+  if (syntax === 'script') {
+    // Decode only active JS escapes. An even run of backslashes means the
+    // slash was itself escaped, so "\\u0046" is text, not the letter F.
+    // Preserve preceding escaped slash pairs while decoding a final odd slash.
+    // Padded code-point escapes such as \u{0046} are valid JavaScript too.
+    // V8 accepts arbitrarily many leading zeroes inside braces, so do not
+    // cap the hex digit count or a legal encoded draft ID can evade the gate.
+    return text.replace(/(?<!\\)((?:\\\\)*)\\(?:u00([0-7][0-9a-f])|x([0-7][0-9a-f])|u\{([0-9a-f]+)\})/gi,
+      (match, pairs, unicode, hex, braced) => {
+        const value = Number.parseInt(unicode ?? hex ?? braced, 16);
+        return Number.isInteger(value) && value <= 127 ? pairs + String.fromCharCode(value) : match;
+      });
+  }
+  if (syntax === 'markup') {
+    // HTML numeric references may omit the semicolon and may contain any
+    // number of leading zeroes (for example &#00000070IX001 is FIX001).
+    // Consume the complete digit run or padded encodings bypass the audit.
+    return text.replace(/&#(?:x([0-9a-f]+)|([0-9]+));?/gi, (match, hex, decimal) => {
+      const value = hex === undefined ? Number.parseInt(decimal, 10) : Number.parseInt(hex, 16);
+      return value <= 127 ? String.fromCharCode(value) : match;
+    });
+  }
+  return text;
 }
 
 /** Extracts references without trusting paths from content files as filesystem paths. */
@@ -72,11 +128,13 @@ export function auditAnatomyProduction(distDir, contentDir) {
   const sources = readdirSync(content).filter((n) => ANATOMY_FILE.test(n)).sort();
   if (!sources.length) errors.push('no anatomy source files found');
   for (const name of sources) {
+    const sourcePath = join(content, name);
     let data;
     try {
-      data = JSON.parse(readFileSync(join(content, name), 'utf8'));
-    } catch {
-      errors.push(`${name}: cannot read valid JSON`);
+      data = JSON.parse(readRegularFileNoFollow(sourcePath));
+    } catch (error) {
+      const linked = error && typeof error === 'object' && 'code' in error && error.code === 'ELOOP';
+      errors.push(linked ? `${name}: anatomy source must not be a symbolic link` : `${name}: cannot read valid JSON`);
       continue;
     }
     if (!data || (data.status !== 'approved' && data.status !== 'draft')) {
@@ -176,9 +234,13 @@ export function auditAnatomyProduction(distDir, contentDir) {
 
   // Inspect the entire output, not only dist/models/anatomy: a misplaced file is just as public.
   // The source manifest approves exact .glb URLs; any other 3D asset must be explicitly reviewed.
-  const shipped = [...new Set(walkFiles(dist)
+  const linked = [];
+  const builtFiles = walkFiles(dist, linked);
+  const toUrl = (path) => '/' + path.slice(dist.length + 1).replaceAll('\\', '/');
+  for (const path of linked) errors.push(`symbolic link in production output: ${toUrl(path)}`);
+  const shipped = [...new Set(builtFiles
     .filter((path) => MODEL_ASSET.test(path))
-    .map((path) => '/' + path.slice(dist.length + 1).replaceAll('\\', '/')))];
+    .map(toUrl))];
 
   for (const url of shipped) {
     if (!approved.has(url)) errors.push(`unapproved model exposed in production: ${url}`);
@@ -187,26 +249,59 @@ export function auditAnatomyProduction(distDir, contentDir) {
     if (!shipped.includes(url)) errors.push(`approved model missing from production: ${url}`);
   }
 
-  const fixtureRoot = join(dist, 'preview', 'anatomy-fixture');
-  for (const p of walkFiles(fixtureRoot)) {
-    errors.push(`test fixture exposed in production: /preview/anatomy-fixture/${p.slice(fixtureRoot.length + 1).replaceAll('\\', '/')}`);
+  for (const path of builtFiles) {
+    const url = toUrl(path);
+    if (url.startsWith('/preview/anatomy-fixture/')) {
+      errors.push(`test fixture exposed in production: ${url}`);
+    }
   }
 
   // Draft labels must not be baked into static HTML/JS data, even if their .glb files were pruned.
   // The identifiers are original data keys, not guessed medical wording. Only match exact token boundaries.
   // Search every static text asset, including Pagefind/search data and other public routes.
-  // Token boundaries distinguish BP24 from BP240 and FMA999991 from FMA9999910. Unsupported IDs fail source validation above.
-  const textFiles = walkFiles(dist).filter((path) => TEXT_ASSET.test(path));
+  // Token boundaries avoid confusing BP24 with BP240 or FMA7198nsn with FMA7198nsn0. Unknown ID formats fail source validation above.
+  const textFiles = builtFiles.filter((path) => TEXT_ASSET.test(path));
   const draftTokens = draftIds;
-  if (draftTokens.size) {
-    for (const file of textFiles) {
-      const contents = readFileSync(file, 'utf8');
-      for (const match of contents.matchAll(STRUCTURE_TOKEN)) {
-        if (draftTokens.has(match[0])) {
-          errors.push(`draft anatomy ID exposed in built text: ${file.slice(dist.length + 1)} (${match[0]})`);
-          break;
+  for (const file of textFiles) {
+    let contents;
+    try {
+      contents = readRegularFileNoFollow(file);
+    } catch {
+      errors.push(`cannot safely read built text: ${file.slice(dist.length + 1)}`);
+      continue;
+    }
+    // Both the original bytes and their context-appropriate decoded versions
+    // must be checked. This recognizes encoded IDs without erasing raw token boundaries.
+    const variants = [contents];
+    if (SCRIPT_ESCAPES_ASSET.test(file)) variants.push(decodeAsciiEscapesForAudit(contents, 'script'));
+    if (MARKUP_ESCAPES_ASSET.test(file)) variants.push(decodeAsciiEscapesForAudit(contents, 'markup'));
+    if (draftTokens.size) {
+      let exposedDraft = null;
+      for (const variant of variants) {
+        for (const match of variant.matchAll(STRUCTURE_TOKEN)) {
+          if (draftTokens.has(match[0])) {
+            exposedDraft = match[0];
+            break;
+          }
         }
+        if (exposedDraft) break;
       }
+      if (exposedDraft) {
+        errors.push('draft anatomy ID exposed in built text: ' + file.slice(dist.length + 1) + ' (' + exposedDraft + ')');
+      }
+    }
+    // Reserved synthetic shape IDs are forbidden in public HTML, JS, and search
+    // assets even if every real source record is approved.
+    let exposedFixture = null;
+    for (const variant of variants) {
+      const match = /\bFIX\d{3,}\b/.exec(variant);
+      if (match) {
+        exposedFixture = match[0];
+        break;
+      }
+    }
+    if (exposedFixture) {
+      errors.push('test fixture ID exposed in built text: ' + file.slice(dist.length + 1) + ' (' + exposedFixture + ')');
     }
   }
 
