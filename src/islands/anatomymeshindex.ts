@@ -51,7 +51,13 @@ export function indexAnatomyGroup(
   const owners = new Map<THREE.Object3D, string>();
 
   group.traverse((object) => {
-    const name = typeof object.userData['name'] === 'string' ? object.userData['name'] as string : object.name;
+    // glTF extras can carry a descriptive name that is not a structure ID.
+    // Prefer it when it matches the reviewed catalog, otherwise allow the
+    // node's own valid structure ID to identify the mesh.
+    const extrasName = object.userData['name'];
+    const name = typeof extrasName === 'string' && wanted.has(extrasName)
+      ? extrasName
+      : object.name;
     if (!wanted.has(name)) return;
     if (!meshesById.has(name)) meshesById.set(name, []);
     // Even if a different GLB already registered this ID, its new node
