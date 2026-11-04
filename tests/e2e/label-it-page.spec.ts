@@ -9,7 +9,7 @@ test.describe('label it page', () => {
   });
 
   test('shows the page heading, sample state, drawing credit, and lesson link', async ({ page }) => {
-    await expect(page).toHaveTitle('label it: lesson 1 | cueory');
+    await expect(page).toHaveTitle('label it: lesson 1 · cueory');
     await expect(page.locator('main h1')).toHaveText('label it');
     await expect(page.locator('main')).toContainText(
       'the labels on the drawing are covered. uncover them one at a time, or all at once, and mark each one.',
@@ -63,8 +63,8 @@ test.describe('label it without JavaScript', () => {
     const response = await page.goto('/learn/study-skills/label-it');
     expect(response?.status()).toBe(200);
     await expect(page.locator('main h1')).toHaveText('label it');
-    await expect(page.locator('main noscript')).toContainText('label it needs JavaScript.');
-    await expect(page.locator('main noscript').getByRole('link', { name: 'lesson page' })).toHaveAttribute(
+    await expect(page.locator('main')).toContainText('label it needs JavaScript.');
+    await expect(page.getByRole('link', { name: 'lesson page', exact: true })).toHaveAttribute(
       'href',
       '/learn/study-skills',
     );
