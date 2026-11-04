@@ -19,6 +19,12 @@ for (const viewport of viewports) {
       await expect(page.getByText('Christian: paste your disclaimer here.')).toBeVisible();
 
       const footer = page.getByRole('contentinfo');
+      // The site's footer links are intentionally closed until the visitor opens them.
+      const toggle = footer.locator('[data-footer-toggle]');
+      await expect(toggle).toBeVisible();
+      await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+      await toggle.click();
+      await expect(toggle).toHaveAttribute('aria-expanded', 'true');
       for (const link of [
         { name: 'privacy', href: '/privacy' },
         { name: 'terms', href: '/terms' },
