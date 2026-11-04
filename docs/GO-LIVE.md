@@ -279,9 +279,11 @@ These need your call. None costs money unless you choose a paid option.
 
 1. **Backups of cueory-prod.** Free projects have no downloadable backups; Supabase tells free projects to export
    their data regularly with the command-line tool's `db dump` and keep off-site copies. [SB backups]
-   [SB production checklist] D-73 plans a nightly encrypted backup from a GitHub Actions run. It needs a new
-   workflow and secrets you add yourself, so it waits for your approval. Decide: (a) the nightly backup as planned
-   (free), (b) Supabase Pro, which has daily backups (paid, needs your written approval), or (c) neither for now.
+   [SB production checklist] D-73's nightly encrypted backup workflow already exists as a **draft** in
+   `.github/workflows/prod-backup.yml` on `staging`. Do not create a duplicate. Before it reaches `main` or runs,
+   review the workflow, explicitly approve its protected settings, and configure the `prod-backup` environment and
+   secrets in GitHub. Then decide: (a) enable that existing nightly backup (free), (b) Supabase Pro with daily
+   backups (paid, needs your written approval), or (c) neither for now.
 2. **Keeping the projects awake.** Supabase pauses free projects after a 7-day stretch of low activity, emails a
    warning about a week before, and a paused project can be resumed (**Resume project**). [SB pausing] A few
    database requests a day is enough. `cueory-staging` will pause when nobody tests for a week; `cueory-prod` could
