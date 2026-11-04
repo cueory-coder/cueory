@@ -52,18 +52,21 @@ export default function SurveyPrompt({
   onSubmit,
   onDismiss,
 }: SurveyPromptProps) {
-  const [dismissed, setDismissed] = useState(() => isDismissed(storageKey, storage));
+  // Mount state tracking to avoid SSR hydration mismatches when reading from storage
+  const [mounted, setMounted] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
   const [usedForFinal, setUsedForFinal] = useState<boolean | null>(null);
   const [feedback, setFeedback] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const id = useId();
 
   useEffect(() => {
+    setMounted(true);
     setDismissed(isDismissed(storageKey, storage));
   }, [storageKey, storage]);
 
-  // Never opens while a question or card is active, or if already dismissed or submitted
-  if (activeQuestion || dismissed) {
+  // Never opens while a question or card is active, or if already dismissed or before hydration
+  if (!mounted || activeQuestion || dismissed) {
     return null;
   }
 
