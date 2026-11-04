@@ -701,6 +701,12 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                   setListLimit(STRUCTURE_PAGE_SIZE);
                   // A search for one system must not make the next system appear to have no structures.
                   setQuery('');
+                  // Invalidate an in-progress PNG before the asynchronous load effect runs.
+                  generation.bump();
+                  // Hide all actions tied to the previous model in this click update.
+                  setLoad({ state: 'loading' });
+                  setSelected(null);
+                  setQuiz(null);
                   setSystemKey(s.key);
                 }}
                 className={secondaryButton}
