@@ -105,11 +105,11 @@ update auth.users set email_confirmed_at = null where id = '00000000-0000-4000-8
 set local role authenticated;
 set local "request.jwt.claims" to '{"sub":"00000000-0000-4000-8000-000000000002","role":"authenticated","aal":"aal2"}';
 set local "request.jwt.claim.sub" to '00000000-0000-4000-8000-000000000002';
-select throws_ok($ select public.check_answer(null, null, null) $,
+select throws_ok($$ select public.check_answer(null, null, null) $$,
   '28000', 'confirm your email to use this', 'an unconfirmed user cannot invoke check_answer even with aal2');
-select throws_ok($ select public.submit_flag('/learn/sample', null, null, 'typo', null) $,
+select throws_ok($$ select public.submit_flag('/learn/sample', null, null, 'typo', null) $$,
   '28000', 'confirm your email to use this', 'an unconfirmed user cannot invoke submit_flag even with aal2');
-select throws_ok($ select public.record_study_events('[]'::jsonb) $,
+select throws_ok($$ select public.record_study_events('[]'::jsonb) $$,
   '28000', 'confirm your email to use this', 'an unconfirmed user cannot invoke record_study_events even with aal2');
 
 reset role;
@@ -117,11 +117,11 @@ update auth.users set email_confirmed_at = now(), is_anonymous = true where id =
 set local role authenticated;
 set local "request.jwt.claims" to '{"sub":"00000000-0000-4000-8000-000000000002","role":"authenticated","aal":"aal2"}';
 set local "request.jwt.claim.sub" to '00000000-0000-4000-8000-000000000002';
-select throws_ok($ select public.check_answer(null, null, null) $,
+select throws_ok($$ select public.check_answer(null, null, null) $$,
   '28000', 'confirm your email to use this', 'a user marked anonymous in auth.users cannot invoke check_answer even with aal2');
-select throws_ok($ select public.submit_flag('/learn/sample', null, null, 'typo', null) $,
+select throws_ok($$ select public.submit_flag('/learn/sample', null, null, 'typo', null) $$,
   '28000', 'confirm your email to use this', 'a user marked anonymous in auth.users cannot invoke submit_flag even with aal2');
-select throws_ok($ select public.record_study_events('[]'::jsonb) $,
+select throws_ok($$ select public.record_study_events('[]'::jsonb) $$,
   '28000', 'confirm your email to use this', 'a user marked anonymous in auth.users cannot invoke record_study_events even with aal2');
 
 reset role;
@@ -129,16 +129,16 @@ update auth.users set is_anonymous = false where id = '00000000-0000-4000-8000-0
 set local role authenticated;
 set local "request.jwt.claims" to '{"sub":"00000000-0000-4000-8000-000000000002","role":"authenticated","aal":"aal2","is_anonymous":true}';
 set local "request.jwt.claim.sub" to '00000000-0000-4000-8000-000000000002';
-select throws_ok($ select public.check_answer(null, null, null) $,
+select throws_ok($$ select public.check_answer(null, null, null) $$,
   '28000', 'confirm your email to use this', 'a caller with the anonymous JWT claim cannot invoke check_answer even with aal2');
-select throws_ok($ select public.submit_flag('/learn/sample', null, null, 'typo', null) $,
+select throws_ok($$ select public.submit_flag('/learn/sample', null, null, 'typo', null) $$,
   '28000', 'confirm your email to use this', 'a caller with the anonymous JWT claim cannot invoke submit_flag even with aal2');
-select throws_ok($ select public.record_study_events('[]'::jsonb) $,
+select throws_ok($$ select public.record_study_events('[]'::jsonb) $$,
   '28000', 'confirm your email to use this', 'a caller with the anonymous JWT claim cannot invoke record_study_events even with aal2');
 
 reset role;
 set local role anon;
-select throws_ok($ select public.delete_my_account() $, '42501', null,
+select throws_ok($$ select public.delete_my_account() $$, '42501', null,
   'an anonymous visitor still cannot invoke account deletion');
 reset role;
 select results_eq($$ select count(*)::int from auth.users $$,
