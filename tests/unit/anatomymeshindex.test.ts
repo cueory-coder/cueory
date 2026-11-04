@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import * as THREE from 'three';
-import { disposeAnatomyMaterials, disposeAnatomyMeshResources, indexAnatomyGroup } from '../../src/islands/anatomymeshindex';
+import { disposeAnatomyMaterials, disposeAnatomyMeshResources, indexAnatomyGroup, summarizeIndexedAnatomyIds } from '../../src/islands/anatomymeshindex';
 
 /** Test-only boxes and made-up IDs, never real anatomical content. */
 function sampleGroup(id: string, meshName = ''): { group: THREE.Group; mesh: THREE.Mesh; material: THREE.Material } {
@@ -14,6 +14,50 @@ function sampleGroup(id: string, meshName = ''): { group: THREE.Group; mesh: THR
   group.add(structure);
   return { group, mesh, material };
 }
+
+describe('anatomy scene result IDs across shared GLBs', () => {
+  it('does not report an already indexed shared ID as missing when a later GLB adds its meshes', () => {
+    const first = sampleGroup('TEST_SHARED');
+    const second = sampleGroup('TEST_SHARED');
+    const indexed = new Map<string, THREE.Mesh[]>();
+    const unlabeled: THREE.Mesh[] = [];
+
+    indexAnatomyGroup(first.group, ['TEST_SHARED'], indexed, unlabeled);
+    const firstResult = summarizeIndexedAnatomyIds(['TEST_SHARED'], [], indexed);
+    expect(firstResult).toEqual({ added: ['TEST_SHARED'], missing: [] });
+
+    indexAnatomyGroup(second.group, ['TEST_SHARED', 'TEST_ABSENT'], indexed, unlabeled);
+    expect(summarizeIndexedAnatomyIds(
+      ['TEST_SHARED', 'TEST_ABSENT', 'TEST_SHARED'],
+      firstResult.added,
+      indexed,
+    )).toEqual({ added: [], missing: ['TEST_ABSENT'] });
+    expect(indexed.get('TEST_SHARED')).toEqual([first.mesh, second.mesh]);
+  });
+
+  it('adds a newly found ID only once and keeps missing IDs distinct', () => {
+    const first = sampleGroup('TEST_ALREADY_PRESENT');
+    const next = sampleGroup('TEST_NEW');
+    const indexed = new Map<string, THREE.Mesh[]>();
+    const unlabeled: THREE.Mesh[] = [];
+    indexAnatomyGroup(first.group, ['TEST_ALREADY_PRESENT'], indexed, unlabeled);
+    indexAnatomyGroup(next.group, ['TEST_NEW'], indexed, unlabeled);
+
+    expect(summarizeIndexedAnatomyIds(
+      ['TEST_ALREADY_PRESENT', 'TEST_NEW', 'TEST_NEW', 'TEST_MISSING', 'TEST_MISSING'],
+      ['TEST_ALREADY_PRESENT'],
+      indexed,
+    )).toEqual({ added: ['TEST_NEW'], missing: ['TEST_MISSING'] });
+  });
+
+  it('counts the same ID as newly found after the previous model was cleared', () => {
+    const sample = sampleGroup('TEST_RELOADED');
+    const indexed = new Map<string, THREE.Mesh[]>();
+    indexAnatomyGroup(sample.group, ['TEST_RELOADED'], indexed, []);
+    expect(summarizeIndexedAnatomyIds(['TEST_RELOADED'], [], indexed))
+      .toEqual({ added: ['TEST_RELOADED'], missing: [] });
+  });
+});
 
 describe('anatomy GLB mesh registration', () => {
   it('recognizes a reviewed node ID when glTF extras provide an unrelated label', () => {
