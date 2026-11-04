@@ -445,6 +445,39 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     if (load.state === 'ready') sceneRef.current?.setAppearance({ hidden, selected });
   }, [hidden, selected, load]);
 
+  // Mobile devices may lose their WebGL context after the scene is open.
+  // Retire GPU work immediately, but keep the accessible structure-name catalog available.
+  useEffect(() => {
+    if (phase !== 'open') return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const onContextLost = (event: Event) => {
+      event.preventDefault();
+      activePointers.current.clear();
+      pointerRef.current = null;
+      generation.bump();
+      visibilityIntent.bump();
+      loaderRef.current?.retire();
+      loaderRef.current = null;
+      const lostScene = sceneRef.current;
+      sceneRef.current = null;
+      try {
+        lostScene?.dispose();
+      } catch {
+        // A lost GPU resource may throw during disposal. Text access must still work.
+      }
+      setExporting(null);
+      setExportNote('');
+      setPending(new Set());
+      setLayerError(null);
+      setPhase('error');
+    };
+
+    canvas.addEventListener('webglcontextlost', onContextLost);
+    return () => canvas.removeEventListener('webglcontextlost', onContextLost);
+  }, [phase, generation, visibilityIntent]);
+
   useEffect(() => () => sceneRef.current?.dispose(), []);
 
   useEffect(() => {
