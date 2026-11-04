@@ -29,7 +29,7 @@ test.beforeAll(async () => {
       import { createRoot } from 'react-dom/client';
       import AdminFlags from './src/islands/AdminFlags.tsx';
       const params = new URLSearchParams(location.search);
-      // who: admin (aal2), admin-aal1 (two-factor on, code not entered), student, broken (every call fails once).
+      // who: admin (aal2), admin-aal1 (code pending), admin-no-factor (no verified factor), student, broken.
       let who = params.get('who') ?? 'admin';
       window.rpcCalls = [];
       const id = n => '00000000-0000-4000-8000-' + String(n).padStart(12, '0');
@@ -101,7 +101,7 @@ test.beforeAll(async () => {
           mfa: { getAuthenticatorAssuranceLevel: () => later({
             data: {
               currentLevel: who === 'admin' || who === 'broken' || who === 'capped' || who === 'capped-handled' ? 'aal2' : 'aal1',
-              nextLevel: who === 'student' ? 'aal1' : 'aal2',
+              nextLevel: who === 'student' || who === 'admin-no-factor' ? 'aal1' : 'aal2',
             },
             error: null,
           }) },
@@ -232,6 +232,18 @@ test.describe('/admin/flags wired to the database functions', () => {
     await page.route('**/account/two-factor?*', route => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>code</title>' }));
     await fixture(page, 'who=admin-aal1');
     await expect(page).toHaveURL(/\/account\/two-factor\?next=%2Fadmin%2Fflags$/);
+  });
+
+  test('an admin without an enrolled factor is refused without an MFA redirect or private rows', async ({ page }) => {
+    await fixture(page, 'who=admin-no-factor');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('this page is for the site owner.');
+    await expect(page.getByTestId('admin-flags-row')).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'enter your two-factor code' })).toHaveCount(0);
+    await expect(page.locator('body')).not.toContainText('sample comment one');
+    await expect(page).toHaveURL(/__admin-flags-fixture/);
+    expect(await calls(page)).toEqual([
+      ['admin_list_flags', { flag_status: 'open', max_rows: 200, before_created_at: null, before_id: null }],
+    ]);
   });
 
   test('a failure says so without database text, and try again loads the inbox', async ({ page }) => {
