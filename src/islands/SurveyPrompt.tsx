@@ -1,4 +1,5 @@
 import { useEffect, useId, useState, type FormEvent } from 'react';
+import { browserStorage, type KeyValueStorage } from '../scripts/storage';
 
 export interface SurveySubmission {
   usedForFinal: boolean | null;
@@ -10,6 +11,8 @@ export interface SurveyPromptProps {
   activeQuestion?: boolean;
   /** Storage key used to persist dismissal. */
   storageKey?: string;
+  /** Optional storage stand-in for testing or environments with blocked storage. */
+  storage?: KeyValueStorage;
   /** Submission callback for when student submits the survey. */
   onSubmit?: (submission: SurveySubmission) => void | Promise<void>;
   /** Optional callback when dismissed. */
@@ -24,19 +27,19 @@ const primaryButton =
 const secondaryButton =
   'min-h-11 rounded-pill border border-control px-5 py-2.5 text-ink hover:bg-surface disabled:opacity-50';
 
-function isDismissed(key: string): boolean {
+function isDismissed(key: string, storage?: KeyValueStorage): boolean {
   try {
-    if (typeof localStorage === 'undefined') return false;
-    return localStorage.getItem(key) === 'true';
+    const store = storage ?? browserStorage();
+    return store?.getItem(key) === 'true';
   } catch {
     return false;
   }
 }
 
-function saveDismissed(key: string): void {
+function saveDismissed(key: string, storage?: KeyValueStorage): void {
   try {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.setItem(key, 'true');
+    const store = storage ?? browserStorage();
+    store?.setItem(key, 'true');
   } catch {
     // blocked storage
   }
@@ -45,18 +48,19 @@ function saveDismissed(key: string): void {
 export default function SurveyPrompt({
   activeQuestion = false,
   storageKey = STORAGE_KEY_DEFAULT,
+  storage,
   onSubmit,
   onDismiss,
 }: SurveyPromptProps) {
-  const [dismissed, setDismissed] = useState(() => isDismissed(storageKey));
+  const [dismissed, setDismissed] = useState(() => isDismissed(storageKey, storage));
   const [usedForFinal, setUsedForFinal] = useState<boolean | null>(null);
   const [feedback, setFeedback] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const id = useId();
 
   useEffect(() => {
-    setDismissed(isDismissed(storageKey));
-  }, [storageKey]);
+    setDismissed(isDismissed(storageKey, storage));
+  }, [storageKey, storage]);
 
   // Never opens while a question or card is active, or if already dismissed or submitted
   if (activeQuestion || dismissed) {
@@ -64,7 +68,7 @@ export default function SurveyPrompt({
   }
 
   const handleDismiss = () => {
-    saveDismissed(storageKey);
+    saveDismissed(storageKey, storage);
     setDismissed(true);
     onDismiss?.();
   };
@@ -76,7 +80,7 @@ export default function SurveyPrompt({
       usedForFinal,
       feedback: cleanFeedback,
     };
-    saveDismissed(storageKey);
+    saveDismissed(storageKey, storage);
     setSubmitted(true);
     await onSubmit?.(data);
   };
