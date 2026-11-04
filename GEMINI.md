@@ -9,15 +9,16 @@ You are one of several agents working on Cueory under Christian's direction. The
 3. Follow the branch and pull-request rules in `CLAUDE.md`. When assigned an already-open PR, repair and review that
    PR instead of opening another. Do not create a new PR unless Christian explicitly directs it. Never merge or
    push directly to `main` or `staging`.
-4. Run `npm run verify` before every push. Add an in-review status note and keep `docs/STATUS.md` current as
-   `CLAUDE.md` requires. Update `docs/DECISIONS.md` when a decision is made, with the lead's coordination.
+4. Run `npm run verify` before every push. Add a `status:` note in `docs/status/in-review/` for the lead to
+   consolidate. The director maintains `docs/STATUS.md` and `docs/DECISIONS.md` in batches as `CLAUDE.md` and
+   `AGENTS.md` describe; do not edit those ledgers directly unless the lead explicitly assigns it.
 5. Never touch: `supabase/`, `.github/`, `scripts/automerge/`, `wrangler.jsonc`, `public/_headers`,
    `astro.config.mjs`, `package.json` dependencies, `public/models/*.glb`, anything about auth, sign-in,
    two-factor, payments, secrets or deployment. If a task seems to need one of these, stop and say so.
 6. Design: every color, size and spacing is a token in `src/styles/tokens.css`; no inline `<script>` or `style=""`.
-   Use self-hosted Inter for body and interface text, and Bodoni Moda for marketing headings as directed in
-   `CLAUDE.md` and `docs/BRAND.md`. Provide keyboard and tap alternatives for dragging, respect reduced motion,
-   and never use color alone to communicate right or wrong.
+   Use self-hosted Lato for body, interface, buttons and study-screen headings, with line spacing at least 1.5.
+   Bodoni Moda is for marketing headings only, as specified in `CLAUDE.md` and `docs/BRAND.md`. Provide keyboard
+   and tap alternatives for dragging, respect reduced motion, and never use color alone for right or wrong.
 7. Content: never invent clinical or nursing facts. Use only Christian's reviewed content and approved, cited
    sources as specified in `CLAUDE.md` and `docs/VISUALS.md`. Keep official anatomy names exactly as in the
    BodyParts3D parts list, with the required source credit and license on every view and export.
