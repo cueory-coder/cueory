@@ -654,7 +654,7 @@ test.describe('anatomy lab whole body loads layers on demand', () => {
     const response = await page.goto('/preview/anatomy-lab');
     expect(response).not.toBeNull();
     const html = await response!.text();
-    test.skip(!html.includes(sourceId), 'no draft anatomy sources in this build');
+    expect(html, 'draft-enabled Playwright builds must include this source structure').toContain(sourceId);
     expect(html.split(sourceId).length - 1).toBe(1);
 
     await expect(page.getByRole('button', { name: 'whole body', exact: true })).toHaveCount(0);
