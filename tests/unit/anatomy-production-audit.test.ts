@@ -24,7 +24,16 @@ function setup() {
       status,
       model: { file: urls[0], files: urls.slice(1) },
       labels: ids.map((id) => ({ id, text: 'fixture label', source: `bp3d-${id}` })),
-      sources: ids.map((id) => ({ id: `bp3d-${id}` })),
+      // Fake, test-only evidence. Never used as an anatomy quotation.
+      sources: ids.map((id) => ({
+        id: `bp3d-${id}`,
+        quote: 'synthetic test words only',
+        book: 'BodyParts3D',
+        section: 'synthetic test section',
+        url: 'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/synthetic-test-only',
+        license: 'CC BY 4.0',
+        retrieved: '2026-11-04',
+      })),
     }));
   };
   system('draft', 'draft', ['/models/anatomy/draft.glb'], ['FMA999991']);
@@ -134,6 +143,40 @@ describe('anatomy production artifact audit', () => {
       'anatomy-approved.json: approved source records are missing',
       'anatomy-approved.json: approved label FMA999992 references unknown source bp3d-FMA999992',
     ]));
+  });
+
+  it('rejects an approved citation with a matching ID but missing quotation or section', () => {
+    const f = setup();
+    writeFileSync(join(f.content, 'anatomy-approved.json'), JSON.stringify({
+      status: 'approved',
+      model: { file: '/models/anatomy/approved.glb' },
+      labels: [{ id: 'FMA999992', text: 'fixture label', source: 'bp3d-FMA999992' }],
+      sources: [{
+        id: 'bp3d-FMA999992', quote: '', book: 'BodyParts3D', section: '',
+        url: 'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/synthetic-test-only',
+        license: 'CC BY 4.0', retrieved: '2026-11-04',
+      }],
+    }));
+    expect(f.check().errors).toContain(
+      'anatomy-approved.json: approved source bp3d-FMA999992 has incomplete or incompatible citation and rights evidence',
+    );
+  });
+
+  it('rejects an approved source with unapproved licensing or off-site evidence', () => {
+    const f = setup();
+    writeFileSync(join(f.content, 'anatomy-approved.json'), JSON.stringify({
+      status: 'approved',
+      model: { file: '/models/anatomy/approved.glb' },
+      labels: [{ id: 'FMA999992', text: 'fixture label', source: 'bp3d-FMA999992' }],
+      sources: [{
+        id: 'bp3d-FMA999992', quote: 'synthetic words', book: 'Other Atlas',
+        section: 'synthetic test section', url: 'https://example.org/unverified',
+        license: 'CC BY-NC 4.0', retrieved: 'invalid date',
+      }],
+    }));
+    expect(f.check().errors).toContain(
+      'anatomy-approved.json: approved source bp3d-FMA999992 has incomplete or incompatible citation and rights evidence',
+    );
   });
 
   it('rejects a directly fetchable draft model even if the anatomy page is clean', () => {
