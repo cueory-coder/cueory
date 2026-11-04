@@ -10,6 +10,7 @@ import {
 } from 'react';
 import { createGeneration, createOnDemandLoader, publishAnatomyFile, knownMissingStructureIds, filesForLayer, idsForFiles, initialLayerPlan, firstLayer, layerNeedsReveal, visibilityAfterLayerDownload, lazyPeel, lazyRestore, revealTargetPlan, showAllPlan, structureLoadNote, type OnDemandLoader } from './anatomylazy';
 import type { LabColors, LabScene, LoadResult } from './anatomyscene';
+import { createAnatomyOpenGate } from './anatomyopen';
 import { STRUCTURE_PAGE_SIZE, visibleStructureGroups } from './anatomy-list-window';
 import { anatomyTriangleNote } from './anatomybudget';
 import {
@@ -158,6 +159,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
   const [layerError, setLayerError] = useState<{ layer: string; message: string; retry: () => void } | null>(null);
   const [filesLoaded, setFilesLoaded] = useState(0);
   const generation = useMemo(() => createGeneration(), []);
+  const openGate = useMemo(() => createAnatomyOpenGate(), []);
   // Every explicit show/hide choice supersedes the visibility effect of earlier downloads.
   const visibilityIntent = useMemo(() => createGeneration(), []);
   const loaderRef = useRef<OnDemandLoader<LoadResult> | null>(null);
@@ -266,32 +268,48 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
 
   // ── Open: load three.js and the scene module only now ─────────────────────────────────────────────────────────────
   const open = useCallback(async () => {
+    // A double tap must not start two competing WebGL scenes. An unmount invalidates the
+    // ticket before either the dynamic import or the next animation frame can finish.
+    const attempt = openGate.begin();
+    if (attempt === null) return;
     setPhase('opening');
     try {
       const { createLabScene, readColors } = await import('./anatomyscene');
+      if (!openGate.current(attempt)) return;
       // Wait a frame so React has put the canvas on the page (the timeout covers background tabs, which get no frames).
       await new Promise<void>((resolve) => {
         requestAnimationFrame(() => resolve());
         setTimeout(resolve, 250);
       });
+      if (!openGate.current(attempt)) return;
       const canvas = canvasRef.current;
       if (!canvas) throw new Error('The 3D view could not start.');
-      readColorsRef.current = () => readColors();
-      colorsRef.current = readColors();
-      sceneRef.current = createLabScene({
+      const getColors = () => readColors();
+      const nextColors = getColors();
+      const nextScene = createLabScene({
         canvas,
         reducedMotion: prefersReducedMotion(),
-        colors: colorsRef.current,
+        colors: nextColors,
         onRender: () => updateLabelsRef.current(),
       });
+      if (!openGate.current(attempt)) {
+        nextScene.dispose();
+        return;
+      }
+      readColorsRef.current = getColors;
+      colorsRef.current = nextColors;
+      sceneRef.current = nextScene;
       setPhase('open');
     } catch {
+      if (!openGate.current(attempt)) return;
       sceneRef.current?.dispose();
       sceneRef.current = null;
       // The original WebGL or network exception may contain internal paths and URLs.
       setPhase('error');
+    } finally {
+      openGate.finish(attempt);
     }
-  }, []);
+  }, [openGate]);
 
   // ── Load the chosen system (and only it); the scene disposes the previous one ────────────────────────────────────
   useEffect(() => {
@@ -452,7 +470,17 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     if (load.state === 'ready') sceneRef.current?.setAppearance({ hidden, selected });
   }, [hidden, selected, load]);
 
-  useEffect(() => () => sceneRef.current?.dispose(), []);
+  useEffect(() => {
+    // Invalidate pending lazy imports and releases on actual unmount.
+    // React's development-only effect replay may mount the same island twice.
+    openGate.mount();
+    return () => {
+      openGate.unmount();
+      loaderRef.current?.retire();
+      sceneRef.current?.dispose();
+      sceneRef.current = null;
+    };
+  }, [openGate]);
 
   useEffect(() => {
     if (phase === 'open') canvasRef.current?.focus();
