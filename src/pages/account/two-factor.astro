@@ -1,0 +1,19 @@
+---
+/**
+ * Two-factor sign-in with an authenticator app (Task 301). Not in the sitemap and kept out of search engines. Nothing is
+ * pre-rendered about the visitor: the island asks Supabase on their device. The admin pages need a session that has
+ * used two-factor (aal2), and this is where it gets one.
+ */
+import Layout from '../../layouts/Layout.astro';
+import TwoFactor from '../../islands/TwoFactor';
+---
+
+<Layout title="two-factor sign-in" description="Turn on two-factor sign-in for your cueory account." variant="study" noindex promo={false}>
+  <section class="mx-auto max-w-110 py-section font-body leading-relaxed" aria-labelledby="two-factor-heading">
+    <div class="rounded-lg border border-line bg-page p-6 sm:p-8">
+      <h1 id="two-factor-heading" class="text-xl leading-relaxed">two-factor sign-in</h1>
+      <div class="mt-6"><TwoFactor client:only="react" /></div>
+      <noscript><p class="mt-4">two-factor settings need javascript.</p></noscript>
+    </div>
+  </section>
+</Layout>
