@@ -302,9 +302,14 @@ function Session({ items: suppliedItems }: Props) {
                 <label htmlFor={`${id}-answer`} className="block text-sm font-medium">the missing word</label>
                 <button
                   type="button"
-                  className="text-xs text-ink-soft underline hover:text-ink"
+                  className="min-h-11 px-2 text-xs leading-relaxed text-ink-soft underline hover:text-ink"
                   onClick={() => {
-                    setInputMode((prev) => (prev === 'dropdown' ? 'type' : 'dropdown'));
+                    // A select can only submit one of its visible options. Do not retain
+                    // an unseen free-text answer when changing back to dropdown mode.
+                    if (inputMode === 'type' && typed !== '' && !options.includes(typed)) {
+                      setTyped('');
+                    }
+                    setInputMode(inputMode === 'dropdown' ? 'type' : 'dropdown');
                     setFocusInput((req) => req + 1);
                   }}
                 >
