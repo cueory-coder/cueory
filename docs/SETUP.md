@@ -53,11 +53,27 @@ tells it to serve the built site as static files.
    - **Project name:** `cueory`
    - **Build command:** `npm run build`
    - **Deploy command:** `npx wrangler deploy`
-   - **Preview command:** `npx wrangler versions upload`
+   - **Preview command:** `npx wrangler preview`
    - **Enable Preview builds:** on
    - **Protect with Cloudflare Access:** **on** (this is the staging lock)
 6. Open **Advanced settings** and leave everything as it is.
 7. Click **Deploy**. The first build of `main` may fail because `main` is still almost empty. That's expected.
+
+### If the Worker was connected before Worker Previews were available
+
+1. In Cloudflare, open **Workers & Pages** → **cueory** → **Settings** → **Builds** and inspect the Preview command.
+   It must be `npx wrangler preview`, **not** `npx wrangler versions upload`.
+2. If Cloudflare shows **Set up Worker Previews**, open that banner and review the proposed preview settings. This is
+   a one-time switch that Cloudflare says cannot be reversed. Do not confirm it unless the settings match the staging
+   requirements and Christian approves the change.
+3. Configure separate **Previews Base** variables and bindings for staging. Previews do not automatically inherit the
+   production resources. Follow `docs/GO-LIVE.md` section 1.8 before enabling student sign-in tests.
+4. Confirm the Preview command is `npx wrangler preview`, then select **Switch to Worker Previews** when approved.
+   You should see a branch Preview in the Worker's **Previews** section after the next branch build. A **Version URL**
+   created by `wrangler versions upload` does not provide the isolated Preview settings and is not a replacement.
+
+Source: [Cloudflare Worker Previews migration](https://developers.cloudflare.com/workers/ci-cd/builds/build-branches/)
+and [Cloudflare's Preview/Version comparison](https://developers.cloudflare.com/workers/previews/compare-workflows/).
 
 ---
 
@@ -84,13 +100,14 @@ tells it to serve the built site as static files.
 ## Part F — Approve Task 1 into staging (10 minutes)
 
 1. Open the Task 1 pull request (Claude sends you the link).
-2. Scroll to the bottom. Wait until every check shows a green ✓. ("CodeQL" shows as skipped because the repository
-   is private. That's expected; Semgrep does the code scan instead.)
+2. Scroll to the bottom. Wait until every check shows a green ✓. (The repository is public, so CodeQL runs as well as
+   Semgrep, D-75.)
 3. Read Codex's review. If Codex found problems, tell Claude before merging.
 4. Click **Merge pull request**, then **Confirm merge**.
 5. In Cloudflare, open **Workers & Pages** → **cueory** → **Deployments**.
    Within a few minutes you should see a **Preview** deployment for branch `staging` with status **Success**.
-6. Open a private (incognito) browser window and go to `https://staging.cueory.pages.dev`.
+6. Open a private (incognito) browser window and go to the `staging` preview's address (in the Worker's **Previews**
+   section; it ends in `workers.dev`, see docs/GO-LIVE.md 1.2).
    You should see a **Cloudflare sign-in page**, not the site. That means the lock works.
 7. Enter your business Gmail, then the code Cloudflare emails you.
    You should see the Cueory home page with the "we're still building" bar.
@@ -104,7 +121,8 @@ tells it to serve the built site as static files.
 1. Claude opens a pull request from `staging` into `main` and sends you the link.
 2. Wait for green checks, then click **Merge pull request** → **Confirm merge**. Only you merge into `main`.
 3. In Cloudflare **Deployments**, you should see a **Production** deployment for `main` with status **Success**.
-4. Open `https://cueory.pages.dev`. You should see the site with no sign-in.
+4. Open the Worker's live `workers.dev` address (listed under **Settings** → **Domains & Routes**). You should see
+   the site with no sign-in.
 
 ---
 
@@ -127,8 +145,9 @@ tells it to serve the built site as static files.
 10. Open `https://cueory.app`. You should see the Cueory home page.
 
 ### Turn on visit counting
-11. In the cueory Pages project, click **Metrics**.
-12. Under **Web Analytics**, click **Enable**.
+11. In the Cloudflare dashboard, open **Web Analytics** and click **Add a site**.
+12. Pick `cueory.app` and click **Done**. Source:
+    [Cloudflare: Web Analytics, get started](https://developers.cloudflare.com/web-analytics/get-started/).
 
 ---
 
@@ -197,7 +216,7 @@ You should see both projects, `cueory-staging` and `cueory-prod`, on your Supaba
 This puts the empty tables and their locks into **`cueory-staging` only**. No questions and no student data go in.
 **Don't do this on `cueory-prod`.** Prod comes later, with the same steps, only when Claude says so.
 
-There are nine files. Run each one **exactly once, in this order**. Later files build on earlier ones (questions need
+There are thirteen migration files currently on `staging`. Run each one **exactly once, in this order**, after Claude verifies the staging database. Merged PR #235 added `20261102135000_confirmed_accounts_only.sql`. Test this migration on `cueory-staging` before using it in production. Later files build on earlier ones (questions need
 topics, attempts need questions), and the first file's "locked by default" rule only covers what is made after it. A
 file run out of order or twice fails or leaves a gap.
 
@@ -212,23 +231,27 @@ file run out of order or twice fails or leaves a gap.
 | 7 | [flags_and_submit_flag](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261101120000_flags_and_submit_flag.sql) | "Flag or comment" reports, and the checked ways to send and read them |
 | 8 | [publish_item_version](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261102090000_publish_item_version.sql) | Publishing a new version of a question in one safe step |
 | 9 | [study_events](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261102100000_study_events.sql) | Study events (answered, marked, skipped, time on each question) |
+| 10 | [delete_my_account](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261102110000_delete_my_account.sql) | The checked way for a student to delete their own account and everything linked to it |
+| 11 | [profile_display_name_from_signup](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261102130000_profile_display_name_from_signup.sql) | Copies the display name chosen at email sign-up into the profile |
+| 12 | [confirmed_accounts_only](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261102135000_confirmed_accounts_only.sql) | Requires confirmed, non-anonymous accounts to check answers, submit flags, and record study events |
+| 13 | [update_display_name](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261102140000_update_display_name.sql) | The checked, rate-limited way to change a display name |
 
 ### Open the right project
 1. Open https://github.com/lilchristxan/Cueory/tree/staging/supabase/migrations.
-   You should see exactly the nine files above. If there are more, or other names, stop and tell Claude.
+   You should see exactly the thirteen files above. If any are missing, added, or named differently, stop and tell Claude before running anything.
 2. Open https://supabase.com/dashboard and click the **cueory-staging** project.
 3. Check that the project name near the top of the page says `cueory-staging`. If it says `cueory-prod`, go back and
    pick `cueory-staging`. If it says the project is paused, stop and tell Claude.
 4. Go to the **SQL Editor** section of the project.
 
-### Run the nine files (steps 5 to 9, once per file)
+### Run the thirteen files (steps 5 to 9, once per file)
 5. Click file 1's link in the table above. A new tab shows plain text whose first line names its subject, like
    `-- Locked by default`.
 6. Press **Cmd+A**, then **Cmd+C**, to copy all of it.
 7. Back in the SQL Editor, click **New Query**.
 8. Click in the empty editor and press **Cmd+V**.
 9. Click **Run** (or press **Cmd+Enter**). You should see it finish with no error. Then do steps 5 to 9 again with the
-   next file, until all nine have run once.
+   next file, until all thirteen have run once.
 
 **If a file shows an error, or a box asks you to confirm something:**
 - Stop. Don't run that file again, don't run the next one, and don't try to fix anything.
@@ -253,17 +276,17 @@ file run out of order or twice fails or leaves a gap.
     order by kind desc, name;
     ```
 
-11. You should see 24 rows. First 13 tables, **every one with `RLS on`** (RLS is the lock that lets each student see
+11. You should see 26 rows. First 13 tables, **every one with `RLS on`** (RLS is the lock that lets each student see
     only their own rows): attempts, concepts, exam_plans, flags, item_answers, item_choices, item_versions, items,
-    profiles, review_state, rights_records, sources, study_events. Then 11 functions: check_answer, exam_plans_guard,
-    handle_new_user, item_parts_guard, item_versions_guard, items_guard, my_flags, publish_item_version,
-    record_study_events, review_state_guard, submit_flag.
+    profiles, review_state, rights_records, sources, study_events. Then 13 functions: check_answer, delete_my_account,
+    exam_plans_guard, handle_new_user, item_parts_guard, item_versions_guard, items_guard, my_flags,
+    publish_item_version, record_study_events, review_state_guard, submit_flag, update_display_name.
     If any table says `RLS OFF`, or the rows differ, take a screenshot and send it to Claude.
 12. Tell Claude "staging database done".
 
 Supabase's docs prefer the command-line tool for migrations; the SQL Editor is used here because it needs no terminal.
 Running SQL there skips Supabase's migration history, so before anyone uses the command-line tool on this project,
-Claude marks these nine files as already run (`supabase migration repair`), so they never run twice. Sources:
+Claude marks only each of the thirteen migrations actually run in the SQL Editor as applied (`supabase migration repair <version> --status applied`), so it never runs twice. Never mark a migration that has not successfully run in that database. Sources:
 [Supabase: Database functions](https://supabase.com/docs/guides/database/functions) (SQL Editor, **New Query**,
 **Run**), [Supabase: Use Supabase with Next.js](https://supabase.com/docs/guides/getting-started/quickstarts/nextjs)
 (paste into the SQL Editor, then **Run**),

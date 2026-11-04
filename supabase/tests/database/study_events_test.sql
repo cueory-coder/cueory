@@ -6,12 +6,13 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(68);
 
-insert into auth.users (id, email) values
-  ('00000000-0000-4000-8000-000000000001', 'one@example.com'),
-  ('00000000-0000-4000-8000-000000000002', 'two@example.com'),
-  ('00000000-0000-4000-8000-000000000003', 'three@example.com'),
-  ('00000000-0000-4000-8000-000000000004', 'four@example.com'),
-  ('00000000-0000-4000-8000-000000000005', 'five@example.com');
+-- Students with confirmed emails (unconfirmed ones are refused, Task 169).
+insert into auth.users (id, email, email_confirmed_at) values
+  ('00000000-0000-4000-8000-000000000001', 'one@example.com', now()),
+  ('00000000-0000-4000-8000-000000000002', 'two@example.com', now()),
+  ('00000000-0000-4000-8000-000000000003', 'three@example.com', now()),
+  ('00000000-0000-4000-8000-000000000004', 'four@example.com', now()),
+  ('00000000-0000-4000-8000-000000000005', 'five@example.com', now());
 
 insert into public.concepts (id, slug, title, published) values
   ('00000000-0000-4000-8000-0000000000c1', 'sample-concept', 'sample concept', true);
