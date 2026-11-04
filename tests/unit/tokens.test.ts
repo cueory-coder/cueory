@@ -8,6 +8,15 @@ const [eveningDeviceCss, eveningPickedCss] = eveningCss.split(':root[data-theme=
 const daytime = readColorTokens(daytimeCss);
 const evening = { ...daytime, ...readColorTokens(eveningDeviceCss) };
 
+describe('picture export tokens (Task 178)', () => {
+  it('defines every --export-* size the exporter reads', () => {
+    const source = readFileSync(new URL('../../src/islands/anatomyscene.ts', import.meta.url), 'utf8');
+    const names = [...source.matchAll(/'(--export-[a-z-]+)'/g)].map((m) => m[1]!);
+    expect(names.length).toBeGreaterThan(10);
+    for (const name of names) expect(css).toMatch(new RegExp(`${name}:\\s*[0-9.]+;`));
+  });
+});
+
 describe('evening palette copies', () => {
   it('has one copy for Follow device and one for a Dark pick', () => {
     expect(eveningDeviceCss).toContain(':root:not([data-theme="light"])');
@@ -25,6 +34,16 @@ const brand = {
   daytime: ['#f9f5ef', '#eadccf', '#d3b7a1', '#8b6f5b', '#3e2c23', '#6b5243'],
   evening: ['#1c1917', '#3a2d24', '#6b5243', '#cbb8a4', '#f9f5ef'],
 };
+
+// Palette-independent type, spacing and layout tokens live in the shared @theme block. Color tokens are
+// palette-dependent and must be declared in both the Daytime block and the Evening override.
+describe('palette token parity', () => {
+  it('gives every Daytime color token an Evening value', () => {
+    const daytimeColors = Object.keys(daytime);
+    const eveningColors = Object.keys(readColorTokens(eveningDeviceCss));
+    expect(eveningColors).toEqual(expect.arrayContaining(daytimeColors));
+  });
+});
 
 describe('retired colors (brand guide v1.0 §4.3)', () => {
   it('appear nowhere in the tokens', () => {

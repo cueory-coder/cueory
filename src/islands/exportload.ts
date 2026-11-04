@@ -50,10 +50,10 @@ const LIMITS = {
 
 /** Exact, least-privilege columns from the existing Supabase migrations. */
 const COLUMNS = {
-  profiles: 'display_name,created_at',
+  profiles: 'display_name,created_at,name_change_window_start,name_changes_in_window',
   attempts: 'id,item_version_id,picked,correct,created_at',
   exam_plans: 'id,course,exam_date,created_at',
-  review_state: 'item_id,level,last_reviewed,next_review',
+  review_state: 'item_id,level,last_reviewed,next_review,updated_at',
   study_events: 'id,item_id,item_version_id,kind,ms_on_item,mark,at,created_at',
 } as const;
 
@@ -205,10 +205,20 @@ function pickedLetters(value: Record<string, unknown>): string[] {
 /** Returns every section supplied by the database, or nothing if a read fails. */
 export async function loadExport(reader: ExportReader): Promise<ExportLoadResult> {
   try {
-    const profiles = entries(await fetchRows(reader, 'profiles'), (r) => ({
-      displayName: nullableText(r, 'display_name'),
-      createdAt: timestamp(r, 'created_at'),
-    }));
+    const profiles = entries(await fetchRows(reader, 'profiles'), (r) => {
+      // The display-name limit's two fields (20261102140000_update_display_name.sql): when the current hour of name
+      // changes began, and how many changes were made in it.
+      const changes = field(r, 'name_changes_in_window');
+      if (typeof changes !== 'number' || !Number.isInteger(changes) || changes < 0 || changes > 10) {
+        throw new Error('invalid name change count');
+      }
+      return {
+        displayName: nullableText(r, 'display_name'),
+        createdAt: timestamp(r, 'created_at'),
+        nameChangeWindowStart: field(r, 'name_change_window_start') === null ? null : timestamp(r, 'name_change_window_start'),
+        nameChangesInWindow: changes,
+      };
+    });
     const attempts = entries(await fetchRows(reader, 'attempts'), (r) => ({
       itemVersionId: uuid(r, 'item_version_id'),
       picked: pickedLetters(r),
@@ -230,6 +240,7 @@ export async function loadExport(reader: ExportReader): Promise<ExportLoadResult
         level,
         lastReviewed: calendarDay(r, 'last_reviewed'),
         nextReview: calendarDay(r, 'next_review'),
+        updatedAt: timestamp(r, 'updated_at'),
       };
     });
     // Each page is checked strictly (one bad row refuses the export) and written out before the next is read.

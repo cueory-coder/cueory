@@ -1,0 +1,1 @@
+STATUS: inventory found only src/scripts/swoff.ts without a dedicated unit-test import; its install, activate, cache deletion, unregister, and no-fetch behavior are already covered by tests/unit/serviceworker.test.ts. No redundant test was added. All other src/scripts/*.ts and src/islands/*.ts files are covered directly or through the existing service-worker source harness.

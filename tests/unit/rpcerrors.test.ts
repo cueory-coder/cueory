@@ -9,6 +9,11 @@ describe('check_answer errors', () => {
       .toBe('please sign in to check answers.');
   });
 
+  it('maps the confirm-your-email refusal for checking answers (Task 169)', () => {
+    expect(studentMessage('check_answer', { message: 'confirm your email to use this' }))
+      .toBe('please confirm your email to check answers — look for the link in your inbox.');
+  });
+
   it('maps the missing-fields refusal', () => {
     expect(studentMessage('check_answer', { message: 'an item, the version you were shown and your choices are needed' }))
       .toBe('something went wrong loading the question — please reload the page.');
@@ -53,6 +58,11 @@ describe('submit_flag errors', () => {
       .toBe('please sign in to send a report.');
   });
 
+  it('maps the confirm-your-email refusal for sending reports (Task 169)', () => {
+    expect(studentMessage('submit_flag', { message: 'confirm your email to use this' }))
+      .toBe('please confirm your email to send a report — look for the link in your inbox.');
+  });
+
   it('maps the bad-page refusal', () => {
     expect(studentMessage('submit_flag', { message: 'the page must be an address on this site' }))
       .toBe('something went wrong — please try again from the page you were on.');
@@ -76,6 +86,33 @@ describe('submit_flag errors', () => {
   it('maps the rate-limit refusal', () => {
     expect(studentMessage('submit_flag', { message: 'that is a lot of reports; please try again later' }))
       .toBe("you've sent a lot of reports recently — please try again later.");
+  });
+});
+
+describe('update_display_name errors', () => {
+  it('maps the sign-in refusal', () => {
+    expect(studentMessage('update_display_name', { message: 'sign in to change your display name' }))
+      .toBe('please sign in again to change your display name.');
+  });
+
+  it('maps the bad-name refusal', () => {
+    expect(studentMessage('update_display_name', { message: 'a display name is 1 to 50 characters of plain text' }))
+      .toBe('a name can be 1 to 50 characters of plain text.');
+  });
+
+  it('maps the rate-limit refusal', () => {
+    expect(studentMessage('update_display_name', { message: 'that is a lot of name changes; please try again later' }))
+      .toBe("you've changed your name a lot this hour. please try again later.");
+  });
+
+  it('maps the missing-profile refusal', () => {
+    expect(studentMessage('update_display_name', { message: 'your profile was not found' }))
+      .toBe('your account could not load. please try again.');
+  });
+
+  it('returns the neutral fallback for an unknown message', () => {
+    expect(studentMessage('update_display_name', { message: 'private database detail' }))
+      .toBe('something went wrong — please try again.');
   });
 });
 
@@ -109,6 +146,7 @@ describe('unknown and edge-case errors', () => {
   it('no student message contains SQL, a table name or a raw error code', () => {
     const allMessages = [
       studentMessage('check_answer', { message: 'sign in to check an answer' }),
+      studentMessage('check_answer', { message: 'confirm your email to use this' }),
       studentMessage('check_answer', { message: 'an item, the version you were shown and your choices are needed' }),
       studentMessage('check_answer', { message: 'no such question' }),
       studentMessage('check_answer', { message: 'this question was updated; reload it and answer again' }),
@@ -117,11 +155,16 @@ describe('unknown and edge-case errors', () => {
       studentMessage('check_answer', { message: 'pick one choice' }),
       studentMessage('check_answer', { message: 'too many answers checked this hour; try again later' }),
       studentMessage('submit_flag', { message: 'sign in to send a report' }),
+      studentMessage('submit_flag', { message: 'confirm your email to use this' }),
       studentMessage('submit_flag', { message: 'the page must be an address on this site' }),
       studentMessage('submit_flag', { message: 'pick what is wrong from the list' }),
       studentMessage('submit_flag', { message: 'the comment is up to 1,000 characters of plain text' }),
       studentMessage('submit_flag', { message: 'that question was not found' }),
       studentMessage('submit_flag', { message: 'that is a lot of reports; please try again later' }),
+      studentMessage('update_display_name', { message: 'sign in to change your display name' }),
+      studentMessage('update_display_name', { message: 'a display name is 1 to 50 characters of plain text' }),
+      studentMessage('update_display_name', { message: 'that is a lot of name changes; please try again later' }),
+      studentMessage('update_display_name', { message: 'your profile was not found' }),
       studentMessage('check_answer', { message: 'unknown' }),
     ];
     for (const msg of allMessages) {
@@ -130,5 +173,14 @@ describe('unknown and edge-case errors', () => {
       expect(msg).not.toMatch(/\battempts\b|\bflags\b|\bpublic\./i);
       expect(msg).not.toMatch(/\b[0-9A-Z]{5}\b/); // SQLSTATE codes like P0002, 28000, 54000
     }
+  });
+});
+
+describe('confirmed-email refusal (Task 169)', () => {
+  it.each([
+    ['check_answer', 'please confirm your email to check answers — look for the link in your inbox.'],
+    ['submit_flag', 'please confirm your email to send a report — look for the link in your inbox.'],
+  ] as const)('names the action for %s', (fn, sentence) => {
+    expect(studentMessage(fn, { message: 'confirm your email to use this' })).toBe(sentence);
   });
 });

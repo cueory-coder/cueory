@@ -753,24 +753,123 @@ html:has(dialog.menu-panel[open]) {
 }
 
 /*
-  "ways to study" on the home page (D-50, D-60). Without JavaScript, a row of cards that scrolls sideways and snaps
-  each card to the middle. With it, the merry-go-round below. Either way the row runs the full width of the window,
-  and nothing masks, fades or blurs a card: its words keep the frosted-panel contrast checked in
-  tests/unit/tokens.test.ts.
+  "ways to study" on the home page (D-50, D-60): Christian's vials since Task 109, matching the prototype he approved
+  on 2026-11-01 (docs/screenshots/approved-2026-11-01/vial-carousel-*). Without JavaScript, a row of vials that scrolls
+  sideways and snaps each vial to the middle. With it, the ring below. Nothing masks, fades or blurs a vial's words:
+  only the bottle image is dimmed (.vial-img), and the label stays cream in both palettes, so its words are always
+  dark (--vial-ink).
+
+  The prototype's sizes, built from the spacing token. (Task 109 may only add the cap colors to tokens.css, so these
+  live here; the director can move them there.)
 */
 @layer components {
+  .modes {
+    --vial-width: clamp(calc(var(--spacing) * 30), 13vw, calc(var(--spacing) * 40)); /* 120 to 160 px */
+    --vial-ratio: 2.111;                              /* the bottle images are 225 × 475 */
+    --vial-stand: calc(var(--spacing) * 21.5);        /* 86 px: how high above the stage's foot the vials stand */
+    --vial-headroom: calc(var(--spacing) * 10);       /* room above the front vial for its hover lift */
+    --vial-stage-height: calc(var(--vial-width) * var(--vial-ratio) + var(--vial-stand) + var(--vial-headroom));
+    --vial-step-rise: calc(var(--spacing) * 1.25);    /* 5 px higher per step out, squared: the arc */
+    --vial-step-depth: calc(var(--spacing) * 22.5);   /* 90 px further back per step out */
+    --vial-perspective: calc(var(--spacing) * 400);   /* 1600 px */
+    --vial-hover-rise: calc(var(--spacing) * -1.5);   /* the front vial rises 6 px under the mouse */
+    --vial-pedestal-width: min(calc(var(--spacing) * 275), 92vw); /* up to 1100 px */
+    --vial-pedestal-height: calc(var(--spacing) * 30); /* 120 px */
+    --vial-pedestal-foot: calc(var(--spacing) * 10);  /* 40 px */
+    --vial-arrow: calc(var(--spacing) * 14);          /* 56 px arrows beside the vials on wider screens */
+    --vial-preview-bottle: clamp(calc(var(--spacing) * 26), 24vw, calc(var(--spacing) * 52)); /* 104 to 208 px */
+    --vial-preview-width: calc(var(--container-mode-preview) * 1.75); /* the two-column preview, 784 px */
+    --vial-glide: 700ms cubic-bezier(0.22, 0.8, 0.24, 1); /* RING_MS and RING_EASING in src/scripts/carousel.ts */
+    --vial-hover: 220ms var(--ease-soft);             /* brand bar for hover: 200 to 240 ms */
+    --tracking-kicker: 0.24em;                        /* "ways to study" */
+    /* The label's words: Espresso by day, Charcoal in the evening. Both dark, because the label is cream in both. */
+    --vial-ink: var(--color-on-panel-button);
+  }
+
+  .modes-kicker {
+    font-size: calc(var(--text-sm) * 0.8);
+    letter-spacing: var(--tracking-kicker);
+    color: var(--color-ink-soft);
+  }
+
+  .vial-stage {
+    position: relative;
+  }
+
+  /* The soft light behind the vials, one diagonal light and the oval pedestal they stand on. Decoration only. */
+  .vial-scenery {
+    position: absolute;
+    inset-inline: 0;
+    inset-block-start: 0;
+    block-size: var(--vial-stage-height);
+    pointer-events: none;
+  }
+
+  .modes:not([data-ring]) .vial-scenery {
+    display: none;
+  }
+
+  /* The glow and the light fade out at the stage's top and bottom, so the stage has no visible edge. */
+  .vial-glow,
+  .vial-light {
+    position: absolute;
+    inset: 0;
+    -webkit-mask-image: linear-gradient(180deg, transparent, currentColor 25%, currentColor 70%, transparent);
+    mask-image: linear-gradient(180deg, transparent, currentColor 25%, currentColor 70%, transparent);
+  }
+
+  .vial-glow {
+    background-image: radial-gradient(60% 70% at 50% 55%, color-mix(in srgb, var(--color-silk-sheen) 80%, transparent), transparent 72%);
+  }
+
+  .vial-light {
+    background-image: linear-gradient(
+      118deg,
+      transparent 30%,
+      rgb(var(--glass-rim-rgb) / 0.55) 42%,
+      rgb(var(--glass-rim-rgb) / 0.15) 52%,
+      transparent 62%
+    );
+    mix-blend-mode: soft-light;
+  }
+
+  .vial-pedestal {
+    position: absolute;
+    inset-inline-start: 50%;
+    inset-block-end: var(--vial-pedestal-foot);
+    inline-size: var(--vial-pedestal-width);
+    block-size: var(--vial-pedestal-height);
+    translate: -50% 0;
+    border-radius: 50%;
+    background-image: radial-gradient(
+      70% 60% at 50% 35%,
+      color-mix(in srgb, var(--color-silk-sheen) 75%, var(--color-silk-tint)),
+      color-mix(in srgb, var(--color-silk-tint) 85%, var(--color-soft)) 70%,
+      color-mix(in srgb, var(--color-soft) 55%, var(--color-silk-shade))
+    );
+    box-shadow:
+      0 calc(var(--spacing) * 7.5) calc(var(--spacing) * 12.5) rgb(var(--shadow-tint) / 0.18),
+      inset 0 calc(var(--spacing) * -2.5) calc(var(--spacing) * 4.5) rgb(var(--shadow-tint) / 0.1);
+  }
+
+  .vial-pedestal::after {
+    content: "";
+    position: absolute;
+    inset: 46% 4% 18%;
+    border-radius: 50%;
+    background-image: linear-gradient(180deg, rgb(var(--shadow-tint) / 0.06), transparent);
+  }
+
   .modes-track {
     position: relative;
     display: flex;
-    gap: var(--gap-mode-card);
+    gap: calc(var(--spacing) * 6);
     overflow-x: auto;
     overscroll-behavior-x: contain;
     scroll-snap-type: x mandatory;
     scrollbar-width: none;
-    /* Room below for a hovered card's deeper shadow (D-51); the negative margin keeps the buttons where they were. */
-    padding-block: calc(var(--spacing) * 6) calc(var(--spacing) * 20);
-    margin-block-end: calc(var(--spacing) * -10);
-    padding-inline: calc((100% - var(--container-mode-card)) / 2);
+    padding-block: calc(var(--spacing) * 6);
+    padding-inline: calc((100% - var(--vial-width)) / 2);
   }
 
   .modes-track::-webkit-scrollbar {
@@ -780,102 +879,271 @@ html:has(dialog.menu-panel[open]) {
   .mode-card {
     position: relative;
     display: flex;
-    flex: 0 0 var(--container-mode-card);
+    flex: 0 0 var(--vial-width);
     flex-direction: column;
-    padding: calc(var(--spacing) * 6);
+    align-items: center;
+    gap: calc(var(--spacing) * 4);
     scroll-snap-align: center;
   }
 
   /*
-    The merry-go-round (D-60), once the script has taken over (data-ring). Every card sits in the same spot in the
-    middle, and the script's numbers move it out to its place: --ring-shift card widths and --ring-gaps gaps sideways,
-    so neighbours sit edge to edge; --ring-scale its size (1, then 0.88 and 0.76: stepping back); and --ring-turn
-    degrees turned away, round the ring. Only the card in the middle and its neighbours show: one on each side on
-    phones and tablets, two on wider screens. A turn takes 240 ms, easing out (RING_MS in src/scripts/carousel.ts).
+    The ring (D-60, Task 109), once the script has taken over (data-ring). Every vial stands in the same spot in the
+    middle of the stage, and the script's numbers move it out to its place on the arc: --ring-shift vial widths
+    sideways, --ring-rise steps up, --ring-depth steps back, at --ring-scale of its size. Four show on each side of the
+    front vial. A turn takes 700 ms (RING_MS in src/scripts/carousel.ts), and none at all with reduced motion.
   */
   .modes[data-ring] .modes-track {
-    display: grid;
-    grid-template-areas: "ring";
-    justify-content: center;
+    display: block;
+    block-size: var(--vial-stage-height);
     /*
-      Still a scroll box, as the plain row was (but nothing to scroll), so the switch causes no layout shift. The row's
-      padding leaves room for the lift of the card in the middle.
+      Still a scroll box, as the plain row was (but nothing to scroll), so the switch causes no layout shift and the
+      outer vials end at the window's edges.
     */
     overflow: hidden;
     scroll-snap-type: none;
-    padding-inline: 0;
+    padding: 0;
+    perspective: var(--vial-perspective);
     touch-action: pan-y;
   }
 
   .modes[data-ring] .mode-card {
-    grid-area: ring;
-    inline-size: var(--container-mode-card);
-    visibility: hidden;
+    position: absolute;
+    inset-inline-start: 50%;
+    inset-block-end: var(--vial-stand);
+    inline-size: var(--vial-width);
     z-index: var(--ring-layer, 0);
-    transform: perspective(calc(var(--container-mode-card) * 4))
-      translateX(calc(var(--ring-shift, 0) * var(--container-mode-card) + var(--ring-gaps, 0) * var(--gap-mode-card)))
-      rotateY(calc(var(--ring-turn, 0) * 1deg)) scale(var(--ring-scale, 1));
+    transform-origin: 50% 100%;
+    transform: translateX(calc(-50% + var(--ring-shift, 0) * var(--vial-width)))
+      translateY(calc(var(--ring-rise, 0) * -1 * var(--vial-step-rise)))
+      translateZ(calc(var(--ring-depth, 0) * -1 * var(--vial-step-depth))) scale(var(--ring-scale, 1));
     transition:
-      transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1),
-      visibility 240ms,
-      scale 200ms ease,
-      box-shadow 200ms ease;
+      transform 700ms cubic-bezier(0.22, 0.8, 0.24, 1),
+      visibility 700ms,
+      scale var(--vial-hover),
+      translate var(--vial-hover);
   }
 
-  .modes[data-ring] .mode-card:is([data-offset="-1"], [data-offset="0"], [data-offset="1"]) {
-    visibility: visible;
+  .modes[data-ring] .mode-card[data-far] {
+    visibility: hidden;
   }
 
-  @media (width >= 64rem) {
-    .modes[data-ring] .mode-card:is([data-offset="-2"], [data-offset="2"]) {
-      visibility: visible;
-    }
-  }
-
-  /* Going round the back, or a jump of several cards, switches at once instead of sweeping across the row. */
+  /* Going round the back, or a jump of several vials, switches at once instead of sweeping across the row. */
   .modes[data-ring] .mode-card[data-jump] {
     transition: none;
   }
 
-  /*
-    Side cards are quieter: no shadow, a softer drawing, and the heading in the second ink. Their words keep the
-    frosted-panel contrast, since both inks are checked on it. A tap anywhere on a side card brings it to the middle,
-    so its own link waits until it is there.
-  */
   .modes[data-ring] .mode-card:not([data-offset="0"]) {
-    box-shadow: none;
     cursor: pointer;
   }
 
-  .modes[data-ring] .mode-card:not([data-offset="0"]) h3 {
-    color: var(--color-ink-soft);
-  }
-
-  .modes[data-ring] .mode-card:not([data-offset="0"]) a {
-    pointer-events: none;
-  }
-
-  .modes[data-ring] .mode-card:not([data-offset="0"]) .ill {
-    opacity: 0.6;
+  /* With the ring, the preview has the link ("start …"), so the plain row's links under the vials step aside. */
+  .modes[data-ring] .mode-card-link {
+    display: none;
   }
 
   /*
-    The card's preview button (D-51) covers the whole card, so a tap anywhere on it opens the preview; its focus ring
-    outlines the card. The card's own link sits above it and still goes straight to the mode.
+    The vial's preview button (D-51) covers the whole bottle, so a tap anywhere on it opens the preview (or, on a
+    side vial, brings it to the front); its focus ring outlines the vial.
   */
   .mode-open {
     position: absolute;
     inset: 0;
     z-index: 1;
     border: 0;
-    border-radius: inherit;
+    border-radius: var(--radius-lg);
     background-color: transparent;
     cursor: pointer;
+  }
+
+  .mode-open:focus-visible {
+    border-radius: var(--radius-lg);
   }
 
   .mode-card a {
     position: relative;
     z-index: 2;
+  }
+
+  /* One vial: the bottle, the shading and shine over its glass, the label's words, and a soft shadow at its foot. */
+  .vial {
+    position: relative;
+    isolation: isolate;
+    inline-size: 100%;
+    container-type: inline-size;
+  }
+
+  .vial-img {
+    display: block;
+    inline-size: 100%;
+    block-size: auto;
+    user-select: none;
+    filter: brightness(var(--ring-bright, 1)) saturate(var(--ring-saturate, 1))
+      drop-shadow(0 calc(var(--spacing) * 4.5) calc(var(--spacing) * 4) rgb(var(--shadow-tint) / 0.22));
+    transition: filter var(--vial-glide);
+  }
+
+  .mode-card[data-jump] .vial-img {
+    transition: none;
+  }
+
+  /* Faint shade at the label's left and right edges, under the words, so the flat label reads as curved glass. */
+  .vial-curve {
+    position: absolute;
+    inset: 32.6% 1% 8%;
+    border-radius: var(--radius-sm);
+    background-image: linear-gradient(
+      90deg,
+      rgb(var(--shadow-tint) / 0.18),
+      transparent 22%,
+      rgb(var(--glass-rim-rgb) / 0.1) 45%,
+      transparent 70%,
+      rgb(var(--shadow-tint) / 0.2)
+    );
+    mix-blend-mode: multiply;
+    pointer-events: none;
+  }
+
+  /* The brighter glass under the mouse (front vial only, below). */
+  .vial-shine {
+    position: absolute;
+    inset: 22% 3% 3%;
+    border-radius: var(--radius-md);
+    background-image: linear-gradient(
+      100deg,
+      transparent 52%,
+      rgb(var(--glass-rim-rgb) / 0.42) 66%,
+      rgb(var(--glass-rim-rgb) / 0.12) 74%,
+      transparent 82%
+    );
+    mix-blend-mode: screen;
+    opacity: 0;
+    transition: opacity var(--vial-hover);
+    pointer-events: none;
+  }
+
+  /* The label's words. Sizes follow the vial's own width (cqi), so a small vial and the preview's big one match. */
+  .vial-label {
+    position: absolute;
+    inset: 36% 8% 11% 10%;
+    display: flex;
+    flex-direction: column;
+    color: var(--vial-ink);
+    line-height: 1.5;
+    pointer-events: none;
+  }
+
+  .vial-name {
+    inline-size: 66%;
+    margin-block-start: 1.5cqi;
+    font-size: 11cqi;
+    font-weight: 700;
+    line-height: 1.5;
+    letter-spacing: -0.01em;
+    overflow-wrap: anywhere;
+  }
+
+  .vial-rule {
+    display: block;
+    inline-size: 21cqi;
+    block-size: 0.95cqi;
+    margin-block-start: 3cqi;
+    background-color: var(--vial-ink);
+  }
+
+  /* The logo down the label's right edge: the Espresso artwork, turned on its side, otherwise untouched. */
+  .vial-logo {
+    position: absolute;
+    inset-block-start: 4%;
+    inset-inline-start: 97%;
+    inline-size: 80cqi;
+    max-inline-size: none;
+    block-size: auto;
+    transform-origin: 0 0;
+    rotate: 90deg;
+  }
+
+  .vial-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    inline-size: 76%;
+    margin-block-start: auto;
+    border-block-start: 1px solid var(--vial-ink);
+    font-size: 4.7cqi;
+  }
+
+  .vial-meta span {
+    padding: 1.9cqi 1.25cqi;
+    border-block-end: 1px solid color-mix(in srgb, var(--vial-ink) 45%, transparent);
+  }
+
+  .vial-shadow {
+    position: absolute;
+    inset-inline: 12%;
+    inset-block-end: -5cqi;
+    z-index: -1;
+    block-size: 11cqi;
+    border-radius: 50%;
+    background-image: radial-gradient(closest-side, rgb(var(--shadow-tint) / 0.32), transparent);
+    transition: scale var(--vial-hover);
+  }
+
+  /* The ring's bottle steps out while the preview shows it (it is the same bottle), and steps back on close. */
+  .mode-card[data-lent] .vial {
+    visibility: hidden;
+  }
+
+  /* Under the stage: the arrows (on phones, either side of the dots) and the dots. */
+  .modes-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: calc(var(--spacing) * 3);
+  }
+
+  .modes-dots {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--spacing) * 1.5);
+  }
+
+  .modes-dot {
+    inline-size: calc(var(--spacing) * 2.25);
+    block-size: calc(var(--spacing) * 2.25);
+    border-radius: var(--radius-pill);
+    background-color: var(--color-line);
+    transition:
+      inline-size var(--duration-slow) var(--ease-soft),
+      background-color var(--duration-slow) var(--ease-soft);
+  }
+
+  /* The front vial's dot stretches into a pill: shape, not only color. */
+  .modes-dot[data-on] {
+    inline-size: calc(var(--spacing) * 6);
+    background-color: var(--color-ink);
+  }
+
+  @media (width >= 40rem) {
+    .modes-dots {
+      gap: calc(var(--spacing) * 2.5);
+    }
+
+    /* Beside the vials, halfway up the stage, as in the approved desktop design. */
+    .vial-arrow {
+      position: absolute;
+      z-index: 1;
+      inset-block-start: calc(var(--vial-stage-height) / 2);
+      inline-size: var(--vial-arrow);
+      block-size: var(--vial-arrow);
+      translate: 0 -50%;
+    }
+
+    .vial-arrow-prev {
+      inset-inline-start: calc(var(--spacing) * 7);
+    }
+
+    .vial-arrow-next {
+      inset-inline-end: calc(var(--spacing) * 7);
+    }
   }
 
   .mode-art {
@@ -1060,357 +1328,13 @@ html:has(dialog.menu-panel[open]) {
     scroll-behavior: auto;
   }
 
-  .modes[data-ring] .mode-card {
+  /* Reduced motion: the vials switch at once, with no glide, no lift and no fading shine (Task 109). */
+  .modes[data-ring] .mode-card,
+  .vial-img,
+  .vial-shine,
+  .vial-shadow,
+  .modes-dot {
     transition: none;
-  }
-}
-
-/*
-  pillo (Task 114), the word game on /play. The board is a foil blister pack: six rows of five pockets with dashed
-  perforations between them. A guessed letter is a glossy capsule pill with a capital letter and its mark under it
-  (● in place, ○ elsewhere in the word, · not in the word), and each guess is also said in words for screen readers,
-  so color is never the only signal. In place is Espresso (Evening: Walnut), elsewhere is Taupe (Evening: Sand), and not
-  in the word is Ivory with a faded Bronze letter (Evening: frosted Ivory). The row being typed shows plain Ivory pills
-  and rings the next empty pocket. Every color, size and shadow is a token (tokens.css, "pillo"); the foil is drawn
-  with gradients, so there is no image file and nothing the content security policy has to allow.
-*/
-@layer components {
-  .pillo {
-    /* The foil's grey: Ivory greyed with Bronze by day, Charcoal lit with Sand in the evening. */
-    --pillo-foil-color: color-mix(in srgb, var(--color-pillo-foil-tint) var(--pillo-foil-mix), var(--color-pillo-foil));
-    --pillo-hatch-color: color-mix(in srgb, var(--color-pillo-hatch) var(--pillo-hatch-mix), transparent);
-    --pillo-gloss-color: color-mix(in srgb, var(--color-pillo-gloss) var(--pillo-gloss-mix), transparent);
-    --pillo-perforation: color-mix(in srgb, var(--color-pillo-hatch) 22%, transparent);
-  }
-
-  .pillo-top {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: calc(var(--spacing) * 3);
-    max-inline-size: var(--pillo-board);
-  }
-
-  .pillo-status {
-    font-size: var(--text-sm);
-    line-height: var(--text-sm--line-height);
-    color: var(--color-ink-soft);
-  }
-
-  .pillo-status strong {
-    font-weight: 700;
-    color: var(--color-ink);
-  }
-
-  /* The foil itself: a fine cross-hatch and a soft sheen over the grey, rounded like a real blister card. */
-  .pillo-pack,
-  .pillo-strip {
-    background-color: var(--pillo-foil-color);
-    background-image:
-      linear-gradient(135deg, var(--pillo-gloss-color), transparent 45%),
-      repeating-linear-gradient(45deg, var(--pillo-hatch-color) 0 var(--pillo-hatch-width), transparent var(--pillo-hatch-width) var(--pillo-hatch-gap)),
-      repeating-linear-gradient(-45deg, var(--pillo-hatch-color) 0 var(--pillo-hatch-width), transparent var(--pillo-hatch-width) var(--pillo-hatch-gap));
-  }
-
-  .pillo-pack {
-    max-inline-size: var(--pillo-board);
-    padding: calc(var(--spacing) * 2);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-pillo-pack);
-  }
-
-  /* One row of five pockets. Dashed perforations run between rows and between pockets. */
-  .pillo-row {
-    position: relative;
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    border-block-end: var(--border-pillo-perforation) dashed var(--pillo-perforation);
-  }
-
-  .pillo-row-last {
-    border-block-end: none;
-  }
-
-  .pillo-pocket {
-    display: grid;
-    place-items: stretch;
-    block-size: var(--pillo-pocket);
-    padding: var(--pillo-pill-inset);
-    border-inline-end: var(--border-pillo-perforation) dashed var(--pillo-perforation);
-  }
-
-  .pillo-pocket:last-of-type {
-    border-inline-end: none;
-  }
-
-  @media (width >= 40rem) {
-    .pillo-pocket {
-      block-size: var(--pillo-pocket-lg);
-    }
-  }
-
-  /* The pill, or the empty pocket where a pill will sit. */
-  .pillo-pill {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    border-radius: var(--radius-pill);
-    line-height: var(--text-sm--line-height);
-    box-shadow: var(--shadow-pillo-pocket);
-  }
-
-  .pillo-pill.pillo-here,
-  .pillo-pill.pillo-elsewhere,
-  .pillo-pill.pillo-absent,
-  .pillo-pill.pillo-typed {
-    box-shadow: var(--shadow-pillo-pill);
-  }
-
-  /* The gloss: a small highlight at the top left of each filled pill. */
-  .pillo-pill.pillo-here::before,
-  .pillo-pill.pillo-elsewhere::before,
-  .pillo-pill.pillo-absent::before,
-  .pillo-pill.pillo-typed::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    background-image: radial-gradient(ellipse 30% 22% at 26% 24%, var(--pillo-gloss-color), transparent);
-    pointer-events: none;
-  }
-
-  .pillo-pill.pillo-here {
-    background-color: var(--color-pillo-here);
-    color: var(--color-on-pillo-here);
-  }
-
-  .pillo-pill.pillo-elsewhere {
-    background-color: var(--color-pillo-elsewhere);
-    color: var(--color-on-pillo-elsewhere);
-  }
-
-  .pillo-pill.pillo-absent {
-    background-color: color-mix(in srgb, var(--color-pillo-absent) var(--pillo-absent-mix), var(--pillo-foil-color));
-    color: var(--color-on-pillo-absent);
-  }
-
-  .pillo-pill.pillo-typed {
-    background-color: var(--color-pillo-typed);
-    color: var(--color-on-pillo-typed);
-    animation: pillo-pop var(--duration-fast) var(--ease-emphasis);
-  }
-
-  /* The next empty pocket in the row being typed. */
-  .pillo-pill.pillo-next {
-    box-shadow: var(--shadow-pillo-pocket), inset 0 0 0 var(--pillo-ring) var(--color-pillo-ring);
-  }
-
-  .pillo-letter {
-    font-size: var(--pillo-letter);
-    font-weight: 700;
-    line-height: var(--text-sm--line-height);
-  }
-
-  @media (width >= 40rem) {
-    .pillo-letter {
-      font-size: var(--pillo-letter-lg);
-    }
-  }
-
-  /* A guessed letter sits a little higher, so its mark fits under it inside the pill. */
-  .pillo-pill:has(.pillo-mark) .pillo-letter {
-    transform: translateY(var(--pillo-letter-lift));
-  }
-
-  .pillo-mark {
-    position: absolute;
-    inset-block-end: var(--pillo-mark-drop);
-    font-size: var(--pillo-mark);
-    line-height: var(--text-sm--line-height);
-  }
-
-  @keyframes pillo-pop {
-    from {
-      transform: scale(var(--pillo-pop));
-    }
-  }
-
-  /*
-    The field for typing a guess lies over the row being typed, so a click or tap there types into it and its focus
-    ring is drawn around that row. Its own text is see-through: the pills under it show the letters.
-  */
-  .pillo-field {
-    position: absolute;
-    inset: 0;
-    inline-size: 100%;
-    block-size: 100%;
-    padding: 0;
-    border: 0;
-    border-radius: var(--radius-md);
-    background: transparent;
-    color: transparent;
-    caret-color: transparent;
-    font-size: var(--text-base);
-    line-height: var(--text-sm--line-height);
-    cursor: text;
-  }
-
-  .pillo-field::selection {
-    background: transparent;
-  }
-
-  .pillo-field:focus-visible {
-    outline: var(--focus-width) solid var(--color-focus);
-    outline-offset: var(--focus-offset);
-    border-radius: var(--radius-md);
-  }
-
-  /* Guesses left: a small blister strip of six pills; each guess used leaves an empty pocket. */
-  .pillo-strip {
-    display: inline-flex;
-    align-items: center;
-    gap: calc(var(--spacing) * 1);
-    block-size: var(--pillo-strip-height);
-    padding-inline: calc(var(--spacing) * 1.5);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-pillo-pack);
-  }
-
-  .pillo-strip-pocket {
-    inline-size: var(--pillo-strip-pill);
-    block-size: calc(var(--pillo-strip-height) - var(--spacing) * 2);
-    border-radius: var(--radius-pill);
-    box-shadow: var(--shadow-pillo-pocket);
-  }
-
-  .pillo-strip-pill {
-    background-color: var(--color-pillo-here);
-    box-shadow: var(--shadow-pillo-pill);
-  }
-
-  /*
-    The letter keys: capsules in three rows. Each shows the best mark its letter has had, as a color and its symbol.
-    They share each row's width up to --pillo-key-max, and on phones they also use the panel's side padding. Every key
-    is 48 px tall; at 320 px a letter key is about 25 px wide with middles about 28 px apart (WCAG 2.5.8), and nothing
-    scrolls sideways (WCAG 1.4.10).
-  */
-  .pillo-keys {
-    display: flex;
-    flex-direction: column;
-    gap: calc(var(--spacing) * 2);
-    max-inline-size: var(--pillo-board);
-    margin-inline: calc(var(--spacing) * -4);
-  }
-
-  @media (width >= 40rem) {
-    .pillo-keys {
-      margin-inline: 0;
-    }
-  }
-
-  .pillo-key-row {
-    display: flex;
-    justify-content: center;
-    gap: calc(var(--spacing) * 1);
-  }
-
-  .pillo-key {
-    position: relative;
-    display: inline-flex;
-    flex: 1 1 0;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-inline-size: 0;
-    max-inline-size: var(--pillo-key-max);
-    min-block-size: var(--pillo-key);
-    border: var(--border-pillo-key) solid transparent;
-    border-radius: var(--radius-pill);
-    font-size: var(--text-sm);
-    font-weight: 700;
-    line-height: var(--text-sm--line-height);
-    color: var(--color-on-pillo-key);
-    background-color: color-mix(in srgb, var(--color-pillo-key) var(--pillo-key-mix), var(--pillo-foil-color));
-    box-shadow: var(--shadow-pillo-pill);
-    transition: transform var(--duration-fast) var(--ease-soft);
-  }
-
-  .pillo-key:active {
-    transform: translateY(var(--pillo-press-offset));
-  }
-
-  .pillo-key:focus-visible {
-    border-radius: var(--radius-pill);
-  }
-
-  /* ⌫ and enter grow like the letters but about one and a half times as wide, up to --pillo-key-wide, so on a 320 px
-     phone the bottom row's letters keep the same spacing as the other rows (WCAG 2.5.8). */
-  .pillo-key-wide {
-    flex: var(--pillo-key-wide-share) 1 0;
-    max-inline-size: var(--pillo-key-wide);
-  }
-
-  .pillo-key.pillo-here {
-    border-color: var(--color-pillo-ring);
-    color: var(--color-on-pillo-here);
-    background-color: var(--color-pillo-here);
-  }
-
-  .pillo-key.pillo-elsewhere {
-    color: var(--color-on-pillo-elsewhere);
-    background-color: var(--color-pillo-elsewhere);
-  }
-
-  /* Not in the word: no fill, a thin edge and a faded letter, so the keys still to try stand out. */
-  .pillo-key.pillo-absent {
-    border-color: var(--color-line);
-    color: var(--color-ink-soft);
-    background-color: var(--color-page);
-    box-shadow: none;
-  }
-
-  .pillo-key-mark {
-    font-size: var(--pillo-mark);
-    line-height: var(--text-sm--line-height);
-  }
-
-  /* "how to play": one sample pill for each mark, with its symbol and its meaning in words. */
-  .pillo-legend {
-    max-inline-size: var(--pillo-board);
-    padding: calc(var(--spacing) * 5);
-    border: var(--border-pillo-legend) solid var(--color-line);
-    border-radius: var(--radius-lg);
-  }
-
-  .pillo-legend-row {
-    display: flex;
-    align-items: center;
-    gap: calc(var(--spacing) * 3);
-  }
-
-  .pillo-legend .pillo-pill {
-    flex: none;
-    inline-size: var(--pillo-swatch);
-    block-size: calc(var(--pillo-swatch) * 0.6);
-  }
-
-  .pillo-legend .pillo-mark {
-    position: static;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .pillo-pill.pillo-typed,
-    .pillo-key {
-      animation: none;
-      transition: none;
-    }
-
-    .pillo-key:active {
-      transform: none;
-    }
   }
 }
 
@@ -1496,13 +1420,22 @@ html:has(dialog.menu-panel[open]) {
 }
 
 /*
-  Hover zoom (D-51): with a mouse, the card in the middle grows a little and lifts under the pointer or keyboard
-  focus. Polish only: touch screens and reduced motion skip it, and nothing depends on it.
+  Hover (D-51, Task 109): with a mouse, the vial in front grows to 104%, rises 6 px, its glass brightens and the shadow
+  at its foot widens, over 220 ms, and settles back when the pointer leaves; keyboard focus does the same. The vials
+  beside it stay exactly as they are. Polish only: touch screens and reduced motion skip it, and nothing depends on it.
 */
 @media (hover: hover) and (pointer: fine) {
   .modes[data-motion] .mode-card[data-active]:is(:hover, :has(.mode-open:focus-visible)) {
     scale: var(--zoom-mode-card);
-    box-shadow: var(--shadow-lift);
+    translate: 0 var(--vial-hover-rise);
+  }
+
+  .modes[data-motion] [data-active]:is(:hover, :has(.mode-open:focus-visible)) .vial-shine {
+    opacity: 1;
+  }
+
+  .modes[data-motion] [data-active]:is(:hover, :has(.mode-open:focus-visible)) .vial-shadow {
+    scale: 1.12 1;
   }
 }
 
@@ -1530,9 +1463,11 @@ html:has(dialog.menu-panel[open]) {
 }
 
 /*
-  The study-mode preview (D-51): a native modal <dialog> that fills the window. Behind the panel, the page is darkened
-  and softly frosted (the scrim); the panel itself is opaque, in the frosted cards' own color (Ivory, Evening: Walnut),
-  so its text has the plain page-color contrast the token tests check. The grow and shrink are drawn by the script.
+  The study-mode preview (D-51, Task 109): a native modal <dialog> that fills the window. Behind the panel, the page is
+  darkened and softly frosted (the scrim). The panel's cream surface is its own layer, so the script can open it around
+  the bottle; it is opaque, in the frosted cards' own color (Ivory, Evening: Walnut), so its text has the plain
+  page-color contrast the token tests check. Wider screens: the big vial on the left, the words on the right. Phones:
+  the vial on top. The grow and shrink are drawn by the script.
 */
 @layer components {
   .mode-preview {
@@ -1571,13 +1506,80 @@ html:has(dialog.menu-panel[open]) {
 
   .mode-preview-panel {
     position: relative;
+    display: grid;
+    justify-items: center;
+    gap: calc(var(--spacing) * 6);
     inline-size: 100%;
     max-inline-size: var(--container-mode-preview);
-    padding: calc(var(--spacing) * 5) calc(var(--spacing) * 6) calc(var(--spacing) * 7);
+    padding: calc(var(--spacing) * 14) calc(var(--spacing) * 6) calc(var(--spacing) * 7);
+  }
+
+  .mode-preview-surface {
+    position: absolute;
+    inset: 0;
     border: 1px solid color-mix(in srgb, var(--color-line) 55%, transparent);
     border-radius: var(--radius-xl);
     background-color: rgb(var(--veil-rgb));
     box-shadow: var(--shadow-lift);
+  }
+
+  .mode-preview-close {
+    position: absolute;
+    z-index: 1;
+    inset-block-start: calc(var(--spacing) * 4);
+    inset-inline-end: calc(var(--spacing) * 4);
+  }
+
+  .mode-preview-bottle {
+    position: relative;
+    inline-size: var(--vial-preview-bottle);
+    transform-origin: 50% 50%;
+  }
+
+  .mode-preview-details {
+    position: relative;
+    justify-self: stretch;
+  }
+
+  .mode-preview-rule {
+    display: block;
+    inline-size: calc(var(--spacing) * 8);
+    block-size: 1px;
+    margin-block-start: calc(var(--spacing) * 2);
+    background-color: var(--color-ink);
+  }
+
+  /* The feature rows, inside the preview's ⓘ panel. */
+  .mode-features {
+    display: grid;
+    gap: calc(var(--spacing) * 2);
+  }
+
+  .mode-features[hidden] {
+    display: none;
+  }
+
+  .mode-features li {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--spacing) * 3);
+  }
+
+  .mode-feature-icon {
+    flex: none;
+    inline-size: calc(var(--spacing) * 5.5);
+    block-size: calc(var(--spacing) * 5.5);
+    color: var(--color-ink);
+  }
+
+  @media (width >= 48rem) {
+    .mode-preview-panel {
+      grid-template-columns: auto 1fr;
+      align-items: center;
+      gap: calc(var(--spacing) * 10);
+      max-inline-size: var(--vial-preview-width);
+      padding: calc(var(--spacing) * 12) calc(var(--spacing) * 12) calc(var(--spacing) * 10);
+    }
   }
 
   /* "coming soon" in the button's place: an outline, not a button, since there is nothing to press yet. */
@@ -2000,5 +2002,14 @@ html:has(dialog.mode-preview[open]) {
   ::view-transition-old(*),
   ::view-transition-new(*) {
     animation: none !important;
+  }
+}
+
+/* Task 234: forced colors removes the segmented labels' background selection.
+   Restore the native radio so the checked state survives the system palette. */
+@media (forced-colors: active) {
+  .segmented-option input[type="radio"] {
+    position: static;
+    opacity: 1;
   }
 }

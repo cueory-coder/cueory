@@ -48,6 +48,13 @@
   --color-on-panel-button: #3e2c23; /* Espresso — text on the light pill button in a dark panel (D-59) */
   --color-player: #3e2c23;      /* Espresso — behind the lesson video player (D-82) */
 
+  /* ---------- Anatomy lab 3D models (Task 178): read at runtime by src/islands/anatomyscene.ts ---------- */
+  /* Mocha and Taupe alternate, so neighbouring structures stand apart from each other and from the Ivory page (Linen
+     on Ivory was too pale to read). The selected structure is Espresso, and the others also fade: never color alone. */
+  --color-model: #8b6f5b;          /* Mocha    — a structure */
+  --color-model-alt: #d3b7a1;      /* Taupe    — every other structure */
+  --color-model-selected: #3e2c23; /* Espresso — the selected structure */
+
   /* ---------- Fonts ---------- */
   --font-body: "Lato", system-ui, -apple-system, "Segoe UI", sans-serif; /* headings, body, UI, buttons */
   /* Marketing headings and the italic accent line only (brand spec section 4; D-41). Self-hosted in public/fonts. */
@@ -153,12 +160,39 @@
   /* ---------- Share sheet (Task 103) ---------- */
   --container-share-card: min(64vw, 17.5rem); /* one card style in the share sheet: most of a phone, 280px elsewhere */
   --aspect-share-card: 1200 / 630;  /* the shared card images (Open Graph size) */
+  --aspect-lab-view: 4 / 3;  /* the anatomy lab picture, tablet width and up */
   --size-share-icon: 3.125rem;      /* the round share buttons: 50px circles */
   --border-share-icon: 1.5px;       /* the Espresso ring around each share button */
 
   /* ---------- Word path board (Task 97) ---------- */
   --border-board: 2.5px;        /* the frame around the word search grid (Christian's design, 2026-11-01) */
 
+  /* ---------- Motion (D-41 brand bar: 150–400 ms, soft not bouncy, always off under reduced-motion) ---------- */
+  --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);     /* gentle UI transitions */
+  --ease-emphasis: cubic-bezier(0.2, 0, 0, 1);   /* snappier entrances */
+  --duration-fast: 150ms;                         /* micro-interactions */
+  --duration-base: 240ms;                         /* most transitions */
+  --duration-slow: 400ms;                         /* larger motions */
+
+  /* ---------- Depth (interactive elements: cards, lift, hover) ---------- */
+  /* Built from --shadow-tint (Espresso in Daytime), like the existing marketing shadows. */
+  --shadow-card: 0 1px 3px rgb(var(--shadow-tint) / 0.06), 0 4px 12px rgb(var(--shadow-tint) / 0.08);
+  --shadow-card-hover: 0 2px 8px rgb(var(--shadow-tint) / 0.08), 0 12px 28px rgb(var(--shadow-tint) / 0.14);
+
+  /* ---------- Motion and control sizes (Task 77; used by the shared motion classes in global.css) ---------- */
+  --lift-rise: 0.125rem;              /* .lift: how far a card rises on hover or focus */
+  --enter-rise: 0.5rem;               /* .enter: how far content rises as it appears */
+  --flip-perspective: 75rem;          /* .flip: depth of the 3D card flip */
+  --progress-height: 0.375rem;        /* .progress-track */
+  --segmented-inset: 0.125rem;        /* .segmented: space between the pill and its options */
+  --segmented-gap: 0.375rem;          /* .segmented: space between options */
+  --segmented-pad-y: 0.375rem;        /* .segmented-option */
+  --segmented-pad-x: 0.875rem;        /* .segmented-option */
+  --tap-min: 2.75rem;                 /* 44 px minimum tap target */
+}
+
+/* Pillo rules are a separate entry: always emit their shared theme variables. */
+@theme static {
   /* ---------- pillo, the blister-pack word game on /play (Task 114) ----------
      Pill colors by mark (letters on them also carry ● ○ ·, so color is never the only signal). Evening values are in
      the two Evening copies below; tests/unit/pulse.test.ts checks every letter on its pill for AA contrast. */
@@ -209,29 +243,6 @@
   --pillo-cruet: 0.3em;                 /* the cruet's width; its height is about a third of the l's */
   --pillo-cruet-gap: 0.06em;            /* space between the final o and the cruet */
   --pillo-cruet-rise: 0.28em;           /* how far below the top of the name's line the cruet's top sits */
-
-  /* ---------- Motion (D-41 brand bar: 150–400 ms, soft not bouncy, always off under reduced-motion) ---------- */
-  --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);     /* gentle UI transitions */
-  --ease-emphasis: cubic-bezier(0.2, 0, 0, 1);   /* snappier entrances */
-  --duration-fast: 150ms;                         /* micro-interactions */
-  --duration-base: 240ms;                         /* most transitions */
-  --duration-slow: 400ms;                         /* larger motions */
-
-  /* ---------- Depth (interactive elements: cards, lift, hover) ---------- */
-  /* Built from --shadow-tint (Espresso in Daytime), like the existing marketing shadows. */
-  --shadow-card: 0 1px 3px rgb(var(--shadow-tint) / 0.06), 0 4px 12px rgb(var(--shadow-tint) / 0.08);
-  --shadow-card-hover: 0 2px 8px rgb(var(--shadow-tint) / 0.08), 0 12px 28px rgb(var(--shadow-tint) / 0.14);
-
-  /* ---------- Motion and control sizes (Task 77; used by the shared motion classes in global.css) ---------- */
-  --lift-rise: 0.125rem;              /* .lift: how far a card rises on hover or focus */
-  --enter-rise: 0.5rem;               /* .enter: how far content rises as it appears */
-  --flip-perspective: 75rem;          /* .flip: depth of the 3D card flip */
-  --progress-height: 0.375rem;        /* .progress-track */
-  --segmented-inset: 0.125rem;        /* .segmented: space between the pill and its options */
-  --segmented-gap: 0.375rem;          /* .segmented: space between options */
-  --segmented-pad-y: 0.375rem;        /* .segmented-option */
-  --segmented-pad-x: 0.875rem;        /* .segmented-option */
-  --tap-min: 2.75rem;                 /* 44 px minimum tap target */
 }
 
 /* Strengths and images for the marketing background (D-41). Daytime values; the Evening ones are below. */
@@ -261,6 +272,26 @@
   --pillo-absent-mix: 100%;
   --pillo-key-mix: 100%;
   --pillo-gloss-mix: 70%;
+  /* Anatomy lab (Task 178): how opaque the other structures are while one is selected. */
+  --model-dim-alpha: 0.18;
+  /* The anatomy lab's exported pictures (Task 178). Sizes are pixels at the picture's shorter side of
+     --export-reference; the exporter scales them to the picture. Ratios are unitless. */
+  --export-reference: 1080;
+  --export-title: 44;
+  --export-label: 30;
+  --export-credit: 22;
+  --export-pad: 48;
+  --export-offset: 40;
+  --export-gap: 10;
+  --export-radius: 8;
+  --export-line: 2;
+  --export-dash: 8;
+  --export-dash-gap: 6;
+  --export-dot: 5;
+  --export-leading: 1.5;
+  --export-label-pad-x: 0.5;
+  --export-label-pad-y: 0.15;
+  --export-label-room: 0.26;
 }
 
 /*
@@ -293,6 +324,9 @@
     --color-panel-ink-soft: #cbb8a4; /* Sand */
     --color-on-panel-button: #1c1917; /* Charcoal */
     --color-player: #1c1917;      /* Charcoal */
+    --color-model: #cbb8a4;          /* Sand */
+    --color-model-alt: #6b5243;      /* Bronze */
+    --color-model-selected: #f9f5ef; /* Ivory */
     --shadow-tint: 28 25 23;      /* Charcoal */
     --silk-fold-rgb: 58 45 36;    /* Walnut */
     --silk-fold-alpha: 0.7;
@@ -358,6 +392,9 @@
   --color-panel-ink-soft: #cbb8a4; /* Sand */
   --color-on-panel-button: #1c1917; /* Charcoal */
   --color-player: #1c1917;      /* Charcoal */
+  --color-model: #cbb8a4;          /* Sand */
+  --color-model-alt: #6b5243;      /* Bronze */
+  --color-model-selected: #f9f5ef; /* Ivory */
   --shadow-tint: 28 25 23;      /* Charcoal */
   --silk-fold-rgb: 58 45 36;    /* Walnut */
   --silk-fold-alpha: 0.7;
