@@ -4,6 +4,7 @@ import { checkAnswer, type AnswerTransport } from '../../src/islands/checkanswer
 import { exportCsv, exportJson, type ExportData } from '../../src/islands/exportdata';
 import { checkReport } from '../../src/islands/flag';
 import { flagArguments } from '../../src/islands/flagsubmit';
+import { adaptersFor, type AccountClient } from '../../src/islands/accountsettings';
 import { studentMessage } from '../../src/islands/rpcerrors';
 
 const sql = [
@@ -11,15 +12,19 @@ const sql = [
   '20261101120000_flags_and_submit_flag.sql',
   '20261102100000_study_events.sql',
   '20261102110000_delete_my_account.sql',
+  // Task 169 redefines three RPCs. Read the last declaration for the effective contract.
+  '20261102135000_confirmed_accounts_only.sql',
+  '20261102140000_update_display_name.sql',
 ].map(name => readFileSync(new URL(`../../supabase/migrations/${name}`, import.meta.url), 'utf8')).join('\n');
 
-type FunctionName = 'submit_flag' | 'check_answer' | 'my_flags' | 'record_study_events' | 'delete_my_account';
+type FunctionName =
+  | 'submit_flag' | 'check_answer' | 'my_flags' | 'record_study_events' | 'delete_my_account' | 'update_display_name';
 
 /** Read the actual declarations and dollar-quoted bodies, rather than copying their contracts into a fixture. */
 function declaration(name: FunctionName) {
-  const match = new RegExp(
-    `create\\s+function\\s+public\\.${name}\\s*\\(([^)]*)\\)\\s*returns([\\s\\S]*?)as\\s*\\$\\$([\\s\\S]*?)\\$\\$;`, 'i',
-  ).exec(sql);
+  const match = [...sql.matchAll(new RegExp(
+    `create\\s+(?:or\\s+replace\\s+)?function\\s+public\\.${name}\\s*\\(([^)]*)\\)\\s*returns([\\s\\S]*?)as\\s*\\$\\$([\\s\\S]*?)\\$\\$;`, 'gi',
+  ))].at(-1);
   if (!match) throw new Error(`The SQL declaration for ${name} was not found; update the contract reader.`);
   const names = (text: string) => text.replace(/--[^\n]*/g, '').split(',')
     .map(part => part.trim().split(/\s+/)[0]!).filter(Boolean);
@@ -62,7 +67,7 @@ describe('SQL arguments and browser request helpers', () => {
 });
 
 describe('every explicit SQL refusal has a student message', () => {
-  for (const name of ['check_answer', 'submit_flag', 'my_flags'] as const) {
+  for (const name of ['check_answer', 'submit_flag', 'my_flags', 'delete_my_account', 'update_display_name'] as const) {
     const messages = declaration(name).messages;
     if (name !== 'my_flags') {
       it(`${name} exposes refusals for this contract check to cover`, () => {
@@ -120,6 +125,7 @@ describe('record_study_events contract (Task 140)', () => {
     // A change here is a contract change for the browser recorder: update it in the same pull request.
     expect(declaration('record_study_events').messages).toEqual([
       'sign in to record study activity',
+      'confirm your email to use this',
       'send between 1 and 50 study events',
       'a study event has the wrong shape',
       'a study event time must be between 7 days ago and 5 minutes from now',
@@ -179,5 +185,39 @@ describe('delete_my_account contract (Task 60)', () => {
     expect(deleteSql).toContain('revoke execute on function public.delete_my_account() from public, anon, authenticated;');
     expect(deleteSql).toContain('grant execute on function public.delete_my_account() to authenticated;');
     expect(deleteSql).not.toMatch(/grant\s+execute[^;]*to\s+(anon|public)\b/i);
+  });
+});
+
+describe('update_display_name contract (Task 59, Codex on #230)', () => {
+  const nameSql = readFileSync(
+    new URL('../../supabase/migrations/20261102140000_update_display_name.sql', import.meta.url), 'utf8',
+  );
+
+  it('takes one text argument named new_name, which the account page sends, and returns the saved name', async () => {
+    expect(declaration('update_display_name').arguments).toEqual(['new_name']);
+    expect(nameSql).toMatch(/create function public\.update_display_name\(new_name text\)\s+returns text\s/i);
+    const rpc = vi.fn(async () => ({ data: 'Sample', error: null }));
+    const client = { rpc } as unknown as AccountClient;
+    expect(await adaptersFor(client).writeName('Sample')).toBe('Sample');
+    expect(rpc).toHaveBeenCalledWith('update_display_name', { new_name: 'Sample' });
+  });
+
+  it('is signed-in only, security definer with an empty search_path, rate limited, and the only way in', () => {
+    expect(nameSql).toMatch(/returns text\s+language plpgsql\s+security definer\s+set search_path = ''/i);
+    expect(nameSql).toContain('revoke execute on function public.update_display_name(text) from public, anon, authenticated;');
+    expect(nameSql).toContain('grant execute on function public.update_display_name(text) to authenticated;');
+    expect(nameSql).toContain('revoke update (display_name) on table public.profiles from authenticated;');
+    expect(nameSql).toMatch(/pg_advisory_xact_lock\(hashtextextended\('display-name:' \|\| uid::text, 0\)\)/);
+    expect(nameSql).toMatch(/where p\.id = uid;/);
+    // No grant to students in this file: the limit's two columns are written only by the function.
+    expect(nameSql).not.toMatch(/\bgrant\s+(insert|update|delete)[^;]*\bto\s+(anon|authenticated|public)\b/i);
+    expect(nameSql).not.toMatch(/create\s+table/i);
+  });
+
+  it('keeps the limit in two profile columns, which export-my-data reads', () => {
+    expect(nameSql).toMatch(/add column name_change_window_start timestamptz,/);
+    expect(nameSql).toMatch(/add column name_changes_in_window smallint not null default 0/);
+    const exportSource = readFileSync(new URL('../../src/islands/exportload.ts', import.meta.url), 'utf8');
+    expect(exportSource).toContain("profiles: 'display_name,created_at,name_change_window_start,name_changes_in_window',");
   });
 });
