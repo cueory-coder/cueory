@@ -49,7 +49,7 @@ export function examPlanRow(onboarding: Onboarding, today: string): ExamPlanResu
 type DbError = { code?: string; message?: string };
 
 /** The old adapter remains supported while callers move to the safer update/insert pair. */
-interface LegacyExamPlanDb {
+export interface LegacyExamPlanDb {
   upsert(
     table: 'exam_plans',
     row: ExamPlanRow,
