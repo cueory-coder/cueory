@@ -343,18 +343,25 @@ describe('fromSupabase — no silent row truncation', () => {
     expect(calls.some(x => x.startsWith('flags:'))).toBe(false);
   });
 
-  it('pages my_sessions by its id and reads the sign-in record from auth.getUser()', async () => {
-    const many = { ...rows, my_sessions: Array.from({ length: 501 }, (_, i) => ({ ...rows.my_sessions[0], id: id(i + 1) })) };
+  it('pages over the Supabase default 1,000-row response limit without silent session truncation', async () => {
+    const many = { ...rows, my_sessions: Array.from({ length: 1001 }, (_, i) => ({ ...rows.my_sessions[0], id: id(i + 1) })) };
     const { client, calls } = supabase(many);
     const result = await loadExport(fromSupabase(client));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.data.sessions).toHaveLength(501);
+    expect(result.data.sessions).toHaveLength(1001);
     expect(result.data.account).toEqual(account);
     expect(calls.filter(x => x.startsWith('my_sessions:'))).toEqual([
       'my_sessions:0-499:id',
       'my_sessions:0-499:id.gt(' + id(500) + ')',
+      'my_sessions:0-499:id.gt(' + id(1000) + ')',
     ]);
+  });
+
+  it('refuses an incomplete session export when a later API page fails', async () => {
+    const many = { ...rows, my_sessions: Array.from({ length: 1001 }, (_, i) => ({ ...rows.my_sessions[0], id: id(i + 1) })) };
+    const { client } = supabase(many, { name: 'my_sessions', page: 3 });
+    expect(await loadExport(fromSupabase(client))).toEqual(failed);
   });
 
   it('fails the whole export when a later page is unavailable', async () => {
