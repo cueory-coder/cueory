@@ -11,7 +11,6 @@
 import Layout from '../../layouts/Layout.astro';
 import AnatomyLab from '../../islands/AnatomyLab';
 import { labDataForBuild } from '../../islands/anatomylab';
-import { wholeBody } from '../../islands/anatomylayers';
 import fixtureJson from '../../../tests/fixtures/anatomy-fixture.json';
 
 // One file per body system (the data contract with Task 177): content/visuals/anatomy-<system>.json.
@@ -21,10 +20,9 @@ const lab = labDataForBuild(files, fixtureJson, {
   WORKERS_CI_BRANCH: process.env.WORKERS_CI_BRANCH,
   CUEORY_ANATOMY_DRAFTS: process.env.CUEORY_ANATOMY_DRAFTS,
 });
-// The whole-body view (every system's model together, for peeling layers) comes last, after the single systems.
-const body = wholeBody(lab.systems);
-const systems = body ? [...lab.systems, body] : lab.systems;
-const hasSystems = systems.length > 0 || lab.fixture !== null;
+// Pass only individual systems to React. The combined whole-body view is derived after opening,
+// avoiding a duplicate copy of every structure in the initial serialized page.
+const hasSystems = lab.systems.length > 0 || lab.fixture !== null;
 ---
 
 <Layout title="preview: anatomy lab" description="Preview of the anatomy lab." variant="study" noindex>
@@ -44,7 +42,7 @@ const hasSystems = systems.length > 0 || lab.fixture !== null;
     {
       hasSystems ? (
         <>
-          <AnatomyLab client:only="react" systems={systems} fixture={lab.fixture} drafts={lab.drafts} />
+          <AnatomyLab client:only="react" systems={lab.systems} fixture={lab.fixture} drafts={lab.drafts} />
           <noscript>
             <p class="rounded-lg border border-line p-4 text-ink">
               the 3D anatomy lab needs javascript. <a href="/learn" class="underline">browse lessons</a> instead.
