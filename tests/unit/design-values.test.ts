@@ -10,7 +10,10 @@ const files = readdirSync(src, { recursive: true, encoding: 'utf8' })
   .filter(file => /\.(astro|tsx|ts|css)$/.test(file) && file !== 'styles/tokens.css');
 
 function withoutComments(source: string): string {
-  return source.replace(/\/\*[\\s\\S]*?\*\//g, '').replace(/(^|\s)\/\/.*$/gm, '$1');
+  // Mask comments with spaces rather than removing them so reported line numbers stay correct.
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, comment => comment.replace(/[^\r\n]/g, ' '))
+    .replace(/(^|[ \t])\/\/[^\r\n]*/gm, comment => comment.replace(/[^\r\n]/g, ' '));
 }
 
 const exceptions: Exception[] = [
@@ -64,6 +67,16 @@ function exceptionFor(finding: Finding): Exception | undefined {
   return exceptions.find(exception => exception.kind === finding.kind && exception.path === finding.path && exception.matches(finding.text.trim()));
 }
 
+function designValueKinds(text: string): Finding['kind'][] {
+  const kinds = new Set<Finding['kind']>();
+  if (/(?:^|[=:,\s])#[0-9a-fA-F]{3,8}\b/.test(text) && !text.includes('href="#')) kinds.add('color');
+  if (/\b(?:rgb|rgba|hsl|hsla)\(\s*(?:\d|#)/.test(text)) kinds.add('color');
+  if (/font-family:\s*["']/.test(text)) kinds.add('font');
+  if (/(?:^|[\s:;,(])\d+(?:\.\d+)?(?:px|rem)\b/.test(text)) kinds.add('size');
+  if (/\b[\w:-]+-\[[^\]]*(?:px|rem)[^\]]*\]/.test(text)) kinds.add('size');
+  return [...kinds];
+}
+
 describe('design values', () => {
   it('keeps components on tokens, with documented CSS exceptions', () => {
     const violations: Finding[] = [];
@@ -72,23 +85,7 @@ describe('design values', () => {
       const source = withoutComments(readFileSync(new URL(path, src), 'utf8'));
       source.split('\n').forEach((text, index) => {
         const line = index + 1;
-        const findings: Finding[] = [];
-
-        if (/(?:^|[=:,\\s])(#[0-9a-fA-F]{3,8})\\b/.test(text) && !text.includes('href="#')) {
-          findings.push({ kind: 'color', path, line, text });
-        }
-        if (/\\b(?:rgb|rgba|hsl|hsla)\\(\\s*(?:\\d|#)/.test(text)) {
-          findings.push({ kind: 'color', path, line, text });
-        }
-        if (/font-family:\\s*["']/.test(text)) {
-          findings.push({ kind: 'font', path, line, text });
-        }
-        if (/(?:^|[\\s:;,(])\\d+(?:\\.\\d+)?(?:px|rem)\\b/.test(text)) {
-          findings.push({ kind: 'size', path, line, text });
-        }
-        if (/\\b[\\w:-]+-\\[[^\\]]*(?:px|rem)[^\\]]*\\]/.test(text)) {
-          findings.push({ kind: 'size', path, line, text });
-        }
+        const findings: Finding[] = designValueKinds(text).map(kind => ({ kind, path, line, text }));
 
         for (const finding of findings) {
           const exception = exceptionFor(finding);
@@ -100,4 +97,25 @@ describe('design values', () => {
 
     expect(violations).toEqual([]);
   });
+
+  it('detects real raw design values and accepts token references', () => {
+    expect(designValueKinds('color: #fff')).toContain('color');
+    expect(designValueKinds('background: rgba(2, 3, 4, 0.5)')).toContain('color');
+    expect(designValueKinds('font-family: "Arial"')).toContain('font');
+    expect(designValueKinds('padding: 16px')).toContain('size');
+    expect(designValueKinds('class="w-[24px]"')).toContain('size');
+    expect(designValueKinds('color: var(--ink)')).toEqual([]);
+  });
+
+  it('keeps source line numbers when masking block and line comments', () => {
+    const source = '/* first comment\nsecond comment */\npadding: 16px;\n// comment\ncolor: #fff';
+    const masked = withoutComments(source).split('\n');
+    expect(masked).toHaveLength(5);
+    expect(masked[0]?.trim()).toBe('');
+    expect(masked[1]?.trim()).toBe('');
+    expect(masked[2]).toBe('padding: 16px;');
+    expect(masked[3]?.trim()).toBe('');
+    expect(designValueKinds(masked[4] ?? '')).toContain('color');
+  });
+
 });
