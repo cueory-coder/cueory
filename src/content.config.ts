@@ -7,6 +7,7 @@ import { sampleChecker, type SampleItem } from './islands/questions';
 import { existsSync } from 'node:fs';
 import { modelFileProblems, visualProblems } from './visuals/sources';
 import { videoSchema } from './videos/schema';
+import { repeatedCardIndexes } from './content/card-schema';
 
 /**
  * Lessons are content, not code: they live as JSON files in /content/lessons.
@@ -57,7 +58,16 @@ const cards = defineCollection({
             path: ['blank'],
           }),
       )
-      .min(1),
+      .min(1)
+      .superRefine((cards, context) => {
+        for (const index of repeatedCardIndexes(cards.map((card) => card.id))) {
+          context.addIssue({
+            code: 'custom',
+            path: [index, 'id'],
+            message: 'a card id is repeated in this deck',
+          });
+        }
+      }),
   }),
 });
 
