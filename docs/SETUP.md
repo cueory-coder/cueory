@@ -53,11 +53,27 @@ tells it to serve the built site as static files.
    - **Project name:** `cueory`
    - **Build command:** `npm run build`
    - **Deploy command:** `npx wrangler deploy`
-   - **Preview command:** `npx wrangler versions upload`
+   - **Preview command:** `npx wrangler preview`
    - **Enable Preview builds:** on
    - **Protect with Cloudflare Access:** **on** (this is the staging lock)
 6. Open **Advanced settings** and leave everything as it is.
 7. Click **Deploy**. The first build of `main` may fail because `main` is still almost empty. That's expected.
+
+### If the Worker was connected before Worker Previews were available
+
+1. In Cloudflare, open **Workers & Pages** → **cueory** → **Settings** → **Builds** and inspect the Preview command.
+   It must be `npx wrangler preview`, **not** `npx wrangler versions upload`.
+2. If Cloudflare shows **Set up Worker Previews**, open that banner and review the proposed preview settings. This is
+   a one-time switch that Cloudflare says cannot be reversed. Do not confirm it unless the settings match the staging
+   requirements and Christian approves the change.
+3. Configure separate **Previews Base** variables and bindings for staging. Previews do not automatically inherit the
+   production resources. Follow `docs/GO-LIVE.md` section 1.8 before enabling student sign-in tests.
+4. Confirm the Preview command is `npx wrangler preview`, then select **Switch to Worker Previews** when approved.
+   You should see a branch Preview in the Worker's **Previews** section after the next branch build. A **Version URL**
+   created by `wrangler versions upload` does not provide the isolated Preview settings and is not a replacement.
+
+Source: [Cloudflare Worker Previews migration](https://developers.cloudflare.com/workers/ci-cd/builds/build-branches/)
+and [Cloudflare's Preview/Version comparison](https://developers.cloudflare.com/workers/previews/compare-workflows/).
 
 ---
 
