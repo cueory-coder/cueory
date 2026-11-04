@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { groupByItem } from './flaginbox';
+import { inboxAdapter } from './adminflagsrpc';
+import { getSupabase } from './supabaseclient';
+import { codePageFor, needsCode, type LevelReader } from './twofactor';
 import {
   REFUSAL_SENTENCE,
   STATUSES,
@@ -10,8 +13,11 @@ import {
   loadView,
   makeMarker,
   makeMemoryAdapter,
+  makeReopener,
   reasonLabel,
   withHandled,
+  withReopened,
+  type AdminFlagsAdapter,
   type FlagRow,
   type FlagStatus,
 } from './adminflags';
@@ -19,19 +25,34 @@ import {
 interface Props {
   /**
    * Labeled sample rows for /preview/admin-flags only: they are kept in this browser and never sent anywhere. Without
-   * them the page uses the unwired adapter, which refuses, until Task 65's database functions are wired in.
+   * them the page reads the database through Task 65's admin functions, or refuses everything when accounts are off.
    */
   sampleRows?: FlagRow[];
 }
 
 const control = 'min-h-11 min-w-11 rounded-md border border-control bg-page px-4 py-2 text-ink aria-disabled:opacity-50';
 
-type Screen = { kind: 'loading' } | { kind: 'refused' } | { kind: 'failed' } | { kind: 'ok'; rows: FlagRow[] };
+type Screen = { kind: 'loading' } | { kind: 'refused' } | { kind: 'failed' } | { kind: 'ok'; rows: FlagRow[]; complete: boolean };
 
-/** Christian's "Flag or comment" inbox (Task 66): one plain table, grouped by question, with "mark handled". */
+/** A client that could not load: the page says the reports could not be loaded and offers to try again. */
+const FAILED_ADAPTER: AdminFlagsAdapter = Object.freeze({
+  loadFlags: async () => ({ kind: 'failed' }) as const,
+  markHandled: async () => ({ kind: 'failed' }) as const,
+  reopen: async () => ({ kind: 'failed' }) as const,
+});
+
+/**
+ * Christian's "Flag or comment" inbox (Task 66): one plain table, grouped by question, with "mark handled" and
+ * "reopen". Wired to the database in Task 305: the shared client's `rpc` calls Task 65's admin functions, which check
+ * the admin list and two-factor (aal2) themselves.
+ */
 export default function AdminFlags({ sampleRows }: Props) {
-  const adapter = useMemo(() => (sampleRows ? makeMemoryAdapter(sampleRows) : UNWIRED_ADAPTER), [sampleRows]);
-  const mark = useMemo(() => makeMarker(adapter), [adapter]);
+  const sample = useMemo(() => (sampleRows ? makeMemoryAdapter(sampleRows) : null), [sampleRows]);
+  const [client, setClient] = useState<{ adapter: AdminFlagsAdapter; auth: LevelReader | null; watchAuth?: (invalidate: (event: string) => void) => () => void } | null>(null);
+  const [clientAttempt, setClientAttempt] = useState(0);
+  const adapter = sample ?? client?.adapter ?? null;
+  const mark = useMemo(() => makeMarker(adapter ?? UNWIRED_ADAPTER), [adapter]);
+  const reopen = useMemo(() => makeReopener(adapter ?? UNWIRED_ADAPTER), [adapter]);
   const [status, setStatus] = useState<FlagStatus>('open');
   const [screen, setScreen] = useState<Screen>({ kind: 'loading' });
   const [pending, setPending] = useState<ReadonlySet<string>>(new Set());
@@ -40,23 +61,86 @@ export default function AdminFlags({ sampleRows }: Props) {
   const [attempt, setAttempt] = useState(0);
   // Nothing about the inbox is drawn until the database has let this visitor in once.
   const [admitted, setAdmitted] = useState(false);
+  // A signed-out browser must never refetch the private inbox or trigger an MFA redirect.
+  const [signedOut, setSignedOut] = useState(false);
+  const [codeStep, setCodeStep] = useState(false);
   const statusCells = useRef(new Map<string, HTMLTableCellElement>());
   const focusAfter = useRef<string | null>(null);
   const timeZone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
+  // Invalidate responses started under an older auth session, including work still in flight.
+  const authEpoch = useRef(0);
+
+  // The shared client, loaded once (again after "try again" if its download failed). Accounts off: refuse everything.
+  useEffect(() => {
+    if (sample) return;
+    let live = true;
+    getSupabase().then(
+      (supabase) => {
+        if (!live) return;
+        setClient(supabase
+          ? {
+              adapter: inboxAdapter((fn, args) => supabase.rpc(fn, args)),
+              auth: supabase.auth,
+              watchAuth: (invalidate: (event: string) => void) => {
+                const { data } = supabase.auth.onAuthStateChange((event) => invalidate(event));
+                return () => data.subscription.unsubscribe();
+              },
+            }
+          : { adapter: UNWIRED_ADAPTER, auth: null });
+      },
+      () => { if (live) setClient({ adapter: FAILED_ADAPTER, auth: null }); },
+    );
+    return () => {
+      live = false;
+    };
+  }, [sample, clientAttempt]);
+
+  // Supabase broadcasts sign-out and account/token changes across tabs. Drop private rows
+  // immediately, not only after the next admin RPC refuses the changed session.
+  useEffect(() => {
+    if (sample || !client?.watchAuth) return;
+    return client.watchAuth((event) => {
+      // Initial session state is already checked by the first RPC. Only react to a real auth change.
+      if (event === 'INITIAL_SESSION') return;
+      authEpoch.current += 1;
+      const left = event === 'SIGNED_OUT';
+      focusAfter.current = null;
+      statusCells.current.clear();
+      setAdmitted(false);
+      setSignedOut(left);
+      setCodeStep(false);
+      // Refuse immediately on sign-out. Do not wait for a second admin RPC or MFA check.
+      setScreen(left ? { kind: 'refused' } : { kind: 'loading' });
+      setPending(new Set());
+      setRowProblem({});
+      setAnnouncement('');
+      if (!left) setAttempt((n) => n + 1);
+    });
+  }, [client, sample]);
 
   useEffect(() => {
+    if (!adapter || signedOut) return;
     let live = true;
+    const epoch = authEpoch.current;
     setScreen({ kind: 'loading' });
     setRowProblem({});
     loadView(adapter, status).then((view) => {
-      if (!live) return;
+      if (!live || epoch !== authEpoch.current) return;
       if (view.kind === 'ok') setAdmitted(true);
       setScreen(view);
     });
     return () => {
       live = false;
     };
-  }, [adapter, status, attempt]);
+  }, [adapter, status, attempt, signedOut]);
+
+  const retry = () => {
+    if (client?.adapter === FAILED_ADAPTER) {
+      setClient(null);
+      setClientAttempt((n) => n + 1);
+    }
+    setAttempt((n) => n + 1);
+  };
 
   // After "mark handled", the button is gone, so focus moves to the row's new status.
   useEffect(() => {
@@ -66,15 +150,21 @@ export default function AdminFlags({ sampleRows }: Props) {
     statusCells.current.get(id)?.focus();
   });
 
-  const onMark = async (row: FlagRow) => {
+  const onAction = async (row: FlagRow, action: 'mark' | 'reopen') => {
     if (pending.has(row.id)) return;
+    const epoch = authEpoch.current;
     setPending((p) => new Set(p).add(row.id));
     setRowProblem((r) => {
       const next = { ...r };
       delete next[row.id];
       return next;
     });
-    const outcome = await mark(row.id);
+    // A mark answers with the stored handled time; a reopen with nothing.
+    const outcome: { kind: 'ok'; handledAt: string | null } | { kind: 'refused' } | { kind: 'failed' } =
+      action === 'mark'
+        ? await mark(row.id)
+        : await reopen(row.id).then((o) => (o.kind === 'ok' ? { kind: 'ok' as const, handledAt: null } : o));
+    if (epoch !== authEpoch.current) return;
     setPending((p) => {
       const next = new Set(p);
       next.delete(row.id);
@@ -89,19 +179,45 @@ export default function AdminFlags({ sampleRows }: Props) {
       return;
     }
     focusAfter.current = row.id;
-    setScreen((s) => (s.kind === 'ok' ? { kind: 'ok', rows: withHandled(s.rows, row.id, outcome.handledAt) } : s));
-    setAnnouncement(`marked handled: ${reasonLabel(row.reason)}, ${formatWhen(row.created_at, timeZone)}.`);
+    const { handledAt } = outcome;
+    setScreen((s) => {
+      if (s.kind !== 'ok') return s;
+      return { ...s, rows: handledAt !== null ? withHandled(s.rows, row.id, handledAt) : withReopened(s.rows, row.id) };
+    });
+    setAnnouncement(`${action === 'mark' ? 'marked handled' : 'reopened'}: ${reasonLabel(row.reason)}, ${formatWhen(row.created_at, timeZone)}.`);
   };
+
+  // A signed-in account with two-factor on that hasn't entered its code this sign-in is refused by the database (aal1).
+  // Send it to the code page, which comes back here (Supabase's MFA docs: redirect to a page where the user can
+  // authenticate with the additional factor). The link stays in case the move is blocked. Nobody else sees anything new.
+  const auth = client?.auth ?? null;
+  useEffect(() => {
+    if (screen.kind !== 'refused' || sample || !auth || signedOut) return;
+    let live = true;
+    needsCode(auth).then((value) => {
+      if (!live || !value) return;
+      setCodeStep(true);
+      window.location.assign(codePageFor('/admin/flags'));
+    });
+    return () => {
+      live = false;
+    };
+  }, [screen.kind, sample, auth, signedOut]);
 
   // Refused (signed out, not an admin, or no two-factor): the one sentence and nothing else, no counts. It is the
   // page's heading, so the page still has exactly one h1.
-  if (screen.kind === 'refused') return <h1 className="text-xl text-ink">{REFUSAL_SENTENCE}</h1>;
+  if (screen.kind === 'refused') return <>
+    <h1 className="text-xl text-ink">{REFUSAL_SENTENCE}</h1>
+    {codeStep && <a href={codePageFor('/admin/flags')} className="mt-4 inline-flex min-h-12 items-center text-ink underline">
+      enter your two-factor code
+    </a>}
+  </>;
 
   if (!admitted) {
     return screen.kind === 'failed' ? (
       <div className="text-ink">
         <h1 className="text-xl">the reports could not be loaded.</h1>
-        <button type="button" className={`${control} mt-4`} onClick={() => setAttempt((n) => n + 1)}>
+        <button type="button" className={`${control} mt-4`} onClick={retry}>
           try again
         </button>
       </div>
@@ -144,10 +260,17 @@ export default function AdminFlags({ sampleRows }: Props) {
       {screen.kind === 'failed' && (
         <div className="mt-4">
           <p>the reports could not be loaded.</p>
-          <button type="button" className={`${control} mt-3`} onClick={() => setAttempt((n) => n + 1)}>
+          <button type="button" className={`${control} mt-3`} onClick={retry}>
             try again
           </button>
         </div>
+      )}
+
+      {screen.kind === 'ok' && !screen.complete && (
+        <p className="mt-4" data-testid="admin-flags-capped">
+          showing the newest 2,000 reports. older ones may be hidden.{' '}
+          {status === 'open' ? 'mark some handled' : 'reopen some handled reports'} to see more.
+        </p>
       )}
 
       {screen.kind === 'ok' && groups.length === 0 && (
@@ -226,7 +349,7 @@ export default function AdminFlags({ sampleRows }: Props) {
                               className={control}
                               aria-disabled={busy || undefined}
                               aria-describedby={problem ? `admin-flags-problem-${row.id}` : undefined}
-                              onClick={() => onMark(row)}
+                              onClick={() => onAction(row, 'mark')}
                             >
                               {busy ? 'saving…' : 'mark handled'}
                               <span className="sr-only">: {reasonLabel(row.reason)}, {formatWhen(row.created_at, timeZone)}</span>
@@ -238,7 +361,21 @@ export default function AdminFlags({ sampleRows }: Props) {
                             )}
                           </>
                         ) : (
-                          <span className="text-ink-soft">done</span>
+                          <button
+                            type="button"
+                            className={control}
+                            aria-disabled={busy || undefined}
+                            aria-describedby={problem ? `admin-flags-problem-${row.id}` : undefined}
+                            onClick={() => onAction(row, 'reopen')}
+                          >
+                            {busy ? 'saving…' : 'reopen'}
+                            <span className="sr-only">: {reasonLabel(row.reason)}, {formatWhen(row.created_at, timeZone)}</span>
+                          </button>
+                        )}
+                        {row.status === 'handled' && problem && (
+                          <p id={`admin-flags-problem-${row.id}`} className="mt-2">
+                            {problem}
+                          </p>
                         )}
                       </td>
                     </tr>
