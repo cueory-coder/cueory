@@ -44,6 +44,9 @@ insert into public.exam_plans (user_id, course, exam_date)
 insert into public.flags (user_id, page, item_id, item_version_id, reason, comment)
   select u, '/learn/sample', '00000000-0000-4000-8000-0000000000e1', '00000000-0000-4000-8000-0000000000f1', 'typo', 'sample'
   from unnest(array['00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000002']::uuid[]) u;
+-- Both are on the admin list too (Task 65), only so this test covers that table; deleting an account removes it.
+insert into public.admins (user_id)
+  select u from unnest(array['00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000002']::uuid[]) u;
 insert into public.study_events (user_id, item_id, item_version_id, kind, ms_on_item, at)
   select u, '00000000-0000-4000-8000-0000000000e1', '00000000-0000-4000-8000-0000000000f1', 'answered', 1000,
          now() - make_interval(mins => n)
@@ -109,7 +112,7 @@ select results_eq(
 -- reviewer sees that delete-my-account covers it.
 select results_eq(
   $$ select array_agg(relation order by relation) from pg_temp.rows_for('00000000-0000-4000-8000-000000000001') $$,
-  $$ values (array['public.attempts', 'public.exam_plans', 'public.flags', 'public.profiles', 'public.review_state',
+  $$ values (array['public.admins', 'public.attempts', 'public.exam_plans', 'public.flags', 'public.profiles', 'public.review_state',
                    'public.study_events']) $$,
   'the tables that reference auth.users are exactly the ones this test covers'
 );
@@ -222,7 +225,7 @@ select is_empty($$ select 1 from public.study_events where user_id = '00000000-0
 -- ---- Student two is untouched.
 select results_eq(
   $$ select relation, n::int from pg_temp.rows_for('00000000-0000-4000-8000-000000000002') order by relation $$,
-  $$ values ('public.attempts', 2), ('public.exam_plans', 2), ('public.flags', 1), ('public.profiles', 1),
+  $$ values ('public.admins', 1), ('public.attempts', 2), ('public.exam_plans', 2), ('public.flags', 1), ('public.profiles', 1),
             ('public.review_state', 1), ('public.study_events', 3) $$,
   'another student keeps every row they had'
 );
