@@ -252,6 +252,24 @@ describe('loadExport — personal data boundaries', () => {
     }
   });
 
+  it('does not execute array getters while reading database rows or picked choices', async () => {
+    let getterCalls = 0;
+    const picked = ['a'];
+    Object.defineProperty(picked, '0', {
+      enumerable: true, configurable: true, get: () => { getterCalls++; return 'a'; },
+    });
+    const attempt = { ...rows.attempts[0], picked };
+    expect(await loadExport(reader({ attempts: { data: [attempt], error: null } }).db)).toEqual(failed);
+    expect(getterCalls).toBe(0);
+
+    const profileRows = [rows.profiles[0]];
+    Object.defineProperty(profileRows, '0', {
+      enumerable: true, configurable: true, get: () => { getterCalls++; return rows.profiles[0]; },
+    });
+    expect(await loadExport(reader({ profiles: { data: profileRows, error: null } }).db)).toEqual(failed);
+    expect(getterCalls).toBe(0);
+  });
+
   it('does not execute getters supplied by a database-reader mock', async () => {
     const malicious = { ...rows.profiles[0] };
     Object.defineProperty(malicious, 'display_name', { get: () => { throw Error('getter ran'); }, enumerable: true });
