@@ -7,7 +7,7 @@
  * Colors come from the brand tokens at runtime (getComputedStyle), so the model follows the Daytime and Evening palettes.
  */
 import * as THREE from 'three';
-import { indexAnatomyGroup } from './anatomymeshindex';
+import { disposeAnatomyMeshResources, indexAnatomyGroup } from './anatomymeshindex';
 import { createDemandFrameScheduler, remainingIdleDelay } from './anatomyframe';
 import { loadModelsOrDispose } from './anatomylazy';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -296,12 +296,7 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
   function disposeModel() {
     if (!root) return;
     scene.remove(root);
-    root.traverse((object) => {
-      const mesh = object as THREE.Mesh;
-      if (!mesh.isMesh) return;
-      mesh.geometry.dispose();
-      for (const material of ([] as THREE.Material[]).concat(mesh.material)) material.dispose();
-    });
+    disposeAnatomyMeshResources(root);
     root = null;
     meshesById = new Map();
     order = [];
@@ -478,13 +473,7 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
   }
 
   function disposeGroup(group: THREE.Object3D) {
-    group.traverse((object) => {
-      const mesh = object as THREE.Mesh;
-      if (mesh.isMesh) {
-        mesh.geometry.dispose();
-        for (const material of ([] as THREE.Material[]).concat(mesh.material)) material.dispose();
-      }
-    });
+    disposeAnatomyMeshResources(group);
   }
 
   /** Takes a fetched group into the view: `replace` makes it the whole model, otherwise it joins the current one. */
