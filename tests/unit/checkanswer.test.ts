@@ -70,6 +70,25 @@ describe('checkAnswer', () => {
       .toEqual({ ok: true, result: { right: false, key: ['b'], rationales: result.rationales } });
   });
 
+  it('compares multi-answer choices as sets even when students select in reverse order', async () => {
+    const rationales = { ...result.rationales, c: 'sample rationale c' };
+    const data = { ...result, correct: true, key: ['c', 'a'], rationales };
+    const transport = fake(data);
+    expect(await checkAnswer(transport, item, ['c', 'a'])).toEqual({
+      ok: true, result: { right: true, key: ['a', 'c'], rationales },
+    });
+    expect(transport.rpc).toHaveBeenCalledExactlyOnceWith('check_answer', {
+      item_id: item.item_id, version_id: item.id, picked: ['a', 'c'],
+    });
+
+    expect(await checkAnswer(fake({ ...data, correct: false }), item, ['c', 'b'])).toEqual({
+      ok: true, result: { right: false, key: ['a', 'c'], rationales },
+    });
+    expect(await checkAnswer(fake({ ...data, correct: true }), item, ['c', 'b'])).toEqual({
+      ok: false, message: 'something went wrong — please try again.',
+    });
+  });
+
   it('rejects a correctness flag that disagrees with the submitted choices and key', async () => {
     expect(await checkAnswer(fake({ ...result, correct: true, key: ['b'] }), item, ['a']))
       .toEqual({ ok: false, message: 'something went wrong — please try again.' });
