@@ -1169,13 +1169,13 @@ test.describe('☰ side panel and account corner (D-46)', () => {
   for (const path of ['/', '/privacy', '/learn/study-skills']) {
     test(`☰ opens the side panel on ${path}, keeps focus inside, and Escape brings focus back`, async ({ page }) => {
       await page.goto(path);
-      const open = page.getByRole('button', { name: 'menu', exact: true });
+      const open = page.getByRole('button', { name: 'open site menu', exact: true });
       await expect(open).toHaveAttribute('aria-expanded', 'false');
       await open.click();
       const panel = page.getByTestId('site-menu');
       await expect(panel).toBeVisible();
       await expect(open).toHaveAttribute('aria-expanded', 'true');
-      await expect(panel.getByRole('button', { name: 'close menu' })).toBeFocused();
+      await expect(panel.getByRole('button', { name: 'close site menu' })).toBeFocused();
 
       const nav = panel.getByRole('navigation', { name: 'site' });
       for (const name of ['home', 'ways to study', 'lessons', 'daily games', 'my progress', 'support cueory']) {
@@ -1202,7 +1202,7 @@ test.describe('☰ side panel and account corner (D-46)', () => {
 
   test('the current page is marked in the side panel by more than color', async ({ page }) => {
     await page.goto('/learn/study-skills/cards');
-    await page.getByRole('button', { name: 'menu', exact: true }).click();
+    await page.getByRole('button', { name: 'open site menu', exact: true }).click();
     const current = page.getByTestId('site-menu').locator('[aria-current="page"]');
     await expect(current).toHaveCount(1);
     await expect(current).toHaveText('lessons');
@@ -1212,10 +1212,10 @@ test.describe('☰ side panel and account corner (D-46)', () => {
 
   test('the close button and a tap on the dimmed page close the side panel', async ({ page }) => {
     await page.goto('/');
-    const open = page.getByRole('button', { name: 'menu', exact: true });
+    const open = page.getByRole('button', { name: 'open site menu', exact: true });
     const panel = page.getByTestId('site-menu');
     await open.click();
-    await panel.getByRole('button', { name: 'close menu' }).click();
+    await panel.getByRole('button', { name: 'close site menu' }).click();
     await expect(panel).toBeHidden();
     await expect(open).toBeFocused();
 
@@ -1228,7 +1228,7 @@ test.describe('☰ side panel and account corner (D-46)', () => {
 
   test('a side-panel link to a spot on the home page closes the panel and goes there', async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('button', { name: 'menu', exact: true }).click();
+    await page.getByRole('button', { name: 'open site menu', exact: true }).click();
     await page.getByTestId('site-menu').getByRole('link', { name: 'ways to study' }).click();
     await expect(page.getByTestId('site-menu')).toBeHidden();
     await expect(page).toHaveURL(/#ways-to-study$/);
@@ -1276,7 +1276,7 @@ test.describe('☰ side panel and account corner (D-46)', () => {
   test('corner buttons are at least 44 by 44 px', async ({ page }) => {
     for (const path of ['/', '/learn/study-skills']) {
       await page.goto(path);
-      for (const name of ['menu', 'account']) {
+      for (const name of ['open site menu', 'account']) {
         const box = (await page.getByRole('button', { name, exact: true }).boundingBox())!;
         expect(box.width).toBeGreaterThanOrEqual(44);
         expect(box.height).toBeGreaterThanOrEqual(44);
@@ -1288,7 +1288,7 @@ test.describe('☰ side panel and account corner (D-46)', () => {
 test.describe('site search in the ☰ panel (D-49)', () => {
   test('finds pages as you type, works by keyboard, and goes to the result', async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('button', { name: 'menu', exact: true }).click();
+    await page.getByRole('button', { name: 'open site menu', exact: true }).click();
     const panel = page.getByTestId('site-menu');
     const field = panel.getByRole('searchbox', { name: 'search the site' });
     await expect(field).toHaveAttribute('placeholder', 'search');
@@ -1320,7 +1320,7 @@ test.describe('site search in the ☰ panel (D-49)', () => {
 
   test('a new search while a result has keyboard focus keeps focus in the panel', async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('button', { name: 'menu', exact: true }).click();
+    await page.getByRole('button', { name: 'open site menu', exact: true }).click();
     const panel = page.getByTestId('site-menu');
     const field = panel.getByRole('searchbox', { name: 'search the site' });
     const results = panel.getByRole('list', { name: 'search results' });
@@ -1349,7 +1349,7 @@ test.describe('site search in the ☰ panel (D-49)', () => {
 
   test('says "no results" plainly, and clearing the field clears the results', async ({ page }) => {
     await page.goto('/learn/study-skills');
-    await page.getByRole('button', { name: 'menu', exact: true }).click();
+    await page.getByRole('button', { name: 'open site menu', exact: true }).click();
     const panel = page.getByTestId('site-menu');
     const field = panel.getByRole('searchbox', { name: 'search the site' });
     const status = panel.locator('#site-search-status');
@@ -1388,7 +1388,7 @@ test.describe('social links (D-54)', () => {
     }
     await expect(footer.getByRole('link', { name: 'cueory on Instagram (opens in a new tab)' })).toBeVisible();
 
-    await page.getByRole('button', { name: 'menu' }).click();
+    await page.getByRole('button', { name: 'open site menu' }).click();
     await expect(page.getByTestId('site-menu').locator('[data-social]')).toHaveCount(Object.keys(expected).length);
     const axe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
     expect(axe.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
@@ -1400,7 +1400,7 @@ test.describe('without JavaScript, the corners', () => {
 
   test('stay hidden but keep their space, so nothing moves', async ({ page }) => {
     await page.goto('/privacy');
-    await expect(page.getByRole('button', { name: 'menu', exact: true })).toBeHidden();
+    await expect(page.getByRole('button', { name: 'open site menu', exact: true })).toBeHidden();
     await expect(page.getByRole('button', { name: 'account', exact: true })).toBeHidden();
     await expect(page.getByRole('navigation', { name: 'footer' }).getByRole('link', { name: 'support cueory' })).toBeVisible();
   });
