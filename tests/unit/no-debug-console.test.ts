@@ -17,14 +17,43 @@ function isConsole(node: ts.Expression): boolean {
 function debugReferences(text: string, offset = 0, kind = ts.ScriptKind.TS): Logging[] {
   const source = ts.createSourceFile('source', text, ts.ScriptTarget.Latest, true, kind);
   const found: Logging[] = [];
+  function record(method: string | undefined, node: ts.Node) {
+    if (method === 'log' || method === 'debug') {
+      found.push({ line: offset + source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1, method });
+    }
+  }
+
   function visit(node: ts.Node) {
     let method: string | undefined;
     if (ts.isPropertyAccessExpression(node) && isConsole(node.expression)) method = node.name.text;
     if (ts.isElementAccessExpression(node) && isConsole(node.expression) && node.argumentExpression
         && ts.isStringLiteralLike(node.argumentExpression)) method = node.argumentExpression.text;
-    if (method === 'log' || method === 'debug') {
-      found.push({ line: offset + source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1, method });
+    record(method, node);
+
+    // Destructuring: const { log, debug: report } = console;
+    if (ts.isVariableDeclaration(node) && ts.isObjectBindingPattern(node.name) && node.initializer && isConsole(node.initializer)) {
+      for (const element of node.name.elements) {
+        if (ts.isBindingElement(element)) {
+          const propName = element.propertyName
+            ? (ts.isIdentifier(element.propertyName) ? element.propertyName.text : ts.isStringLiteralLike(element.propertyName) ? element.propertyName.text : undefined)
+            : (ts.isIdentifier(element.name) ? element.name.text : undefined);
+          record(propName, element);
+        }
+      }
     }
+
+    // Destructuring assignment: ({ log, debug: report } = console);
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken && ts.isObjectLiteralExpression(node.left) && isConsole(node.right)) {
+      for (const prop of node.left.properties) {
+        if (ts.isShorthandPropertyAssignment(prop)) {
+          record(prop.name.text, prop);
+        } else if (ts.isPropertyAssignment(prop)) {
+          const propName = ts.isIdentifier(prop.name) ? prop.name.text : ts.isStringLiteralLike(prop.name) ? prop.name.text : undefined;
+          record(propName, prop);
+        }
+      }
+    }
+
     ts.forEachChild(node, visit);
   }
   visit(source);
@@ -319,6 +348,8 @@ function files(directory: string): string[] {
 describe('debug-console source guard', () => {
   it('finds direct, optional, bracket and callback references with accurate lines', () => {
     expect(scan('console.log("debug");\nconsole?.debug("debug");\nconsole["log"]("debug");\nconst callback = globalThis.console.debug;', '.ts'))
+      .toEqual([{ line: 1, method: 'log' }, { line: 2, method: 'debug' }, { line: 3, method: 'log' }, { line: 4, method: 'debug' }]);
+    expect(scan('const { log } = console;\nconst { debug: report } = globalThis.console;\n({ log } = console);\n({ debug: renamed } = console);', '.ts'))
       .toEqual([{ line: 1, method: 'log' }, { line: 2, method: 'debug' }, { line: 3, method: 'log' }, { line: 4, method: 'debug' }]);
   });
 
