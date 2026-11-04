@@ -133,10 +133,15 @@ export function validateCurriculum(root = DEFAULT_ROOT) {
     const reqBeforeRaw = row[reqBeforeIdx];
 
     if (reqBeforeRaw && reqBeforeRaw.trim()) {
-      if (reqBeforeRaw === 'all of the above') {
-        continue;
+      // The final pilot objective uses this shorthand to require every earlier objective.
+      // Treat these as real edges so the cycle detector cannot miss a back-reference.
+      const cumulative = reqBeforeRaw.trim().toLowerCase() === 'all of the above';
+      const prereqs = cumulative
+        ? objRows.slice(1, r).map((previous) => previous[objIdIdx])
+        : reqBeforeRaw.split(',').map((p) => p.trim()).filter(Boolean);
+      if (cumulative && prereqs.length === 0) {
+        throw new Error(`objective ${objId} uses all of the above without any preceding objectives`);
       }
-      const prereqs = reqBeforeRaw.split(',').map((p) => p.trim()).filter(Boolean);
       for (const prereq of prereqs) {
         if (!knownObjIds.has(prereq)) {
           throw new Error(`objective ${objId} required_before references unknown objective: ${prereq}`);
