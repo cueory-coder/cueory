@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import * as THREE from 'three';
-import { disposeAnatomyMeshResources, indexAnatomyGroup } from '../../src/islands/anatomymeshindex';
+import { disposeAnatomyMaterials, disposeAnatomyMeshResources, indexAnatomyGroup } from '../../src/islands/anatomymeshindex';
 
 /** Test-only boxes and made-up IDs, never real anatomical content. */
 function sampleGroup(id: string, meshName = ''): { group: THREE.Group; mesh: THREE.Mesh; material: THREE.Material } {
@@ -16,6 +16,53 @@ function sampleGroup(id: string, meshName = ''): { group: THREE.Group; mesh: THR
 }
 
 describe('anatomy GLB mesh registration', () => {
+  it('skips a placeholder without positions but still indexes a valid sibling', () => {
+    const group = new THREE.Group();
+    const emptyOwner = new THREE.Group();
+    emptyOwner.name = 'TEST_EMPTY_PLACEHOLDER';
+    const drawableOwner = new THREE.Group();
+    drawableOwner.name = 'TEST_DRAWABLE_SIBLING';
+    const emptyMaterial = new THREE.MeshBasicMaterial();
+    const emptyDispose = vi.spyOn(emptyMaterial, 'dispose');
+    const empty = new THREE.Mesh(new THREE.BufferGeometry(), emptyMaterial);
+    const drawable = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial());
+    emptyOwner.add(empty);
+    drawableOwner.add(drawable);
+    group.add(emptyOwner, drawableOwner);
+    const indexed = new Map<string, THREE.Mesh[]>();
+    const unlabeled: THREE.Mesh[] = [];
+
+    expect(indexAnatomyGroup(group, ['TEST_EMPTY_PLACEHOLDER', 'TEST_DRAWABLE_SIBLING'], indexed, unlabeled))
+      .toEqual({ touched: ['TEST_DRAWABLE_SIBLING'], triangles: 12 });
+    expect(indexed.get('TEST_EMPTY_PLACEHOLDER')).toEqual([]);
+    expect(indexed.get('TEST_DRAWABLE_SIBLING')).toEqual([drawable]);
+    expect(unlabeled).toEqual([]);
+    expect(empty.material).toBe(emptyMaterial);
+    expect(emptyDispose).not.toHaveBeenCalled();
+    expect(drawable.material).toBeInstanceOf(THREE.MeshLambertMaterial);
+  });
+
+  it('does not mark zero-index and fewer-than-three-vertex meshes as found', () => {
+    const group = new THREE.Group();
+    group.name = 'TEST_NO_TRIANGLES';
+    const zeroIndex = new THREE.BoxGeometry();
+    zeroIndex.setIndex([]);
+    const twoPoints = new THREE.BufferGeometry();
+    twoPoints.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 1, 0, 0], 3));
+    const first = new THREE.Mesh(zeroIndex, new THREE.MeshBasicMaterial());
+    const second = new THREE.Mesh(twoPoints, new THREE.MeshBasicMaterial());
+    group.add(first, second);
+    const indexed = new Map<string, THREE.Mesh[]>();
+    const unlabeled: THREE.Mesh[] = [];
+
+    expect(indexAnatomyGroup(group, ['TEST_NO_TRIANGLES'], indexed, unlabeled))
+      .toEqual({ touched: [], triangles: 0 });
+    expect(indexed.get('TEST_NO_TRIANGLES')).toEqual([]);
+    expect(unlabeled).toEqual([]);
+    expect(first.material).toBeInstanceOf(THREE.MeshBasicMaterial);
+    expect(second.material).toBeInstanceOf(THREE.MeshBasicMaterial);
+  });
+
   it('converts a glTF material shared by nested meshes without disposing it twice', () => {
     const group = new THREE.Group();
     const structure = new THREE.Group();
@@ -23,7 +70,9 @@ describe('anatomy GLB mesh registration', () => {
     const nested = new THREE.Group();
     group.add(structure);
     structure.add(nested);
-    const oldMaterial = new THREE.MeshBasicMaterial();
+    const texture = new THREE.Texture();
+    const disposedTexture = vi.spyOn(texture, 'dispose');
+    const oldMaterial = new THREE.MeshBasicMaterial({ map: texture });
     const disposed = vi.spyOn(oldMaterial, 'dispose');
     const upper = new THREE.Mesh(new THREE.BoxGeometry(), oldMaterial);
     const lower = new THREE.Mesh(new THREE.BoxGeometry(), oldMaterial);
@@ -35,6 +84,7 @@ describe('anatomy GLB mesh registration', () => {
     expect(indexAnatomyGroup(group, ['TEST_SHARED_MATERIAL'], indexed, unlabeled))
       .toEqual({ touched: ['TEST_SHARED_MATERIAL'], triangles: 24 });
     expect(disposed).toHaveBeenCalledOnce();
+    expect(disposedTexture).toHaveBeenCalledOnce();
     expect(indexed.get('TEST_SHARED_MATERIAL')).toEqual(expect.arrayContaining([upper, lower]));
     expect(indexed.get('TEST_SHARED_MATERIAL')).toHaveLength(2);
     expect(unlabeled).toEqual([]);
@@ -43,11 +93,37 @@ describe('anatomy GLB mesh registration', () => {
     expect(upper.material).toBe(lower.material);
   });
 
+  it('disposes a texture shared by different source materials exactly once', () => {
+    const group = new THREE.Group();
+    group.name = 'TEST_TEXTURE_OWNERS';
+    const texture = new THREE.Texture();
+    const disposeTexture = vi.spyOn(texture, 'dispose');
+    const first = new THREE.Mesh(
+      new THREE.BoxGeometry(), new THREE.MeshStandardMaterial({ map: texture, normalMap: texture }),
+    );
+    const second = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial({ map: texture }));
+    group.add(first, second);
+    const indexed = new Map<string, THREE.Mesh[]>();
+    const unlabeled: THREE.Mesh[] = [];
+
+    expect(indexAnatomyGroup(group, ['TEST_TEXTURE_OWNERS'], indexed, unlabeled).triangles).toBe(24);
+    expect(disposeTexture).toHaveBeenCalledOnce();
+    expect(indexed.get('TEST_TEXTURE_OWNERS')).toHaveLength(2);
+    expect(first.material).toBeInstanceOf(THREE.MeshLambertMaterial);
+    expect(second.material).toBeInstanceOf(THREE.MeshLambertMaterial);
+    expect(first.material).toBe(second.material);
+  });
+
   it('continues registering later meshes if disposing an original material throws', () => {
     const group = new THREE.Group();
     group.name = 'TEST_GPU_LOSS';
-    const broken = new THREE.MeshBasicMaterial();
-    const healthy = new THREE.MeshBasicMaterial();
+    const brokenTexture = new THREE.Texture();
+    const healthyTexture = new THREE.Texture();
+    const brokenTextureDispose = vi.spyOn(brokenTexture, 'dispose')
+      .mockImplementation(() => { throw new Error('lost texture context'); });
+    const healthyTextureDispose = vi.spyOn(healthyTexture, 'dispose');
+    const broken = new THREE.MeshBasicMaterial({ map: brokenTexture });
+    const healthy = new THREE.MeshBasicMaterial({ map: healthyTexture });
     const brokenDispose = vi.spyOn(broken, 'dispose')
       .mockImplementation(() => { throw new Error('lost WebGL context'); });
     const healthyDispose = vi.spyOn(healthy, 'dispose');
@@ -61,6 +137,8 @@ describe('anatomy GLB mesh registration', () => {
       .toEqual({ touched: ['TEST_GPU_LOSS'], triangles: 24 });
     expect(brokenDispose).toHaveBeenCalledOnce();
     expect(healthyDispose).toHaveBeenCalledOnce();
+    expect(brokenTextureDispose).toHaveBeenCalledOnce();
+    expect(healthyTextureDispose).toHaveBeenCalledOnce();
     expect(indexed.get('TEST_GPU_LOSS')).toEqual([first, second]);
     expect(first.material).toBeInstanceOf(THREE.MeshLambertMaterial);
     expect(second.material).toBeInstanceOf(THREE.MeshLambertMaterial);
@@ -178,13 +256,36 @@ describe('anatomy GLB mesh registration', () => {
   });
 });
 
+describe('anatomy ID-pass material cleanup', () => {
+  it('releases each temporary material once and continues after a GPU disposal error', () => {
+    const broken = new THREE.MeshBasicMaterial();
+    const shared = new THREE.MeshBasicMaterial();
+    const last = new THREE.MeshBasicMaterial();
+    const brokenDispose = vi.spyOn(broken, 'dispose')
+      .mockImplementation(() => { throw new Error('WebGL context lost'); });
+    const sharedDispose = vi.spyOn(shared, 'dispose');
+    const lastDispose = vi.spyOn(last, 'dispose');
+
+    expect(() => disposeAnatomyMaterials([broken, shared, shared, last])).not.toThrow();
+    expect(brokenDispose).toHaveBeenCalledOnce();
+    expect(sharedDispose).toHaveBeenCalledOnce();
+    expect(lastDispose).toHaveBeenCalledOnce();
+  });
+
+  it('allows clearing an empty ID-pass material array', () => {
+    expect(() => disposeAnatomyMaterials([])).not.toThrow();
+  });
+});
+
 describe('anatomy GLB mesh cleanup', () => {
   it('disposes shared geometry and material only once across nested meshes', () => {
     const group = new THREE.Group();
     const nested = new THREE.Group();
     group.add(nested);
     const geometry = new THREE.BoxGeometry();
-    const material = new THREE.MeshBasicMaterial();
+    const texture = new THREE.Texture();
+    const material = new THREE.MeshBasicMaterial({ map: texture });
+    const disposeTexture = vi.spyOn(texture, 'dispose');
     const disposeGeometry = vi.spyOn(geometry, 'dispose');
     const disposeMaterial = vi.spyOn(material, 'dispose');
     group.add(new THREE.Mesh(geometry, material));
@@ -194,14 +295,20 @@ describe('anatomy GLB mesh cleanup', () => {
 
     expect(disposeGeometry).toHaveBeenCalledOnce();
     expect(disposeMaterial).toHaveBeenCalledOnce();
+    expect(disposeTexture).toHaveBeenCalledOnce();
   });
 
   it('continues cleanup after geometry and material disposal throw', () => {
     const group = new THREE.Group();
     const brokenGeometry = new THREE.BoxGeometry();
-    const brokenMaterial = new THREE.MeshBasicMaterial();
+    const brokenTexture = new THREE.Texture();
+    const healthyTexture = new THREE.Texture();
+    const brokenMaterial = new THREE.MeshBasicMaterial({ map: brokenTexture });
     const healthyGeometry = new THREE.BoxGeometry();
-    const healthyMaterial = new THREE.MeshBasicMaterial();
+    const healthyMaterial = new THREE.MeshBasicMaterial({ map: healthyTexture });
+    const failedTexture = vi.spyOn(brokenTexture, 'dispose')
+      .mockImplementation(() => { throw new Error('lost texture context'); });
+    const laterTexture = vi.spyOn(healthyTexture, 'dispose');
     const firstGeometry = vi.spyOn(brokenGeometry, 'dispose')
       .mockImplementation(() => { throw new Error('lost geometry context'); });
     const firstMaterial = vi.spyOn(brokenMaterial, 'dispose')
@@ -216,6 +323,8 @@ describe('anatomy GLB mesh cleanup', () => {
     expect(firstMaterial).toHaveBeenCalledOnce();
     expect(laterGeometry).toHaveBeenCalledOnce();
     expect(laterMaterial).toHaveBeenCalledOnce();
+    expect(failedTexture).toHaveBeenCalledOnce();
+    expect(laterTexture).toHaveBeenCalledOnce();
   });
 
   it('handles empty GLB groups without attempting resource disposal', () => {
