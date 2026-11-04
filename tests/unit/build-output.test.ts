@@ -29,15 +29,19 @@ const requiredPages = [
   'subscribed.html',
 ];
 
-// Baseline gzip bytes for the initial JavaScript on each route at staging 65a05c3.
+// Initial route baselines use staging 65a05c3; routes added since then use measured
+// gzip sizes from the exact-head CI merge build in run 41864993683.
 // This includes external scripts in the HTML, Astro island components and renderers,
 // their static imports, and inline scripts. Dynamic imports are intentionally excluded.
 const initialJsBudget = {
   '404.html': 75978,
+  'account.html': 123795,
+  'admin/flags.html': 92161,
   'auth/callback.html': 76233,
   'breaks.html': 76095,
   'disclaimer.html': 76405,
   'index.html': 80295,
+  'learn/questions.html': 97613,
   'learn/study-skills/cards.html': 79473,
   'learn/study-skills/fill-in.html': 78805,
   'learn/study-skills/label-it.html': 78339,
@@ -49,6 +53,7 @@ const initialJsBudget = {
   'learn/video-sample.html': 76252,
   'learn.html': 75452,
   'play.html': 91853,
+  'preview/admin-flags.html': 92161,
   'preview/body-viewer.html': 79576,
   'preview/email.html': 75055,
   'preview/prose.html': 75055,
