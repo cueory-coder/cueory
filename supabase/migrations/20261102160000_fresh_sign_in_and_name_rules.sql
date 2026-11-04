@@ -88,7 +88,7 @@ returns text
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $$
 declare
   uid uuid := (select auth.uid());
   clean_name text;
@@ -130,7 +130,7 @@ begin
     where p.id = uid;
   return clean_name;
 end;
-$;
+$$;
 
 
 -- ------------------------------------------------------------ delete_my_account
