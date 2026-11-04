@@ -48,6 +48,29 @@ describe('anatomy production artifact audit', () => {
     expect(setup().check()).toEqual({ errors: [], approvedSystems: 1, draftSystems: 1, shippedModels: 1 });
   });
 
+  it('reports null and primitive approved source records without crashing', () => {
+    const f = setup();
+    writeFileSync(join(f.content, 'anatomy-approved.json'), JSON.stringify({
+      status: 'approved',
+      model: { file: '/models/anatomy/approved.glb' },
+      labels: [{ id: 'FMA999992', text: 'fixture label', source: 'bp3d-FMA999992' }],
+      sources: [
+        null, 7, [],
+        {
+          id: 'bp3d-FMA999992', quote: 'synthetic test words only',
+          book: 'BodyParts3D', section: 'synthetic test section',
+          url: 'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/synthetic-test-only',
+          license: 'CC BY 4.0', retrieved: '2026-11-04',
+        },
+      ],
+    }));
+
+    const result = f.check();
+    expect(result.approvedSystems).toBe(1);
+    expect(result.errors.filter((message) =>
+      message === 'anatomy-approved.json: invalid approved source ID')).toHaveLength(3);
+  });
+
   it('rejects approved sources with missing, duplicate or unsupported structure IDs', () => {
     const f = setup();
     f.system('approved', 'approved', ['/models/anatomy/approved.glb'], []);

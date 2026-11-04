@@ -93,7 +93,13 @@ export function auditAnatomyProduction(distDir, contentDir) {
         errors.push(`${name}: approved source records are missing`);
       } else {
         for (const source of data.sources) {
-          if (!source || typeof source.id !== 'string' || !source.id.trim()) {
+          // JSON can contain null or primitive entries; report them instead of
+          // throwing before the audit checks the remaining release evidence.
+          if (!source || typeof source !== 'object' || Array.isArray(source)) {
+            errors.push(`${name}: invalid approved source ID`);
+            continue;
+          }
+          if (typeof source.id !== 'string' || !source.id.trim()) {
             errors.push(`${name}: invalid approved source ID`);
             continue;
           } else if (sourceIds.has(source.id)) {
