@@ -1,0 +1,18 @@
+{
+  "id": "anatomy-skin",
+  "title": "skin",
+  "kind": "model",
+  "lessonIds": ["U11-T01-L01"],
+  "status": "draft",
+  "model": { "file": "/models/anatomy/skin.glb", "release": "BodyParts3D 4.0", "via": "official download from dbarchive.biosciencedbc.jp" },
+  "labels": [
+    { "id": "FMA7163", "text": "skin", "group": "nonparenchymatous organ", "layer": "skin", "source": "bp3d-FMA7163" }
+  ],
+  "depictions": [
+    { "id": "geometry", "what": "each structure's 3D shape and position as BodyParts3D models it, all in the database's one shared body coordinate system", "source": "bp3d-readme" }
+  ],
+  "sources": [
+    { "id": "bp3d-readme", "quote": "The dictionary-type database for anatomy in which anatomical concepts are represented by 3D structure data", "book": "BodyParts3D", "section": "README_e.html, Release 4.0", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" },
+    { "id": "bp3d-FMA7163", "quote": "FMA7163 BP9115 skin", "book": "BodyParts3D", "section": "isa_parts_list_e.txt, Release 4.0", "url": "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/README_e.html", "license": "CC BY 4.0", "retrieved": "2026-11-02" }
+  ]
+}

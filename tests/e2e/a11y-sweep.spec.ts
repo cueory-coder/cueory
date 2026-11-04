@@ -1,7 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { readdirSync } from 'node:fs';
-import { join, relative, resolve, sep } from 'node:path';
+import { builtPages } from './built-pages';
 import { isEveningProject } from './projects';
 
 /**
@@ -9,30 +8,8 @@ import { isEveningProject } from './projects';
  * `npm run verify` builds `dist/` before Playwright starts. Pagefind's own
  * fragments and Astro assets aren't pages, so they are not part of the sweep.
  */
-const dist = resolve('dist');
-
-function builtPages(folder = dist): string[] {
-  const routes: string[] = [];
-  for (const entry of readdirSync(folder, { withFileTypes: true })) {
-    if (entry.name === 'pagefind' || entry.name === '_astro') continue;
-    const file = join(folder, entry.name);
-    if (entry.isDirectory()) {
-      routes.push(...builtPages(file));
-    } else if (entry.isFile() && entry.name.endsWith('.html')) {
-      const name = relative(dist, file).split(sep).join('/');
-      // Exercise the actual not-found response, not just a direct HTML file.
-      if (name === '404.html') routes.push('/a11y-sweep-page-does-not-exist');
-      else if (name === 'index.html') routes.push('/');
-      else if (name.endsWith('/index.html')) routes.push(`/${name.slice(0, -'/index.html'.length)}`);
-      else routes.push(`/${name.slice(0, -'.html'.length)}`);
-    }
-  }
-  return routes;
-}
-
-// A missing build should fail loudly instead of silently omitting pages.
-const pages = [...new Set(builtPages())].sort();
 const missingPage = '/a11y-sweep-page-does-not-exist';
+const pages = builtPages(missingPage);
 const axeTags = ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'];
 
 /**
