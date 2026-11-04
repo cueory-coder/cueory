@@ -317,7 +317,8 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     // Files can hold structures in several layers. Map all of their IDs now, while showing only the first layer.
     const initial = wholeLayers ? initialLayerPlan(system, wholeLayers) : null;
     setHidden(initial?.hidden ?? new Set());
-    setFilesLoaded(initial?.files.length ?? 0);
+    // Do not count an initial GLB as loaded until the scene confirms it has decoded successfully.
+    setFilesLoaded(0);
     scene
       .load(initial?.files ?? (system.model.files ?? system.model.file), initial?.ids ?? system.structures.map((s) => s.id))
       .then((result) => {
@@ -335,6 +336,8 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
           for (const url of initial.files) loader.markLoaded(url);
           loaderRef.current = loader;
         }
+        // The initial files have completed successfully, including in the whole-body lazy path.
+        setFilesLoaded(initial?.files.length ?? 0);
         setLoad({ state: 'ready', result });
         setAnnounce(`${system.title}: ${result.found.length} structures loaded.`);
       })
@@ -782,7 +785,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                     type="button"
                     className={secondaryButton}
                     aria-pressed={layerShown(layer, hidden)}
-                    aria-disabled={pending.has(layer.id) || undefined}
+                    disabled={!ready || pending.has(layer.id)}
                     onClick={() => {
                       if (pending.has(layer.id)) return;
                       visibilityIntent.bump();
@@ -800,7 +803,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                 <button
                   type="button"
                   className={secondaryButton}
-                  disabled={!toPeel}
+                  disabled={!ready || !toPeel || pending.size > 0}
                   onClick={() => {
                     if (!toPeel || pending.size > 0) return;
                     visibilityIntent.bump();
@@ -817,7 +820,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                 <button
                   type="button"
                   className={secondaryButton}
-                  disabled={!toRestore}
+                  disabled={!ready || !toRestore || pending.size > 0}
                   onClick={() => {
                     if (!toRestore || pending.size > 0) return;
                     visibilityIntent.bump();
