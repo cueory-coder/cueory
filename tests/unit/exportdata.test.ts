@@ -33,14 +33,41 @@ function sampleGuest() {
 
 describe('JSON export', () => {
   it('round-trips every allowed sample section with a caller-supplied date and format', () => {
-    expect(json(sample)).toEqual({ format: 'cueory-export-1', exportDate, ...sample, attempts: [], examPlans: [], reviewRows: [], reports: [], studyEvents: [], dropped: [] });
+    expect(json(sample)).toEqual({ format: 'cueory-export-1', exportDate, ...sample, signInDetails: [], attempts: [], examPlans: [], reviewRows: [], reports: [], studyEvents: [], dropped: [] });
     expect(exportJson(sample, exportDate)).toContain('\n  "profile": {\n    "displayName": "Sample Student",');
+  });
+
+  it('exports the sign-in provider details one plain field per row, and drops anything that is not plain', () => {
+    const signInDetails = [
+      { name: 'avatar_url', value: 'https://example.invalid/sample.png' },
+      { name: 'email_verified', value: true },
+      { name: 'full_name', value: 'Sample Student' },
+      { name: 'custom_claims', value: { hd: 'example.invalid' } },
+    ];
+    const out = json({ signInDetails });
+    expect(out.signInDetails).toEqual(signInDetails.slice(0, 3));
+    expect(out.dropped).toEqual(['signInDetails[3]', 'signInDetails[3].value']);
+    expect(parseRows(file({ signInDetails }, 'signInDetails'))).toEqual([
+      ['name', 'value'],
+      ['avatar_url', 'https://example.invalid/sample.png'],
+      ['email_verified', 'true'],
+      ['full_name', 'Sample Student'],
+    ]);
+  });
+
+  it('includes the display-name limit fields in JSON and CSV (Codex on #230)', () => {
+    const profile = { displayName: 'Sample Student', nameChangeWindowStart: '2026-11-01T08:00:00+00:00', nameChangesInWindow: 3 };
+    expect(json({ profile }).profile).toEqual({ ...profile, nameChangeWindowStart: '2026-11-01T08:00:00.000Z' });
+    expect(parseRows(file({ profile }, 'profile'))[1]).toEqual(['Sample Student', '', '', '2026-11-01T08:00:00.000Z', '3']);
+    expect(json({ profile: { nameChangesInWindow: 11, nameChangeWindowStart: 'soon' } }).dropped)
+      .toEqual(['profile.nameChangeWindowStart', 'profile.nameChangesInWindow']);
   });
 
   it('includes the account email as personal data in JSON and CSV', () => {
     expect(json(sample).profile.email).toBe('sample@example.invalid');
     expect(parseRows(file(sample, 'profile'))).toEqual([
-      ['displayName', 'email', 'createdAt'], ['Sample Student', 'sample@example.invalid', '2026-10-01T12:00:00.000Z'],
+      ['displayName', 'email', 'createdAt', 'nameChangeWindowStart', 'nameChangesInWindow'],
+      ['Sample Student', 'sample@example.invalid', '2026-10-01T12:00:00.000Z', '', ''],
     ]);
     expect(json({ profile: { email: null } }).profile).toEqual({ email: null });
   });
@@ -144,7 +171,7 @@ describe('JSON export', () => {
       profile: { createdAt: '2026-10-01T12:00:00.000Z', email: 'sample@example.invalid', displayName: 'Sample Student' },
     };
     expect(exportJson(reordered, exportDate)).toBe(exportJson(sample, exportDate));
-    expect(Object.keys(json(sample))).toEqual(['format', 'exportDate', 'profile', 'onboarding', 'progress', 'reviewState', 'gameStats', 'attempts', 'examPlans', 'reviewRows', 'reports', 'studyEvents', 'dropped']);
+    expect(Object.keys(json(sample))).toEqual(['format', 'exportDate', 'profile', 'signInDetails', 'onboarding', 'progress', 'reviewState', 'gameStats', 'attempts', 'examPlans', 'reviewRows', 'reports', 'studyEvents', 'dropped']);
   });
 
   it('preserves attempt and history row order, false, zero, null and Unicode', () => {
@@ -162,7 +189,7 @@ describe('JSON export', () => {
 
   it('makes empty sections explicit without inventing profile values or records', () => {
     expect(json({})).toEqual({
-      format: 'cueory-export-1', exportDate, profile: {}, onboarding: {}, progress: [], reviewState: [], gameStats: [], attempts: [], examPlans: [], reviewRows: [], reports: [], studyEvents: [], dropped: [],
+      format: 'cueory-export-1', exportDate, profile: {}, signInDetails: [], onboarding: {}, progress: [], reviewState: [], gameStats: [], attempts: [], examPlans: [], reviewRows: [], reports: [], studyEvents: [], dropped: [],
     });
   });
 
@@ -271,7 +298,7 @@ describe('JSON export', () => {
 describe('CSV export', () => {
   it('returns section files in fixed order with RFC 4180 record endings', () => {
     const files = exportCsv(sample);
-    expect(files.map(entry => entry.fileName)).toEqual(['profile.csv', 'onboarding.csv', 'progress.csv', 'reviewState.csv', 'gameStats.csv', 'attempts.csv', 'examPlans.csv', 'reviewRows.csv', 'reports.csv', 'studyEvents.csv', 'dropped.csv']);
+    expect(files.map(entry => entry.fileName)).toEqual(['profile.csv', 'signInDetails.csv', 'onboarding.csv', 'progress.csv', 'reviewState.csv', 'gameStats.csv', 'attempts.csv', 'examPlans.csv', 'reviewRows.csv', 'reports.csv', 'studyEvents.csv', 'dropped.csv']);
     expect(files.every(entry => entry.text.endsWith('\r\n'))).toBe(true);
     expect(parseRows(file(sample, 'progress'))).toEqual([
       ['id', 'result', 'date', 'deckId', 'progressVersion', 'course', 'examDate', 'done'],
@@ -285,7 +312,7 @@ describe('CSV export', () => {
     const school = 'Sample: "School", East';
     const input = { profile: { displayName }, onboarding: { school } };
     expect(file(input, 'profile')).toContain('"Sample: ""Ána"", 王\nnext line\r\nlast line"');
-    expect(parseRows(file(input, 'profile'))[1]).toEqual([displayName, '', '']);
+    expect(parseRows(file(input, 'profile'))[1]).toEqual([displayName, '', '', '', '']);
     expect(parseRows(file(input, 'onboarding'))[1]).toEqual(['', '', '', school]);
   });
 
@@ -314,9 +341,9 @@ describe('CSV export', () => {
 
   it('includes only headers for empty sections and the empty dropped report', () => {
     const files = exportCsv({});
-    expect(files).toHaveLength(11);
+    expect(files).toHaveLength(12);
     expect(files.every(entry => parseRows(entry.text).length === 1)).toBe(true);
-    expect(files[10]).toEqual({ fileName: 'dropped.csv', text: 'dropped\r\n' });
+    expect(files[11]).toEqual({ fileName: 'dropped.csv', text: 'dropped\r\n' });
   });
 
   it('returns fresh files and the same stable output for repeated exports', () => {
