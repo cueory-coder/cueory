@@ -38,7 +38,11 @@ export interface SessionRow {
 }
 
 export interface ExportData {
-  profile?: { displayName?: string | null; email?: string | null; createdAt?: string | null };
+  profile?: {
+    displayName?: string | null; email?: string | null; createdAt?: string | null;
+    /** Keep the active display-name change limit history already exported on staging. */
+    nameChangeWindowStart?: string | null; nameChangesInWindow?: number;
+  };
   /** The student's own sign-in record from Supabase Auth, as `auth.getUser()` returns it. */
   account?: {
     createdAt?: string | null; lastSignInAt?: string | null; providers?: readonly string[];
@@ -99,7 +103,11 @@ function utcDate(value: unknown): string | undefined {
   return iso.slice(0, -1) + micros + 'Z';
 }
 const date = (value: unknown) => utcDate(value) !== undefined;
-const profileSchema: Schema = { displayName: nullableText, email: nullableText, createdAt: value => value === null || date(value) };
+const profileSchema: Schema = {
+  displayName: nullableText, email: nullableText, createdAt: value => value === null || date(value),
+  nameChangeWindowStart: value => value === null || date(value),
+  nameChangesInWindow: value => typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 10,
+};
 const onboardingSchema: Schema = {
   course: nullableText, examDate: value => value === null || day(value), done: bool, school: nullableText,
 };
@@ -370,6 +378,7 @@ function prepare(data: unknown): { data: Sections; dropped: string[] } {
     ? cleanList(own(source, key), schema, key, dropped, rowCaps[key]) : [];
   const profile = recordSection('profile', profileSchema);
   if (typeof profile.createdAt === 'string') profile.createdAt = utcDate(profile.createdAt)!;
+  if (typeof profile.nameChangeWindowStart === 'string') profile.nameChangeWindowStart = utcDate(profile.nameChangeWindowStart)!;
   const suppliedProgress = own(source, 'progress');
   const progress = !Object.hasOwn(source, 'progress') ? [] : Array.isArray(suppliedProgress)
     ? cleanList(suppliedProgress, progressSchema, 'progress', dropped) : cleanGuest(suppliedProgress, dropped) ?? [];
