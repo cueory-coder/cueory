@@ -85,6 +85,8 @@ test.describe('Task 210: visible keyboard focus', () => {
       const failures: string[] = [];
       const visited = new Set<number>();
       const maxTabs = Math.max(24, controls.length * 3 + 20);
+      // The crossword's skipped controls only need one backward audit per page, not one for every grid re-entry.
+      let crosswordBacktracked = false;
 
       const inspectFocus = async () => {
         const focused = await page.evaluate(({ query, baselines }) => {
@@ -131,10 +133,12 @@ test.describe('Task 210: visible keyboard focus', () => {
         // 26 letters, erase and cue buttons. We inspect the check button destination, then traverse backward
         // with Shift+Tab through the skipped controls before pressing Escape again from the grid to return to
         // the check button, allowing normal forward Tab traversal to proceed from there.
+        // If focus later re-enters the grid, Escape again but do not repeat the already-audited backward walk.
         if (route === '/play' && focused?.isCrosswordCell) {
           await page.keyboard.press('Escape');
           const checkFocus = await inspectFocus();
-          if (checkFocus) {
+          if (checkFocus && !crosswordBacktracked) {
+            crosswordBacktracked = true;
             let backwardSteps = 0;
             while (backwardSteps < 35) {
               await page.keyboard.press('Shift+Tab');
