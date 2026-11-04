@@ -541,7 +541,7 @@ describe('labels with leader lines', () => {
       { id: 'visible', x: 160, y: 80, width: 50, height: 24 },
     ];
     const result = placeLabels(anchors, { width: 320, height: 200 });
-    expect(result.placed.map((label) => label.id).toEqual(['visible']);
+    expect(result.placed.map((label) => label.id)).toEqual(['visible']);
     expect(result.leftOut).toEqual(anchors.filter((a) => a.id !== 'visible').map((a) => a.id));
     expect(result.placed[0]).toMatchObject({ anchorX: 160, anchorY: 80 });
   });
