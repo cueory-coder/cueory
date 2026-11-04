@@ -13,7 +13,8 @@ function htmlFiles(dir: string): string[] {
 }
 
 function attribute(attrs: string, name: string): string | undefined {
-  return new RegExp(`\\b${name}="([^"]*)"`, 'i').exec(attrs)?.[1];
+  // Match an attribute name, not a suffix of data-aria-label or x-aria-labelledby.
+  return new RegExp(`(?:^|\\s)${name}="([^"]*)"`, 'i').exec(attrs)?.[1];
 }
 
 function tagEnd(markup: string, start: number): number {
@@ -65,16 +66,9 @@ function removeExecutableElements(markup: string): string {
 }
 
 function hasHiddenAttribute(attributes: string): boolean {
-  const normalized = attributes.toLowerCase();
-  if (normalized.includes(' hidden') || normalized.startsWith('hidden')) return true;
-  const marker = 'aria-hidden';
-  const markerStart = normalized.indexOf(marker);
-  if (markerStart === -1) return false;
-  const equals = normalized.indexOf('=', markerStart + marker.length);
-  if (equals === -1) return false;
-  const value = normalized.slice(equals + 1).trimStart();
-  const quote = value[0];
-  return (quote === '"' || quote === "'") && value.slice(1).startsWith(`true${quote}`);
+  // Only real HTML/ARIA attributes hide content, never similarly named data attributes.
+  return /(?:^|\s)hidden(?:\s|=|$)/i.test(attributes) ||
+    attribute(attributes, 'aria-hidden')?.trim().toLowerCase() === 'true';
 }
 
 const ENTITY_MAP: Record<string, string> = {
@@ -200,6 +194,16 @@ describe('accessible-name text extraction', () => {
 
   it('rejects controls that only contain hidden content', () => {
     expect(computeAccessibleName('', '', '<span aria-hidden="true">→</span>')).toBe('');
+    expect(visibleText('<span data-aria-hidden="true">visible words</span>')).toBe('visible words');
+    expect(visibleText('<span hidden>invisible</span><span>shown</span>')).toBe('shown');
+  });
+
+  it('does not accept similarly named data attributes as an accessible name', () => {
+    expect(computeAccessibleName('', 'data-aria-label="fake"', '')).toBe('');
+    const withHeading = '<span id="heading">heading text</span>';
+    expect(computeAccessibleName(withHeading, 'data-aria-labelledby="heading"', '')).toBe('');
+    expect(computeAccessibleName('', 'aria-label="real"', '')).toBe('real');
+    expect(computeAccessibleName(withHeading, 'aria-labelledby="heading"', '')).toBe('heading text');
   });
 
   it('resolves referenced label text and rejects empty referenced elements', () => {
