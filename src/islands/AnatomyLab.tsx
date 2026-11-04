@@ -1061,9 +1061,19 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                       </button>
                     </>
                   ) : (
-                    <button type="button" className={primaryButton} onClick={() => setQuiz(startQuiz(quizPool, Math.random))}>
-                      start again
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        className={primaryButton}
+                        disabled={quizPool.length === 0}
+                        onClick={() => setQuiz(startQuiz(quizPool, Math.random))}
+                      >
+                        start again
+                      </button>
+                      {quizPool.length === 0 && (
+                        <p className="text-sm text-ink-soft">show a structure to start another round.</p>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
