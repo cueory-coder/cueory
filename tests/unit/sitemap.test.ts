@@ -1,6 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { indexablePages } from '../../src/config/routes';
-import { sitemapXml } from '../../src/pages/sitemap.xml';
+import { GET, sitemapXml } from '../../src/pages/sitemap.xml';
+
+// Keep this response test independent of Astro's live content collection.
+vi.mock('../../src/lessons/load', () => ({ lessonCatalog: async () => [] }));
 
 const noindexPages = ['/auth/callback', '/reset-password', '/signin', '/signup', '/start', '/subscribed', '/progress', '/breaks'];
 
@@ -11,6 +14,13 @@ describe('sitemap', () => {
 
     expect(listed).toEqual(indexablePages.map((page) => `https://cueory.app${page}`));
     for (const page of noindexPages) expect(listed).not.toContain(`https://cueory.app${page}`);
+  });
+
+  it('returns a public sitemap with the documented browser and edge cache limits', async () => {
+    const response = await GET({} as Parameters<typeof GET>[0]);
+    expect(response.headers.get('Content-Type')).toBe('application/xml; charset=utf-8');
+    expect(response.headers.get('Cache-Control')).toBe('public, max-age=3600, s-maxage=86400');
+    expect(await response.text()).toContain('<urlset');
   });
 
   it('escapes XML values in the generated loc', () => {
