@@ -418,6 +418,8 @@ set search_path = ''
 as $$
 declare
   uid uuid := (select auth.uid());
+  claims jsonb := coalesce((select auth.jwt()), '{}'::jsonb);
+  max_age_seconds constant integer := 600;
 begin
   if uid is null then
     raise exception 'sign in to delete your account' using errcode = '28000';
@@ -426,6 +428,12 @@ begin
   -- A verified second factor makes an aal1 bearer token insufficient, even for this RPC.
   if not (select app_private.mfa_access_allowed()) then
     raise exception 'complete two-factor sign-in to continue' using errcode = '28000';
+  end if;
+
+  -- Keep Task 302's short-lived-token check after the MFA authorization gate.
+  if jsonb_typeof(claims -> 'iat') is distinct from 'number'
+     or (claims ->> 'iat')::numeric < extract(epoch from now()) - max_age_seconds then
+    raise exception 'please sign in again to delete your account' using errcode = '28R01';
   end if;
 
   -- The cascade removes the student's rows in every table above, in this one statement.
@@ -457,12 +465,9 @@ begin
   end if;
 
   -- Leading and trailing spaces are not part of the name (the browser's checkDisplayName trims them the same way).
-  -- Then the profiles table's own rules: 1 to 50 characters, no control characters. [[:cntrl:]] depends on the
-  -- database's locale for characters past ASCII, so the ranges the browser refuses (U+0001-U+001F, U+007F-U+009F) are
-  -- also named outright.
+  -- Apply the same server-side Task 302 rule as sign-up and direct updates.
   clean_name := btrim(update_display_name.new_name, ' ');
-  if clean_name is null or char_length(clean_name) not between 1 and 50
-     or clean_name ~ '[[:cntrl:]]' or clean_name ~ '[\x01-\x1f\x7f-\x9f]' then
+  if not public.display_name_ok(clean_name) then
     raise exception 'a display name is 1 to 50 characters of plain text' using errcode = '22023';
   end if;
 
