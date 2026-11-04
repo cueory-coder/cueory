@@ -1,4 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { attachResumeLifecycle, clearResume, readResume, saveResume, type ResumeDraft, type ResumeSnapshot } from '../scripts/resume';
+import { browserStorage } from '../scripts/storage';
+import ResumePrompt from './ResumePrompt';
 import {
   coverAll,
   coverWords,
@@ -28,6 +31,50 @@ const primaryButton = 'min-h-11 rounded-pill bg-button px-5 py-2.5 text-on-butto
 const secondaryButton = 'min-h-11 rounded-pill border border-control px-5 py-2.5 text-ink';
 
 const markWords: Record<Mark, string> = { know: 'know it', learning: 'still learning' };
+const LABEL_PAGE = '/learn/study-skills/label-it';
+
+/** Only submitted marks survive a reload. Round metadata distinguishes earlier know-it marks from this round's. */
+function labelDraft(state: LabelItState, set: LabelSet): ResumeDraft {
+  const ids = readingOrder(set.labels).map(label => label.id);
+  const next = ids.findIndex(id => !state.known.includes(id) && !markOf(state, id));
+  const itemIndex = next < 0 ? ids.length - 1 : next;
+  return {
+    tool: 'label-it', page: LABEL_PAGE, module: set.id, step: `round-${state.roundNumber}`,
+    itemIndex, itemId: ids[itemIndex], totalItems: ids.length, timer: null,
+    phase: isDone(state) ? 'results' : 'working',
+    answers: Object.fromEntries([
+      ...state.known.map(id => [id, { mark: 'know', round: 'earlier' }]),
+      ...state.round.filter(id => markOf(state, id)).map(id => [id, { mark: markOf(state, id)!, round: 'current' }]),
+    ]),
+  };
+}
+
+/** Refuse stale or altered saves. Never restore label text or anything that was merely uncovered. */
+function restoreLabels(snapshot: ResumeSnapshot, set: LabelSet): LabelItState | null {
+  if (snapshot.tool !== 'label-it' || snapshot.page !== LABEL_PAGE || snapshot.module !== set.id ||
+      snapshot.totalItems !== set.labels.length || snapshot.timer !== null) return null;
+  const match = /^round-([1-9]\d*)$/.exec(snapshot.step ?? '');
+  const roundNumber = match ? Number(match[1]) : 0;
+  if (!Number.isSafeInteger(roundNumber) || roundNumber < 1) return null;
+  const ids = readingOrder(set.labels).map(label => label.id);
+  const known: string[] = [];
+  const marks: [string, Mark][] = [];
+  for (const [id, value] of Object.entries(snapshot.answers)) {
+    if (!ids.includes(id) || !value || typeof value !== 'object' || Array.isArray(value) ||
+        Object.keys(value).length !== 2 || !('mark' in value) || !('round' in value)) return null;
+    if (value.mark !== 'know' && value.mark !== 'learning') return null;
+    if (value.round === 'earlier' && value.mark === 'know' && roundNumber > 1) known.push(id);
+    else if (value.round === 'current') marks.push([id, value.mark]);
+    else return null;
+  }
+  const state: LabelItState = {
+    round: ids.filter(id => !known.includes(id)), known: ids.filter(id => known.includes(id)),
+    marks: Object.fromEntries(marks), revealed: ids.filter(id => marks.some(([marked]) => marked === id)), roundNumber,
+  };
+  if (!state.round.length) return null;
+  const draft = labelDraft(state, set);
+  return draft.itemIndex === snapshot.itemIndex && draft.itemId === snapshot.itemId && draft.phase === snapshot.phase ? state : null;
+}
 
 /** A tick, so "know it" never depends on color alone. */
 function TickIcon() {
@@ -66,6 +113,9 @@ function Board({ set }: Props) {
   const ordered = readingOrder(set.labels);
   const numberOf = new Map(ordered.map((l, i) => [l.id, i + 1]));
   const [state, setState] = useState<LabelItState>(() => start(set));
+  const [resumePending, setResumePending] = useState(() => readResume(browserStorage())?.page === LABEL_PAGE);
+  const latestDraft = useRef<ResumeDraft | null>(null);
+  useEffect(() => attachResumeLifecycle(browserStorage(), () => latestDraft.current), []);
   const [said, setSaid] = useState('');
   const [focusRequest, setFocusRequest] = useState(0);
   const statusRef = useRef<HTMLDivElement>(null);
@@ -86,15 +136,23 @@ function Board({ set }: Props) {
   const uncovered = (id: string) => !isCovered(state, id);
   const inRound = (id: string) => state.round.includes(id);
 
+  const saveState = (next: LabelItState) => {
+    const draft = labelDraft(next, set);
+    latestDraft.current = draft;
+    saveResume(browserStorage(), draft);
+    setState(next);
+  };
+
   const doReveal = (label: Label) => {
     if (!isCovered(state, label.id)) return;
+    // Revealing alone is not an answer and must not create a saved session.
     setState(reveal(state, label.id));
     setSaid(`${coverWords(numberOf.get(label.id)!, label, true)}.`);
   };
 
   const doMark = (label: Label, value: Mark) => {
     const next = mark(state, label.id, value);
-    setState(next);
+    saveState(next);
     const tally = summary(next);
     setSaid(
       isRoundOver(next)
@@ -104,9 +162,25 @@ function Board({ set }: Props) {
   };
 
   const newRound = (next: LabelItState, words: string) => {
-    setState(next);
+    saveState(next);
     setSaid(words);
     setFocusRequest((n) => n + 1);
+  };
+
+  const restart = () => {
+    latestDraft.current = null;
+    clearResume(browserStorage());
+    setResumePending(false);
+    setState(start(set));
+    setSaid('every label covered. starting over.');
+    setFocusRequest(n => n + 1);
+  };
+
+  const continueSaved = (snapshot: ResumeSnapshot) => {
+    const restored = restoreLabels(snapshot, set);
+    if (!restored) { restart(); return; }
+    setResumePending(false);
+    newRound(restored, 'your marked labels are back.');
   };
 
   const tally = summary(state);
@@ -116,6 +190,8 @@ function Board({ set }: Props) {
 
   return (
     <div data-testid="labelit">
+      <ResumePrompt page={LABEL_PAGE} onContinue={continueSaved} onStartOver={restart} />
+      <div inert={resumePending} data-testid="labelit-session">
       <div ref={statusRef} tabIndex={-1}>
         <p className="text-sm text-ink-soft" data-testid="labelit-status">
           {round}
@@ -250,7 +326,10 @@ function Board({ set }: Props) {
             <button
               type="button"
               onClick={() => {
-                setState(coverAll(state));
+                const next = coverAll(state);
+                // A cover-all after marking must replace the old save, or those marks would reappear.
+                if (latestDraft.current) saveState(next);
+                else setState(next);
                 setSaid('every label covered again.');
               }}
               disabled={tally.covered === tally.total}
@@ -272,7 +351,7 @@ function Board({ set }: Props) {
         {roundOver && (
           <button
             type="button"
-            onClick={() => newRound(start(set), 'every label covered. starting over.')}
+            onClick={restart}
             className={done ? primaryButton : secondaryButton}
           >
             start over
@@ -285,6 +364,7 @@ function Board({ set }: Props) {
       <p className="sr-only" aria-live="polite" aria-atomic="true" data-testid="labelit-live">
         {said}
       </p>
+      </div>
     </div>
   );
 }

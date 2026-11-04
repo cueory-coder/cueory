@@ -120,7 +120,7 @@ test.describe('flag or comment with accounts on', () => {
     });
     await fillReport(page);
     await page.getByRole('button', { name: 'send', exact: true }).click();
-    const sentence = 'please confirm your email first. the link is in the email we sent you.';
+    const sentence = 'please confirm your email to send a report — look for the link in your inbox.';
     await expect(page.getByTestId('flag-visible-result')).toHaveText(sentence);
     await expect(page.getByTestId('flag-result')).toHaveText(sentence);
     await expect(page.locator('body')).not.toContainText('confirm your email to use this');
