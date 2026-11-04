@@ -505,7 +505,6 @@ test.describe('marketing look (D-41)', () => {
     await expect(page.locator('link[rel="icon"][sizes="32x32"]')).toHaveAttribute('href', '/brand/v1/icon-32.png');
     await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute('href', '/brand/v1/icon-180.png');
     await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/manifest.webmanifest');
-    await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/manifest.webmanifest');
 
     // Other pages: the logo in the header, named by its link. The full logo where it fits (640px and wider), the
     // emblem on phones, and the header never wider than the screen.
