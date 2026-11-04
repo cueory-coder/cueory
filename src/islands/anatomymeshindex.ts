@@ -71,3 +71,37 @@ export function indexAnatomyGroup(
 
   return { touched: [...touched], triangles: Math.round(triangles) };
 }
+
+/**
+ * Release decoded GLB mesh resources after replacement, cancellation, or
+ * failure. A corrupted/lost GPU resource may throw in dispose(), but that
+ * must not prevent the remaining mesh resources from being released.
+ *
+ * Geometry and material objects can be shared by several meshes in one GLB.
+ * Each distinct resource is disposed at most once.
+ */
+export function disposeAnatomyMeshResources(group: THREE.Object3D): void {
+  const geometries = new Set<THREE.BufferGeometry>();
+  const materials = new Set<THREE.Material>();
+  group.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    if (!geometries.has(mesh.geometry)) {
+      geometries.add(mesh.geometry);
+      try {
+        mesh.geometry.dispose();
+      } catch {
+        // Continue releasing the other resources even after a GPU failure.
+      }
+    }
+    for (const material of ([] as THREE.Material[]).concat(mesh.material)) {
+      if (materials.has(material)) continue;
+      materials.add(material);
+      try {
+        material.dispose();
+      } catch {
+        // A throwing material cleanup must not abandon the remaining meshes.
+      }
+    }
+  });
+}
