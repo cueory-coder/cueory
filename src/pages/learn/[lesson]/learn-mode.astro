@@ -4,7 +4,7 @@ import { getEntry } from 'astro:content';
 import Layout from '../../../layouts/Layout.astro';
 import InfoTip from '../../../components/InfoTip.astro';
 import LearnSession from '../../../islands/LearnSession';
-import { pathsFor, type CatalogLesson } from '../../../lessons/catalog';
+import { pathsFor, statusNotice, type CatalogLesson } from '../../../lessons/catalog';
 import { lessonCatalog } from '../../../lessons/load';
 
 export async function getStaticPaths() {
@@ -14,7 +14,8 @@ export async function getStaticPaths() {
 const { lesson } = Astro.props as { lesson: CatalogLesson };
 const deck = lesson.cards && await getEntry('cards', lesson.cards.id);
 if (!deck) throw new Error(`The card file for lesson ${lesson.id} is missing.`);
-const { title, cards } = deck.data;
+const { title, cards, status } = deck.data;
+const cardsNotice = statusNotice(status, 'cards');
 const learnCards = cards.map(({ front, back, blank }) => (blank ? { front, back, blank } : { front, back }));
 ---
 
@@ -29,7 +30,7 @@ const learnCards = cards.map(({ front, back, blank }) => (blank ? { front, back,
         text="see each card, choose its answer, then type it. anything you miss comes back until you know every card."
       />
     </div>
-    {lesson.cards!.labeled && <p class="mt-3 text-sm text-ink-soft">these cards are placeholders.</p>}
+    {cardsNotice && <p class="mt-3 text-sm text-ink-soft">{cardsNotice}</p>}
 
     <div class="mt-10">
       {/* client:only: nothing is pre-rendered, so without JavaScript only the note below shows. */}

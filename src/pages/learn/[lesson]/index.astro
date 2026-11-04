@@ -12,7 +12,7 @@ import LessonVideo from '../../../islands/LessonVideo';
 import LessonVisuals from '../../../components/LessonVisuals.astro';
 import { studyModes, type StudyMode } from '../../../config/modes';
 import { isShowable } from '../../../videos/schema';
-import { countInWords, pathsFor, type CatalogLesson, type ModeId } from '../../../lessons/catalog';
+import { countInWords, pathsFor, statusNotice, type CatalogLesson, type ModeId } from '../../../lessons/catalog';
 import { lessonCatalog } from '../../../lessons/load';
 
 export async function getStaticPaths() {
@@ -23,6 +23,7 @@ const { lesson } = Astro.props as { lesson: CatalogLesson };
 const entry = await getEntry('lessons', lesson.id);
 if (!entry) throw new Error(`Lesson file content/lessons/${lesson.id}.json is missing.`);
 const { title, summary, sentences, status } = entry.data;
+const lessonNotice = statusNotice(status, 'lesson');
 const olderLessons = (await lessonCatalog()).lessons.filter((candidate) => !candidate.curriculumId).length;
 const context = !lesson.curriculumId && olderLessons > 1 ? `${lesson.context} of ${olderLessons}` : lesson.context;
 const video = (await getCollection('videos')).find((candidate) => candidate.data.lesson === lesson.id);
@@ -51,11 +52,7 @@ const ways = availableModes.length;
       <p class="text-sm text-ink-soft">{context}</p>
       <h1 class="mt-3 text-2xl">{title}</h1>
       <p class="mt-3 text-ink-soft">{summary}</p>
-      {status === 'placeholder' && (
-        <p class="mt-3 text-sm text-ink-soft">
-          this lesson is a placeholder. the finished lesson is still being prepared.
-        </p>
-      )}
+      {lessonNotice && <p class="mt-3 text-sm text-ink-soft">{lessonNotice}</p>}
     </header>
 
     {ways > 0 && (

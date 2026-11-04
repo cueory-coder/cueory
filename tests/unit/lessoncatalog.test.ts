@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { MapUnit } from '../../src/islands/lessonmap';
 import {
-  buildCatalog, contentEntryId, countInWords, generatedRoutes, pathsFor, visibility,
+  buildCatalog, contentEntryId, countInWords, generatedRoutes, pathsFor, statusNotice, visibility,
   type CatalogInput, type CompanionFile, type LessonFile,
 } from '../../src/lessons/catalog';
 import { contentCatalog, lessonRoutes } from '../lessonroutes';
@@ -32,6 +32,19 @@ describe('visibility', () => {
   });
 });
 
+describe('statusNotice', () => {
+  it('shows distinct labels for sample and placeholder lesson and card files', () => {
+    expect(statusNotice('placeholder', 'lesson')).toBe('this lesson is a placeholder. the finished lesson is still being prepared.');
+    expect(statusNotice('sample', 'lesson')).toBe('this is a sample lesson. the finished lesson is still being prepared.');
+    expect(statusNotice('placeholder', 'cards')).toBe('these cards are placeholders.');
+    expect(statusNotice('sample', 'cards')).toBe('these cards are samples.');
+    for (const status of ['published', 'draft', 'in_review', undefined]) {
+      expect(statusNotice(status, 'cards')).toBeNull();
+      expect(statusNotice(status, 'lesson')).toBeNull();
+    }
+  });
+});
+
 describe('buildCatalog', () => {
   it('serves a curriculum lesson at its lowercase lesson id and names it from the lesson map', () => {
     const { lessons, problems } = buildCatalog(input({ lessons: [lesson('u00-t01-l02', 'published', 'my lesson')] }));
@@ -41,6 +54,17 @@ describe('buildCatalog', () => {
       id: 'u00-t01-l02', slug: 'u00-t01-l02', href: '/learn/u00-t01-l02', curriculumId: 'U00-T01-L02', unitId: 'U00',
       name: 'my lesson', context: 'unit zero · topic one', short: 'my lesson', about: 'my lesson', labeled: false, modes: [],
     });
+  });
+
+  it('builds labeled routes for an explicitly marked sample lesson and deck', () => {
+    const { lessons, problems } = buildCatalog(input({
+      lessons: [lesson('u00-t01-l01', 'sample')],
+      cards: [companion('deck', 'u00-t01-l01', 'sample')],
+    }));
+    expect(problems).toEqual([]);
+    expect(lessons[0]?.labeled).toBe(true);
+    expect(lessons[0]?.cards).toEqual({ id: 'deck', labeled: true });
+    expect(lessons[0]?.modes.map((mode) => mode.id)).toEqual(['cards', 'learn', 'matching']);
   });
 
   it('keeps the older study-skills lesson at /learn/study-skills', () => {

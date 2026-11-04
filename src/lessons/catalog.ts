@@ -23,6 +23,17 @@ export function visibility(status: unknown): Visibility {
   return 'hidden';
 }
 
+/** Plain-language labels must preserve the distinction between a sample and a placeholder. */
+export function statusNotice(status: unknown, kind: 'lesson' | 'cards'): string | null {
+  if (status === 'placeholder') return kind === 'lesson'
+    ? 'this lesson is a placeholder. the finished lesson is still being prepared.'
+    : 'these cards are placeholders.';
+  if (status === 'sample') return kind === 'lesson'
+    ? 'this is a sample lesson. the finished lesson is still being prepared.'
+    : 'these cards are samples.';
+  return null;
+}
+
 /** Lessons that predate the curriculum map, with the address and course name they already had. */
 export const LEGACY_LESSONS: Readonly<Record<string, { slug: string; course: string }>> = {
   'study-skills-01': { slug: 'study-skills', course: 'how to study for nursing school' },
