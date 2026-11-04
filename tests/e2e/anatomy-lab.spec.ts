@@ -132,6 +132,85 @@ test.describe('anatomy lab', () => {
     await expect(cubeA).toHaveAttribute('aria-pressed', 'true');
   });
 
+  test('clears stale readiness before the WebGL retry model-load effect runs', async ({ page }, info) => {
+    test.skip(!isDesktopOfEachEngine(info), 'one retry-state check per browser engine');
+    await openLab(page);
+    const cube = page.getByRole('region', { name: 'structures' })
+      .getByRole('button', { name: 'fixture cube A', exact: true });
+    await cube.click();
+    await expect(page.getByRole('region', { name: 'fixture cube A' })).toBeVisible();
+    const prevented = await page.locator('canvas').evaluate((canvas) => {
+      const lost = new Event('webglcontextlost', { cancelable: true });
+      canvas.dispatchEvent(lost);
+      return lost.defaultPrevented;
+    });
+    expect(prevented).toBe(true);
+    await expect(page.getByRole('button', { name: 'try 3D again' })).toBeVisible();
+
+    // Freeze only the retry's scheduled open-frame callback and its 250 ms
+    // background-tab fallback. The new model-load effect cannot run until we
+    // explicitly release that frame, so the following assertions fail on the
+    // old implementation even though its later effect also resets the state.
+    await page.evaluate(() => {
+      type RetryWindow = Window & {
+        __anatomyOpeningFrameHeld?: boolean;
+        __anatomyResumeOpening?: () => void;
+      };
+      const realRaf = window.requestAnimationFrame.bind(window);
+      const realTimeout = window.setTimeout.bind(window);
+      let heldFrame: FrameRequestCallback | null = null;
+      let heldFallback: (() => void) | null = null;
+      window.requestAnimationFrame = (callback) => {
+        if (!heldFrame) {
+          heldFrame = callback;
+          (window as RetryWindow).__anatomyOpeningFrameHeld = true;
+          return 1_000_000;
+        }
+        return realRaf(callback);
+      };
+      window.setTimeout = ((handler: TimerHandler, ms?: number, ...args: unknown[]) => {
+        if (ms === 250 && !heldFallback) {
+          heldFallback = () => {
+            if (typeof handler === 'function') handler(...args);
+          };
+          return 1_000_001;
+        }
+        return realTimeout(handler, ms, ...args);
+      }) as typeof window.setTimeout;
+      (window as RetryWindow).__anatomyResumeOpening = () => {
+        window.requestAnimationFrame = realRaf;
+        window.setTimeout = realTimeout;
+        if (heldFrame) realRaf(heldFrame);
+        else heldFallback?.();
+      };
+      const retry = [...document.querySelectorAll('button')]
+        .find((button) => button.textContent?.trim() === 'try 3D again');
+      if (!retry) throw new Error('No 3D retry button is available');
+      // Native click avoids Playwright actionability waits needing the held RAF.
+      retry.click();
+    });
+    try {
+      await expect.poll(
+        () => page.evaluate(() => (window as Window & { __anatomyOpeningFrameHeld?: boolean }).__anatomyOpeningFrameHeld),
+      ).toBe(true);
+      await expect(page.locator('canvas')).toBeVisible();
+      await expect(page.getByRole('region', { name: 'fixture cube A' })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'start the quiz' })).toBeDisabled();
+      await expect(page.getByRole('region', { name: 'structures' })
+        .getByRole('button', { name: 'fixture cube A', exact: true })).toBeDisabled();
+    } finally {
+      // Do not leave a frozen requestAnimationFrame even if an assertion fails.
+      await page.evaluate(() => {
+        (window as Window & { __anatomyResumeOpening?: () => void }).__anatomyResumeOpening?.();
+      });
+    }
+    await expect(page.getByRole('button', { name: 'start the quiz' }))
+      .toBeEnabled({ timeout: 20_000 });
+    await expect(page.getByRole('region', { name: 'structures' })
+      .getByRole('button', { name: 'fixture cube A', exact: true })).toBeEnabled();
+  });
+
+
   test('never saves a delayed picture after WebGL context loss', async ({ page }, info) => {
     test.skip(!isDesktopOfEachEngine(info), 'one context-loss export race per browser engine');
     await page.addInitScript(() => {
