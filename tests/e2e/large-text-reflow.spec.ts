@@ -76,12 +76,48 @@ test.describe('Task 280: large-text reflow', () => {
           })
           .sort((a, b) => b.right - a.right)
           .slice(0, 12);
-        return { scrollWidth: document.documentElement.scrollWidth, width, clipped, overflowCandidates };
+        // A document can overflow even when no descendant box crosses the viewport:
+        // intrinsic scroll boxes, pseudo-elements, or html/body widths can cause it.
+        // These are diagnostics only; the strict assertions below are unchanged.
+        const rootMetrics = [document.documentElement, document.body, document.querySelector('main'), document.querySelector('footer')]
+          .filter((element): element is HTMLElement => element instanceof HTMLElement)
+          .map((element) => {
+            const box = element.getBoundingClientRect();
+            return {
+              tag: element.tagName.toLowerCase(),
+              clientWidth: element.clientWidth,
+              scrollWidth: element.scrollWidth,
+              left: Math.round(box.left),
+              right: Math.round(box.right),
+              overflowX: getComputedStyle(element).overflowX,
+            };
+          });
+        const scrollBoxes = [...document.querySelectorAll<HTMLElement>('body, body *')]
+          .filter((element) => {
+            const style = getComputedStyle(element);
+            return style.display !== 'none' && style.visibility !== 'hidden' && element.scrollWidth > element.clientWidth + 1;
+          })
+          .map((element) => {
+            const box = element.getBoundingClientRect();
+            return {
+              tag: element.tagName.toLowerCase(),
+              classes: typeof element.className === 'string' ? element.className.slice(0, 65) : '',
+              clientWidth: element.clientWidth,
+              scrollWidth: element.scrollWidth,
+              excess: element.scrollWidth - element.clientWidth,
+              left: Math.round(box.left),
+              right: Math.round(box.right),
+              overflowX: getComputedStyle(element).overflowX,
+            };
+          })
+          .sort((a, b) => b.excess - a.excess)
+          .slice(0, 8);
+        return { scrollWidth: document.documentElement.scrollWidth, width, clipped, overflowCandidates, rootMetrics, scrollBoxes };
       });
 
       expect(
         findings.scrollWidth,
-        `${route}: horizontal overflow. Out-of-bounds elements: ${JSON.stringify(findings.overflowCandidates)}`,
+        `${route}: horizontal overflow. Out-of-bounds elements: ${JSON.stringify(findings.overflowCandidates)}. Root metrics: ${JSON.stringify(findings.rootMetrics)}. Scroll boxes: ${JSON.stringify(findings.scrollBoxes)}`,
       ).toBeLessThanOrEqual(findings.width);
       expect(findings.clipped, `${route}: clipped visible controls`).toEqual([]);
     });
