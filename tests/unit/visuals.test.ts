@@ -155,7 +155,7 @@ describe('the allowed books', () => {
       expect(book.license, book.book).not.toMatch(/NC/);
       expect(`${book.book} ${book.urlPrefix}`, book.book).not.toMatch(/openstax/i);
       expect(book.urlPrefix, book.book).toMatch(/^https:\/\/[^/]+\/.+\/$/);
-      expect(book.credit, book.book).toContain(book.license);
+      expect(book.credit, book.book).toContain(book.licenseTitle ?? book.license);
     }
   });
 });

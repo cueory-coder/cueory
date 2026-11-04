@@ -1,6 +1,7 @@
 ---
 import { getEntry } from 'astro:content';
 import Layout from '../../../layouts/Layout.astro';
+import InfoTip from '../../../components/InfoTip.astro';
 import OrganizerBoard from '../../../islands/OrganizerBoard';
 import { parseSet } from '../../../islands/organizer';
 
@@ -14,9 +15,15 @@ const set = parseSet({ id: entry.id, title: entry.data.title, groups: entry.data
 
 <Layout title="organizer: lesson 1" description="sort ideas into groups for lesson 1 of how to study for nursing school." variant="study">
   <div class="mx-auto max-w-prose pt-8">
-    <p class="text-sm text-ink-soft">how to study for nursing school · lesson 1 · organizer</p>
-    <h1 class="mt-3 text-2xl">organizer</h1>
-    <p class="mt-3 text-ink-soft">sort each item into the group it belongs to. nothing is marked until you press check.</p>
+    <p class="text-sm text-ink-soft">how to study for nursing school · lesson 1</p>
+    <div class="mt-2 flex flex-wrap items-center gap-x-1">
+      <h1 class="text-2xl">organizer</h1>
+      <InfoTip
+        id="lesson-intro-info"
+        label="organizer"
+        text="sort each item into the group it belongs to. nothing is marked until you press check."
+      />
+    </div>
     {
       entry.data.status === 'sample' && (
         <p class="mt-3 text-sm text-ink-soft" data-testid="organizer-sample-note">

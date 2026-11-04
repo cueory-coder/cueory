@@ -1,0 +1,1 @@
+STATUS: Adds a non-sensitive operations index: the existing Cloudflare rollback guide is linked, while database restoration is explicitly marked undocumented and approval-gated until Christian verifies the provider procedure.
