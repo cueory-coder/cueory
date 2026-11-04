@@ -51,6 +51,20 @@ test('keyboard: from the hub into each generated page and back to the lesson', a
   }
 });
 
+test('generated learn mode preserves its accessible explanation control', async ({ page }) => {
+  const learn = generated.find((mode) => mode.id === 'learn');
+  test.skip(!learn, 'lesson has no learn mode');
+  await page.goto(learn!.href);
+  const help = page.getByRole('button', { name: 'more about learn mode' });
+  await expect(help).toBeVisible();
+  await expect(help).toHaveAttribute('aria-expanded', 'false');
+  await help.click();
+  await expect(help).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByText('see each card, choose its answer, then type it. anything you miss comes back until you know every card.')).toBeVisible();
+  await help.press('Escape');
+  await expect(help).toHaveAttribute('aria-expanded', 'false');
+});
+
 test('every generated page fits 320 px with no sideways scroll and passes axe', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 });
   for (const route of routes) {
