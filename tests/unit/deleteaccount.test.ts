@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { deletionSummary, confirmState, afterDeletion } from '../../src/islands/deleteaccount';
+import {
+  deletionSummary, confirmState, afterDeletion, DELETE_MAX_SIGN_IN_AGE_SECONDS, DELETE_RETURN_PATH, deleteOutcome,
+  freshForDeletion, reauthHref, tokenIssuedAt,
+} from '../../src/islands/deleteaccount';
+import { safeNext } from '../../src/islands/signin';
 import { GUEST_IMPORT_MARKER_PREFIX } from '../../src/islands/guestimportrun';
 import { RESUME_STORAGE_KEY } from '../../src/scripts/resume';
 import { BREAK_STORAGE_KEY } from '../../src/scripts/breakstore';
@@ -329,6 +333,28 @@ describe('the current export contract in the deletion summary', () => {
   });
 });
 
+describe('the sign-in record in the deletion summary (Task 309)', () => {
+  const session = { createdAt: '2026-11-01T08:00:00Z', updatedAt: null, notAfter: null, userAgent: 'sample browser', ip: '203.0.113.5' };
+
+  it('names the sign-in details and counts sessions without echoing them', () => {
+    const data: ExportData = {
+      account: { providers: ['google'], userMetadata: { name: 'Sample Student' }, identities: [] },
+      sessions: [session, session],
+    };
+    const lines = deletionSummary(data);
+    expect(lines).toEqual(['your sign-in details', '2 sign-in sessions']);
+    expect(lines.join(' ')).not.toContain('Sample Student');
+    expect(lines.join(' ')).not.toContain('203.0.113.5');
+    expect(deletionSummary({ sessions: [session] })).toEqual(['1 sign-in session']);
+  });
+
+  it.each([{}, { account: {}, sessions: [] }, { account: { providers: [], userMetadata: {}, identities: [] } }] satisfies ExportData[])(
+    'omits an empty sign-in record: %j', data => {
+      expect(deletionSummary(data)).toEqual([]);
+    },
+  );
+});
+
 describe('reports in the deletion summary', () => {
   const report: NonNullable<ExportData['reports']>[number] = Object.freeze({
     id: '00000000-0000-4000-8000-000000000001',
@@ -448,3 +474,96 @@ describe('study history in the deletion summary (Task 140)', () => {
     expect(deletionSummary({ studyEvents: new StudyEventPages() })).toEqual([]);
   });
 });
+
+// ── A recent sign-in before deleting (Task 302) ──────────────────────────────
+
+/** A token shaped like Supabase's: base64url header.payload.signature. The signature is never checked here. */
+function token(payload: Record<string, unknown>): string {
+  const part = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url');
+  return `${part({ alg: 'ES256', typ: 'JWT' })}.${part(payload)}.signature`;
+}
+const NOW_MS = Date.UTC(2026, 10, 2, 20, 0, 0);
+const nowSeconds = NOW_MS / 1000;
+
+describe('tokenIssuedAt', () => {
+  it('reads iat from the payload', () => {
+    expect(tokenIssuedAt(token({ sub: 'x', iat: 1_790_000_000 }))).toBe(1_790_000_000);
+  });
+
+  it('reads a payload whose base64url needs padding and uses - and _', () => {
+    const payload = { iat: 1_790_000_123, name: '>>>???' };
+    expect(tokenIssuedAt(token(payload))).toBe(1_790_000_123);
+  });
+
+  it.each([
+    ['no token', undefined],
+    ['not a string', 42],
+    ['two parts', 'a.b'],
+    ['a bad payload', 'a.!!!.c'],
+    ['a payload that is not JSON', `a.${Buffer.from('nope').toString('base64url')}.c`],
+    ['no iat', token({ sub: 'x' })],
+    ['an iat that is a string', token({ iat: '1790000000' })],
+    ['a zero iat', token({ iat: 0 })],
+  ])('gives undefined for %s', (_name, value) => {
+    expect(tokenIssuedAt(value)).toBeUndefined();
+  });
+});
+
+describe('freshForDeletion', () => {
+  it('is the same 10 minutes as the database', () => {
+    expect(DELETE_MAX_SIGN_IN_AGE_SECONDS).toBe(600);
+  });
+
+  it('accepts a token from just now', () => {
+    expect(freshForDeletion(token({ iat: nowSeconds }), NOW_MS)).toBe(true);
+  });
+
+  it('accepts a token up to 9 minutes old (a minute short of the limit)', () => {
+    expect(freshForDeletion(token({ iat: nowSeconds - 540 }), NOW_MS)).toBe(true);
+    expect(freshForDeletion(token({ iat: nowSeconds - 541 }), NOW_MS)).toBe(false);
+  });
+
+  it('refuses an older token, a token with no iat and no token', () => {
+    expect(freshForDeletion(token({ iat: nowSeconds - 3600 }), NOW_MS)).toBe(false);
+    expect(freshForDeletion(token({ sub: 'x' }), NOW_MS)).toBe(false);
+    expect(freshForDeletion(undefined, NOW_MS)).toBe(false);
+  });
+});
+
+describe('reauthHref', () => {
+  it('sends the student to sign-in and back to the delete step', () => {
+    expect(DELETE_RETURN_PATH).toBe('/account#delete');
+    expect(reauthHref()).toBe('/signin?next=%2Faccount%23delete');
+  });
+
+  it('survives the sign-in page\'s own next check', () => {
+    const next = new URLSearchParams(reauthHref().split('?')[1]).get('next');
+    expect(safeNext(next, 'https://cueory.app')).toBe(DELETE_RETURN_PATH);
+  });
+});
+
+describe('deleteOutcome', () => {
+  it('is deleted when there is no error', () => {
+    expect(deleteOutcome(null)).toEqual({ kind: 'deleted' });
+    expect(deleteOutcome(undefined)).toEqual({ kind: 'deleted' });
+  });
+
+  it('sends a stale sign-in through sign-in again', () => {
+    expect(deleteOutcome({ code: '28R01', message: 'please sign in again to delete your account' })).toEqual({
+      kind: 'sign-in', href: '/signin?next=%2Faccount%23delete',
+      message: 'for your safety, please sign in again to delete your account.',
+    });
+  });
+
+  it('sends a signed-out student to sign in too', () => {
+    expect(deleteOutcome({ code: '28000', message: 'sign in to delete your account' })).toEqual({
+      kind: 'sign-in', href: '/signin?next=%2Faccount%23delete', message: 'please sign in again to delete your account.',
+    });
+  });
+
+  it('reports anything else in one plain sentence, deleting nothing on the page', () => {
+    expect(deleteOutcome({ code: '500', message: 'internal' })).toEqual({ kind: 'failed', message: 'something went wrong — please try again.' });
+    expect(deleteOutcome('weird')).toEqual({ kind: 'failed', message: 'something went wrong — please try again.' });
+  });
+});
+
