@@ -123,7 +123,8 @@ function scan(text: string, extension: string): Logging[] {
 
   let inTag = false;
   let attrQuote = '';
-  let exprQuote = '';
+  const exprStack: (string | null)[] = [];
+  const templateBraces: number[] = [];
   let inRegex = false;
   let braces = 0;
   let exprTags = 0;
@@ -251,10 +252,28 @@ function scan(text: string, extension: string): Logging[] {
       return;
     }
 
-    if (exprQuote) {
-      if (c === '\\') i++;
-      else if (c === exprQuote) exprQuote = '';
-      i++;
+    const topQuote = exprStack.length > 0 ? exprStack[exprStack.length - 1] : undefined;
+    if (topQuote === '`') {
+      if (c === '\\') {
+        i += 2;
+      } else if (markup.startsWith('${', i)) {
+        templateBraces.push(0);
+        exprStack.push(null);
+        i += 2;
+      } else if (c === '`') {
+        exprStack.pop();
+        i++;
+      } else {
+        i++;
+      }
+    } else if (topQuote === '"' || topQuote === "'") {
+      if (c === '\\') i += 2;
+      else if (c === topQuote) {
+        exprStack.pop();
+        i++;
+      } else {
+        i++;
+      }
     } else if (inRegex) {
       if (c === '\\') {
         i += 2;
@@ -280,7 +299,7 @@ function scan(text: string, extension: string): Logging[] {
       const end = markup.indexOf('\n', i + 2);
       i = end === -1 ? markup.length : end + 1;
     } else if (c === '"' || c === "'" || c === '`') {
-      exprQuote = c;
+      exprStack.push(c);
       i++;
     } else if (c === '/' && isRegexStart(markup, i)) {
       inRegex = true;
@@ -304,10 +323,25 @@ function scan(text: string, extension: string): Logging[] {
         i++;
       }
     } else if (c === '{') {
-      braces++;
+      if (templateBraces.length > 0) {
+        templateBraces[templateBraces.length - 1]++;
+      } else {
+        braces++;
+      }
       i++;
     } else if (c === '}') {
-      braces = Math.max(0, braces - 1);
+      if (templateBraces.length > 0) {
+        if (templateBraces[templateBraces.length - 1]! > 0) {
+          templateBraces[templateBraces.length - 1]--;
+        } else {
+          templateBraces.pop();
+          if (exprStack.length > 0 && exprStack[exprStack.length - 1] === null) {
+            exprStack.pop();
+          }
+        }
+      } else {
+        braces = Math.max(0, braces - 1);
+      }
       i++;
     } else {
       i++;
@@ -464,6 +498,8 @@ describe('debug-console source guard', () => {
     expect(scan('{count < limit}<script>console.log("actual")</script>', '.astro'))
       .toEqual([{ line: 1, method: 'log' }]);
     expect(scan('{(() => { return <script is:inline>console.log("actual")</script> })()}', '.astro'))
+      .toEqual([{ line: 1, method: 'log' }]);
+    expect(scan('{`x ${"`"}`}<script>console.log("actual")</script>', '.astro'))
       .toEqual([{ line: 1, method: 'log' }]);
   });
 
