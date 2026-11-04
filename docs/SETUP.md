@@ -216,7 +216,7 @@ You should see both projects, `cueory-staging` and `cueory-prod`, on your Supaba
 This puts the empty tables and their locks into **`cueory-staging` only**. No questions and no student data go in.
 **Don't do this on `cueory-prod`.** Prod comes later, with the same steps, only when Claude says so.
 
-There are thirteen migration files currently on `staging`. Run each one **exactly once, in this order**, after Claude verifies the staging database. Merged PR #235 added `20261102135000_confirmed_accounts_only.sql`. Test this migration on `cueory-staging` before using it in production. Later files build on earlier ones (questions need
+There are **seventeen SQL migration files in the `staging` repository** as verified on November 4, 2026. A file appearing on GitHub does **not** mean it ran on the hosted `cueory-staging` database. Before running SQL, verify the exact versions already applied to that project. Run only approved and not-yet-applied migrations, once each, in timestamp order. Files 14–17 affect accounts, privacy, or database authorization and require Christian's specific approval and successful staging tests before production use. Later files build on earlier ones (questions need
 topics, attempts need questions), and the first file's "locked by default" rule only covers what is made after it. A
 file run out of order or twice fails or leaves a gap.
 
@@ -235,23 +235,27 @@ file run out of order or twice fails or leaves a gap.
 | 11 | [profile_display_name_from_signup](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261102130000_profile_display_name_from_signup.sql) | Copies the display name chosen at email sign-up into the profile |
 | 12 | [confirmed_accounts_only](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261102135000_confirmed_accounts_only.sql) | Requires confirmed, non-anonymous accounts to check answers, submit flags, and record study events |
 | 13 | [update_display_name](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261102140000_update_display_name.sql) | The checked, rate-limited way to change a display name |
+| 14 | [admin_flag_rpcs](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261102153000_admin_flag_rpcs.sql) | Adds the restricted administrator list and two-factor-only report-inbox functions |
+| 15 | [fresh_sign_in_and_name_rules](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261102160000_fresh_sign_in_and_name_rules.sql) | Checks recent sign-in for account deletion and applies one display-name rule |
+| 16 | [my_sessions](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261102170000_my_sessions.sql) | Restricts students' session-history export to their own sessions, subject to MFA |
+| 17 | [enforce_opt_in_mfa](https://raw.githubusercontent.com/lilchristxan/Cueory/staging/supabase/migrations/20261104170500_enforce_opt_in_mfa.sql) | Enforces verified-factor MFA at the database boundary on personal data and protected functions |
 
 ### Open the right project
 1. Open https://github.com/lilchristxan/Cueory/tree/staging/supabase/migrations.
-   You should see exactly the thirteen files above. If any are missing, added, or named differently, stop and tell Claude before running anything.
+   You should see exactly the seventeen files above. The admin RPC file was added by merged PR #338, but its presence in GitHub does not confirm it has run on the hosted database. If any version is missing, added, or named differently, stop for a new reviewed migration plan before running anything.
 2. Open https://supabase.com/dashboard and click the **cueory-staging** project.
 3. Check that the project name near the top of the page says `cueory-staging`. If it says `cueory-prod`, go back and
    pick `cueory-staging`. If it says the project is paused, stop and tell Claude.
 4. Go to the **SQL Editor** section of the project.
 
-### Run the thirteen files (steps 5 to 9, once per file)
+### Run only verified, not-yet-applied files (steps 5 to 9, once per file)
 5. Click file 1's link in the table above. A new tab shows plain text whose first line names its subject, like
    `-- Locked by default`.
 6. Press **Cmd+A**, then **Cmd+C**, to copy all of it.
 7. Back in the SQL Editor, click **New Query**.
 8. Click in the empty editor and press **Cmd+V**.
 9. Click **Run** (or press **Cmd+Enter**). You should see it finish with no error. Then do steps 5 to 9 again with the
-   next file, until all thirteen have run once.
+   next approved, not-yet-applied file in timestamp order. Never rerun a previously applied version. If a new migration has an earlier timestamp than a version already applied, stop and obtain a reviewed staging plan.
 
 **If a file shows an error, or a box asks you to confirm something:**
 - Stop. Don't run that file again, don't run the next one, and don't try to fix anything.
@@ -276,17 +280,13 @@ file run out of order or twice fails or leaves a gap.
     order by kind desc, name;
     ```
 
-11. You should see 26 rows. First 13 tables, **every one with `RLS on`** (RLS is the lock that lets each student see
-    only their own rows): attempts, concepts, exam_plans, flags, item_answers, item_choices, item_versions, items,
-    profiles, review_state, rights_records, sources, study_events. Then 13 functions: check_answer, delete_my_account,
-    exam_plans_guard, handle_new_user, item_parts_guard, item_versions_guard, items_guard, my_flags,
-    publish_item_version, record_study_events, review_state_guard, submit_flag, update_display_name.
-    If any table says `RLS OFF`, or the rows differ, take a screenshot and send it to Claude.
+11. **Only if all seventeen migrations actually passed on this database**, the public-schema query should show 33 rows: 14 tables with `RLS on` and 19 public functions. The tables are admins, attempts, concepts, exam_plans, flags, item_answers, item_choices, item_versions, items, profiles, review_state, rights_records, sources, and study_events. The functions are admin_list_flags, admin_mark_flag_handled, admin_reopen_flag, check_answer, delete_my_account, display_name_ok, exam_plans_guard, handle_new_user, is_admin, item_parts_guard, item_versions_guard, items_guard, my_flags, my_sessions, publish_item_version, record_study_events, review_state_guard, submit_flag, and update_display_name.
+    The additional `app_private.mfa_access_allowed()` helper is not listed by this public-schema query. Function counts alone do not prove MFA, row isolation, grants, or deletion safety. Verify the actual policies and pgTAP results. If any count, name, or RLS setting differs, stop and tell Claude.
 12. Tell Claude "staging database done".
 
 Supabase's docs prefer the command-line tool for migrations; the SQL Editor is used here because it needs no terminal.
 Running SQL there skips Supabase's migration history, so before anyone uses the command-line tool on this project,
-Claude marks only each of the thirteen migrations actually run in the SQL Editor as applied (`supabase migration repair <version> --status applied`), so it never runs twice. Never mark a migration that has not successfully run in that database. Sources:
+Claude marks only migrations confirmed to have **succeeded in the specific hosted project** as applied (`supabase migration repair <version> --status applied`). Seventeen files exist in Git, but the hosted database may have fewer applied versions. Never mark a failed, pending, or unrun migration as applied. Sources:
 [Supabase: Database functions](https://supabase.com/docs/guides/database/functions) (SQL Editor, **New Query**,
 **Run**), [Supabase: Use Supabase with Next.js](https://supabase.com/docs/guides/getting-started/quickstarts/nextjs)
 (paste into the SQL Editor, then **Run**),
