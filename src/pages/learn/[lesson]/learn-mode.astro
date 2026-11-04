@@ -12,21 +12,19 @@ export async function getStaticPaths() {
 }
 
 const { lesson } = Astro.props as { lesson: CatalogLesson };
-// Keep lesson numbering data-driven when a course has more than one legacy lesson.
-const legacyLessonCount = !lesson.curriculumId
-  ? (await lessonCatalog()).lessons.filter((candidate) => !candidate.curriculumId && candidate.name === lesson.name).length
-  : 0;
-const lessonContext = legacyLessonCount > 1 ? `${lesson.context} of ${legacyLessonCount}` : lesson.context;
 const deck = lesson.cards && await getEntry('cards', lesson.cards.id);
 if (!deck) throw new Error(`The card file for lesson ${lesson.id} is missing.`);
 const { title, cards, status } = deck.data;
 const cardsNotice = statusNotice(status, 'cards');
 const learnCards = cards.map(({ front, back, blank }) => (blank ? { front, back, blank } : { front, back }));
+// Match the generated lesson hub's course count without restoring the deleted study-skills route.
+const olderLessons = (await lessonCatalog()).lessons.filter((candidate) => !candidate.curriculumId && candidate.name === lesson.name).length;
+const context = !lesson.curriculumId && olderLessons > 1 ? `${lesson.context} of ${olderLessons}` : lesson.context;
 ---
 
 <Layout title={`learn mode: ${title}`} description={`learn mode for ${lesson.about}.`} variant="study">
   <div class="mx-auto max-w-prose pt-8">
-    <p class="text-sm text-ink-soft">{lessonContext} · learn mode</p>
+    <p class="text-sm text-ink-soft">{context} · learn mode</p>
     <div class="mt-2 flex flex-wrap items-center gap-x-1">
       <h1 class="text-2xl">learn mode</h1>
       <InfoTip
