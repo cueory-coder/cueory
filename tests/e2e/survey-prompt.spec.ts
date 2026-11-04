@@ -33,11 +33,18 @@ test('finals survey prompt renders, validates character limits, passes axe, and 
   await prompt.getByLabel('yes').click();
   await feedbackInput.fill('Need more respiratory and cardiac NCLEX questions.');
 
-  // Submit
-  await prompt.getByRole('button', { name: 'send feedback' }).click();
-  await expect(page.getByText('thank you for your feedback.')).toBeVisible();
+  // A UI-only preview must never falsely claim the feedback was sent.
+  await expect(prompt.getByText('preview only — feedback is not being collected yet.')).toBeVisible();
+  await expect(prompt.getByRole('button', { name: 'send feedback' })).toBeDisabled();
+  await expect(page.getByText('thank you for your feedback.')).toHaveCount(0);
 
-  // Reload verifies dismissal persistence
+  // The textarea's 200-character limit is enforced in the browser.
+  await feedbackInput.fill('x'.repeat(220));
+  await expect(feedbackInput).toHaveValue('x'.repeat(200));
+
+  // Dismissal is intentional and remains stored across a reload.
+  await prompt.getByRole('button', { name: 'not now' }).click();
+  await expect(prompt).toHaveCount(0);
   await page.reload();
   await expect(page.getByTestId('finals-survey-prompt')).toHaveCount(0);
 });

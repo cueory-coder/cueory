@@ -45,6 +45,20 @@ function saveDismissed(key: string, storage?: KeyValueStorage): void {
   }
 }
 
+/** Only a completed callback can justify claiming that feedback was sent. */
+export async function deliverSurveyFeedback(
+  send: SurveyPromptProps['onSubmit'],
+  submission: SurveySubmission,
+): Promise<'sent' | 'unavailable' | 'failed'> {
+  if (!send) return 'unavailable';
+  try {
+    await send(submission);
+    return 'sent';
+  } catch {
+    return 'failed';
+  }
+}
+
 export default function SurveyPrompt({
   activeQuestion = false,
   storageKey = STORAGE_KEY_DEFAULT,
@@ -58,6 +72,8 @@ export default function SurveyPrompt({
   const [usedForFinal, setUsedForFinal] = useState<boolean | null>(null);
   const [feedback, setFeedback] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const id = useId();
 
   useEffect(() => {
@@ -78,14 +94,21 @@ export default function SurveyPrompt({
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
     const cleanFeedback = feedback.trim().slice(0, MAX_FEEDBACK_CHARS);
-    const data: SurveySubmission = {
-      usedForFinal,
-      feedback: cleanFeedback,
-    };
-    saveDismissed(storageKey, storage);
-    setSubmitted(true);
-    await onSubmit?.(data);
+    const data: SurveySubmission = { usedForFinal, feedback: cleanFeedback };
+    setSubmitting(true);
+    setSubmitError(null);
+    const outcome = await deliverSurveyFeedback(onSubmit, data);
+    if (outcome === 'sent') {
+      saveDismissed(storageKey, storage);
+      setSubmitted(true);
+    } else {
+      setSubmitError(outcome === 'unavailable'
+        ? 'feedback sending is not available in this preview.'
+        : 'could not send feedback. please try again.');
+    }
+    setSubmitting(false);
   };
 
   if (submitted) {
@@ -170,9 +193,15 @@ export default function SurveyPrompt({
           />
         </div>
 
+        {!onSubmit && (
+          <p className="text-sm leading-relaxed text-ink-soft">
+            preview only — feedback is not being collected yet.
+          </p>
+        )}
+        {submitError && <p role="alert" className="text-sm leading-relaxed text-ink">{submitError}</p>}
         <div className="flex flex-wrap gap-3 pt-2">
-          <button type="submit" className={primaryButton}>
-            send feedback
+          <button type="submit" className={primaryButton} disabled={!onSubmit || submitting}>
+            {submitting ? 'sending…' : 'send feedback'}
           </button>
           <button type="button" onClick={handleDismiss} className={secondaryButton}>
             not now

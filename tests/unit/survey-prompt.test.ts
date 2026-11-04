@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import SurveyPrompt from '../../src/islands/SurveyPrompt';
+import SurveyPrompt, { deliverSurveyFeedback } from '../../src/islands/SurveyPrompt';
 import type { KeyValueStorage } from '../../src/scripts/storage';
 
 function createMockStorage(initial: Record<string, string> = {}): KeyValueStorage {
@@ -16,13 +16,29 @@ function createMockStorage(initial: Record<string, string> = {}): KeyValueStorag
 describe('SurveyPrompt unit tests', () => {
   const testKey = 'cueory-test-survey-dismissed';
 
-  it('renders both survey questions and controls when not active and not dismissed', () => {
+  it('keeps the server markup empty until hydration can read persisted dismissal state', () => {
     const markup = renderToStaticMarkup(createElement(SurveyPrompt, { storageKey: testKey, storage: createMockStorage() }));
-    expect(markup).toContain('quick semester survey');
-    expect(markup).toContain('did you use Cueory for a final or exit exam this semester?');
-    expect(markup).toContain('what would make it more useful?');
-    expect(markup).toContain('send feedback');
-    expect(markup).toContain('not now');
+    expect(markup).toBe('');
+    // The Playwright preview regression verifies the form after browser hydration.
+  });
+
+  it('does not claim feedback was sent without a configured callback', async () => {
+    await expect(deliverSurveyFeedback(undefined, { usedForFinal: true, feedback: 'sample' }))
+      .resolves.toBe('unavailable');
+  });
+
+  it('confirms only after an asynchronous submission succeeds', async () => {
+    const submitted: Array<{ usedForFinal: boolean | null; feedback: string }> = [];
+    const data = { usedForFinal: false, feedback: 'sample feedback' };
+    const outcome = await deliverSurveyFeedback(async (value) => { submitted.push(value); }, data);
+    expect(outcome).toBe('sent');
+    expect(submitted).toEqual([data]);
+  });
+
+  it('reports failed submission so the form can retain answers for retry', async () => {
+    const error = new Error('network unavailable');
+    await expect(deliverSurveyFeedback(async () => { throw error; }, { usedForFinal: true, feedback: 'keep me' }))
+      .resolves.toBe('failed');
   });
 
   it('never renders while a question or card is active (activeQuestion=true)', () => {
