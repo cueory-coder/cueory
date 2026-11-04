@@ -35,8 +35,11 @@ test.describe('Task 280: large-text reflow', () => {
   for (const route of routes) {
     test(`${route} has no sideways scroll or clipped visible controls at 32px root text`, async ({ page }) => {
       await page.goto(route);
-      await page.addStyleTag({ content: 'html { font-size: 32px !important; }' });
+      await page.evaluate(() => {
+        document.documentElement.style.setProperty('font-size', '32px', 'important');
+      });
       await settleIslands(page, route);
+      await expect(page.locator('html')).toHaveCSS('font-size', '32px');
 
       const findings = await page.evaluate(() => {
         const width = document.documentElement.clientWidth;
