@@ -235,6 +235,23 @@ describe('loadExport — personal data boundaries', () => {
     expect(await loadExport(reader({ user: { data: { user: record }, error: null } }).db)).toEqual(failed);
   });
 
+  it('does not run getter-backed Auth provider or identity array elements', async () => {
+    for (const kind of ['providers', 'identities'] as const) {
+      let getterCalls = 0;
+      const values = kind === 'providers' ? ['google'] : [user.identities[0]];
+      Object.defineProperty(values, '0', {
+        configurable: true,
+        enumerable: true,
+        get: () => { getterCalls++; return kind === 'providers' ? 'google' : user.identities[0]; },
+      });
+      const record = kind === 'providers'
+        ? { ...user, app_metadata: { ...user.app_metadata, providers: values } }
+        : { ...user, identities: values };
+      expect(await loadExport(reader({ user: { data: { user: record }, error: null } }).db)).toEqual(failed);
+      expect(getterCalls).toBe(0);
+    }
+  });
+
   it('does not execute getters supplied by a database-reader mock', async () => {
     const malicious = { ...rows.profiles[0] };
     Object.defineProperty(malicious, 'display_name', { get: () => { throw Error('getter ran'); }, enumerable: true });
