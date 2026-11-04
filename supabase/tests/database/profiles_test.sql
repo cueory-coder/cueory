@@ -1,8 +1,9 @@
--- Student profiles (D-77): every account gets one, and each student sees and changes only their own display name.
+-- Student profiles (D-77): every account gets one, and each student sees only their own. Display names change only
+-- through update_display_name (update_display_name_test.sql).
 -- Run by `supabase test db` on a throwaway local database; the two accounts below exist only inside this test.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(17);
+select plan(14);
 
 -- Two accounts, as Supabase Auth would create them.
 insert into auth.users (id, email) values
@@ -18,8 +19,8 @@ select results_eq(
 select table_privs_are('public', 'profiles', 'anon', array[]::text[], 'signed-out visitors have no access to profiles');
 select table_privs_are('public', 'profiles', 'authenticated', array['SELECT'], 'students can only read the table');
 select column_privs_are(
-  'public', 'profiles', 'display_name', 'authenticated', array['SELECT', 'UPDATE'],
-  'students can change the display name'
+  'public', 'profiles', 'display_name', 'authenticated', array['SELECT'],
+  'students change the display name only through update_display_name (update_display_name_test.sql)'
 );
 select column_privs_are(
   'public', 'profiles', 'id', 'authenticated', array['SELECT'], 'students cannot change which account a profile is'
@@ -41,37 +42,14 @@ select results_eq(
   'a student sees only their own profile'
 );
 
-select results_eq(
-  $$ with changed as (
-       update public.profiles set display_name = 'sam'
-       where id = '00000000-0000-4000-8000-000000000001' returning id
-     ) select count(*)::int from changed $$,
-  $$ values (1) $$,
-  'a student can change their own display name'
-);
-
-select results_eq(
-  $$ with changed as (
-       update public.profiles set display_name = 'not mine'
-       where id = '00000000-0000-4000-8000-000000000002' returning id
-     ) select count(*)::int from changed $$,
-  $$ values (0) $$,
-  'a student cannot change anyone else''s display name'
+select throws_ok(
+  $$ update public.profiles set display_name = 'sam' where id = '00000000-0000-4000-8000-000000000001' $$,
+  '42501', null, 'a student cannot change even their own display name directly'
 );
 
 select throws_ok(
-  $$ update public.profiles set display_name = repeat('a', 51) where id = '00000000-0000-4000-8000-000000000001' $$,
-  '23514', null, 'a display name over 50 characters is refused'
-);
-
-select throws_ok(
-  $$ update public.profiles set display_name = '' where id = '00000000-0000-4000-8000-000000000001' $$,
-  '23514', null, 'an empty display name is refused'
-);
-
-select throws_ok(
-  $$ update public.profiles set display_name = E'sam\nsmith' where id = '00000000-0000-4000-8000-000000000001' $$,
-  '23514', null, 'a display name with control characters is refused'
+  $$ update public.profiles set display_name = 'not mine' where id = '00000000-0000-4000-8000-000000000002' $$,
+  '42501', null, 'a student cannot change anyone else''s display name'
 );
 
 select throws_ok(
