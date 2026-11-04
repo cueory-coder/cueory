@@ -1947,9 +1947,8 @@ html:has(dialog.mode-preview[open]) {
     color: var(--color-ink-soft);
     font-size: var(--text-sm);
     user-select: none;
-    transition:
-      background-color var(--duration-fast) var(--ease-soft),
-      color var(--duration-fast) var(--ease-soft);
+    /* Instant palette and selection changes prevent transient sub-AA contrast during theme switches. */
+    transition: none;
   }
 
   .segmented-option:has(:checked) {
