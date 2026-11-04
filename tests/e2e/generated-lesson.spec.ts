@@ -65,6 +65,25 @@ test('generated learn mode preserves its accessible explanation control', async 
   await expect(help).toHaveAttribute('aria-expanded', 'false');
 });
 
+test('generated lesson retains its printable reader and mode help controls', async ({ page }) => {
+  await page.goto(lesson.href);
+  await page.emulateMedia({ media: 'print' });
+  const printReader = page.getByTestId('print-lesson-reader');
+  await expect(printReader).toBeVisible();
+  await expect(printReader.locator('li').first()).toBeVisible();
+  await page.emulateMedia({ media: 'screen' });
+
+  for (const modeId of ['fill-in', 'organizer'] as const) {
+    const mode = generated.find((candidate) => candidate.id === modeId);
+    if (!mode) continue;
+    await page.goto(mode.href);
+    const help = page.getByRole('button', { name: `more about ${modeId}` });
+    await expect(help).toBeVisible();
+    await help.click();
+    await expect(help).toHaveAttribute('aria-expanded', 'true');
+  }
+});
+
 test('every generated page fits 320 px with no sideways scroll and passes axe', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 });
   for (const route of routes) {

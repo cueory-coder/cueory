@@ -83,10 +83,17 @@ const ways = availableModes.length;
     <section class="mx-auto mt-section max-w-prose" aria-labelledby="lesson-reader-heading" data-testid="study-reader">
       <h2 id="lesson-reader-heading" class="text-xl">read the lesson</h2>
       <div class="mt-6">
-        {/* The existing reader is unchanged. Without JavaScript, the full lesson is below. */}
-        <SentenceStepper client:only="react" sentences={sentences} />
-        <noscript>
-          <ol class="space-y-stack">
+        {/* Preserve the existing reader, including the printed and no-JavaScript fallbacks. */}
+        <div data-print-hidden>
+          <SentenceStepper client:only="react" sentences={sentences} />
+        </div>
+        <div data-print-only data-testid="print-lesson-reader">
+          <ul class="space-y-stack list-decimal">
+            {sentences.map((sentence) => <li class="text-lg">{sentence.text}</li>)}
+          </ul>
+        </div>
+        <noscript data-print-hidden>
+          <ol data-print-hidden class="space-y-stack">
             {sentences.map((sentence) => <li class="text-lg">{sentence.text}</li>)}
           </ol>
         </noscript>
