@@ -13,7 +13,7 @@ function studentFacingLiterals(source: string): string[] {
   // Native JSX/Astro text nodes. Interpolated {expressions} are program code, not literal wording.
   const nodeText = /<(?:h[1-6]|p|span|button|label|a|div|li|strong|em|small|output|summary|option|figcaption)\b[^<>]*>([^<]*)</gi;
   for (const match of source.matchAll(nodeText)) {
-    const literal = match[1]!.replace(/\{[^{}]*\}/g, ' ').trim();
+    const literal = match[1]!.replace(/\{[^{}]*\}/g, ' ').replace(/\s+/g, ' ').trim();
     if (literal) text.push(literal);
   }
 
