@@ -21,7 +21,6 @@ test('the library shows real counts from the CSV and a link only to an open less
     source.units.length + ' planned units · ' + totalLessons + ' lessons'
   );
   await expect(page.getByTestId('curriculum-summary')).toContainText('coming soon');
-  await expect(page.getByTestId('curriculum-summary')).toContainText('coming soon');
 
   const cards = page.locator('main [data-unit-id]');
   await expect(cards).toHaveCount(source.units.length);
