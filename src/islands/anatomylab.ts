@@ -479,6 +479,11 @@ export function placeLabels(anchors: readonly LabelAnchor[], options: LayoutOpti
   const top = margin;
   const bottom = height - margin;
   const room = bottom - top;
+  // A collapsed or hidden canvas may have no space between its top and bottom margins.
+  // Even an empty column would otherwise enter the overflow loop and remove an undefined label.
+  if (!Number.isFinite(room) || room <= 0) {
+    return { placed: [], leftOut: [...new Set(anchors.map((anchor) => anchor.id))] };
+  }
   const mid = columns ? (columns.left + columns.right) / 2 : width / 2;
   const byOrder = (a: LabelAnchor, b: LabelAnchor) => a.y - b.y || a.x - b.x || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
   const usable = anchors
