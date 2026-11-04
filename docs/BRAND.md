@@ -90,8 +90,7 @@ This covers the marketing pages only: home, support, the legal pages and 404. St
   1. the logo;
   2. the Bodoni headline "nursing school is hard enough." on one line at every width;
   3. the accent line "cueory makes studying simpler." (plain Lato);
-  4. one glassy pill button, "create your free account";
-  5. one small line under it.
+  4. one glassy pill button, "create your free account".
 
   The embossed logo is gone (forbidden by guide §3.6). The motto is in the footer.
 - **Glassy button:** translucent brand glass (Espresso by day, Sand in the evening, about 80% opaque), a blur behind
@@ -119,6 +118,7 @@ Christian's decision (2026-10-31), to match how younger students write.
   - acronyms and proper nouns anywhere (NCLEX, Open RN, YouTube, Ko-fi, Google);
   - legal body text: privacy, terms and disclaimer (their headings can be lowercase);
   - error messages and form instructions that must be read carefully.
+- No description that only restates its label (Christian, 2026-11-02).
 - **How:** write the copy in lowercase in the source. Never use CSS `text-transform`, which would change acronyms and
   names too. Screen-reader labels stay natural; lowercase reads the same aloud.
 
