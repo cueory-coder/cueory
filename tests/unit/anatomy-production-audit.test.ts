@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { mkdirSync, mkdtempSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { auditAnatomyProduction, decodeAsciiEscapesForAudit, modelUrls, readRegularFileNoFollow } from '../../scripts/anatomy-production-audit.mjs';
@@ -66,6 +66,21 @@ describe('anatomy production artifact audit', () => {
   });
   it('accepts a build with approved models and no exposed drafts', () => {
     expect(setup().check()).toEqual({ errors: [], approvedSystems: 1, draftSystems: 1, shippedModels: 1 });
+  });
+
+  it('rejects impossible retrieval dates while accepting a real leap day', () => {
+    const f = setup();
+    const filename = join(f.content, 'anatomy-approved.json');
+    const record = JSON.parse(readFileSync(filename, 'utf8'));
+    const error = 'anatomy-approved.json: approved source bp3d-FMA999992 has incomplete or incompatible citation and rights evidence';
+    for (const invalid of ['2026-02-30', '2026-13-01', '2025-02-29', '0000-01-01', '2026-11-4']) {
+      record.sources[0].retrieved = invalid;
+      writeFileSync(filename, JSON.stringify(record));
+      expect(f.check().errors, invalid).toContain(error);
+    }
+    record.sources[0].retrieved = '2024-02-29';
+    writeFileSync(filename, JSON.stringify(record));
+    expect(f.check().errors).toEqual([]);
   });
 
   it('reports null and primitive approved source records without crashing', () => {

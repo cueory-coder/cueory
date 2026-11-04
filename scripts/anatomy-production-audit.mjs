@@ -96,6 +96,13 @@ export function decodeAsciiEscapesForAudit(text, syntax) {
   return text;
 }
 
+/** Validate a real ISO calendar date, not just the YYYY-MM-DD shape. */
+function validRetrievedDay(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value) || value.startsWith('0000')) return false;
+  const time = Date.parse(`${value}T00:00:00.000Z`);
+  return Number.isFinite(time) && new Date(time).toISOString().slice(0, 10) === value;
+}
+
 /** Extracts references without trusting paths from content files as filesystem paths. */
 export function modelUrls(model) {
   if (!model || typeof model !== 'object' || Array.isArray(model)) return null;
@@ -197,7 +204,7 @@ export function auditAnatomyProduction(distDir, contentDir) {
           const hasPage = typeof source.url === 'string' &&
             source.url.startsWith(BODYPARTS3D_URL_PREFIX) &&
             source.url.length > BODYPARTS3D_URL_PREFIX.length;
-          const hasDate = typeof source.retrieved === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(source.retrieved);
+          const hasDate = validRetrievedDay(source.retrieved);
           if (!hasQuote || !hasSection || !hasPage || !hasDate ||
               source.book !== 'BodyParts3D' || source.license !== 'CC BY 4.0') {
             errors.push(`${name}: approved source ${source.id} has incomplete or incompatible citation and rights evidence`);
