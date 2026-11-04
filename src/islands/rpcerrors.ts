@@ -8,7 +8,8 @@
  *   delete_my_account: supabase/migrations/20261102110000_delete_my_account.sql (Task 60); its only refusal is
  *                      'sign in to delete your account' (errcode 28000).
  *   update_display_name: supabase/migrations/20261102140000_update_display_name.sql
- *   any function:  "confirm your email to use this" (Task 169) gets one general sentence (Task 171).
+ *   Task 169: confirmed-email checks in 20261102135000_confirmed_accounts_only.sql use action-specific text
+ *                for check_answer/submit_flag and a general message for other RPCs.
  *
  * Never echoes raw database text, SQL, table names or error codes to a student.
  */
@@ -40,6 +41,7 @@ export function studentMessage(fn: RpcFunction, error: unknown): string {
   if (fn === 'check_answer') {
     // 20261101100000_attempts_and_check_answer.sql
     if (msg === 'sign in to check an answer') return 'please sign in to check answers.';
+    if (msg === 'confirm your email to use this') return 'please confirm your email to check answers — look for the link in your inbox.';
     if (msg === 'an item, the version you were shown and your choices are needed') {
       return 'something went wrong loading the question — please reload the page.';
     }
@@ -62,6 +64,7 @@ export function studentMessage(fn: RpcFunction, error: unknown): string {
   if (fn === 'submit_flag') {
     // supabase/migrations/20261101120000_flags_and_submit_flag.sql (PR #110)
     if (msg === 'sign in to send a report') return 'please sign in to send a report.';
+    if (msg === 'confirm your email to use this') return 'please confirm your email to send a report — look for the link in your inbox.';
     if (msg === 'the page must be an address on this site') {
       return 'something went wrong — please try again from the page you were on.';
     }
@@ -94,8 +97,7 @@ export function studentMessage(fn: RpcFunction, error: unknown): string {
     if (msg === 'your profile was not found') return 'your account could not load. please try again.';
   }
 
-  // Task 169: a signed-in account whose email is not confirmed yet is refused with this one message, from any
-  // function. None of the mappings above match it, so it is checked last (Task 171 added it).
+  // All other RPCs keep the general confirmed-email explanation, after the specific action messages above.
   if (msg === 'confirm your email to use this') {
     return 'please confirm your email first. the link is in the email we sent you.';
   }
