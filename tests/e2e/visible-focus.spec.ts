@@ -129,7 +129,8 @@ test.describe('Task 210: visible keyboard focus', () => {
         // On /play, the crossword widget captures Tab to navigate word cells and only releases on Escape.
         // CuewordGame.tsx moves focus directly to the check button on Escape, jumping over the preceding
         // 26 letters, erase and cue buttons. We inspect the check button destination, then traverse backward
-        // with Shift+Tab through the skipped controls before continuing forward navigation.
+        // with Shift+Tab through the skipped controls before pressing Escape again from the grid to return to
+        // the check button, allowing normal forward Tab traversal to proceed from there.
         if (route === '/play' && focused?.isCrosswordCell) {
           await page.keyboard.press('Escape');
           const checkFocus = await inspectFocus();
@@ -140,9 +141,14 @@ test.describe('Task 210: visible keyboard focus', () => {
               backwardSteps++;
               const backFocus = await inspectFocus();
               if (!backFocus || backFocus.isCrosswordCell) {
-                // Stepped back into the crossword grid or out of the skipped controls; return to check button
-                for (let fwd = 0; fwd < backwardSteps; fwd++) {
-                  await page.keyboard.press('Tab');
+                // Stepped back into the crossword grid or out of the skipped controls; press Escape
+                // to return focus directly to the check button so normal forward Tab can resume.
+                if (backFocus?.isCrosswordCell) {
+                  await page.keyboard.press('Escape');
+                } else {
+                  for (let fwd = 0; fwd < backwardSteps; fwd++) {
+                    await page.keyboard.press('Tab');
+                  }
                 }
                 await inspectFocus();
                 break;
