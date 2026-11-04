@@ -1,0 +1,14 @@
+objective_id,step,objective,block_id,required_before,recommended_before,risk,release_wave,note
+M02-L01-O01,1,tell apart what the patient reports from what the nurse measures or observes,M02-L01,,,lower,1,
+M02-L01-O02,2,"name where a piece of information came from: patient, family or the chart",M02-L01,M02-L01-O01,,lower,1,
+M02-L01-O03,3,separate what was observed from what was assumed (observation vs interpretation),M02-L01,M02-L01-O01,,lower,1,documentation application later in M01-L06
+M02-L01-O04,4,describe a patient’s usual baseline,M02-L01,M02-L01-O01,M00-L03-O01,lower,1,baseline is taught here; homeostasis comes in step 8
+M02-L06-O01,5,spot a change from a baseline,M02-L06,M02-L01-O04,,lower,1,
+M02-L02-O01,6,recognize a trend instead of judging one number,M02-L02,M02-L06-O01,"M00-L01-O01 (units, just in time)",lower,1,
+M01-L05-O01,7,pick out the cues that matter to the question being asked,M01-L05,M02-L02-O01,,lower,1,cue recognition only; the other five judgment functions come later
+M00-L03-O01,8,explain why the body keeps conditions steady (homeostasis),M00-L03,,,lower,1,
+M05-L01-O01,9,name the fluid compartments: inside and outside cells,M05-L01,M00-L03-O01,"M00-L02-O01 (cells and membranes, just in time)",lower,1,
+M05-L01-O02,10a,tell diffusion from osmosis,M05-L01,M05-L01-O01,,lower,1,
+M05-L01-O03,10b,explain active transport and why it costs energy,M05-L01,M05-L01-O02,,lower,1,
+M05-L02-O01,11,organize intake and output for one patient and read a weight trend,M05-L02,"M05-L01-O01, M02-L02-O01",M02-L04-O01 (chart basics),lower,1,weight trend reuses step 6; no diagnosis
+M01-L05-O02,12,apply steps 1–11 to one stable patient (original case),M01-L05,all of the above,,lower,1,"assesses only pilot objectives; editorial review; no medicines, no emergencies"
