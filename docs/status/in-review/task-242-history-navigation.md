@@ -1,1 +1,1 @@
-status: Task 242, browser Back and Forward on study pages: verify focus remains on a usable element and restored scroll stays within the document bounds across history navigation.
+status: Task 242, browser Back and Forward on study pages: verify the page remains navigable, a keyboard-focusable skip link is usable before leaving and after returning to each document, and scroll stays within document bounds. This does not claim automatic focus restoration, which the site does not implement. Exact-head CI, browser tests and Codex review are required before staging merge.
