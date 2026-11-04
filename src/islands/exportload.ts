@@ -9,11 +9,18 @@
  * add the signed-in email from Auth. profiles does not store an email address.
  * No partial export is returned when any read or row shape fails.
  *
+ * The sign-in record (Task 309) comes from Supabase Auth's auth.getUser(), which
+ * asks Auth for the signed-in student only: user_metadata, the sign-in methods,
+ * when the account was made and last signed in, and each identity's
+ * identity_data (with Google: name, profile-photo link, Google account id, email
+ * and whether it is verified). The sessions, with their browser and IP address,
+ * come from my_sessions(), because the browser can't read auth.sessions.
+ *
  * study_events has no cap: it is read page by page and each checked page is
  * written straight into StudyEventPages, so a long history never sits in memory
  * as one array of rows. Download the result with exportJsonBlob / exportCsvBlobs.
  */
-import { StudyEventPages, type ExportData } from './exportdata';
+import { jsonCopy, StudyEventPages, type ExportData, type JsonObject } from './exportdata';
 
 export type ExportTable = 'profiles' | 'attempts' | 'exam_plans' | 'review_state' | 'study_events';
 
@@ -29,8 +36,12 @@ export interface ExportReader {
   select(table: WholeTable, columns: string): PromiseLike<ReadResult>;
   /** study_events, one page at a time, in a stable order. */
   selectPages(table: 'study_events', columns: string): AsyncIterable<ReadResult>;
-  rpc(name: 'my_flags'): PromiseLike<ReadResult>;
+  rpc(name: ExportRpc): PromiseLike<ReadResult>;
+  /** The signed-in student's own sign-in record: `{ user }`, as Supabase's auth.getUser() returns it. */
+  user(): PromiseLike<ReadResult>;
 }
+
+export type ExportRpc = 'my_flags' | 'my_sessions';
 
 export type ExportLoadResult =
   | { ok: true; data: ExportData }
@@ -46,6 +57,8 @@ const LIMITS = {
   exam_plans: 10,
   review_state: 50_000,
   my_flags: 10_000,
+  my_sessions: 10_000,
+  identities: 20,
 } as const;
 
 /** Exact, least-privilege columns from the existing Supabase migrations. */
@@ -96,6 +109,71 @@ function uuid(value: Record<string, unknown>, name: string): string {
     throw new Error('invalid export field');
   }
   return v;
+}
+
+/** A field Supabase Auth may leave out. A getter is still refused. */
+function maybe(value: Record<string, unknown>, name: string): unknown {
+  const descriptor = Object.getOwnPropertyDescriptor(value, name);
+  if (!descriptor) return undefined;
+  if (!('value' in descriptor)) throw new Error('invalid export field');
+  return descriptor.value;
+}
+
+function optionalTimestamp(value: Record<string, unknown>, name: string): string | null {
+  const v = maybe(value, name);
+  return v === undefined || v === null ? null : timestamp(value, name);
+}
+
+/** user_metadata and identity_data: plain JSON objects, copied. A missing one is an empty object. */
+function metadata(value: unknown): JsonObject {
+  if (value === undefined || value === null) return {};
+  row(value);
+  const copy = jsonCopy(value);
+  if (copy === undefined) throw new Error('invalid sign-in details');
+  return copy as JsonObject;
+}
+
+function provider(value: unknown): string {
+  if (typeof value !== 'string' || !/^[a-z0-9_-]{1,40}$/.test(value)) throw new Error('invalid sign-in method');
+  return value;
+}
+
+/** A list Supabase Auth may leave out, as plain elements (no getters, no extra keys). */
+function list(value: unknown, cap: number): unknown[] {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value) || value.length > cap || Object.keys(value).length !== value.length) {
+    throw new Error('invalid sign-in list');
+  }
+  // Array.map reads an element before its callback runs, which would execute a malicious getter.
+  // Inspect each own data descriptor before reading any element.
+  const entries: unknown[] = [];
+  for (let index = 0; index < value.length; index++) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+    if (!descriptor || !('value' in descriptor)) throw new Error('invalid sign-in list');
+    entries.push(descriptor.value);
+  }
+  return entries;
+}
+
+/** The sign-in record, from auth.getUser(). Only the fields named in ExportData['account']. */
+function account(data: unknown): NonNullable<ExportData['account']> {
+  const user = row(field(row(data), 'user'));
+  const app = maybe(user, 'app_metadata');
+  return {
+    createdAt: timestamp(user, 'created_at'),
+    lastSignInAt: optionalTimestamp(user, 'last_sign_in_at'),
+    providers: app === undefined || app === null ? [] : list(maybe(row(app), 'providers'), 20).map(provider),
+    userMetadata: metadata(maybe(user, 'user_metadata')),
+    identities: list(maybe(user, 'identities'), LIMITS.identities).map((entry) => {
+      const identity = row(entry);
+      return {
+        provider: provider(field(identity, 'provider')),
+        identityData: metadata(maybe(identity, 'identity_data')),
+        createdAt: optionalTimestamp(identity, 'created_at'),
+        lastSignInAt: optionalTimestamp(identity, 'last_sign_in_at'),
+      };
+    }),
+  };
 }
 
 function optionalUuid(value: Record<string, unknown>, name: string): string | null {
@@ -177,8 +255,14 @@ function studyEvent(value: Record<string, unknown>) {
 }
 
 function entries<T>(data: unknown, map: (value: Record<string, unknown>) => T): T[] {
-  if (!Array.isArray(data)) throw new Error('invalid export result');
-  return data.map((value: unknown) => map(row(value)));
+  if (!Array.isArray(data) || Object.keys(data).length !== data.length) throw new Error('invalid export result');
+  const mapped: T[] = [];
+  for (let index = 0; index < data.length; index++) {
+    const descriptor = Object.getOwnPropertyDescriptor(data, String(index));
+    if (!descriptor || !('value' in descriptor)) throw new Error('invalid export result');
+    mapped.push(map(row(descriptor.value)));
+  }
+  return mapped;
 }
 
 async function fetchRows(reader: ExportReader, table: WholeTable): Promise<unknown> {
@@ -192,12 +276,13 @@ function pickedLetters(value: Record<string, unknown>): string[] {
   const letters = field(value, 'picked');
   if (!Array.isArray(letters) || letters.length < 1 || letters.length > 5 ||
       Object.keys(letters).length !== letters.length) throw new Error('invalid picked choices');
-  const result = letters.map((letter, index) => {
+  const result: string[] = [];
+  for (let index = 0; index < letters.length; index++) {
     const descriptor = Object.getOwnPropertyDescriptor(letters, String(index));
-    if (!descriptor || !('value' in descriptor) || descriptor.value !== letter ||
-        typeof letter !== 'string' || !/^[a-e]$/.test(letter)) throw new Error('invalid picked choices');
-    return letter;
-  });
+    const letter = descriptor && 'value' in descriptor ? descriptor.value : undefined;
+    if (typeof letter !== 'string' || !/^[a-e]$/.test(letter)) throw new Error('invalid picked choices');
+    result.push(letter);
+  }
   if (new Set(result).size !== result.length) throw new Error('duplicate picked choices');
   return result;
 }
@@ -206,8 +291,7 @@ function pickedLetters(value: Record<string, unknown>): string[] {
 export async function loadExport(reader: ExportReader): Promise<ExportLoadResult> {
   try {
     const profiles = entries(await fetchRows(reader, 'profiles'), (r) => {
-      // The display-name limit's two fields (20261102140000_update_display_name.sql): when the current hour of name
-      // changes began, and how many changes were made in it.
+      // Preserve current staging's display-name change-history fields.
       const changes = field(r, 'name_changes_in_window');
       if (typeof changes !== 'number' || !Number.isInteger(changes) || changes < 0 || changes > 10) {
         throw new Error('invalid name change count');
@@ -262,7 +346,41 @@ export async function loadExport(reader: ExportReader): Promise<ExportLoadResult
       comment: reportComment(r),
       createdAt: timestamp(r, 'created_at'),
     }));
-    return { ok: true, data: { profile: profiles[0] ?? {}, attempts, examPlans, reviewRows, reports, studyEvents } };
+    const sessionReply = await reader.rpc('my_sessions');
+    if (!sessionReply || sessionReply.error != null || !Array.isArray(sessionReply.data) ||
+        sessionReply.data.length > LIMITS.my_sessions) {
+      throw new Error('session export read failed');
+    }
+    // The session id is only the read cursor and is not exported.
+    const sessions = entries(sessionReply.data, (r) => {
+      uuid(r, 'id');
+      return {
+        createdAt: optionalTimestamp(r, 'created_at'),
+        updatedAt: optionalTimestamp(r, 'updated_at'),
+        notAfter: optionalTimestamp(r, 'not_after'),
+        userAgent: nullableText(r, 'user_agent'),
+        ip: nullableText(r, 'ip'),
+      };
+    });
+    const who = await reader.user();
+    if (!who || who.error != null) throw new Error('sign-in record read failed');
+    const ownAccount = account(who.data);
+    // Preserve staging's scalar signInDetails download alongside Task 309's richer account record.
+    // account() has already copied metadata without invoking getters or toJSON hooks.
+    const signInDetails = Object.entries(ownAccount.userMetadata ?? {}).flatMap(([name, value]) => {
+      if (name.length < 1 || name.length > 100 ||
+          !(value === null || typeof value === 'boolean' ||
+            (typeof value === 'number' && Number.isFinite(value)) ||
+            (typeof value === 'string' && value.length <= 2048))) return [];
+      return [{ name, value }];
+    }).slice(0, 100);
+    return {
+      ok: true,
+      data: {
+        profile: profiles[0] ?? {}, signInDetails, account: ownAccount,
+        attempts, examPlans, reviewRows, reports, sessions, studyEvents,
+      },
+    };
   } catch {
     // Never show or log a database error. It could contain another person's data or SQL internals.
     return { ok: false, message: ERROR_MESSAGE };
@@ -278,17 +396,19 @@ interface SupabaseQuery {
 /** Small structural interface: importing this module does not import Supabase or start a session. */
 export interface SupabaseExportClient {
   from(table: ExportTable): { select(columns: string): SupabaseQuery };
-  rpc(name: 'my_flags'): SupabaseQuery;
+  rpc(name: ExportRpc): SupabaseQuery;
+  auth: { getUser(): PromiseLike<ReadResult> };
 }
 
 /** Stable unique row keys for keyset pagination. profiles has at most one row. */
-const CURSOR_COLUMN: Record<ExportTable | 'my_flags', string | null> = {
+const CURSOR_COLUMN: Record<ExportTable | ExportRpc, string | null> = {
   profiles: null,
   attempts: 'id',
   exam_plans: 'id',
   review_state: 'item_id',
   study_events: 'id',
   my_flags: 'id',
+  my_sessions: 'id',
 };
 
 /**
@@ -299,7 +419,7 @@ const CURSOR_COLUMN: Record<ExportTable | 'my_flags', string | null> = {
  * The cursor must rise strictly on every row, so reading always ends. A failed read is
  * yielded as an error page and ends the set.
  */
-async function* pages(makeQuery: () => SupabaseQuery, which: ExportTable | 'my_flags'): AsyncGenerator<ReadResult> {
+async function* pages(makeQuery: () => SupabaseQuery, which: ExportTable | ExportRpc): AsyncGenerator<ReadResult> {
   const key = CURSOR_COLUMN[which];
   let cursor: string | null = null;
   for (;;) {
@@ -322,7 +442,7 @@ async function* pages(makeQuery: () => SupabaseQuery, which: ExportTable | 'my_f
 }
 
 /** Read a whole capped set, refusing it if it passes its cap. */
-async function allPages(makeQuery: () => SupabaseQuery, which: WholeTable | 'my_flags'): Promise<ReadResult> {
+async function allPages(makeQuery: () => SupabaseQuery, which: WholeTable | ExportRpc): Promise<ReadResult> {
   const results: unknown[] = [];
   for await (const page of pages(makeQuery, which)) {
     if (page.error != null || !Array.isArray(page.data)) return { data: null, error: page.error };
@@ -332,11 +452,15 @@ async function allPages(makeQuery: () => SupabaseQuery, which: WholeTable | 'my_
   return { data: results, error: null };
 }
 
-/** Uses only the tables and RPC explicitly allowed by Task 61 (and study_events, Task 140). */
+/**
+ * Uses only the tables and RPC explicitly allowed by Task 61 (and study_events, Task 140; my_sessions and
+ * auth.getUser(), Task 309).
+ */
 export function fromSupabase(client: SupabaseExportClient): ExportReader {
   return {
     select: (table, columns) => allPages(() => client.from(table).select(columns), table),
     selectPages: (table, columns) => pages(() => client.from(table).select(columns), table),
     rpc: (name) => allPages(() => client.rpc(name), name),
+    user: () => client.auth.getUser(),
   };
 }
