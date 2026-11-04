@@ -139,6 +139,8 @@ function scan(text: string, extension: string): Logging[] {
     // Keep the complete opening tag for the template-expression AST below.
     let tagQuote = '';
     let tagBraces = 0;
+    let attrName = '';
+    let hasIsRaw = false;
     let at = i + match[0].length;
     for (; at < markup.length; at++) {
       const c = markup[at]!;
@@ -155,10 +157,20 @@ function scan(text: string, extension: string): Logging[] {
       else if (tagBraces === 0 && (c === '"' || c === "'")) tagQuote = c;
       else if (c === '{') tagBraces++;
       else if (c === '}') tagBraces = Math.max(0, tagBraces - 1);
-      else if (c === '>' && tagBraces === 0) break;
+      else if (c === '>' && tagBraces === 0) {
+        if (attrName.toLowerCase() === 'is:raw') hasIsRaw = true;
+        break;
+      } else if (tagBraces === 0) {
+        if (/[a-zA-Z0-9_:-]/.test(c)) {
+          attrName += c;
+        } else {
+          if (attrName.toLowerCase() === 'is:raw') hasIsRaw = true;
+          attrName = '';
+        }
+      }
     }
     const openTag = markup.slice(i, at + 1);
-    const isRaw = tagName === 'script' || tagName === 'style' || /\bis:raw\b/i.test(openTag);
+    const isRaw = tagName === 'script' || tagName === 'style' || hasIsRaw;
     if (!isRaw) return false;
 
     const contentStart = Math.min(at + 1, markup.length);
@@ -419,6 +431,8 @@ describe('debug-console source guard', () => {
       .toEqual([{ line: 1, method: 'log' }]);
     expect(scan('<p title="}">Text</p><script>console.debug("actual")</script>', '.astro'))
       .toEqual([{ line: 1, method: 'debug' }]);
+    expect(scan('<p title="is:raw">{console.log("actual")}</p>', '.astro'))
+      .toEqual([{ line: 1, method: 'log' }]);
     expect(scan('<pre is:raw>{console.log("example")}</pre>\n<p>{console.debug("actual")}</p>', '.astro'))
       .toEqual([{ line: 2, method: 'debug' }]);
     expect(scan('<pre is:raw title={console.log("server")}>{console.log("example")}</pre>', '.astro'))
