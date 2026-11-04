@@ -3,7 +3,7 @@ import { indexablePages } from '../../src/config/routes';
 import { GET, sitemapXml } from '../../src/pages/sitemap.xml';
 
 // Keep this response test independent of Astro's live content collection.
-vi.mock('../../src/lessons/load', () => ({ lessonCatalog: async () => [] }));
+vi.mock('../../src/lessons/load', () => ({ lessonCatalog: async () => ({ lessons: [], problems: [] }) }));
 
 const noindexPages = ['/auth/callback', '/reset-password', '/signin', '/signup', '/start', '/subscribed', '/progress', '/breaks'];
 
