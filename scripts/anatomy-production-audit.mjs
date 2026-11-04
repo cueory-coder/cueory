@@ -21,6 +21,7 @@ const MODEL_ASSET = /\.(?:glb|gltf|obj|stl)$/i;
 const TEXT_ASSET = /\.(?:html?|js|mjs|json|map|xml|svg|txt|css|csv|tsv|md|webmanifest)$/i;
 const SCRIPT_ESCAPES_ASSET = /\.(?:js|mjs|json|map|webmanifest|html?)$/i;
 const MARKUP_ESCAPES_ASSET = /\.(?:html?|svg|xml)$/i;
+const CSS_ESCAPES_ASSET = /\.css$/i;
 
 /** Walk a built artifact without following links outside (or back into) the output. */
 function walkFiles(dir, linked) {
@@ -82,6 +83,15 @@ export function decodeAsciiEscapesForAudit(text, syntax) {
       const value = hex === undefined ? Number.parseInt(decimal, 10) : Number.parseInt(hex, 16);
       return value <= 127 ? String.fromCharCode(value) : match;
     });
+  }
+  if (syntax === 'css') {
+    // CSS hex escapes use one to six digits, optionally followed by one space
+    // or other CSS whitespace. Paired backslashes are literal, not active escapes.
+    return text.replace(/(?<!\\)((?:\\\\)*)\\([0-9a-f]{1,6})(?:[ \t\r\n\f])?/gi,
+      (match, pairs, hex) => {
+        const value = Number.parseInt(hex, 16);
+        return value > 0 && value <= 127 ? pairs + String.fromCharCode(value) : match;
+      });
   }
   return text;
 }
@@ -284,6 +294,7 @@ export function auditAnatomyProduction(distDir, contentDir) {
     const variants = [contents];
     if (SCRIPT_ESCAPES_ASSET.test(file)) variants.push(decodeAsciiEscapesForAudit(contents, 'script'));
     if (MARKUP_ESCAPES_ASSET.test(file)) variants.push(decodeAsciiEscapesForAudit(contents, 'markup'));
+    if (CSS_ESCAPES_ASSET.test(file)) variants.push(decodeAsciiEscapesForAudit(contents, 'css'));
     if (draftTokens.size) {
       let exposedDraft = null;
       for (const variant of variants) {

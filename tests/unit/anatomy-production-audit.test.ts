@@ -44,6 +44,26 @@ function setup() {
 }
 
 describe('anatomy production artifact audit', () => {
+  it('rejects CSS hex-escaped draft and fixture IDs in published stylesheets', () => {
+    const f = setup();
+    f.file('_astro/escaped-anatomy.css', String.raw`.draft::before { content: "\46 MA999991"; } .fixture::after { content: "\46 IX001"; }`);
+    expect(f.check().errors).toEqual(expect.arrayContaining([
+      'draft anatomy ID exposed in built text: _astro/escaped-anatomy.css (FMA999991)',
+      'test fixture ID exposed in built text: _astro/escaped-anatomy.css (FIX001)',
+    ]));
+  });
+
+  it('decodes only active CSS hex escapes with at most six digits', () => {
+    expect(decodeAsciiEscapesForAudit(String.raw`\000046 IX001`, 'css')).toBe('FIX001');
+    expect(decodeAsciiEscapesForAudit(String.raw`\0042 P24`, 'css')).toBe('BP24');
+    expect(decodeAsciiEscapesForAudit(String.raw`\46  MA999991`, 'css')).toBe('F MA999991');
+    expect(decodeAsciiEscapesForAudit(String.raw`\\46 MA999991`, 'css')).toBe(String.raw`\\46 MA999991`);
+    expect(decodeAsciiEscapesForAudit(String.raw`\\\46 IX001`, 'css')).toBe(String.raw`\\FIX001`);
+    expect(decodeAsciiEscapesForAudit(String.raw`\00000046IX001`, 'css')).toBe(String.raw`\00000046IX001`);
+    const f = setup();
+    f.file('_astro/escaped-literals.css', String.raw`.literal::before { content: "\\46 MA999991"; } .invalid::after { content: "\00000046IX001"; }`);
+    expect(f.check().errors).toEqual([]);
+  });
   it('accepts a build with approved models and no exposed drafts', () => {
     expect(setup().check()).toEqual({ errors: [], approvedSystems: 1, draftSystems: 1, shippedModels: 1 });
   });
