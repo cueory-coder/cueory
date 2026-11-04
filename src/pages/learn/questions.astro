@@ -1,0 +1,50 @@
+---
+/**
+ * Real questions (Task 172): /learn/questions?concept=<slug>. One static page for every concept. The island reads the
+ * concept from the address and loads its published questions from the database after the page opens, so the built HTML
+ * holds no question text and no list of concepts. Kept out of search engines until launch.
+ */
+import Layout from '../../layouts/Layout.astro';
+import PublishedQuestions from '../../islands/PublishedQuestions';
+---
+
+<Layout
+  title="questions"
+  description="practice questions with rationales, checked when you answer."
+  variant="study"
+  noindex
+>
+  <div class="mx-auto w-full max-w-prose py-section">
+    <header class="space-y-3">
+      <h1 class="text-2xl">questions</h1>
+      <p class="text-ink-soft">pick your answer and check it. then you see why each choice is right or not.</p>
+    </header>
+
+    <section
+      class="mt-8 rounded-lg border border-line bg-page p-5 shadow-card sm:p-8"
+      aria-label="question practice"
+      data-testid="question-surface"
+    >
+      <div data-testid="questions">
+        <PublishedQuestions client:only="react" />
+        <noscript>
+          <p>questions need JavaScript. you can still browse the <a href="/learn">course library</a>.</p>
+        </noscript>
+      </div>
+    </section>
+
+    <nav aria-label="more ways to study" class="mt-section border-t border-line pt-6">
+      <ul class="flex flex-wrap gap-3 text-sm">
+        <li>
+          <a
+            href="/learn"
+            class="inline-flex min-h-11 items-center rounded-pill border border-control px-5 py-3 text-ink no-underline hover:bg-surface focus-visible:bg-surface"
+          >
+            back to the course library
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</Layout>
+
