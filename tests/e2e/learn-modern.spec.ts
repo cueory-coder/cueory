@@ -59,7 +59,8 @@ for (const size of sizes) {
   test(`a whole round of the sample deck works by keyboard alone at ${size.label} size`, async ({ page }) => {
     await page.setViewportSize({ width: size.width, height: size.height });
     await page.goto(LEARN_URL);
-    await expect(page.locator('main header p').first()).toHaveText('How to study for nursing school · lesson 1 · learn mode');
+    // Check the label derived from the lesson metadata, without assuming a header wrapper.
+    await expect(page.getByText('How to study for nursing school · lesson 1 · learn mode', { exact: true })).toBeVisible();
     const bar = page.getByRole('progressbar', { name: 'Cards mastered' });
     await expect(bar).toHaveAttribute('aria-valuenow', '0');
     await expect(page.getByText('Mastered 0 of 3')).toBeVisible();

@@ -14,6 +14,8 @@ The order of the lessons themselves comes from the med-surg lesson map in [docs/
 electrolytes, acid-base) come first, then the systems in the order shown. The map is an outline of topics only: every
 lesson still goes through the content pipeline, and each visual names the `lesson_id` it serves.
 
+A Draft 4 reorganization is under review in separate pull requests. Its proposed block catalog, objectives and legacy crosswalk are not yet part of `staging`, so do not treat their IDs or mappings as approved for question authoring. The historical 19-unit Med-Surg map remains the available reference until the new data, validator and crosswalk are reviewed and merged.
+
 ## Task 1 — Static site foundation (see STATUS.md)
 Repo, design tokens, `main` and `staging` deploy branches, placeholder pages, launch-updates signup (Kit), security
 headers and CSP, CodeQL, Dependabot, secret scanning, CI, rules docs, Cloudflare setup steps.
