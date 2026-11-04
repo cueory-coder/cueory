@@ -48,7 +48,7 @@ const FAILED_ADAPTER: AdminFlagsAdapter = Object.freeze({
  */
 export default function AdminFlags({ sampleRows }: Props) {
   const sample = useMemo(() => (sampleRows ? makeMemoryAdapter(sampleRows) : null), [sampleRows]);
-  const [client, setClient] = useState<{ adapter: AdminFlagsAdapter; auth: LevelReader | null } | null>(null);
+  const [client, setClient] = useState<{ adapter: AdminFlagsAdapter; auth: LevelReader | null; watchAuth?: (invalidate: () => void) => () => void } | null>(null);
   const [clientAttempt, setClientAttempt] = useState(0);
   const adapter = sample ?? client?.adapter ?? null;
   const mark = useMemo(() => makeMarker(adapter ?? UNWIRED_ADAPTER), [adapter]);
@@ -64,6 +64,8 @@ export default function AdminFlags({ sampleRows }: Props) {
   const statusCells = useRef(new Map<string, HTMLTableCellElement>());
   const focusAfter = useRef<string | null>(null);
   const timeZone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
+  // Invalidate responses started under an older auth session, including work still in flight.
+  const authEpoch = useRef(0);
 
   // The shared client, loaded once (again after "try again" if its download failed). Accounts off: refuse everything.
   useEffect(() => {
@@ -73,7 +75,14 @@ export default function AdminFlags({ sampleRows }: Props) {
       (supabase) => {
         if (!live) return;
         setClient(supabase
-          ? { adapter: inboxAdapter((fn, args) => supabase.rpc(fn, args)), auth: supabase.auth }
+          ? {
+              adapter: inboxAdapter((fn, args) => supabase.rpc(fn, args)),
+              auth: supabase.auth,
+              watchAuth: (invalidate: () => void) => {
+                const { data } = supabase.auth.onAuthStateChange(() => invalidate());
+                return () => data.subscription.unsubscribe();
+              },
+            }
           : { adapter: UNWIRED_ADAPTER, auth: null });
       },
       () => { if (live) setClient({ adapter: FAILED_ADAPTER, auth: null }); },
@@ -83,13 +92,31 @@ export default function AdminFlags({ sampleRows }: Props) {
     };
   }, [sample, clientAttempt]);
 
+  // Supabase broadcasts sign-out and account/token changes across tabs. Drop private rows
+  // immediately, not only after the next admin RPC refuses the changed session.
+  useEffect(() => {
+    if (sample || !client?.watchAuth) return;
+    return client.watchAuth(() => {
+      authEpoch.current += 1;
+      focusAfter.current = null;
+      statusCells.current.clear();
+      setAdmitted(false);
+      setScreen({ kind: 'loading' });
+      setPending(new Set());
+      setRowProblem({});
+      setAnnouncement('');
+      setAttempt((n) => n + 1);
+    });
+  }, [client, sample]);
+
   useEffect(() => {
     if (!adapter) return;
     let live = true;
+    const epoch = authEpoch.current;
     setScreen({ kind: 'loading' });
     setRowProblem({});
     loadView(adapter, status).then((view) => {
-      if (!live) return;
+      if (!live || epoch !== authEpoch.current) return;
       if (view.kind === 'ok') setAdmitted(true);
       setScreen(view);
     });
@@ -116,6 +143,7 @@ export default function AdminFlags({ sampleRows }: Props) {
 
   const onAction = async (row: FlagRow, action: 'mark' | 'reopen') => {
     if (pending.has(row.id)) return;
+    const epoch = authEpoch.current;
     setPending((p) => new Set(p).add(row.id));
     setRowProblem((r) => {
       const next = { ...r };
@@ -127,6 +155,7 @@ export default function AdminFlags({ sampleRows }: Props) {
       action === 'mark'
         ? await mark(row.id)
         : await reopen(row.id).then((o) => (o.kind === 'ok' ? { kind: 'ok' as const, handledAt: null } : o));
+    if (epoch !== authEpoch.current) return;
     setPending((p) => {
       const next = new Set(p);
       next.delete(row.id);

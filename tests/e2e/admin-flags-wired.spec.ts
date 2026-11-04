@@ -30,7 +30,7 @@ test.beforeAll(async () => {
       import AdminFlags from './src/islands/AdminFlags.tsx';
       const params = new URLSearchParams(location.search);
       // who: admin (aal2), admin-aal1 (two-factor on, code not entered), student, broken (every call fails once).
-      const who = params.get('who') ?? 'admin';
+      let who = params.get('who') ?? 'admin';
       window.rpcCalls = [];
       const id = n => '00000000-0000-4000-8000-' + String(n).padStart(12, '0');
       let rows = [
@@ -50,7 +50,11 @@ test.beforeAll(async () => {
       }
       let failures = who === 'broken' ? 1 : 0;
       const refusal = { code: '42501', message: 'only the site owner, signed in with two-factor, can do this', details: null, hint: null };
-      const later = value => new Promise(resolve => setTimeout(() => resolve(value), 50));
+      window.completedRpcs = 0;
+      const later = value => new Promise(resolve => setTimeout(() => {
+        window.completedRpcs += 1;
+        resolve(value);
+      }, params.get('delay') === 'slow' ? 350 : 50));
       const rpc = (fn, args) => {
         window.rpcCalls.push([fn, args]);
         if (failures > 0) { failures -= 1; return later({ data: null, error: { code: '57014', message: 'provider-private-detail' } }); }
@@ -73,11 +77,30 @@ test.beforeAll(async () => {
         }
         return later({ data: null, error: { code: 'PGRST202', message: 'unknown function' } });
       };
-      const level = who === 'admin' || who === 'broken' || who === 'capped' ? 'aal2' : 'aal1';
-      const nextLevel = who === 'student' ? 'aal1' : 'aal2';
+      const listeners = new Set();
+      window.setFixtureWho = next => {
+        who = next;
+        // The real Supabase listener emits this after cross-tab sign-out and account changes.
+        for (const listener of listeners) {
+          listener(next === 'signed-out' ? 'SIGNED_OUT' : 'SIGNED_IN',
+            next === 'signed-out' ? null : { user: { id: id(999) } });
+        }
+      };
       window.fixtureClient = {
         rpc,
-        auth: { mfa: { getAuthenticatorAssuranceLevel: () => later({ data: { currentLevel: level, nextLevel }, error: null }) } },
+        auth: {
+          onAuthStateChange: listener => {
+            listeners.add(listener);
+            return { data: { subscription: { unsubscribe: () => listeners.delete(listener) } } };
+          },
+          mfa: { getAuthenticatorAssuranceLevel: () => later({
+            data: {
+              currentLevel: who === 'admin' || who === 'broken' || who === 'capped' ? 'aal2' : 'aal1',
+              nextLevel: who === 'student' ? 'aal1' : 'aal2',
+            },
+            error: null,
+          }) },
+        },
       };
       createRoot(document.getElementById('fixture')).render(<AdminFlags />);
     `, resolveDir: process.cwd(), loader: 'tsx' },
@@ -153,6 +176,28 @@ test.describe('/admin/flags wired to the database functions', () => {
     await fixture(page, 'who=admin');
     await expect(page.getByTestId('admin-flags-row')).toHaveCount(2);
     await expect(page.getByTestId('admin-flags-capped')).toHaveCount(0);
+  });
+
+  test('a sign-out or account switch clears an already loaded private inbox', async ({ page }) => {
+    await fixture(page, 'who=admin');
+    await expect(page.getByTestId('admin-flags-row')).toHaveCount(2);
+
+    await page.evaluate(() => (window as unknown as { setFixtureWho: (value: string) => void }).setFixtureWho('student'));
+    await expect(page.getByRole('heading', { level: 1, name: 'this page is for the site owner.' })).toBeVisible();
+    await expect(page.getByTestId('admin-flags-row')).toHaveCount(0);
+    await expect(page.locator('body')).not.toContainText('sample comment one');
+  });
+
+  test('a delayed pre-sign-out response cannot restore private rows', async ({ page }) => {
+    await fixture(page, 'who=admin&delay=slow');
+    await expect.poll(async () => (await calls(page)).length).toBeGreaterThan(0);
+    await page.evaluate(() => (window as unknown as { setFixtureWho: (value: string) => void }).setFixtureWho('signed-out'));
+
+    await expect(page.getByRole('heading', { level: 1, name: 'this page is for the site owner.' })).toBeVisible();
+    await expect.poll(async () => page.evaluate(() =>
+      (window as unknown as { completedRpcs: number }).completedRpcs)).toBeGreaterThanOrEqual(2);
+    await expect(page.getByTestId('admin-flags-row')).toHaveCount(0);
+    await expect(page.locator('body')).not.toContainText('sample comment one');
   });
 
   test('a student is refused with the one sentence, and stays on the page', async ({ page }) => {
