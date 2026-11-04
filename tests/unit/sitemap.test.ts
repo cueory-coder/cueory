@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { indexablePages } from '../../src/config/routes';
 import { sitemapXml } from '../../src/pages/sitemap.xml';
 
-const noindexPages = ['/auth/callback', '/reset-password', '/signin', '/signup', '/start', '/subscribed', '/progress', '/breaks'];
+const noindexPages = ['/auth/callback', '/reset-password', '/signin', '/signup', '/start', '/subscribed', '/progress', '/breaks', '/account/two-factor'];
 
 describe('sitemap', () => {
   it('lists every indexable page and no noindex page', () => {
