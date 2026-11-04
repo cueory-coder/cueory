@@ -17,7 +17,7 @@ import Wordmark from './Wordmark.astro';
 import { footerLinks, site } from '../config/site';
 import FlagMount from '../islands/FlagMount';
 import { flagItemContext } from '../islands/flagconnect';
-import { FOOTER_TOGGLE_LABELS, flagMailto } from '../scripts/footer';
+import { FOOTER_TOGGLE_LABELS, flagMailto, publicPath } from '../scripts/footer';
 
 interface Props {
   /** Sharpening rounds and timed review: no flag while the clock runs. */
@@ -110,7 +110,7 @@ const barButton =
                   <a
                     href={link.href}
                     class="text-ink-soft hover:text-ink"
-                    aria-current={link.href === Astro.url.pathname ? 'page' : undefined}
+                    aria-current={link.href === publicPath(Astro.url.pathname) ? 'page' : undefined}
                   >
                     {link.label}
                   </a>
