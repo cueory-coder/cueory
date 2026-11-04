@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { initialsFor } from './account';
 import { getSupabase } from './supabaseclient';
+import { afterSignIn } from './twofactor';
 import { performAuthAction, resendSeconds, safeNext, signInMessage, type AuthAction, type SignInAuth } from './signin.ts';
 export type { SignInAuth } from './signin.ts';
 
@@ -124,7 +125,11 @@ export default function SignIn({ auth: suppliedAuth, mode = 'signin', children }
       // Credentials live only in the field and this request. Never persist or log them.
       setPassword('');
       if (outcome.kind === 'oauth') return;
-      if (outcome.kind === 'redirect') { window.location.assign(outcome.next); return; }
+      if (outcome.kind === 'redirect') {
+        // An account with two-factor on enters its code first, then comes back to `next` (Task 301).
+        window.location.assign(await afterSignIn(auth, outcome.next, window.location.origin));
+        return;
+      }
       setMessage(outcome.message);
       if (outcome.cooldown) {
         deadline.current = Date.now() + 60_000;
