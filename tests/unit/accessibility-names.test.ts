@@ -90,7 +90,7 @@ function decodeEntities(text: string): string {
   return text.replace(/&(?:nbsp|amp|lt|gt|quot|#39);/gi, (entity) => ENTITY_MAP[entity.toLowerCase()] ?? entity);
 }
 
-function visibleText(markup: string): string {
+function visibleText(markup: string, includeHidden = false): string {
   const stack: Array<{ name: string; suppressed: boolean }> = [];
   let output = '';
   let index = 0;
@@ -118,7 +118,10 @@ function visibleText(markup: string): string {
     } else if (!tag.endsWith('/>') && !['area', 'base', 'br', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'source', 'track', 'wbr'].includes(name)) {
       stack.push({
         name,
-        suppressed: stack.some((entry) => entry.suppressed) || ['noscript', 'script', 'style'].includes(name) || hasHiddenAttribute(tag.slice(name.length + 1, -1)),
+        suppressed:
+          stack.some((entry) => entry.suppressed) ||
+          ['noscript', 'script', 'style'].includes(name) ||
+          (!includeHidden && hasHiddenAttribute(tag.slice(name.length + 1, -1))),
       });
     }
     index = end + 1;
