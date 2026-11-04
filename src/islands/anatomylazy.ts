@@ -196,6 +196,35 @@ export function fileReadyForStructureStatus(isLoaded: boolean, pendingLayerBatch
   return isLoaded && pendingLayerBatches === 0;
 }
 
+/**
+ * One atomic publication for a completed GLB: its structure IDs and URL
+ * become visible in the same React state update. This prevents a new download
+ * from retracting confirmed missing statuses for unrelated owner files.
+ *
+ * The returned state never mutates its input (including publishedFiles).
+ */
+export interface PublishedAnatomyFileState {
+  result: { found: string[]; missing: string[]; triangles: number };
+  publishedFiles: ReadonlySet<string>;
+}
+
+export function publishAnatomyFile(
+  previous: PublishedAnatomyFileState,
+  url: string,
+  incoming: PublishedAnatomyFileState['result'],
+): PublishedAnatomyFileState {
+  const found = [...new Set([...previous.result.found, ...incoming.found])];
+  const foundSet = new Set(found);
+  return {
+    result: {
+      found,
+      missing: previous.result.missing.filter((id) => !foundSet.has(id)),
+      triangles: previous.result.triangles + incoming.triangles,
+    },
+    publishedFiles: new Set([...previous.publishedFiles, url]),
+  };
+}
+
 /** Count only verified missing IDs using the same owning-file rule as the list. */
 export function knownMissingStructureIds(
   structures: readonly Pick<AnatomyStructure, 'id' | 'layer'>[],
