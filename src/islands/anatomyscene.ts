@@ -8,8 +8,9 @@
  */
 import * as THREE from 'three';
 import { disposeAnatomyMaterials, disposeAnatomyMeshResources, indexAnatomyGroup, summarizeIndexedAnatomyIds } from './anatomymeshindex';
+import { withTemporaryMeshAppearance } from './anatomyidpass';
 import { createDemandFrameScheduler, remainingIdleDelay } from './anatomyframe';
-import { loadModelsOrDispose } from './anatomylazy';
+import { loadModelsOrDispose, uniqueAnatomyModelUrls } from './anatomylazy';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
@@ -361,41 +362,51 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
   }
 
   function renderIds(cam: THREE.Camera, width: number, height: number, into: THREE.WebGLRenderer): Uint8Array {
-    const saved: Array<[THREE.Mesh, THREE.Material | THREE.Material[], number]> = [];
-    const highlighted = visibleSelection(appearance.selected, appearance.hidden);
-    order.forEach((id, index) => {
-      const isSelected = id === highlighted;
-      for (const mesh of meshesById.get(id) ?? []) {
-        saved.push([mesh, mesh.material, mesh.renderOrder]);
-        const material = idMaterialFor(index);
-        material.depthTest = !isSelected;
-        mesh.material = material;
-        mesh.renderOrder = isSelected ? 10 : 0;
-      }
-    });
-    for (const mesh of unlabeled) {
-      saved.push([mesh, mesh.material, mesh.renderOrder]);
-      mesh.material = nothing;
-    }
+    // Prepare allocations and renderer state before changing any visible mesh.
+    // WebGL failures in setup, rendering, or pixel readback must never leave
+    // the flat ID-pass materials attached to the student's actual 3D model.
     const pixels = new Uint8Array(width * height * 4);
     const clear = into.getClearColor(new THREE.Color());
     const clearAlpha = into.getClearAlpha();
-    try {
-      idTarget.setSize(width, height);
-      into.setRenderTarget(idTarget);
-      into.setClearColor(new THREE.Color(0, 0, 0), 1);
-      into.clear();
-      into.render(scene, cam);
-      into.readRenderTargetPixels(idTarget, 0, 0, width, height, pixels);
-    } finally {
-      into.setRenderTarget(null);
-      into.setClearColor(clear, clearAlpha);
-      for (const [mesh, material, renderOrder] of saved) {
-        mesh.material = material;
-        mesh.renderOrder = renderOrder;
-      }
-    }
-    return pixels;
+    const highlighted = visibleSelection(appearance.selected, appearance.hidden);
+
+    return withTemporaryMeshAppearance(
+      (remember) => {
+        order.forEach((id, index) => {
+          const isSelected = id === highlighted;
+          for (const mesh of meshesById.get(id) ?? []) {
+            remember(mesh);
+            const material = idMaterialFor(index);
+            material.depthTest = !isSelected;
+            mesh.material = material;
+            mesh.renderOrder = isSelected ? 10 : 0;
+          }
+        });
+        for (const mesh of unlabeled) {
+          remember(mesh);
+          mesh.material = nothing;
+        }
+      },
+      () => {
+        try {
+          idTarget.setSize(width, height);
+          into.setRenderTarget(idTarget);
+          into.setClearColor(new THREE.Color(0, 0, 0), 1);
+          into.clear();
+          into.render(scene, cam);
+          into.readRenderTargetPixels(idTarget, 0, 0, width, height, pixels);
+        } finally {
+          // Attempt both renderer-state resets even if one throws. The outer
+          // material guard then restores all real meshes regardless.
+          try {
+            into.setRenderTarget(null);
+          } finally {
+            into.setClearColor(clear, clearAlpha);
+          }
+        }
+        return pixels;
+      },
+    );
   }
 
   /**
@@ -461,7 +472,8 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
     await MeshoptDecoder.ready;
     const loader = new GLTFLoader();
     loader.setMeshoptDecoder(MeshoptDecoder);
-    const list = typeof urls === 'string' ? [urls] : [...urls];
+    // Repeated shared GLB URLs must not trigger a second physical decode.
+    const list = uniqueAnatomyModelUrls(urls);
     // A failed file cannot leave earlier or later decoded meshes in memory.
     // Scene.add has not run yet, so failed initial loads must release all parts.
     const scenes = await loadModelsOrDispose(
