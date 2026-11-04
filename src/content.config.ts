@@ -4,6 +4,7 @@ import { z } from 'astro/zod';
 import { sentenceParts } from './islands/fillin';
 import { parseSet as parseLabelSet } from './islands/labelit';
 import { sampleChecker, type SampleItem } from './islands/questions';
+import { questionContentProblems } from './content/question-validation';
 import { visualProblems } from './visuals/sources';
 import { videoSchema } from './videos/schema';
 
