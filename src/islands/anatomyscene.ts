@@ -7,7 +7,7 @@
  * Colors come from the brand tokens at runtime (getComputedStyle), so the model follows the Daytime and Evening palettes.
  */
 import * as THREE from 'three';
-import { disposeAnatomyMaterials, disposeAnatomyMeshResources, indexAnatomyGroup } from './anatomymeshindex';
+import { disposeAnatomyMaterials, disposeAnatomyMeshResources, indexAnatomyGroup, summarizeIndexedAnatomyIds } from './anatomymeshindex';
 import { createDemandFrameScheduler, remainingIdleDelay } from './anatomyframe';
 import { loadModelsOrDispose } from './anatomylazy';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -488,8 +488,10 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
     }
     group.updateMatrixWorld(true);
     const { touched, triangles } = indexAnatomyGroup(group, ids, meshesById, unlabeled);
-    const added = ids.filter((id) => (meshesById.get(id)?.length ?? 0) > 0 && !order.includes(id));
-    for (const id of ids) if (!added.includes(id) && !order.includes(id)) meshesById.delete(id);
+    // An ID already found in an earlier GLB is neither newly added nor missing
+    // when another file contributes geometry to the same structure.
+    const { added, missing } = summarizeIndexedAnatomyIds(ids, order, meshesById);
+    for (const id of missing) if (!order.includes(id)) meshesById.delete(id);
     order = [...order, ...added];
     // Additional GLBs can expand a previously indexed structure's geometry.
     for (const id of touched) {
@@ -499,7 +501,7 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
       boxes.set(id, box);
     }
     visibilityDirty = true;
-    return { found: added, missing: ids.filter((id) => !added.includes(id)), triangles: Math.round(triangles) };
+    return { found: added, missing, triangles: Math.round(triangles) };
   }
 
   async function load(urls: string | readonly string[], ids: readonly string[]): Promise<LoadResult | null> {
