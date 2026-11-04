@@ -984,26 +984,55 @@ test.describe('anatomy lab whole body loads layers on demand', () => {
 test.describe('anatomy lab system switch', () => {
   test('the old model is not shown after switching, and a late layer from the old system changes nothing', async ({ page }) => {
     const release: Array<() => void> = [];
-    // Hold every model file until the test lets it go, so the order of arrival is ours.
+    let holdRequests = true;
+    // Hold models only for the current phase. Once a batch has been released,
+    // late sibling GLBs must not remain blocked by an obsolete release list.
     await page.route(/\.glb(\?|$)/, async (route) => {
-      await new Promise<void>((resolve) => release.push(resolve));
+      if (holdRequests) await new Promise<void>((resolve) => release.push(resolve));
       await route.continue();
     });
-    await page.goto('/preview/anatomy-lab');
-    await page.getByRole('button', { name: 'open the anatomy lab' }).click();
-    await expect(page.locator('canvas')).toBeVisible({ timeout: 15_000 });
-    const picker = page.getByRole('group', { name: 'body system' });
-    const buttons = picker.getByRole('button');
-    await expect.poll(() => buttons.count()).toBeGreaterThanOrEqual(2);
-    await expect.poll(() => release.length).toBeGreaterThan(0);
-    release.splice(0).forEach((r) => r());
-    await expect(page.getByText(/^loading /)).toHaveCount(0, { timeout: 20_000 });
-    await buttons.nth(1).click();
-    // Held download of the new system: the old model must already be gone, and the loading state shown.
-    await expect(page.getByText(/^loading /).first()).toBeVisible();
-    await expect(list(page).getByRole('button').first()).toBeDisabled();
-    release.splice(0).forEach((r) => r());
-    await expect(page.getByText(/^loading /)).toHaveCount(0, { timeout: 20_000 });
+    try {
+      await page.goto('/preview/anatomy-lab');
+      await page.getByRole('button', { name: 'open the anatomy lab' }).click();
+      // The picker includes the client-composed whole-body option only after
+      // the viewer reaches its open phase, not merely when canvas is visible.
+      await expect(page.locator('canvas')).toBeFocused({ timeout: 15_000 });
+      const picker = page.getByRole('group', { name: 'body system' });
+      const buttons = picker.getByRole('button');
+      // Drafts are enabled for this test build: absence is a real regression,
+      // not a reason to silently skip the system-switch safety test.
+      await expect.poll(() => buttons.count(), { timeout: 15_000 }).toBeGreaterThanOrEqual(2);
+      await expect.poll(() => release.length).toBeGreaterThan(0);
+
+      holdRequests = false;
+      release.splice(0).forEach((resume) => resume());
+      await expect(page.getByText(/^loading /)).toHaveCount(0, { timeout: 20_000 });
+
+      // Re-arm exactly before the next system selection, so its GLB stays
+      // pending while the old model's controls are checked.
+      holdRequests = true;
+      await buttons.nth(1).click();
+      await expect(page.getByText(/^loading /).first()).toBeVisible();
+      const cameraControls = page.getByRole('group', { name: 'view' });
+      for (const name of ['turn left', 'turn right', 'tilt up', 'tilt down', 'zoom in', 'zoom out', 'reset view']) {
+        await expect(cameraControls.getByRole('button', { name, exact: true })).toBeDisabled();
+      }
+      await expect(page.getByRole('button', { name: 'square 1080×1080' })).toBeDisabled();
+      await expect(page.getByRole('button', { name: 'start the quiz' })).toBeDisabled();
+      await expect(list(page).getByRole('button').first()).toBeDisabled();
+
+      // The loading overlay may render before the actual GLB request reaches
+      // Playwright. Wait for a held route before releasing it, and allow any
+      // later sibling files through without another manual release.
+      await expect.poll(() => release.length, { timeout: 20_000 }).toBeGreaterThan(0);
+      holdRequests = false;
+      release.splice(0).forEach((resume) => resume());
+      await expect(page.getByText(/^loading /)).toHaveCount(0, { timeout: 20_000 });
+    } finally {
+      // Never strand intercepted requests when an assertion fails.
+      holdRequests = false;
+      release.splice(0).forEach((resume) => resume());
+    }
   });
 });
 
