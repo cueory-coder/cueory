@@ -35,7 +35,7 @@ describe('study-skills course lesson count on the generated lesson route', () =>
     expect(await countFromLearnMode(load([first, second, curriculum, other]), second)).toBe(2);
     expect(await countFromLearnMode(load([first, second, curriculum, other]), other)).toBe(1);
     expect(learnPage).toContain('const context = !lesson.curriculumId && olderLessons > 1 ? `${lesson.context} of ${olderLessons}` : lesson.context;');
-    expect(learnPage).toContain('{context} · learn mode');
+    expect(learnPage).toContain('>{context}</p>');
   });
 
   it('counts only legacy lessons in this course, not other courses or curriculum lessons', async () => {
