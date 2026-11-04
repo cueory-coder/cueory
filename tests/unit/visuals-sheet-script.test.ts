@@ -72,11 +72,11 @@ describe('arguments and output location', () => {
 });
 
 describe('draft sheet planning', () => {
-  it('copies the three actual drafts through reviewSheet and indexes every filename', () => {
-    expect(visuals).toHaveLength(3);
+  it('copies every actual draft through reviewSheet and indexes every filename', () => {
+    expect(visuals.length).toBeGreaterThanOrEqual(3);
     expect(visuals.every(visual => visual.status === 'draft')).toBe(true);
     const files = sheetFiles(visuals);
-    expect(files).toHaveLength(4);
+    expect(files).toHaveLength(visuals.length + 1);
     for (const visual of visuals) {
       expect(files.find(file => file.name === `${visual.id}.md`)?.text).toBe(reviewSheet(visual));
       expect(files.at(-1)?.text).toContain(`- [${visual.id}](${visual.id}.md)`);
@@ -104,12 +104,12 @@ describe('draft sheet planning', () => {
 });
 
 describe('native Node export', () => {
-  it('writes three real sheets and an index outside the repository, from any working folder', () => {
+  it('writes a real sheet for every draft and an index outside the repository, from any working folder', () => {
     const cwd = temporary();
     const out = join(cwd, 'nested', 'review sheets');
     const result = cli(['--out', out], cwd);
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toContain('3 draft review sheets');
+    expect(result.stdout).toContain(`${visuals.length} draft review sheets`);
     expect(readdirSync(out).sort()).toEqual(['index.md', ...visuals.map(visual => `${visual.id}.md`)].sort());
     for (const file of sheetFiles(visuals)) expect(readFileSync(join(out, file.name), 'utf8')).toBe(file.text);
     const again = cli(['--out', out], cwd);
