@@ -593,14 +593,19 @@ describe('debug-console source guard', () => {
   });
 
   it('contains no console.log or console.debug references in src', () => {
-    // Deliberate build-time logging allowlist with specific reasons (Task 278).
-    const allowlist: Record<string, string> = {
-      'src/visuals/prunedrafts.ts:70': 'Build-time notification when draft anatomy models are pruned from dist',
-    };
+    // This one build-time status message is intentional, not a browser debug log.
+    // Match the exact statement and method, not its line number: nearby source changes may shift it.
+    const approvedBuildNotice = 'if (removed.length > 0) console.log(`pruned ${removed.length} draft anatomy model(s) from the build`);';
     const violations = files(sourceRoot).flatMap((path) => {
       const rel = `src/${relative(sourceRoot, path)}`;
-      return scan(readFileSync(path, 'utf8'), extname(path))
-        .filter(({ line }) => !allowlist[`${rel}:${line}`])
+      const source = readFileSync(path, 'utf8');
+      const sourceLines = source.split(/\r?\n/);
+      return scan(source, extname(path))
+        .filter(({ line, method }) => !(
+          rel === 'src/visuals/prunedrafts.ts' &&
+          method === 'log' &&
+          sourceLines[line - 1]?.trim() === approvedBuildNotice
+        ))
         .map(({ line, method }) => `${rel}:${line}: console.${method}`);
     });
     expect(violations, violations.join('\n')).toEqual([]);
