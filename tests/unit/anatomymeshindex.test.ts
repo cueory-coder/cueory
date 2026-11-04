@@ -16,6 +16,55 @@ function sampleGroup(id: string, meshName = ''): { group: THREE.Group; mesh: THR
 }
 
 describe('anatomy GLB mesh registration', () => {
+  it('converts a glTF material shared by nested meshes without disposing it twice', () => {
+    const group = new THREE.Group();
+    const structure = new THREE.Group();
+    structure.name = 'TEST_SHARED_MATERIAL';
+    const nested = new THREE.Group();
+    group.add(structure);
+    structure.add(nested);
+    const oldMaterial = new THREE.MeshBasicMaterial();
+    const disposed = vi.spyOn(oldMaterial, 'dispose');
+    const upper = new THREE.Mesh(new THREE.BoxGeometry(), oldMaterial);
+    const lower = new THREE.Mesh(new THREE.BoxGeometry(), oldMaterial);
+    structure.add(upper);
+    nested.add(lower);
+    const indexed = new Map<string, THREE.Mesh[]>();
+    const unlabeled: THREE.Mesh[] = [];
+
+    expect(indexAnatomyGroup(group, ['TEST_SHARED_MATERIAL'], indexed, unlabeled))
+      .toEqual({ touched: ['TEST_SHARED_MATERIAL'], triangles: 24 });
+    expect(disposed).toHaveBeenCalledOnce();
+    expect(indexed.get('TEST_SHARED_MATERIAL')).toEqual([upper, lower]);
+    expect(unlabeled).toEqual([]);
+    expect(upper.material).toBeInstanceOf(THREE.MeshLambertMaterial);
+    expect(lower.material).toBeInstanceOf(THREE.MeshLambertMaterial);
+    expect(upper.material).not.toBe(lower.material);
+  });
+
+  it('continues registering later meshes if disposing an original material throws', () => {
+    const group = new THREE.Group();
+    group.name = 'TEST_GPU_LOSS';
+    const broken = new THREE.MeshBasicMaterial();
+    const healthy = new THREE.MeshBasicMaterial();
+    const brokenDispose = vi.spyOn(broken, 'dispose')
+      .mockImplementation(() => { throw new Error('lost WebGL context'); });
+    const healthyDispose = vi.spyOn(healthy, 'dispose');
+    const first = new THREE.Mesh(new THREE.BoxGeometry(), broken);
+    const second = new THREE.Mesh(new THREE.BoxGeometry(), healthy);
+    group.add(first, second);
+    const indexed = new Map<string, THREE.Mesh[]>();
+    const unlabeled: THREE.Mesh[] = [];
+
+    expect(indexAnatomyGroup(group, ['TEST_GPU_LOSS'], indexed, unlabeled))
+      .toEqual({ touched: ['TEST_GPU_LOSS'], triangles: 24 });
+    expect(brokenDispose).toHaveBeenCalledOnce();
+    expect(healthyDispose).toHaveBeenCalledOnce();
+    expect(indexed.get('TEST_GPU_LOSS')).toEqual([first, second]);
+    expect(first.material).toBeInstanceOf(THREE.MeshLambertMaterial);
+    expect(second.material).toBeInstanceOf(THREE.MeshLambertMaterial);
+  });
+
   it('adds duplicate structure IDs from later files to the same hide/pick/highlight bucket', () => {
     const first = sampleGroup('TEST_SHARED');
     const second = sampleGroup('TEST_SHARED');
