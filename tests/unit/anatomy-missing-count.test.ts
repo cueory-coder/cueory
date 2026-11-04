@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fileReadyForStructureStatus, knownMissingStructureIds } from '../../src/islands/anatomylazy';
+import { knownMissingStructureIds } from '../../src/islands/anatomylazy';
 import type { AnatomyStructure } from '../../src/islands/anatomylab';
 
 // Entirely synthetic IDs and GLB URLs. One file contains candidates for
@@ -43,21 +43,21 @@ describe('whole-body verified missing structure summary', () => {
     expect(missing(found, loaded)).toEqual(['sample-unlayered']);
   });
 
-  it('waits for found IDs to be committed after an overlapping GLB batch finishes', () => {
-    const loaded = new Set(allFiles);
-    // A shared file completed downloading, but its structure IDs are still
-    // held by a second pending file in that same layer's ensure() batch.
-    const staged = new Set(['sample-a', 'sample-c']);
-    const pendingStatus = (url: string) => fileReadyForStructureStatus(loaded.has(url), 1);
-    expect(fileReadyForStructureStatus(true, 1)).toBe(false);
-    expect(knownMissingStructureIds(structures, staged, filesFor, allFiles, pendingStatus)).toEqual([]);
+  it('waits for a file to be published even if its network download finished', () => {
+    const downloaded = new Set(allFiles);
+    const published = new Set(['vessels.glb']);
+    const found = new Set(['sample-a', 'sample-c']);
+    expect(downloaded.has('shared.glb')).toBe(true);
+    // The shared and other GLBs have not yet published their found IDs.
+    expect(knownMissingStructureIds(structures, found, filesFor, allFiles,
+      (url) => published.has(url))).toEqual([]);
 
-    // The batch settles and publishes both the shared file's ID and the rest.
-    staged.add('sample-b');
-    const settledStatus = (url: string) => fileReadyForStructureStatus(loaded.has(url), 0);
-    expect(fileReadyForStructureStatus(true, 0)).toBe(true);
-    expect(knownMissingStructureIds(structures, staged, filesFor, allFiles, settledStatus))
-      .toEqual(['sample-absent', 'sample-unlayered']);
+    // The owning URLs and found IDs become ready in the same state commit.
+    published.add('shared.glb');
+    found.add('sample-b');
+    published.add('other.glb');
+    expect(knownMissingStructureIds(structures, found, filesFor, allFiles,
+      (url) => published.has(url))).toEqual(['sample-absent', 'sample-unlayered']);
   });
 
   it('uses the exact owning GLB map for a missing ID, not the entire layer', () => {
@@ -78,20 +78,38 @@ describe('whole-body verified missing structure summary', () => {
       .toEqual(['sample-c', 'sample-absent', 'sample-unlayered']);
   });
 
-  it('never announces an absent owning ID while a layer batch is publishing IDs', () => {
+  it('keeps confirmed missing IDs and adds newly verified owners as files finish', () => {
     const ownership = {
       'shared.glb': ['sample-a'],
       'vessels.glb': ['sample-b'],
       'other.glb': ['sample-c', 'sample-absent'],
     };
-    const found = new Set(['sample-a', 'sample-b', 'sample-c']);
-    const loaded = new Set(allFiles);
-    const beforePublish = (url: string) => fileReadyForStructureStatus(loaded.has(url), 1);
-    expect(knownMissingStructureIds(structures, found, filesFor, allFiles, beforePublish, ownership))
-      .toEqual(['sample-unlayered']);
-    const afterPublish = (url: string) => fileReadyForStructureStatus(loaded.has(url), 0);
-    expect(knownMissingStructureIds(structures, found, filesFor, allFiles, afterPublish, ownership))
+    const published = new Set(['other.glb']);
+    const found = new Set(['sample-c']);
+    const fileReady = (url: string) => published.has(url);
+    // The real owner is published; two unrelated URLs remain pending.
+    expect(knownMissingStructureIds(structures, found, filesFor, allFiles, fileReady, ownership))
       .toEqual(['sample-absent', 'sample-unlayered']);
+    // Nothing about the existing confirmed absences changes while an unrelated
+    // GLB has not published its result.
+    expect(knownMissingStructureIds(structures, found, filesFor, allFiles, fileReady, ownership))
+      .toEqual(['sample-absent', 'sample-unlayered']);
+
+    published.add('vessels.glb');
+    // That GLB owns sample-b. Since sample-b is still not in found, it is now
+    // a newly verified missing mesh. The previously confirmed IDs remain.
+    expect(knownMissingStructureIds(structures, found, filesFor, allFiles, fileReady, ownership))
+      .toEqual(['sample-b', 'sample-absent', 'sample-unlayered']);
+
+    published.add('shared.glb');
+    expect(knownMissingStructureIds(structures, found, filesFor, allFiles, fileReady, ownership))
+      .toEqual(['sample-a', 'sample-b', 'sample-absent', 'sample-unlayered']);
+
+    // A later scene-state update can retract a missing ID only when that mesh
+    // is actually published into the combined found set.
+    found.add('sample-b');
+    expect(knownMissingStructureIds(structures, found, filesFor, allFiles, fileReady, ownership))
+      .toEqual(['sample-a', 'sample-absent', 'sample-unlayered']);
   });
 
   it('waits for every system file before reporting an unlayered missing ID', () => {
