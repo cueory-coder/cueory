@@ -525,10 +525,11 @@ describe('debug-console source guard', () => {
     // An embedded quoted tag cannot mask a later executable inline script.
     expect(scan('{true && <p>{"<style>"}</p>}<script>console.log("actual")</script>', '.astro'))
       .toEqual([{ line: 1, method: 'log' }]);
+    // The scanner collects script-body findings before its JSX expression pass.
     expect(scan('{true && <p>{/* "<style>" */}{console.debug("nested")}</p>}<script>console.log("after")</script>', '.astro'))
-      .toEqual([{ line: 1, method: 'debug' }, { line: 1, method: 'log' }]);
+      .toEqual([{ line: 1, method: 'log' }, { line: 1, method: 'debug' }]);
     expect(scan('{true && <p>{show ? <span>{console.debug("nested")}</span> : null}</p>}<script>console.log("after")</script>', '.astro'))
-      .toEqual([{ line: 1, method: 'debug' }, { line: 1, method: 'log' }]);
+      .toEqual([{ line: 1, method: 'log' }, { line: 1, method: 'debug' }]);
   });
 
   it('inspects script opening attributes including self-closing set:html', () => {
