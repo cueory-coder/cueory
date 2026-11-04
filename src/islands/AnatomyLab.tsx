@@ -70,7 +70,7 @@ const primaryButton =
   'min-h-11 rounded-pill bg-button px-5 py-2.5 text-on-button hover:bg-button-hover disabled:opacity-60';
 const secondaryButton =
   'min-h-11 min-w-11 rounded-pill border border-control px-4 py-2 text-sm text-ink aria-pressed:border-button aria-pressed:bg-button aria-pressed:text-on-button disabled:opacity-60';
-const iconButton = 'min-h-11 min-w-11 rounded-pill border border-control px-3 text-ink';
+const iconButton = 'min-h-11 min-w-11 rounded-pill border border-control px-3 text-ink disabled:opacity-60';
 
 const STEP = Math.PI / 24; // 7.5° a press
 const ZOOM_IN = 0.85;
@@ -508,7 +508,9 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
 
   const onCanvasKey = (e: ReactKeyboardEvent<HTMLCanvasElement>) => {
     const scene = sceneRef.current;
-    if (!scene) return;
+    // The old scene can exist while the newly selected GLB is still loading.
+    // Keyboard camera controls must follow the same readiness gate as buttons.
+    if (!scene || load.state !== 'ready') return;
     switch (e.key) {
       case 'ArrowLeft': scene.orbit(-STEP, 0); break;
       case 'ArrowRight': scene.orbit(STEP, 0); break;
@@ -767,13 +769,13 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
           </p>
 
           <div className="flex flex-wrap items-center gap-2" role="group" aria-label="view">
-            <button type="button" className={iconButton} aria-label="turn left" onClick={() => sceneRef.current?.orbit(-STEP, 0)}>←</button>
-            <button type="button" className={iconButton} aria-label="turn right" onClick={() => sceneRef.current?.orbit(STEP, 0)}>→</button>
-            <button type="button" className={iconButton} aria-label="tilt up" onClick={() => sceneRef.current?.orbit(0, -STEP)}>↑</button>
-            <button type="button" className={iconButton} aria-label="tilt down" onClick={() => sceneRef.current?.orbit(0, STEP)}>↓</button>
-            <button type="button" className={iconButton} aria-label="zoom in" onClick={() => sceneRef.current?.zoom(ZOOM_IN)}>+</button>
-            <button type="button" className={iconButton} aria-label="zoom out" onClick={() => sceneRef.current?.zoom(1 / ZOOM_IN)}>−</button>
-            <button type="button" className={secondaryButton} onClick={() => sceneRef.current?.resetView()}>reset view</button>
+            <button type="button" className={iconButton} aria-label="turn left" disabled={!ready} onClick={() => sceneRef.current?.orbit(-STEP, 0)}>←</button>
+            <button type="button" className={iconButton} aria-label="turn right" disabled={!ready} onClick={() => sceneRef.current?.orbit(STEP, 0)}>→</button>
+            <button type="button" className={iconButton} aria-label="tilt up" disabled={!ready} onClick={() => sceneRef.current?.orbit(0, -STEP)}>↑</button>
+            <button type="button" className={iconButton} aria-label="tilt down" disabled={!ready} onClick={() => sceneRef.current?.orbit(0, STEP)}>↓</button>
+            <button type="button" className={iconButton} aria-label="zoom in" disabled={!ready} onClick={() => sceneRef.current?.zoom(ZOOM_IN)}>+</button>
+            <button type="button" className={iconButton} aria-label="zoom out" disabled={!ready} onClick={() => sceneRef.current?.zoom(1 / ZOOM_IN)}>−</button>
+            <button type="button" className={secondaryButton} disabled={!ready} onClick={() => sceneRef.current?.resetView()}>reset view</button>
             <button type="button" className={secondaryButton} disabled={!ready} onClick={showAll}>show all</button>
             <button
               type="button"
