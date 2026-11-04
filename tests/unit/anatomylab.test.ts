@@ -787,6 +787,13 @@ describe('exported pictures', () => {
     const anchors = [{ x: 100, width: 200 }, { x: 120, width: 300 }, { x: 600, width: 100 }];
     expect(labelRoomFor(anchors, 400, 1000, 50)).toEqual({ left: 0.35, right: 0.15 });
     expect(labelRoomFor([], 400, 1000, 50)).toEqual({ left: 0, right: 0 });
+    // Hidden or not-yet-measured canvases must not inject Infinity into the export crop.
+    for (const width of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      const room = labelRoomFor(anchors, 400, width, 50);
+      expect(room).toEqual({ left: 0, right: 0 });
+      const crop = exportRegion({ x: 0, y: 0, width: 100, height: 200 }, { width: 300, height: 300 }, 1, room);
+      expect([crop.x, crop.y, crop.width, crop.height].every(Number.isFinite)).toBe(true);
+    }
   });
 
   it('uses only the part of the model that is on screen, or the whole view when none is', () => {

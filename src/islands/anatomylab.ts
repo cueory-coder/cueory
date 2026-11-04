@@ -833,6 +833,9 @@ export function labelRoomFor(
   pictureWidth: number,
   extra: number,
 ): LabelRoom {
+  // A zero-width or hidden canvas cannot provide a usable label-column ratio.
+  // Return no reserved columns rather than Infinity, which would make exportRegion produce NaN coordinates.
+  if (!Number.isFinite(pictureWidth) || pictureWidth <= 0) return { left: 0, right: 0 };
   const widest = (list: ReadonlyArray<{ width: number }>) => list.reduce((most, a) => Math.max(most, a.width), 0);
   const share = (w: number) => (w > 0 ? (w + extra) / pictureWidth : 0);
   return { left: share(widest(anchors.filter((a) => a.x < mid))), right: share(widest(anchors.filter((a) => a.x >= mid))) };
