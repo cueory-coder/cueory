@@ -41,11 +41,11 @@ const { quiet = false, overlay = false } = Astro.props;
           the corners, gaps and gutters would be wider than the screen.
         */}
         {quiet ? (
-          <Wordmark variant="emblem" class="w-(--logo-emblem)" sizes="2.25rem" />
+          <Wordmark loading="eager" variant="emblem" class="w-(--logo-emblem)" sizes="2.25rem" />
         ) : (
           <>
-            <Wordmark variant="emblem" class="w-(--logo-emblem) sm:hidden" sizes="2.25rem" />
-            <Wordmark class="hidden w-(--logo-width) sm:block" sizes="15rem" />
+            <Wordmark loading="eager" variant="emblem" class="w-(--logo-emblem) sm:hidden" sizes="2.25rem" />
+            <Wordmark loading="eager" class="hidden w-(--logo-width) sm:block" sizes="15rem" />
           </>
         )}
       </a>

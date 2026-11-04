@@ -5,8 +5,10 @@ import { sentenceParts } from './islands/fillin';
 import { parseSet as parseLabelSet } from './islands/labelit';
 import { sampleChecker, type SampleItem } from './islands/questions';
 import { questionContentProblems } from './content/question-validation';
-import { visualProblems } from './visuals/sources';
+import { existsSync } from 'node:fs';
+import { modelFileProblems, visualProblems } from './visuals/sources';
 import { videoSchema } from './videos/schema';
+import { repeatedCardIndexes } from './content/card-schema';
 
 /**
  * Lessons are content, not code: they live as JSON files in /content/lessons.
@@ -20,7 +22,7 @@ const lessons = defineCollection({
     order: z.number().int().positive(),
     title: z.string().min(1).max(120),
     summary: z.string().max(300),
-    status: z.enum(['placeholder', 'draft', 'in_review', 'published']),
+    status: z.enum(['placeholder', 'sample', 'draft', 'in_review', 'published']),
     sentences: z
       .array(
         z.object({
@@ -42,7 +44,7 @@ const cards = defineCollection({
   schema: z.object({
     lesson: z.string().regex(/^[a-z0-9-]+$/),
     title: z.string().min(1).max(120),
-    status: z.enum(['placeholder', 'draft', 'in_review', 'published']),
+    status: z.enum(['placeholder', 'sample', 'draft', 'in_review', 'published']),
     cards: z
       .array(
         z
@@ -57,7 +59,16 @@ const cards = defineCollection({
             path: ['blank'],
           }),
       )
-      .min(1),
+      .min(1)
+      .superRefine((cards, context) => {
+        for (const index of repeatedCardIndexes(cards.map((card) => card.id))) {
+          context.addIssue({
+            code: 'custom',
+            path: [index, 'id'],
+            message: 'a card id is repeated in this deck',
+          });
+        }
+      }),
   }),
 });
 
@@ -289,6 +300,10 @@ const suture = defineCollection({
  * Only a visual whose file says "approved" can appear on a page.
  */
 const visualId = z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'an id is lowercase letters, digits and dashes');
+// A 3D model's label is named after its structure's BodyParts3D id, which is also the model's node name (FMA7204,
+// FMA7198nsn, BP24), and cites that structure's parts-list line as bp3d-<id> (Task 177).
+const structureId = z.string().regex(/^(FMA|BP)\d+[a-z]*$/, 'a structure id is FMA or BP, digits, then lowercase letters');
+const structureSourceId = z.string().regex(/^bp3d-(FMA|BP)\d+[a-z]*$/, 'a structure source id is bp3d- and the structure id');
 const visuals = defineCollection({
   // One file per visual, directly in content/visuals (no subfolders), so the unit tests check exactly these files.
   loader: glob({ base: './content/visuals', pattern: '*.json' }),
@@ -299,12 +314,20 @@ const visuals = defineCollection({
       kind: z.enum(['diagram', 'model', 'overlay']),
       lessonIds: z.array(z.string().regex(/^U\d{2}-T\d{2}-L\d{2}$/, 'a lesson id looks like U01-T01-L01')).min(1),
       status: z.enum(['draft', 'approved']),
-      labels: z.array(z.object({ id: visualId, text: z.string().min(1).max(80), source: visualId })),
+      labels: z.array(
+        z.object({
+          id: visualId.or(structureId),
+          text: z.string().min(1).max(120),
+          source: visualId.or(structureSourceId),
+          group: z.string().min(1).max(120).optional(),
+          layer: z.enum(['skin', 'muscle', 'nerves', 'vessels', 'organs', 'skeleton']).optional(),
+        }),
+      ),
       depictions: z.array(z.object({ id: visualId, what: z.string().min(1).max(300), source: visualId })),
       sources: z
         .array(
           z.object({
-            id: visualId,
+            id: visualId.or(structureSourceId),
             quote: z.string().min(1).max(1000),
             book: z.string().min(1),
             section: z.string().min(1).max(200),
@@ -314,9 +337,14 @@ const visuals = defineCollection({
           }),
         )
         .min(1),
+      // A 3D model's file under public/ (kind "model" only), the atlas release and how the files reached us.
+      model: z
+        .object({ file: z.string().min(1).max(200), release: z.string().min(1).max(120), via: z.string().min(1).max(200).optional() })
+        .optional(),
     })
     .superRefine((visual, context) => {
-      for (const { field, message } of visualProblems(visual)) context.addIssue({ code: 'custom', path: [field], message });
+      const problems = [...visualProblems(visual), ...modelFileProblems(visual, (path) => existsSync(`public/${path}`))];
+      for (const { field, message } of problems) context.addIssue({ code: 'custom', path: [field], message });
     }),
 });
 
