@@ -44,6 +44,60 @@ test.describe('anatomy lab', () => {
     expect(await page.locator('meta[name="robots"]').getAttribute('content')).toContain('noindex');
   });
 
+  test('keeps camera controls disabled until the fixture GLB finishes loading', async ({ page }, info) => {
+    test.skip(!isDesktopOfEachEngine(info), 'one readiness regression per browser engine');
+    const releases: Array<() => void> = [];
+    await page.route('**/preview/anatomy-fixture/fixture.glb', async (route) => {
+      await new Promise<void>((resolve) => releases.push(resolve));
+      await route.continue();
+    });
+    await page.goto(URL);
+    await page.getByRole('button', { name: 'open the anatomy lab' }).click();
+    await expect.poll(() => releases.length, { timeout: 20_000 }).toBe(1);
+    const view = page.getByRole('group', { name: 'view' });
+    const controls = ['turn left', 'turn right', 'tilt up', 'tilt down', 'zoom in', 'zoom out', 'reset view'];
+    try {
+      for (const name of controls) await expect(view.getByRole('button', { name, exact: true })).toBeDisabled();
+      const consumed = await page.locator('canvas').evaluate((canvas) => {
+        const event = new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true });
+        canvas.dispatchEvent(event);
+        return event.defaultPrevented;
+      });
+      expect(consumed).toBe(false);
+    } finally {
+      // Always release the held request, even if a readiness assertion fails.
+      releases.splice(0).forEach((release) => release());
+    }
+    await expect(page.getByRole('button', { name: 'fixture cube A', exact: true }))
+      .toBeEnabled({ timeout: 20_000 });
+    for (const name of controls) await expect(view.getByRole('button', { name, exact: true })).toBeEnabled();
+    const consumedWhenReady = await page.locator('canvas').evaluate((canvas) => {
+      const event = new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true });
+      canvas.dispatchEvent(event);
+      return event.defaultPrevented;
+    });
+    expect(consumedWhenReady).toBe(true);
+  });
+
+  test('keeps camera controls disabled after a fixture model download fails', async ({ page }, info) => {
+    test.skip(!isDesktopOfEachEngine(info), 'one failure regression per browser engine');
+    await page.route('**/preview/anatomy-fixture/fixture.glb', (route) => route.abort('failed'));
+    await page.goto(URL);
+    await page.getByRole('button', { name: 'open the anatomy lab' }).click();
+    await expect(page.getByRole('alert').filter({ hasText: 'could not load test shapes (fixture).' }))
+      .toBeVisible({ timeout: 20_000 });
+    const view = page.getByRole('group', { name: 'view' });
+    for (const name of ['turn left', 'turn right', 'tilt up', 'tilt down', 'zoom in', 'zoom out', 'reset view']) {
+      await expect(view.getByRole('button', { name, exact: true })).toBeDisabled();
+    }
+    const consumed = await page.locator('canvas').evaluate((canvas) => {
+      const event = new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true });
+      canvas.dispatchEvent(event);
+      return event.defaultPrevented;
+    });
+    expect(consumed).toBe(false);
+  });
+
   test('keeps a searchable, keyboard-accessible text catalog if WebGL is unavailable', async ({ page }) => {
     // Simulate a device whose canvas can render text but cannot create a 3D context.
     await page.addInitScript(() => {
@@ -667,6 +721,11 @@ test.describe('anatomy lab system switch', () => {
     // Held download of the new system: the old model must already be gone, and the loading state shown.
     await expect(page.getByText(/^loading /).first()).toBeVisible();
     // The previous model's quiz and export must not be enabled for the new system.
+    // Camera actions must also stay disabled until the newly chosen GLB is ready.
+    const cameraControls = page.getByRole('group', { name: 'view' });
+    for (const name of ['turn left', 'turn right', 'tilt up', 'tilt down', 'zoom in', 'zoom out', 'reset view']) {
+      await expect(cameraControls.getByRole('button', { name, exact: true })).toBeDisabled();
+    }
     await expect(page.getByRole('button', { name: 'square 1080×1080' })).toBeDisabled();
     await expect(page.getByRole('button', { name: 'start the quiz' })).toBeDisabled();
     await expect(list(page).getByRole('button').first()).toBeDisabled();
