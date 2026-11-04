@@ -9,7 +9,7 @@
 # - The plain dump exists only in the runner's memory (/dev/shm) and is deleted before upload; nothing unencrypted is
 #   uploaded, kept as an artifact, or printed.
 # - The two secrets are environment secrets of `prod-backup`, which Christian limits to `main`, so a workflow file on
-#   any other branch can't read them. The database password is also masked before any step could print it.
+#   any other branch can't read them. GitHub masks the exact secret values by default. Never echo their contents.
 # - GitHub-hosted runners have no IPv6, so it connects through Supabase's session pooler (IPv4, port 5432).
 # - The log prints each backup's name, size and SHA-256, so a restore can check a file is the one this job uploaded.
 # - Scheduled runs start only from the default branch (`main`), never on the hour (GitHub's busiest time), and GitHub
@@ -56,11 +56,8 @@ jobs:
           PROD_DB_URL: ${{ secrets.PROD_DB_URL }}
           BACKUP_UPLOAD_URL: ${{ secrets.BACKUP_UPLOAD_URL }}
         run: |
-          # Mask the password on its own too, in case a tool prints the address in another form.
-          rest="${PROD_DB_URL#*://}"
-          userinfo="${rest%%@*}"
-          password="${userinfo#*:}"
-          if [ -n "$password" ] && [ "$password" != "$userinfo" ]; then echo "::add-mask::$password"; fi
+          # Validate without printing, splitting, or re-emitting secret material as workflow commands.
+          # Custom dynamic mask commands can themselves become a log/command-injection hazard.
           case "$PROD_DB_URL" in
             postgresql://postgres.*@*:5432/postgres) ;;
             *) echo "PROD_DB_URL must be cueory-prod's Session pooler address (port 5432)."; exit 1 ;;
