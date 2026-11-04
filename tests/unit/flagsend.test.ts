@@ -58,7 +58,7 @@ describe('makeSend for submit_flag', () => {
 
   it.each([
     ['sign in to send a report', 'please sign in to send a report.'],
-    ['confirm your email to use this', 'please confirm your email first. the link is in the email we sent you.'],
+    ['confirm your email to use this', 'please confirm your email to send a report — look for the link in your inbox.'],
     ['that question was not found', 'that question could not be found — it may have been removed.'],
   ])('passes a known refusal (%s) on as its plain sentence', async (raw, sentence) => {
     expect(await stub({ data: null, error: { message: raw } }).send(good)).toEqual({ message: sentence });
