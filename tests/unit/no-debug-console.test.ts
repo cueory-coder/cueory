@@ -125,6 +125,9 @@ function scan(text: string, extension: string): Logging[] {
   let attrQuote = '';
   const exprStack: (string | null)[] = [];
   const templateBraces: number[] = [];
+  // JSX child braces contain executable JavaScript, not raw markup text.
+  // Keep the JSX tag depth so a nested JSX element inside JavaScript still scans correctly.
+  const jsxExpressions: Array<{ tagDepth: number; braceDepth: number }> = [];
   let inRegex = false;
   let braces = 0;
   let exprTags = 0;
@@ -284,7 +287,8 @@ function scan(text: string, extension: string): Logging[] {
       return;
     }
 
-    if (exprTags > 0) {
+    const enclosingJsxExpression = jsxExpressions.at(-1);
+    if (exprTags > 0 && (!enclosingJsxExpression || exprTags > enclosingJsxExpression.tagDepth)) {
       if (c === '<') {
         if (inspectRawElement()) {
           // Handled raw element
@@ -306,6 +310,9 @@ function scan(text: string, extension: string): Logging[] {
           i++;
         }
       } else if (c === '{') {
+        // Enter JavaScript inside a JSX child instead of interpreting quoted
+        // `<style>` or `<script>` strings as real HTML raw-text elements.
+        jsxExpressions.push({ tagDepth: exprTags, braceDepth: braces });
         braces++;
         i++;
       } else {
@@ -403,6 +410,9 @@ function scan(text: string, extension: string): Logging[] {
         }
       } else {
         braces = Math.max(0, braces - 1);
+        // Return to the enclosing JSX children only when this exact expression closes.
+        const enclosing = jsxExpressions.at(-1);
+        if (enclosing && braces === enclosing.braceDepth) jsxExpressions.pop();
       }
       i++;
     } else {
@@ -509,6 +519,16 @@ describe('debug-console source guard', () => {
       .toEqual([{ line: 3, method: 'debug' }]);
     expect(scan('<p>{"<style>"}{console.log("actual")}</p>', '.astro'))
       .toEqual([{ line: 1, method: 'log' }]);
+  });
+
+  it('parses JavaScript literals and nested JSX inside JSX child expressions', () => {
+    // An embedded quoted tag cannot mask a later executable inline script.
+    expect(scan('{true && <p>{"<style>"}</p>}<script>console.log("actual")</script>', '.astro'))
+      .toEqual([{ line: 1, method: 'log' }]);
+    expect(scan('{true && <p>{/* "<style>" */}{console.debug("nested")}</p>}<script>console.log("after")</script>', '.astro'))
+      .toEqual([{ line: 1, method: 'debug' }, { line: 1, method: 'log' }]);
+    expect(scan('{true && <p>{show ? <span>{console.debug("nested")}</span> : null}</p>}<script>console.log("after")</script>', '.astro'))
+      .toEqual([{ line: 1, method: 'debug' }, { line: 1, method: 'log' }]);
   });
 
   it('inspects script opening attributes including self-closing set:html', () => {
