@@ -211,7 +211,10 @@ test.describe('/admin/flags wired to the database functions', () => {
 
     await expect(page.getByRole('heading', { level: 1, name: 'this page is for the site owner.' })).toBeVisible();
     await expect.poll(async () => page.evaluate(() =>
-      (window as unknown as { completedRpcs: number }).completedRpcs)).toBeGreaterThanOrEqual(2);
+      (window as unknown as { completedRpcs: number }).completedRpcs)).toBeGreaterThanOrEqual(1);
+    // Sign-out must not initiate a new admin RPC or redirect to MFA while the old result settles.
+    expect(await calls(page)).toHaveLength(1);
+    await expect(page).toHaveURL(/__admin-flags-fixture/);
     await expect(page.getByTestId('admin-flags-row')).toHaveCount(0);
     await expect(page.locator('body')).not.toContainText('sample comment one');
   });

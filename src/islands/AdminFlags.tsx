@@ -48,7 +48,7 @@ const FAILED_ADAPTER: AdminFlagsAdapter = Object.freeze({
  */
 export default function AdminFlags({ sampleRows }: Props) {
   const sample = useMemo(() => (sampleRows ? makeMemoryAdapter(sampleRows) : null), [sampleRows]);
-  const [client, setClient] = useState<{ adapter: AdminFlagsAdapter; auth: LevelReader | null; watchAuth?: (invalidate: () => void) => () => void } | null>(null);
+  const [client, setClient] = useState<{ adapter: AdminFlagsAdapter; auth: LevelReader | null; watchAuth?: (invalidate: (event: string) => void) => () => void } | null>(null);
   const [clientAttempt, setClientAttempt] = useState(0);
   const adapter = sample ?? client?.adapter ?? null;
   const mark = useMemo(() => makeMarker(adapter ?? UNWIRED_ADAPTER), [adapter]);
@@ -61,6 +61,9 @@ export default function AdminFlags({ sampleRows }: Props) {
   const [attempt, setAttempt] = useState(0);
   // Nothing about the inbox is drawn until the database has let this visitor in once.
   const [admitted, setAdmitted] = useState(false);
+  // A signed-out browser must never refetch the private inbox or trigger an MFA redirect.
+  const [signedOut, setSignedOut] = useState(false);
+  const [codeStep, setCodeStep] = useState(false);
   const statusCells = useRef(new Map<string, HTMLTableCellElement>());
   const focusAfter = useRef<string | null>(null);
   const timeZone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
@@ -78,8 +81,8 @@ export default function AdminFlags({ sampleRows }: Props) {
           ? {
               adapter: inboxAdapter((fn, args) => supabase.rpc(fn, args)),
               auth: supabase.auth,
-              watchAuth: (invalidate: () => void) => {
-                const { data } = supabase.auth.onAuthStateChange(() => invalidate());
+              watchAuth: (invalidate: (event: string) => void) => {
+                const { data } = supabase.auth.onAuthStateChange((event) => invalidate(event));
                 return () => data.subscription.unsubscribe();
               },
             }
@@ -96,21 +99,27 @@ export default function AdminFlags({ sampleRows }: Props) {
   // immediately, not only after the next admin RPC refuses the changed session.
   useEffect(() => {
     if (sample || !client?.watchAuth) return;
-    return client.watchAuth(() => {
+    return client.watchAuth((event) => {
+      // Initial session state is already checked by the first RPC. Only react to a real auth change.
+      if (event === 'INITIAL_SESSION') return;
       authEpoch.current += 1;
+      const left = event === 'SIGNED_OUT';
       focusAfter.current = null;
       statusCells.current.clear();
       setAdmitted(false);
-      setScreen({ kind: 'loading' });
+      setSignedOut(left);
+      setCodeStep(false);
+      // Refuse immediately on sign-out. Do not wait for a second admin RPC or MFA check.
+      setScreen(left ? { kind: 'refused' } : { kind: 'loading' });
       setPending(new Set());
       setRowProblem({});
       setAnnouncement('');
-      setAttempt((n) => n + 1);
+      if (!left) setAttempt((n) => n + 1);
     });
   }, [client, sample]);
 
   useEffect(() => {
-    if (!adapter) return;
+    if (!adapter || signedOut) return;
     let live = true;
     const epoch = authEpoch.current;
     setScreen({ kind: 'loading' });
@@ -123,7 +132,7 @@ export default function AdminFlags({ sampleRows }: Props) {
     return () => {
       live = false;
     };
-  }, [adapter, status, attempt]);
+  }, [adapter, status, attempt, signedOut]);
 
   const retry = () => {
     if (client?.adapter === FAILED_ADAPTER) {
@@ -181,10 +190,9 @@ export default function AdminFlags({ sampleRows }: Props) {
   // A signed-in account with two-factor on that hasn't entered its code this sign-in is refused by the database (aal1).
   // Send it to the code page, which comes back here (Supabase's MFA docs: redirect to a page where the user can
   // authenticate with the additional factor). The link stays in case the move is blocked. Nobody else sees anything new.
-  const [codeStep, setCodeStep] = useState(false);
   const auth = client?.auth ?? null;
   useEffect(() => {
-    if (screen.kind !== 'refused' || sample || !auth) return;
+    if (screen.kind !== 'refused' || sample || !auth || signedOut) return;
     let live = true;
     needsCode(auth).then((value) => {
       if (!live || !value) return;
@@ -194,7 +202,7 @@ export default function AdminFlags({ sampleRows }: Props) {
     return () => {
       live = false;
     };
-  }, [screen.kind, sample, auth]);
+  }, [screen.kind, sample, auth, signedOut]);
 
   // Refused (signed out, not an admin, or no two-factor): the one sentence and nothing else, no counts. It is the
   // page's heading, so the page still has exactly one h1.
