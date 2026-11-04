@@ -6,13 +6,13 @@ test.describe('courses page', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'courses' })).toBeVisible();
 
     // Med-Surg I is available
-    await expect(page.getByRole('heading', { level: 2, name: 'Med-Surg I' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: 'Med-Surg I', exact: true })).toBeVisible();
     const openLink = page.getByRole('link', { name: 'open course' });
     await expect(openLink).toBeVisible();
     await expect(openLink).toHaveAttribute('href', '/learn');
 
     // Other courses are coming soon
-    await expect(page.getByRole('heading', { level: 2, name: 'Med-Surg II' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: 'Med-Surg II', exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { level: 2, name: 'Mental Health' })).toBeVisible();
     await expect(page.getByRole('heading', { level: 2, name: 'Med Math' })).toBeVisible();
 
@@ -30,12 +30,12 @@ test.describe('courses page', () => {
 
   test('is linked from the navigation menu', async ({ page }) => {
     await page.goto('/');
-    const menuButton = page.getByRole('button', { name: 'menu' });
-    if (await menuButton.isVisible()) {
-      await menuButton.click();
-      const coursesLink = page.getByRole('link', { name: 'courses' });
-      await expect(coursesLink).toBeVisible();
-      await expect(coursesLink).toHaveAttribute('href', '/courses');
-    }
+    const menuButton = page.locator('button[data-menu-open]');
+    await expect(menuButton).toBeVisible();
+    await expect(menuButton).toHaveAccessibleName(/menu/);
+    await menuButton.click();
+    const coursesLink = page.getByRole('dialog').getByRole('link', { name: 'courses', exact: true });
+    await expect(coursesLink).toBeVisible();
+    await expect(coursesLink).toHaveAttribute('href', '/courses');
   });
 });
