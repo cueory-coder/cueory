@@ -27,8 +27,8 @@ if (!href) throw new Error('Only available study modes may be linked from the le
   <div class="mode-art mb-3 overflow-hidden" aria-hidden="true">
     <ModeIllustration mode={mode.id} />
   </div>
-  <div class="-mt-2 mb-2 flex flex-wrap items-center">
-    <h3 class="break-words text-lg font-semibold">{mode.name}</h3>
+  <div class="-mt-2 mb-2 flex min-w-0 flex-wrap items-center">
+    <h3 class="min-w-0 wrap-anywhere text-lg font-semibold">{mode.name}</h3>
     <InfoTip id={`mode-tile-${mode.id}-info`} label={mode.name} text={mode.text} />
   </div>
   <a
