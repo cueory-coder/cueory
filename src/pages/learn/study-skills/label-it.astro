@@ -1,16 +1,21 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import ContentLabel from '../../../components/ContentLabel.astro';
+import InfoTip from '../../../components/InfoTip.astro';
 import { LabelItFromUrl } from '../../../islands/LabelItBoard';
 ---
 
 <Layout title="label it: lesson 1" description="uncover a diagram's labels for lesson 1 of how to study for nursing school." variant="study">
   <div class="mx-auto max-w-prose pt-8">
-    <p class="text-sm text-ink-soft">how to study for nursing school · lesson 1 · label it</p>
-    <h1 class="mt-3 text-2xl">label it</h1>
-    <p class="mt-3 text-ink-soft">
-      the labels on the drawing are covered. uncover them one at a time, or all at once, and mark each one.
-    </p>
+    <p class="text-sm text-ink-soft">how to study for nursing school · lesson 1</p>
+    <div class="mt-2 flex flex-wrap items-center gap-x-1">
+      <h1 class="text-2xl">label it</h1>
+      <InfoTip
+        id="lesson-intro-info"
+        label="label it"
+        text="the labels on the drawing are covered. uncover them one at a time, or all at once, and mark each one."
+      />
+    </div>
     <p class="mt-3 text-sm text-ink-soft" data-testid="label-it-sample-note">
       this is a sample with an everyday drawing. the lesson's own diagrams come later.
     </p>
@@ -26,8 +31,8 @@ import { LabelItFromUrl } from '../../../islands/LabelItBoard';
     <p class="mt-section text-sm">
       <a href="/learn/study-skills">back to the lesson</a>
     </p>
-  </div>
     <div class="mt-8">
       <ContentLabel />
     </div>
-  </Layout>
+  </div>
+</Layout>

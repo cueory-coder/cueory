@@ -8,9 +8,13 @@ import {
   isEmptyProgress,
   localDay,
   migrateLegacyStars,
+  readProgress,
+  saveProgress,
+  withOnboarding,
 } from '../scripts/progress';
 import { browserStorage } from '../scripts/storage';
 import { readResume } from '../scripts/resume';
+import { connectExamPlans, isConnectFailure, loadExamPlan, loadTickets } from './examplansync';
 import ProgressRing from './ProgressRing';
 import { examCountdown, progressView } from './progressview';
 
@@ -33,6 +37,7 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 /**
  * What this browser keeps for the student (D-69), with "download my progress" and "forget my progress on this device".
  * Nothing here is sent anywhere. Rendered only in the browser (client:only).
+ * Signed in (Task 145), the account's exam date is read on load and wins over the device's; it is only read here.
  */
 export default function ProgressPanel({ decks }: Props) {
   const [storage] = useState(browserStorage);
@@ -43,6 +48,31 @@ export default function ProgressPanel({ decks }: Props) {
   const forgetRef = useRef<HTMLButtonElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
   const saidRef = useRef<HTMLParagraphElement>(null);
+  const [signedIn, setSignedIn] = useState(false);
+  const [syncNote, setSyncNote] = useState('');
+  // "forget my progress" cancels a load still on its way, so the account's answers aren't written back afterwards.
+  const [loads] = useState(loadTickets);
+
+  useEffect(() => {
+    const current = loads.start();
+    let live = true;
+    void (async () => {
+      const db = await connectExamPlans();
+      if (!db || isConnectFailure(db) || !live) return;
+      setSignedIn(true);
+      if (!current()) return;
+      const loaded = await loadExamPlan(db, () => readProgress(storage).onboarding);
+      if (!live || !current()) return;
+      if (!loaded.ok) setSyncNote(loaded.message);
+      else if (loaded.onboarding && saveProgress(storage, withOnboarding(readProgress(storage), loaded.onboarding))) {
+        setProgress(migrateLegacyStars(storage));
+      }
+    })();
+    return () => {
+      live = false;
+      loads.cancel();
+    };
+  }, [storage, loads]);
 
   // Studying in another tab changes what's saved. Read it again when another tab saves, and when this page comes back
   // into view, so the page, the download and "forget" always match what's actually kept.
@@ -80,6 +110,7 @@ export default function ProgressPanel({ decks }: Props) {
   };
 
   const forget = () => {
+    loads.cancel();
     const ok = forgetProgress(storage, decks.map((deck) => deck.id));
     setConfirming(false);
     if (ok) setProgress(emptyProgress());
@@ -113,6 +144,7 @@ export default function ProgressPanel({ decks }: Props) {
           <p className="mt-3 text-ink-soft">{done ? 'you skipped these.' : 'you haven’t answered them yet.'}</p>
         )}
         {countdown && <p className="mt-3 text-ink-soft">{countdown}</p>}
+        {syncNote && <p className="mt-3 text-ink-soft" role="status" data-testid="exam-sync">{syncNote}</p>}
         <p className="mt-3">
           <a href="/start">{course || examDate ? 'change your answers' : 'answer two quick questions'}</a>
         </p>
@@ -172,7 +204,9 @@ export default function ProgressPanel({ decks }: Props) {
       <section aria-labelledby="yours-heading" className="mt-section">
         <h2 id="yours-heading" className="text-xl">it’s yours</h2>
         <p className="mt-3 text-ink-soft">
-          all of this is saved in this browser only. cueory never receives it.
+          {signedIn
+            ? 'all of this is saved in this browser. an exam date you set is also saved to your account.'
+            : 'all of this is saved in this browser only. cueory never receives it.'}
         </p>
         <div className="mt-stack flex flex-wrap gap-3">
           <button type="button" onClick={download} disabled={noProgress} className={`${primaryButton} disabled:opacity-50`}>

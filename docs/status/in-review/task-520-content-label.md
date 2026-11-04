@@ -1,8 +1,1 @@
-# Task 520 — Content label
-
-- **Status:** IN_REVIEW — branch `task-520/content-label-disclaimer` into `staging`.
-- **Changes:**
-  - Added configurable disclosure text in `src/config/site.ts`: `"researched against cited sources, with citations; not yet reviewed by a licensed nurse"`.
-  - Created `src/components/ContentLabel.astro` linking to `/disclaimer`.
-  - Added `ContentLabel` to `src/pages/learn/study-skills/index.astro` and all study-mode pages (`cards`, `fill-in`, `label-it`, `learn-mode`, `matching`, `organizer`, `questions`).
-  - Added unit test in `tests/unit/content-label.test.ts`.
+status: Task 520, add a shared nursing-content review disclosure and disclaimer link on all eight study pages, with the review text configured in src/config/site.ts and unit coverage. Correct accessible small-text sizing to text-sm; preserve existing layout and InfoTip controls. No clinical facts, permissions, dependencies, or deployment settings changed. Requires latest-head CI, Cloudflare preview, and independent Codex review before staging merge.

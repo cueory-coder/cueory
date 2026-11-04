@@ -14,9 +14,8 @@ const pairs = cards.map(({ front, back }) => ({ front, back }));
 
 <Layout title={`matching: ${title}`} description="matching for lesson 1 of How to study for nursing school." variant="study">
   <div class="mx-auto max-w-prose pt-8">
-    <p class="text-sm text-ink-soft">How to study for nursing school · lesson 1 · matching</p>
+    <p class="text-sm text-ink-soft">How to study for nursing school · lesson 1</p>
     <h1 class="mt-3 text-2xl">matching</h1>
-    <p class="mt-3 text-ink-soft">pair each term with what it means.</p>
     {status === 'placeholder' && <p class="mt-3 text-sm text-ink-soft">these cards are placeholders.</p>}
 
     <div class="mt-10">
@@ -30,8 +29,8 @@ const pairs = cards.map(({ front, back }) => ({ front, back }));
     <p class="mt-section text-sm">
       <a href="/learn/study-skills">back to the lesson</a>
     </p>
-  </div>
     <div class="mt-8">
       <ContentLabel />
     </div>
-  </Layout>
+  </div>
+</Layout>

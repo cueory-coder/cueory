@@ -1,8 +1,8 @@
 ---
 import { getEntry } from 'astro:content';
 import Layout from '../../../layouts/Layout.astro';
-import CardDeck from '../../../islands/CardDeck';
 import ContentLabel from '../../../components/ContentLabel.astro';
+import CardDeck from '../../../islands/CardDeck';
 
 const deck = await getEntry('cards', 'study-skills-01');
 if (!deck) {
@@ -38,7 +38,6 @@ const { title, cards, status } = deck.data;
       <li><a href="/learn/study-skills/learn-mode">learn these cards in learn mode</a></li>
       <li><a href="/learn/study-skills">back to the lesson</a></li>
     </ul>
-
     <div class="mt-8">
       <ContentLabel />
     </div>

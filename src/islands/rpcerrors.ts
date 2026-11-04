@@ -5,12 +5,15 @@
  * Error messages are read verbatim from the migrations:
  *   check_answer:  supabase/migrations/20261101100000_attempts_and_check_answer.sql
  *   submit_flag:   supabase/migrations/20261101120000_flags_and_submit_flag.sql (PR #110)
- *   any function:  "confirm your email to use this" (Task 169's confirmed-email migration, starting with submit_flag)
+ *   delete_my_account: supabase/migrations/20261102110000_delete_my_account.sql (Task 60); its only refusal is
+ *                      'sign in to delete your account' (errcode 28000).
+ *   update_display_name: supabase/migrations/20261102140000_update_display_name.sql
+ *   any function:  "confirm your email to use this" (Task 169) gets one general sentence (Task 171).
  *
  * Never echoes raw database text, SQL, table names or error codes to a student.
  */
 
-export type RpcFunction = 'check_answer' | 'submit_flag';
+export type RpcFunction = 'check_answer' | 'submit_flag' | 'delete_my_account' | 'update_display_name';
 
 interface DbError {
   /** PostgreSQL error message (the string after `raise exception`). */
@@ -27,11 +30,6 @@ function isDbError(e: unknown): e is DbError {
 export function studentMessage(fn: RpcFunction, error: unknown): string {
   if (!isDbError(error)) return 'something went wrong — please try again.';
   const msg = typeof error.message === 'string' ? error.message : '';
-
-  // Task 169: a signed-in account whose email is not confirmed yet is refused with this one message.
-  if (msg === 'confirm your email to use this') {
-    return 'please confirm your email first. the link is in the email we sent you.';
-  }
 
   if (fn === 'check_answer') {
     // 20261101100000_attempts_and_check_answer.sql
@@ -71,6 +69,27 @@ export function studentMessage(fn: RpcFunction, error: unknown): string {
     if (msg === 'that is a lot of reports; please try again later') {
       return "you've sent a lot of reports recently — please try again later.";
     }
+  }
+
+  if (fn === 'delete_my_account') {
+    // supabase/migrations/20261102110000_delete_my_account.sql (Task 60)
+    if (msg === 'sign in to delete your account') return 'please sign in again to delete your account.';
+  }
+
+  if (fn === 'update_display_name') {
+    // supabase/migrations/20261102140000_update_display_name.sql
+    if (msg === 'sign in to change your display name') return 'please sign in again to change your display name.';
+    if (msg === 'a display name is 1 to 50 characters of plain text') return 'a name can be 1 to 50 characters of plain text.';
+    if (msg === 'that is a lot of name changes; please try again later') {
+      return "you've changed your name a lot this hour. please try again later.";
+    }
+    if (msg === 'your profile was not found') return 'your account could not load. please try again.';
+  }
+
+  // Task 169: a signed-in account whose email is not confirmed yet is refused with this one message, from any
+  // function. None of the mappings above match it, so it is checked last (Task 171 added it).
+  if (msg === 'confirm your email to use this') {
+    return 'please confirm your email first. the link is in the email we sent you.';
   }
 
   return 'something went wrong — please try again.';
