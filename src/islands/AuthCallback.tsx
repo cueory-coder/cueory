@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { CALLBACK_ERROR, cleanCallbackUrl, finishCallback, type CallbackOutcome, type CodeExchangeAuth } from './authcallback';
 import { getSupabase } from './supabaseclient';
+import { afterSignIn, type LevelReader } from './twofactor';
 
 export type { CodeExchangeAuth } from './authcallback';
 
@@ -26,6 +27,8 @@ export default function AuthCallback({ auth: suppliedAuth }: { auth?: CodeExchan
   const [state, setState] = useState<Feedback>({ kind: 'working' });
   // React Strict Mode may run effects twice. Exchange a single-use code only once per mounted island.
   const started = useRef<Promise<CallbackOutcome> | null>(null);
+  // Use the client from the verified PKCE exchange for the optional two-factor check.
+  const levelReader = useRef<LevelReader | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -34,15 +37,23 @@ export default function AuthCallback({ auth: suppliedAuth }: { auth?: CodeExchan
         ? () => Promise.resolve(suppliedAuth)
         // Keep the auth object intact: its methods rely on their receiver.
         : async () => (await getSupabase())?.auth ?? null;
-      started.current = finishCallback(load, window.location.href).finally(() => {
+      started.current = finishCallback(async () => {
+        const client = await load();
+        // Injected fakes may omit MFA methods; afterSignIn handles this safely.
+        levelReader.current = client as unknown as LevelReader | null;
+        return client;
+      }, window.location.href).finally(() => {
         window.history.replaceState(window.history.state, '', cleanCallbackUrl(window.location.href));
       });
     }
-    void started.current.then(outcome => {
+    void started.current.then(async outcome => {
       if (!active) return;
-      if (outcome.kind === 'redirect') window.location.replace(outcome.next);
-      else setState(outcome);
-    });
+      if (outcome.kind === 'redirect') {
+        // Check MFA only after the code exchange confirms the authenticated user.
+        const destination = await afterSignIn(levelReader.current, outcome.next, window.location.origin);
+        if (active) window.location.replace(destination);
+      } else setState(outcome);
+    }).catch(() => { if (active) setState({ kind: 'error' }); });
     return () => { active = false; };
   }, [suppliedAuth]);
 
