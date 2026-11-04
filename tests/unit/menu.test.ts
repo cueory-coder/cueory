@@ -56,7 +56,7 @@ describe('side panel groups (Task 86)', () => {
     expect(grouped.home.map((link) => link.href)).toEqual(['/']);
     expect(grouped.sections.map((section) => section.heading)).toEqual(['study', 'play', 'about']);
     expect(grouped.sections[0]?.links.map((link) => link.href)).toEqual([
-      '/#ways-to-study', '/learn/study-skills', '/progress',
+      '/courses', '/#ways-to-study', '/learn/study-skills', '/progress',
     ]);
     expect(grouped.sections[1]?.links.map((link) => link.href)).toEqual(['/play']);
     expect(grouped.sections[2]?.links.map((link) => link.href)).toEqual([
