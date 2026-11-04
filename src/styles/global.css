@@ -1928,6 +1928,8 @@ html:has(dialog.mode-preview[open]) {
 @layer components {
   .segmented {
     display: inline-flex;
+    flex-wrap: wrap;
+    max-inline-size: 100%;
     align-items: center;
     padding: var(--segmented-inset);
     border: 1px solid var(--color-control);
