@@ -4,12 +4,20 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => sessionStorage.setItem('cueory-promo-seen', '1'));
 });
 
-test('callback without a code explains recovery and offers home', async ({ page }) => {
+test('callback without a code shows a generic error and offers sign-in', async ({ page }) => {
   await page.goto('/auth/callback');
   await expect(page).toHaveTitle('finish signing in · cueory');
   await expect(page.getByRole('heading', { level: 1, name: 'signing you in…' })).toBeVisible();
-  await expect(page.locator('main [role="alert"]')).toHaveText('this sign-in link has no code. please start again.');
-  await expect(page.locator('main').getByRole('link', { name: 'back to home' })).toHaveAttribute('href', '/#signup');
+  await expect(page.locator('main [role="alert"]')).toHaveText("sign-in didn't finish. please try again.");
+  await expect(page.locator('main').getByRole('link', { name: 'back to sign in' })).toHaveAttribute('href', '/signin');
+});
+
+test('provider error details never appear in the page or callback address', async ({ page }) => {
+  await page.goto('/auth/callback?error=access_denied&error_description=private-provider-details');
+  await expect(page.locator('main [role="alert"]')).toHaveText("sign-in didn't finish. please try again.");
+  await expect(page.locator('main')).not.toContainText('private-provider-details');
+  await expect(page).toHaveURL(/\/auth\/callback$/);
+  await expect(page.locator('main').getByRole('link', { name: 'back to sign in' })).toHaveAttribute('href', '/signin');
 });
 
 test('accounts-off callback removes the code and gives a safe next step', async ({ page }) => {
