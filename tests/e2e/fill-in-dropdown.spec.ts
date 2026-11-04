@@ -34,9 +34,13 @@ test('fill-in dropdowns provide 4 options by default and allow toggling to type 
   await expect(input).toBeVisible();
   await expect(board.getByRole('button', { name: 'choose from options' })).toBeVisible();
 
-  // Toggle back to dropdown
+  // An answer typed outside the available options must not be submitted
+  // invisibly when the student switches back to the dropdown.
+  await input.fill('not a dropdown option');
   await board.getByRole('button', { name: 'choose from options' }).click();
   await expect(dropdown).toBeVisible();
+  await expect(dropdown).toHaveValue('');
+  await expect(board.getByRole('button', { name: 'check' })).toBeDisabled();
 
   // Select the correct answer from dropdown
   await dropdown.selectOption({ label: 'honey' });
