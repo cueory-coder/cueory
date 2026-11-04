@@ -119,7 +119,13 @@ describe.skipIf(!existsSync(dist))('built site', () => {
   const pages = htmlFiles(dist);
 
   it('keeps each route within 10% of its initial JavaScript gzip budget', () => {
-    expect(pages.map((page) => relative(dist, page).replaceAll('\\', '/')).sort()).toEqual(Object.keys(initialJsBudget).sort());
+    const routes = pages.map((page) => relative(dist, page).replaceAll('\\', '/'));
+    const missingBudgets = routes.filter((page) => !(page in initialJsBudget));
+    expect(
+      missingBudgets.map((page) => `${page}: ${initialJsGzipBytes(join(dist, page))} gzip bytes`),
+      'Every built route must have a measured JavaScript budget',
+    ).toEqual([]);
+    expect(routes.sort()).toEqual(Object.keys(initialJsBudget).sort());
     for (const [page, budget] of Object.entries(initialJsBudget)) {
       const actual = initialJsGzipBytes(join(dist, page));
       expect(actual, `${page} initial JavaScript gzip bytes`).toBeLessThanOrEqual(Math.ceil(budget * 1.1));
