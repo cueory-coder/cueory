@@ -46,6 +46,7 @@ describe('retired colors (brand guide v1.0 §4.3)', () => {
 const pairs: Array<[string, string, number]> = [
   ['ink', 'page', 4.5],
   ['ink', 'surface', 4.5],
+  ['ink', 'line', 4.5], // Coming-soon course status badges, in Daytime and Evening.
   ['ink', 'soft', 4.5],
   ['ink-soft', 'page', 4.5],
   ['ink-soft', 'surface', 4.5],
