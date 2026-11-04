@@ -16,6 +16,35 @@ export interface IndexedAnatomyMeshes {
   triangles: number;
 }
 
+/** New structure IDs and IDs genuinely absent from the combined scene. */
+export interface IndexedAnatomyIdResult {
+  added: string[];
+  missing: string[];
+}
+
+/**
+ * A later GLB may add more geometry to an already-known structure. That
+ * structure is not newly added, but it is not missing either. Deduplicate
+ * incoming IDs so the scene's display/picking order stays stable.
+ */
+export function summarizeIndexedAnatomyIds(
+  ids: readonly string[],
+  previousOrder: readonly string[],
+  meshesById: ReadonlyMap<string, readonly THREE.Mesh[]>,
+): IndexedAnatomyIdResult {
+  const known = new Set(previousOrder);
+  const added: string[] = [];
+  const missing: string[] = [];
+  for (const id of new Set(ids)) {
+    if ((meshesById.get(id)?.length ?? 0) === 0) {
+      missing.push(id);
+    } else if (!known.has(id)) {
+      added.push(id);
+    }
+  }
+  return { added, missing };
+}
+
 /**
  * Three.js leaves texture disposal to callers even after Material.dispose().
  * Converted glTF materials and discarded GLB groups own their textures here.
