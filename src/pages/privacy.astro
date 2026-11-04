@@ -129,6 +129,8 @@ import { newsletter, promo, site } from '../config/site';
     <ul>
       <li>Your email address, so you can sign in.</li>
       <li>A display name, if you choose one. To limit how often it can be changed, your profile also keeps when your current hour of name changes began and how many changes you've made in it. Each new hour replaces the last, and both are deleted with your account and included when you download your data.</li>
+      <li>If you sign in with Google, the details Google shares with us, listed below.</li>
+      <li>Your sign-in sessions, with the IP address and browser of each, until you sign out.</li>
       <li>Your answers to a few setup questions, such as your exam date.</li>
       <li>Your study progress: what you've studied, your answers, how long you spent on each question, which ones you marked know it or still learning, and when to review next. We use it to show your progress and to find which lessons and questions need improving.</li>
       <li>
@@ -137,10 +139,29 @@ import { newsletter, promo, site } from '../config/site';
         account is deleted. Your account data download will include them.
       </li>
     </ul>
+    {/*
+      What Google shares and what Supabase keeps (Task 309, research of 2026-11-02): Supabase asks Google for
+      "email profile" and keeps the name, profile-photo link, Google account id, email and whether it is verified as
+      the identity's identity_data and the account's user_metadata, and refreshes them at every Google sign-in
+      (supabase/auth internal/api/provider/google.go and oidc.go). Sessions: https://supabase.com/docs/guides/auth/sessions
+      (a session lasts until sign-out; auth.sessions keeps its ip and user_agent, supabase/auth migration
+      20231027141322_add_session_refresh_columns). Service logs: https://supabase.com/docs/guides/telemetry/logs and
+      the Free plan's log retention of 1 day (supabase/supabase packages/shared-data/pricing.ts).
+    */}
     <p>
       If you choose Google sign-in, you are sent to Google to finish signing in. Google then gives Supabase, which runs
-      our accounts, some details from your Google account, such as its email address, name and profile-picture link,
-      and Supabase keeps them with your account.
+      our accounts, your name, a link to your profile photo, your Google account id, your email address and whether
+      Google has checked it. Supabase keeps them with your account and updates them each time you sign in with Google.
+      {site.name} never reads or shows your photo.
+    </p>
+    <p>
+      Each time you sign in, Supabase keeps a sign-in session with your IP address and the kind of browser and device
+      you used, until you sign out. Supabase's own service logs, which also include IP addresses, are kept for about a
+      day.
+    </p>
+    <p>
+      If you turn on two-factor sign-in at <a href="/account/two-factor">/account/two-factor</a>, Supabase keeps your
+      authenticator app's secret key with your account so it can check your codes. Removing two-factor there deletes it.
     </p>
     <p>
       When you're signed in, the browser keeps your sign-in session under <code>cueory-auth</code>. It includes your
@@ -167,8 +188,8 @@ import { newsletter, promo, site } from '../config/site';
       <li>Cloudflare hosts the website and counts visits.</li>
       <li>{newsletter.provider} stores newsletter signups and sends launch-update emails.</li>
       <li>
-        Supabase stores account and study data for people who create an account. Google handles Google sign-in if you
-        choose it.
+        Supabase stores account and study data for people who create an account, and your sign-in sessions until you
+        sign out. Google handles Google sign-in if you choose it.
       </li>
       <li>
         YouTube plays lesson videos. Nothing loads from YouTube until you tap play, and it may set cookies once a video
