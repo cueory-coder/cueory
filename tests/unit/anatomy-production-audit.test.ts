@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { auditAnatomyProduction, decodeAsciiEscapesForAudit, modelUrls, readRegularFileNoFollow } from '../../scripts/anatomy-production-audit.mjs';
@@ -277,6 +277,22 @@ describe('anatomy production artifact audit', () => {
     const f = setup();
     symlinkSync(join(f.dist, 'missing.glb'), join(f.dist, 'ghost.glb'));
     expect(f.check().errors).toContain('symbolic link in production output: /ghost.glb');
+  });
+
+  it('rejects a symlink used as the entire production output root', () => {
+    const f = setup();
+    const realDist = `${f.dist}-actual`;
+    renameSync(f.dist, realDist);
+    symlinkSync(realDist, f.dist, 'dir');
+    expect(f.check().errors).toContain(`production output root is a symbolic link: ${f.dist}`);
+  });
+
+  it('rejects a symlink used as the entire anatomy source root', () => {
+    const f = setup();
+    const realContent = `${f.content}-actual`;
+    renameSync(f.content, realContent);
+    symlinkSync(realContent, f.content, 'dir');
+    expect(f.check().errors).toContain(`anatomy source root is a symbolic link: ${f.content}`);
   });
 
   it('rejects linked anatomy source manifests rather than trusting an aliased approval', () => {
