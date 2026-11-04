@@ -335,9 +335,12 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
           });
           for (const url of initial.files) loader.markLoaded(url);
           loaderRef.current = loader;
+          // Count actual cached GLBs after the initial lazy batch completes.
+          setFilesLoaded(loader.loadedCount());
+        } else {
+          // The eager path also counts its model files, but only after successful decoding.
+          setFilesLoaded((system.model.files ?? [system.model.file]).length);
         }
-        // The initial files have completed successfully, including in the whole-body lazy path.
-        setFilesLoaded(initial?.files.length ?? 0);
         setLoad({ state: 'ready', result });
         setAnnounce(`${system.title}: ${result.found.length} structures loaded.`);
       })
