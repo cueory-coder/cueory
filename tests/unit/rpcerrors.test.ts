@@ -183,4 +183,29 @@ describe('confirmed-email refusal (Task 169)', () => {
   ] as const)('names the action for %s', (fn, sentence) => {
     expect(studentMessage(fn, { message: 'confirm your email to use this' })).toBe(sentence);
   });
+
+  it.each(['delete_my_account', 'update_display_name'] as const)('keeps the general message for %s', fn => {
+    expect(studentMessage(fn, { message: 'confirm your email to use this' }))
+      .toBe('please confirm your email first. the link is in the email we sent you.');
+  });
+});
+
+// ── delete_my_account (Task 302) ─────────────────────────────────────────────
+
+describe('delete_my_account errors', () => {
+  it('maps the signed-out refusal', () => {
+    expect(studentMessage('delete_my_account', { message: 'sign in to delete your account', code: '28000' }))
+      .toBe('please sign in again to delete your account.');
+  });
+
+  it('maps the stale sign-in refusal, by message or by its code', () => {
+    const expected = 'for your safety, please sign in again to delete your account.';
+    expect(studentMessage('delete_my_account', { message: 'please sign in again to delete your account', code: '28R01' })).toBe(expected);
+    expect(studentMessage('delete_my_account', { code: '28R01' })).toBe(expected);
+  });
+
+  it('never echoes other database text', () => {
+    expect(studentMessage('delete_my_account', { message: 'permission denied for table users', code: '42501' }))
+      .toBe('something went wrong — please try again.');
+  });
 });
