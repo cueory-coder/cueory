@@ -298,7 +298,7 @@ describe.skipIf(!existsSync(dist))('built site', () => {
     const publicLegalPages = new Set(['privacy.html', 'terms.html', 'disclaimer.html']);
     expect(searchablePages.every((page) => {
       const html = readFileSync(page, 'utf8');
-      return !html.includes('content="noindex') || publicLegalPages.has(page.slice(dist.length + 1).replaceAll('\\', '/'));
+      return !html.includes('content="noindex') || publicLegalPages.has(relative(dist, page).replaceAll('\\', '/'));
     })).toBe(true);
   });
 
@@ -307,7 +307,7 @@ describe.skipIf(!existsSync(dist))('built site', () => {
     const noindex = html.includes('<meta name="robots" content="noindex');
     const body = /<main[^>]*\sdata-pagefind-body(?:="")?[\s>]/.test(html);
     // Public legal pages remain searchable on-site while robots excludes external crawlers.
-    const legal = ['/privacy.html', '/terms.html', '/disclaimer.html'].includes(page.replaceAll('\\', '/'));
+    const legal = ['privacy.html', 'terms.html', 'disclaimer.html'].includes(page.replaceAll('\\', '/').replace(/^\/+/, ''));
     expect(body, noindex && !legal ? 'a private noindex page must stay out of site search' : 'this page should be searchable').toBe(
       !noindex || legal,
     );
