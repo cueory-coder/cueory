@@ -92,7 +92,7 @@ const SENSITIVE_AUTH_PAGES = new Set([
 const SENSITIVE_AUTH_ISLAND_STEMS = [
   'account', 'admin', 'auth', 'checkanswer', 'deleteaccount', 'displayname',
   'examplan', 'exportdata', 'exportload', 'flagconnect', 'flagform', 'flaginbox',
-  'flagmount', 'flagsend', 'flagsubmit',
+  'flagmount', 'flagsend', 'flagsubmit', 'flagitem',
   'guestimport', 'mfa', 'oauth',
   'onboarding', 'password', 'pkce', 'progresspanel', 'publishedquestions',
   'questionsplayer', 'questionsremote', 'recovery', 'resetpassword',

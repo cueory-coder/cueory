@@ -182,6 +182,7 @@ describe('held paths', () => {
     'src/islands/flagconnect.ts',
     'src/islands/flagsend.ts',
     'src/islands/flagsubmit.ts',
+    'src/islands/flagitem.ts', // publishes the selected database item/version to the report form
     'src/islands/flaginbox.ts', // private/admin comment rendering
     'src/islands/FlagForm.tsx', // authenticated report submission UI
     'src/islands/FlagMount.tsx', // sign-in state and report transport
