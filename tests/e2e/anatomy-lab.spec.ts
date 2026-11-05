@@ -1018,7 +1018,7 @@ test.describe('anatomy lab without JavaScript', () => {
     await expect(fallback).toHaveCount(1);
     const paragraph = fallback.locator(':scope > p');
     await expect(paragraph).toBeVisible();
-    expect(await paragraph.textContent()).toContain('the 3D anatomy lab needs JavaScript');
-    await expect(paragraph.getByRole('link', { name: 'browse the lessons' })).toHaveAttribute('href', '/learn');
+    expect(await paragraph.textContent()).toContain('the 3D anatomy lab needs javascript');
+    await expect(paragraph.getByRole('link', { name: 'browse lessons' })).toHaveAttribute('href', '/learn');
   });
 });
