@@ -151,6 +151,7 @@ describe('held paths', () => {
     'src/pages/auth/callback.astro',
     'src/pages/account/two-factor.astro',
     'src/pages/admin/flags.astro',
+    'src/pages/preview/admin-flags.astro',
     'src/pages/signin.astro',
     'src/pages/signup.astro',
     'src/pages/reset-password.astro',
