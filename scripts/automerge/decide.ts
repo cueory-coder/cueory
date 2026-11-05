@@ -76,6 +76,10 @@ const ALWAYS_HELD_FILES = new Set([
   'src/components/SignupForm.astro',
   'src/scripts/accountcorner.ts',
   'src/scripts/studyeventqueue.ts', // may pass signed-in study events to an RPC sender
+  'src/islands/questions.ts', // ensures public question state rejects pre-attempt answer keys
+  'src/islands/flag.ts', // validates authenticated student report payloads
+  'src/pages/learn/questions.astro', // publishes the signed-in question practice entry point
+  'src/scripts/progress.ts', // holds local onboarding answers later imported into an account
 ]);
 
 /**

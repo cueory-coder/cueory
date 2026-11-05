@@ -164,6 +164,10 @@ describe('held paths', () => {
     'src/pages/account.astro',
     'src/pages/start.astro',
     'src/pages/progress.astro',
+    'src/pages/learn/questions.astro', // real published-question route
+    'src/islands/questions.ts', // reject answer-key fields from public question data
+    'src/islands/flag.ts', // validate authenticated reports
+    'src/scripts/progress.ts', // personal local onboarding data consumed by guest import
     'src/islands/supabaseenv.ts',
     'src/islands/supabaseclient.ts',
     'src/islands/supabasebuildcheck.ts',
