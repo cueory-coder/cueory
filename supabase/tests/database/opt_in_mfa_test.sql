@@ -1,4 +1,7 @@
 -- Task 301 opt-in MFA: security on server-side RLS and SECURITY DEFINER RPCs.
+-- CI revalidation: re-run all migrations and 43 pgTAP assertions after the
+-- nested SQL-quote fix, using only the disposable local Supabase database.
+-- This comment does not change SQL statements, fixtures, or policies.
 -- All accounts, factor IDs and records here are synthetic. Runs on the throwaway Supabase test DB.
 begin;
 create extension if not exists pgtap with schema extensions;
