@@ -933,7 +933,7 @@ describe('the auto-merge run', () => {
   it('does not ask Codex to retry if the PR was retargeted meanwhile (Task 39)', async () => {
     const { gh, calls } = fakeGitHub(
       { 7: { pr: pull(), files: ['src/x.ts'] } },
-      { comments: [codexComment(failed())], later: { base: { ref: 'main', sha: 'bbbb', repo: { full_name: REPO } } } },
+      { comments: [codexComment(failed())], later: { base: { ref: 'main', sha: 'bbbb' } } },
     );
     const outcomes = await runAutomerge({ gh, repo: REPO, mode: 'prelaunch', dryRun: false, log: () => {} });
     expect(outcomes[0]!.done).toBe('nothing');
