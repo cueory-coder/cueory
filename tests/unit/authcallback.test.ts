@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import AuthCallback, { CallbackFeedback } from '../../src/islands/AuthCallback';
+import AuthCallback, { CallbackFeedback } from '../../src/islands/AuthCallback.tsx';
 import {
   CALLBACK_ERROR, cleanCallbackUrl, exchangedUserId, finishCallback, readCallback, safeNext, type CodeExchangeAuth,
 } from '../../src/islands/authcallback';
