@@ -105,6 +105,9 @@ export function anatomyInventory(root = DEFAULT_ROOT, selectedSystem = null) {
       const name = requireText(label.text, `${file} label ${labelId} name`);
       const source = sources.get(label.source);
       if (!source) fail(`label ${labelId} has no cited source`);
+      // Every BodyParts3D name must cite its own exact FMA/BP identity, not
+      // another structure's valid source line in the same inventory.
+      if (label.source !== `bp3d-${labelId}`) fail(`label ${labelId} cites a different structure source`);
       requireText(source.quote, `${file} label ${labelId} source quote`);
       requireText(source.section, `${file} label ${labelId} source section`);
       requireText(source.book, `${file} label ${labelId} source book`);
