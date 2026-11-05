@@ -4,6 +4,7 @@ import { expect, test } from '@playwright/test';
 test('fill-in keyboard feedback remains live, atomic and associated with the answer field', async ({ page }) => {
   await page.goto('/learn/study-skills/fill-in');
   const board = page.getByTestId('fill-in');
+  await board.getByRole('button', { name: 'type instead' }).click();
   const field = board.getByRole('textbox', { name: 'the missing word', exact: true });
   const next = board.getByRole('button', { name: 'next', exact: true });
   const feedback = board.locator('p[id$="-message"]');

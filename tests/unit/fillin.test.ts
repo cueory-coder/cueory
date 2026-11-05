@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  answerCurrent, boundTyped, checkAnswer, currentIndex, editDistance, isCheckKey, nextItem, normalizeAnswer, parseItems,
+  answerCurrent, blankOptions, boundTyped, checkAnswer, currentIndex, editDistance, isCheckKey, nextItem, normalizeAnswer, parseItems,
   MAX_TYPED, sentenceParts, showHint, startFillIn, summary, type FillInItem,
 } from '../../src/islands/fillin';
 import { MAX_ANSWER_TEXT, parseResume } from '../../src/scripts/resume';
@@ -140,5 +140,45 @@ describe('fill-in submission bounds (Codex on #219)', () => {
     expect([...boundTyped('\u{1F600}'.repeat(600))]).toHaveLength(MAX_TYPED);
     expect(boundTyped('ho\u0001ney\u007f')).toBe('honey');
     expect(boundTyped('honey')).toBe('honey');
+  });
+});
+
+describe('blank options construction', () => {
+  it('prefers deck distractors when present and returns 4 options containing the answer', () => {
+    const opts = blankOptions('honey', ['nectar', 'syrup', 'sugar']);
+    expect(opts).toHaveLength(4);
+    expect(opts).toContain('honey');
+    expect(opts).toContain('nectar');
+    expect(opts).toContain('syrup');
+    expect(opts).toContain('sugar');
+  });
+
+  it('draws from other answers when distractors are absent or insufficient', () => {
+    const otherAnswers = ['blue', 'nest', 'tree'];
+    const opts = blankOptions('honey', undefined, otherAnswers);
+    expect(opts).toHaveLength(4);
+    expect(opts).toContain('honey');
+    expect(opts).toContain('blue');
+    expect(opts).toContain('nest');
+    expect(opts).toContain('tree');
+  });
+
+  it('combines item distractors and other answers up to 4 options without duplicates', () => {
+    const itemDistractors = ['nectar'];
+    const otherAnswers = ['honey', 'nectar', 'blue', 'nest'];
+    const opts = blankOptions('honey', itemDistractors, otherAnswers);
+    expect(opts).toHaveLength(4);
+    expect(opts).toContain('honey');
+    expect(opts).toContain('nectar');
+    expect(opts).toContain('blue');
+    expect(opts).toContain('nest');
+    expect(new Set(opts).size).toBe(4);
+  });
+
+  it('uses generic fallbacks when fewer than 3 distractors and other answers exist', () => {
+    const opts = blankOptions('honey', [], []);
+    expect(opts).toHaveLength(4);
+    expect(opts).toContain('honey');
+    expect(new Set(opts).size).toBe(4);
   });
 });
