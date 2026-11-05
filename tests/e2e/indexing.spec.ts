@@ -103,13 +103,16 @@ test.describe('Task 127: indexing', () => {
     }
   });
 
-  test('draft legal pages remain searchable on-site while crawlers are blocked', async ({ page }) => {
+  test('draft legal pages stay out of external and site search while public support remains searchable', async ({ page }) => {
     for (const path of ['/privacy', '/terms', '/disclaimer']) {
       const response = await page.goto(path);
       expect(response?.status()).toBe(200);
       await expect(robots(page)).toHaveAttribute('content', /\bnoindex\b/);
-      await expect(page.locator('main[data-pagefind-body]')).toHaveCount(1);
+      await expect(page.locator('main[data-pagefind-body]')).toHaveCount(0);
     }
+    await page.goto('/support');
+    await expect(robots(page)).toHaveCount(0);
+    await expect(page.locator('main[data-pagefind-body]')).toHaveCount(1);
     await page.goto('/signin');
     await expect(page.locator('main[data-pagefind-body]')).toHaveCount(0);
   });

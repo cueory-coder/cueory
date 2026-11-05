@@ -38,7 +38,7 @@ test('the labeled search uses the site index and stays keyboard accessible', asy
   await input.focus();
   await expect(input).toBeFocused();
 
-  await input.fill('privacy');
+  await input.fill('support');
   const results = search.getByRole('list', { name: 'search results' });
   const firstResult = results.getByRole('link').first();
   await expect(firstResult).toBeVisible({ timeout: 15000 });
