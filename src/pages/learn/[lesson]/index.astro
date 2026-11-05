@@ -6,6 +6,7 @@
  */
 import { getCollection, getEntry } from 'astro:content';
 import Layout from '../../../layouts/Layout.astro';
+import ContentLabel from '../../../components/ContentLabel.astro';
 import ModeTile from '../../../components/ModeTile.astro';
 import SentenceStepper from '../../../islands/SentenceStepper';
 import LessonVideo from '../../../islands/LessonVideo';
@@ -115,6 +116,9 @@ const ways = availableModes.length;
 
     <div class="mx-auto max-w-prose">
       <LessonVisuals lessonId={lesson.curriculumId ?? lesson.id} />
+    </div>
+    <div class="mx-auto max-w-prose pt-4">
+      <ContentLabel />
     </div>
   </div>
 </Layout>

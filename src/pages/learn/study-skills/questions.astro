@@ -1,6 +1,7 @@
 ---
 import { getEntry } from 'astro:content';
 import Layout from '../../../layouts/Layout.astro';
+import ContentLabel from '../../../components/ContentLabel.astro';
 import InfoTip from '../../../components/InfoTip.astro';
 import QuestionsSample from '../../../islands/QuestionsSample';
 
@@ -77,6 +78,9 @@ if (!lesson) {
         </li>
       </ul>
     </nav>
+    <div class="mt-8">
+      <ContentLabel />
+    </div>
   </div>
 </Layout>
 
