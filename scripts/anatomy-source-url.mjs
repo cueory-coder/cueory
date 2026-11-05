@@ -1,7 +1,9 @@
 /** Cite the exact official BodyParts3D parts table used for structure names. */
 export function partsListCitationUrl(readmeUrl, partsSection) {
   const match = /^((?:partof_|isa_)?parts_list_e\.txt), Release (3\.0(?: \(2011-09-15\))?|4\.0)$/.exec(partsSection);
-  if (!match) throw new Error('unrecognized BodyParts3D parts-list section');
+  if (!match || (match[2].startsWith('3.0') && match[1] !== 'parts_list_e.txt')) {
+    throw new Error('unrecognized BodyParts3D parts-list section');
+  }
 
   let readme;
   try { readme = new URL(readmeUrl); }
