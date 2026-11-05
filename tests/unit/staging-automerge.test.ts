@@ -138,6 +138,7 @@ describe('held paths', () => {
     'scripts/anatomy-groups.mjs',
     'src/visuals/prunedrafts.ts',
     'src/visuals/sources.ts',
+    'src/content.config.ts', // Visuals schema must stay a founder-reviewed publication control.
     'src/config/site.ts',
     'src/components/AccountCorner.astro',
     'src/components/SignupForm.astro',
@@ -176,6 +177,8 @@ describe('held paths', () => {
     expect(heldPaths([{ filename: 'docs/x.json', previous_filename: 'content/x.json' }], 'prelaunch')).toEqual(['content/x.json']);
     expect(heldPaths([{ filename: 'docs/old-policy.md', previous_filename: 'src/pages/privacy.astro' }], 'prelaunch'))
       .toEqual(['src/pages/privacy.astro']);
+    expect(heldPaths([{ filename: 'docs/old-content-schema.ts', previous_filename: 'src/content.config.ts' }], 'prelaunch'))
+      .toEqual(['src/content.config.ts']);
     expect(heldPaths([{ filename: 'scripts/deleted-gate.mjs', previous_filename: 'scripts/check-legal-release.mjs' }], 'prelaunch'))
       .toEqual(['scripts/check-legal-release.mjs']);
     expect(heldPaths([{ filename: 'src/islands/cards.ts', previous_filename: 'src/islands/AnatomyLab.tsx' }], 'prelaunch'))

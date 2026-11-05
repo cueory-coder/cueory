@@ -89,6 +89,7 @@ const ALWAYS_HELD_FILES = new Set([
   'scripts/anatomy-groups.mjs', // Derives source-backed structure grouping labels.
   'src/visuals/prunedrafts.ts',
   'src/visuals/sources.ts',
+  'src/content.config.ts', // Astro content schema enforces anatomy source, model validation and approval status.
   // Founder approval is required for changes to secret-scan exceptions/config.
   '.gitleaksignore',
   '.gitleaks.toml',
