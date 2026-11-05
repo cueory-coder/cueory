@@ -26,8 +26,21 @@ export const REQUIRED_CHECKS = [
   'Type check, build and test',
   'Scan for leaked secrets',
   'Scan code for security issues (Semgrep)',
+  // Require the GitHub Advanced Security verdict, not just the successful CodeQL analysis workflow.
+  'CodeQL',
   'Workers Builds: cueory',
 ] as const;
+
+/** Trusted publishers verified against this repository's exact-head GitHub check-runs.
+ * Checking a display name alone lets an unrelated check-writing integration impersonate a required gate.
+ */
+const REQUIRED_CHECK_APP: Record<(typeof REQUIRED_CHECKS)[number], string> = {
+  'Type check, build and test': 'github-actions',
+  'Scan for leaked secrets': 'github-actions',
+  'Scan code for security issues (Semgrep)': 'github-actions',
+  CodeQL: 'github-advanced-security',
+  'Workers Builds: cueory': 'cloudflare-workers-and-pages',
+};
 
 /** "prelaunch" until Christian says the site is live for students (automation.json). */
 export type Mode = 'prelaunch' | 'launched';
@@ -73,7 +86,7 @@ export interface PullRequest {
   user: { login: string } | null;
   /** null while GitHub is still working it out. */
   mergeable: boolean | null;
-  base: { ref: string };
+  base: { ref: string; sha?: string };
   head: { sha: string; ref: string; repo: { full_name: string } | null };
   labels: { name: string }[];
 }
@@ -89,6 +102,8 @@ export interface CheckRun {
   name: string;
   status: string;
   conclusion: string | null;
+  /** GitHub check-run publisher, used to verify the CodeQL verdict's origin. */
+  app?: { slug?: string };
 }
 
 export interface IssueComment {
@@ -346,6 +361,10 @@ export function checkProblems(checks: readonly CheckRun[]): string[] {
     if (!run) problems.push(`"${name}" hasn't reported yet`);
     else if (run.status !== 'completed') problems.push(`"${name}" is still running`);
     else if (run.conclusion !== 'success') problems.push(`"${name}" ended as ${run.conclusion ?? 'unknown'}`);
+    else if (run.app?.slug !== REQUIRED_CHECK_APP[name]) {
+      // All required checks must come from their known GitHub App, not just share a display name.
+      problems.push(`"${name}" was not published by its trusted GitHub app`);
+    }
   }
   for (const [name, run] of latest) {
     if ((REQUIRED_CHECKS as readonly string[]).includes(name)) continue;
@@ -422,6 +441,8 @@ export function decide({ repo, mode, pr, files, dependencies, checks, comments }
   if (deps.length > 0) return { action: 'label', reasons: [`needs Christian: dependency changes (${deps.join('; ')})`] };
 
   const problems = [...checkProblems(checks), ...codexProblems(codexState(comments), pr.head.sha)];
+  // A missing base SHA makes it impossible to verify that CI reviewed the current integration state.
+  if (!pr.base.sha) problems.push('cannot verify the staging base commit');
   if (pr.mergeable === null) problems.push('GitHub is still checking whether it merges cleanly');
   else if (!pr.mergeable) problems.push("it doesn't merge cleanly into staging");
   if (problems.length > 0) return { action: 'wait', reasons: problems };
