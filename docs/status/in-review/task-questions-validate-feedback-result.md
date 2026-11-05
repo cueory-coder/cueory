@@ -1,0 +1,1 @@
+status: Task 379, reject contradictory question-check feedback (#379): validate that the submitted answers match the returned answer key and the correct/incorrect flag before showing feedback; includes positive and negative unit regressions.

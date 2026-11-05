@@ -1,0 +1,51 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { courses } from '../config/courses';
+---
+
+<Layout title="courses" description="Nursing courses on cueory.">
+  <div class="mx-auto max-w-3xl space-y-8 py-8">
+    <div class="space-y-2">
+      <h1 class="text-2xl text-ink">courses</h1>
+      <p class="text-sm text-ink-soft">
+        see what else is planned on our <a href="/coming-soon" class="underline">coming soon page</a>.
+      </p>
+    </div>
+
+    <div class="grid gap-4 sm:grid-cols-2">
+      {courses.map((course) => {
+        const isAvailable = course.status === 'available';
+        return (
+          <div class="flex flex-col justify-between rounded-lg border border-line bg-surface p-5">
+            <div class="space-y-2">
+              <div class="flex items-center justify-between gap-2">
+                <h2 class="text-lg text-ink">{course.title}</h2>
+                {!isAvailable && (
+                  <span class="rounded bg-line px-2 py-0.5 text-sm leading-relaxed text-ink">
+                    coming soon
+                  </span>
+                )}
+              </div>
+              <p class="text-sm text-ink-soft">{course.description}</p>
+            </div>
+
+            <div class="mt-4">
+              {isAvailable ? (
+                <a
+                  href={course.href}
+                  class="inline-flex min-h-11 items-center justify-center rounded-md border border-control bg-page px-4 text-sm text-ink hover:border-ink focus-visible:outline-2"
+                >
+                  open course
+                </a>
+              ) : (
+                <span class="inline-flex min-h-11 items-center text-sm text-ink-soft">
+                  coming soon
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+</Layout>
