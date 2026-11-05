@@ -49,6 +49,12 @@ const exceptions: Exception[] = [
   },
   {
     kind: 'size',
+    path: 'islands/AnatomyLab.tsx',
+    matches: text => /^const narrow = typeof window\.matchMedia === 'function' && window\.matchMedia\('\(max-width: 767px\)'\)\.matches;$/.test(text.trim()),
+    reason: 'the phone-only anatomy bulk-download confirmation uses a specific viewport breakpoint, not a design size',
+  },
+  {
+    kind: 'size',
     path: 'styles/pillo.css',
     matches: text => /^@media \(width (?:<|>=) 40rem\) \{$/.test(text.trim()),
     reason: 'the Pillo board changes layout at a responsive media-query breakpoint',
@@ -110,6 +116,14 @@ describe('design values', () => {
     expect(exceptionFor(finding('  @media (width >= 40rem) {'))?.reason).toBeTruthy();
     expect(exceptionFor(finding('  @media (width < 41rem) {'))).toBeUndefined();
     expect(exceptionFor(finding('  padding: 40rem;'))).toBeUndefined();
+  });
+
+  it('limits the anatomy phone breakpoint exception to its exact viewport condition', () => {
+    const finding = (text: string): Finding => ({ kind: 'size', path: 'islands/AnatomyLab.tsx', line: 1, text });
+    const breakpoint = "const narrow = typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 767px)').matches;";
+    expect(exceptionFor(finding(breakpoint))?.reason).toBeTruthy();
+    expect(exceptionFor(finding(breakpoint.replace('767px', '768px')))).toBeUndefined();
+    expect(exceptionFor(finding('padding: 767px;'))).toBeUndefined();
   });
 
   it('detects real raw design values and accepts token references', () => {
