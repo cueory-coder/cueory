@@ -25,6 +25,7 @@ Do not commit secrets, private student data, real question-bank content, answer 
 | `npm test` | Run the unit test suite once. |
 | `npm run test:e2e` | Run the Playwright browser tests. |
 | `npm run verify` | Run checks, the build, unit tests, and browser tests in order. |
+| `npm run check-batch -- content/batches/<folder>` | Validate one content batch before import. |
 | `npm run preview` | Preview the built site locally. Run `npm run build` first. |
 
 Run `npm run verify` before opening a pull request. If a browser is unavailable locally, record that limitation and do not claim the browser tests passed.

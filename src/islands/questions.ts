@@ -83,7 +83,8 @@ export function choiceMarks(picked: ChoiceId[], key: ChoiceId[]): Record<ChoiceI
 
 /** A malformed checker response is a failed check, never a result or a score. */
 export function validateResult(question: Question, picked: ChoiceId[], value: unknown): CheckResult {
-  if (!record(value) || typeof value.correct !== 'boolean' || !Array.isArray(value.key) ||
+  if (!record(value) || Object.keys(value).some((field) => !['correct', 'key', 'rationales'].includes(field)) ||
+      typeof value.correct !== 'boolean' || !Array.isArray(value.key) ||
       value.key.length === 0 || !Array.from(value.key).every(isId) || new Set(value.key).size !== value.key.length ||
       value.key.some((id) => !question.choices.some((choice) => choice.id === id)) ||
       (question.type === 'single' && value.key.length !== 1) || !record(value.rationales) ||

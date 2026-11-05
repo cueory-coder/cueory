@@ -5,6 +5,8 @@ export interface FillInItem {
   id: string;
   /** Exactly one answer is wrapped in double brackets, for example: "Bees make [[honey]]." */
   sentence: string;
+  /** Optional distractors for multiple-choice dropdowns. */
+  distractors?: string[];
 }
 
 export interface SentenceParts {
@@ -59,7 +61,14 @@ export function parseItems(data: unknown): FillInItem[] {
     if (seen.has(value.id)) throw new Error(`fill-in item id "${value.id}" is repeated.`);
     sentenceParts(value.sentence);
     seen.add(value.id);
-    return { id: value.id, sentence: value.sentence };
+    let distractors: string[] | undefined;
+    if ('distractors' in value && value.distractors !== undefined) {
+      if (!Array.isArray(value.distractors) || !value.distractors.every((d) => typeof d === 'string' && d.trim().length > 0)) {
+        throw new Error(`distractors for item "${value.id}" must be a list of non-empty strings.`);
+      }
+      distractors = [...value.distractors.map((d) => d.trim())];
+    }
+    return { id: value.id, sentence: value.sentence, ...(distractors ? { distractors } : {}) };
   });
 }
 
@@ -181,4 +190,75 @@ export function nextItem(state: FillInState): FillInState {
 export function summary(state: FillInState): string {
   const rounds = state.roundNumber === 1 ? 'round' : 'rounds';
   return `all ${state.total} recalled in ${state.roundNumber} ${rounds}.`;
+}
+
+/**
+ * Build 4 multiple-choice options for a blank (the answer plus 3 distractors).
+ * If item-level distractors are present, they are preferred; otherwise distractors
+ * are drawn from other blanks' answers in the deck.
+ * Fallback values are used if fewer than 3 distractors are available.
+ * Deterministic shuffle with seed ensures stability across re-renders while varying per item.
+ */
+export function blankOptions(
+  answer: string,
+  distractors?: readonly string[],
+  otherAnswers?: readonly string[],
+  seed = 0,
+): string[] {
+  const normAnswer = normalizeAnswer(answer);
+  const seen = new Set<string>([normAnswer]);
+  const candidates: string[] = [];
+
+  if (distractors) {
+    for (const d of distractors) {
+      const trimmed = d.trim();
+      const norm = normalizeAnswer(trimmed);
+      if (norm && !seen.has(norm)) {
+        seen.add(norm);
+        candidates.push(trimmed);
+      }
+    }
+  }
+
+  if (candidates.length < 3 && otherAnswers) {
+    for (const a of otherAnswers) {
+      const trimmed = a.trim();
+      const norm = normalizeAnswer(trimmed);
+      if (norm && !seen.has(norm)) {
+        seen.add(norm);
+        candidates.push(trimmed);
+      }
+    }
+  }
+
+  // Fallbacks if deck has fewer than 4 items/distractors
+  const genericFallbacks = ['none of these', 'other', 'all of these', 'unknown'];
+  for (const fallback of genericFallbacks) {
+    if (candidates.length >= 3) break;
+    const norm = normalizeAnswer(fallback);
+    if (!seen.has(norm)) {
+      seen.add(norm);
+      candidates.push(fallback);
+    }
+  }
+
+  const chosenDistractors = candidates.slice(0, 3);
+  const pool = [answer.trim(), ...chosenDistractors];
+
+  // Deterministic pseudo-random shuffle based on seed and answer string
+  let h = seed * 31 + pool.reduce((acc, str) => acc + str.charCodeAt(0), 0);
+  const random = () => {
+    h = (h * 9301 + 49297) % 233280;
+    return h / 233280;
+  };
+
+  const result = [...pool];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    const temp = result[i]!;
+    result[i] = result[j]!;
+    result[j] = temp;
+  }
+
+  return result;
 }

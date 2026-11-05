@@ -3,7 +3,7 @@ import { attachResumeLifecycle, clearResume, readResume, saveResume, type Resume
 import { browserStorage } from '../scripts/storage';
 import ResumePrompt from './ResumePrompt';
 import {
-  answerCurrent, boundTyped, currentIndex, isCheckKey, nextItem, normalizeAnswer, parseItems, sentenceParts, showHint,
+  answerCurrent, blankOptions, boundTyped, currentIndex, isCheckKey, nextItem, normalizeAnswer, parseItems, sentenceParts, showHint,
   MAX_TYPED, startFillIn, summary, type FillInItem, type FillInState,
 } from './fillin';
 
@@ -142,6 +142,7 @@ function Session({ items: suppliedItems, page = FILL_IN_PAGE }: Props) {
   const [items] = useState(() => parseItems(suppliedItems));
   const [state, setState] = useState(() => startFillIn(items));
   const [typed, setTyped] = useState('');
+  const [inputMode, setInputMode] = useState<'dropdown' | 'type'>('dropdown');
   const [focusInput, setFocusInput] = useState(0);
   const [resumePending, setResumePending] = useState(() => {
     const saved = readResume(browserStorage());
@@ -153,6 +154,7 @@ function Session({ items: suppliedItems, page = FILL_IN_PAGE }: Props) {
   const moves = useRef(0);
   const latestDraft = useRef<ResumeDraft | null>(null);
   const input = useRef<HTMLInputElement>(null);
+  const select = useRef<HTMLSelectElement>(null);
   const nextButton = useRef<HTMLButtonElement>(null);
   const end = useRef<HTMLDivElement>(null);
   const id = useId();
@@ -161,14 +163,36 @@ function Session({ items: suppliedItems, page = FILL_IN_PAGE }: Props) {
   const parts = item ? sentenceParts(item.sentence) : undefined;
   const answered = state.result === 'right' || state.result === 'wrong';
 
+  // Extract all other answers across the deck as fallback distractors
+  const allAnswers = items
+    .map((it) => {
+      try {
+        return sentenceParts(it.sentence).answer;
+      } catch {
+        return '';
+      }
+    })
+    .filter(Boolean);
+
+  const options = parts && item
+    ? blankOptions(parts.answer, item.distractors, allAnswers, (index ?? 0) + state.roundNumber * 7)
+    : [];
+
+  // A resumed free-text attempt may not be one of the dropdown's options.
+  // Never enable checking an answer the student cannot see selected.
+  const canSubmit = normalizeAnswer(typed) !== '' && (inputMode === 'type' || options.includes(typed));
+
   // Do not overwrite a different mode's save merely by visiting this page.
   useEffect(() => attachResumeLifecycle(browserStorage(), () => latestDraft.current), []);
 
   useEffect(() => {
     if (state.done) end.current?.focus();
     else if (answered) nextButton.current?.focus();
-    else if (focusInput > 0) input.current?.focus();
-  }, [answered, focusInput, state.done]);
+    else if (focusInput > 0) {
+      if (inputMode === 'type') input.current?.focus();
+      else select.current?.focus();
+    }
+  }, [answered, focusInput, inputMode, state.done]);
 
   const persist = (next: FillInState) => {
     const draft = fillInDraft(items, next, attempts.current, moves.current, page);
@@ -186,7 +210,7 @@ function Session({ items: suppliedItems, page = FILL_IN_PAGE }: Props) {
   const check = () => {
     // Check exactly the text that will be saved, so a resumed replay reaches the same verdict.
     const submitted = boundTyped(typed);
-    if (index === undefined || !parts || normalizeAnswer(submitted) === '' || answered) return;
+    if (index === undefined || !parts || !canSubmit || answered) return;
     const next = answerCurrent(state, items, submitted);
     if (next === state) return;
     const key = itemKey(index);
@@ -279,26 +303,63 @@ function Session({ items: suppliedItems, page = FILL_IN_PAGE }: Props) {
             </p>
 
             <div className="mt-6">
-              <label htmlFor={`${id}-answer`} className="block text-sm font-medium">the missing word</label>
-              <input
-                ref={input}
-                id={`${id}-answer`}
-                value={typed}
-                readOnly={answered}
-                // The sentence describes the field, so moving to the next item reads the new sentence too (Codex on #56).
-                aria-describedby={message ? `${id}-sentence ${id}-message` : `${id}-sentence`}
-                maxLength={MAX_TYPED}
-                onChange={(event) => setTyped(boundTyped(event.currentTarget.value))}
-                onKeyDown={(event) => {
-                  // Not while an input method is still composing the word (Codex on #56).
-                  if (isCheckKey({ key: event.key, isComposing: event.nativeEvent.isComposing, keyCode: event.keyCode })) {
-                    event.preventDefault();
-                    check();
-                  }
-                }}
-                className="mt-2 min-h-11 w-full rounded-md border border-control bg-surface px-4 py-2.5 text-ink"
-                autoComplete="off"
-              />
+              <div className="flex items-center justify-between">
+                <label htmlFor={`${id}-answer`} className="block text-sm font-medium">the missing word</label>
+                <button
+                  type="button"
+                  className="min-h-11 px-2 text-xs leading-relaxed text-ink-soft underline hover:text-ink"
+                  onClick={() => {
+                    // A select can only submit one of its visible options. Do not retain
+                    // an unseen free-text answer when changing back to dropdown mode.
+                    if (inputMode === 'type' && typed !== '' && !options.includes(typed)) {
+                      setTyped('');
+                    }
+                    setInputMode(inputMode === 'dropdown' ? 'type' : 'dropdown');
+                    setFocusInput((req) => req + 1);
+                  }}
+                >
+                  {inputMode === 'dropdown' ? 'type instead' : 'choose from options'}
+                </button>
+              </div>
+
+              {inputMode === 'dropdown' ? (
+                <select
+                  ref={select}
+                  id={`${id}-answer`}
+                  value={typed}
+                  disabled={answered}
+                  aria-describedby={message ? `${id}-sentence ${id}-message` : `${id}-sentence`}
+                  onChange={(event) => setTyped(event.currentTarget.value)}
+                  className="mt-2 min-h-11 w-full rounded-md border border-control bg-surface px-4 py-2.5 text-ink"
+                >
+                  <option value="">choose an answer...</option>
+                  {options.map((option, optIdx) => (
+                    <option key={`${option}-${optIdx}`} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  ref={input}
+                  id={`${id}-answer`}
+                  value={typed}
+                  readOnly={answered}
+                  // The sentence describes the field, so moving to the next item reads the new sentence too (Codex on #56).
+                  aria-describedby={message ? `${id}-sentence ${id}-message` : `${id}-sentence`}
+                  maxLength={MAX_TYPED}
+                  onChange={(event) => setTyped(boundTyped(event.currentTarget.value))}
+                  onKeyDown={(event) => {
+                    // Not while an input method is still composing the word (Codex on #56).
+                    if (isCheckKey({ key: event.key, isComposing: event.nativeEvent.isComposing, keyCode: event.keyCode })) {
+                      event.preventDefault();
+                      check();
+                    }
+                  }}
+                  className="mt-2 min-h-11 w-full rounded-md border border-control bg-surface px-4 py-2.5 text-ink"
+                  autoComplete="off"
+                />
+              )}
             </div>
 
             <p id={`${id}-message`} className="mt-4 min-h-6" aria-live="polite" aria-atomic="true">{message}</p>
@@ -308,7 +369,7 @@ function Session({ items: suppliedItems, page = FILL_IN_PAGE }: Props) {
                 <button ref={nextButton} type="button" className={primaryButton} onClick={advance}>next</button>
               ) : (
                 <>
-                  <button type="button" className={primaryButton} disabled={normalizeAnswer(typed) === ''} onClick={check}>check</button>
+                  <button type="button" className={primaryButton} disabled={!canSubmit} onClick={check}>check</button>
                   <button type="button" className={secondaryButton} disabled={state.hinted} onClick={hint}>hint</button>
                 </>
               )}
