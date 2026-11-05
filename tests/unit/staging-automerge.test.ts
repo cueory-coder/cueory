@@ -118,6 +118,7 @@ describe('held paths', () => {
     'content/README.md',
     'supabase/migrations/001.sql',
     'public/models/anatomy/heart.glb',
+    'src/pages/preview/anatomy-fixture/fixture.glb.ts',
     'wrangler.jsonc',
     'public/_headers',
     'astro.config.mjs',
@@ -183,6 +184,8 @@ describe('held paths', () => {
       .toEqual(['scripts/anatomy-review-report.mjs']);
     expect(heldPaths([{ filename: 'src/pages/preview/anatomy-text.astro', previous_filename: 'docs/text.md' }], 'launched'))
       .toEqual(['src/pages/preview/anatomy-text.astro']);
+    expect(heldPaths([{ filename: 'docs/removed-fixture.md', previous_filename: 'src/pages/preview/anatomy-fixture/[name].glb.ts' }], 'prelaunch'))
+      .toEqual(['src/pages/preview/anatomy-fixture/[name].glb.ts']);
   });
   const sensitiveAccountSources = [
     'src/pages/auth/callback.astro',
