@@ -7,6 +7,8 @@
  * This never changes legal text or authorizes deployment.
  */
 import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 type Environment = Record<string, string | undefined>;
@@ -36,6 +38,42 @@ describe('legal release check selection', () => {
     // This protects the release gate from the CI docs-only optimization.
     const workflow = readFileSync(new URL('../../.github/workflows/ci.yml', import.meta.url), 'utf8');
     expect(workflow).toContain('if [ "$GITHUB_BASE_REF" != "main" ] && [ -n "$files" ]');
+  });
+});
+
+
+describe('Cloudflare Workers Builds release gate', () => {
+  const script = new URL('../../scripts/check-legal-release.mjs', import.meta.url);
+  const run = (overrides: Record<string, string>) => {
+    return spawnSync(process.execPath, [fileURLToPath(script)], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        GITHUB_EVENT_NAME: '',
+        GITHUB_BASE_REF: '',
+        GITHUB_REF: '',
+        WORKERS_CI: '',
+        WORKERS_CI_BRANCH: '',
+        CUEORY_LEGAL_RELEASE_AUDIT: '',
+        ...overrides,
+      },
+    });
+  };
+
+  it('runs automatically before the Workers build rather than relying on GitHub CI', () => {
+    const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
+    expect(packageJson.scripts.prebuild).toBe('node scripts/check-legal-release.mjs');
+  });
+
+  it('blocks main auto-deploys when legal sources contain known draft markers', () => {
+    const hasDraftCopy = ['terms', 'disclaimer', 'privacy'].some((page) =>
+      /<PlaceholderBlock\b|Draft for review|Last updated:\s*not yet published/i
+        .test(source(page)));
+    const main = run({ WORKERS_CI: '1', WORKERS_CI_BRANCH: 'main' });
+    expect(main.status).toBe(hasDraftCopy ? 1 : 0);
+    if (hasDraftCopy) expect(main.stderr).toContain('legal release blocked:');
+    expect(run({ WORKERS_CI: '1', WORKERS_CI_BRANCH: 'staging' }).status).toBe(0);
+    expect(run({ GITHUB_EVENT_NAME: 'pull_request', GITHUB_BASE_REF: 'staging' }).status).toBe(0);
   });
 });
 
