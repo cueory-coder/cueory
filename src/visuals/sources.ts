@@ -199,8 +199,9 @@ export interface GlbJson {
   asset?: { copyright?: string };
   extensionsRequired?: string[];
   nodes?: { name?: string; mesh?: number }[];
-  meshes?: { primitives: { indices?: number }[] }[];
+  meshes?: { primitives: { indices?: number; mode?: number }[] }[];
   accessors?: { count: number }[];
+  buffers?: { byteLength: number; uri?: string }[];
 }
 
 /**
@@ -212,9 +213,43 @@ export function glbJson(bytes: Uint8Array): GlbJson {
   if (bytes.byteLength < 20 || view.getUint32(0, true) !== 0x46546c67 || view.getUint32(4, true) !== 2) {
     throw new Error('not a GLB version 2 file');
   }
+  if (view.getUint32(8, true) !== bytes.byteLength) {
+    throw new Error('the GLB file length does not match its header');
+  }
   const length = view.getUint32(12, true);
-  if (view.getUint32(16, true) !== 0x4e4f534a || 20 + length > bytes.byteLength) throw new Error('the GLB file has no JSON chunk');
-  return JSON.parse(new TextDecoder().decode(bytes.subarray(20, 20 + length))) as GlbJson;
+  if (view.getUint32(16, true) !== 0x4e4f534a || length === 0 || length % 4 !== 0 || 20 + length > bytes.byteLength) {
+    throw new Error('the GLB file has no complete JSON chunk');
+  }
+  // GLB 2.0: a JSON chunk, an optional BIN chunk, then possible extension chunks.
+  // Check each chunk's framing without decoding meshes (Khronos glTF 2.0, section 4.4).
+  const jsonEnd = 20 + length;
+  let at = jsonEnd;
+  let binLength: number | null = null;
+  while (at < bytes.byteLength) {
+    if (bytes.byteLength - at < 8) throw new Error('the GLB file has an incomplete chunk header');
+    const chunkLength = view.getUint32(at, true);
+    const chunkType = view.getUint32(at + 4, true);
+    if (chunkLength % 4 !== 0 || chunkLength > bytes.byteLength - at - 8) {
+      throw new Error('the GLB file has an invalid chunk length');
+    }
+    if (chunkType === 0x4e4f534a) throw new Error('the GLB file has an extra JSON chunk');
+    if (chunkType === 0x004e4942) {
+      if (at !== jsonEnd) throw new Error('the GLB BIN chunk must follow the JSON chunk');
+      binLength = chunkLength;
+    }
+    // Unknown chunk types after the standard chunks are allowed for forward compatibility.
+    at += 8 + chunkLength;
+  }
+  const json = JSON.parse(new TextDecoder().decode(bytes.subarray(20, jsonEnd))) as GlbJson;
+  const buffer = json.buffers?.[0];
+  if (buffer && buffer.uri === undefined) {
+    if (binLength === null) throw new Error('the GLB file is missing its referenced BIN chunk');
+    if (!Number.isSafeInteger(buffer.byteLength) || buffer.byteLength < 0 ||
+      binLength < buffer.byteLength || binLength > buffer.byteLength + 3) {
+      throw new Error('the GLB BIN chunk length does not match its referenced buffer');
+    }
+  }
+  return json;
 }
 
 /** The names of a GLB file's nodes, in file order. */
@@ -228,8 +263,16 @@ export function glbTriangles(bytes: Uint8Array): number {
   let triangles = 0;
   for (const mesh of json.meshes ?? []) {
     for (const primitive of mesh.primitives) {
+      // GLB mode 4 means triangles; glTF defaults to 4 when mode is absent.
+      if (primitive.mode !== undefined && primitive.mode !== 4) {
+        throw new Error('a mesh primitive is not triangles (mode 4)');
+      }
       if (primitive.indices === undefined) throw new Error('a mesh without indices');
-      triangles += json.accessors![primitive.indices]!.count / 3;
+      const count = json.accessors?.[primitive.indices]?.count;
+      if (typeof count !== 'number' || !Number.isSafeInteger(count) || count < 3 || count % 3 !== 0) {
+        throw new Error('a mesh has an invalid triangle index count');
+      }
+      triangles += count / 3;
     }
   }
   return triangles;
