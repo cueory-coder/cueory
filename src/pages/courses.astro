@@ -12,14 +12,14 @@ import { courses } from '../config/courses';
       </p>
     </div>
 
-    <div class="grid gap-4 sm:grid-cols-2">
+    <div class="grid min-w-0 gap-4 sm:grid-cols-2">
       {courses.map((course) => {
         const isAvailable = course.status === 'available';
         return (
-          <div class="flex flex-col justify-between rounded-lg border border-line bg-surface p-5">
+          <div class="flex min-w-0 flex-col justify-between rounded-lg border border-line bg-surface p-5">
             <div class="space-y-2">
-              <div class="flex items-center justify-between gap-2">
-                <h2 class="text-lg text-ink">{course.title}</h2>
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <h2 class="min-w-0 text-lg text-ink">{course.title}</h2>
                 {!isAvailable && (
                   <span class="rounded bg-line px-2 py-0.5 text-sm leading-relaxed text-ink">
                     coming soon
