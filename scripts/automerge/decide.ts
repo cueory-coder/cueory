@@ -83,7 +83,8 @@ const ALWAYS_HELD_FILES = new Set([
   'src/pages/preview/anatomy-lab.astro', // Serializes the model selection into the page.
   'src/pages/preview/anatomy-text.astro', // Serializes source names without JavaScript under the same draft gate.
   'scripts/build-anatomy.mjs', // Source-driven geometry and label generation.
-  'scripts/anatomy-review-report.mjs', // Provides the founder's prepublication labels and rights inventory.
+  'scripts/anatomy-review-report.mjs',
+  'scripts/anatomy-source-url.mjs', // Model generator's official source/rights URL mapping. // Provides the founder's prepublication labels and rights inventory.
   'scripts/anatomy-systems.json', // Model source selection and layer definitions.
   'scripts/anatomy-release4.mjs', // Parses official BodyParts3D structure identities and hierarchy.
   'scripts/anatomy-groups.mjs', // Derives source-backed structure grouping labels.

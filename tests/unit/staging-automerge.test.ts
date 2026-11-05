@@ -133,6 +133,7 @@ describe('held paths', () => {
     'src/pages/preview/anatomy-text.astro',
     'scripts/build-anatomy.mjs',
     'scripts/anatomy-review-report.mjs',
+    'scripts/anatomy-source-url.mjs',
     'scripts/anatomy-systems.json',
     'scripts/anatomy-release4.mjs',
     'scripts/anatomy-groups.mjs',
@@ -185,6 +186,8 @@ describe('held paths', () => {
       .toEqual(['src/islands/AnatomyLab.tsx']);
     expect(heldPaths([{ filename: 'docs/old-report.mjs', previous_filename: 'scripts/anatomy-review-report.mjs' }], 'prelaunch'))
       .toEqual(['scripts/anatomy-review-report.mjs']);
+    expect(heldPaths([{ filename: 'docs/old-source-url.md', previous_filename: 'scripts/anatomy-source-url.mjs' }], 'prelaunch'))
+      .toEqual(['scripts/anatomy-source-url.mjs']);
     expect(heldPaths([{ filename: 'src/pages/preview/anatomy-text.astro', previous_filename: 'docs/text.md' }], 'launched'))
       .toEqual(['src/pages/preview/anatomy-text.astro']);
     expect(heldPaths([{ filename: 'docs/removed-fixture.md', previous_filename: 'src/pages/preview/anatomy-fixture/[name].glb.ts' }], 'prelaunch'))
