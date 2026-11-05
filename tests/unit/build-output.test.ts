@@ -236,24 +236,32 @@ describe.skipIf(!existsSync(dist))('built site', () => {
       : [];
     // This comparison uses one current build for BOTH scanners. It quantifies how
     // much the original scanner undercounts here; it cannot establish historic growth.
+    // Measure all failing routes with BOTH scanners on the same current build.
+    // This does not change the strict corrected-scanner assertion or any budget.
+    // Historical baselines used the older scanner, so identify where a corrected
+    // result might be incomparable to its historical reference before resetting it.
     const legacyDiagnostic = overBudget.length > 0
-      ? (() => {
-        const page = join(dist, '404.html');
-        const originalScanner = legacyInitialJsGzipBytes(page);
+      ? Object.entries(initialJsBudget).flatMap(([route, baseline]) => {
+        const page = join(dist, route);
         const correctedScanner = initialJsGzipBytes(page);
-        return {
+        const limit = Math.ceil(baseline * 1.1);
+        if (correctedScanner <= limit) return [];
+        const originalScanner = legacyInitialJsGzipBytes(page);
+        return [{
+          route,
           originalScanner,
           correctedScanner,
           scannerDifference: correctedScanner - originalScanner,
-        };
-      })()
-      : null;
+          originalScannerAboveOriginalLimit: originalScanner > limit,
+        }];
+      })
+      : [];
     expect(
       overBudget,
       'All route JavaScript budgets must remain within the original 10% limit. ' +
         'Representative 404-page external module sizes (largest first): ' +
         JSON.stringify(baselineDiagnostic) +
-        '. On the SAME CURRENT 404-page build, original-scanner versus corrected-scanner gzip bytes: ' +
+        '. Same-build original versus corrected scanner results for ALL failing routes: ' +
         JSON.stringify(legacyDiagnostic),
     ).toEqual([]);
   });
