@@ -21,10 +21,9 @@ const lab = labDataForBuild(files, fixtureJson, {
   WORKERS_CI_BRANCH: process.env.WORKERS_CI_BRANCH,
   CUEORY_ANATOMY_DRAFTS: process.env.CUEORY_ANATOMY_DRAFTS,
 });
-// The whole-body view (every system's model together, for peeling layers) comes last, after the single systems.
-const body = wholeBody(lab.systems);
-const systems = body ? [...lab.systems, body] : lab.systems;
-const hasSystems = systems.length > 0 || lab.fixture !== null;
+// Send only individual systems to the React island. It derives the combined whole-body view after opening,
+// avoiding a second serialized copy of every structure in the initial page.
+const hasSystems = lab.systems.length > 0 || lab.fixture !== null;
 ---
 
 <Layout title="preview: anatomy lab" description="Preview of the anatomy lab." variant="study" noindex>
@@ -44,7 +43,7 @@ const hasSystems = systems.length > 0 || lab.fixture !== null;
     {
       hasSystems ? (
         <>
-          <AnatomyLab client:only="react" systems={systems} fixture={lab.fixture} drafts={lab.drafts} />
+          <AnatomyLab client:only="react" systems={lab.systems} fixture={lab.fixture} drafts={lab.drafts} />
           <noscript>
             <p class="rounded-lg border border-line p-4 text-ink">
               the 3D anatomy lab needs javascript. <a href="/preview/anatomy-text" class="underline">read structure names without JavaScript</a>, or <a href="/learn" class="underline">browse lessons</a> instead.
