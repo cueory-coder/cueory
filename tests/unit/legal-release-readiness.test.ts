@@ -28,6 +28,12 @@ describe('legal release check selection', () => {
     expect(shouldAuditLegalCopy({ GITHUB_EVENT_NAME: 'pull_request', GITHUB_BASE_REF: 'staging' })).toBe(false);
     expect(shouldAuditLegalCopy({ GITHUB_EVENT_NAME: 'push', GITHUB_REF_NAME: 'main' })).toBe(false);
   });
+
+  it('does not skip main release checks when a PR changes only Markdown', () => {
+    // This protects the release gate from the CI docs-only optimization.
+    const workflow = readFileSync(new URL('../../.github/workflows/ci.yml', import.meta.url), 'utf8');
+    expect(workflow).toContain('if [ "$GITHUB_BASE_REF" != "main" ] && [ -n "$files" ]');
+  });
 });
 
 describe.skipIf(!shouldAuditLegalCopy(process.env))('legal pages ready for a main release', () => {
