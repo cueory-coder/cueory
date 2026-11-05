@@ -1,7 +1,7 @@
 /**
  * Builds the anatomy lab's 3D models from BodyParts3D (Task 177; D-58, D-80; docs/VISUALS.md, "3D body").
  *
- *   node scripts/build-anatomy.mjs --source <dir> --release <3.0|4.0> [--system <id>] [--retrieved YYYY-MM-DD]
+ *   node scripts/build-anatomy.mjs --source <dir> --release 4.0 [--system <id>] [--retrieved YYYY-MM-DD]
  *                                  [--isa-source <dir>] [--tree partof|isa] [--update-definitions]
  *
  * Rebuilding from the official 4.0 download is one command, run from the repository's folder:
@@ -16,6 +16,8 @@
  *            <tree>_inclusion_relation_list.txt, <tree>_element_parts.txt and <tree>_BP3D_4.0_obj_99.zip, the names the
  *            4.0 README gives (read by scripts/anatomy-release4.mjs, which lists what the README confirms and what it
  *            doesn't). The zip is read as it is; there's no need to unpack it.
+ *            Release 3.0 is blocked: its historical license (CC BY-SA 2.1 Japan) cannot use Cueory's
+ *            current 4.0-only CC BY 4.0 metadata, model copyright and attribution without a separate review.
  * --release  3.0: the 2011-09-15 release, from the GitHub mirror Kevin-Mattheus-Moerman/BodyParts3D, whose README
  *            says it converted BodyParts3D_3.0_obj_95.zip to binary STL. 4.0: the official download (OBJ in zips).
  *            Release 4.0 also needs --retrieved, the day the files were downloaded.
@@ -123,6 +125,10 @@ function parseArguments(argv) {
   if (!options.source) fail('--source <dir> is required');
   if (options.isaSource !== undefined && options.release !== '4.0') fail('--isa-source is for Release 4.0 only');
   if (!RELEASES[options.release]) fail('--release must be 3.0 or 4.0');
+  // Archived Release 3.0 is CC BY-SA 2.1 Japan, whereas this builder's manifests,
+  // GLB copyright and site credits currently assume CC BY 4.0 (Release 4.0 only).
+  // Refuse the legacy path before reading or writing any model/source files.
+  if (options.release === '3.0') fail('--release 3.0 is not approved: archived BodyParts3D has different attribution and share-alike licensing; use --release 4.0');
   // Release 3.0 uses a different archived license. This generator embeds
   // CC BY 4.0 in model copyright and manifest sources, so fail closed until
   // complete per-release rights handling is reviewed and explicitly approved.
