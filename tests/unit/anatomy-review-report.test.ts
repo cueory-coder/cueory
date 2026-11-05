@@ -107,6 +107,7 @@ describe('read-only anatomy review inventory', () => {
       'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/%2e%2e/outside',
       'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/?resource=outside',
       'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/#outside',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html', // archived release has different rights notice
     ]) {
       writeSystem(root, 'sample', { ...visual(), sources: [{ ...source(), url }] });
       expect(() => anatomyInventory(root), url).toThrow('must link to the official BodyParts3D source');
@@ -116,6 +117,9 @@ describe('read-only anatomy review inventory', () => {
       expect(() => anatomyInventory(root)).toThrow('must cite BodyParts3D under CC BY 4.0');
     }
     writeSystem(root, 'sample');
+    expect(anatomyInventory(root)).toHaveLength(1);
+    // Current labels are sourced from the approved, current archive collection.
+    writeSystem(root, 'sample', { ...visual(), sources: [{ ...source(), url: 'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/README_e.html' }] });
     expect(anatomyInventory(root)).toHaveLength(1);
   });
 
