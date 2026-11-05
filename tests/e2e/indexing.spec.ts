@@ -24,6 +24,9 @@ const previewPages = existsSync(previewDir)
 
 const noindexPages = [
   ...previewPages,
+  '/privacy', // draft policy, until the owner approves final wording
+  '/terms', // placeholder text, not launch-ready
+  '/disclaimer', // placeholder text, not launch-ready
   '/auth/callback',
   '/reset-password',
   '/signin',
