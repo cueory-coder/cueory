@@ -84,11 +84,28 @@ function checkTriangles(
 }
 
 /** Decode the actual compressed data referenced by each glTF bufferView. */
-function decodeViews(bytes: Buffer, model: Model, binOffset: number): DecodedView[] {
+function assertCompressedRange(byteOffset: number, byteLength: number, binLength: number): void {
+  if (!Number.isSafeInteger(byteOffset) || byteOffset < 0 ||
+      !Number.isSafeInteger(byteLength) || byteLength <= 0 ||
+      !Number.isSafeInteger(binLength) || binLength < 0 ||
+      byteOffset > binLength || byteLength > binLength - byteOffset) {
+    throw new Error('compressed payload outside GLB BIN chunk');
+  }
+}
+
+/** Decode the actual compressed data referenced by each glTF bufferView. */
+function decodeViews(bytes: Buffer, model: Model, binOffset: number, binLength: number): DecodedView[] {
   return model.bufferViews.map((view) => {
     const ext = view.extensions?.EXT_meshopt_compression;
     if (!ext || ext.buffer !== 0) throw new Error('uncompressed or external geometry');
-    const sourceOffset = binOffset + (ext.byteOffset ?? 0);
+    const relativeOffset = ext.byteOffset ?? 0;
+    assertCompressedRange(relativeOffset, ext.byteLength, binLength);
+    if (!Number.isSafeInteger(ext.count) || ext.count <= 0 ||
+        !Number.isSafeInteger(ext.byteStride) || ext.byteStride <= 0 ||
+        !Number.isSafeInteger(ext.count * ext.byteStride)) {
+      throw new Error('invalid compressed output dimensions');
+    }
+    const sourceOffset = binOffset + relativeOffset;
     const source = bytes.subarray(sourceOffset, sourceOffset + ext.byteLength);
     if (source.length !== ext.byteLength) throw new Error('truncated compressed payload');
     const output = new Uint8Array(ext.count * ext.byteStride);
@@ -145,6 +162,26 @@ describe('real BodyParts3D decoded triangles', () => {
     expect(() => checkTrianglePrimitive(undefined, indices, { ...positions, type: 'SCALAR' }))
       .toThrow('FLOAT VEC3');
   });
+  it('rejects compressed bufferViews that escape the declared GLB BIN chunk', () => {
+    // Bytes exist after the BIN chunk, but they are not part of its payload.
+    // The range check must use the chunk boundary, not only Buffer.length.
+    const bytes = Buffer.alloc(40);
+    const model: Model = {
+      bufferViews: [{
+        extensions: {
+          EXT_meshopt_compression: {
+            buffer: 0, byteOffset: 1, byteLength: 4, count: 1,
+            byteStride: 4, mode: 'ATTRIBUTES',
+          },
+        },
+      }],
+      accessors: [],
+      meshes: [],
+    };
+    expect(() => decodeViews(bytes, model, 28, 4))
+      .toThrow('compressed payload outside GLB BIN chunk');
+    expect(() => assertCompressedRange(0, 4, 4)).not.toThrow();
+  });
   it('rejects out-of-range indices and fully degenerate synthetic meshes', () => {
     const vertices: Point[] = [[0, 0, 0], [1, 0, 0], [0, 1, 0]];
     expect(() => checkTriangles(3, 3, (i) => [0, 1, 3][i]!, (i) => vertices[i]!))
@@ -170,10 +207,14 @@ describe('real BodyParts3D decoded triangles', () => {
       expect(bytes.readUInt32LE(8), system).toBe(bytes.length);
       const jsonLength = bytes.readUInt32LE(12);
       expect(bytes.readUInt32LE(16), system).toBe(0x4e4f534a);
-      const binOffset = 28 + jsonLength;
-      expect(bytes.readUInt32LE(24 + jsonLength), system).toBe(0x004e4942);
+      const binHeaderOffset = 20 + jsonLength;
+      expect(binHeaderOffset + 8, system).toBeLessThanOrEqual(bytes.length);
+      const binLength = bytes.readUInt32LE(binHeaderOffset);
+      expect(bytes.readUInt32LE(binHeaderOffset + 4), system).toBe(0x004e4942);
+      const binOffset = binHeaderOffset + 8;
+      expect(binOffset + binLength, system).toBeLessThanOrEqual(bytes.length);
       const model = JSON.parse(bytes.toString('utf8', 20, 20 + jsonLength)) as Model;
-      const views = decodeViews(bytes, model, binOffset);
+      const views = decodeViews(bytes, model, binOffset, binLength);
       let systemTriangles = 0;
       for (const [meshIndex, mesh] of model.meshes.entries()) {
         expect(mesh.primitives.length, system + ' mesh ' + meshIndex).toBeGreaterThan(0);
