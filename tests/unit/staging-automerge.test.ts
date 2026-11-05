@@ -117,9 +117,29 @@ describe('held paths', () => {
     'content/cards/study-skills-01.json',
     'content/README.md',
     'supabase/migrations/001.sql',
+    'public/models/anatomy/heart.glb',
+    'src/pages/preview/anatomy-fixture/fixture.glb.ts',
     'wrangler.jsonc',
     'public/_headers',
     'astro.config.mjs',
+    'scripts/check-legal-release.mjs',
+    'scripts/anatomy-production-audit.mjs',
+    'scripts/check-anatomy-build.mjs',
+    'scripts/anatomy-postbuild-audit.mjs',
+    'src/islands/anatomylab.ts',
+    'src/islands/AnatomyLab.tsx',
+    'src/islands/anatomyscene.ts',
+    'src/pages/preview/anatomy-lab.astro',
+    'src/pages/preview/anatomy-text.astro',
+    'scripts/build-anatomy.mjs',
+    'scripts/anatomy-review-report.mjs',
+    'scripts/anatomy-source-url.mjs',
+    'scripts/anatomy-systems.json',
+    'scripts/anatomy-release4.mjs',
+    'scripts/anatomy-groups.mjs',
+    'src/visuals/prunedrafts.ts',
+    'src/visuals/sources.ts',
+    'src/content.config.ts', // Visuals schema must stay a founder-reviewed publication control.
     'src/config/site.ts',
     'src/components/AccountCorner.astro',
     'src/components/SignupForm.astro',
@@ -158,6 +178,20 @@ describe('held paths', () => {
     expect(heldPaths([{ filename: 'docs/x.json', previous_filename: 'content/x.json' }], 'prelaunch')).toEqual(['content/x.json']);
     expect(heldPaths([{ filename: 'docs/old-policy.md', previous_filename: 'src/pages/privacy.astro' }], 'prelaunch'))
       .toEqual(['src/pages/privacy.astro']);
+    expect(heldPaths([{ filename: 'docs/old-content-schema.ts', previous_filename: 'src/content.config.ts' }], 'prelaunch'))
+      .toEqual(['src/content.config.ts']);
+    expect(heldPaths([{ filename: 'scripts/deleted-gate.mjs', previous_filename: 'scripts/check-legal-release.mjs' }], 'prelaunch'))
+      .toEqual(['scripts/check-legal-release.mjs']);
+    expect(heldPaths([{ filename: 'src/islands/cards.ts', previous_filename: 'src/islands/AnatomyLab.tsx' }], 'prelaunch'))
+      .toEqual(['src/islands/AnatomyLab.tsx']);
+    expect(heldPaths([{ filename: 'docs/old-report.mjs', previous_filename: 'scripts/anatomy-review-report.mjs' }], 'prelaunch'))
+      .toEqual(['scripts/anatomy-review-report.mjs']);
+    expect(heldPaths([{ filename: 'docs/old-source-url.md', previous_filename: 'scripts/anatomy-source-url.mjs' }], 'prelaunch'))
+      .toEqual(['scripts/anatomy-source-url.mjs']);
+    expect(heldPaths([{ filename: 'src/pages/preview/anatomy-text.astro', previous_filename: 'docs/text.md' }], 'launched'))
+      .toEqual(['src/pages/preview/anatomy-text.astro']);
+    expect(heldPaths([{ filename: 'docs/removed-fixture.md', previous_filename: 'src/pages/preview/anatomy-fixture/[name].glb.ts' }], 'prelaunch'))
+      .toEqual(['src/pages/preview/anatomy-fixture/[name].glb.ts']);
   });
   const sensitiveAccountSources = [
     'src/pages/auth/callback.astro',
@@ -230,9 +264,7 @@ describe('held paths', () => {
   });
 
   it.each([
-    'src/islands/AnatomyLab.tsx',
     'src/islands/cards.ts',
-    'src/islands/anatomyscene.ts',
     'src/pages/courses.astro',
     'src/pages/learn/study-skills/cards.astro',
   ])('%s remains eligible for ordinary review', (path) => {

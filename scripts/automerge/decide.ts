@@ -58,6 +58,8 @@ export type Mode = 'prelaunch' | 'launched';
  */
 const ALWAYS_HELD_PREFIXES = [
   '.github/', 'scripts/automerge/', 'content/', 'supabase/',
+  'public/models/anatomy/', // Founder reviews every 3D model binary before it reaches staging.
+  'src/pages/preview/anatomy-fixture/', // Test fixture endpoint must never become an unattended production route.
   'src/pages/auth/', 'src/pages/account/', 'src/pages/admin/', 'src/pages/preview/admin-',
 ];
 const ALWAYS_HELD_FILES = new Set([
@@ -70,6 +72,25 @@ const ALWAYS_HELD_FILES = new Set([
   // Header/CSP changes affect browser security, including before public launch.
   'public/_headers',
   'astro.config.mjs',
+  // These legal/anatomy release gates decide whether draft material is shipped publicly.
+  'scripts/check-legal-release.mjs',
+  'scripts/anatomy-production-audit.mjs',
+  'scripts/check-anatomy-build.mjs',
+  'scripts/anatomy-postbuild-audit.mjs', // alternative production postbuild wrapper in PR #626
+  'src/islands/anatomylab.ts', // Chooses draft versus approved data for build output.
+  'src/islands/AnatomyLab.tsx', // Shows draft warnings, model attribution and export credits.
+  'src/islands/anatomyscene.ts', // Renders mandatory source credits in exported anatomy PNGs.
+  'src/pages/preview/anatomy-lab.astro', // Serializes the model selection into the page.
+  'src/pages/preview/anatomy-text.astro', // Serializes source names without JavaScript under the same draft gate.
+  'scripts/build-anatomy.mjs', // Source-driven geometry and label generation.
+  'scripts/anatomy-review-report.mjs',
+  'scripts/anatomy-source-url.mjs', // Model generator's official source/rights URL mapping. // Provides the founder's prepublication labels and rights inventory.
+  'scripts/anatomy-systems.json', // Model source selection and layer definitions.
+  'scripts/anatomy-release4.mjs', // Parses official BodyParts3D structure identities and hierarchy.
+  'scripts/anatomy-groups.mjs', // Derives source-backed structure grouping labels.
+  'src/visuals/prunedrafts.ts',
+  'src/visuals/sources.ts',
+  'src/content.config.ts', // Astro content schema enforces anatomy source, model validation and approval status.
   // Founder approval is required for changes to secret-scan exceptions/config.
   '.gitleaksignore',
   '.gitleaks.toml',
