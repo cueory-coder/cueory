@@ -1,10 +1,8 @@
 /**
  * Checks the built site in dist/. Run `npm run build` first (CI does).
  */
-import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { isAbsolute, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
@@ -273,73 +271,6 @@ describe.skipIf(!existsSync(dist))('built site', () => {
     ).toEqual([]);
   });
 
-  // Opt-in historical audit: rebuild the exact original staging source and
-  // scan it with the *current corrected* algorithm (CUEORY_REMEASURE_BUDGET=1). Never substitute today's
-  // measurements for historical baselines or relax the 10% assertion above.
-  it.runIf(process.env.CUEORY_REMEASURE_BUDGET === '1')(
-    'diagnostic: recompute corrected historical staging JS baselines',
-    () => {
-      const historicalSha = '65a05c3bfb126e1e6052a7a7be4f180b81973d7b';
-      const repoRoot = fileURLToPath(new URL('../../', import.meta.url));
-      const temp = mkdtempSync(join(tmpdir(), 'cueory-js-baseline-'));
-      const worktree = join(temp, 'historical-source');
-      let checkedOut = false;
-      const run = (command: string, args: string[], cwd = repoRoot) => {
-        const completed = spawnSync(command, args, {
-          cwd,
-          encoding: 'utf8',
-          timeout: 150_000,
-          maxBuffer: 8 * 1024 * 1024,
-        });
-        if (completed.error || completed.status !== 0) {
-          throw new Error(
-            `Historical baseline command ${command} ${args[0] ?? ''} failed: ` +
-            `${completed.error?.message ?? completed.status}\n` +
-            (completed.stderr ?? '').slice(-3000) + '\n' + (completed.stdout ?? '').slice(-3000),
-          );
-        }
-      };
-      try {
-        // GitHub Actions checks out the same public repository with shallow history.
-        // Fetch only the pinned ancestor. Never execute code from a fork.
-        run('git', ['fetch', '--no-tags', '--depth=1', 'origin', historicalSha]);
-        run('git', ['worktree', 'add', '--detach', worktree, historicalSha]);
-        checkedOut = true;
-        run('npm', ['ci'], worktree);
-        run('npm', ['run', 'build'], worktree);
-        const historicalDist = join(worktree, 'dist');
-        const historicalRoutes = htmlFiles(historicalDist)
-          .map((file) => relative(historicalDist, file).replaceAll('\\', '/'))
-          .sort();
-        const measurements = historicalRoutes.map((route) => {
-          const baseline = initialJsGzipBytes(join(historicalDist, route), historicalDist);
-          const current = initialJsGzipBytes(join(dist, route), dist);
-          return {
-            route,
-            originalStoredBytes: (initialJsBudget as Record<string, number>)[route] ?? null,
-            historicalCorrectedBytes: baseline,
-            currentCorrectedBytes: current,
-            correctedGrowthPct: Math.round((current / baseline - 1) * 10000) / 100,
-            withinTenPercent: current <= Math.ceil(baseline * 1.1),
-          };
-        });
-        console.info('HISTORICAL_CORRECTED_JS_BUDGETS ' + JSON.stringify({
-          sourceCommit: historicalSha,
-          nodeVersion: process.version,
-          measurements,
-        }));
-        expect(historicalRoutes.length, 'historical build must contain 31 original HTML routes').toBe(31);
-      } finally {
-        if (checkedOut) {
-          try { run('git', ['worktree', 'remove', '--force', worktree]); } catch {
-            // Temporary CI workspace cleanup continues below.
-          }
-        }
-        rmSync(temp, { recursive: true, force: true });
-      }
-    },
-    240_000,
-  );
   it('marketing pages preload the self-hosted serif (D-41), and every preloaded file exists', () => {
     const preloads = (html: string) =>
       [...html.matchAll(/<link\b[^>]*rel="preload"[^>]*>/g)].map((m) => /href="([^"]+)"/.exec(m[0])![1]!);
