@@ -40,7 +40,7 @@ Each case needs a browser test **and** a manual check on the locked staging prev
 | Load-state wording | Open the whole body before deeper layers finish downloading. | Unfetched structures say **not loaded yet**. Only a fetched file with no matching mesh may say **not in this model**. |
 | A failed layer request | Fail one file while another in the same layer succeeds, then retry. | Successful structures remain available, and retry fetches only failed files. |
 | Conflicting actions | Start **show all**, then select **show only this** while downloads remain pending. | The newer visibility choice remains in effect when the older downloads finish. |
-| Quiz | Answer incorrectly, answer correctly, then use **show me** and **next**. | First-attempt scoring is consistent. The requested target is made visible and stays selected when its answer is revealed. |
+| Find It guided practice | Answer incorrectly, answer correctly using the labeled list and keyboard, then use **show me** and **next**. | Right/wrong/reveal feedback is clear in words, keyboard and tap paths work, and no score or first-try assessment claim appears. The requested target becomes visible and stays selected when revealed. |
 | Picture export | Export phone, wide and square formats, then change systems during a delayed export. | Dimensions, visible credits and names are correct. No stale-system picture is downloaded after switching. |
 
 Do not mark these as passed merely because an existing fixture test succeeds. Network races and mixed-file layers require their own assertions.
