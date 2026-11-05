@@ -125,8 +125,14 @@ export async function runAutomerge({
       // Codex failed for its own reasons: ask it once more (bounded per head commit), and keep waiting.
       if (dryRun) done = 'would ask codex retry';
       else {
-        await gh.createComment(n, codexRetryComment(decision.codexRetry.headSha));
-        done = 'codex retry asked';
+        // "@codex review" applies to whatever head the pull request has when it is posted, so look again first.
+        const now = await gh.pull(n);
+        if (now.state !== 'open' || now.head.sha !== decision.codexRetry.headSha) {
+          decision.reasons.push('new commit arrived; no retry asked for the old head');
+        } else {
+          await gh.createComment(n, codexRetryComment(decision.codexRetry.headSha));
+          done = 'codex retry asked';
+        }
       }
     }
 
