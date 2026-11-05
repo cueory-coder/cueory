@@ -141,6 +141,22 @@ describe('read-only anatomy review inventory', () => {
     }
   });
 
+  it('accepts the real committed BodyParts3D source inventory under the current reviewed license', () => {
+    // Synthetic links alone missed the double-LATEST regression in this PR.
+    // Exercise the actual draft manifests and asset paths without publishing them.
+    const entries = anatomyInventory() as {
+      labels: { source: { url: string; book: string; license: string } }[];
+    }[];
+    expect(entries.length).toBeGreaterThan(0);
+    const sources = entries.flatMap((entry) => entry.labels.map((label) => label.source));
+    expect(sources.length).toBeGreaterThan(0);
+    for (const source of sources) {
+      expect(source.url).toMatch(/^https:\/\/dbarchive\.biosciencedbc\.jp\/data\/bodyparts3d\/LATEST\/[^\s?#]+$/);
+      expect(source.book).toBe('BodyParts3D');
+      expect(source.license).toBe('CC BY 4.0');
+    }
+  });
+
   it('keeps zero-count layers out and lists reviewer gates without granting approval', () => {
     const root = setup();
     writeSystem(root, 'sample');
