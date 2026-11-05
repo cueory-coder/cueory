@@ -179,6 +179,7 @@ describe('held paths', () => {
     'src/islands/checkanswer.ts', // protects the answer-check RPC argument and response adapter
     'src/islands/examplanimport.ts',
     'src/islands/examplansync.ts', // account-backed exam-plan writes
+    'src/islands/ReviewSession.tsx', // invokes account-backed review sync from the review UI
     'src/islands/reviewsync.ts', // account-backed review progress writes
     'src/islands/studyrecorder.ts', // signed-in study-event RPC sender
     'src/islands/flagconnect.ts',
