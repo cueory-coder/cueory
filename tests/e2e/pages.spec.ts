@@ -526,7 +526,8 @@ test.describe('marketing look (D-41)', () => {
   });
 
   test('canonical and Open Graph URLs match the public extensionless routes', async ({ page }) => {
-    for (const route of ['/', '/privacy', '/support', '/learn']) {
+    // Check nested generated lesson pages as well as root and top-level static HTML files.
+    for (const route of ['/', '/privacy', '/support', '/learn', '/learn/study-skills', '/learn/study-skills/cards']) {
       await page.goto(route);
       const expected = new URL(route, 'https://cueory.app').href;
       await expect(page.locator('head link[rel="canonical"]')).toHaveAttribute('href', expected);
