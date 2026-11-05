@@ -96,6 +96,10 @@ describe('read-only anatomy review inventory', () => {
       'https://example.org/sample',
       'https://dbarchive.biosciencedbc.jp.evil.example/data/bodyparts3d/fake',
       'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/?page=1', // query alone is not a source document
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/#contents', // fragment alone is not a document
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/../outside-source', // normalized path escapes the official collection
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/%2e%2e/outside-source', // encoded dot segments also escape
       'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/../outside',
       'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/%2e%2e/outside',
       'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/?resource=outside',
