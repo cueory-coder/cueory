@@ -4,6 +4,7 @@ import { z } from 'astro/zod';
 import { sentenceParts } from './islands/fillin';
 import { parseSet as parseLabelSet } from './islands/labelit';
 import { sampleChecker, type SampleItem } from './islands/questions';
+import { questionContentProblems } from './content/question-validation';
 import { existsSync } from 'node:fs';
 import { modelFileProblems, visualProblems } from './visuals/sources';
 import { videoSchema } from './videos/schema';
@@ -243,6 +244,9 @@ const questions = defineCollection({
         sampleChecker(items as SampleItem[]);
       } catch (error) {
         context.addIssue({ code: 'custom', path: ['items'], message: (error as Error).message });
+      }
+      for (const message of questionContentProblems(items)) {
+        context.addIssue({ code: 'custom', path: ['items'], message });
       }
     }),
 });
