@@ -82,7 +82,7 @@ function exceptionFor(finding: Finding): Exception | undefined {
 function designValueKinds(text: string): Finding['kind'][] {
   const kinds = new Set<Finding['kind']>();
   const withoutAnchorHrefs = text.replace(/\bhref\s*=\s*(?:"#[^"]*"|'#[^']*')/gi, '');
-  if (/(?:^|[=:,\s])#[0-9a-fA-F]{3,8}\b/.test(withoutAnchorHrefs)) kinds.add('color');
+  if (/(?:^|[\s=:'"(\[,])#[0-9a-fA-F]{3,8}\b/.test(withoutAnchorHrefs)) kinds.add('color');
   if (/\b(?:rgb|rgba|hsl|hsla)\(\s*(?:\d|#)/.test(text)) kinds.add('color');
   if (/\bfont-family\s*:\s*(?!var\s*\(|inherit\b|initial\b|unset\b|revert\b)(?:["']|[A-Za-z_][\w-]*)/i.test(text)) kinds.add('font');
   if (/(?:^|[\s:;,(])\d+(?:\.\d+)?(?:px|rem)\b/.test(text)) kinds.add('size');
@@ -129,6 +129,9 @@ describe('design values', () => {
 
   it('detects real raw design values and accepts token references', () => {
     expect(designValueKinds('color: #fff')).toContain('color');
+    expect(designValueKinds('const brandColor = "#abcdef";')).toContain('color');
+    expect(designValueKinds("const labelColor = '#fff';")).toContain('color');
+    expect(designValueKinds('<div class="bg-[#ff0000]">')).toContain('color');
     expect(designValueKinds('<a href="#abc">section</a>')).not.toContain('color');
     expect(designValueKinds('<a href="#abc" style="color: #fff">section</a>')).toContain('color');
     expect(designValueKinds("<a href='#abc' style='background: #123'>section</a>")).toContain('color');
