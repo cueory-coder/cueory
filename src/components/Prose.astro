@@ -13,6 +13,8 @@
 <style>
   .reading-copy {
     line-height: var(--text-base--line-height);
+    /* Long words must reflow at enlarged text sizes instead of widening the page. */
+    overflow-wrap: anywhere;
   }
 
   .reading-copy > :global(h1) {
