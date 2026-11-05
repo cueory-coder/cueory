@@ -12,7 +12,9 @@ test('whole-body catalog shows a bounded list, then moves focus to the first new
   await expect(page.locator('canvas')).toBeFocused({ timeout: 15_000 });
 
   const whole = page.getByRole('group', { name: 'body system' }).getByRole('button', { name: 'whole body' });
-  test.skip((await whole.count()) === 0, 'the real draft models are not present in this build');
+  // Playwright's test server builds with CUEORY_ANATOMY_DRAFTS=1. If real models
+  // vanish, the whole-body catalog regression must FAIL rather than silently skip.
+  await expect(whole).toBeVisible({ timeout: 15_000 });
   await whole.click();
 
   const list = page.getByRole('region', { name: 'structures' });
@@ -38,7 +40,9 @@ test('switching body systems clears the previous system\'s structure search', as
 
   const picker = page.getByRole('group', { name: 'body system' });
   const buttons = picker.getByRole('button');
-  test.skip((await buttons.count()) < 2, 'requires the fixture and another draft system');
+  // The draft-enabled fixture test needs at least one other body system.
+  // Do not turn a missing source model into a green skipped test.
+  await expect.poll(() => buttons.count(), { timeout: 15_000 }).toBeGreaterThanOrEqual(2);
 
   const list = page.getByRole('region', { name: 'structures' });
   const search = page.getByRole('searchbox', { name: 'find a structure' });
