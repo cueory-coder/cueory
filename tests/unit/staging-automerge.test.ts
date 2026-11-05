@@ -127,6 +127,7 @@ describe('held paths', () => {
     'scripts/anatomy-postbuild-audit.mjs',
     'src/islands/anatomylab.ts',
     'src/islands/AnatomyLab.tsx',
+    'src/islands/anatomyscene.ts',
     'src/pages/preview/anatomy-lab.astro',
     'scripts/build-anatomy.mjs',
     'scripts/anatomy-systems.json',
@@ -247,7 +248,6 @@ describe('held paths', () => {
 
   it.each([
     'src/islands/cards.ts',
-    'src/islands/anatomyscene.ts',
     'src/pages/courses.astro',
     'src/pages/learn/study-skills/cards.astro',
   ])('%s remains eligible for ordinary review', (path) => {
