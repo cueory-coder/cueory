@@ -32,7 +32,7 @@ interface Accessor {
 interface Model {
   bufferViews: BufferView[];
   accessors: Accessor[];
-  meshes: Array<{ primitives: Array<{ indices: number; attributes: { POSITION: number } }> }>;
+  meshes: Array<{ primitives: Array<{ indices: number; attributes: { POSITION: number }; mode?: number }> }>;
 }
 interface DecodedView { data: DataView; stride: number }
 
@@ -119,7 +119,32 @@ function readPosition(view: DecodedView, accessor: Accessor, index: number): Poi
   ];
 }
 
+/** glTF mode defaults to 4 (TRIANGLES); index data must be unsigned SCALAR. */
+function checkTrianglePrimitive(mode: number | undefined, indices: Accessor, positions: Accessor): void {
+  if (mode !== undefined && mode !== 4) throw new Error('primitive rendering mode is not TRIANGLES');
+  if (indices.type !== 'SCALAR' || ![5121, 5123, 5125].includes(indices.componentType)) {
+    throw new Error('triangle indices must use unsigned SCALAR accessors');
+  }
+  if (positions.type !== 'VEC3' || positions.componentType !== 5126) {
+    throw new Error('triangle POSITION must use FLOAT VEC3');
+  }
+}
+
 describe('real BodyParts3D decoded triangles', () => {
+  it('rejects line/strip rendering modes and non-SCALAR triangle indices', () => {
+    const indices: Accessor = { bufferView: 0, count: 3, componentType: 5123, type: 'SCALAR' };
+    const positions: Accessor = { bufferView: 1, count: 3, componentType: 5126, type: 'VEC3' };
+    expect(() => checkTrianglePrimitive(undefined, indices, positions)).not.toThrow();
+    expect(() => checkTrianglePrimitive(4, indices, positions)).not.toThrow();
+    expect(() => checkTrianglePrimitive(1, indices, positions)).toThrow('not TRIANGLES');
+    expect(() => checkTrianglePrimitive(5, indices, positions)).toThrow('not TRIANGLES');
+    expect(() => checkTrianglePrimitive(undefined, { ...indices, type: 'VEC3' }, positions))
+      .toThrow('unsigned SCALAR');
+    expect(() => checkTrianglePrimitive(undefined, { ...indices, componentType: 5126 }, positions))
+      .toThrow('unsigned SCALAR');
+    expect(() => checkTrianglePrimitive(undefined, indices, { ...positions, type: 'SCALAR' }))
+      .toThrow('FLOAT VEC3');
+  });
   it('rejects out-of-range indices and fully degenerate synthetic meshes', () => {
     const vertices: Point[] = [[0, 0, 0], [1, 0, 0], [0, 1, 0]];
     expect(() => checkTriangles(3, 3, (i) => [0, 1, 3][i]!, (i) => vertices[i]!))
@@ -157,6 +182,7 @@ describe('real BodyParts3D decoded triangles', () => {
           const positions = model.accessors[primitive.attributes.POSITION];
           expect(indices, system + ' mesh ' + meshIndex + ' indices').toBeDefined();
           expect(positions, system + ' mesh ' + meshIndex + ' positions').toBeDefined();
+          checkTrianglePrimitive(primitive.mode, indices!, positions!);
           const indexView = views[indices!.bufferView];
           const positionView = views[positions!.bufferView];
           expect(indexView, system + ' index view').toBeDefined();
