@@ -23,9 +23,9 @@ const STORAGE_KEY_DEFAULT = 'cueory-finals-survey-dismissed';
 const MAX_FEEDBACK_CHARS = 200;
 
 const primaryButton =
-  'min-h-11 w-full min-w-0 max-w-full rounded-pill bg-button px-2 py-2.5 text-on-button whitespace-normal break-words hover:bg-button-hover disabled:opacity-50 sm:w-auto sm:px-5';
+  'min-h-11 w-full min-w-0 whitespace-normal break-words rounded-pill bg-button px-2 py-2.5 text-sm text-on-button hover:bg-button-hover disabled:opacity-50 sm:w-auto sm:px-5';
 const secondaryButton =
-  'min-h-11 w-full min-w-0 max-w-full rounded-pill border border-control px-2 py-2.5 text-ink whitespace-normal break-words hover:bg-surface disabled:opacity-50 sm:w-auto sm:px-5';
+  'min-h-11 w-full min-w-0 whitespace-normal break-words rounded-pill border border-control px-2 py-2.5 text-sm text-ink hover:bg-surface disabled:opacity-50 sm:w-auto sm:px-5';
 
 function isDismissed(key: string, storage?: KeyValueStorage): boolean {
   try {
@@ -127,10 +127,10 @@ export default function SurveyPrompt({
     <section
       role="region"
       aria-labelledby={`${id}-title`}
-      className="min-w-0 rounded-lg border border-line bg-surface p-3 text-ink shadow-sm sm:p-5"
+      className="rounded-lg border border-line bg-surface p-3 text-ink shadow-sm sm:p-5"
       data-testid="finals-survey-prompt"
     >
-      <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-2">
         <h2 id={`${id}-title`} className="min-w-0 break-words text-base font-semibold">
           quick semester survey
         </h2>
@@ -144,7 +144,7 @@ export default function SurveyPrompt({
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="mt-4 min-w-0 space-y-4">
+      <form onSubmit={handleSubmit} className="mt-4 space-y-4">
         <fieldset>
           <legend className="text-sm font-medium text-ink">
             did you use Cueory for a final or exit exam this semester?
@@ -188,7 +188,7 @@ export default function SurveyPrompt({
             maxLength={MAX_FEEDBACK_CHARS}
             onChange={(e) => setFeedback(e.currentTarget.value.slice(0, MAX_FEEDBACK_CHARS))}
             rows={3}
-            className="mt-1 w-full min-w-0 rounded-md border border-control bg-page p-2.5 text-sm text-ink placeholder:text-ink-soft"
+            className="mt-1 w-full rounded-md border border-control bg-page p-2.5 text-sm text-ink placeholder:text-ink-soft"
             placeholder="share your thoughts (optional)..."
           />
         </div>
