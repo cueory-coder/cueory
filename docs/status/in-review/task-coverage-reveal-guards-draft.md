@@ -1,0 +1,1 @@
+status: Add direct Vitest coverage for the home-page reveal script's reduced-motion and missing IntersectionObserver guards. The runtime code is unchanged. Staging sync preserves the same focused test file; full exact-head CI, independent review and preview gates remain required before integration.
