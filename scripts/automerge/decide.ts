@@ -31,6 +31,17 @@ export const REQUIRED_CHECKS = [
   'Workers Builds: cueory',
 ] as const;
 
+/** Trusted publishers verified against this repository's exact-head GitHub check-runs.
+ * Checking a display name alone lets an unrelated check-writing integration impersonate a required gate.
+ */
+const REQUIRED_CHECK_APP: Record<(typeof REQUIRED_CHECKS)[number], string> = {
+  'Type check, build and test': 'github-actions',
+  'Scan for leaked secrets': 'github-actions',
+  'Scan code for security issues (Semgrep)': 'github-actions',
+  CodeQL: 'github-advanced-security',
+  'Workers Builds: cueory': 'cloudflare-workers-and-pages',
+};
+
 /** "prelaunch" until Christian says the site is live for students (automation.json). */
 export type Mode = 'prelaunch' | 'launched';
 
@@ -350,9 +361,9 @@ export function checkProblems(checks: readonly CheckRun[]): string[] {
     if (!run) problems.push(`"${name}" hasn't reported yet`);
     else if (run.status !== 'completed') problems.push(`"${name}" is still running`);
     else if (run.conclusion !== 'success') problems.push(`"${name}" ended as ${run.conclusion ?? 'unknown'}`);
-    else if (name === 'CodeQL' && run.app?.slug !== 'github-advanced-security') {
-      // A green job with the same display name is not the GitHub Advanced Security verdict.
-      problems.push('"CodeQL" was not published by GitHub Advanced Security');
+    else if (run.app?.slug !== REQUIRED_CHECK_APP[name]) {
+      // All required checks must come from their known GitHub App, not just share a display name.
+      problems.push(`"${name}" was not published by its trusted GitHub app`);
     }
   }
   for (const [name, run] of latest) {

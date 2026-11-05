@@ -45,7 +45,11 @@ const run = (name: string, conclusion: string | null = 'success', status = 'comp
   name,
   status,
   conclusion,
-  app: { slug: name === 'CodeQL' ? 'github-advanced-security' : 'github-actions' },
+  app: {
+    slug: name === 'CodeQL'
+      ? 'github-advanced-security'
+      : name === 'Workers Builds: cueory' ? 'cloudflare-workers-and-pages' : 'github-actions',
+  },
 });
 const greenChecks = () => [...REQUIRED_CHECKS.map((n) => run(n)), run('Analyze (actions)', 'skipped')];
 
@@ -359,9 +363,32 @@ describe('checks', () => {
     const otherChecks = greenChecks().filter((check) => check.name !== 'CodeQL');
     for (const app of [undefined, { slug: 'github-actions' }, { slug: 'some-other-app' }]) {
       const checks = [...otherChecks, { ...run('CodeQL'), app }];
-      expect(checkProblems(checks)).toEqual(['"CodeQL" was not published by GitHub Advanced Security']);
+      expect(checkProblems(checks)).toEqual(['"CodeQL" was not published by its trusted GitHub app']);
       expect(decide(input({ checks })).action).toBe('wait');
     }
+  });
+
+  it('rejects impersonated successful CI, Semgrep, secret scan and Workers checks', () => {
+    for (const name of [
+      'Type check, build and test',
+      'Scan for leaked secrets',
+      'Scan code for security issues (Semgrep)',
+      'Workers Builds: cueory',
+    ]) {
+      const without = greenChecks().filter((check) => check.name !== name);
+      const expected = [`"${name}" was not published by its trusted GitHub app`];
+      for (const app of [undefined, { slug: 'github-advanced-security' }, { slug: 'unrelated-app' }]) {
+        const checks = [...without, { ...run(name), app }];
+        expect(checkProblems(checks)).toEqual(expected);
+        expect(decide(input({ checks })).action).toBe('wait');
+      }
+    }
+  });
+
+  it('refuses a later impersonated success even after a genuine required check passed', () => {
+    const checks = [...greenChecks(), { ...run('Workers Builds: cueory'), app: { slug: 'unrelated-app' } }];
+    expect(checkProblems(checks)).toEqual(['"Workers Builds: cueory" was not published by its trusted GitHub app']);
+    expect(decide(input({ checks })).action).toBe('wait');
   });
 
   it('waits for a required check that is missing or still running', () => {
