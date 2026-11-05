@@ -59,6 +59,7 @@ export type Mode = 'prelaunch' | 'launched';
 const ALWAYS_HELD_PREFIXES = [
   '.github/', 'scripts/automerge/', 'content/', 'supabase/',
   'public/models/anatomy/', // Founder reviews every 3D model binary before it reaches staging.
+  'src/pages/preview/anatomy-fixture/', // Test fixture endpoint must never become an unattended production route.
   'src/pages/auth/', 'src/pages/account/', 'src/pages/admin/', 'src/pages/preview/admin-',
 ];
 const ALWAYS_HELD_FILES = new Set([
