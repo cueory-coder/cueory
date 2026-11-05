@@ -1,0 +1,1 @@
+status: Task 517 courses page (#419): four-course catalog, Med-Surg I course-library entry, readable AA-contrast coming-soon badges in Daytime and Evening, navigation and browser regression checks; awaiting exact-head CI, Codex review and locked staging checks.
