@@ -1,5 +1,6 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
+import ContentLabel from '../../../components/ContentLabel.astro';
 import InfoTip from '../../../components/InfoTip.astro';
 import { LabelItFromUrl } from '../../../islands/LabelItBoard';
 ---
@@ -30,5 +31,8 @@ import { LabelItFromUrl } from '../../../islands/LabelItBoard';
     <p class="mt-section text-sm">
       <a href="/learn/study-skills">back to the lesson</a>
     </p>
+    <div class="mt-8">
+      <ContentLabel />
+    </div>
   </div>
 </Layout>
