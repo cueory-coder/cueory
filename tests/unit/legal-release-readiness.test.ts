@@ -70,9 +70,12 @@ describe('Cloudflare Workers Builds release gate', () => {
       /<PlaceholderBlock\b|Draft for review|Last updated:\s*not yet published/i
         .test(source(page)));
     const main = run({ WORKERS_CI: '1', WORKERS_CI_BRANCH: 'main' });
+    const fullRefMain = run({ WORKERS_CI: '1', WORKERS_CI_BRANCH: 'refs/heads/main' });
+    expect(fullRefMain.status).toBe(hasDraftCopy ? 1 : 0);
     expect(main.status).toBe(hasDraftCopy ? 1 : 0);
     if (hasDraftCopy) expect(main.stderr).toContain('legal release blocked:');
     expect(run({ WORKERS_CI: '1', WORKERS_CI_BRANCH: 'staging' }).status).toBe(0);
+    expect(run({ WORKERS_CI: '1', WORKERS_CI_BRANCH: 'refs/heads/staging' }).status).toBe(0);
     expect(run({ GITHUB_EVENT_NAME: 'pull_request', GITHUB_BASE_REF: 'staging' }).status).toBe(0);
   });
 });

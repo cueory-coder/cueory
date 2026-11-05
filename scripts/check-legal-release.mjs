@@ -11,7 +11,7 @@ function isProductionRelease(env) {
   return env.CUEORY_LEGAL_RELEASE_AUDIT === '1'
     || (env.GITHUB_EVENT_NAME === 'pull_request' && env.GITHUB_BASE_REF === 'main')
     || (env.GITHUB_EVENT_NAME === 'push' && env.GITHUB_REF === 'refs/heads/main')
-    || (env.WORKERS_CI === '1' && env.WORKERS_CI_BRANCH === 'main');
+    || (env.WORKERS_CI === '1' && ['main', 'refs/heads/main'].includes(env.WORKERS_CI_BRANCH?.trim()));
 }
 
 if (isProductionRelease(process.env)) {
