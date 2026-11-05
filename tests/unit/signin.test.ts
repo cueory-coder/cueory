@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
-import SignIn, { type SignInAuth } from '../../src/islands/SignIn';
+import SignIn, { type SignInAuth } from '../../src/islands/SignIn.tsx';
 import ResetPassword from '../../src/islands/ResetPassword';
 import { getSupabase } from '../../src/islands/supabaseclient';
 import { callbackUrl, changePassword, checkEmail, checkPassword, performAuthAction, resendSeconds, safeNext, signInMessage } from '../../src/islands/signin';
