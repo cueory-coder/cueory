@@ -27,6 +27,26 @@ describe('regenerating the BodyParts3D anatomy source citations', () => {
       .toThrow('HTTPS');
   });
 
+  it('rejects lookalike hosts, unapproved archive paths and mismatched release claims', () => {
+    const section = 'partof_parts_list_e.txt, Release 4.0';
+    for (const url of [
+      'https://evil.example/data/bodyparts3d/LATEST/README_e.html',
+      'https://dbarchive.biosciencedbc.jp.evil.example/data/bodyparts3d/LATEST/README_e.html',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/../20110915/README_e.html',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/%52EADME_e.html',
+      'https://user@dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/README_e.html',
+      'https://dbarchive.biosciencedbc.jp:8443/data/bodyparts3d/LATEST/README_e.html',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/README_e.html?download=1',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/README_e.html#section',
+      'not-a-url',
+    ]) {
+      expect(() => partsListCitationUrl(url, section), url).toThrow('official HTTPS BodyParts3D');
+    }
+    expect(() => partsListCitationUrl(latest, 'parts_list_e.txt, Release 3.0'))
+      .toThrow('official HTTPS BodyParts3D');
+  });
+
   it('keeps the builder wired to direct table links for each structure', () => {
     const builder = readFileSync(new URL('../../scripts/build-anatomy.mjs', import.meta.url), 'utf8');
     expect(builder).toContain("import { partsListCitationUrl } from './anatomy-source-url.mjs';");
