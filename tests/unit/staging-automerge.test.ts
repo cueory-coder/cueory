@@ -129,7 +129,9 @@ describe('held paths', () => {
     'src/islands/AnatomyLab.tsx',
     'src/islands/anatomyscene.ts',
     'src/pages/preview/anatomy-lab.astro',
+    'src/pages/preview/anatomy-text.astro',
     'scripts/build-anatomy.mjs',
+    'scripts/anatomy-review-report.mjs',
     'scripts/anatomy-systems.json',
     'src/visuals/prunedrafts.ts',
     'src/visuals/sources.ts',
@@ -175,6 +177,10 @@ describe('held paths', () => {
       .toEqual(['scripts/check-legal-release.mjs']);
     expect(heldPaths([{ filename: 'src/islands/cards.ts', previous_filename: 'src/islands/AnatomyLab.tsx' }], 'prelaunch'))
       .toEqual(['src/islands/AnatomyLab.tsx']);
+    expect(heldPaths([{ filename: 'docs/old-report.mjs', previous_filename: 'scripts/anatomy-review-report.mjs' }], 'prelaunch'))
+      .toEqual(['scripts/anatomy-review-report.mjs']);
+    expect(heldPaths([{ filename: 'src/pages/preview/anatomy-text.astro', previous_filename: 'docs/text.md' }], 'launched'))
+      .toEqual(['src/pages/preview/anatomy-text.astro']);
   });
   const sensitiveAccountSources = [
     'src/pages/auth/callback.astro',
