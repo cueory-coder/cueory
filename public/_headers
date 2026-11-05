@@ -9,3 +9,7 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()
   Cross-Origin-Opener-Policy: same-origin
+
+# Cloudflare Workers serves the generated sitemap as a static asset.
+/sitemap.xml
+  Cache-Control: public, max-age=3600, s-maxage=86400

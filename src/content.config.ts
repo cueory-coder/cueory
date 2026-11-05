@@ -160,6 +160,7 @@ const fillIn = defineCollection({
           z.object({
             id: z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'an id is lowercase letters, digits and dashes'),
             sentence: z.string().min(1).max(400),
+            distractors: z.array(z.string().min(1).max(200)).optional(),
           }),
         )
         .min(1)

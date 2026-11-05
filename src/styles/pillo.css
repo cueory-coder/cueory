@@ -320,6 +320,8 @@
 
   .pillo-legend-row {
     display: flex;
+    flex-wrap: wrap;
+    overflow-wrap: anywhere;
     align-items: center;
     gap: calc(var(--spacing) * 3);
   }
