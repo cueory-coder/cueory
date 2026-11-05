@@ -9,6 +9,8 @@ import {
   BODYPARTS3D_CREDIT_LEAD,
   BODYPARTS3D_LICENSE_NAME,
   BODYPARTS3D_LICENSE_URL,
+  BODYPARTS3D_REFERENCE_NOTE,
+  BODYPARTS3D_REFERENCE_URL,
   groupStructures,
   labDataForBuild,
   nameSourceFor,
@@ -72,6 +74,10 @@ const systems = lab.systems.map((system) => ({ ...system, groups: groupStructure
                 <a class="underline" href={BODYPARTS3D_LICENSE_URL} rel="license noopener">{BODYPARTS3D_LICENSE_NAME}</a>
               </p>
               <p class="text-sm text-ink-soft">{releaseNoteFor(system)}</p>
+              <p class="text-sm text-ink-soft">
+                {BODYPARTS3D_REFERENCE_NOTE}{' '}
+                <a class="underline" href={BODYPARTS3D_REFERENCE_URL} rel="noopener noreferrer">source details</a>
+              </p>
               <p class="text-sm"><a class="underline text-ink" href="#anatomy-text-systems">back to body systems</a></p>
             </section>
           ))}
