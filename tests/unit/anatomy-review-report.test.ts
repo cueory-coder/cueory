@@ -96,6 +96,10 @@ describe('read-only anatomy review inventory', () => {
       'https://example.org/sample',
       'https://dbarchive.biosciencedbc.jp.evil.example/data/bodyparts3d/fake',
       'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/../outside',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/%2e%2e/outside',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/?resource=outside',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/#outside',
     ]) {
       writeSystem(root, 'sample', { ...visual(), sources: [{ ...source(), url }] });
       expect(() => anatomyInventory(root), url).toThrow('must link to the official BodyParts3D source');
