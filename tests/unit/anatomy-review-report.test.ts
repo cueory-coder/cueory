@@ -16,9 +16,9 @@ function setup() {
   return root;
 }
 
-function source() {
+function source(fmaId = 'FMA1') {
   return {
-    id: 'sample-FMA1',
+    id: `bp3d-${fmaId}`,
     quote: 'FMA1 BP1 sample part | with punctuation',
     book: 'BodyParts3D',
     section: 'sample_parts_list_e.txt',
@@ -31,8 +31,8 @@ function visual(id = 'sample', labelId = 'FMA1') {
   return {
     kind: 'model', title: `sample ${id}`, status: 'draft',
     model: { file: `/models/anatomy/${id}.glb`, release: 'sample release' },
-    labels: [{ id: labelId, text: 'sample part | exact', group: 'sample group', layer: 'organs', source: 'sample-FMA1' }],
-    sources: [source()],
+    labels: [{ id: labelId, text: 'sample part | exact', group: 'sample group', layer: 'organs', source: `bp3d-${labelId}` }],
+    sources: [source(labelId)],
   };
 }
 
