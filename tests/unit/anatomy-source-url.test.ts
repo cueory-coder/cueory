@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { partsListCitationUrl } from '../../scripts/anatomy-source-url.mjs';
@@ -5,6 +6,17 @@ import { partsListCitationUrl } from '../../scripts/anatomy-source-url.mjs';
 const latest = 'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/README_e.html';
 
 describe('regenerating the BodyParts3D anatomy source citations', () => {
+  it('rejects Release 3.0 before loading sources or writing wrongly licensed models', () => {
+    const builder = new URL('../../scripts/build-anatomy.mjs', import.meta.url);
+    const result = spawnSync(process.execPath, [builder.pathname,
+      '--source', '/not-an-existing-bodyparts3d-source', '--release', '3.0'], { encoding: 'utf8' });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('--release 3.0 is not approved');
+    expect(result.stderr).toContain('share-alike licensing');
+    // It must reject from argument parsing, before trying to open the source path.
+    expect(result.stderr).not.toContain('not a folder');
+  });
+
   it('links 4.0 source names to the exact table, not the overview README', () => {
     expect(partsListCitationUrl(latest, 'partof_parts_list_e.txt, Release 4.0'))
       .toBe('https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/partof_parts_list_e.txt');
