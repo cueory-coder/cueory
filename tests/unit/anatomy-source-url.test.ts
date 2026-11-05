@@ -43,6 +43,10 @@ describe('regenerating the BodyParts3D anatomy source citations', () => {
     ]) {
       expect(() => partsListCitationUrl(url, section), url).toThrow('official HTTPS BodyParts3D');
     }
+    expect(() => partsListCitationUrl(
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html',
+      'isa_parts_list_e.txt, Release 3.0 (2011-09-15)',
+    )).toThrow('unrecognized BodyParts3D');
     expect(() => partsListCitationUrl(latest, 'parts_list_e.txt, Release 3.0'))
       .toThrow('official HTTPS BodyParts3D');
   });
