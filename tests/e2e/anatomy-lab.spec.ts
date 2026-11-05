@@ -154,7 +154,7 @@ test.describe('anatomy lab', () => {
     const bodyCredit = wholeCatalog.getByTestId('anatomy-fallback-attribution');
     await expect(bodyCredit).toContainText('3D model: Cueory, adapted from BodyParts3D');
     await expect(bodyCredit).toContainText('draft model, built from BodyParts3D 4.0');
-    await expect(bodyCredit).toContainText('BodyParts3D reference model: adult human male');
+    await expect(bodyCredit).toContainText("Male's Anatomy (BodyParts3D reference model, adult human male)");
     await expect(bodyCredit.getByRole('link', { name: 'source details' })).toHaveAttribute(
       'href', 'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/README_e.html',
     );

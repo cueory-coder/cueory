@@ -67,14 +67,14 @@ test('exported anatomy picture credit is complete, visible and model-specific', 
   expect(fixtureText).toContain('test shapes made in code for automated tests');
   expect(fixtureText).not.toContain(LICENSE_URL);
   expect(fixtureText).not.toContain('© The Database Center for Life Science');
-  await expect(page.getByText('BodyParts3D reference model: adult human male')).toHaveCount(0);
+  await expect(page.getByText("Male's Anatomy (BodyParts3D reference model, adult human male)")).toHaveCount(0);
 
   // The existing small kidneys model exercises the real draft source-credit path.
   const kidney = page.getByRole('group', { name: 'body system' })
     .getByRole('button', { name: 'kidneys and urinary tract', exact: true });
   await expect(kidney).toBeVisible();
   await kidney.click();
-  await expect(page.getByText('BodyParts3D reference model: adult human male')).toBeVisible();
+  await expect(page.getByText("Male's Anatomy (BodyParts3D reference model, adult human male)")).toBeVisible();
   await expect(page.getByRole('link', { name: 'source details' })).toHaveAttribute(
     'href', 'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/README_e.html',
   );
@@ -95,7 +95,7 @@ test('exported anatomy picture credit is complete, visible and model-specific', 
     expect(anatomyText, size.label).toContain('BodyParts3D');
     expect(anatomyText, size.label).toContain('© The Database Center for Life Science');
     expect(anatomyText, size.label).toContain('draft model, built from BodyParts3D 4.0');
-    expect(anatomyText, size.label).toContain('BodyParts3D reference model: adult human male');
+    expect(anatomyText, size.label).toContain("Male's Anatomy (BodyParts3D reference model, adult human male)");
     expect(anatomyText, size.label).not.toContain('test shapes made in code');
 
     // A long license URL may wrap across lines. Keep every line on canvas.
@@ -108,7 +108,7 @@ test('exported anatomy picture credit is complete, visible and model-specific', 
     const footerText = footer.map((mark) => mark.value).join('');
     expect(footer.length, size.label).toBeGreaterThan(0);
     expect(footerText, size.label).toContain(LICENSE_URL);
-    expect(footerText, size.label).toContain('BodyParts3D reference model: adult human male');
+    expect(footerText, size.label).toContain("Male's Anatomy (BodyParts3D reference model, adult human male)");
     for (const line of footer) {
       // fillText's y is the alphabetic baseline. TextMetrics gives the actual
       // ink bounds above and below it; x must not be reused for vertical math.
