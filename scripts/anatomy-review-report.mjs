@@ -31,6 +31,12 @@ function markdownCell(value) {
 function safeLink(value, name) {
   const url = requireText(value, name);
   if (!/^https:\/\/[^\s)\]]+$/i.test(url)) throw new Error(`${name} must be a safe HTTPS URL`);
+  // Inspect the original source path first. URL() normalizes /../ and encoded
+  // dot segments, which could otherwise leave and re-enter the LATEST archive.
+  const rawPath = url.split(/[?#]/, 1)[0] ?? '';
+  if (rawPath.includes('%') || /[\\/]\.{1,2}(?:[\\/]|$)/.test(rawPath)) {
+    throw new Error(`${name} must link to the official BodyParts3D source`);
+  }
   let parsed;
   try { parsed = new URL(url); }
   catch { throw new Error(`${name} must be a safe HTTPS URL`); }
