@@ -90,6 +90,24 @@ describe('read-only anatomy review inventory', () => {
     expect(() => anatomyInventory(root)).toThrow('must be a safe HTTPS URL');
   });
 
+  it('refuses to attribute one structure to another structure\'s existing source record', () => {
+    const root = setup();
+    const one = { ...source(), id: 'bp3d-FMA1' };
+    const two = { ...source(), id: 'bp3d-FMA2', quote: 'FMA2 BP2 synthetic fixture only' };
+    writeSystem(root, 'sample', {
+      ...visual(),
+      labels: [{ ...visual().labels[0], source: 'bp3d-FMA2' }],
+      sources: [one, two],
+    });
+    expect(() => anatomyInventory(root)).toThrow('label FMA1 cites a different structure source');
+    writeSystem(root, 'sample', {
+      ...visual(),
+      labels: [{ ...visual().labels[0], source: 'bp3d-FMA1' }],
+      sources: [one, two],
+    });
+    expect(anatomyInventory(root)[0]?.labels[0]?.source.id).toBe('bp3d-FMA1');
+  });
+
   it('rejects non-BodyParts3D HTTPS sources and incorrect rights in the review inventory', () => {
     const root = setup();
     for (const url of [
