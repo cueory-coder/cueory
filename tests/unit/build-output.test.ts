@@ -80,6 +80,42 @@ const initialJsBudget = {
   'terms.html': 76405,
 } satisfies Record<string, number>;
 
+/**
+ * Diagnostic reproduction of Task 192's ORIGINAL measurement algorithm.
+ * Intentionally retains the old transitive-path and import-traversal defects.
+ * Use only to compare scanners on the SAME current build, never for budgets.
+ */
+function legacyInitialJsFiles(page: string): string[] {
+  const html = readFileSync(page, 'utf8');
+  const queue = [...html.matchAll(/(?:src|component-url|renderer-url)="([^"]+\.js(?:\?[^" ]*)?)"/g)].map((match) => match[1]!);
+  const files = new Set<string>();
+  const resolveAsset = (from: string, url: string) => {
+    if (url.startsWith(dist + '/')) return url;
+    return url.startsWith('/') ? join(dist, url.slice(1)) : join(from, '..', url);
+  };
+
+  while (queue.length > 0) {
+    const url = queue.shift()!.split('?')[0]!;
+    const file = resolveAsset(page, url);
+    if (files.has(file) || !file.endsWith('.js') || !existsSync(file)) continue;
+    files.add(file);
+    const source = readFileSync(file, 'utf8');
+    for (const match of source.matchAll(/(?:import\s+[^"']*?from\s*|import\s*)["']([^"']+\.js(?:\?[^"']*)?)["']/g)) {
+      const imported = match[1]!.split('?')[0]!;
+      queue.push(imported.startsWith('/') ? imported : join(file, '..', imported));
+    }
+  }
+  return [...files];
+}
+
+function legacyInitialJsGzipBytes(page: string): number {
+  const html = readFileSync(page, 'utf8');
+  const external = legacyInitialJsFiles(page).reduce((total, file) => total + gzipSync(readFileSync(file)).length, 0);
+  const inline = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)]
+    .reduce((total, match) => total + gzipSync(match[1]!).length, 0);
+  return external + inline;
+}
+
 function initialJsFiles(page: string): string[] {
   const html = readFileSync(page, 'utf8');
   const queue = [...html.matchAll(/(?:src|component-url|renderer-url)="([^"]+\.js(?:\?[^" ]*)?)"/g)].map((match) => match[1]!);
@@ -198,11 +234,27 @@ describe.skipIf(!existsSync(dist))('built site', () => {
         .sort((a, b) => b.gzipBytes - a.gzipBytes)
         .slice(0, 12)
       : [];
+    // This comparison uses one current build for BOTH scanners. It quantifies how
+    // much the original scanner undercounts here; it cannot establish historic growth.
+    const legacyDiagnostic = overBudget.length > 0
+      ? (() => {
+        const page = join(dist, '404.html');
+        const originalScanner = legacyInitialJsGzipBytes(page);
+        const correctedScanner = initialJsGzipBytes(page);
+        return {
+          originalScanner,
+          correctedScanner,
+          scannerDifference: correctedScanner - originalScanner,
+        };
+      })()
+      : null;
     expect(
       overBudget,
       'All route JavaScript budgets must remain within the original 10% limit. ' +
         'Representative 404-page external module sizes (largest first): ' +
-        JSON.stringify(baselineDiagnostic),
+        JSON.stringify(baselineDiagnostic) +
+        '. On the SAME CURRENT 404-page build, original-scanner versus corrected-scanner gzip bytes: ' +
+        JSON.stringify(legacyDiagnostic),
     ).toEqual([]);
   });
 
