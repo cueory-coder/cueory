@@ -31,7 +31,18 @@ function markdownCell(value) {
 function safeLink(value, name) {
   const url = requireText(value, name);
   if (!/^https:\/\/[^\s)\]]+$/i.test(url)) throw new Error(`${name} must be a safe HTTPS URL`);
-  if (!url.startsWith(BODY_PARTS_SOURCE_PREFIX) || url.length === BODY_PARTS_SOURCE_PREFIX.length) {
+  let parsed;
+  try { parsed = new URL(url); }
+  catch { throw new Error(`${name} must be a safe HTTPS URL`); }
+  // Check the parsed origin and normalized path, not only the raw string.
+  // A raw prefix check accepts /bodyparts3d/../other and encoded dot-segments.
+  const official = new URL(BODY_PARTS_SOURCE_PREFIX);
+  if (
+    parsed.origin !== official.origin ||
+    !parsed.pathname.startsWith(official.pathname) ||
+    parsed.pathname.length === official.pathname.length ||
+    parsed.username || parsed.password || parsed.port
+  ) {
     throw new Error(`${name} must link to the official BodyParts3D source`);
   }
   return url;
