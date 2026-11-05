@@ -8,6 +8,8 @@ interface DrawnText {
   x: number;
   y: number;
   width: number;
+  ascent: number;
+  descent: number;
   canvasWidth: number;
   canvasHeight: number;
 }
@@ -24,11 +26,14 @@ test('exported anatomy picture credit is complete, visible and model-specific', 
     state.__cueoryPictureText = [];
     const original = CanvasRenderingContext2D.prototype.fillText;
     CanvasRenderingContext2D.prototype.fillText = function (value, x, y, maxWidth) {
+      const metrics = this.measureText(String(value));
       state.__cueoryPictureText!.push({
         value: String(value),
         x,
         y,
-        width: this.measureText(String(value)).width,
+        width: metrics.width,
+        ascent: metrics.actualBoundingBoxAscent,
+        descent: metrics.actualBoundingBoxDescent,
         canvasWidth: this.canvas.width,
         canvasHeight: this.canvas.height,
       });
@@ -100,8 +105,10 @@ test('exported anatomy picture credit is complete, visible and model-specific', 
     expect(footer.length, size.label).toBeGreaterThan(0);
     expect(footer.map((mark) => mark.value).join(''), size.label).toContain(LICENSE_URL);
     for (const line of footer) {
-      expect(line.x + line.width, size.label).toBeLessThanOrEqual(line.canvasWidth - line.x + 1);
-      expect(line.y, size.label).toBeLessThanOrEqual(line.canvasHeight - line.x + 1);
+      expect(Number.isFinite(line.x + line.width), size.label).toBe(true);
+      expect(line.x + line.width, size.label).toBeLessThanOrEqual(line.canvasWidth - 1);
+      expect(line.y - line.ascent, size.label).toBeGreaterThanOrEqual(0);
+      expect(line.y + line.descent, size.label).toBeLessThanOrEqual(line.canvasHeight - 1);
     }
   }
 });
