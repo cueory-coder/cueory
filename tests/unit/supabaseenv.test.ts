@@ -164,6 +164,18 @@ describe('malformed url', () => {
     expect(result.url).toBe('http://127.0.0.1:54321');
   });
 
+  it.each([
+    ['path', 'http://localhost:54321/rest/v1'],
+    ['query', 'http://localhost:54321?debug=1'],
+    ['fragment', 'http://127.0.0.1:54321/#debug'],
+  ])('refuses a local Supabase URL with a %s', (_kind, url) => {
+    const r = disabled(supabaseSettings({
+      PUBLIC_SUPABASE_URL: url,
+      PUBLIC_SUPABASE_PUBLISHABLE_KEY: VALID_KEY,
+    }));
+    expect(r.reason).toContain('path, query string, or fragment');
+  });
+
   it('refuses a non-url string', () => {
     const r = disabled(supabaseSettings({
       PUBLIC_SUPABASE_URL: 'not-a-url',
