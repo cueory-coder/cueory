@@ -66,7 +66,7 @@ const sampleModel = (): Visual => ({
       quote: 'FMA1 sample structure',
       book: 'BodyParts3D',
       section: 'parts_list_e.txt',
-      url: 'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html',
+      url: 'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/README_e.html',
       license: 'CC BY 4.0',
       retrieved: '2026-11-02',
     },
