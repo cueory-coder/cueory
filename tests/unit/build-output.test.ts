@@ -31,7 +31,12 @@ const requiredPages = [
   'subscribed.html',
 ];
 
-// Original 31 route baselines: staging 65a05c3 (2026-11-03), rebuilt from\n// its pinned lockfile with Node 24.22.2 and rescanned using today's corrected\n// static-import / inline-script / gzip algorithm. Reproduction: CI run\n// 41956096721, job 127011229250, HISTORICAL_CORRECTED_JS_BUDGETS output.\n// This corrects the original scanner's missing import paths, not a budget reset.\n// Routes added since that staging commit use measured
+// Original 31 route baselines: staging 65a05c3 (2026-11-03), rebuilt from
+// its pinned lockfile with Node 24.22.2 and rescanned using today's corrected
+// static-import / inline-script / gzip algorithm. Reproduction: CI run
+// 41956096721, job 127011229250, HISTORICAL_CORRECTED_JS_BUDGETS output.
+// This corrects the original scanner's missing import paths, not a budget reset.
+// Routes added since that staging commit use measured
 // gzip sizes from the exact-head CI merge build in run 41864993683.
 // Added routes below were measured in exact-head CI run 41933505423.
 // Newly integrated routes measured with the same current scanner in exact-head CI run 41945246600.
