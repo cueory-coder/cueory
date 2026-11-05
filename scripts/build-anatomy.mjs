@@ -129,10 +129,6 @@ function parseArguments(argv) {
   // GLB copyright and site credits currently assume CC BY 4.0 (Release 4.0 only).
   // Refuse the legacy path before reading or writing any model/source files.
   if (options.release === '3.0') fail('--release 3.0 is not approved: archived BodyParts3D has different attribution and share-alike licensing; use --release 4.0');
-  // Release 3.0 uses a different archived license. This generator embeds
-  // CC BY 4.0 in model copyright and manifest sources, so fail closed until
-  // complete per-release rights handling is reviewed and explicitly approved.
-  if (options.release === '3.0') fail('Release 3.0 is disabled: archived license is not CC BY 4.0');
   if (options.tree !== undefined && options.release !== '4.0') fail('--tree is for Release 4.0 only');
   options.tree ??= 'partof';
   if (options.tree !== 'partof' && options.tree !== 'isa') fail('--tree must be partof or isa');
