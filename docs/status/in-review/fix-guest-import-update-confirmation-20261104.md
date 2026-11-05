@@ -1,0 +1,1 @@
+status: Fix false-success guest exam-plan import when duplicate-key fallback update matches zero rows. Require exactly one confirmed row for the accepting account, with tests for zero, missing and other-user confirmations. Founder approval needed because this is an account-data import path; no schema, production setting, secrets or branch protection changed.

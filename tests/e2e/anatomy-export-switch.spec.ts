@@ -31,7 +31,10 @@ test('switching systems invalidates the previous PNG before React effects', asyn
   await expect(fixture).toBeEnabled({ timeout: 20_000 });
 
   const picker = page.getByRole('group', { name: 'body system' }).getByRole('button');
-  test.skip(await picker.count() < 2, 'requires a fixture and another draft body system');
+  // This is a draft-enabled Anatomy Lab test. A missing second system is a regression,
+  // not permission to skip the stale-export safety check on slow devices.
+  await expect.poll(() => picker.count(), { timeout: 15_000 })
+    .toBeGreaterThanOrEqual(2);
 
   let downloads = 0;
   page.on('download', () => { downloads++; });

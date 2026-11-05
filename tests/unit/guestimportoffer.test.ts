@@ -296,7 +296,7 @@ describe('database adapters', () => {
     const client: ImportClient = {
       from: (table) => ({
         insert: async (rows) => { calls.push(['insert', table, rows]); return { error: insertError }; },
-        update: (patch) => ({ match: async (filter) => { calls.push(['update', table, patch, filter]); return { error: updateError }; } }),
+        update: (patch) => ({ match: (filter) => ({ select: async (columns) => { calls.push(['update', table, patch, filter, columns]); return { data: updateError ? null : [{ user_id: USER }], error: updateError }; } }) }),
       }),
     };
     return { client, calls };
@@ -312,7 +312,54 @@ describe('database adapters', () => {
   it('updates only exam_date, only on the accepting account row, when the course already has a plan', async () => {
     const { client, calls } = fakeClient({ code: '23505' });
     expect(await plansDbFrom(client, USER).upsert('exam_plans', row, 'user_id,course')).toEqual({ error: null });
-    expect(calls[1]).toEqual(['update', 'exam_plans', { exam_date: '2026-12-10' }, { course: 'fundamentals', user_id: USER }]);
+    expect(calls[1]).toEqual(['update', 'exam_plans', { exam_date: '2026-12-10' }, { course: 'fundamentals', user_id: USER }, 'user_id']);
+  });
+
+  it('rejects a successful-looking update that matched no account row', async () => {
+    const client: ImportClient = {
+      from: () => ({
+        insert: async () => ({ error: { code: '23505' } }),
+        update: () => ({ match: () => ({ select: async () => ({ data: [], error: null }) }) }),
+      }),
+    };
+    expect(await plansDbFrom(client, USER).upsert('exam_plans', row, 'user_id,course'))
+      .toEqual({ error: { code: '42501' } });
+  });
+
+  it('rejects a missing confirmation after the duplicate-key fallback update', async () => {
+    const client: ImportClient = {
+      from: () => ({
+        insert: async () => ({ error: { code: '23505' } }),
+        update: () => ({ match: () => ({ select: async () => ({ data: null, error: null }) }) }),
+      }),
+    };
+    expect(await plansDbFrom(client, USER).upsert('exam_plans', row, 'user_id,course'))
+      .toEqual({ error: { code: '42501' } });
+  });
+
+  it('rejects multiple updated rows instead of treating them as one confirmed account plan', async () => {
+    const client: ImportClient = {
+      from: () => ({
+        insert: async () => ({ error: { code: '23505' } }),
+        update: () => ({ match: () => ({ select: async () => ({
+          data: [{ user_id: USER }, { user_id: USER }],
+          error: null,
+        }) }) }),
+      }),
+    };
+    expect(await plansDbFrom(client, USER).upsert('exam_plans', row, 'user_id,course'))
+      .toEqual({ error: { code: '42501' } });
+  });
+
+  it('rejects an update confirmation belonging to a different account', async () => {
+    const client: ImportClient = {
+      from: () => ({
+        insert: async () => ({ error: { code: '23505' } }),
+        update: () => ({ match: () => ({ select: async () => ({ data: [{ user_id: OTHER }], error: null }) }) }),
+      }),
+    };
+    expect(await plansDbFrom(client, USER).upsert('exam_plans', row, 'user_id,course'))
+      .toEqual({ error: { code: '42501' } });
   });
 
   it('passes other insert and update errors through', async () => {
