@@ -7,6 +7,10 @@
  * Colors come from the brand tokens at runtime (getComputedStyle), so the model follows the Daytime and Evening palettes.
  */
 import * as THREE from 'three';
+import { disposeAnatomyMaterials, disposeAnatomyMeshResources, indexAnatomyGroup, summarizeIndexedAnatomyIds } from './anatomymeshindex';
+import { withTemporaryMeshAppearance } from './anatomyidpass';
+import { createDemandFrameScheduler, remainingIdleDelay } from './anatomyframe';
+import { loadModelsOrDispose, uniqueAnatomyModelUrls } from './anatomylazy';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
@@ -20,6 +24,9 @@ import {
   labelLines,
   labelRoomFor,
   placeLabels,
+  pickedStructure,
+  pictureTitleLayout,
+  preparePictureFonts,
   wrapText,
   type ExportSize,
   type Rect,
@@ -157,7 +164,8 @@ export interface LabScene {
   clear(): void;
   setAppearance(appearance: Appearance): void;
   setColors(colors: LabColors): void;
-  pick(clientX: number, clientY: number): string | null;
+  /** The quiz uses nearest-hit picking so earlier answers do not bias later taps. */
+  pick(clientX: number, clientY: number, preferSelected?: boolean): string | null;
   project(ids: readonly string[]): ProjectedPoint[];
   /** The visible model's box on screen, in CSS pixels, or null when nothing is in front of the camera. */
   extent(): Rect | null;
@@ -202,7 +210,9 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
   camera.add(key); // the light moves with the camera, so the side facing the student is always lit
 
   let needsRender = true;
-  let raf = 0;
+  // Event handlers can wake the scheduler without keeping a WebGL loop alive while idle.
+  let scheduleFrame: () => void = () => {};
+  let scheduleVisibility: () => void = () => {};
   // Which labeled structures the camera can see is worked out from an ID picture once the camera has been still for
   // VISIBILITY_IDLE_MS (and after any change to what is shown), not on every frame.
   let visibilityDirty = true;
@@ -211,6 +221,7 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
   let visibility = new Map<string, { behind: boolean; world: THREE.Vector3 }>();
   const requestRender = () => {
     needsRender = true;
+    scheduleFrame();
   };
 
   const controls = new OrbitControls(camera, canvas);
@@ -223,6 +234,7 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
     lastMove = performance.now();
     visibilityDirty = true;
     requestRender();
+    scheduleVisibility();
   };
   controls.addEventListener('change', onCameraChange);
 
@@ -245,40 +257,49 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
     visibilityDirty = true;
     requestRender();
   };
-  resize();
-  const observer = new ResizeObserver(resize);
-  observer.observe(canvas);
-
-  const tick = () => {
-    raf = requestAnimationFrame(tick);
-    if (controls.enableDamping) controls.update(); // fires 'change' while the camera is still gliding
-    if (visibilityDirty && root && performance.now() - lastMove > VISIBILITY_IDLE_MS) {
-      visibilityDirty = false;
-      if (labelIds.length > 0) {
-        const w = canvas.clientWidth || 1;
-        const h = canvas.clientHeight || 1;
-        visibility = visibilityFor(camera, labelIds, w, h);
-        needsRender = true; // redraw, so the labels pick up the new anchors and marks
+  // OrbitControls.update() returns true while damping still moves the camera (three.js r187).
+  // Only those moving frames are repeated. Camera changes reset a single delayed visibility check.
+  const tick = (): boolean => {
+    const moving = controls.enableDamping ? controls.update() : false;
+    if (visibilityDirty && root) {
+      // Both timestamps use performance.now(). A delayed frame that fires early
+      // must re-arm the visibility check rather than leaving stale occlusion labels.
+      const remaining = remainingIdleDelay(performance.now(), lastMove, VISIBILITY_IDLE_MS);
+      if (remaining > 0) {
+        if (labelIds.length > 0) scheduler.afterIdle(remaining);
       } else {
-        visibility = new Map();
+        visibilityDirty = false;
+        if (labelIds.length > 0) {
+          const w = canvas.clientWidth || 1;
+          const h = canvas.clientHeight || 1;
+          visibility = visibilityFor(camera, labelIds, w, h);
+          needsRender = true; // redraw so label anchors and behind marks refresh
+        } else {
+          visibility = new Map();
+        }
       }
     }
-    if (!needsRender) return;
-    needsRender = false;
-    renderer.render(scene, camera);
-    onRender();
+    if (needsRender) {
+      needsRender = false;
+      renderer.render(scene, camera);
+      onRender();
+    }
+    return moving;
   };
-  tick();
+  const scheduler = createDemandFrameScheduler(tick);
+  scheduleFrame = scheduler.request;
+  scheduleVisibility = () => {
+    if (root && labelIds.length > 0) scheduler.afterIdle(VISIBILITY_IDLE_MS);
+  };
+
+  resize(); // schedules one initial frame
+  const observer = new ResizeObserver(resize);
+  observer.observe(canvas);
 
   function disposeModel() {
     if (!root) return;
     scene.remove(root);
-    root.traverse((object) => {
-      const mesh = object as THREE.Mesh;
-      if (!mesh.isMesh) return;
-      mesh.geometry.dispose();
-      for (const material of ([] as THREE.Material[]).concat(mesh.material)) material.dispose();
-    });
+    disposeAnatomyMeshResources(root);
     root = null;
     meshesById = new Map();
     order = [];
@@ -287,8 +308,9 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
     unlabeled = [];
     visibility = new Map();
     visibilityDirty = true;
-    for (const material of idMaterials) material.dispose();
+    const oldIdMaterials = idMaterials;
     idMaterials = [];
+    disposeAnatomyMaterials(oldIdMaterials);
   }
 
   function applyAppearance() {
@@ -342,41 +364,51 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
   }
 
   function renderIds(cam: THREE.Camera, width: number, height: number, into: THREE.WebGLRenderer): Uint8Array {
-    const saved: Array<[THREE.Mesh, THREE.Material | THREE.Material[], number]> = [];
-    const highlighted = visibleSelection(appearance.selected, appearance.hidden);
-    order.forEach((id, index) => {
-      const isSelected = id === highlighted;
-      for (const mesh of meshesById.get(id) ?? []) {
-        saved.push([mesh, mesh.material, mesh.renderOrder]);
-        const material = idMaterialFor(index);
-        material.depthTest = !isSelected;
-        mesh.material = material;
-        mesh.renderOrder = isSelected ? 10 : 0;
-      }
-    });
-    for (const mesh of unlabeled) {
-      saved.push([mesh, mesh.material, mesh.renderOrder]);
-      mesh.material = nothing;
-    }
+    // Prepare allocations and renderer state before changing any visible mesh.
+    // WebGL failures in setup, rendering, or pixel readback must never leave
+    // the flat ID-pass materials attached to the student's actual 3D model.
     const pixels = new Uint8Array(width * height * 4);
     const clear = into.getClearColor(new THREE.Color());
     const clearAlpha = into.getClearAlpha();
-    try {
-      idTarget.setSize(width, height);
-      into.setRenderTarget(idTarget);
-      into.setClearColor(new THREE.Color(0, 0, 0), 1);
-      into.clear();
-      into.render(scene, cam);
-      into.readRenderTargetPixels(idTarget, 0, 0, width, height, pixels);
-    } finally {
-      into.setRenderTarget(null);
-      into.setClearColor(clear, clearAlpha);
-      for (const [mesh, material, renderOrder] of saved) {
-        mesh.material = material;
-        mesh.renderOrder = renderOrder;
-      }
-    }
-    return pixels;
+    const highlighted = visibleSelection(appearance.selected, appearance.hidden);
+
+    return withTemporaryMeshAppearance(
+      (remember) => {
+        order.forEach((id, index) => {
+          const isSelected = id === highlighted;
+          for (const mesh of meshesById.get(id) ?? []) {
+            remember(mesh);
+            const material = idMaterialFor(index);
+            material.depthTest = !isSelected;
+            mesh.material = material;
+            mesh.renderOrder = isSelected ? 10 : 0;
+          }
+        });
+        for (const mesh of unlabeled) {
+          remember(mesh);
+          mesh.material = nothing;
+        }
+      },
+      () => {
+        try {
+          idTarget.setSize(width, height);
+          into.setRenderTarget(idTarget);
+          into.setClearColor(new THREE.Color(0, 0, 0), 1);
+          into.clear();
+          into.render(scene, cam);
+          into.readRenderTargetPixels(idTarget, 0, 0, width, height, pixels);
+        } finally {
+          // Attempt both renderer-state resets even if one throws. The outer
+          // material guard then restores all real meshes regardless.
+          try {
+            into.setRenderTarget(null);
+          } finally {
+            into.setClearColor(clear, clearAlpha);
+          }
+        }
+        return pixels;
+      },
+    );
   }
 
   /**
@@ -442,21 +474,21 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
     await MeshoptDecoder.ready;
     const loader = new GLTFLoader();
     loader.setMeshoptDecoder(MeshoptDecoder);
-    const list = typeof urls === 'string' ? [urls] : [...urls];
-    const scenes = await Promise.all(list.map((url) => loader.loadAsync(url).then((gltf) => gltf.scene)));
+    // Repeated shared GLB URLs must not trigger a second physical decode.
+    const list = uniqueAnatomyModelUrls(urls);
+    // A failed file cannot leave earlier or later decoded meshes in memory.
+    // Scene.add has not run yet, so failed initial loads must release all parts.
+    const scenes = await loadModelsOrDispose(
+      list.map((url) => () => loader.loadAsync(url).then((gltf) => gltf.scene)),
+      disposeGroup,
+    );
     const group = new THREE.Group();
     for (const part of scenes) group.add(part);
     return group;
   }
 
   function disposeGroup(group: THREE.Object3D) {
-    group.traverse((object) => {
-      const mesh = object as THREE.Mesh;
-      if (mesh.isMesh) {
-        mesh.geometry.dispose();
-        for (const material of ([] as THREE.Material[]).concat(mesh.material)) material.dispose();
-      }
-    });
+    disposeAnatomyMeshResources(group);
   }
 
   /** Takes a fetched group into the view: `replace` makes it the whole model, otherwise it joins the current one. */
@@ -469,44 +501,21 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
       root.add(group);
     }
     group.updateMatrixWorld(true);
-    const wanted = new Set(ids);
-    const owner = new Map<THREE.Object3D, string>();
-    group.traverse((object) => {
-      const name = typeof object.userData['name'] === 'string' ? (object.userData['name'] as string) : object.name;
-      if (wanted.has(name) && !meshesById.has(name)) {
-        meshesById.set(name, []);
-        owner.set(object, name);
-      }
-    });
-    let triangles = 0;
-    group.traverse((object) => {
-      const mesh = object as THREE.Mesh;
-      if (!mesh.isMesh) return;
-      let id: string | undefined;
-      for (let at: THREE.Object3D | null = mesh; at && !id; at = at.parent) id = owner.get(at);
-      for (const material of ([] as THREE.Material[]).concat(mesh.material)) material.dispose();
-      if (!mesh.geometry.getAttribute('normal')) mesh.geometry.computeVertexNormals();
-      mesh.material = new THREE.MeshLambertMaterial();
-      const index = mesh.geometry.getIndex();
-      triangles += (index ? index.count : mesh.geometry.getAttribute('position').count) / 3;
-      if (id) {
-        mesh.userData['structureId'] = id;
-        meshesById.get(id)!.push(mesh);
-      } else {
-        unlabeled.push(mesh);
-      }
-    });
-    const added = ids.filter((id) => (meshesById.get(id)?.length ?? 0) > 0 && !order.includes(id));
-    for (const id of ids) if (!added.includes(id) && !order.includes(id)) meshesById.delete(id);
+    const { touched, triangles } = indexAnatomyGroup(group, ids, meshesById, unlabeled);
+    // An ID already found in an earlier GLB is neither newly added nor missing
+    // when another file contributes geometry to the same structure.
+    const { added, missing } = summarizeIndexedAnatomyIds(ids, order, meshesById);
+    for (const id of missing) if (!order.includes(id)) meshesById.delete(id);
     order = [...order, ...added];
-    for (const id of added) {
+    // Additional GLBs can expand a previously indexed structure's geometry.
+    for (const id of touched) {
       const box = new THREE.Box3();
       for (const mesh of meshesById.get(id)!) box.expandByObject(mesh);
       centers.set(id, box.getCenter(new THREE.Vector3()));
       boxes.set(id, box);
     }
     visibilityDirty = true;
-    return { found: added, missing: ids.filter((id) => !added.includes(id)), triangles: Math.round(triangles) };
+    return { found: added, missing, triangles: Math.round(triangles) };
   }
 
   async function load(urls: string | readonly string[], ids: readonly string[]): Promise<LoadResult | null> {
@@ -518,7 +527,9 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
       return null;
     }
     const result = integrate(group, ids, true);
-    order = ids.filter((id) => (meshesById.get(id)?.length ?? 0) > 0);
+    // Keep initial-load order unique as well. integrate() already deduplicates
+    // its result, but reassigning from raw ids here would undo that guarantee.
+    order = [...new Set(ids)].filter((id) => (meshesById.get(id)?.length ?? 0) > 0);
     appearance = { hidden: new Set(), selected: null };
     applyAppearance();
     frame();
@@ -541,14 +552,19 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
 
   const raycaster = new THREE.Raycaster();
 
-  function pick(clientX: number, clientY: number): string | null {
+  function pick(clientX: number, clientY: number, preferSelected = true): string | null {
     const rect = canvas.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return null;
     const pointer = new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
     raycaster.setFromCamera(pointer, camera);
     const candidates = order.flatMap((id) => (appearance.hidden.has(id) ? [] : meshesById.get(id)!));
-    const hit = raycaster.intersectObjects(candidates, false)[0];
-    return hit ? ((hit.object.userData['structureId'] as string | undefined) ?? null) : null;
+    const hits = raycaster.intersectObjects(candidates, false)
+      .map((hit) => hit.object.userData['structureId'])
+      .filter((id): id is string => typeof id === 'string');
+    // The selected opaque mesh may be behind another translucent mesh.
+    // Only prefer it if the ray actually intersects it; otherwise pick the nearest mesh.
+    const selected = preferSelected ? visibleSelection(appearance.selected, appearance.hidden) : null;
+    return pickedStructure(hits, selected);
   }
 
   function projectWith(
@@ -607,6 +623,9 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
   }
 
   async function exportPicture(request: ExportRequest): Promise<ExportResult> {
+    // A system picker click invalidates this picture while fonts may still be loading.
+    // Do not allocate another large canvas or GPU renderer for an obsolete model.
+    const pictureLoadId = loadId;
     const { width, height } = EXPORT_SIZES[request.size];
     // Type is set for the picture's shorter side (1080 in every size), so a wide picture's labels are no taller than
     // a phone picture's and as many fit down its side.
@@ -618,11 +637,16 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
     const pad = Math.round(tk.pad * scale);
     const font = colors.font;
     if (document.fonts) {
-      await Promise.all([
-        document.fonts.load(`700 ${titleSize}px ${font}`),
-        document.fonts.load(`400 ${labelSize}px ${font}`),
-      ]);
+      // Offline or stalled font requests must not hide title, labels, or source credits.
+      // Wait briefly, then let Canvas use its browser fallback font.
+      await preparePictureFonts(
+        [`700 ${titleSize}px ${font}`, `400 ${labelSize}px ${font}`],
+        (declaration) => document.fonts.load(declaration),
+      );
     }
+
+    // scene.clear() and scene.dispose() advance loadId synchronously.
+    if (pictureLoadId !== loadId) throw new Error('The anatomy model changed during picture preparation.');
 
     const out = document.createElement('canvas');
     out.width = width;
@@ -630,11 +654,17 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
     const ctx = out.getContext('2d');
     if (!ctx) throw new Error('This browser cannot draw the picture.');
 
+    // Measure the saved picture's title before fitting the camera crop.
+    // The output canvas has already been allocated and stale-load guards have passed.
+    ctx.font = `700 ${titleSize}px ${font}`;
+    const titleLayout = pictureTitleLayout(
+      request.title, width, pad, titleSize, tk.leading, (value) => ctx.measureText(value).width,
+    );
     // The credit's lines decide how much room the bottom band needs.
     ctx.font = `400 ${creditSize}px ${font}`;
     const creditLines = wrapText(request.credit, width - 2 * pad, (s) => ctx.measureText(s).width);
     const creditLineHeight = Math.round(creditSize * tk.leading);
-    const top = pad + Math.round(titleSize * tk.leading) + Math.round(pad / 2);
+    const top = titleLayout.top;
     const bottom = pad + creditLines.length * creditLineHeight + Math.round(pad / 2);
     const viewHeight = Math.max(1, height - top - bottom);
 
@@ -755,7 +785,10 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
       ctx.textBaseline = 'alphabetic';
       ctx.fillStyle = colors.ink;
       ctx.font = `700 ${titleSize}px ${font}`;
-      ctx.fillText(request.title, pad, pad + titleSize);
+      titleLayout.lines.forEach((line, index) => {
+        // Bound even a single unbroken title word to the canvas text width.
+        ctx.fillText(line, pad, pad + titleSize + index * titleLayout.lineHeight, titleLayout.maxWidth);
+      });
       ctx.fillStyle = colors.inkSoft;
       ctx.font = `400 ${creditSize}px ${font}`;
       creditLines.forEach((line, i) => {
@@ -788,6 +821,8 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
       if (ids.length !== labelIds.length || ids.some((id, i) => id !== labelIds[i])) {
         labelIds = [...ids];
         visibilityDirty = true;
+        requestRender();
+        scheduleVisibility();
       }
       return projectWith(camera, ids, canvas.clientWidth, canvas.clientHeight);
     },
@@ -806,12 +841,12 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
     },
     dispose() {
       loadId++;
-      cancelAnimationFrame(raf);
+      scheduler.dispose();
       observer.disconnect();
       controls.removeEventListener('change', onCameraChange);
       controls.dispose();
       disposeModel();
-      nothing.dispose();
+      disposeAnatomyMaterials([nothing]);
       idTarget.dispose();
       renderer.dispose();
     },
