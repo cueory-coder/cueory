@@ -80,6 +80,10 @@ export async function runAutomerge({
         if (now.state !== 'open' || now.base.ref !== BASE_BRANCH || now.head.sha !== pull.head.sha) {
           done = 'merge refused';
           decision.reasons.push(`changed while it was being checked (now ${now.state}, into ${now.base.ref})`);
+        } else if (!pull.base.sha || now.base.sha !== pull.base.sha) {
+          // A clean PR head is not enough if staging moved after the merge-test checks were gathered.
+          done = 'merge refused';
+          decision.reasons.push('staging changed while checks were being evaluated; retry with fresh checks');
         } else if (now.labels.some((l) => l.name === NEEDS_CHRISTIAN_LABEL)) {
           // Someone stopped the bot while it was checking.
           done = 'merge refused';
@@ -122,7 +126,7 @@ export async function runAutomerge({
 async function readDependencies(gh: GitHub, pull: PullRequest, files: readonly ChangedFile[]): Promise<DependencyFile[]> {
   return Promise.all(
     dependencyPaths(files).map(async (path) => {
-      const [before, after] = await Promise.all([gh.fileAt(path, pull.base.ref), gh.fileAt(path, pull.head.sha)]);
+      const [before, after] = await Promise.all([gh.fileAt(path, pull.base.sha ?? pull.base.ref), gh.fileAt(path, pull.head.sha)]);
       return { path, before, after };
     }),
   );

@@ -32,7 +32,7 @@ function pull(over: Partial<PullRequest> = {}): PullRequest {
     title: 'Cards: a thing',
     user: { login: 'lilchristxan' },
     mergeable: true,
-    base: { ref: 'staging' },
+    base: { ref: 'staging', sha: 'staging-original' },
     head: { sha: HEAD, ref: 'task-4/thing', repo: { full_name: REPO } },
     labels: [],
     ...over,
@@ -584,7 +584,7 @@ describe('the auto-merge run', () => {
     const before = JSON.stringify({ devDependencies: { typescript: '^6.0.3' } });
     const { gh, calls } = fakeGitHub(
       { 7: { pr: pull(), files: ['package.json', 'package-lock.json'] } },
-      { contents: { 'staging:package.json': before, [`${HEAD}:package.json`]: before.replace('^6.0.3', '^7.0.2') } },
+      { contents: { 'staging-original:package.json': before, [`${HEAD}:package.json`]: before.replace('^6.0.3', '^7.0.2') } },
     );
     const outcomes = await runAutomerge({ gh, repo: REPO, mode: 'prelaunch', dryRun: false, log: () => {} });
     expect(outcomes[0]!.done).toBe('labelled');
@@ -624,6 +624,23 @@ describe('the auto-merge run', () => {
     expect(outcomes[0]!.done).toBe('merge refused');
     expect(outcomes[0]!.decision.reasons.at(-1)).toContain('into main');
     expect(calls.filter((c) => c.method !== 'GET')).toEqual([]);
+  });
+
+  it('refuses to merge if staging advances after the original checks were collected', async () => {
+    const { gh, calls } = fakeGitHub(
+      { 7: { pr: pull(), files: ['src/x.ts'] } },
+      { later: { base: { ref: 'staging', sha: 'staging-new' } } },
+    );
+    const outcomes = await runAutomerge({ gh, repo: REPO, mode: 'launched', dryRun: false, log: () => {} });
+    expect(outcomes[0]!.done).toBe('merge refused');
+    expect(outcomes[0]!.decision.reasons.at(-1)).toContain('staging changed');
+    expect(calls.filter((c) => c.method !== 'GET')).toEqual([]);
+  });
+
+  it('refuses to judge a merge when its staging base SHA is unknown', () => {
+    const decision = decide(input({ pr: pull({ base: { ref: 'staging' } }) }));
+    expect(decision.action).toBe('wait');
+    expect(decision.reasons).toContain('cannot verify the staging base commit');
   });
 
   it('stops if someone labelled it needs-christian while it was being checked', async () => {

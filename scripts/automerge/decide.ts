@@ -75,7 +75,7 @@ export interface PullRequest {
   user: { login: string } | null;
   /** null while GitHub is still working it out. */
   mergeable: boolean | null;
-  base: { ref: string };
+  base: { ref: string; sha?: string };
   head: { sha: string; ref: string; repo: { full_name: string } | null };
   labels: { name: string }[];
 }
@@ -424,6 +424,8 @@ export function decide({ repo, mode, pr, files, dependencies, checks, comments }
   if (deps.length > 0) return { action: 'label', reasons: [`needs Christian: dependency changes (${deps.join('; ')})`] };
 
   const problems = [...checkProblems(checks), ...codexProblems(codexState(comments), pr.head.sha)];
+  // A missing base SHA makes it impossible to verify that CI reviewed the current integration state.
+  if (!pr.base.sha) problems.push('cannot verify the staging base commit');
   if (pr.mergeable === null) problems.push('GitHub is still checking whether it merges cleanly');
   else if (!pr.mergeable) problems.push("it doesn't merge cleanly into staging");
   if (problems.length > 0) return { action: 'wait', reasons: problems };
