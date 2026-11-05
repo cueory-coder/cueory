@@ -1,0 +1,1 @@
+status: Fix issue #593: staging auto-merge evaluates only the PR attached to GitHub CI, preview and Codex comment events. Ambiguous and unassociated events fail closed. The hourly schedule and manual sweeps still inspect all PRs. Added event-routing unit tests. Founder approval required before these protected auto-merge rules can be promoted.
