@@ -36,7 +36,10 @@ function safeLink(value, name) {
   catch { throw new Error(`${name} must be a safe HTTPS URL`); }
   // Check the parsed origin and normalized path, not only the raw string.
   // A raw prefix check accepts /bodyparts3d/../other and encoded dot-segments.
-  const official = new URL(BODY_PARTS_SOURCE_PREFIX);
+  // The current Release 4.0 archive is CC BY 4.0, but older archived
+  // releases (such as 20110915) carry different rights notices.
+  // Require the reviewed LATEST release path before presenting a CC BY citation.
+  const official = new URL(`${BODY_PARTS_SOURCE_PREFIX}LATEST/`);
   if (
     parsed.origin !== official.origin ||
     !parsed.pathname.startsWith(official.pathname) ||
