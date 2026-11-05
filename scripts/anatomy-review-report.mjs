@@ -39,7 +39,7 @@ function safeLink(value, name) {
   // The current Release 4.0 archive is CC BY 4.0, but older archived
   // releases (such as 20110915) carry different rights notices.
   // Require the reviewed LATEST release path before presenting a CC BY citation.
-  const official = new URL(`${BODY_PARTS_SOURCE_PREFIX}LATEST/`);
+  const official = new URL(BODY_PARTS_SOURCE_PREFIX);
   if (
     parsed.origin !== official.origin ||
     !parsed.pathname.startsWith(official.pathname) ||
