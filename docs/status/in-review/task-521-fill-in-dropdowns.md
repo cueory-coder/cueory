@@ -1,1 +1,0 @@
-status: Task 521, fill-in blanks use accessible four-option dropdowns with optional typing, vetted distractors, unit/browser tests, and a regression preventing hidden typed-answer submission; awaiting exact-head CI, Codex review, and staging checks.

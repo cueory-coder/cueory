@@ -1,1 +1,0 @@
-status: Task 432 (W33): callback page browser coverage for missing code, accounts-off cleanup, safe home link and JavaScript-disabled fallback. Check/build pass on staging 20ec843, all 3692 unit tests pass. Six browser cases blocked before assertions by missing Chromium executable, CI validation required. Tests and status only, no auth changes.

@@ -1,1 +1,0 @@
-status: Task 181 follow-up, W02: count only lessons in the current course and display lesson.data.order. Two-course regression fixture exercises the page's actual collection-count expression. Check/build and all 3,549 unit tests pass. No content fixtures, schema or other course files changed.

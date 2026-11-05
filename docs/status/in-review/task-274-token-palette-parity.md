@@ -1,1 +1,0 @@
-status: Task 274, token palette parity: require every Daytime color token to have an Evening value while leaving palette-independent layout tokens shared.\n

@@ -1,0 +1,1 @@
+status: Task 112, director docs batch of 2026-11-05: the 235 status notes left by pull requests merged into `staging` between 1 and 5 November were copied into docs/STATUS.md (241 lines) and their 37 decisions numbered D-100 to D-136 in docs/DECISIONS.md; the notes were deleted. STATUS.md's "In review" now names only #625.

@@ -1,5 +1,0 @@
-STATUS: READY_FOR_REVIEW — W01 Task 246 checks every built HTML page for target=_blank links without the explicit noopener rel token. Scope: tests/unit/blank-link-noopener.test.ts and this status note only. No new dependency or product behavior change.
-
-Tested base: staging beeebc0e8715af44298e114c9950bf061b896e66. Check passed with 0 errors, 0 warnings and 12 existing hints. Build passed (34 pages). Focused tests passed (37, including parser fixtures and every built page). Full unit suite passed (3,584 tests in 119 files, maxWorkers=1 under the shared validation lock). No browser specs were changed and no local browser pass is claimed.
-
-The check follows real opening tags, skips comments/raw text, respects first duplicate attributes, decodes numeric references and checks complete case-insensitive rel tokens. Fixture cases reject absent/lookalike tokens and protect against false positives from script strings, greater-than signs inside quotes and same-tab links. All current built links passed without product edits.

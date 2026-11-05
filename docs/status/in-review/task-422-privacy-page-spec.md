@@ -1,1 +1,0 @@
-status: Task 422, privacy-page browser coverage: checks the page-specific disclosures and headings, working progress/game links, and contact/video privacy behavior at phone and desktop sizes. Adds only a dedicated Playwright test and this status note.

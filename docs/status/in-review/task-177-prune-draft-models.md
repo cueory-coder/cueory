@@ -1,1 +1,0 @@
-status: Task 177, draft models off the live site: a small build step (`src/visuals/prunedrafts.ts`, wired in `astro.config.mjs`) deletes every anatomy .glb that no approved system names from `dist/` unless the build is a Workers preview of a branch other than `main` (or CUEORY_ANATOMY_DRAFTS=1 locally). Fails closed. needs-christian: deployment (touches `astro.config.mjs`).

@@ -1,1 +1,0 @@
-status: Task 86, menu grouping and reduced-motion polish: the side panel groups links under study, play and about, marks privacy and terms as the current page, removes the slide when reduced motion is requested, and always opens with focus on its close button (the taller grouped list made the panel scroll, and Chromium was focusing the scrolling box instead).
