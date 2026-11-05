@@ -1123,7 +1123,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                       find: <strong>{targetName}</strong>
                     </p>
                   ) : (
-                    <p className="text-ink">round done: {quiz.right} of {quiz.answered} right the first time.</p>
+                    <p className="text-ink">round done: every structure prompt in this round has been visited.</p>
                   )}
                   {quiz.feedback?.kind === 'right' && (
                     <p className="text-ink" data-feedback="right"><span aria-hidden="true">✓ </span>right: {targetName}.</p>
@@ -1135,7 +1135,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                   )}
                   {quiz.feedback?.kind === 'shown' && <p className="text-ink" data-feedback="shown">here it is: {targetName}.</p>}
                 </div>
-                <p className="text-sm text-ink-soft">score: {quiz.right} of {quiz.answered}</p>
+                <p className="text-sm text-ink-soft">guided practice — use the named list or 3D view. this is not a scored assessment.</p>
                 <div className="flex flex-wrap gap-2">
                   {quiz.target ? (
                     <>

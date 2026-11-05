@@ -577,7 +577,7 @@ test.describe('anatomy lab', () => {
     await expect(page.getByTestId('anatomy-layer-gaps')).toHaveCount(0);
   });
 
-  test('"find it": right and wrong answers in words and an icon, score, next and show me', async ({ page }) => {
+  test('"find it": unscored feedback, next, and show me', async ({ page }) => {
     await openLab(page);
     await page.getByRole('button', { name: 'start the quiz' }).click();
     const quiz = page.getByRole('region', { name: 'find it' });
@@ -588,23 +588,49 @@ test.describe('anatomy lab', () => {
     const wrong = NAMES.find((n) => n !== target)!;
     await list(page).getByRole('button', { name: wrong, exact: true }).click();
     await expect(quiz.locator('[data-feedback="wrong"]')).toContainText(`✗ not this one: you picked ${wrong}`);
-    await expect(quiz.getByText('score: 0 of 1')).toBeVisible();
+    await expect(quiz.getByText(/^score:/)).toHaveCount(0);
 
     await list(page).getByRole('button', { name: target, exact: true }).click();
     await expect(quiz.locator('[data-feedback="right"]')).toContainText(`✓ right: ${target}`);
-    await expect(quiz.getByText('score: 0 of 1')).toBeVisible(); // only the first pick counts
+    await expect(quiz.getByText('guided practice — use the named list or 3D view. this is not a scored assessment.')).toBeVisible();
 
     await quiz.getByRole('button', { name: 'next' }).click();
     const second = (await prompt.locator('strong').textContent())!;
     expect(second).not.toBe(target);
     await list(page).getByRole('button', { name: second, exact: true }).click();
     await expect(quiz.locator('[data-feedback="right"]')).toBeVisible();
-    await expect(quiz.getByText('score: 1 of 2')).toBeVisible();
+    await expect(quiz.getByText(/^score:/)).toHaveCount(0);
 
     await quiz.getByRole('button', { name: 'next' }).click();
     await quiz.getByRole('button', { name: 'show me' }).click();
     await expect(quiz.locator('[data-feedback="shown"]')).toContainText('here it is:');
-    await expect(quiz.getByText('score: 1 of 3')).toBeVisible();
+    await expect(quiz.getByText(/^score:/)).toHaveCount(0);
+  });
+
+  test('a named-list keyboard answer is guided practice, not a scored anatomy identification', async ({ page }) => {
+    await openLab(page);
+    const quiz = page.getByRole('region', { name: 'find it' });
+    await quiz.getByRole('button', { name: 'start the quiz' }).click();
+    const target = (await quiz.getByText(/^find: /).locator('strong').textContent())!;
+
+    // The accessible list exposes the target's name. This supports practice
+    // but cannot establish an unaided 3D-identification score.
+    await page.getByRole('searchbox', { name: 'find a structure' }).fill(target);
+    const targetButton = list(page).getByRole('button', { name: target, exact: true });
+    await expect(targetButton).toBeVisible();
+    await targetButton.focus();
+    await page.keyboard.press('Enter');
+
+    await expect(quiz.locator('[data-feedback="right"]')).toContainText(`right: ${target}`);
+    await expect(quiz.getByText('guided practice — use the named list or 3D view. this is not a scored assessment.')).toBeVisible();
+    await expect(quiz.getByText(/^score:/)).toHaveCount(0);
+    const announcements = await quiz.locator('[aria-live="polite"]').allTextContents();
+    expect(announcements.join(' ')).not.toMatch(/score:|right the first time/i);
+
+    await quiz.getByRole('button', { name: 'next' }).click();
+    await expect(quiz.getByText(/^score:/)).toHaveCount(0);
+    await quiz.getByRole('button', { name: 'stop the quiz' }).click();
+    await expect(quiz.getByRole('button', { name: 'start the quiz' })).toBeEnabled();
   });
 
   test('find-it keeps asking its original targets after some become hidden', async ({ page }) => {
