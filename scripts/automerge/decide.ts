@@ -13,6 +13,10 @@
  * - GitHub says it merges cleanly.
  * It never targets `main`: the merge call itself refuses any base other than `staging` (see staging_automerge.ts).
  *
+ * One nudge, never a merge (Task 39): when Codex itself failed to review the head commit ("Something went wrong",
+ * status "failed" in its summary), the bot asks it to try again by commenting `@codex review`, at most
+ * CODEX_RETRY_LIMIT times per head commit, and keeps waiting. A review that finished with findings is never retried.
+ *
  * The mode comes from automation.json at the repository root (parseAutomation below). Before launch only the paths
  * that must always be Christian's are held; once the site is live, the longer sensitive list is held too.
  */
@@ -20,6 +24,8 @@
 export const BASE_BRANCH = 'staging';
 export const NEEDS_CHRISTIAN_LABEL = 'needs-christian';
 export const CODEX_LOGIN = 'chatgpt-codex-connector[bot]';
+/** How many times the bot asks Codex to retry a failed review of one head commit before leaving it to a person. */
+export const CODEX_RETRY_LIMIT = 3;
 
 /** Checks that must have run and passed on the head commit (names as GitHub shows them). */
 export const REQUIRED_CHECKS = [
@@ -200,6 +206,8 @@ export interface Decision {
   action: Action;
   /** Plain-English reasons, shown in the workflow log. */
   reasons: string[];
+  /** Set only with action "wait": ask Codex to review the head commit again (see codexRetry). */
+  codexRetry?: CodexRetry;
 }
 
 /**
@@ -454,14 +462,19 @@ export function checkProblems(checks: readonly CheckRun[]): string[] {
 const STATE_MARKER = /<!--\s*codex-review-state:v1\s*(\{[\s\S]*?\})\s*-->/;
 
 /**
- * Codex's own review state, from the newest summary comment Codex posted. Comments by anyone else are ignored, so a
- * person can't fake a clean review by pasting the marker. Returns null when there is no readable summary.
+ * The newest summary comment Codex itself posted (the one carrying its review state). Comments by anyone else are
+ * ignored, so a person can't fake a clean review by pasting the marker. Null when there is none.
  */
-export function codexState(comments: readonly IssueComment[]): CodexState | null {
+export function codexSummary(comments: readonly IssueComment[]): IssueComment | null {
   const fromCodex = comments
     .filter((c) => c.user?.login === CODEX_LOGIN && c.user.type === 'Bot' && c.body && STATE_MARKER.test(c.body))
     .sort((a, b) => a.updated_at.localeCompare(b.updated_at) || a.id - b.id);
-  const newest = fromCodex.at(-1);
+  return fromCodex.at(-1) ?? null;
+}
+
+/** Codex's own review state, from its newest summary comment. Returns null when there is no readable summary. */
+export function codexState(comments: readonly IssueComment[]): CodexState | null {
+  const newest = codexSummary(comments);
   if (!newest?.body) return null;
   try {
     const parsed: unknown = JSON.parse(STATE_MARKER.exec(newest.body)![1]!);
@@ -471,11 +484,55 @@ export function codexState(comments: readonly IssueComment[]): CodexState | null
   }
 }
 
+/** True only when Codex reports that its review of this exact head commit failed for its own reasons. */
+export function codexFailed(state: CodexState | null, headSha: string): boolean {
+  const review = state?.code_review;
+  return !!review && review.commit_sha === headSha && review.status === 'failed';
+}
+
+/** The comment the bot posts to ask Codex to try again; the hidden marker makes retries for one head countable. */
+export function codexRetryComment(headSha: string): string {
+  return `@codex review\n\n<!-- automerge-codex-retry: ${headSha} -->`;
+}
+
+const RETRY_MARKER = /<!--\s*automerge-codex-retry:\s*([0-9a-f]+)\s*-->/g;
+
+/**
+ * Earlier retry comments for this head commit. Every comment carrying the marker counts, whoever posted it, so a
+ * pasted marker can only use up retries, never add any (fails closed).
+ */
+export function codexRetries(comments: readonly IssueComment[], headSha: string): IssueComment[] {
+  return comments.filter((c) => c.body && [...c.body.matchAll(RETRY_MARKER)].some((m) => m[1] === headSha));
+}
+
+export interface CodexRetry {
+  headSha: string;
+  /** 1-based: the retry the bot is about to ask for. */
+  attempt: number;
+  limit: number;
+}
+
+/**
+ * Whether to ask Codex to review the head commit again (Task 39): only when Codex's newest summary says its review
+ * of this exact head failed, fewer than CODEX_RETRY_LIMIT retries were asked for this head, and Codex has posted or
+ * updated its summary since the last one (so one failure gets one nudge, not one per sweep). Never for a review that
+ * finished with findings, is still running, or is for an older commit.
+ */
+export function codexRetry(comments: readonly IssueComment[], headSha: string): CodexRetry | null {
+  const summary = codexSummary(comments);
+  if (!summary || !codexFailed(codexState(comments), headSha)) return null;
+  const earlier = codexRetries(comments, headSha);
+  if (earlier.length >= CODEX_RETRY_LIMIT) return null;
+  if (earlier.some((c) => c.updated_at.localeCompare(summary.updated_at) >= 0)) return null;
+  return { headSha, attempt: earlier.length + 1, limit: CODEX_RETRY_LIMIT };
+}
+
 /** Problems with Codex's review of this head commit, or an empty list when it is a clean, finished review. */
 export function codexProblems(state: CodexState | null, headSha: string): string[] {
   const review = state?.code_review;
   if (!review) return ["Codex hasn't posted a review summary yet"];
   if (review.commit_sha !== headSha) return ["Codex hasn't reviewed the latest commit yet"];
+  if (review.status === 'failed') return ["Codex couldn't finish its review"];
   if (review.status !== 'completed') return ['Codex is still reviewing'];
   const problems: string[] = [];
   if (review.has_any_findings !== false) problems.push('Codex found something to look at');
@@ -521,7 +578,12 @@ export function decide({ repo, mode, pr, files, dependencies, checks, comments }
   if (!pr.base.sha) problems.push('cannot verify the staging base commit');
   if (pr.mergeable === null) problems.push('GitHub is still checking whether it merges cleanly');
   else if (!pr.mergeable) problems.push("it doesn't merge cleanly into staging");
-  if (problems.length > 0) return { action: 'wait', reasons: problems };
+  if (problems.length > 0) {
+    // Codex failing for its own reasons is the one problem the bot may nudge; everything else just waits.
+    const retry = codexRetry(comments, pr.head.sha);
+    if (retry) return { action: 'wait', reasons: [...problems, `codex retry ${retry.attempt}/${retry.limit}`], codexRetry: retry };
+    return { action: 'wait', reasons: problems };
+  }
 
   return { action: 'merge', reasons: [`checks passed, Codex is clean, nothing held (${mode} rules)`] };
 }

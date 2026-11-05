@@ -1,7 +1,8 @@
 /**
  * Staging auto-merge (D-39, D-42): merges a pull request into `staging` once every required check passed, the Workers
  * preview built, Codex's latest review of the head commit is clean, and nothing held changed. Held pull requests get
- * the "needs-christian" label instead. It never merges into `main`. Rules: scripts/automerge/decide.ts. Which paths
+ * the "needs-christian" label instead. When Codex's own review failed, it asks Codex to try again (at most three
+ * times per head commit, Task 39) and waits. It never merges into `main`. Rules: scripts/automerge/decide.ts. Which paths
  * are held depends on automation.json ("prelaunch": true until Christian says the site is live).
  *
  * Run by .github/workflows/staging-automerge.yml. By hand:
@@ -15,6 +16,7 @@ import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import {
   BASE_BRANCH,
+  codexRetryComment,
   decide,
   dependencyPaths,
   NEEDS_CHRISTIAN_LABEL,
@@ -28,7 +30,9 @@ import {
 import { createGitHub, GitHubError, TruncatedError, type GitHub } from './automerge/github.ts';
 import { selectEventPullRequest } from './automerge/event.ts';
 
-export type Done = 'merged' | 'labelled' | 'nothing' | 'would merge' | 'would label' | 'merge refused';
+export type Done =
+  | 'merged' | 'labelled' | 'nothing' | 'would merge' | 'would label' | 'merge refused'
+  | 'codex retry asked' | 'would ask codex retry';
 
 export interface Outcome {
   pr: number;
@@ -84,7 +88,7 @@ export async function runAutomerge({
         // Look again right before merging: the merge call goes to whatever base the pull request has now, and only
         // the head commit can be pinned in it. Anything that moved since the checks means: wait for the next event.
         const now = await gh.pull(n);
-        if (now.state !== 'open' || now.base.ref !== BASE_BRANCH || now.head.sha !== pull.head.sha) {
+        if (now.state !== 'open' || now.draft || now.base.ref !== BASE_BRANCH || now.head.sha !== pull.head.sha) {
           done = 'merge refused';
           decision.reasons.push(`changed while it was being checked (now ${now.state}, into ${now.base.ref})`);
         } else if (!pull.base.sha || now.base.sha !== pull.base.sha) {
@@ -116,6 +120,21 @@ export async function runAutomerge({
         }
         await gh.addLabel(n, NEEDS_CHRISTIAN_LABEL);
         done = 'labelled';
+      }
+    } else if (decision.action === 'wait' && decision.codexRetry) {
+      // Codex failed for its own reasons: ask it once more (bounded per head commit), and keep waiting.
+      if (dryRun) done = 'would ask codex retry';
+      else {
+        // "@codex review" applies to whatever head the pull request has when it is posted, so look again first.
+        const now = await gh.pull(n);
+        if (now.state !== 'open' || now.draft || now.base.ref !== BASE_BRANCH || now.head.sha !== decision.codexRetry.headSha) {
+          decision.reasons.push('changed while it was being checked (new commit or other base); no retry asked');
+        } else if (now.labels.some((l) => l.name === NEEDS_CHRISTIAN_LABEL)) {
+          decision.reasons.push(`labelled ${NEEDS_CHRISTIAN_LABEL} while it was being checked; no retry asked`);
+        } else {
+          await gh.createComment(n, codexRetryComment(decision.codexRetry.headSha));
+          done = 'codex retry asked';
+        }
       }
     }
 

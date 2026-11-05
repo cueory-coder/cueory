@@ -92,6 +92,8 @@ export function createGitHub({
       return { behind_by: result.behind_by };
     },
     comments: (n: number) => all<IssueComment>(`/issues/${n}/comments`, (p) => p as IssueComment[]),
+    /** Post a comment on a pull request (used only to ask Codex to retry a failed review, Task 39). */
+    createComment: (n: number, body: string) => call('POST', `/issues/${n}/comments`, { body }),
     /** Merge commit, and only if the head is still the commit that was checked (`sha`). */
     merge: (n: number, sha: string) => call('PUT', `/pulls/${n}/merge`, { merge_method: 'merge', sha }),
     hasLabel: async (name: string) => {
