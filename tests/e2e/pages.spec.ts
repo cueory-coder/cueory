@@ -525,6 +525,14 @@ test.describe('marketing look (D-41)', () => {
     expect(account.x + account.width).toBeLessThanOrEqual(page.viewportSize()!.width);
   });
 
+  test('canonical and Open Graph URLs match the public extensionless routes', async ({ page }) => {
+    for (const route of ['/', '/privacy', '/support', '/learn']) {
+      await page.goto(route);
+      const expected = new URL(route, 'https://cueory.app').href;
+      await expect(page.locator('head link[rel="canonical"]')).toHaveAttribute('href', expected);
+      await expect(page.locator('head meta[property="og:url"]')).toHaveAttribute('content', expected);
+    }
+  });
   test('Open Graph and Twitter previews use the same page identity', async ({ page }) => {
     for (const route of ['/', '/support']) {
       await page.goto(route);

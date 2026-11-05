@@ -1,0 +1,1 @@
+status: Fix canonical and Open Graph URLs for static HTML builds so the public root and extensionless routes match links served by Cloudflare Workers; add real browser regression coverage without changing routing, DNS, authentication or build configuration.
