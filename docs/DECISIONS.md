@@ -1053,11 +1053,11 @@ One line each, newest at the bottom. Reasons are kept short on purpose.
 
 - **D-113** (Task 165) The reset email links straight to /reset-password, which exchanges the code itself and opens the form only when supabase-js reports a recovery sign-in (PASSWORD_RECOVERY for the same user, or redirectType "recovery"). A URL parameter, an ordinary session or a sign-in code never opens it. Reason: no recovery proof has to be passed between pages (audit on #11).
 
-- **D-114** (Task 168) A description that still has value goes behind a shared ⓘ button (src/components/InfoTip.astro, src/scripts/infotip.ts); one that only restates its label is removed. Reason: Christian, 2026-11-02. Task 109 (PR #226) carries byte-identical copies of InfoTip.astro, infotip.ts and tests/unit/infotip.test.ts: whichever pull request merges second drops its copy.
+- **D-114** (Task 168) Same decision as D-104 (the shared ⓘ InfoTip), recorded from the Task 168 side; see D-104.
 
 - **D-115** (Task 169) Answer checks, reports and study events need a confirmed, non-anonymous account. A caller is refused when `auth.users.email_confirmed_at` is null, when `auth.users.is_anonymous` is true, or when the JWT's `is_anonymous` claim is true (Supabase's "Users" and "Anonymous Sign-Ins" docs). Reason: the limits are per account, so an account must cost an email inbox.
 
-- **D-116** (Task 170) Flag-or-comment reports (page, question, reason, optional comment of up to 1,000 characters) count as allowed account data under CLAUDE.md rule 2. They are named on `/privacy`, kept after handling until the account is deleted, exported through `my_flags()` and deleted with the account. Reason: the button is required on every page (D-34), and a report is useless without the page and the student's words. Needs Christian's approval.
+- **D-116** (Task 170) Flag-or-comment reports (page, question, reason, optional comment of up to 1,000 characters) count as allowed account data under CLAUDE.md rule 2. They are named on `/privacy`, kept after handling until the account is deleted, exported through `my_flags()` and deleted with the account. Reason: the button is required on every page (D-34), and a report is useless without the page and the student's words. Approval: Christian, 2026-11-05 (blanket approval of the audit corrections in chat); the privacy page already describes these reports.
 
 - **D-117** (Task 171) A known submit_flag refusal is shown to the student as its plain studentMessage sentence (also visibly inside the open footer panel); the rate limit and unknown errors keep the form's own lines. Reason: an unconfirmed or signed-out-again student needs to know what to do, and raw database text never reaches the page.
 
