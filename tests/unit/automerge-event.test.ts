@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { createGitHub, type Fetch } from '../../scripts/automerge/github.ts';
+import { runAutomerge } from '../../scripts/staging_automerge.ts';
 import { selectEventPullRequest } from '../../scripts/automerge/event.ts';
 
 describe('selecting a PR for staging auto-merge', () => {
@@ -39,5 +41,30 @@ describe('selecting a PR for staging auto-merge', () => {
     expect(selectEventPullRequest('workflow_dispatch', {}, 123)).toEqual({ kind: 'one', pr: 123 });
     expect(selectEventPullRequest('check_run', { check_run: { pull_requests: [] } }, 123))
       .toEqual({ kind: 'one', pr: 123 });
+  });
+});
+
+describe('API rate-limit failures', () => {
+  it.each([403, 429])('fails closed on a GitHub %i for targeted and hourly checks', async (status) => {
+    for (const pr of [42, undefined]) {
+      const calls: Array<{ method: string; path: string }> = [];
+      const fetch: Fetch = async (url, init) => {
+        calls.push({ method: init?.method ?? 'GET', path: new URL(url).pathname });
+        return new Response(JSON.stringify({ message: 'API rate limit exceeded for installation' }), { status });
+      };
+      const gh = createGitHub({ token: 'synthetic-test-token', repo: 'owner/site', fetch });
+      await expect(runAutomerge({
+        gh,
+        repo: 'owner/site',
+        mode: 'prelaunch',
+        pr,
+        dryRun: false,
+        log: () => {},
+      })).rejects.toMatchObject({ status });
+      expect(calls).toHaveLength(1);
+      expect(calls[0]?.method).toBe('GET');
+      expect(calls[0]?.path).toContain(pr === undefined ? '/pulls?'.split('?')[0] : '/pulls/42');
+      expect(calls.every((call) => call.method === 'GET')).toBe(true);
+    }
   });
 });
