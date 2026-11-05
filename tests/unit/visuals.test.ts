@@ -103,6 +103,85 @@ describe('a visual source file (docs/VISUALS.md)', () => {
     }
   });
 
+  it('rejects escaped and misleading Open RN source URLs', () => {
+    const expected = 'source "source-a" must link to the page it quotes, under https://wtcs.pressbooks.pub/nursingfundamentals/';
+    const invalid = [
+      'https://wtcs.pressbooks.pub/nursingfundamentals/../nursingskills/chapter/a-page/',
+      'https://wtcs.pressbooks.pub/nursingfundamentals/%2e%2e/nursingskills/chapter/a-page/',
+      'https://wtcs.pressbooks.pub/nursingfundamentals/chapter/%2Fa-page/',
+      'https://wtcs.pressbooks.pub/nursingfundamentals/?page=not-a-book-page',
+      'https://author@wtcs.pressbooks.pub/nursingfundamentals/chapter/a-page/',
+      'https://wtcs.pressbooks.pub.evil.example/nursingfundamentals/chapter/a-page/',
+      'http://wtcs.pressbooks.pub/nursingfundamentals/chapter/a-page/',
+    ];
+    for (const url of invalid) {
+      const visual = sample();
+      visual.sources = [{ ...visual.sources[0]!, url }];
+      expect(messages(visual), url).toEqual([expected]);
+    }
+    const missing = sample();
+    missing.sources = [{ ...missing.sources[0]!, url: null as unknown as string }];
+    expect(messages(missing)).toEqual([expected]);
+  });
+
+  it('rejects Open RN links that escape the source book after URL normalization', () => {
+    const expected = 'source "source-a" must link to the page it quotes, under https://wtcs.pressbooks.pub/nursingfundamentals/';
+    const blocked = [
+      'https://wtcs.pressbooks.pub/nursingfundamentals/../nursingskills/chapter/a-page/',
+      'https://wtcs.pressbooks.pub/nursingfundamentals/%2e%2e/nursingskills/chapter/a-page/',
+      'https://wtcs.pressbooks.pub/nursingfundamentals/chapter/%2Fa-page/',
+      'https://wtcs.pressbooks.pub/nursingfundamentals/?page=not-a-book-page',
+      'https://author@wtcs.pressbooks.pub/nursingfundamentals/chapter/a-page/',
+      'https://wtcs.pressbooks.pub.evil.example/nursingfundamentals/chapter/a-page/',
+      'http://wtcs.pressbooks.pub/nursingfundamentals/chapter/a-page/',
+    ];
+    for (const url of blocked) {
+      const visual = sample();
+      visual.sources = [{ ...visual.sources[0]!, url }];
+      expect(messages(visual), url).toEqual([expected]);
+    }
+    const visual = sample();
+    visual.sources = [{ ...visual.sources[0]!, url: null as unknown as string }];
+    expect(messages(visual)).toEqual([expected]);
+  });
+
+  it('only accepts current, official BodyParts3D archive citations', () => {
+    const visual = sample();
+    visual.kind = 'model';
+    visual.model = { file: '/models/anatomy/sample.glb', release: 'BodyParts3D 4.0' };
+    visual.sources = [{
+      ...visual.sources[0]!,
+      book: 'BodyParts3D',
+      url: 'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/README_e.html',
+      license: 'CC BY 4.0',
+    }];
+    expect(messages(visual)).toEqual([]);
+
+    const invalid = [
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/../20110915/README_e.html',
+      // Both forms normalize BACK into LATEST, so parsed pathname checks alone miss them.
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/../LATEST/README_e.html',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/%2e%2e/LATEST/README_e.html',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/%2e%2e/20110915/README_e.html',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/%2f..%2f20110915/README_e.html',
+      'https://dbarchive.biosciencedbc.jp.evil.example/data/bodyparts3d/LATEST/README_e.html',
+      'http://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/README_e.html',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/?page=1',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/../private',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/%2e%2e/private',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/%2fREADME_e.html',
+      'https://attacker@dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/README_e.html',
+    ];
+    for (const url of invalid) {
+      visual.sources = [{ ...visual.sources[0]!, url }];
+      expect(messages(visual), url).toEqual([
+        'source "source-a" must link to the page it quotes, under https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/',
+      ]);
+    }
+  });
+
   it("needs the license to match the book's", () => {
     const visual = sample();
     visual.sources = [{ ...visual.sources[0]!, license: 'CC BY-NC 4.0' }];

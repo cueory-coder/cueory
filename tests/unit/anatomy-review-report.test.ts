@@ -16,13 +16,13 @@ function setup() {
   return root;
 }
 
-function source() {
+function source(fmaId = 'FMA1') {
   return {
-    id: 'sample-FMA1',
+    id: `bp3d-${fmaId}`,
     quote: 'FMA1 BP1 sample part | with punctuation',
     book: 'BodyParts3D',
     section: 'sample_parts_list_e.txt',
-    url: 'https://example.org/sample',
+    url: 'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/synthetic-test-only',
     license: 'CC BY 4.0',
   };
 }
@@ -31,8 +31,8 @@ function visual(id = 'sample', labelId = 'FMA1') {
   return {
     kind: 'model', title: `sample ${id}`, status: 'draft',
     model: { file: `/models/anatomy/${id}.glb`, release: 'sample release' },
-    labels: [{ id: labelId, text: 'sample part | exact', group: 'sample group', layer: 'organs', source: 'sample-FMA1' }],
-    sources: [source()],
+    labels: [{ id: labelId, text: 'sample part | exact', group: 'sample group', layer: 'organs', source: `bp3d-${labelId}` }],
+    sources: [source(labelId)],
   };
 }
 
@@ -53,7 +53,7 @@ describe('read-only anatomy review inventory', () => {
     const report = anatomyReviewMarkdown(anatomyInventory(root));
     expect(report).toContain('sample part \\| exact');
     expect(report).toContain('FMA1 BP1 sample part \\| with punctuation');
-    expect(report).toContain('[BodyParts3D, sample_parts_list_e.txt](https://example.org/sample)');
+    expect(report).toContain('[BodyParts3D, sample_parts_list_e.txt](https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/synthetic-test-only)');
     expect(report).toContain('4.0 KiB');
     expect(report).toContain('does not verify anatomy geometry or approve a draft');
   });
@@ -90,6 +90,60 @@ describe('read-only anatomy review inventory', () => {
     expect(() => anatomyInventory(root)).toThrow('must be a safe HTTPS URL');
   });
 
+  it('refuses to attribute one structure to another structure\'s existing source record', () => {
+    const root = setup();
+    const one = { ...source(), id: 'bp3d-FMA1' };
+    const two = { ...source(), id: 'bp3d-FMA2', quote: 'FMA2 BP2 synthetic fixture only' };
+    writeSystem(root, 'sample', {
+      ...visual(),
+      labels: [{ ...visual().labels[0], source: 'bp3d-FMA2' }],
+      sources: [one, two],
+    });
+    expect(() => anatomyInventory(root)).toThrow('label FMA1 cites a different structure source');
+    writeSystem(root, 'sample', {
+      ...visual(),
+      labels: [{ ...visual().labels[0], source: 'bp3d-FMA1' }],
+      sources: [one, two],
+    });
+    expect(anatomyInventory(root)[0]?.labels[0]?.source.id).toBe('bp3d-FMA1');
+  });
+
+  it('rejects non-BodyParts3D HTTPS sources and incorrect rights in the review inventory', () => {
+    const root = setup();
+    for (const url of [
+      'https://example.org/sample',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html',
+      // URL() normalizes these back into the allowed LATEST path.
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/../LATEST/README_e.html',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/%2e%2e/LATEST/README_e.html',
+      'https://dbarchive.biosciencedbc.jp.evil.example/data/bodyparts3d/fake',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/../private',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/%2e%2e/private',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/%2e%2e%2fprivate',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/?page=1', // query alone is not a source document
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/#contents', // fragment alone is not a document
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/../outside-source', // normalized path escapes the official collection
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/%2e%2e/outside-source', // encoded dot segments also escape
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/../outside',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/%2e%2e/outside',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/?resource=outside',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/#outside',
+    ]) {
+      writeSystem(root, 'sample', { ...visual(), sources: [{ ...source(), url }] });
+      expect(() => anatomyInventory(root), url).toThrow('must link to the official BodyParts3D source');
+    }
+    for (const override of [{ book: 'Unreviewed Atlas' }, { license: 'CC BY-NC 4.0' }]) {
+      writeSystem(root, 'sample', { ...visual(), sources: [{ ...source(), ...override }] });
+      expect(() => anatomyInventory(root)).toThrow('must cite BodyParts3D under CC BY 4.0');
+    }
+    writeSystem(root, 'sample');
+    expect(anatomyInventory(root)).toHaveLength(1);
+    // Current labels are sourced from the approved, current archive collection.
+    writeSystem(root, 'sample', { ...visual(), sources: [{ ...source(), url: 'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/README_e.html' }] });
+    expect(anatomyInventory(root)).toHaveLength(1);
+  });
+
   it('refuses repeated source IDs, unknown layers and incomplete citations', () => {
     const root = setup();
     writeSystem(root, 'sample', { ...visual(), sources: [source(), source()] });
@@ -105,6 +159,22 @@ describe('read-only anatomy review inventory', () => {
     writeSystem(root, 'sample');
     for (const bad of ['../secret', 'ABC', 'a/b', '', '--help']) {
       expect(() => anatomyInventory(root, bad)).toThrow('system must be a lowercase anatomy file ID');
+    }
+  });
+
+  it('accepts the real committed BodyParts3D source inventory under the current reviewed license', () => {
+    // Synthetic links alone missed the double-LATEST regression in this PR.
+    // Exercise the actual draft manifests and asset paths without publishing them.
+    const entries = anatomyInventory() as {
+      labels: { source: { url: string; book: string; license: string } }[];
+    }[];
+    expect(entries.length).toBeGreaterThan(0);
+    const sources = entries.flatMap((entry) => entry.labels.map((label) => label.source));
+    expect(sources.length).toBeGreaterThan(0);
+    for (const source of sources) {
+      expect(source.url).toMatch(/^https:\/\/dbarchive\.biosciencedbc\.jp\/data\/bodyparts3d\/LATEST\/[^\s?#]+$/);
+      expect(source.book).toBe('BodyParts3D');
+      expect(source.license).toBe('CC BY 4.0');
     }
   });
 
