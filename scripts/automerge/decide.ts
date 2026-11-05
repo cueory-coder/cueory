@@ -81,11 +81,13 @@ const SENSITIVE_AUTH_PAGES = new Set([
   'src/pages/reset-password.astro',
   'src/pages/start.astro',
 ]);
+  // RPC bridges and signed-in progress sync are security boundaries too.
 const SENSITIVE_AUTH_ISLAND_STEMS = [
-  'account', 'admin', 'auth', 'deleteaccount', 'displayname',
-  'exportdata', 'exportload', 'guestimport', 'mfa', 'oauth',
+  'account', 'admin', 'auth', 'checkanswer', 'deleteaccount', 'displayname',
+  'examplan', 'exportdata', 'exportload', 'flagconnect', 'flaginbox', 'flagsend', 'flagsubmit',
+  'guestimport', 'mfa', 'oauth',
   'onboarding', 'password', 'pkce', 'recovery', 'resetpassword',
-  'session', 'signin', 'signup', 'supabase', 'twofactor',
+  'reviewsync', 'session', 'signin', 'signup', 'studyrecorder', 'supabase', 'twofactor',
 ];
 
 function isSensitiveAuthSource(path: string): boolean {

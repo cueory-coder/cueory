@@ -168,6 +168,15 @@ describe('held paths', () => {
     'src/islands/twofactor.ts',
     'src/islands/guestimportrun.ts',
     'src/islands/exportdata.ts',
+    'src/islands/checkanswer.ts', // protects the answer-check RPC argument and response adapter
+    'src/islands/examplanimport.ts',
+    'src/islands/examplansync.ts', // account-backed exam-plan writes
+    'src/islands/reviewsync.ts', // account-backed review progress writes
+    'src/islands/studyrecorder.ts', // signed-in study-event RPC sender
+    'src/islands/flagconnect.ts',
+    'src/islands/flagsend.ts',
+    'src/islands/flagsubmit.ts',
+    'src/islands/flaginbox.ts', // private/admin comment rendering
   ];
 
   it.each(sensitiveAccountSources)('%s requires founder approval even before launch', (path) => {
