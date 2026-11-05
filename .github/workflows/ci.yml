@@ -122,7 +122,7 @@ jobs:
 
   verify:
     name: Type check, build and test
-    needs: [checks, browser]
+    needs: [checks, browser, engines]
     # Runs even when a part failed (so this check fails too), but not for drafts or a cancelled run.
     if: >-
       !cancelled() &&
@@ -134,11 +134,22 @@ jobs:
         env:
           CHECKS: ${{ needs.checks.result }}
           BROWSER: ${{ needs.browser.result }}
+          ENGINES: ${{ needs.engines.result }}
+          MAIN_RELEASE_PR: ${{ github.event_name == 'pull_request' && github.base_ref == 'main' }}
           DOCS_ONLY: ${{ needs.checks.outputs.docs_only }}
         run: |
           echo "Type check, build and unit tests: $CHECKS. Browser tests (all parts): $BROWSER."
           if [ "$CHECKS" != "success" ]; then
             echo "::error::Type check, build or unit tests did not pass."
+            exit 1
+          fi
+          # Main release PRs require all WebKit/Firefox jobs, even when the Chromium matrix has passed.
+          if [ "$MAIN_RELEASE_PR" = "true" ] && [ "$DOCS_ONLY" = "true" ]; then
+            echo "::error::Main release PR must run the build and tests."
+            exit 1
+          fi
+          if [ "$MAIN_RELEASE_PR" = "true" ] && [ "$ENGINES" != "success" ]; then
+            echo "::error::Safari and Firefox release browser tests did not all pass."
             exit 1
           fi
           # Browser tests are skipped only when the pull request changes nothing but Markdown files.
@@ -216,17 +227,7 @@ jobs:
           tar -xzf "$f" gitleaks
 
       - name: Scan full history
-        run: |
-          # Temporary PR-only diagnosis: print only finding metadata.
-          set +e
-          ./gitleaks git --redact --no-banner --exit-code 1 --report-format json --report-path "$RUNNER_TEMP/cueory-leak-audit.json" .
-          result=$?
-          set -e
-          if [ -s "$RUNNER_TEMP/cueory-leak-audit.json" ]; then
-            node -e 'const fs=require("node:fs");for(const item of JSON.parse(fs.readFileSync(process.argv[1],"utf8")))console.log(["GITLEAKS_METADATA_ONLY",item.RuleID,item.File,String(item.Commit||"").slice(0,12),item.StartLine].join(" | "));' "$RUNNER_TEMP/cueory-leak-audit.json"
-          fi
-          rm -f "$RUNNER_TEMP/cueory-leak-audit.json"
-          exit "$result"
+        run: ./gitleaks git --redact --no-banner --exit-code 1 .
 
   code-scan:
     # Free stand-in for CodeQL while the repository is private (DECISIONS.md, D-18).

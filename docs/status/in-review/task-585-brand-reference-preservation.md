@@ -1,0 +1,1 @@
+status: Preserve the seven founder-provided brand/reference files that exist on main but were not carried into staging. The Git tree reuses their exact original main blob SHAs, without content changes or binary re-encoding. This is a reconciliation proposal only; no release or production changes.
