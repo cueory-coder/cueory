@@ -58,6 +58,7 @@ export type Mode = 'prelaunch' | 'launched';
  */
 const ALWAYS_HELD_PREFIXES = [
   '.github/', 'scripts/automerge/', 'content/', 'supabase/',
+  'public/models/anatomy/', // Founder reviews every 3D model binary before it reaches staging.
   'src/pages/auth/', 'src/pages/account/', 'src/pages/admin/', 'src/pages/preview/admin-',
 ];
 const ALWAYS_HELD_FILES = new Set([
@@ -75,6 +76,10 @@ const ALWAYS_HELD_FILES = new Set([
   'scripts/anatomy-production-audit.mjs',
   'scripts/check-anatomy-build.mjs',
   'scripts/anatomy-postbuild-audit.mjs', // alternative production postbuild wrapper in PR #626
+  'src/islands/anatomylab.ts', // Chooses draft versus approved data for build output.
+  'src/pages/preview/anatomy-lab.astro', // Serializes the model selection into the page.
+  'scripts/build-anatomy.mjs', // Source-driven geometry and label generation.
+  'scripts/anatomy-systems.json', // Model source selection and layer definitions.
   'src/visuals/prunedrafts.ts',
   'src/visuals/sources.ts',
   // Founder approval is required for changes to secret-scan exceptions/config.
