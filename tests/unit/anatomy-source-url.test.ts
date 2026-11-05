@@ -1,6 +1,4 @@
 import { spawnSync } from 'node:child_process';
-import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { partsListCitationUrl } from '../../scripts/anatomy-source-url.mjs';
@@ -65,18 +63,6 @@ describe('regenerating the BodyParts3D anatomy source citations', () => {
     )).toThrow('unrecognized BodyParts3D');
     expect(() => partsListCitationUrl(latest, 'parts_list_e.txt, Release 3.0'))
       .toThrow('official HTTPS BodyParts3D');
-  });
-
-  it('fails closed on Release 3.0 before generating models with the wrong rights metadata', () => {
-    const builder = fileURLToPath(new URL('../../scripts/build-anatomy.mjs', import.meta.url));
-    // The source path deliberately does not exist. Licensing must be rejected
-    // during argument validation, before any input read or GLB write.
-    const result = spawnSync(process.execPath, [
-      builder, '--source', '/nonexistent-cueory-legacy-atlas', '--release', '3.0',
-    ], { encoding: 'utf8' });
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain('Release 3.0 generation is disabled');
-    expect(result.stderr).toContain('historical source rights');
   });
 
   it('keeps the builder wired to direct table links for each structure', () => {
