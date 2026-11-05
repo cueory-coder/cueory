@@ -51,7 +51,8 @@ jobs:
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ] && git rev-parse -q --verify HEAD^2 >/dev/null; then
             files=$(git diff --name-only HEAD^1 HEAD)
           fi
-          if [ -n "$files" ] && ! printf '%s\n' "$files" | grep -qvE '\.md$' && ! printf '%s\n' "$files" | grep -qE '^(content|src)/'; then
+          # Main release PRs must run the build and legal-readiness tests, even for Markdown-only edits.
+          if [ "$GITHUB_BASE_REF" != "main" ] && [ -n "$files" ] && ! printf '%s\n' "$files" | grep -qvE '\.md$' && ! printf '%s\n' "$files" | grep -qE '^(content|src)/'; then
             echo "docs_only=true" >> "$GITHUB_OUTPUT"
             echo "Only Markdown files changed, so the build and tests are skipped:"
             printf '%s\n' "$files"
