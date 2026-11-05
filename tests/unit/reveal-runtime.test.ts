@@ -7,8 +7,15 @@ afterEach(() => {
 
 describe('reveal section runtime guards', () => {
   it('does not query the document when reduced motion is enabled', () => {
+    // Make the observer available so only the reduced-motion guard can stop the query.
+    class AvailableObserver {
+      observe() {}
+      unobserve() {}
+    }
+    vi.stubGlobal('IntersectionObserver', AvailableObserver);
     vi.stubGlobal('window', {
       matchMedia: () => ({ matches: true }),
+      IntersectionObserver: AvailableObserver,
     });
     vi.stubGlobal('document', {
       querySelectorAll: () => {
@@ -20,6 +27,7 @@ describe('reveal section runtime guards', () => {
   });
 
   it('does not query the document when IntersectionObserver is unavailable', () => {
+    vi.stubGlobal('IntersectionObserver', undefined);
     vi.stubGlobal('window', {
       matchMedia: () => ({ matches: false }),
     });
