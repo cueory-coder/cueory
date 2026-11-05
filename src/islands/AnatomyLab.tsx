@@ -272,6 +272,17 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     // ticket before either the dynamic import or the next animation frame can finish.
     const attempt = openGate.begin();
     if (attempt === null) return;
+    // A retry must not expose the previous system's ready state before its new GLB starts.
+    setLoad({ state: 'loading' });
+    setSelected(null);
+    setQuiz(null);
+    setPending(new Set());
+    setLayerError(null);
+    setFilesLoaded(0);
+    setExporting(null);
+    setExportNote('');
+    setLabelNote([]);
+    setAnnounce('');
     setPhase('opening');
     try {
       const { createLabScene, readColors } = await import('./anatomyscene');
@@ -469,6 +480,44 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
   useEffect(() => {
     if (load.state === 'ready') sceneRef.current?.setAppearance({ hidden, selected });
   }, [hidden, selected, load]);
+
+  // Mobile GPUs can lose their WebGL context after the viewer opens.
+  // Retire asynchronous work and preserve the accessible text catalog.
+  useEffect(() => {
+    if (phase !== 'open') return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const onContextLost = (event: Event) => {
+      event.preventDefault();
+      activePointers.current.clear();
+      pointerRef.current = null;
+      generation.bump(); // Cancel stale GLB results and in-flight PNG downloads.
+      visibilityIntent.bump();
+      loaderRef.current?.retire();
+      loaderRef.current = null;
+      const lostScene = sceneRef.current;
+      sceneRef.current = null;
+      try {
+        lostScene?.dispose();
+      } catch {
+        // A lost GPU resource can throw during disposal; text access must survive.
+      }
+      setLoad({ state: 'loading' });
+      setSelected(null);
+      setQuiz(null);
+      setPending(new Set());
+      setLayerError(null);
+      setFilesLoaded(0);
+      setExporting(null);
+      setExportNote('');
+      setLabelNote([]);
+      setPhase('error');
+    };
+
+    canvas.addEventListener('webglcontextlost', onContextLost);
+    return () => canvas.removeEventListener('webglcontextlost', onContextLost);
+  }, [phase, generation, visibilityIntent]);
 
   useEffect(() => {
     // Invalidate pending lazy imports and releases on actual unmount.
