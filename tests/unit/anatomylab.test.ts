@@ -330,6 +330,10 @@ describe('the structure list', () => {
     ];
     expect(groupStructures(source, 'fma7204').flatMap((g) => g.items.map((s) => s.id))).toEqual(['FMA7204']);
     expect(groupStructures(source, 'FMA720').flatMap((g) => g.items.map((s) => s.id))).toEqual(['FMA7204', 'FMA7205']);
+    // Source IDs copied with common separators should find the same mesh.
+    expect(groupStructures(source, 'FMA-7204').flatMap((g) => g.items.map((s) => s.id))).toEqual(['FMA7204']);
+    expect(groupStructures(source, 'fma 720').flatMap((g) => g.items.map((s) => s.id))).toEqual(['FMA7204', 'FMA7205']);
+    expect(groupStructures(source, 'FMA_7205').flatMap((g) => g.items.map((s) => s.id))).toEqual(['FMA7205']);
     expect(groupStructures(source, 'left vent').flatMap((g) => g.items.map((s) => s.id))).toEqual(['FMA7204']);
     expect(groupStructures(source, '7204')).toEqual([]);
     expect(groupStructures(source, 'FMA999')).toEqual([]);

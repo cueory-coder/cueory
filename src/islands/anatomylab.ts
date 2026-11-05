@@ -307,11 +307,11 @@ export interface StructureGroup {
 /** The list as shown: groups in the order they first appear, items in file order, filtered by the search. */
 export function groupStructures(structures: readonly AnatomyStructure[], query = ''): StructureGroup[] {
   const groups = new Map<string | null, AnatomyStructure[]>();
+  // Source IDs may be typed or pasted with separators, such as "FMA-7204".
+  // Match their alphanumeric prefix without changing the existing name-word search.
+  const sourceIdQuery = normalizeSearch(query).replaceAll(' ', '');
   for (const structure of structures) {
-    // Source IDs are useful when checking the BodyParts3D attribution sheet. Keep
-    // the existing word-prefix name search, but also accept an ID prefix.
-    // A blank query still returns the full catalog.
-    if (!matchesSearch(structure.text, query) && !normalizeSearch(structure.id).startsWith(normalizeSearch(query))) continue;
+    if (!matchesSearch(structure.text, query) && !normalizeSearch(structure.id).replaceAll(' ', '').startsWith(sourceIdQuery)) continue;
     const key = structure.group ?? null;
     const list = groups.get(key);
     if (list) list.push(structure);

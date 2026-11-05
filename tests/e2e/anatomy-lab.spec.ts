@@ -137,6 +137,10 @@ test.describe('anatomy lab', () => {
     await expect(catalog.getByRole('listitem')).toHaveCount(1);
     await expect(catalog.getByRole('listitem').first()).toContainText('fixture cube B');
     await expect(catalog.getByText('fixture cube A')).toHaveCount(0);
+    // Source IDs work in the text-only fallback even when copied with separators.
+    await search.fill('FIX 002');
+    await expect(catalog.getByRole('listitem')).toHaveCount(1);
+    await expect(catalog.getByRole('listitem').first()).toContainText('fixture cube B');
     await search.fill('not a structure');
     await expect(catalog.getByText('no structure names or source IDs match this search.')).toBeVisible();
 
@@ -333,7 +337,12 @@ test.describe('anatomy lab', () => {
 
   test('keyboard path: search, select from the list, name card, hide, show only, show all', async ({ page }) => {
     await openLab(page);
-    await page.getByLabel('find a structure').focus();
+    const structureSearch = page.getByLabel('find a structure');
+    await structureSearch.fill('FIX-002');
+    await expect(list(page).getByRole('button', { name: 'fixture cube B', exact: true })).toBeVisible();
+    await expect(page.getByText('1 structure', { exact: true })).toBeVisible();
+    await structureSearch.fill('');
+    await structureSearch.focus();
     await page.keyboard.type('cube b');
     await expect(page.getByText('1 structure', { exact: true })).toBeVisible();
     await page.keyboard.press('Tab');
