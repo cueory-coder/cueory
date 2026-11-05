@@ -785,7 +785,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
             showing {rows.length} of {shownCount} matching structures
           </p>
           {rows.length === 0 ? (
-            <p className="text-sm text-ink-soft">no structure names match this search. no source IDs match either.</p>
+            <p className="text-sm text-ink-soft">no structure names or source IDs match this search.</p>
           ) : (
             <ul className="space-y-2">
               {rows.map((item) => (
