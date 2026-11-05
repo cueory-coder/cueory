@@ -1,0 +1,1 @@
+status: Task 286, built-control accessible names: unit audit checks every built link and button for visible text, a real aria-label, or nonempty aria-labelledby targets. Synthetic regressions reject hidden-only content, pseudo-attributes, and empty references. No product, dependency, security, workflow, or deployment changes.
