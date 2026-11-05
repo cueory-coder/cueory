@@ -1,0 +1,1 @@
+status: Validation-only check for all 17 Cueory SQL migrations and opt-in MFA pgTAP after the corrected quoting change. No SQL semantics changed. The protected database workflow runs only on a disposable local database, not hosted staging or production. Hold merge pending exact-head checks and founder review.
