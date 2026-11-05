@@ -88,7 +88,7 @@ export async function runAutomerge({
         // Look again right before merging: the merge call goes to whatever base the pull request has now, and only
         // the head commit can be pinned in it. Anything that moved since the checks means: wait for the next event.
         const now = await gh.pull(n);
-        if (now.state !== 'open' || now.base.ref !== BASE_BRANCH || now.head.sha !== pull.head.sha) {
+        if (now.state !== 'open' || now.draft || now.base.ref !== BASE_BRANCH || now.head.sha !== pull.head.sha) {
           done = 'merge refused';
           decision.reasons.push(`changed while it was being checked (now ${now.state}, into ${now.base.ref})`);
         } else if (!pull.base.sha || now.base.sha !== pull.base.sha) {
@@ -127,7 +127,7 @@ export async function runAutomerge({
       else {
         // "@codex review" applies to whatever head the pull request has when it is posted, so look again first.
         const now = await gh.pull(n);
-        if (now.state !== 'open' || now.base.ref !== BASE_BRANCH || now.head.sha !== decision.codexRetry.headSha) {
+        if (now.state !== 'open' || now.draft || now.base.ref !== BASE_BRANCH || now.head.sha !== decision.codexRetry.headSha) {
           decision.reasons.push('changed while it was being checked (new commit or other base); no retry asked');
         } else if (now.labels.some((l) => l.name === NEEDS_CHRISTIAN_LABEL)) {
           decision.reasons.push(`labelled ${NEEDS_CHRISTIAN_LABEL} while it was being checked; no retry asked`);
