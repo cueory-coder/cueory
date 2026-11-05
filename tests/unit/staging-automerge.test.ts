@@ -184,8 +184,14 @@ describe('held paths', () => {
   ];
 
   it.each(sensitiveAccountSources)('%s requires founder approval even before launch', (path) => {
-    expect(isHeldPath(path, 'prelaunch')).toBe(true);
-    expect(isHeldPath(path, 'launched')).toBe(true);
+    for (const mode of ['prelaunch', 'launched'] as const) {
+      expect(isHeldPath(path, mode)).toBe(true);
+      // Even with all exact-head checks and a clean review, no manual label
+      // must be needed to block an auth-sensitive PR from auto-merging.
+      const decision = decide(input({ mode, files: [{ filename: path }] }));
+      expect(decision.action).toBe('label');
+      expect(decision.reasons.join(' ')).toContain(path);
+    }
   });
 
   it('holds either side of a rename involving account or admin source', () => {
