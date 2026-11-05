@@ -83,7 +83,7 @@ function designValueKinds(text: string): Finding['kind'][] {
   const kinds = new Set<Finding['kind']>();
   if (/(?:^|[=:,\s])#[0-9a-fA-F]{3,8}\b/.test(text) && !text.includes('href="#')) kinds.add('color');
   if (/\b(?:rgb|rgba|hsl|hsla)\(\s*(?:\d|#)/.test(text)) kinds.add('color');
-  if (/font-family:\s*["']/.test(text)) kinds.add('font');
+  if (/\bfont-family\s*:\s*(?!var\s*\(|inherit\b|initial\b|unset\b|revert\b)(?:["']|[A-Za-z_][\w-]*)/i.test(text)) kinds.add('font');
   if (/(?:^|[\s:;,(])\d+(?:\.\d+)?(?:px|rem)\b/.test(text)) kinds.add('size');
   if (/\b[\w:-]+-\[[^\]]*(?:px|rem)[^\]]*\]/.test(text)) kinds.add('size');
   return [...kinds];
@@ -130,6 +130,10 @@ describe('design values', () => {
     expect(designValueKinds('color: #fff')).toContain('color');
     expect(designValueKinds('background: rgba(2, 3, 4, 0.5)')).toContain('color');
     expect(designValueKinds('font-family: "Arial"')).toContain('font');
+    expect(designValueKinds('font-family: Arial, serif')).toContain('font');
+    expect(designValueKinds('font-family: system-ui')).toContain('font');
+    expect(designValueKinds('font-family: var(--font-body)')).not.toContain('font');
+    expect(designValueKinds('font-family: inherit')).not.toContain('font');
     expect(designValueKinds('padding: 16px')).toContain('size');
     expect(designValueKinds('class="w-[24px]"')).toContain('size');
     expect(designValueKinds('color: var(--ink)')).toEqual([]);
