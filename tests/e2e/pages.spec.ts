@@ -80,15 +80,15 @@ for (const path of [...new Set(pages)]) {
 
 test('lesson can be stepped through with the keyboard', async ({ page }) => {
   await page.goto('/learn/study-skills');
-  await expect(page.getByText('Sentence 1 of')).toBeVisible();
+  await expect(page.getByText('sentence 1 of')).toBeVisible();
 
-  const nextButton = page.getByRole('button', { name: 'Next sentence' });
+  const nextButton = page.getByRole('button', { name: 'next sentence' });
   await nextButton.focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByText('Sentence 2 of')).toBeVisible();
+  await expect(page.getByText('sentence 2 of')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Show all' }).click();
-  await expect(page.getByText("That's the whole lesson for now.")).toBeVisible();
+  await page.getByRole('button', { name: 'show all' }).click();
+  await expect(page.getByText("that's the whole lesson for now.")).toBeVisible();
 });
 
 test('cards can be sorted with the keyboard, and "Still learning" cards come back next round', async ({ page }) => {
@@ -303,8 +303,8 @@ test.describe('without JavaScript', () => {
 
   test('the lesson shows every sentence once and no stepper controls', async ({ page }) => {
     await page.goto('/learn/study-skills');
-    await expect(page.getByText('Sentence 1 of')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Next sentence' })).toHaveCount(0);
+    await expect(page.getByText('sentence 1 of')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'next sentence' })).toHaveCount(0);
     const items = page.locator('ol > li');
     const texts = await items.allTextContents();
     expect(texts.length).toBeGreaterThan(1);
@@ -1179,13 +1179,13 @@ test.describe('☰ side panel and account corner (D-46)', () => {
   for (const path of ['/', '/privacy', '/learn/study-skills']) {
     test(`☰ opens the side panel on ${path}, keeps focus inside, and Escape brings focus back`, async ({ page }) => {
       await page.goto(path);
-      const open = page.getByRole('button', { name: 'menu', exact: true });
+      const open = page.getByRole('button', { name: 'open site menu', exact: true });
       await expect(open).toHaveAttribute('aria-expanded', 'false');
       await open.click();
       const panel = page.getByTestId('site-menu');
       await expect(panel).toBeVisible();
       await expect(open).toHaveAttribute('aria-expanded', 'true');
-      await expect(panel.getByRole('button', { name: 'close menu' })).toBeFocused();
+      await expect(panel.getByRole('button', { name: 'close site menu' })).toBeFocused();
 
       const nav = panel.getByRole('navigation', { name: 'site' });
       for (const name of ['home', 'ways to study', 'lessons', 'daily games', 'my progress', 'support cueory']) {
@@ -1212,7 +1212,7 @@ test.describe('☰ side panel and account corner (D-46)', () => {
 
   test('the current page is marked in the side panel by more than color', async ({ page }) => {
     await page.goto('/learn/study-skills/cards');
-    await page.getByRole('button', { name: 'menu', exact: true }).click();
+    await page.getByRole('button', { name: 'open site menu', exact: true }).click();
     const current = page.getByTestId('site-menu').locator('[aria-current="page"]');
     await expect(current).toHaveCount(1);
     await expect(current).toHaveText('lessons');
@@ -1222,10 +1222,10 @@ test.describe('☰ side panel and account corner (D-46)', () => {
 
   test('the close button and a tap on the dimmed page close the side panel', async ({ page }) => {
     await page.goto('/');
-    const open = page.getByRole('button', { name: 'menu', exact: true });
+    const open = page.getByRole('button', { name: 'open site menu', exact: true });
     const panel = page.getByTestId('site-menu');
     await open.click();
-    await panel.getByRole('button', { name: 'close menu' }).click();
+    await panel.getByRole('button', { name: 'close site menu' }).click();
     await expect(panel).toBeHidden();
     await expect(open).toBeFocused();
 
@@ -1238,7 +1238,7 @@ test.describe('☰ side panel and account corner (D-46)', () => {
 
   test('a side-panel link to a spot on the home page closes the panel and goes there', async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('button', { name: 'menu', exact: true }).click();
+    await page.getByRole('button', { name: 'open site menu', exact: true }).click();
     await page.getByTestId('site-menu').getByRole('link', { name: 'ways to study' }).click();
     await expect(page.getByTestId('site-menu')).toBeHidden();
     await expect(page).toHaveURL(/#ways-to-study$/);
@@ -1247,13 +1247,15 @@ test.describe('☰ side panel and account corner (D-46)', () => {
 
   test('the account corner offers "create free account" and "sign in", both coming soon', async ({ page }) => {
     await page.goto('/');
-    const account = page.getByRole('button', { name: 'account', exact: true });
+    const account = page.locator('[data-account-toggle]');
     const menu = page.getByTestId('account-menu');
     await expect(menu).toBeHidden();
+    await expect(account).toHaveAttribute('aria-label', 'open account menu');
     await account.focus();
     await page.keyboard.press('Enter');
     await expect(menu).toBeVisible();
     await expect(account).toHaveAttribute('aria-expanded', 'true');
+    await expect(account).toHaveAttribute('aria-label', 'close account menu');
     await expect(menu.getByRole('link', { name: /create free account/ })).toHaveAttribute('href', '/#signup');
     await expect(menu.getByRole('link', { name: /sign in/ })).toHaveAttribute('href', '/#signup');
     await expect(menu.getByText('coming soon')).toHaveCount(2);
@@ -1275,18 +1277,21 @@ test.describe('☰ side panel and account corner (D-46)', () => {
     await page.keyboard.press('Escape');
     await expect(menu).toBeHidden();
     await expect(account).toBeFocused();
+    await expect(account).toHaveAttribute('aria-label', 'open account menu');
 
     // A tap anywhere else closes it too.
     await account.click();
     await expect(menu).toBeVisible();
+    await expect(account).toHaveAttribute('aria-label', 'close account menu');
     await page.getByRole('heading', { level: 1 }).click();
     await expect(menu).toBeHidden();
+    await expect(account).toHaveAttribute('aria-label', 'open account menu');
   });
 
   test('corner buttons are at least 44 by 44 px', async ({ page }) => {
     for (const path of ['/', '/learn/study-skills']) {
       await page.goto(path);
-      for (const name of ['menu', 'account']) {
+      for (const name of ['open site menu', 'open account menu']) {
         const box = (await page.getByRole('button', { name, exact: true }).boundingBox())!;
         expect(box.width).toBeGreaterThanOrEqual(44);
         expect(box.height).toBeGreaterThanOrEqual(44);
@@ -1298,7 +1303,7 @@ test.describe('☰ side panel and account corner (D-46)', () => {
 test.describe('site search in the ☰ panel (D-49)', () => {
   test('finds pages as you type, works by keyboard, and goes to the result', async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('button', { name: 'menu', exact: true }).click();
+    await page.getByRole('button', { name: 'open site menu', exact: true }).click();
     const panel = page.getByTestId('site-menu');
     const field = panel.getByRole('searchbox', { name: 'search the site' });
     await expect(field).toHaveAttribute('placeholder', 'search');
@@ -1330,7 +1335,7 @@ test.describe('site search in the ☰ panel (D-49)', () => {
 
   test('a new search while a result has keyboard focus keeps focus in the panel', async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('button', { name: 'menu', exact: true }).click();
+    await page.getByRole('button', { name: 'open site menu', exact: true }).click();
     const panel = page.getByTestId('site-menu');
     const field = panel.getByRole('searchbox', { name: 'search the site' });
     const results = panel.getByRole('list', { name: 'search results' });
@@ -1359,7 +1364,7 @@ test.describe('site search in the ☰ panel (D-49)', () => {
 
   test('says "no results" plainly, and clearing the field clears the results', async ({ page }) => {
     await page.goto('/learn/study-skills');
-    await page.getByRole('button', { name: 'menu', exact: true }).click();
+    await page.getByRole('button', { name: 'open site menu', exact: true }).click();
     const panel = page.getByTestId('site-menu');
     const field = panel.getByRole('searchbox', { name: 'search the site' });
     const status = panel.locator('#site-search-status');
@@ -1398,7 +1403,7 @@ test.describe('social links (D-54)', () => {
     }
     await expect(footer.getByRole('link', { name: 'cueory on Instagram (opens in a new tab)' })).toBeVisible();
 
-    await page.getByRole('button', { name: 'menu' }).click();
+    await page.getByRole('button', { name: 'open site menu' }).click();
     await expect(page.getByTestId('site-menu').locator('[data-social]')).toHaveCount(Object.keys(expected).length);
     const axe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
     expect(axe.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
@@ -1410,8 +1415,8 @@ test.describe('without JavaScript, the corners', () => {
 
   test('stay hidden but keep their space, so nothing moves', async ({ page }) => {
     await page.goto('/privacy');
-    await expect(page.getByRole('button', { name: 'menu', exact: true })).toBeHidden();
-    await expect(page.getByRole('button', { name: 'account', exact: true })).toBeHidden();
+    await expect(page.getByRole('button', { name: 'open site menu', exact: true })).toBeHidden();
+    await expect(page.getByRole('button', { name: 'open account menu', exact: true })).toBeHidden();
     await expect(page.getByRole('navigation', { name: 'footer' }).getByRole('link', { name: 'support cueory' })).toBeVisible();
   });
 });
@@ -1506,6 +1511,8 @@ test.describe('fill-in at 320 px', () => {
     await expect(page.getByTestId('fill-in-sample-note')).toBeVisible();
 
     const board = page.getByTestId('fill-in');
+    // Switch to type mode to test typing and keyboard flow
+    await board.getByRole('button', { name: 'type instead' }).click();
     const field = board.getByRole('textbox', { name: 'the missing word' });
     const next = board.getByRole('button', { name: 'next' });
     const axe = async () => {

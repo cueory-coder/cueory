@@ -116,6 +116,9 @@
   --spacing-gutter: 1.25rem;    /* page side padding on phones */
   --spacing-section: 4.5rem;    /* space between page sections */
   --spacing-stack: 1.25rem;     /* space between paragraphs and blocks */
+  /* Header reflows with enlarged text without shrinking the corner controls (Task 280). */
+  --header-inline-gutter: min(var(--spacing-gutter), 5vw);
+  --header-corner-gap: min(calc(var(--spacing) * 4), 2.5vw);
 
   /* ---------- Widths ---------- */
   --container-prose: 40rem;     /* comfortable reading width */

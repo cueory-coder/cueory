@@ -107,6 +107,7 @@ describe('checker boundary', () => {
     { correct: true, key: ['a'], rationales: { e: 'unknown choice' } },
     { correct: true, key: ['a'], rationales: { a: '' } },
     { correct: true, key: ['a'], rationales: null },
+    { correct: true, key: ['a'], rationales: {}, leakedAnswer: 'a' },
   ])('rejects malformed or contradictory results: %j', (value) => {
     expect(() => validateResult(single, ['a'], value)).toThrow();
   });

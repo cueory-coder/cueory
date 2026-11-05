@@ -59,6 +59,7 @@ for (const size of sizes) {
   test(`a whole round of the sample deck works by keyboard alone at ${size.label} size`, async ({ page }) => {
     await page.setViewportSize({ width: size.width, height: size.height });
     await page.goto(LEARN_URL);
+    await expect(page.getByText('how to study for nursing school · lesson 1', { exact: true })).toBeVisible();
     const bar = page.getByRole('progressbar', { name: 'Cards recalled today' });
     await expect(bar).toHaveAttribute('aria-valuenow', '0');
     await expect(page.getByText('recalled today 0 of 3')).toBeVisible();
