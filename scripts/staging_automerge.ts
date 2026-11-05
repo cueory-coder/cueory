@@ -26,6 +26,7 @@ import {
   type PullRequest,
 } from './automerge/decide.ts';
 import { createGitHub, GitHubError, TruncatedError, type GitHub } from './automerge/github.ts';
+import { selectEventPullRequest } from './automerge/event.ts';
 
 export type Done = 'merged' | 'labelled' | 'nothing' | 'would merge' | 'would label' | 'merge refused';
 
@@ -152,8 +153,8 @@ async function main(): Promise<number> {
     console.error('Set GITHUB_TOKEN and GITHUB_REPOSITORY (owner/name).');
     return 2;
   }
-  const pr = values.pr === undefined ? undefined : Number(values.pr);
-  if (pr !== undefined && !(Number.isInteger(pr) && pr > 0)) {
+  const manualPr = values.pr === undefined ? undefined : Number(values.pr);
+  if (manualPr !== undefined && !(Number.isInteger(manualPr) && manualPr > 0)) {
     console.error('--pr must be a pull request number.');
     return 2;
   }
@@ -166,6 +167,30 @@ async function main(): Promise<number> {
   }
   const { mode, note } = parseAutomation(text);
   if (note) console.log(note);
+
+  // GitHub Actions calls this script for CI, Cloudflare previews and Codex reviews.
+  // Those events should inspect only their associated PR, not every open PR.
+  let eventPayload: unknown;
+  const eventName = process.env.GITHUB_EVENT_NAME;
+  if (manualPr === undefined && eventName && eventName !== 'schedule' && eventName !== 'workflow_dispatch') {
+    const eventPath = process.env.GITHUB_EVENT_PATH;
+    if (!eventPath) {
+      console.error('GitHub event payload is missing; refusing an unscoped merge scan.');
+      return 1;
+    }
+    try {
+      eventPayload = JSON.parse(readFileSync(eventPath, 'utf8'));
+    } catch {
+      console.error('GitHub event payload could not be read; refusing an unscoped merge scan.');
+      return 1;
+    }
+  }
+  const selection = selectEventPullRequest(eventName, eventPayload, manualPr);
+  if (selection.kind === 'none') {
+    console.log('Event has no unambiguous pull request; the hourly sweep will reconcile it.');
+    return 0;
+  }
+  const pr = selection.kind === 'one' ? selection.pr : undefined;
   try {
     await runAutomerge({ gh: createGitHub({ token, repo }), repo, mode, pr, dryRun: values['dry-run'] ?? false });
     return 0;
