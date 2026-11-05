@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url';
 
 const SYSTEM_FILE = /^anatomy-([a-z0-9]+(?:-[a-z0-9]+)*)\.json$/;
 const MODEL_PATH = /^\/models\/anatomy\/[a-z0-9]+(?:-[a-z0-9]+)*\.glb$/;
+const BODY_PARTS_SOURCE_PREFIX = 'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/';
 const DEFAULT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const ORDER = ['skin', 'muscle', 'nerves', 'vessels', 'organs', 'skeleton'];
 
@@ -30,6 +31,32 @@ function markdownCell(value) {
 function safeLink(value, name) {
   const url = requireText(value, name);
   if (!/^https:\/\/[^\s)\]]+$/i.test(url)) throw new Error(`${name} must be a safe HTTPS URL`);
+  // Inspect the original source path first. URL() normalizes /../ and encoded
+  // dot segments, which could otherwise leave and re-enter the LATEST archive.
+  const rawPath = url.split(/[?#]/, 1)[0] ?? '';
+  if (rawPath.includes('%') || /[\\/]\.{1,2}(?:[\\/]|$)/.test(rawPath)) {
+    throw new Error(`${name} must link to the official BodyParts3D source`);
+  }
+  let parsed;
+  try { parsed = new URL(url); }
+  catch { throw new Error(`${name} must be a safe HTTPS URL`); }
+  // Check the parsed origin and normalized path, not only the raw string.
+  // A raw prefix check accepts /bodyparts3d/../other and encoded dot-segments.
+  // The current Release 4.0 archive is CC BY 4.0, but older archived
+  // releases (such as 20110915) carry different rights notices.
+  // Require the reviewed LATEST release path before presenting a CC BY citation.
+  const official = new URL(BODY_PARTS_SOURCE_PREFIX);
+  if (
+    parsed.origin !== official.origin ||
+    !parsed.pathname.startsWith(official.pathname) ||
+    parsed.pathname.length === official.pathname.length ||
+    // Source records use literal public archive paths. Refuse escaped path bytes
+    // so encoded slashes/dot segments cannot be reinterpreted downstream.
+    parsed.pathname.includes('%') ||
+    parsed.username || parsed.password || parsed.port
+  ) {
+    throw new Error(`${name} must link to the official BodyParts3D source`);
+  }
   return url;
 }
 
@@ -71,6 +98,9 @@ export function anatomyInventory(root = DEFAULT_ROOT, selectedSystem = null) {
       const sourceId = requireText(source.id, `${file} source id`);
       if (sources.has(sourceId)) fail(`source id repeated: ${sourceId}`);
       safeLink(source.url, `${file} source ${sourceId} URL`);
+      if (source.book !== 'BodyParts3D' || source.license !== 'CC BY 4.0') {
+        fail(`source ${sourceId} must cite BodyParts3D under CC BY 4.0`);
+      }
       sources.set(sourceId, source);
     }
     const labels = visual.labels.map((label, index) => {
@@ -81,6 +111,9 @@ export function anatomyInventory(root = DEFAULT_ROOT, selectedSystem = null) {
       const name = requireText(label.text, `${file} label ${labelId} name`);
       const source = sources.get(label.source);
       if (!source) fail(`label ${labelId} has no cited source`);
+      // Every BodyParts3D name must cite its own exact FMA/BP identity, not
+      // another structure's valid source line in the same inventory.
+      if (label.source !== `bp3d-${labelId}`) fail(`label ${labelId} cites a different structure source`);
       requireText(source.quote, `${file} label ${labelId} source quote`);
       requireText(source.section, `${file} label ${labelId} source section`);
       requireText(source.book, `${file} label ${labelId} source book`);

@@ -42,7 +42,7 @@ export const allowedBooks: readonly AllowedBook[] = [
     // lic.html, last updated 2025/02/27) says CC BY 4.0 and asks for this credit, word for word. Only the 3D lab may
     // cite it: its words are the database's structure names (parts_list_e.txt) and its README, quoted per structure.
     book: 'BodyParts3D',
-    urlPrefix: 'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/',
+    urlPrefix: 'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/',
     license: 'CC BY 4.0',
     licenseUrl: 'https://creativecommons.org/licenses/by/4.0/',
     credit: 'BodyParts3D, © The Database Center for Life Science licensed under CC Attribution 4.0 International',
@@ -116,6 +116,30 @@ export interface VisualProblem {
   message: string;
 }
 
+/** Verify the actual parsed HTTPS origin and resource path of a cited page.
+ * A string prefix alone can accept URL dot-segment traversal into older,
+ * differently licensed archive releases. Fail closed on encoded paths.
+ */
+function isAllowedSourcePage(value: string, prefix: string): boolean {
+  if (typeof value !== 'string') return false;
+  // URL() erases dot segments, including percent-encoded ones. Reject them
+  // before parsing so a path cannot leave and then re-enter the cited archive.
+  const rawPath = value.split(/[?#]/, 1)[0] ?? '';
+  if (rawPath.includes('%') || /[\\/]\.{1,2}(?:[\\/]|$)/.test(rawPath)) return false;
+  try {
+    const page = new URL(value);
+    const allowed = new URL(prefix);
+    return page.protocol === 'https:' &&
+      page.origin === allowed.origin &&
+      page.pathname.startsWith(allowed.pathname) &&
+      page.pathname.length > allowed.pathname.length &&
+      !page.pathname.includes('%') &&
+      !page.username && !page.password;
+  } catch {
+    return false;
+  }
+}
+
 /** Everything wrong with a visual's source file. Empty when the file passes. */
 export function visualProblems(
   visual: Omit<Visual, 'id'>,
@@ -164,7 +188,7 @@ export function visualProblems(
       problem('sources', `source "${source.id}" quotes "${source.book}", which isn't an allowed book (src/visuals/sources.ts)`);
       continue;
     }
-    if (!source.url.startsWith(book.urlPrefix) || source.url.length === book.urlPrefix.length) {
+    if (!isAllowedSourcePage(source.url, book.urlPrefix)) {
       problem('sources', `source "${source.id}" must link to the page it quotes, under ${book.urlPrefix}`);
     }
     if (source.license !== book.license) {
