@@ -46,7 +46,7 @@ it('omits the building notice from every page when its copied build config disab
   const original = readFileSync(join(root, 'src/config/site.ts'), 'utf8');
   try {
     // Copy the complete build inputs, never mutate the working checkout or its dist.
-    for (const name of ['src', 'content', 'public', 'docs', 'scripts', 'package.json', 'package-lock.json', 'astro.config.mjs', 'tsconfig.json', 'wrangler.jsonc']) {
+    for (const name of ['src', 'content', 'public', 'docs', 'scripts', 'tests', 'package.json', 'package-lock.json', 'astro.config.mjs', 'tsconfig.json', 'wrangler.jsonc']) {
       cpSync(join(root, name), join(isolated, name), { recursive: true });
     }
     // Preserve source-relative fixture imports used by preview-only pages.

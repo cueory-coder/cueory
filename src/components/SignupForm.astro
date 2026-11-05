@@ -36,6 +36,7 @@ const ready = newsletter.formAction.startsWith('https://');
                   maxlength="254"
                   autocomplete="email"
                   inputmode="email"
+                  aria-describedby="signup-email-help"
                   class="rounded-md border border-control bg-page px-4 py-3 text-ink"
                 />
               </div>
@@ -43,7 +44,7 @@ const ready = newsletter.formAction.startsWith('https://');
                 sign up
               </button>
             </form>
-            <p class="mt-4 text-sm text-ink-soft">
+            <p id="signup-email-help" class="mt-4 text-sm text-ink-soft">
               a few emails about new lessons and the launch. unsubscribe any time. emails are sent by {newsletter.provider};
               see our <a href="/privacy">privacy page</a>.
             </p>

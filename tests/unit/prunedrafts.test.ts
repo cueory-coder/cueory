@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { draftsAllowed } from '../../src/islands/anatomylab';
 import { keepsDrafts, pruneDraftModels } from '../../src/visuals/prunedrafts';
 
 const roots: string[] = [];
@@ -36,6 +37,22 @@ describe('pruning draft anatomy models from a build', () => {
       const removed = pruneDraftModels(dist, content, env);
       expect(removed.sort()).toEqual(['/models/anatomy/b.glb', '/models/anatomy/c1.glb', '/models/anatomy/c2.glb', '/models/anatomy/stray.glb']);
       expect(readdirSync(models)).toEqual(['a.glb']);
+    }
+  });
+
+  it('keeps the page-data and built-asset gates in agreement for short and full refs', () => {
+    for (const env of [
+      { WORKERS_CI: '1', WORKERS_CI_BRANCH: 'main' },
+      { WORKERS_CI: '1', WORKERS_CI_BRANCH: ' refs/heads/main ', CUEORY_ANATOMY_DRAFTS: '1' },
+      { WORKERS_CI: '1', WORKERS_CI_BRANCH: 'refs/heads/' },
+      { WORKERS_CI: '1', WORKERS_CI_BRANCH: 'staging' },
+      { WORKERS_CI: '1', WORKERS_CI_BRANCH: 'refs/heads/staging' },
+      { WORKERS_CI: '1', WORKERS_CI_BRANCH: 'refs/heads/task-178/anatomy-lab' },
+      { WORKERS_CI: '1' },
+      {},
+      { CUEORY_ANATOMY_DRAFTS: '1' },
+    ]) {
+      expect(keepsDrafts(env)).toBe(draftsAllowed(env));
     }
   });
 
