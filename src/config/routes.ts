@@ -15,7 +15,4 @@ export const indexablePages = [
   '/learn/study-skills/questions',
   '/play',
   '/support',
-  '/privacy',
-  '/terms',
-  '/disclaimer',
 ] as const;

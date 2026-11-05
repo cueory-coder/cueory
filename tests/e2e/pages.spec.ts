@@ -1352,11 +1352,11 @@ test.describe('site search in the ☰ panel (D-49)', () => {
     const field = panel.getByRole('searchbox', { name: 'search the site' });
     await expect(field).toHaveAttribute('placeholder', 'search');
 
-    await field.fill('privacy');
+    await field.fill('support');
     const results = panel.getByRole('list', { name: 'search results' });
-    const privacy = results.getByRole('link', { name: /^privacy/ });
-    await expect(privacy).toBeVisible();
-    await expect(privacy).toHaveAttribute('href', '/privacy');
+    const support = results.getByRole('link', { name: /^support/ });
+    await expect(support).toBeVisible();
+    await expect(support).toHaveAttribute('href', '/support');
     await expect(panel.locator('#site-search-status')).toHaveText(/^(1 result|\d+ results|\d+ of \d+ results)$/);
     // The matched word is marked by weight, not color alone.
     const mark = results.locator('mark').first();
@@ -1372,9 +1372,9 @@ test.describe('site search in the ☰ panel (D-49)', () => {
     await page.keyboard.press('ArrowUp');
     await expect(field).toBeFocused();
 
-    await privacy.focus();
+    await support.focus();
     await page.keyboard.press('Enter');
-    await expect(page).toHaveURL(/\/privacy$/);
+    await expect(page).toHaveURL(/\/support$/);
   });
 
   test('a new search while a result has keyboard focus keeps focus in the panel', async ({ page }) => {
@@ -1394,9 +1394,9 @@ test.describe('site search in the ☰ panel (D-49)', () => {
     await expect(results.getByRole('link').nth(1)).toBeVisible();
     // Focus moves onto a result before the next search's results arrive (Codex review on #27).
     await results.getByRole('link').nth(1).focus();
-    await search('privacy');
-    // The new results are in once the privacy page leads the list ("card" never puts it first).
-    await expect(results.getByRole('link').first()).toHaveAccessibleName(/^privacy/);
+    await search('support');
+    // Confirm the latest indexed result arrived without depending on the ranking order.
+    await expect(results.getByRole('link', { name: /^support/ })).toBeVisible();
     await expect
       .poll(() => page.evaluate(() => document.activeElement?.closest('[aria-label="search results"]') !== null))
       .toBe(true);
