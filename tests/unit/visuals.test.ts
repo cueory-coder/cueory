@@ -103,6 +103,27 @@ describe('a visual source file (docs/VISUALS.md)', () => {
     }
   });
 
+  it('rejects escaped and misleading Open RN source URLs', () => {
+    const expected = 'source "source-a" must link to the page it quotes, under https://wtcs.pressbooks.pub/nursingfundamentals/';
+    const invalid = [
+      'https://wtcs.pressbooks.pub/nursingfundamentals/../nursingskills/chapter/a-page/',
+      'https://wtcs.pressbooks.pub/nursingfundamentals/%2e%2e/nursingskills/chapter/a-page/',
+      'https://wtcs.pressbooks.pub/nursingfundamentals/chapter/%2Fa-page/',
+      'https://wtcs.pressbooks.pub/nursingfundamentals/?page=not-a-book-page',
+      'https://author@wtcs.pressbooks.pub/nursingfundamentals/chapter/a-page/',
+      'https://wtcs.pressbooks.pub.evil.example/nursingfundamentals/chapter/a-page/',
+      'http://wtcs.pressbooks.pub/nursingfundamentals/chapter/a-page/',
+    ];
+    for (const url of invalid) {
+      const visual = sample();
+      visual.sources = [{ ...visual.sources[0]!, url }];
+      expect(messages(visual), url).toEqual([expected]);
+    }
+    const missing = sample();
+    missing.sources = [{ ...missing.sources[0]!, url: null as unknown as string }];
+    expect(messages(missing)).toEqual([expected]);
+  });
+
   it('only accepts current, official BodyParts3D archive citations', () => {
     const visual = sample();
     visual.kind = 'model';
