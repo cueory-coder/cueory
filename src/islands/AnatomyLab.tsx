@@ -573,21 +573,29 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     if (phase === 'error') fallbackHeadingRef.current?.focus();
   }, [phase]);
 
-  // ── Theme: Daytime / Evening, from the device or the footer's pick ───────────────────────────────────────────────
+  // ── Theme and accessible text sizing ─────────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (phase !== 'open') return;
     const refresh = () => {
       const read = readColorsRef.current;
       if (!read) return;
+      // Label widths and heights are measured using a temporary text-sm element.
+      // Theme tokens, larger device text, browser zoom or a newly loaded font
+      // can change those metrics without changing the canvas itself.
+      measureRef.current = null;
       colorsRef.current = read();
       sceneRef.current?.setColors(colorsRef.current);
     };
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     mq.addEventListener('change', refresh);
+    window.addEventListener('resize', refresh);
+    document.fonts?.addEventListener?.('loadingdone', refresh);
     const observer = new MutationObserver(refresh);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class'] });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class', 'style'] });
     return () => {
       mq.removeEventListener('change', refresh);
+      window.removeEventListener('resize', refresh);
+      document.fonts?.removeEventListener?.('loadingdone', refresh);
       observer.disconnect();
     };
   }, [phase]);
