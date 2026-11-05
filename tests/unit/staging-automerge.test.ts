@@ -102,6 +102,10 @@ describe('held paths', () => {
   const always = [
     '.gitleaksignore',
     '.gitleaks.toml',
+    'src/pages/privacy.astro',
+    'src/pages/terms.astro',
+    'src/pages/disclaimer.astro',
+    'src/config/routes.ts',
     '.github/workflows/ci.yml',
     '.github/dependabot.yml',
     'automation.json',
@@ -152,6 +156,8 @@ describe('held paths', () => {
     expect(heldPaths(renamed, 'launched')).toEqual(['public/_headers']);
     expect(heldPaths(renamed, 'prelaunch')).toEqual([]);
     expect(heldPaths([{ filename: 'docs/x.json', previous_filename: 'content/x.json' }], 'prelaunch')).toEqual(['content/x.json']);
+    expect(heldPaths([{ filename: 'docs/old-policy.md', previous_filename: 'src/pages/privacy.astro' }], 'prelaunch'))
+      .toEqual(['src/pages/privacy.astro']);
   });
   const sensitiveAccountSources = [
     'src/pages/auth/callback.astro',

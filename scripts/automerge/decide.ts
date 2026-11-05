@@ -70,6 +70,11 @@ const ALWAYS_HELD_FILES = new Set([
   // Founder approval is required for changes to secret-scan exceptions/config.
   '.gitleaksignore',
   '.gitleaks.toml',
+  // Legal/SEO release controls remain founder-held while their copy is in draft.
+  'src/pages/privacy.astro',
+  'src/pages/terms.astro',
+  'src/pages/disclaimer.astro',
+  'src/config/routes.ts',
   // Account session/menu and newsletter form code are security-sensitive even before launch.
   'src/config/site.ts',
   'src/components/AccountCorner.astro',
