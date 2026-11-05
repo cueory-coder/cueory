@@ -1,7 +1,8 @@
 /**
  * Staging auto-merge (D-39, D-42): merges a pull request into `staging` once every required check passed, the Workers
  * preview built, Codex's latest review of the head commit is clean, and nothing held changed. Held pull requests get
- * the "needs-christian" label instead. It never merges into `main`. Rules: scripts/automerge/decide.ts. Which paths
+ * the "needs-christian" label instead. When Codex's own review failed, it asks Codex to try again (at most three
+ * times per head commit, Task 39) and waits. It never merges into `main`. Rules: scripts/automerge/decide.ts. Which paths
  * are held depends on automation.json ("prelaunch": true until Christian says the site is live).
  *
  * Run by .github/workflows/staging-automerge.yml. By hand:
@@ -15,6 +16,7 @@ import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import {
   BASE_BRANCH,
+  codexRetryComment,
   decide,
   dependencyPaths,
   NEEDS_CHRISTIAN_LABEL,
@@ -28,7 +30,9 @@ import {
 import { createGitHub, GitHubError, TruncatedError, type GitHub } from './automerge/github.ts';
 import { selectEventPullRequest } from './automerge/event.ts';
 
-export type Done = 'merged' | 'labelled' | 'nothing' | 'would merge' | 'would label' | 'merge refused';
+export type Done =
+  | 'merged' | 'labelled' | 'nothing' | 'would merge' | 'would label' | 'merge refused'
+  | 'codex retry asked' | 'would ask codex retry';
 
 export interface Outcome {
   pr: number;
@@ -116,6 +120,13 @@ export async function runAutomerge({
         }
         await gh.addLabel(n, NEEDS_CHRISTIAN_LABEL);
         done = 'labelled';
+      }
+    } else if (decision.action === 'wait' && decision.codexRetry) {
+      // Codex failed for its own reasons: ask it once more (bounded per head commit), and keep waiting.
+      if (dryRun) done = 'would ask codex retry';
+      else {
+        await gh.createComment(n, codexRetryComment(decision.codexRetry.headSha));
+        done = 'codex retry asked';
       }
     }
 

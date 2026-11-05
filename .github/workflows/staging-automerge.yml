@@ -16,7 +16,7 @@ on:
   # Cloudflare's preview build finished (GitHub doesn't send this event for GitHub Actions' own checks).
   check_run:
     types: [completed]
-  # Codex posted or updated its review summary.
+  # Codex posted or updated its review summary (finished, or failed so the bot can ask it to retry, Task 39).
   issue_comment:
     types: [created, edited]
   # Once an hour, a sweep re-checks every open pull request in case an event above was missed (D-78).
@@ -52,7 +52,8 @@ jobs:
       (github.event_name == 'issue_comment' && github.event.issue.pull_request &&
        github.event.comment.user.login == 'chatgpt-codex-connector[bot]' &&
        contains(github.event.comment.body, 'codex-review-state') &&
-       contains(github.event.comment.body, '"status":"completed"'))
+       (contains(github.event.comment.body, '"status":"completed"') ||
+        contains(github.event.comment.body, '"status":"failed"')))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     # One merge pass at a time. The group belongs to the job, not the workflow: on the workflow, a run about to be
@@ -63,7 +64,7 @@ jobs:
     permissions:
       contents: write # merge a pull request
       pull-requests: write # merge and label pull requests
-      issues: write # create the needs-christian label the first time
+      issues: write # create the needs-christian label the first time; comment "@codex review" after a failed review
       checks: read # read check results
     steps:
       # Always the default branch's reviewed copy of the rules, never a pull request's or another branch's.
