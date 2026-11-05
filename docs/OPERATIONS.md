@@ -8,6 +8,10 @@ If a live release breaks the site, follow the rollback steps in [SETUP.md](SETUP
 
 ## Database backups and restoration
 
-[SECURITY.md](../SECURITY.md) records that the production database is dumped nightly and encrypted before storage. The repository does not yet contain the provider-specific restoration procedure, backup location, or credentials.
+Production database backups are **not yet confirmed operational**. The encrypted-backup proposal in
+[BACKUPS.md](BACKUPS.md) and the draft `.github/workflows/prod-backup.yml` on `staging`
+have not been installed as a scheduled workflow on `main`. No completed encrypted upload
+and successful controlled restore have been verified through this repository. Do not assume
+student records are backed up merely because the draft workflow exists.
 
 Do not improvise a production restore from this repository. Christian must approve the restoration, confirm the backup and target project, and document the verified procedure here before it is used. Until then, database changes continue to follow the staging-first and approval rules in [AGENTS.md](../AGENTS.md) and [CLAUDE.md](../CLAUDE.md).

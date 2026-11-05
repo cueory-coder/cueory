@@ -38,7 +38,13 @@ aim to reply within 7 days.
 11. **Review.** Codex reviews every pull request. Christian approves anything touching auth, database policies,
     payments, workflows, deployment or secrets. Nobody merges their own pull request into `main`.
 
-## Backups
+## Backups — setup pending
 
-From Task 2, the production database is dumped nightly by a GitHub Actions job and encrypted before it is stored.
-The restore steps will live in `docs/OPERATIONS.md`.
+A nightly encrypted production database backup is **planned, not yet verified as operational**.
+The proposed workflow is in `.github/workflows/prod-backup.yml` on `staging` but is not present on the
+default `main` branch. GitHub's scheduled workflows run from the default branch, so the draft
+does not currently provide a scheduled production backup.
+
+Before relying on backups or storing student records, verify that the founder-approved workflow
+is installed on `main`, an encrypted off-site upload has completed, and a controlled restore
+has succeeded. See [the backup proposal](docs/BACKUPS.md) and [operations](docs/OPERATIONS.md).
