@@ -826,6 +826,20 @@ describe('exported pictures', () => {
     expect(label.width).toBeLessThanOrEqual(40);
   });
 
+  it('keeps a long license address intact and within narrow credit lines', () => {
+    const measure = (value: string) => value.length * 10;
+    const maxWidth = 120;
+    const urlLines = wrapText(BODYPARTS3D_LICENSE_URL, maxWidth, measure);
+    expect(urlLines.join('')).toBe(BODYPARTS3D_LICENSE_URL);
+    expect(urlLines.length).toBeGreaterThan(1);
+    for (const line of urlLines) expect(measure(line)).toBeLessThanOrEqual(maxWidth);
+
+    const draft = parseAnatomyFile(file(), 'content/visuals/anatomy-sample.json');
+    const credit = wrapText(pictureCreditFor(draft), maxWidth, measure);
+    expect(credit.some((line) => line.length > 0)).toBe(true);
+    for (const line of credit) expect(measure(line)).toBeLessThanOrEqual(maxWidth);
+  });
+
   it('frames a box seen from the front, the tighter way round deciding', () => {
     const tan = Math.tan((17.5 * Math.PI) / 180);
     const tall = fitDistance({ x: 1, y: 10, z: 2 }, 35, 1);
