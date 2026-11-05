@@ -187,7 +187,23 @@ describe.skipIf(!existsSync(dist))('built site', () => {
       const limit = Math.ceil(budget * 1.1);
       return actual > limit ? [`${page}: ${actual} gzip bytes exceeds limit ${limit} (baseline ${budget})`] : [];
     });
-    expect(overBudget, 'All route JavaScript budgets must remain within the original 10% limit').toEqual([]);
+    // Only compute and report bundle contributions when the invariant fails. This
+    // identifies shared scripts worth investigating without relaxing any budget.
+    const baselineDiagnostic = overBudget.length > 0
+      ? initialJsFiles(join(dist, '404.html'))
+        .map((file) => ({
+          asset: relative(dist, file).replaceAll('\\', '/'),
+          gzipBytes: gzipSync(readFileSync(file)).length,
+        }))
+        .sort((a, b) => b.gzipBytes - a.gzipBytes)
+        .slice(0, 12)
+      : [];
+    expect(
+      overBudget,
+      'All route JavaScript budgets must remain within the original 10% limit. ' +
+        'Representative 404-page external module sizes (largest first): ' +
+        JSON.stringify(baselineDiagnostic),
+    ).toEqual([]);
   });
 
   it('marketing pages preload the self-hosted serif (D-41), and every preloaded file exists', () => {
