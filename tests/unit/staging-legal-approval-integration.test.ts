@@ -21,6 +21,13 @@ describe('staging integration: draft legal indexing and founder-held paths', () 
     expect(isHeldPath(file, 'launched')).toBe(true);
   });
 
+  it('keeps all robots-noindex pages excluded from the Pagefind body index', () => {
+    const layout = readFileSync(new URL('../../src/layouts/Layout.astro', import.meta.url), 'utf8');
+    expect(layout).toContain('content="noindex, nofollow"');
+    expect(layout).toContain("data-pagefind-body={noindex ? undefined : ''}");
+    expect(layout).toContain('data-pagefind-meta={noindex ? undefined :');
+  });
+
   it('holds the public indexability allowlist in both modes without blocking public support', () => {
     expect(isHeldPath('src/config/routes.ts', 'prelaunch')).toBe(true);
     expect(isHeldPath('src/config/routes.ts', 'launched')).toBe(true);

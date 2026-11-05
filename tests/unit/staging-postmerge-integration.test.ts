@@ -26,6 +26,10 @@ describe('integrated staging after legal and security merges', () => {
       'src/islands/ReviewSession.tsx',
       'src/islands/adminflagsrpc.ts',
       'src/islands/flagitem.ts',
+      'src/islands/checkanswer.ts',
+      'src/islands/examplansync.ts',
+      'src/islands/reviewsync.ts',
+      'src/islands/studyrecorder.ts',
     ];
     for (const mode of ['prelaunch', 'launched'] as const) {
       for (const file of sensitive) expect(isHeldPath(file, mode), file).toBe(true);
