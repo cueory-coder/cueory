@@ -20,7 +20,7 @@ describe('regenerating the BodyParts3D anatomy source citations', () => {
   });
 
   it('rejects non-table source sections and malformed README addresses', () => {
-    for (const section of ['README_e.html, Release 4.0', '../README_e.html, Release 4.0', 'custom_parts_list_e.txt, Release 4.0']) {
+    for (const section of ['README_e.html, Release 4.0', '../README_e.html, Release 4.0', 'custom_parts_list_e.txt, Release 4.0', 'parts_list_e.txt, Release 4.0']) {
       expect(() => partsListCitationUrl(latest, section)).toThrow('unrecognized BodyParts3D');
     }
     expect(() => partsListCitationUrl('http://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/README_e.html', 'isa_parts_list_e.txt, Release 4.0'))
@@ -34,6 +34,8 @@ describe('regenerating the BodyParts3D anatomy source citations', () => {
       'https://dbarchive.biosciencedbc.jp.evil.example/data/bodyparts3d/LATEST/README_e.html',
       'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html',
       'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/../20110915/README_e.html',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/../LATEST/README_e.html',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/./README_e.html',
       'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/%52EADME_e.html',
       'https://user@dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/README_e.html',
       'https://dbarchive.biosciencedbc.jp:8443/data/bodyparts3d/LATEST/README_e.html',
