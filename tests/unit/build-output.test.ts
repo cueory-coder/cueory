@@ -305,12 +305,12 @@ describe.skipIf(!existsSync(dist))('built site', () => {
   it.each(pages.map((p) => [p.replace(dist, '')]))('%s: public legal pages may be searchable but other noindex pages stay private', (page) => {
     const html = readFileSync(join(dist, page), 'utf8');
     const noindex = html.includes('<meta name="robots" content="noindex');
-    const body = /<main[^>]*\\sdata-pagefind-body(?:="")?[\\s>]/.test(html);
+    const body = /<main[^>]*\sdata-pagefind-body(?:="")?[\s>]/.test(html);
     const legal = ['/privacy.html', '/terms.html', '/disclaimer.html'].includes(page.replaceAll('\\', '/'));
     expect(body, noindex && !legal ? 'a private noindex page must stay out of site search' : 'this page should be searchable').toBe(
       !noindex || legal,
     );
-    if (body) expect(html).toMatch(/<main[^>]*\\sdata-pagefind-meta="title:[^"]+"/);
+    if (body) expect(html).toMatch(/<main[^>]*\sdata-pagefind-meta="title:[^"]+"/);
   });
 
   it.each(pages.map((p) => [p.replace(dist, '')]))('%s: the CSP allows every inline script by hash', (page) => {
