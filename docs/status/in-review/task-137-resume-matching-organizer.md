@@ -1,1 +1,0 @@
-status: Task 137, save and resume the matching and organizer boards using only confirmed student selections, preserving checked progress, start-over controls and blocked-storage behavior; awaiting director verification and CI.

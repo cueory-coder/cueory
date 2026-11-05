@@ -1,1 +1,0 @@
-status: D-39 staging auto-merge security guard requires an exact-head successful CodeQL Advanced Security check, not merely successful analysis jobs; adds regression tests for missing, running, failed, skipped and neutral verdicts. Founder review required.

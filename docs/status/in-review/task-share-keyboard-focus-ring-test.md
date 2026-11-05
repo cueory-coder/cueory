@@ -1,1 +1,0 @@
-status: Share-sheet focus-ring regression: reverse Tab must focus some native radio in the first style picker, keep the selected value, and expose a visible focus ring; the test does not assume one particular radio receives focus on every Chromium mobile platform. The test is unchanged in intent and remains keyboard-driven.

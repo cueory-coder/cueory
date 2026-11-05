@@ -1,1 +1,0 @@
-status: Task 226, contributor guide: documents the existing install, development, validation, and staging pull request workflow without adding new project rules.

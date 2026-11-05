@@ -1,1 +1,0 @@
-status: Task 92 adds files-only install assets from Christian's approved PNGs: 180, 192 and 512 px icons, a safely padded maskable icon, and a standalone cueory manifest. Layout links remain the director's integration step.
