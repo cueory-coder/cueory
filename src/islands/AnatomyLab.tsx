@@ -509,7 +509,6 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     if (load.state === 'ready') sceneRef.current?.setAppearance({ hidden, selected });
   }, [hidden, selected, load]);
 
-<<<<<<< HEAD
   // Mobile devices may lose their WebGL context after the scene is open.
   // Retire GPU work immediately, but keep the accessible structure-name catalog available.
   useEffect(() => {

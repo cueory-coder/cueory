@@ -485,7 +485,6 @@ test.describe('anatomy lab', () => {
     await expect(quiz.getByText('score: 1 of 3')).toBeVisible();
   });
 
-<<<<<<< HEAD
   test('find-it keeps asking its original targets after some become hidden', async ({ page }) => {
     await openLab(page);
     const quiz = page.getByRole('region', { name: 'find it' });
