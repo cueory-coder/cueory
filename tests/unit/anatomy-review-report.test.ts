@@ -22,7 +22,7 @@ function source() {
     quote: 'FMA1 BP1 sample part | with punctuation',
     book: 'BodyParts3D',
     section: 'sample_parts_list_e.txt',
-    url: 'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/synthetic-test-only',
+    url: 'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/synthetic-test-only',
     license: 'CC BY 4.0',
   };
 }
@@ -53,7 +53,7 @@ describe('read-only anatomy review inventory', () => {
     const report = anatomyReviewMarkdown(anatomyInventory(root));
     expect(report).toContain('sample part \\| exact');
     expect(report).toContain('FMA1 BP1 sample part \\| with punctuation');
-    expect(report).toContain('[BodyParts3D, sample_parts_list_e.txt](https://dbarchive.biosciencedbc.jp/data/bodyparts3d/synthetic-test-only)');
+    expect(report).toContain('[BodyParts3D, sample_parts_list_e.txt](https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/synthetic-test-only)');
     expect(report).toContain('4.0 KiB');
     expect(report).toContain('does not verify anatomy geometry or approve a draft');
   });
@@ -94,6 +94,7 @@ describe('read-only anatomy review inventory', () => {
     const root = setup();
     for (const url of [
       'https://example.org/sample',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html',
       'https://dbarchive.biosciencedbc.jp.evil.example/data/bodyparts3d/fake',
       'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/',
       'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/../private',
