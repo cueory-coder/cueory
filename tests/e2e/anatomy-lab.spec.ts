@@ -742,6 +742,59 @@ test.describe('anatomy lab', () => {
 });
 
 test.describe('anatomy lab whole body loads layers on demand', () => {
+  test('phone show all asks before fetching the remaining models and supports cancel', async ({ page }) => {
+    test.skip((page.viewportSize()?.width ?? 1024) >= 768, 'phone-width safety check');
+    await page.goto('/preview/anatomy-lab');
+    await page.getByRole('button', { name: 'open the anatomy lab' }).click();
+    await expect(page.locator('canvas')).toBeVisible({ timeout: 15_000 });
+    // A visible canvas can still be in the opening phase. Wait for 3D startup
+    // before treating an absent whole-body picker option as missing draft data.
+    await expect(page.locator('canvas')).toBeFocused({ timeout: 15_000 });
+    const whole = page.getByRole('group', { name: 'body system' }).getByRole('button', { name: 'whole body' });
+    await expect(whole).toBeVisible({ timeout: 15_000 });
+    await whole.click();
+    const files = page.getByTestId('anatomy-files');
+    await expect(files).toContainText('model files loaded: 1 of 11', { timeout: 20_000 });
+
+    const requests: string[] = [];
+    page.on('request', (req) => {
+      if (/\.glb(?:\?|$)/.test(req.url())) requests.push(req.url());
+    });
+
+    const showAll = page.getByRole('button', { name: 'show all', exact: true });
+    await showAll.click();
+    const prompt = page.getByTestId('anatomy-bulk-confirm');
+    await expect(prompt).toBeVisible();
+    await expect(prompt).toContainText('10 more 3D model files');
+    await expect(prompt.getByRole('button', { name: 'load every layer' })).toBeFocused();
+    await expect(files).toContainText('model files loaded: 1 of 11');
+    expect(requests).toEqual([]);
+
+    // The focused confirmation can also be dismissed without a mouse.
+    await page.keyboard.press('Escape');
+    await expect(prompt).toHaveCount(0);
+    await expect(showAll).toBeFocused();
+    expect(requests).toEqual([]);
+
+    await showAll.click();
+    await expect(prompt).toBeVisible();
+    await prompt.getByRole('button', { name: 'keep current view' }).click();
+    await expect(prompt).toHaveCount(0);
+    await expect(showAll).toBeFocused();
+    await expect(files).toContainText('model files loaded: 1 of 11');
+    expect(requests).toEqual([]);
+
+    // The explicit second action authorizes the requests. Abort them in this
+    // browser test so CI does not render the entire 1.3m-triangle body on a phone.
+    await page.route(/\/models\/anatomy\/[^/]+\.glb(?:\?|$)/, (route) => route.abort());
+    await showAll.click();
+    await expect(prompt).toBeVisible();
+    await prompt.getByRole('button', { name: 'load every layer' }).click();
+    await expect(prompt).toHaveCount(0);
+    await expect(showAll).toBeFocused();
+    await expect.poll(() => requests.length).toBeGreaterThan(0);
+  });
+
   test('disables whole-body layer actions until the first model is ready', async ({ page }, info) => {
     test.skip(!isDesktopOfEachEngine(info), 'one initial-layer controls check per browser engine');
     await page.goto('/preview/anatomy-lab');

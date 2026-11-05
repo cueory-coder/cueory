@@ -8,7 +8,7 @@ import {
   type MutableRefObject,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import { createGeneration, createOnDemandLoader, publishAnatomyFile, knownMissingStructureIds, filesForLayer, idsForFiles, initialLayerPlan, firstLayer, layerNeedsReveal, visibilityAfterLayerDownload, lazyPeel, lazyRestore, revealTargetPlan, showAllPlan, structureLoadNote, type OnDemandLoader } from './anatomylazy';
+import { createGeneration, createOnDemandLoader, publishAnatomyFile, knownMissingStructureIds, filesForLayer, idsForFiles, initialLayerPlan, firstLayer, layerNeedsReveal, visibilityAfterLayerDownload, lazyPeel, lazyRestore, revealTargetPlan, needsBulkLayerConfirmation, showAllPlan, structureLoadNote, type OnDemandLoader } from './anatomylazy';
 import type { LabColors, LabScene, LoadResult } from './anatomyscene';
 import { createAnatomyOpenGate } from './anatomyopen';
 import { STRUCTURE_PAGE_SIZE, visibleStructureGroups } from './anatomy-list-window';
@@ -158,6 +158,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
   const [pending, setPending] = useState<ReadonlySet<string>>(new Set());
   const [layerError, setLayerError] = useState<{ layer: string; message: string; retry: () => void } | null>(null);
   const [filesLoaded, setFilesLoaded] = useState(0);
+  const [bulkPrompt, setBulkPrompt] = useState<{ systemKey: string; files: number } | null>(null);
   const generation = useMemo(() => createGeneration(), []);
   const openGate = useMemo(() => createAnatomyOpenGate(), []);
   // Every explicit show/hide choice supersedes the visibility effect of earlier downloads.
@@ -166,6 +167,8 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
 
   const fallbackHeadingRef = useRef<HTMLHeadingElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const showAllButtonRef = useRef<HTMLButtonElement>(null);
+  const confirmBulkButtonRef = useRef<HTMLButtonElement>(null);
   const sceneRef = useRef<LabScene | null>(null);
   const colorsRef = useRef<LabColors | null>(null);
   const readColorsRef = useRef<(() => LabColors) | null>(null);
@@ -177,6 +180,12 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
   const setPlacedRef = useRef<((labels: OverlayLabel[]) => void) | null>(null);
   const labelNoteRef = useRef('');
   const measureRef = useRef<{ font: string; measure: (s: string) => number; metrics: LabelMetrics } | null>(null);
+
+  // A pending phone consent never survives a body-system change.
+  useEffect(() => setBulkPrompt(null), [systemKey]);
+  useEffect(() => {
+    if (bulkPrompt?.systemKey === systemKey) confirmBulkButtonRef.current?.focus();
+  }, [bulkPrompt, systemKey]);
 
   const system = systems.find((s) => s.key === systemKey) ?? systems[0];
   const names = useMemo(() => new Map(system?.structures.map((s) => [s.id, s.text]) ?? []), [system]);
@@ -272,6 +281,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     // ticket before either the dynamic import or the next animation frame can finish.
     const attempt = openGate.begin();
     if (attempt === null) return;
+    setBulkPrompt(null);
     // A retry must not expose the previous system's ready state before its new GLB starts.
     setLoad({ state: 'loading' });
     setSelected(null);
@@ -448,7 +458,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
   );
 
   /** Show every structure; in the lazy whole-body view, layers not fetched yet are fetched, then shown. */
-  const showAll = () => {
+  const showAllNow = () => {
     visibilityIntent.bump();
     const loader = loaderRef.current;
     if (!lazy || !system || !loader) {
@@ -462,6 +472,32 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
       return next;
     });
     for (const layer of plan.fetch) reveal(layer);
+  };
+
+  /** Require consent for bulk whole-body GLB downloads on phones. */
+  const showAll = () => {
+    const loader = loaderRef.current;
+    if (lazy && system && loader) {
+      const plan = showAllPlan(layers, hidden, (id) => filesForLayer(system, id), (url) => loader.isLoaded(url));
+      const missingFiles = new Set(
+        plan.fetch.flatMap((layer) => filesForLayer(system, layer.id).filter((url) => !loader.isLoaded(url))),
+      );
+      const narrow = typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 767px)').matches;
+      if (needsBulkLayerConfirmation(narrow, missingFiles.size)) {
+        setBulkPrompt({ systemKey: system.key, files: missingFiles.size });
+        return;
+      }
+    }
+    setBulkPrompt(null);
+    showAllNow();
+  };
+
+  const finishBulkPrompt = (confirm: boolean) => {
+    const valid = bulkPrompt?.systemKey === system?.key && load.state === 'ready'
+      && loaderRef.current !== null && !loaderRef.current.isRetired();
+    setBulkPrompt(null);
+    if (confirm && valid) showAllNow();
+    showAllButtonRef.current?.focus();
   };
 
   // Once the correct target is found or revealed, it must remain visible and selected.
@@ -512,6 +548,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
       setExporting(null);
       setExportNote('');
       setLabelNote([]);
+      setBulkPrompt(null);
       setPhase('error');
     };
 
@@ -892,7 +929,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
             <button type="button" className={iconButton} aria-label="zoom in" disabled={!ready} onClick={() => sceneRef.current?.zoom(ZOOM_IN)}>+</button>
             <button type="button" className={iconButton} aria-label="zoom out" disabled={!ready} onClick={() => sceneRef.current?.zoom(1 / ZOOM_IN)}>−</button>
             <button type="button" className={secondaryButton} disabled={!ready} onClick={() => sceneRef.current?.resetView()}>reset view</button>
-            <button type="button" className={secondaryButton} disabled={!ready} onClick={showAll}>show all</button>
+            <button ref={showAllButtonRef} type="button" className={secondaryButton} disabled={!ready} onClick={showAll}>show all</button>
             <button
               type="button"
               className={secondaryButton}
@@ -903,6 +940,33 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
               labels
             </button>
           </div>
+          {bulkPrompt?.systemKey === system.key && (
+            <div
+              role="group"
+              aria-label="confirm loading every body layer"
+              className="space-y-3 rounded-lg border border-line bg-surface p-4"
+              data-testid="anatomy-bulk-confirm"
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') {
+                  event.preventDefault();
+                  finishBulkPrompt(false);
+                }
+              }}
+            >
+              <p role="status" className="text-sm text-ink">
+                showing every layer would download {bulkPrompt.files} more 3D model files. on a phone, this can slow
+                the view or make it stop responding. choose whether to continue.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button ref={confirmBulkButtonRef} type="button" className={primaryButton} onClick={() => finishBulkPrompt(true)}>
+                  load every layer
+                </button>
+                <button type="button" className={secondaryButton} onClick={() => finishBulkPrompt(false)}>
+                  keep current view
+                </button>
+              </div>
+            </div>
+          )}
           {layers.length > 1 && (
             <fieldset className="space-y-3 rounded-lg border border-line p-4">
               <legend className="px-1 text-sm text-ink-soft">layers, skin to bone</legend>
