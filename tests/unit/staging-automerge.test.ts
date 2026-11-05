@@ -133,6 +133,8 @@ describe('held paths', () => {
     'scripts/build-anatomy.mjs',
     'scripts/anatomy-review-report.mjs',
     'scripts/anatomy-systems.json',
+    'scripts/anatomy-release4.mjs',
+    'scripts/anatomy-groups.mjs',
     'src/visuals/prunedrafts.ts',
     'src/visuals/sources.ts',
     'src/config/site.ts',

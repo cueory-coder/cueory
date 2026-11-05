@@ -84,6 +84,8 @@ const ALWAYS_HELD_FILES = new Set([
   'scripts/build-anatomy.mjs', // Source-driven geometry and label generation.
   'scripts/anatomy-review-report.mjs', // Provides the founder's prepublication labels and rights inventory.
   'scripts/anatomy-systems.json', // Model source selection and layer definitions.
+  'scripts/anatomy-release4.mjs', // Parses official BodyParts3D structure identities and hierarchy.
+  'scripts/anatomy-groups.mjs', // Derives source-backed structure grouping labels.
   'src/visuals/prunedrafts.ts',
   'src/visuals/sources.ts',
   // Founder approval is required for changes to secret-scan exceptions/config.
