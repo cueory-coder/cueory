@@ -77,6 +77,7 @@ const ALWAYS_HELD_FILES = new Set([
   'scripts/check-anatomy-build.mjs',
   'scripts/anatomy-postbuild-audit.mjs', // alternative production postbuild wrapper in PR #626
   'src/islands/anatomylab.ts', // Chooses draft versus approved data for build output.
+  'src/islands/AnatomyLab.tsx', // Shows draft warnings, model attribution and export credits.
   'src/pages/preview/anatomy-lab.astro', // Serializes the model selection into the page.
   'scripts/build-anatomy.mjs', // Source-driven geometry and label generation.
   'scripts/anatomy-systems.json', // Model source selection and layer definitions.
