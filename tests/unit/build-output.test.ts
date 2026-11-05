@@ -31,55 +31,55 @@ const requiredPages = [
   'subscribed.html',
 ];
 
-// Initial route baselines use staging 65a05c3; routes added since then use measured
+// Original 31 route baselines: staging 65a05c3 (2026-11-03), rebuilt from\n// its pinned lockfile with Node 24.22.2 and rescanned using today's corrected\n// static-import / inline-script / gzip algorithm. Reproduction: CI run\n// 41956096721, job 127011229250, HISTORICAL_CORRECTED_JS_BUDGETS output.\n// This corrects the original scanner's missing import paths, not a budget reset.\n// Routes added since that staging commit use measured
 // gzip sizes from the exact-head CI merge build in run 41864993683.
 // Added routes below were measured in exact-head CI run 41933505423.
 // Newly integrated routes measured with the same current scanner in exact-head CI run 41945246600.
 // This includes external scripts in the HTML, Astro island components and renderers,
 // their static imports, and inline scripts. Dynamic imports are intentionally excluded.
 const initialJsBudget = {
-  '404.html': 75978,
+  '404.html': 147695,
   'about.html': 90627,
   'account.html': 123795,
   'account/two-factor.html': 110576,
   'admin/flags.html': 92161,
-  'auth/callback.html': 76233,
-  'breaks.html': 76095,
+  'auth/callback.html': 148073,
+  'breaks.html': 151899,
   'coming-soon.html': 90627,
   'courses.html': 90627,
-  'disclaimer.html': 76405,
-  'index.html': 80295,
+  'disclaimer.html': 148122,
+  'index.html': 153943,
   'learn/questions.html': 97613,
-  'learn/study-skills/cards.html': 79473,
-  'learn/study-skills/fill-in.html': 78805,
-  'learn/study-skills/label-it.html': 78339,
-  'learn/study-skills/learn-mode.html': 78047,
-  'learn/study-skills/matching.html': 78053,
-  'learn/study-skills/organizer.html': 79191,
-  'learn/study-skills/questions.html': 79636,
-  'learn/study-skills.html': 75781,
-  'learn/video-sample.html': 76252,
-  'learn.html': 75452,
-  'play.html': 91853,
+  'learn/study-skills/cards.html': 156387,
+  'learn/study-skills/fill-in.html': 153132,
+  'learn/study-skills/label-it.html': 150373,
+  'learn/study-skills/learn-mode.html': 153947,
+  'learn/study-skills/matching.html': 154728,
+  'learn/study-skills/organizer.html': 153555,
+  'learn/study-skills/questions.html': 151681,
+  'learn/study-skills.html': 147632,
+  'learn/video-sample.html': 148178,
+  'learn.html': 150346,
+  'play.html': 168467,
   'preview/admin-flags.html': 92161,
   'preview/anatomy-text.html': 89104,
   'preview/anatomy-lab.html': 89027,
-  'preview/body-viewer.html': 79576,
-  'preview/email.html': 75055,
-  'preview/prose.html': 75055,
-  'preview/reminders.html': 76112,
-  'preview/share.html': 79128,
-  'preview/states.html': 75055,
+  'preview/body-viewer.html': 151504,
+  'preview/email.html': 146752,
+  'preview/prose.html': 146752,
+  'preview/reminders.html': 148152,
+  'preview/share.html': 151522,
+  'preview/states.html': 146752,
   'preview/survey.html': 90800,
-  'privacy.html': 76405,
-  'progress.html': 77916,
-  'reset-password.html': 75917,
-  'signin.html': 75184,
-  'signup.html': 75184,
-  'start.html': 76938,
-  'subscribed.html': 75055,
-  'support.html': 76405,
-  'terms.html': 76405,
+  'privacy.html': 148122,
+  'progress.html': 153183,
+  'reset-password.html': 167326,
+  'signin.html': 166433,
+  'signup.html': 166433,
+  'start.html': 152098,
+  'subscribed.html': 146752,
+  'support.html': 148122,
+  'terms.html': 148122,
 } satisfies Record<string, number>;
 
 /**
@@ -268,10 +268,10 @@ describe.skipIf(!existsSync(dist))('built site', () => {
     ).toEqual([]);
   });
 
-  // Temporary CI-only measurement: rebuild the exact original staging source and
-  // scan it with the *current corrected* algorithm. Never substitute today's
+  // Opt-in historical audit: rebuild the exact original staging source and
+  // scan it with the *current corrected* algorithm (CUEORY_REMEASURE_BUDGET=1). Never substitute today's
   // measurements for historical baselines or relax the 10% assertion above.
-  it.runIf(process.env.CI === 'true')(
+  it.runIf(process.env.CUEORY_REMEASURE_BUDGET === '1')(
     'diagnostic: recompute corrected historical staging JS baselines',
     () => {
       const historicalSha = '65a05c3bfb126e1e6052a7a7be4f180b81973d7b';
