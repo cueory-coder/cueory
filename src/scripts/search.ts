@@ -77,9 +77,10 @@ export function excerptParts(excerpt: string): ExcerptPart[] {
  * the field), or undefined when the key isn't for moving.
  */
 export function moveFocus(index: number, count: number, key: string): number | undefined {
-  if (count === 0) return undefined;
-  if (key === 'ArrowDown') return Math.min(index + 1, count - 1);
-  if (key === 'ArrowUp') return index === -1 ? undefined : index - 1;
+  if (count <= 0) return undefined;
+  const boundedIndex = Math.max(-1, Math.min(index, count - 1));
+  if (key === 'ArrowDown') return Math.min(boundedIndex + 1, count - 1);
+  if (key === 'ArrowUp') return boundedIndex === -1 ? undefined : boundedIndex - 1;
   return undefined;
 }
 
