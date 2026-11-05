@@ -7,6 +7,8 @@
  * Colors come from the brand tokens at runtime (getComputedStyle), so the model follows the Daytime and Evening palettes.
  */
 import * as THREE from 'three';
+import { createDemandFrameScheduler, remainingIdleDelay } from './anatomyframe';
+import { loadModelsOrDispose } from './anatomylazy';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
@@ -20,6 +22,7 @@ import {
   labelLines,
   labelRoomFor,
   placeLabels,
+  pickedStructure,
   wrapText,
   type ExportSize,
   type Rect,
@@ -157,7 +160,8 @@ export interface LabScene {
   clear(): void;
   setAppearance(appearance: Appearance): void;
   setColors(colors: LabColors): void;
-  pick(clientX: number, clientY: number): string | null;
+  /** The quiz uses nearest-hit picking so earlier answers do not bias later taps. */
+  pick(clientX: number, clientY: number, preferSelected?: boolean): string | null;
   project(ids: readonly string[]): ProjectedPoint[];
   /** The visible model's box on screen, in CSS pixels, or null when nothing is in front of the camera. */
   extent(): Rect | null;
@@ -202,7 +206,9 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
   camera.add(key); // the light moves with the camera, so the side facing the student is always lit
 
   let needsRender = true;
-  let raf = 0;
+  // Event handlers can wake the scheduler without keeping a WebGL loop alive while idle.
+  let scheduleFrame: () => void = () => {};
+  let scheduleVisibility: () => void = () => {};
   // Which labeled structures the camera can see is worked out from an ID picture once the camera has been still for
   // VISIBILITY_IDLE_MS (and after any change to what is shown), not on every frame.
   let visibilityDirty = true;
@@ -211,6 +217,7 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
   let visibility = new Map<string, { behind: boolean; world: THREE.Vector3 }>();
   const requestRender = () => {
     needsRender = true;
+    scheduleFrame();
   };
 
   const controls = new OrbitControls(camera, canvas);
@@ -223,6 +230,7 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
     lastMove = performance.now();
     visibilityDirty = true;
     requestRender();
+    scheduleVisibility();
   };
   controls.addEventListener('change', onCameraChange);
 
@@ -245,30 +253,44 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
     visibilityDirty = true;
     requestRender();
   };
-  resize();
-  const observer = new ResizeObserver(resize);
-  observer.observe(canvas);
-
-  const tick = () => {
-    raf = requestAnimationFrame(tick);
-    if (controls.enableDamping) controls.update(); // fires 'change' while the camera is still gliding
-    if (visibilityDirty && root && performance.now() - lastMove > VISIBILITY_IDLE_MS) {
-      visibilityDirty = false;
-      if (labelIds.length > 0) {
-        const w = canvas.clientWidth || 1;
-        const h = canvas.clientHeight || 1;
-        visibility = visibilityFor(camera, labelIds, w, h);
-        needsRender = true; // redraw, so the labels pick up the new anchors and marks
+  // OrbitControls.update() returns true while damping still moves the camera (three.js r187).
+  // Only those moving frames are repeated. Camera changes reset a single delayed visibility check.
+  const tick = (): boolean => {
+    const moving = controls.enableDamping ? controls.update() : false;
+    if (visibilityDirty && root) {
+      // Both timestamps use performance.now(). A delayed frame that fires early
+      // must re-arm the visibility check rather than leaving stale occlusion labels.
+      const remaining = remainingIdleDelay(performance.now(), lastMove, VISIBILITY_IDLE_MS);
+      if (remaining > 0) {
+        if (labelIds.length > 0) scheduler.afterIdle(remaining);
       } else {
-        visibility = new Map();
+        visibilityDirty = false;
+        if (labelIds.length > 0) {
+          const w = canvas.clientWidth || 1;
+          const h = canvas.clientHeight || 1;
+          visibility = visibilityFor(camera, labelIds, w, h);
+          needsRender = true; // redraw so label anchors and behind marks refresh
+        } else {
+          visibility = new Map();
+        }
       }
     }
-    if (!needsRender) return;
-    needsRender = false;
-    renderer.render(scene, camera);
-    onRender();
+    if (needsRender) {
+      needsRender = false;
+      renderer.render(scene, camera);
+      onRender();
+    }
+    return moving;
   };
-  tick();
+  const scheduler = createDemandFrameScheduler(tick);
+  scheduleFrame = scheduler.request;
+  scheduleVisibility = () => {
+    if (root && labelIds.length > 0) scheduler.afterIdle(VISIBILITY_IDLE_MS);
+  };
+
+  resize(); // schedules one initial frame
+  const observer = new ResizeObserver(resize);
+  observer.observe(canvas);
 
   function disposeModel() {
     if (!root) return;
@@ -443,7 +465,12 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
     const loader = new GLTFLoader();
     loader.setMeshoptDecoder(MeshoptDecoder);
     const list = typeof urls === 'string' ? [urls] : [...urls];
-    const scenes = await Promise.all(list.map((url) => loader.loadAsync(url).then((gltf) => gltf.scene)));
+    // A failed file cannot leave earlier or later decoded meshes in memory.
+    // Scene.add has not run yet, so failed initial loads must release all parts.
+    const scenes = await loadModelsOrDispose(
+      list.map((url) => () => loader.loadAsync(url).then((gltf) => gltf.scene)),
+      disposeGroup,
+    );
     const group = new THREE.Group();
     for (const part of scenes) group.add(part);
     return group;
@@ -541,14 +568,19 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
 
   const raycaster = new THREE.Raycaster();
 
-  function pick(clientX: number, clientY: number): string | null {
+  function pick(clientX: number, clientY: number, preferSelected = true): string | null {
     const rect = canvas.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return null;
     const pointer = new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
     raycaster.setFromCamera(pointer, camera);
     const candidates = order.flatMap((id) => (appearance.hidden.has(id) ? [] : meshesById.get(id)!));
-    const hit = raycaster.intersectObjects(candidates, false)[0];
-    return hit ? ((hit.object.userData['structureId'] as string | undefined) ?? null) : null;
+    const hits = raycaster.intersectObjects(candidates, false)
+      .map((hit) => hit.object.userData['structureId'])
+      .filter((id): id is string => typeof id === 'string');
+    // The selected opaque mesh may be behind another translucent mesh.
+    // Only prefer it if the ray actually intersects it; otherwise pick the nearest mesh.
+    const selected = preferSelected ? visibleSelection(appearance.selected, appearance.hidden) : null;
+    return pickedStructure(hits, selected);
   }
 
   function projectWith(
@@ -788,6 +820,8 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
       if (ids.length !== labelIds.length || ids.some((id, i) => id !== labelIds[i])) {
         labelIds = [...ids];
         visibilityDirty = true;
+        requestRender();
+        scheduleVisibility();
       }
       return projectWith(camera, ids, canvas.clientWidth, canvas.clientHeight);
     },
@@ -806,7 +840,7 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
     },
     dispose() {
       loadId++;
-      cancelAnimationFrame(raf);
+      scheduler.dispose();
       observer.disconnect();
       controls.removeEventListener('change', onCameraChange);
       controls.dispose();

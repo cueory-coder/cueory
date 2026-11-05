@@ -1,14 +1,122 @@
 import { describe, expect, it } from 'vitest';
-import type { AnatomyStructure } from '../../src/islands/anatomylab';
-import { LAYERS, wholeBody, layerShown, type Layer } from '../../src/islands/anatomylayers';
+import type { AnatomyStructure, AnatomySystem } from '../../src/islands/anatomylab';
+import { LAYERS, wholeBody, layersOf, layerShown, type Layer } from '../../src/islands/anatomylayers';
 import { onlyThis } from '../../src/islands/anatomylab';
-import { PartialLoadError, revealTargetPlan, showAllPlan, createGeneration, createOnDemandLoader, filesForLayer, firstLayer, layerNeedsReveal, lazyPeel, lazyRestore, structureLoadNote } from '../../src/islands/anatomylazy';
+import { PartialLoadError, revealTargetPlan, showAllPlan, createGeneration, loadModelsOrDispose, createOnDemandLoader, visibilityAfterLayerDownload, filesForLayer, firstLayer, idsForFiles, initialLayerPlan, layerNeedsReveal, lazyPeel, lazyRestore, structureLoadNote } from '../../src/islands/anatomylazy';
 
 const layers: Layer[] = [
   { id: 'skin', ids: ['s1'] },
   { id: 'muscle', ids: ['m1', 'm2'] },
   { id: 'skeleton', ids: ['b1'] },
 ];
+
+describe('initial multi-file model cleanup', () => {
+  it('preserves file order on success even when requests finish out of order', async () => {
+    let finishFirst!: (value: string) => void;
+    const disposed: string[] = [];
+    const loading = loadModelsOrDispose(
+      [
+        () => new Promise<string>((resolve) => { finishFirst = resolve; }),
+        () => Promise.resolve('second'),
+      ],
+      (value) => disposed.push(value),
+    );
+    finishFirst('first');
+    await expect(loading).resolves.toEqual(['first', 'second']);
+    expect(disposed).toEqual([]);
+  });
+
+  it('releases decoded models that succeeded when another file fails', async () => {
+    const disposed: string[] = [];
+    const failure = new Error('one GLB request failed');
+    const loading = loadModelsOrDispose(
+      [
+        () => Promise.resolve('first'),
+        () => Promise.resolve('second'),
+        () => Promise.reject(failure),
+      ],
+      (value) => disposed.push(value),
+    );
+    await expect(loading).rejects.toBe(failure);
+    expect(disposed.sort()).toEqual(['first', 'second']);
+  });
+
+  it('releases models arriving after an earlier failure, without blocking the error or retry', async () => {
+    let finishLate!: (value: string) => void;
+    const disposed: string[] = [];
+    const failure = new Error('model unavailable');
+    const loading = loadModelsOrDispose(
+      [
+        () => Promise.reject(failure),
+        () => new Promise<string>((resolve) => { finishLate = resolve; }),
+      ],
+      (value) => disposed.push(value),
+    );
+    // Do not wait for the other network request before reporting the error.
+    await expect(loading).rejects.toBe(failure);
+    expect(disposed).toEqual([]);
+    finishLate('late');
+    // Allow the late request's continuation to release the decoded result.
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(disposed).toEqual(['late']);
+
+    // A separate retry should load fresh models normally.
+    await expect(loadModelsOrDispose(
+      [() => Promise.resolve('retry')],
+      (value) => disposed.push(value),
+    )).resolves.toEqual(['retry']);
+    expect(disposed).toEqual(['late']);
+  });
+});
+
+describe('initial GLB cleanup exceptions', () => {
+  it('keeps the original loading error and attempts every decoded scene disposal', async () => {
+    const original = new Error('GLB download unavailable');
+    const attempted: string[] = [];
+    await expect(loadModelsOrDispose(
+      [
+        () => Promise.resolve('first'),
+        () => Promise.resolve('second'),
+        () => Promise.reject(original),
+      ],
+      (value) => {
+        attempted.push(value);
+        if (value === 'first') throw new Error('WebGL disposal failed');
+      },
+    )).rejects.toBe(original);
+    expect(attempted).toEqual(['first', 'second']);
+  });
+
+  it('handles a throwing cleanup for a late GLB without blocking a fresh retry', async () => {
+    const original = new Error('first model failed');
+    let finishLate!: (value: string) => void;
+    let notifyCleanup!: () => void;
+    const cleaned = new Promise<void>((resolve) => { notifyCleanup = resolve; });
+    const attempted: string[] = [];
+    const loading = loadModelsOrDispose(
+      [
+        () => Promise.reject(original),
+        () => new Promise<string>((resolve) => { finishLate = resolve; }),
+      ],
+      (value) => {
+        attempted.push(value);
+        notifyCleanup();
+        throw new Error('GPU context already lost');
+      },
+    );
+    await expect(loading).rejects.toBe(original);
+    finishLate('late model');
+    await cleaned;
+    expect(attempted).toEqual(['late model']);
+
+    await expect(loadModelsOrDispose(
+      [() => Promise.resolve('retry')],
+      (value) => attempted.push(value),
+    )).resolves.toEqual(['retry']);
+    expect(attempted).toEqual(['late model']);
+  });
+});
 
 describe('partial failures and show all', () => {
   it('hands over the files that loaded when another file of the layer fails, and retries only the failed one', async () => {
@@ -44,6 +152,58 @@ describe('show only this in the lazy view', () => {
     const files: Record<string, string[]> = { skin: ['s'], muscle: ['m'], skeleton: ['k'] };
     const plan = showAllPlan(layers, hidden, (id) => files[id]!, (url) => url === 's');
     expect(plan.fetch.map((l) => l.id)).toEqual(['muscle', 'skeleton']);
+  });
+});
+
+describe('first whole-body files shared across layers', () => {
+  it('maps deeper structures in the initial files, keeps them hidden and reuses already downloaded files', async () => {
+    // Synthetic structures, not clinical content. The mixed file belongs to both vessels and organs.
+    const system = (key: string, structures: AnatomyStructure[]): AnatomySystem => ({
+      key,
+      title: `sample ${key}`,
+      status: 'draft',
+      model: { file: `/models/anatomy/${key}.glb`, release: 'test' },
+      structures,
+    });
+    const body = wholeBody([
+      system('mixed', [
+        { id: 'v1', text: 'sample outer one', layer: 'vessels' },
+        { id: 'o1', text: 'sample inner one', layer: 'organs' },
+      ]),
+      system('outer', [{ id: 'v2', text: 'sample outer two', layer: 'vessels' }]),
+      system('inner', [{ id: 'o2', text: 'sample inner two', layer: 'organs' }]),
+    ])!;
+    const layers = layersOf(body.structures);
+    const initial = initialLayerPlan(body, layers)!;
+
+    expect(initial.files).toEqual(['/models/anatomy/mixed.glb', '/models/anatomy/outer.glb']);
+    // Scene.load must map o1 even though its organ layer is initially hidden.
+    // IDs keep source-file order, not layer order. Each needed mesh is mapped once.
+    expect(initial.ids).toEqual(['v1', 'o1', 'v2']);
+    expect([...initial.hidden].sort()).toEqual(['o1', 'o2']);
+    expect(initial.ids).not.toContain('o2'); // Its file has not been fetched.
+    expect(idsForFiles(body, layers, ['/models/anatomy/mixed.glb'])).toEqual(['v1', 'o1']);
+
+    const downloaded: string[] = [];
+    const loader = createOnDemandLoader(async (url) => {
+      downloaded.push(url);
+      return url;
+    });
+    for (const url of initial.files) loader.markLoaded(url);
+    expect(await loader.ensure(filesForLayer(body, 'organs'))).toEqual(['/models/anatomy/inner.glb']);
+    expect(downloaded).toEqual(['/models/anatomy/inner.glb']);
+    expect(idsForFiles(body, layers, downloaded)).toEqual(['o2']);
+  });
+
+  it('falls back to an eager load if the first layer has no model files', () => {
+    const body: AnatomySystem = {
+      key: 'sample',
+      title: 'sample',
+      status: 'draft',
+      model: { file: '/models/anatomy/sample.glb', release: 'test' },
+      structures: [{ id: 'a', text: 'sample part', layer: 'vessels' }],
+    };
+    expect(initialLayerPlan(body, layersOf(body.structures))).toBeNull();
   });
 });
 
@@ -125,15 +285,53 @@ describe('show me in the quiz', () => {
   const files: Record<string, string[]> = { skin: ['s'], muscle: ['m'], skeleton: ['k'] };
   const filesOf = (id: string) => files[id]!;
   it('unhides a hidden target, and its whole layer when the layer was peeled away', () => {
-    const plan = revealTargetPlan(layers, new Set(['m1', 'm2']), 'm1', filesOf, () => true);
+    const plan = revealTargetPlan(layers, new Set(['m1', 'm2']), 'm1', filesOf, () => true, new Set());
     expect(plan).toEqual({ unhide: ['m1', 'm1', 'm2'], fetch: null });
-    const single = revealTargetPlan(layers, new Set(['m1']), 'm1', filesOf, () => true);
+    const single = revealTargetPlan(layers, new Set(['m1']), 'm1', filesOf, () => true, new Set());
     expect(single.unhide).toEqual(['m1']);
   });
   it('fetches the target\'s layer first when its files are not loaded', () => {
-    const plan = revealTargetPlan(layers, new Set(['b1']), 'b1', filesOf, (url) => url === 's');
+    const plan = revealTargetPlan(layers, new Set(['b1']), 'b1', filesOf, (url) => url === 's', new Set());
     expect(plan.fetch?.id).toBe('skeleton');
     expect(plan.unhide).toEqual([]);
+  });
+});
+
+describe('show me with a loaded target in a partially downloaded layer', () => {
+  it('shows the loaded answer without requesting unrelated or failing files', async () => {
+    const organLayer: Layer = { id: 'organs', ids: ['fixture-a', 'fixture-b'] };
+    const files = ['shared.glb', 'unrelated.glb'];
+    const fetched: string[] = [];
+    const loader = createOnDemandLoader(async (url) => {
+      fetched.push(url);
+      if (url === 'unrelated.glb') throw new Error('offline');
+      return url;
+    });
+    loader.markLoaded('shared.glb');
+    // The first structure is already in the scene but is hidden while the
+    // quiz is active. The other GLB cannot be downloaded.
+    const plan = revealTargetPlan(
+      [organLayer],
+      new Set(['fixture-a', 'fixture-b']),
+      'fixture-a',
+      () => files,
+      loader.isLoaded,
+      new Set(['fixture-a']),
+    );
+    expect(plan).toEqual({ unhide: ['fixture-a'], fetch: null });
+    const stillHidden = new Set(['fixture-a', 'fixture-b']);
+    for (const id of plan.unhide) stillHidden.delete(id);
+    expect(stillHidden).toEqual(new Set(['fixture-b']));
+    expect(fetched).toEqual([]);
+  });
+
+  it('still fetches a layer for a target whose mesh has not arrived', () => {
+    const organLayer: Layer = { id: 'organs', ids: ['fixture-a'] };
+    const plan = revealTargetPlan(
+      [organLayer], new Set(['fixture-a']), 'fixture-a',
+      () => ['missing.glb'], () => false, new Set(),
+    );
+    expect(plan).toEqual({ unhide: [], fetch: organLayer });
   });
 });
 
@@ -145,6 +343,38 @@ describe('system generation', () => {
     gen.bump();
     expect(gen.isCurrent(mine)).toBe(false);
     expect(gen.isCurrent(gen.token())).toBe(true);
+  });
+});
+
+describe('a delayed layer must not undo newer visibility choices', () => {
+  it('keeps successful downloads but preserves show-only when an older reveal finishes later', async () => {
+    const intents = createGeneration();
+    const older = intents.token();
+    let finish!: (value: string) => void;
+    const loader = createOnDemandLoader<string>(() => new Promise((resolve) => { finish = resolve; }));
+    const pending = loader.ensure(['organs.glb']);
+
+    // A later click replaces the prior "show all" with "show only skin".
+    intents.bump();
+    const onlySkin = new Set(['heart', 'lung', 'bone']);
+    finish('organs.glb');
+    expect(await pending).toEqual(['organs.glb']);
+    expect(loader.isLoaded('organs.glb')).toBe(true);
+    const result = visibilityAfterLayerDownload(onlySkin, ['heart', 'lung'], [], intents.isCurrent(older));
+    expect(result).toBe(onlySkin);
+    expect([...result]).toEqual(['heart', 'lung', 'bone']);
+  });
+
+  it('applies the newest request, including the hide-after side of a peel', () => {
+    const hidden = new Set(['organ']);
+    const changed = visibilityAfterLayerDownload(hidden, ['organ'], ['skin'], true);
+    expect(changed).toEqual(new Set(['skin']));
+    expect(hidden).toEqual(new Set(['organ']));
+  });
+
+  it('does not unhide or hide anything for a superseded peel', () => {
+    const newer = new Set(['organ']);
+    expect(visibilityAfterLayerDownload(newer, ['organ'], ['skin'], false)).toBe(newer);
   });
 });
 

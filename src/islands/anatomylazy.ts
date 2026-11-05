@@ -30,6 +30,62 @@ export function createGeneration() {
   };
 }
 
+/** 
+ * A model may finish downloading after the student chose a newer visibility state.
+ * Always keep its geometry, but never let an older reveal undo a later show-only or hide choice.
+ */
+export function visibilityAfterLayerDownload(
+  hidden: ReadonlySet<string>,
+  showIds: readonly string[],
+  hideAfterIds: readonly string[],
+  intentStillCurrent: boolean,
+): ReadonlySet<string> {
+  if (!intentStillCurrent) return hidden;
+  const next = new Set(hidden);
+  for (const id of showIds) next.delete(id);
+  for (const id of hideAfterIds) next.add(id);
+  return next;
+}
+
+/**
+ * An initial multi-file scene is all-or-nothing. If any model request fails,
+ * dispose decoded models that already arrived, including requests that finish
+ * after the first failure. Unlike the on-demand loader below, these models
+ * were never integrated into the visible scene and cannot be reused on retry.
+ *
+ * Reject as soon as a load fails, rather than waiting for every in-flight
+ * request. The late requests still release their decoded resources.
+ */
+export async function loadModelsOrDispose<T>(
+  loads: readonly (() => Promise<T>)[],
+  dispose: (value: T) => void,
+): Promise<T[]> {
+  const completed: T[] = [];
+  let failed = false;
+  // A graphics-context failure can throw during disposal. This cleanup is
+  // best effort: preserve the original GLB failure and try every other group.
+  const disposeBestEffort = (value: T): void => {
+    try {
+      dispose(value);
+    } catch {
+      // Resource cleanup errors must not prevent the other groups from being freed.
+    }
+  };
+  try {
+    // Promise.all preserves input order even when model requests finish out of order.
+    return await Promise.all(loads.map(async (load) => {
+      const value = await load();
+      if (failed) disposeBestEffort(value);
+      else completed.push(value);
+      return value;
+    }));
+  } catch (error) {
+    failed = true;
+    for (const value of completed) disposeBestEffort(value);
+    throw error;
+  }
+}
+
 /** Some of a layer's files loaded and some failed: the loaded ones are kept here so the caller can still use them. */
 export class PartialLoadError<R> extends Error {
   constructor(
@@ -72,6 +128,33 @@ export function structureLoadNote(
 }
 
 /**
+ * A downloaded GLB can be marked complete before its found IDs are integrated.
+ * Delay absence decisions until every outstanding layer batch has settled.
+ */
+export function fileReadyForStructureStatus(isLoaded: boolean, pendingLayerBatches: number): boolean {
+  return isLoaded && pendingLayerBatches === 0;
+}
+
+/**
+ * Count only IDs absent from the combined scene once all their candidate
+ * GLB files are loaded. Shared model files can make per-file missing lists
+ * misleading until every eligible file has finished.
+ */
+export function knownMissingStructureIds(
+  structures: readonly Pick<AnatomyStructure, 'id' | 'layer'>[],
+  found: ReadonlySet<string>,
+  filesOfLayer: (layerId: string) => readonly string[],
+  filesOfSystem: readonly string[],
+  isLoaded: (url: string) => boolean,
+): string[] {
+  return structures
+    .filter((structure) =>
+      structureLoadNote(structure, found, true, filesOfLayer, filesOfSystem, isLoaded) === 'not in this model',
+    )
+    .map((structure) => structure.id);
+}
+
+/**
  * "Show all" in the lazy view: the structures to unhide right away (those in layers whose files are all loaded, and any
  * in no layer) and the layers that must be fetched first, each shown only once its files are there.
  */
@@ -92,8 +175,11 @@ export function showAllPlan(
 }
 
 /**
- * What "show me" must do so the quiz target is really on screen: unhide the target (and its whole layer, when the whole
- * layer was hidden), or fetch its layer first when the layer's model files are not loaded yet.
+ * "Show me" always reveals a quiz target that is already in the scene. A target
+ * chosen from the visible quiz pool has already been fetched, even if some
+ * other model files for its layer have not loaded. Do not download unrelated
+ * anatomy (or wait for a failing file) just to display a known target.
+ * For a target not in the scene, retain the existing on-demand layer fallback.
  */
 export function revealTargetPlan(
   layers: readonly Layer[],
@@ -101,44 +187,94 @@ export function revealTargetPlan(
   targetId: string,
   filesOf: (layerId: string) => readonly string[],
   isLoaded: (url: string) => boolean,
+  found: ReadonlySet<string>,
 ): { unhide: string[]; fetch: Layer | null } {
+  if (found.has(targetId)) return { unhide: [targetId], fetch: null };
   const layer = layers.find((l) => l.ids.includes(targetId));
   if (layer && !filesOf(layer.id).every(isLoaded) && filesOf(layer.id).length > 0) return { unhide: [], fetch: layer };
   const wholeLayerHidden = layer !== undefined && layer.ids.every((id) => hidden.has(id));
   return { unhide: [targetId, ...(wholeLayerHidden ? layer.ids : [])], fetch: null };
 }
 
+/** At most two on-demand GLBs decode at once, including requests from different layer buttons. */
+export const MAX_CONCURRENT_ANATOMY_MODELS = 2;
+
 export function createOnDemandLoader<R>(fetchOne: (url: string) => Promise<R>): OnDemandLoader<R> {
   const done = new Set<string>();
   const inFlight = new Map<string, Promise<R | null>>();
+  const waiting: Array<{ url: string; start: () => void; cancel: () => void }> = [];
+  let active = 0;
   let retired = false;
+
+  /** A shared queue bounds simultaneous model downloads across separate ensure() calls. */
+  function drain() {
+    while (!retired && active < MAX_CONCURRENT_ANATOMY_MODELS && waiting.length > 0) {
+      const job = waiting.shift()!;
+      // Another path might have marked a queued file loaded (for example, the first view).
+      if (done.has(job.url)) {
+        inFlight.delete(job.url);
+        job.cancel();
+        continue;
+      }
+      active++;
+      job.start();
+    }
+  }
+
   function one(url: string): Promise<R | null> {
     if (retired || done.has(url)) return Promise.resolve(null);
     const running = inFlight.get(url);
     if (running) return running.then(() => null);
-    const promise = fetchOne(url).then(
-      (result) => {
-        if (retired) return null;
-        done.add(url);
-        inFlight.delete(url);
-        return result;
-      },
-      (err: unknown) => {
-        // A failure is forgotten, so asking again tries again.
-        inFlight.delete(url);
-        if (retired) return null;
-        throw err;
-      },
-    );
+
+    let resolve!: (value: R | null) => void;
+    let reject!: (reason: unknown) => void;
+    const promise = new Promise<R | null>((ok, fail) => {
+      resolve = ok;
+      reject = fail;
+    });
+    // Register before enqueueing: overlapping layers must share the same download.
     inFlight.set(url, promise);
+    waiting.push({
+      url,
+      cancel: () => resolve(null),
+      start: () => {
+        let fetch: Promise<R>;
+        try {
+          fetch = Promise.resolve(fetchOne(url));
+        } catch (err) {
+          fetch = Promise.reject(err);
+        }
+        void fetch.then(
+          (result) => {
+            inFlight.delete(url);
+            if (retired) resolve(null);
+            else {
+              done.add(url);
+              resolve(result);
+            }
+          },
+          (err: unknown) => {
+            // Failure is not cached, so a later layer action can retry.
+            inFlight.delete(url);
+            if (retired) resolve(null);
+            else reject(err);
+          },
+        ).finally(() => {
+          active--;
+          drain();
+        });
+      },
+    });
+    drain();
     return promise;
   }
+
   return {
     async ensure(urls) {
       const settled = await Promise.allSettled([...new Set(urls)].map(one));
       const results = settled.flatMap((s) => (s.status === 'fulfilled' && s.value !== null ? [s.value] : []));
       const failed = settled.find((s): s is PromiseRejectedResult => s.status === 'rejected');
-      // Files that did load stay loaded (and in the scene), so they are handed over with the error rather than lost.
+      // A failed file must not hide other files that successfully loaded in the same batch.
       if (failed) throw new PartialLoadError(results as R[], failed.reason);
       return results as R[];
     },
@@ -152,6 +288,8 @@ export function createOnDemandLoader<R>(fetchOne: (url: string) => Promise<R>): 
       retired = true;
       done.clear();
       inFlight.clear();
+      // Queued work must never start after changing systems, and callers must not hang.
+      for (const job of waiting.splice(0)) job.cancel();
     },
   };
 }
@@ -164,6 +302,35 @@ export function filesForLayer(system: Pick<AnatomySystem, 'model'>, layerId: str
 /** The outermost layer, which is all the whole-body view fetches at first. */
 export function firstLayer(layers: readonly Layer[]): Layer | null {
   return layers[0] ?? null;
+}
+
+/**
+ * All structure IDs represented by the requested model files, including deeper-layer IDs when a file is shared.
+ * The scene needs these IDs on its FIRST load: once a file is cached it will not be added again.
+ */
+export function idsForFiles(system: Pick<AnatomySystem, 'model'>, layers: readonly Layer[], urls: readonly string[]): string[] {
+  // A layer can span several files, so its full ID list would include meshes not downloaded yet.
+  // The whole-body builder records the exact file-to-ID mapping from each original system.
+  if (system.model.fileIds) return [...new Set(urls.flatMap((url) => system.model.fileIds?.[url] ?? []))];
+  const wanted = new Set(urls);
+  return [...new Set(layers.filter((layer) => filesForLayer(system, layer.id).some((url) => wanted.has(url))).flatMap((layer) => layer.ids))];
+}
+
+/** Start with only the outermost layer's files, but map every structure in those files before caching them. */
+export function initialLayerPlan(
+  system: AnatomySystem,
+  layers: readonly Layer[],
+): { files: string[]; ids: string[]; hidden: Set<string> } | null {
+  const first = firstLayer(layers);
+  if (!first) return null;
+  const files = filesForLayer(system, first.id);
+  if (files.length === 0) return null;
+  const visible = new Set(first.ids);
+  return {
+    files,
+    ids: idsForFiles(system, layers, files),
+    hidden: new Set(system.structures.filter((structure) => !visible.has(structure.id)).map((structure) => structure.id)),
+  };
 }
 
 /**

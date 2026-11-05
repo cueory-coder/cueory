@@ -32,7 +32,7 @@ export interface AnatomySystem {
   title: string;
   status: 'draft' | 'approved';
   /** `files`: the whole-body view loads several systems' models together (src/islands/anatomylayers.ts). */
-  model: { file: string; files?: string[]; release: string; via?: string; layerFiles?: Record<string, string[]> };
+  model: { file: string; files?: string[]; release: string; via?: string; layerFiles?: Record<string, string[]>; fileIds?: Record<string, string[]> };
   structures: AnatomyStructure[];
   /** The automated tests' fixture: shapes made in code, not anatomy and not from BodyParts3D. */
   fixture?: boolean;
@@ -64,6 +64,30 @@ export function releaseNoteFor(system: Pick<AnatomySystem, 'status' | 'model' | 
 /** The full credit drawn at the bottom of an exported picture: the credit, then the release note. */
 export function pictureCreditFor(system: Pick<AnatomySystem, 'status' | 'model' | 'fixture'>): string {
   return `${creditFor(system)} · ${releaseNoteFor(system)}`;
+}
+
+/**
+ * The selected mesh is opaque while other structures become translucent.
+ * When two visible meshes overlap under the pointer, prefer the selected one
+ * if the ray actually crosses its geometry. Otherwise choose the nearest hit.
+ * The quiz disables this preference so earlier picks cannot bias answers.
+ */
+export function pickedStructure(
+  hitsNearestFirst: readonly string[],
+  selected: string | null,
+): string | null {
+  if (selected && hitsNearestFirst.includes(selected)) return selected;
+  return hitsNearestFirst[0] ?? null;
+}
+
+/**
+ * Never put loader or renderer exception text in student-facing messages.
+ * Browser and network errors can contain raw URLs, file paths and internal details.
+ */
+export function anatomyFailureMessage(kind: 'layer' | 'picture', _cause: unknown): string {
+  return kind === 'layer'
+    ? 'please try this layer again. if it still fails, choose another body system.'
+    : 'could not save the picture. please try again.';
 }
 
 /** Where a structure's name comes from, shown on its name card. */
@@ -257,6 +281,22 @@ export function groupStructures(structures: readonly AnatomyStructure[], query =
   return [...groups].map(([group, items]) => ({ group, items }));
 }
 
+/** Keep a text-only fallback usable on phones even with a large whole-body catalog. */
+export const TEXT_FALLBACK_BATCH = 40;
+
+/** The first `limit` matching names, preserving group order; searching still checks the entire catalog. */
+export function textFallbackItems(groups: readonly StructureGroup[], limit: number): AnatomyStructure[] {
+  if (!Number.isSafeInteger(limit) || limit < 1) return [];
+  const entries: AnatomyStructure[] = [];
+  for (const group of groups) {
+    for (const item of group.items) {
+      if (entries.length >= limit) return entries;
+      entries.push(item);
+    }
+  }
+  return entries;
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 // Visibility
 // ---------------------------------------------------------------------------------------------------------------------
@@ -295,6 +335,8 @@ export function labelsToShow(
 // ---------------------------------------------------------------------------------------------------------------------
 
 export interface QuizState {
+  /** The eligible structure IDs fixed when this round starts, even if visibility changes. */
+  pool: string[];
   /** The structure to find, or null when every structure in the round has been asked. */
   target: string | null;
   /** Targets already asked this round, in order (the current one included). */
@@ -309,6 +351,12 @@ export interface QuizState {
   scored: boolean;
 }
 
+/** The target must stay visible once its answer is shown or found, even if layer controls are used. */
+export function revealedQuizTarget(state: Pick<QuizState, 'target' | 'feedback'> | null): string | null {
+  if (!state?.target) return null;
+  return state.feedback?.kind === 'right' || state.feedback?.kind === 'shown' ? state.target : null;
+}
+
 /** Picks the next target among `pool`, never one already asked this round. `random` returns [0, 1). */
 export function pickQuizTarget(pool: readonly string[], asked: readonly string[], random: () => number): string | null {
   const left = pool.filter((id) => !asked.includes(id));
@@ -318,8 +366,10 @@ export function pickQuizTarget(pool: readonly string[], asked: readonly string[]
 }
 
 export function startQuiz(pool: readonly string[], random: () => number): QuizState {
-  const target = pickQuizTarget(pool, [], random);
-  return { target, asked: target ? [target] : [], answered: 0, right: 0, feedback: null, scored: false };
+  // Snapshot the eligible structures for the full round. Visibility changes belong to the next round.
+  const roundPool = [...new Set(pool)];
+  const target = pickQuizTarget(roundPool, [], random);
+  return { pool: roundPool, target, asked: target ? [target] : [], answered: 0, right: 0, feedback: null, scored: false };
 }
 
 /** The student picked `picked` (in 3D or the list). Only the first pick of a question counts towards the score. */
@@ -342,9 +392,9 @@ export function revealQuiz(state: QuizState): QuizState {
   return { ...state, answered: state.answered + (state.scored ? 0 : 1), scored: true, feedback: { kind: 'shown' } };
 }
 
-/** "next": a new target from the pool, never repeating this round; null target when the round is done. */
-export function nextQuiz(state: QuizState, pool: readonly string[], random: () => number): QuizState {
-  const target = pickQuizTarget(pool, state.asked, random);
+/** "next": pick from the round's original pool, even if visible structures changed since it started. */
+export function nextQuiz(state: QuizState, random: () => number): QuizState {
+  const target = pickQuizTarget(state.pool, state.asked, random);
   return {
     ...state,
     // Skipping a question with "next" before answering it counts it as answered, not right.
@@ -429,6 +479,11 @@ export function placeLabels(anchors: readonly LabelAnchor[], options: LayoutOpti
   const top = margin;
   const bottom = height - margin;
   const room = bottom - top;
+  // A collapsed or hidden canvas may have no space between its top and bottom margins.
+  // Even an empty column would otherwise enter the overflow loop and remove an undefined label.
+  if (!Number.isFinite(room) || room <= 0) {
+    return { placed: [], leftOut: [...new Set(anchors.map((anchor) => anchor.id))] };
+  }
   const mid = columns ? (columns.left + columns.right) / 2 : width / 2;
   const byOrder = (a: LabelAnchor, b: LabelAnchor) => a.y - b.y || a.x - b.x || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
   const usable = anchors
@@ -581,15 +636,28 @@ export function findVisibleAnchors(
     return pixels[i]! | (pixels[i + 1]! << 8) | (pixels[i + 2]! << 16);
   };
   const out = new Map<string, VisibleAnchor>();
-  const pending = new Map<number, { id: string; count: number; sx: number; sy: number; t: VisibilityTarget }>();
+  const pending = new Map<number, {
+    id: string;
+    count: number;
+    sx: number;
+    sy: number;
+    t: VisibilityTarget;
+    centerVisible: boolean;
+    minX: number;
+    maxX: number;
+    minY: number;
+    maxY: number;
+  }>();
   for (const [id, t] of targets) {
     const cx = Math.round(t.x);
     const cy = Math.round(t.y);
-    if (cx >= 0 && cy >= 0 && cx < width && cy < height && at(cx, cy) === t.index + 1) {
-      out.set(id, { visible: true, x: t.x, y: t.y });
-    } else {
-      pending.set(t.index + 1, { id, count: 0, sx: 0, sy: 0, t });
-    }
+    const centerVisible = cx >= 0 && cy >= 0 && cx < width && cy < height && at(cx, cy) === t.index + 1;
+    // Count pixels even when the projected center is visible. The minimum
+    // visible area must be the same for center hits and off-center structures.
+    pending.set(t.index + 1, {
+      id, count: 0, sx: 0, sy: 0, t, centerVisible,
+      minX: width, maxX: -1, minY: height, maxY: -1,
+    });
   }
   if (pending.size === 0) return out;
   for (let y = 0; y < height; y++) {
@@ -599,12 +667,24 @@ export function findVisibleAnchors(
         p.count++;
         p.sx += x;
         p.sy += y;
+        // Center-visible labels never need the nearest-pixel fallback.
+        if (!p.centerVisible) {
+          if (x < p.minX) p.minX = x;
+          if (x > p.maxX) p.maxX = x;
+          if (y < p.minY) p.minY = y;
+          if (y > p.maxY) p.maxY = y;
+        }
       }
     }
   }
   for (const [code, p] of pending) {
-    if (p.count < minPixels) {
+    if (p.count === 0 || p.count < minPixels) {
       out.set(p.id, { visible: false, x: p.t.x, y: p.t.y });
+      continue;
+    }
+    // Preserve the exact projected center when enough pixels are visible.
+    if (p.centerVisible) {
+      out.set(p.id, { visible: true, x: p.t.x, y: p.t.y });
       continue;
     }
     const mx = Math.round(p.sx / p.count);
@@ -613,10 +693,13 @@ export function findVisibleAnchors(
       out.set(p.id, { visible: true, x: mx, y: my });
       continue;
     }
-    // The middle of what can be seen is not on the structure (a curved or broken shape): take its nearest pixel.
+    // For a curved or disconnected structure, the centroid can land in
+    // empty space. Search only its occupied bounding rectangle, not the
+    // entire ID picture again for every such structure. The scan order and
+    // nearest-pixel tie-break remain unchanged.
     let best = { x: mx, y: my, d: Infinity };
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
+    for (let y = p.minY; y <= p.maxY; y++) {
+      for (let x = p.minX; x <= p.maxX; x++) {
         if (at(x, y) !== code) continue;
         const d = (x - mx) ** 2 + (y - my) ** 2;
         if (d < best.d) best = { x, y, d };

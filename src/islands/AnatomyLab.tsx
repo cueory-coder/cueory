@@ -8,15 +8,17 @@ import {
   type MutableRefObject,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import { createGeneration, createOnDemandLoader, filesForLayer, firstLayer, layerNeedsReveal, lazyPeel, lazyRestore, PartialLoadError, revealTargetPlan, showAllPlan, structureLoadNote, type OnDemandLoader } from './anatomylazy';
+import { createGeneration, createOnDemandLoader, filesForLayer, fileReadyForStructureStatus, knownMissingStructureIds, idsForFiles, initialLayerPlan, firstLayer, layerNeedsReveal, visibilityAfterLayerDownload, lazyPeel, lazyRestore, PartialLoadError, revealTargetPlan, showAllPlan, structureLoadNote, type OnDemandLoader } from './anatomylazy';
 import type { LabColors, LabScene, LoadResult } from './anatomyscene';
-import { checkTriangleBudget } from './bodyviewer-logic';
+import { STRUCTURE_PAGE_SIZE, visibleStructureGroups } from './anatomy-list-window';
+import { anatomyTriangleNote } from './anatomybudget';
 import {
   WHOLE_BODY_KEY,
+  systemsForView,
   type Layer,
   layerShown,
   layersOf,
-  missingLayers,
+  unavailableLayersNote,
   nextToPeel,
   nextToRestore,
   toggleLayer,
@@ -26,8 +28,10 @@ import {
   BODYPARTS3D_LICENSE_NAME,
   BODYPARTS3D_LICENSE_URL,
   BEHIND_MARK,
+  TEXT_FALLBACK_BATCH,
   EXPORT_SIZES,
   answerQuiz,
+  anatomyFailureMessage,
   creditFor,
   exportFileName,
   groupStructures,
@@ -41,7 +45,9 @@ import {
   releaseNoteFor,
   onlyThis,
   revealQuiz,
+  revealedQuizTarget,
   startQuiz,
+  textFallbackItems,
   toggleHidden,
   type AnatomySystem,
   type ExportSize,
@@ -58,11 +64,6 @@ interface Props {
 }
 
 type Phase = 'cover' | 'opening' | 'open' | 'error';
-/** The structure ids a model file serves in the whole-body view: those of every layer that names the file. */
-function layers_idsForFile(system: AnatomySystem, layers: readonly Layer[], url: string): string[] {
-  return layers.filter((layer) => filesForLayer(system, layer.id).includes(url)).flatMap((layer) => layer.ids);
-}
-
 type SystemLoad = { state: 'loading' } | { state: 'ready'; result: LoadResult } | { state: 'error'; message: string };
 
 const primaryButton =
@@ -131,19 +132,21 @@ function measureLabel(font: string, fontPx: number): (s: string) => number {
  * Nothing from three.js loads before the student taps "open the anatomy lab". Rendered client:only.
  */
 export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Props) {
+  const [phase, setPhase] = useState<Phase>('cover');
+  const [textLimit, setTextLimit] = useState(TEXT_FALLBACK_BATCH);
   const systems = useMemo(() => {
     const wantsFixture = fixture && new URLSearchParams(window.location.search).has('fixture');
-    // The fixture comes first, so the tests open it whatever real systems the build also has.
-    return wantsFixture ? [fixture, ...baseSystems] : baseSystems;
-  }, [baseSystems, fixture]);
-
-  const [phase, setPhase] = useState<Phase>('cover');
-  const [openError, setOpenError] = useState('');
+    // Build the combined catalog after an open attempt, including when 3D fails and students need the text fallback.
+    // It is never duplicated in the unopened page's hydration data. Keep the fixture first.
+    return systemsForView(baseSystems, phase === 'open' || phase === 'error', wantsFixture ? fixture : null);
+  }, [baseSystems, fixture, phase]);
   const [systemKey, setSystemKey] = useState(systems[0]?.key ?? '');
   const [load, setLoad] = useState<SystemLoad>({ state: 'loading' });
+  const [initialRetry, setInitialRetry] = useState(0);
   const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
   const [selected, setSelected] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const [listLimit, setListLimit] = useState(STRUCTURE_PAGE_SIZE);
   const [labelsOn, setLabelsOn] = useState(false);
   const [quiz, setQuiz] = useState<QuizState | null>(null);
   const [transparent, setTransparent] = useState(false);
@@ -155,14 +158,19 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
   const [layerError, setLayerError] = useState<{ layer: string; message: string; retry: () => void } | null>(null);
   const [filesLoaded, setFilesLoaded] = useState(0);
   const generation = useMemo(() => createGeneration(), []);
+  // Every explicit show/hide choice supersedes the visibility effect of earlier downloads.
+  const visibilityIntent = useMemo(() => createGeneration(), []);
   const loaderRef = useRef<OnDemandLoader<LoadResult> | null>(null);
 
+  const fallbackHeadingRef = useRef<HTMLHeadingElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<LabScene | null>(null);
   const colorsRef = useRef<LabColors | null>(null);
   const readColorsRef = useRef<(() => LabColors) | null>(null);
   const pointerRef = useRef<{ id: number; x: number; y: number; moved: boolean } | null>(null);
   const activePointers = useRef(new Set<number>());
+  const nextListFocusId = useRef<string | null>(null);
+  const nextListItemRef = useRef<HTMLLIElement | null>(null);
   const labelIdsRef = useRef<string[]>([]);
   const setPlacedRef = useRef<((labels: OverlayLabel[]) => void) | null>(null);
   const labelNoteRef = useRef('');
@@ -175,15 +183,25 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
   const visible = useMemo(() => found.filter((id) => !hidden.has(id)), [found, hidden]);
   const groups = useMemo(() => groupStructures(system?.structures ?? [], query), [system, query]);
   const shownCount = groups.reduce((n, g) => n + g.items.length, 0);
+  const listedGroups = useMemo(() => visibleStructureGroups(groups, listLimit), [groups, listLimit]);
+  const listedCount = Math.min(shownCount, listLimit);
+  // After expanding, keyboard focus moves to the first new row, even if its 3D file is not loaded yet.
+  useEffect(() => {
+    if (nextListFocusId.current === null) return;
+    nextListItemRef.current?.focus();
+    nextListFocusId.current = null;
+  }, [listLimit]);
   // The whole-body view fetches a layer's model files only when the student gets to it (src/islands/anatomylazy.ts).
   const lazy = system?.key === WHOLE_BODY_KEY && !!system.model.layerFiles;
   const layers = useMemo(
     () => (lazy ? layersOf(system?.structures ?? []) : layersOf(system?.structures ?? [], foundSet)),
     [lazy, system, foundSet],
   );
+  const revealedTarget = revealedQuizTarget(quiz);
   const peelPlan = lazy ? lazyPeel(layers, hidden) : null;
   const toPeel = lazy ? (peelPlan ? peelPlan.show : null) : nextToPeel(layers, hidden);
   const toRestore = lazy ? lazyRestore(layers, hidden) : nextToRestore(layers, hidden);
+  const layerGapNote = system?.key === WHOLE_BODY_KEY ? unavailableLayersNote(system.structures) : null;
   const labelIds = useMemo(
     () => (labelsOn && !quiz ? labelsToShow(visible, selected) : []),
     [labelsOn, quiz, visible, selected],
@@ -248,8 +266,18 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
 
   // ── Open: load three.js and the scene module only now ─────────────────────────────────────────────────────────────
   const open = useCallback(async () => {
+    // Clear stale model and interaction state before showing a retry canvas.
+    // Otherwise a previously loaded structure can appear usable before the new GLB request starts.
+    setLoad({ state: 'loading' });
+    setSelected(null);
+    setQuiz(null);
+    setPending(new Set());
+    setLayerError(null);
+    setFilesLoaded(0);
+    setExporting(null);
+    setExportNote('');
+    setAnnounce('');
     setPhase('opening');
-    setOpenError('');
     try {
       const { createLabScene, readColors } = await import('./anatomyscene');
       // Wait a frame so React has put the canvas on the page (the timeout covers background tabs, which get no frames).
@@ -268,10 +296,10 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
         onRender: () => updateLabelsRef.current(),
       });
       setPhase('open');
-    } catch (err) {
+    } catch {
       sceneRef.current?.dispose();
       sceneRef.current = null;
-      setOpenError(err instanceof Error ? err.message : 'The anatomy lab could not open.');
+      // The original WebGL or network exception may contain internal paths and URLs.
       setPhase('error');
     }
   }, []);
@@ -286,6 +314,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     loaderRef.current?.retire();
     loaderRef.current = null;
     generation.bump();
+    visibilityIntent.bump();
     setExporting(null);
     setExportNote('');
     scene.clear();
@@ -296,27 +325,32 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     setLayerError(null);
     loaderRef.current = null;
     const wholeLayers = system.key === WHOLE_BODY_KEY && system.model.layerFiles ? layersOf(system.structures) : null;
-    const first = wholeLayers ? firstLayer(wholeLayers) : null;
-    const firstFiles = first ? filesForLayer(system, first.id) : [];
-    const lazyStart = first !== null && firstFiles.length > 0;
-    const firstIds = new Set(first?.ids ?? []);
-    // Deeper layers start out hidden and unfetched; the scene only gets the outermost layer's files.
-    setHidden(lazyStart ? new Set(system.structures.filter((s) => !firstIds.has(s.id)).map((s) => s.id)) : new Set());
-    setFilesLoaded(lazyStart ? firstFiles.length : 0);
+    // Files can hold structures in several layers. Map all of their IDs now, while showing only the first layer.
+    const initial = wholeLayers ? initialLayerPlan(system, wholeLayers) : null;
+    setHidden(initial?.hidden ?? new Set());
+    // Do not count an initial GLB as loaded until the scene confirms it has decoded successfully.
+    setFilesLoaded(0);
     scene
-      .load(lazyStart ? firstFiles : (system.model.files ?? system.model.file), lazyStart ? [...firstIds] : system.structures.map((s) => s.id))
+      .load(initial?.files ?? (system.model.files ?? system.model.file), initial?.ids ?? system.structures.map((s) => s.id))
       .then((result) => {
         if (!current || !result) return;
-        if (lazyStart) {
+        if (initial) {
+          // Apply the first-layer visibility before the React ready-state effect runs.
+          scene.setAppearance({ hidden: initial.hidden, selected: null });
           const loader = createOnDemandLoader<LoadResult>((url) => {
-            const ids = layers_idsForFile(system, wholeLayers!, url);
+            const ids = idsForFiles(system, wholeLayers!, [url]);
             return scene.add(url, ids).then((r) => {
               if (!r || !current) throw new Error('The view changed while this layer downloaded.');
               return r;
             });
           });
-          for (const url of firstFiles) loader.markLoaded(url);
+          for (const url of initial.files) loader.markLoaded(url);
           loaderRef.current = loader;
+          // Count actual cached GLBs after the initial lazy batch completes.
+          setFilesLoaded(loader.loadedCount());
+        } else {
+          // The eager path also counts its model files, but only after successful decoding.
+          setFilesLoaded((system.model.files ?? [system.model.file]).length);
         }
         setLoad({ state: 'ready', result });
         setAnnounce(`${system.title}: ${result.found.length} structures loaded.`);
@@ -329,7 +363,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
       current = false;
       loaderRef.current?.retire();
     };
-  }, [phase, system]);
+  }, [phase, system, initialRetry]);
 
   /** Shows a layer, fetching its model files first if the student has not got to it yet; `then` hides another after. */
   const reveal = useCallback(
@@ -337,6 +371,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
       const loader = loaderRef.current;
       if (!system || !loader) return;
       const run = () => {
+        const intent = visibilityIntent.token();
         setLayerError(null);
         setPending((p) => new Set(p).add(layer.id));
         const take = (results: LoadResult[]) => {
@@ -359,29 +394,37 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
           .then((results) => {
             if (loader.isRetired()) return; // the system changed while this layer downloaded
             take(results);
-            setHidden((h) => {
-              const next = new Set(h);
-              for (const id of layer.ids) next.delete(id);
-              if (hideAfter) for (const id of hideAfter.ids) next.add(id);
-              return next;
-            });
-            setAnnounce(hideAfter ? `peeled away ${hideAfter.id}, showing ${layer.id}` : `${layer.id} loaded and shown`);
+            // Geometry and structure counts always update. An older download must not
+            // overwrite a newer "show only this", hide or layer choice.
+            setHidden((h) => visibilityAfterLayerDownload(
+              h, layer.ids, hideAfter?.ids ?? [], visibilityIntent.isCurrent(intent),
+            ));
+            if (visibilityIntent.isCurrent(intent)) {
+              setAnnounce(hideAfter ? `peeled away ${hideAfter.id}, showing ${layer.id}` : `${layer.id} loaded and shown`);
+            }
           })
           .catch((err: unknown) => {
             if (loader.isRetired()) return;
             // Files that did arrive are already in the scene: count them, so their structures are listed and quizzable.
             if (err instanceof PartialLoadError) take(err.results as LoadResult[]);
-            setLayerError({ layer: layer.id, message: err instanceof Error ? err.message : String(err), retry: run });
+            if (visibilityIntent.isCurrent(intent)) {
+              setLayerError({
+                layer: layer.id,
+                message: anatomyFailureMessage('layer', err),
+                retry: () => { visibilityIntent.bump(); run(); },
+              });
+            }
           })
           .finally(() => loader.isRetired() || setPending((p) => new Set([...p].filter((id) => id !== layer.id))));
       };
       run();
     },
-    [system],
+    [system, visibilityIntent],
   );
 
   /** Show every structure; in the lazy whole-body view, layers not fetched yet are fetched, then shown. */
   const showAll = () => {
+    visibilityIntent.bump();
     const loader = loaderRef.current;
     if (!lazy || !system || !loader) {
       setHidden(new Set());
@@ -396,14 +439,61 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     for (const layer of plan.fetch) reveal(layer);
   };
 
+  // Once the correct target is found or revealed, it must remain visible and selected.
+  // A learner can hide a structure before answering, or later hide its whole layer.
+  useEffect(() => {
+    if (!revealedTarget) return;
+    setHidden((current) => {
+      if (!current.has(revealedTarget)) return current;
+      const next = new Set(current);
+      next.delete(revealedTarget);
+      return next;
+    });
+    setSelected((current) => (current === revealedTarget ? current : revealedTarget));
+  }, [revealedTarget, hidden, selected]);
+
   useEffect(() => {
     if (load.state === 'ready') sceneRef.current?.setAppearance({ hidden, selected });
   }, [hidden, selected, load]);
+
+  // Mobile devices may lose their WebGL context after the scene is open.
+  // Retire GPU work immediately, but keep the accessible structure-name catalog available.
+  useEffect(() => {
+    if (phase !== 'open') return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const onContextLost = (event: Event) => {
+      event.preventDefault();
+      activePointers.current.clear();
+      pointerRef.current = null;
+      generation.bump();
+      visibilityIntent.bump();
+      loaderRef.current?.retire();
+      loaderRef.current = null;
+      const lostScene = sceneRef.current;
+      sceneRef.current = null;
+      try {
+        lostScene?.dispose();
+      } catch {
+        // A lost GPU resource may throw during disposal. Text access must still work.
+      }
+      setExporting(null);
+      setExportNote('');
+      setPending(new Set());
+      setLayerError(null);
+      setPhase('error');
+    };
+
+    canvas.addEventListener('webglcontextlost', onContextLost);
+    return () => canvas.removeEventListener('webglcontextlost', onContextLost);
+  }, [phase, generation, visibilityIntent]);
 
   useEffect(() => () => sceneRef.current?.dispose(), []);
 
   useEffect(() => {
     if (phase === 'open') canvasRef.current?.focus();
+    if (phase === 'error') fallbackHeadingRef.current?.focus();
   }, [phase]);
 
   // ── Theme: Daytime / Evening, from the device or the footer's pick ───────────────────────────────────────────────
@@ -457,7 +547,8 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     const p = pointerRef.current;
     pointerRef.current = null;
     if (!p || p.id !== e.pointerId || p.moved) return; // a drag or a pinch turns the view; only a tap picks
-    const id = sceneRef.current?.pick(e.clientX, e.clientY) ?? null;
+    // In quizzes, choose the nearest hit rather than favoring a previous selection.
+    const id = sceneRef.current?.pick(e.clientX, e.clientY, quiz === null) ?? null;
     pickStructure(id);
   };
   const onPointerCancel = (e: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -510,7 +601,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
         labels: ids.map((id) => ({ id, text: names.get(id) ?? id })),
       });
       if (!generation.isCurrent(mine)) return; // the system changed while the picture was drawn
-      const fileName = exportFileName(system.key, selected ? (names.get(selected) ?? null) : null, size);
+      const fileName = exportFileName(system.key, selected && !hidden.has(selected) ? (names.get(selected) ?? null) : null, size);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -522,7 +613,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
       setExportNote([`saved ${fileName}.`, ...labelNotes(names, leftOut, behind.length > 0)].join(' '));
     } catch (err) {
       if (!generation.isCurrent(mine)) return;
-      setExportNote(`could not save the picture: ${err instanceof Error ? err.message : String(err)}`);
+      setExportNote(anatomyFailureMessage('picture', err));
     } finally {
       if (generation.isCurrent(mine)) setExporting(null);
     }
@@ -550,18 +641,110 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
   }
 
   if (phase === 'error') {
+    const rows = textFallbackItems(groups, textLimit);
     return (
-      <div className="rounded-lg bg-surface p-4 text-sm" role="alert">
-        <p>The anatomy lab could not open.</p>
-        {openError && <p className="mt-1 text-ink-soft">{openError}</p>}
+      <div className="space-y-6">
+        <div className="space-y-3 rounded-lg border border-line bg-surface p-4">
+          <div role="alert">
+            <h2 ref={fallbackHeadingRef} tabIndex={-1} className="text-lg text-ink">
+              the 3D anatomy lab could not open.
+            </h2>
+          </div>
+          <p className="text-sm text-ink-soft">you can still search the original structure names below.</p>
+          <div className="flex flex-wrap gap-3">
+            <button type="button" className={secondaryButton} onClick={() => void open()}>try 3D again</button>
+            <a href="/learn" className="inline-flex min-h-11 items-center text-sm underline">browse the lessons</a>
+          </div>
+        </div>
+
+        {systems.length > 1 && (
+          <fieldset className="space-y-2">
+            <legend className="text-sm text-ink-soft">body system</legend>
+            <div className="flex flex-wrap gap-2">
+              {systems.map((choice) => (
+                <button key={choice.key} type="button" className={secondaryButton}
+                  aria-pressed={choice.key === system.key}
+                  onClick={() => { setSystemKey(choice.key); setQuery(''); setTextLimit(TEXT_FALLBACK_BATCH); }}>
+                  {choice.title}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        )}
+
+        <section aria-labelledby="anatomy-text-fallback-heading" className="space-y-3">
+          <h2 id="anatomy-text-fallback-heading" className="text-lg text-ink">structure names: {system.title}</h2>
+          {drafts && system.status === 'draft' && (
+            <p className="rounded-md border border-line px-3 py-2 text-sm text-ink">
+              draft · labels waiting for review
+            </p>
+          )}
+          <p className="text-sm text-ink-soft">{nameSourceFor(system)}</p>
+          <div className="space-y-1 text-sm text-ink-soft" data-testid="anatomy-fallback-attribution">
+            <p>
+              {system.fixture ? (
+                creditFor(system)
+              ) : (
+                <>
+                  {BODYPARTS3D_CREDIT_LEAD}{' '}
+                  <a className="underline" href={BODYPARTS3D_LICENSE_URL} rel="license noopener">
+                    {BODYPARTS3D_LICENSE_NAME}
+                  </a>
+                </>
+              )}
+            </p>
+            <p>{releaseNoteFor(system)}</p>
+          </div>
+          <label className="block text-sm text-ink" htmlFor="anatomy-fallback-search">find a structure</label>
+          <input id="anatomy-fallback-search" type="search" value={query} autoComplete="off"
+            onChange={(event) => { setQuery(event.target.value); setTextLimit(TEXT_FALLBACK_BATCH); }}
+            className="min-h-11 w-full rounded-md border border-control bg-page px-3 text-ink"
+          />
+          <p role="status" className="text-sm text-ink-soft">
+            showing {rows.length} of {shownCount} matching structures
+          </p>
+          {rows.length === 0 ? (
+            <p className="text-sm text-ink-soft">no structure names match this search.</p>
+          ) : (
+            <ul className="space-y-2">
+              {rows.map((item) => (
+                <li key={item.id} className="rounded-md border border-line px-3 py-2 text-sm text-ink">
+                  {item.text}
+                  {item.group && <span className="block text-ink-soft">{item.group}</span>}
+                </li>
+              ))}
+            </ul>
+          )}
+          {rows.length < shownCount && (
+            <button type="button" className={secondaryButton}
+              onClick={() => setTextLimit((limit) => limit + TEXT_FALLBACK_BATCH)}>
+              show {Math.min(TEXT_FALLBACK_BATCH, shownCount - rows.length)} more structures
+            </button>
+          )}
+        </section>
       </div>
     );
   }
 
   const selectedName = selected ? (names.get(selected) ?? selected) : null;
   const selectedGroup = selected ? system.structures.find((s) => s.id === selected)?.group : undefined;
-  const budget = load.state === 'ready' ? checkTriangleBudget(load.result.triangles) : null;
+  const budget = load.state === 'ready' ? anatomyTriangleNote(load.result.triangles, filesLoaded, lazy) : null;
   const ready = load.state === 'ready';
+  // A completed download is not yet part of the found-ID set while a layer batch settles.
+  const fileIntegratedForStatus = (url: string) =>
+    fileReadyForStructureStatus(loaderRef.current?.isLoaded(url) ?? false, pending.size);
+  // Check all eligible model files before reporting a missing structure.
+  const missingCount = !ready
+    ? 0
+    : lazy
+      ? knownMissingStructureIds(
+          system.structures,
+          foundSet,
+          (layerId) => filesForLayer(system, layerId),
+          system.model.files ?? [system.model.file],
+          fileIntegratedForStatus,
+        ).length
+      : load.result.missing.length;
   const targetName = quiz?.target ? (names.get(quiz.target) ?? quiz.target) : null;
 
   return (
@@ -577,7 +760,16 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                 key={s.key}
                 type="button"
                 aria-pressed={s.key === system.key}
-                onClick={() => setSystemKey(s.key)}
+                onClick={() => {
+                  if (s.key === system.key) return;
+                  // Invalidate a pending PNG before React's system-change effect runs.
+                  generation.bump();
+                  nextListFocusId.current = null;
+                  setListLimit(STRUCTURE_PAGE_SIZE);
+                  // A search for one system must not make the next system appear to have no structures.
+                  setQuery('');
+                  setSystemKey(s.key);
+                }}
                 className={secondaryButton}
               >
                 {s.title}
@@ -615,10 +807,11 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
               </div>
             )}
             {load.state === 'error' && (
-              <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-surface p-4" role="alert">
-                <p className="text-sm text-ink">
-                  Could not load {system.title}. <span className="text-ink-soft">{load.message}</span>
-                </p>
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-lg bg-surface p-4 text-center">
+                <p role="alert" className="text-sm text-ink">could not load {system.title}. check the connection and try again.</p>
+                <button type="button" className={secondaryButton} onClick={() => setInitialRetry((count) => count + 1)}>
+                  try loading again
+                </button>
               </div>
             )}
           </div>
@@ -656,9 +849,10 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                     type="button"
                     className={secondaryButton}
                     aria-pressed={layerShown(layer, hidden)}
-                    aria-disabled={pending.has(layer.id) || undefined}
+                    disabled={!ready || pending.has(layer.id)}
                     onClick={() => {
                       if (pending.has(layer.id)) return;
+                      visibilityIntent.bump();
                       if (lazy && layerNeedsReveal(
                         layer, hidden, filesForLayer(system, layer.id), (url) => loaderRef.current?.isLoaded(url) ?? false,
                       )) reveal(layer);
@@ -673,9 +867,10 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                 <button
                   type="button"
                   className={secondaryButton}
-                  disabled={!toPeel}
+                  disabled={!ready || !toPeel || pending.size > 0}
                   onClick={() => {
                     if (!toPeel || pending.size > 0) return;
+                    visibilityIntent.bump();
                     if (peelPlan) {
                       reveal(peelPlan.show, peelPlan.hide);
                       return;
@@ -689,9 +884,10 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                 <button
                   type="button"
                   className={secondaryButton}
-                  disabled={!toRestore}
+                  disabled={!ready || !toRestore || pending.size > 0}
                   onClick={() => {
                     if (!toRestore || pending.size > 0) return;
+                    visibilityIntent.bump();
                     if (lazy) reveal(toRestore);
                     else setHidden((h) => toggleLayer(h, toRestore));
                     setAnnounce(`put back ${toRestore.id}`);
@@ -700,10 +896,9 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                   put a layer back{toRestore ? `: ${toRestore.id}` : ''}
                 </button>
               </div>
-              {system.key === WHOLE_BODY_KEY && missingLayers(system.structures).length > 0 && (
+              {layerGapNote && (
                 <p className="text-sm text-ink-soft" data-testid="anatomy-layer-gaps">
-                  no 3D models yet for {missingLayers(system.structures).join(', ')}: the BodyParts3D release these
-                  models are built from has none.
+                  {layerGapNote}
                 </p>
               )}
               {system.key === WHOLE_BODY_KEY && (
@@ -752,9 +947,11 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
               )}
             </p>
             <p>{releaseNoteFor(system)}</p>
-            {budget && <p className="text-ink">{budget}</p>}
-            {ready && load.result.missing.length > 0 && (
-              <p>{load.result.missing.length} listed structures aren't in this model file.</p>
+            {budget && <p className="text-ink" data-testid="anatomy-budget-note">{budget}</p>}
+            {ready && missingCount > 0 && (
+              <p data-testid="anatomy-missing-count">
+                {missingCount} listed structures were not found in the loaded model files.
+              </p>
             )}
           </div>
 
@@ -764,10 +961,10 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
               {selectedGroup && <p className="text-sm text-ink-soft">{selectedGroup}</p>}
               <p className="mt-1 text-sm text-ink-soft">{nameSourceFor(system)}</p>
               <div className="mt-3 flex flex-wrap gap-2">
-                <button type="button" className={secondaryButton} onClick={() => setHidden(onlyThis(system.structures.map((s) => s.id), selected!))}>
+                <button type="button" className={secondaryButton} onClick={() => { visibilityIntent.bump(); setHidden(onlyThis(system.structures.map((s) => s.id), selected!)); }}>
                   show only this
                 </button>
-                <button type="button" className={secondaryButton} onClick={() => setHidden((h) => toggleHidden(h, selected!))}>
+                <button type="button" className={secondaryButton} onClick={() => { visibilityIntent.bump(); setHidden((h) => toggleHidden(h, selected!)); }}>
                   {hidden.has(selected!) ? 'show it' : 'hide it'}
                 </button>
                 <button type="button" className={secondaryButton} onClick={() => setSelected(null)}>clear selection</button>
@@ -778,7 +975,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
           <section className="space-y-3 rounded-lg border border-line p-4" aria-labelledby="anatomy-quiz-heading">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 id="anatomy-quiz-heading" className="text-lg text-ink">find it</h2>
-              <button type="button" className={secondaryButton} aria-pressed={quiz !== null} disabled={!ready || quizPool.length === 0} onClick={toggleQuiz}>
+              <button type="button" className={secondaryButton} aria-pressed={quiz !== null} disabled={!ready || (quiz === null && quizPool.length === 0)} onClick={toggleQuiz}>
                 {quiz ? 'stop the quiz' : 'start the quiz'}
               </button>
             </div>
@@ -811,6 +1008,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                         className={secondaryButton}
                         disabled={quiz.feedback?.kind === 'shown' || quiz.feedback?.kind === 'right'}
                         onClick={() => {
+                          visibilityIntent.bump();
                           setQuiz(revealQuiz(quiz));
                           setSelected(quiz.target);
                           // The target may have been hidden by the student (or its layer peeled away): put it back.
@@ -823,6 +1021,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                             target,
                             (id) => (lazy && system ? filesForLayer(system, id) : []),
                             (url) => loader?.isLoaded(url) ?? true,
+                            foundSet,
                           );
                           if (plan.fetch) reveal(plan.fetch);
                           else setHidden((h) => {
@@ -838,8 +1037,19 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                         type="button"
                         className={primaryButton}
                         onClick={() => {
+                          visibilityIntent.bump();
+                          const next = nextQuiz(quiz, Math.random);
                           setSelected(null);
-                          setQuiz(nextQuiz(quiz, quizPool, Math.random));
+                          setQuiz(next);
+                          // A learner may have hidden a future target during the round, or an earlier peel may still be finishing.
+                          // Make that target visible before asking them to find it, superseding pending peels.
+                          const target = next.target;
+                          if (target) setHidden((current) => {
+                            if (!current.has(target)) return current;
+                            const shown = new Set(current);
+                            shown.delete(target);
+                            return shown;
+                          });
                         }}
                       >
                         next
@@ -879,15 +1089,21 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
             id="anatomy-search"
             type="search"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              nextListFocusId.current = null;
+              setListLimit(STRUCTURE_PAGE_SIZE);
+              setQuery(e.target.value);
+            }}
             className="min-h-11 w-full rounded-md border border-control bg-page px-3 text-ink"
             autoComplete="off"
           />
           <p className="text-sm text-ink-soft" aria-live="polite">
-            {shownCount === 1 ? '1 structure' : `${shownCount} structures`}
+            {listedCount < shownCount
+              ? `showing ${listedCount} of ${shownCount} structures`
+              : shownCount === 1 ? '1 structure' : `${shownCount} structures`}
           </p>
           <div className="space-y-4">
-            {groups.map((group) => (
+            {listedGroups.map((group) => (
               <div key={group.group ?? '—'}>
                 {group.group && <h3 className="text-sm text-ink-soft">{group.group}</h3>}
                 <ul className="mt-1 space-y-1">
@@ -896,10 +1112,15 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                     const isHidden = hidden.has(item.id);
                     const loadNote = structureLoadNote(
                       item, foundSet, lazy, (id) => filesForLayer(system, id),
-                      system.model.files ?? [], (url) => loaderRef.current?.isLoaded(url) ?? false,
+                      system.model.files ?? [], fileIntegratedForStatus,
                     );
                     return (
-                      <li key={item.id} className="flex items-stretch gap-1">
+                      <li
+                        key={item.id}
+                        ref={nextListFocusId.current === item.id ? nextListItemRef : undefined}
+                        tabIndex={nextListFocusId.current === item.id ? -1 : undefined}
+                        className="flex items-stretch gap-1"
+                      >
                         <button
                           type="button"
                           aria-pressed={selected === item.id}
@@ -915,7 +1136,8 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                           <button
                             type="button"
                             aria-label={`${isHidden ? 'show' : 'hide'} ${item.text}`}
-                            onClick={() => setHidden((h) => toggleHidden(h, item.id))}
+                            disabled={revealedTarget === item.id}
+                            onClick={() => { visibilityIntent.bump(); setHidden((h) => toggleHidden(h, item.id)); }}
                             className="min-h-11 min-w-14 rounded-md border border-line px-2 text-sm text-ink"
                           >
                             {isHidden ? 'show' : 'hide'}
@@ -927,6 +1149,18 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                 </ul>
               </div>
             ))}
+            {listedCount < shownCount && (
+              <button
+                type="button"
+                className={secondaryButton}
+                onClick={() => {
+                  nextListFocusId.current = groups.flatMap((group) => group.items)[listedCount]?.id ?? null;
+                  setListLimit((current) => current + STRUCTURE_PAGE_SIZE);
+                }}
+              >
+                show {Math.min(STRUCTURE_PAGE_SIZE, shownCount - listedCount)} more structures
+              </button>
+            )}
           </div>
         </section>
       </div>

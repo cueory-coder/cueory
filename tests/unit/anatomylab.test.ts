@@ -2,11 +2,13 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   BEHIND_MARK,
+  TEXT_FALLBACK_BATCH,
   BODYPARTS3D_CREDIT,
   EXPORT_PAD,
   EXPORT_SIZES,
   FIT_MARGIN,
   FIXTURE_CREDIT,
+  anatomyFailureMessage,
   answerQuiz,
   creditFor,
   draftsAllowed,
@@ -28,13 +30,16 @@ import {
   onlyThis,
   parseAnatomyFile,
   pictureCreditFor,
+  pickedStructure,
   placeLabels,
   releaseNoteFor,
   pickQuizTarget,
   revealQuiz,
+  revealedQuizTarget,
   slugify,
   startQuiz,
   systemKeyFromPath,
+  textFallbackItems,
   toggleHidden,
   visibleSelection,
   wrapText,
@@ -129,6 +134,29 @@ describe('anatomy files', () => {
     );
     expect(BODYPARTS3D_CREDIT).toContain('BodyParts3D, © The Database Center for Life Science licensed under CC Attribution 4.0 International');
     expect(nameSourceFor(system)).toBe('name from the BodyParts3D parts list');
+  });
+});
+
+describe('safe anatomy recovery messages', () => {
+  it('does not expose raw model URL, network or renderer details after a layer failure', () => {
+    const raw = new Error('Fetch failed at /models/anatomy/private-path.glb: HTTP 500');
+    const message = anatomyFailureMessage('layer', raw);
+    expect(message).toBe('please try this layer again. if it still fails, choose another body system.');
+    expect(message).not.toContain('private-path.glb');
+    expect(message).not.toContain('500');
+  });
+
+  it('does not expose browser stack traces or internal file paths after picture export fails', () => {
+    const raw = { message: '/internal/export-worker.ts failed', stack: 'private internal details' };
+    const message = anatomyFailureMessage('picture', raw);
+    expect(message).toBe('could not save the picture. please try again.');
+    expect(message).not.toContain('internal');
+    expect(message).not.toContain('export-worker');
+  });
+
+  it('works even when the thrown value is missing or not an Error', () => {
+    expect(anatomyFailureMessage('layer', null)).toContain('try this layer again');
+    expect(anatomyFailureMessage('picture', 'raw failure')).not.toContain('raw failure');
   });
 });
 
@@ -264,6 +292,23 @@ describe('the structure list', () => {
     expect(groupStructures(structures, 'nothing like this')).toEqual([]);
   });
 
+  it('keeps the full text-only catalog searchable while showing a bounded first page', () => {
+    const structures = Array.from({ length: TEXT_FALLBACK_BATCH + 3 }, (_, i) => ({
+      id: `TEST${i}`,
+      text: `sample part ${i}`,
+      group: i < TEXT_FALLBACK_BATCH ? 'first group' : 'second group',
+    }));
+    const all = groupStructures(structures);
+    expect(textFallbackItems(all, TEXT_FALLBACK_BATCH).map((item) => item.id)).toEqual(
+      structures.slice(0, TEXT_FALLBACK_BATCH).map((item) => item.id),
+    );
+    expect(textFallbackItems(all, TEXT_FALLBACK_BATCH + 3)).toHaveLength(TEXT_FALLBACK_BATCH + 3);
+    // Searching is performed over every source name before the result window is applied.
+    expect(textFallbackItems(groupStructures(structures, 'part 42'), TEXT_FALLBACK_BATCH).map((item) => item.id)).toEqual(['TEST42']);
+    expect(textFallbackItems(all, 0)).toEqual([]);
+    expect(textFallbackItems(all, Number.NaN)).toEqual([]);
+  });
+
   it('hides, shows and shows only one', () => {
     expect([...toggleHidden(new Set(['A']), 'A')]).toEqual([]);
     expect([...toggleHidden(new Set(), 'A')]).toEqual(['A']);
@@ -284,6 +329,21 @@ describe('the structure list', () => {
     expect(visibleSelection('A', toggleHidden(hiddenFromList, 'A'))).toBe('A');
   });
 
+  it('picks the opaque selected mesh through translucent geometry without biasing other taps', () => {
+    const hits = ['outer-skin', 'inner-organ'];
+    // Ray intersections are ordered nearest first. The selected inner mesh
+    // is still visibly highlighted through the translucent outer skin.
+    expect(pickedStructure(hits, 'inner-organ')).toBe('inner-organ');
+    // A selected structure outside the ray is not sticky.
+    expect(pickedStructure(hits, 'unrelated')).toBe('outer-skin');
+    expect(pickedStructure(hits, null)).toBe('outer-skin');
+    // A hidden selection is never treated as a visible highlight.
+    expect(pickedStructure(hits, visibleSelection('inner-organ', new Set(['inner-organ'])))).toBe('outer-skin');
+    expect(pickedStructure([], 'inner-organ')).toBeNull();
+    // In quiz mode the caller passes null, so the nearest visible mesh wins.
+    expect(pickedStructure(hits, null)).toBe('outer-skin');
+  });
+
   it('labels every visible structure, or only the selected one when there are many', () => {
     expect(labelsToShow(['A', 'B'], null, 3)).toEqual(['A', 'B']);
     expect(labelsToShow(['A', 'B', 'C', 'D'], 'C', 3)).toEqual(['C']);
@@ -300,12 +360,12 @@ describe('the "find it" quiz', () => {
     let state = startQuiz(pool, random);
     const asked = [state.target];
     for (let i = 0; i < pool.length - 1; i++) {
-      state = nextQuiz(answerQuiz(state, state.target!), pool, random);
+      state = nextQuiz(answerQuiz(state, state.target!), random);
       asked.push(state.target);
     }
     expect(new Set(asked).size).toBe(pool.length);
     expect(asked.sort()).toEqual([...pool].sort());
-    state = nextQuiz(answerQuiz(state, state.target!), pool, random);
+    state = nextQuiz(answerQuiz(state, state.target!), random);
     expect(state.target).toBeNull();
     expect(state).toMatchObject({ right: 4, answered: 4 });
   });
@@ -330,21 +390,56 @@ describe('the "find it" quiz', () => {
     expect(answerQuiz(state, 'C')).toBe(state);
   });
 
+  it('protects only a correctly found or revealed quiz answer, not a wrong guess', () => {
+    const state = startQuiz(pool, () => 0); // target A
+    expect(revealedQuizTarget(null)).toBeNull();
+    expect(revealedQuizTarget(state)).toBeNull();
+    expect(revealedQuizTarget(answerQuiz(state, 'B'))).toBeNull();
+    expect(revealedQuizTarget(answerQuiz(state, 'A'))).toBe('A');
+    expect(revealedQuizTarget(revealQuiz(state))).toBe('A');
+    expect(revealedQuizTarget({ target: null, feedback: { kind: 'shown' } })).toBeNull();
+  });
+
   it('"show me" reveals and counts an unanswered question as answered, not right', () => {
     let state = startQuiz(pool, () => 0);
     state = revealQuiz(state);
     expect(state.feedback).toEqual({ kind: 'shown' });
     expect(state).toMatchObject({ right: 0, answered: 1 });
     expect(answerQuiz(state, 'A')).toBe(state);
-    state = nextQuiz(state, pool, () => 0);
+    state = nextQuiz(state, () => 0);
     expect(state.target).toBe('B');
     expect(state.feedback).toBeNull();
   });
 
   it('"next" before answering counts the skipped question once', () => {
     let state = startQuiz(pool, () => 0);
-    state = nextQuiz(state, pool, () => 0);
+    state = nextQuiz(state, () => 0);
     expect(state).toMatchObject({ answered: 1, right: 0, target: 'B' });
+  });
+
+  it('keeps the original round even if a caller later hides or reveals structures', () => {
+    const original = ['A', 'B', 'C'];
+    let state = startQuiz(original, () => 0);
+    original.splice(1, 2, 'D', 'E');
+    expect(state.pool).toEqual(['A', 'B', 'C']);
+    state = nextQuiz(state, () => 0);
+    expect(state.target).toBe('B');
+    state = nextQuiz(state, () => 0);
+    expect(state.target).toBe('C');
+    state = nextQuiz(state, () => 0);
+    expect(state.target).toBeNull();
+    expect(state.asked).toEqual(['A', 'B', 'C']);
+    expect(state.answered).toBe(3);
+  });
+
+  it('does not ask duplicate structure IDs twice within a round', () => {
+    let state = startQuiz(['A', 'A', 'B'], () => 0);
+    expect(state.pool).toEqual(['A', 'B']);
+    expect(state.target).toBe('A');
+    state = nextQuiz(state, () => 0);
+    expect(state.target).toBe('B');
+    state = nextQuiz(state, () => 0);
+    expect(state.target).toBeNull();
   });
 });
 

@@ -12,6 +12,7 @@ import {
   peel,
   restore,
   toggleLayer,
+  unavailableLayersNote,
   wholeBody,
 } from '../../src/islands/anatomylayers';
 
@@ -86,6 +87,48 @@ describe('the whole-body view', () => {
     expect(body.status).toBe('draft');
     expect(body.model.files).toEqual(['/models/anatomy/a.glb', '/models/anatomy/b.glb']);
     expect(body.structures.map((s) => s.id)).toEqual(['x', 'y', 'z']);
+    // Needed for lazy 3D loads: a shared layer may span files, but each file contains only its own IDs.
+    expect(body.model.fileIds).toEqual({
+      '/models/anatomy/a.glb': ['x', 'y'],
+      '/models/anatomy/b.glb': ['y', 'z'],
+    });
+  });
+
+  it('does not blame the source model for layers excluded from an approved-only build', () => {
+    // Production keeps only approved systems. Other layers can still exist in
+    // the source release as drafts but are not published to this lab.
+    const approvedVessels: AnatomySystem = {
+      ...system('vessels', ['v1'], 'approved'),
+      structures: [{ id: 'v1', text: 'sample vessel', layer: 'vessels' }],
+    };
+    const approvedOrgans = system('organs', ['o1'], 'approved');
+    const publishedBody = wholeBody([approvedVessels, approvedOrgans])!;
+    const publishedNote = unavailableLayersNote(publishedBody.structures);
+    expect(publishedNote).toBe(
+      '3D layers not available in this version of the lab: skin, muscle, nerves, skeleton.',
+    );
+    expect(publishedNote).not.toMatch(/bodyparts3d|source|release|has none/i);
+
+    // The same source release can have a draft skin system. On a preview with
+    // that system included, skin must no longer be listed as unavailable.
+    const draftSkin: AnatomySystem = {
+      ...system('skin', ['s1']),
+      structures: [{ id: 's1', text: 'sample skin', layer: 'skin' }],
+    };
+    const previewBody = wholeBody([approvedVessels, approvedOrgans, draftSkin])!;
+    expect(unavailableLayersNote(previewBody.structures)).toBe(
+      '3D layers not available in this version of the lab: muscle, nerves, skeleton.',
+    );
+    expect(previewBody.status).toBe('draft');
+    expect(publishedBody.status).toBe('approved');
+  });
+
+  it('omits the unavailable-layer note when every layer is present or labels have no layer', () => {
+    expect(unavailableLayersNote(
+      LAYERS.map((layer) => ({ id: layer, text: `sample ${layer}`, layer })),
+    )).toBeNull();
+    expect(unavailableLayersNote([{ id: 'x', text: 'unlayered sample' }])).toBeNull();
+    expect(unavailableLayersNote([])).toBeNull();
   });
 
   it('needs two systems of one release, and leaves the test fixture out', () => {
