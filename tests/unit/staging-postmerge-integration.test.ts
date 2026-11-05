@@ -33,7 +33,10 @@ describe('integrated staging after legal and security merges', () => {
     ];
     for (const mode of ['prelaunch', 'launched'] as const) {
       for (const file of sensitive) expect(isHeldPath(file, mode), file).toBe(true);
-      expect(isHeldPath('src/islands/anatomylab.ts', mode)).toBe(false);
+      // Anatomy build-time draft selection now requires founder approval.
+      expect(isHeldPath('src/islands/anatomylab.ts', mode)).toBe(true);
+      // Unrelated study UI stays eligible for the ordinary review path.
+      expect(isHeldPath('src/islands/cards.ts', mode)).toBe(false);
     }
   });
 
