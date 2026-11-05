@@ -181,7 +181,9 @@ export interface ImportClient {
   from(table: 'review_state' | 'exam_plans'): {
     insert(rows: GuestImportRow[] | ExamPlanRow): PromiseLike<{ error: { code?: string; message?: string } | null }>;
     update(patch: { exam_date: string }): {
-      match(filter: { course: string; user_id: string }): PromiseLike<{ error: { code?: string; message?: string } | null }>;
+      match(filter: { course: string; user_id: string }): {
+        select(columns: 'user_id'): PromiseLike<{ data: { user_id: string }[] | null; error: { code?: string; message?: string } | null }>;
+      };
     };
   };
 }
@@ -210,8 +212,15 @@ export function plansDbFrom(client: ImportClient, userId: string): LegacyExamPla
       // Bound to the account that accepted the offer as well as the course (Codex P1 on #231): if another tab switched
       // accounts while the insert was in flight, row-level security now limits the update to the new account's row,
       // and the user_id filter makes it match nothing, so the import can never change another account's plan.
-      const updated = await client.from(table).update({ exam_date: row.exam_date }).match({ course: row.course, user_id: userId });
-      return { error: updated.error ?? null };
+      const updated = await client.from(table).update({ exam_date: row.exam_date })
+        .match({ course: row.course, user_id: userId }).select('user_id');
+      if (updated.error) return { error: updated.error };
+      // PostgREST can return no error when RLS prevents the UPDATE from touching any row.
+      // Do not report success, or mark this account's import complete, unless one owned row changed.
+      if (updated.data?.length !== 1 || updated.data[0]?.user_id !== userId) {
+        return { error: { code: '42501' } };
+      }
+      return { error: null };
     },
   };
 }
