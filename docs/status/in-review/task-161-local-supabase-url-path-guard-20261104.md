@@ -1,0 +1,1 @@
+status: Task 161 follow-up: reject local Supabase URLs containing a path, query string, or fragment, matching the documented hosted origin-only rule. Add three synthetic unit regressions; no keys, hosting, database schema, authentication policy, or production configuration changed.
