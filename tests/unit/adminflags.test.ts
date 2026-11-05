@@ -5,15 +5,15 @@ import {
   formatWhen,
   groupLabel,
   handledTime,
-  isRefusal,
   isSitePath,
   loadView,
   makeMarker,
   makeMemoryAdapter,
-  makeRpcAdapter,
+  makeReopener,
   parseFlagRow,
   parseFlagRows,
   withHandled,
+  withReopened,
   type AdminFlagsAdapter,
   type FlagRow,
 } from '../../src/islands/adminflags';
@@ -49,7 +49,7 @@ describe('the refusal', () => {
   });
 
   it('carries no rows or counts', async () => {
-    const view = await loadView({ loadFlags: async () => ({ kind: 'refused' }), markHandled: async () => ({ kind: 'refused' }) }, 'open');
+    const view = await loadView({ loadFlags: async () => ({ kind: 'refused' }), markHandled: async () => ({ kind: 'refused' }), reopen: UNWIRED_ADAPTER.reopen }, 'open');
     expect(Object.keys(view)).toEqual(['kind']);
   });
 });
@@ -114,21 +114,21 @@ describe('loading one filter', () => {
   });
 
   it('keeps to the filter even if the adapter sends the other kind too', async () => {
-    const leaky: AdminFlagsAdapter = { loadFlags: async () => ({ kind: 'ok', value: rows }), markHandled: async () => ({ kind: 'failed' }) };
+    const leaky: AdminFlagsAdapter = { loadFlags: async () => ({ kind: 'ok', value: rows }), markHandled: async () => ({ kind: 'failed' }), reopen: async () => ({ kind: 'failed' }) };
     const view = await loadView(leaky, 'open');
     expect(view.kind === 'ok' && view.rows.every((r) => r.status === 'open')).toBe(true);
   });
 
   it('asks the adapter for the status being shown', async () => {
     const loadFlags = vi.fn(async () => ({ kind: 'ok' as const, value: [] }));
-    await loadView({ loadFlags, markHandled: async () => ({ kind: 'failed' }) }, 'handled');
+    await loadView({ loadFlags, markHandled: async () => ({ kind: 'failed' }), reopen: async () => ({ kind: 'failed' }) }, 'handled');
     expect(loadFlags).toHaveBeenCalledWith('handled');
   });
 
   it('treats a thrown error or bad rows as "could not load", never as rows', async () => {
-    const throws: AdminFlagsAdapter = { loadFlags: async () => { throw new Error('offline'); }, markHandled: async () => ({ kind: 'failed' }) };
+    const throws: AdminFlagsAdapter = { loadFlags: async () => { throw new Error('offline'); }, markHandled: async () => ({ kind: 'failed' }), reopen: async () => ({ kind: 'failed' }) };
     expect(await loadView(throws, 'open')).toEqual({ kind: 'failed' });
-    const bad: AdminFlagsAdapter = { loadFlags: async () => ({ kind: 'ok', value: [{ id: 'x' }] }), markHandled: async () => ({ kind: 'failed' }) };
+    const bad: AdminFlagsAdapter = { loadFlags: async () => ({ kind: 'ok', value: [{ id: 'x' }] }), markHandled: async () => ({ kind: 'failed' }), reopen: async () => ({ kind: 'failed' }) };
     expect(await loadView(bad, 'open')).toEqual({ kind: 'failed' });
   });
 
@@ -146,7 +146,7 @@ describe('mark handled', () => {
   it('calls the database once, even when pressed twice quickly', async () => {
     let finish!: (v: { kind: 'ok'; value: unknown }) => void;
     const markHandled = vi.fn(() => new Promise<{ kind: 'ok'; value: unknown }>((resolve) => { finish = resolve; }));
-    const mark = makeMarker({ loadFlags: async () => ({ kind: 'refused' }), markHandled }, () => new Date('2026-11-02T10:00:00Z'));
+    const mark = makeMarker({ loadFlags: async () => ({ kind: 'refused' }), markHandled, reopen: UNWIRED_ADAPTER.reopen }, () => new Date('2026-11-02T10:00:00Z'));
     const first = mark(id(1));
     const second = mark(id(1));
     finish({ kind: 'ok', value: null });
@@ -158,14 +158,14 @@ describe('mark handled', () => {
 
   it('allows a new try after a failure', async () => {
     const markHandled = vi.fn(async () => ({ kind: 'failed' as const }));
-    const mark = makeMarker({ loadFlags: async () => ({ kind: 'refused' }), markHandled });
+    const mark = makeMarker({ loadFlags: async () => ({ kind: 'refused' }), markHandled, reopen: UNWIRED_ADAPTER.reopen });
     expect(await mark(id(1))).toEqual({ kind: 'failed' });
     expect(await mark(id(1))).toEqual({ kind: 'failed' });
     expect(markHandled).toHaveBeenCalledTimes(2);
   });
 
   it('turns a thrown error into a failure and a refusal into a refusal', async () => {
-    const throws = makeMarker({ loadFlags: async () => ({ kind: 'refused' }), markHandled: async () => { throw new Error('x'); } });
+    const throws = makeMarker({ loadFlags: async () => ({ kind: 'refused' }), markHandled: async () => { throw new Error('x'); }, reopen: UNWIRED_ADAPTER.reopen });
     expect(await throws(id(1))).toEqual({ kind: 'failed' });
     expect(await makeMarker(UNWIRED_ADAPTER)(id(1))).toEqual({ kind: 'refused' });
   });
@@ -191,37 +191,56 @@ describe('mark handled', () => {
     await makeMarker(adapter)(id(1));
     const handled = await loadView(adapter, 'handled');
     expect(handled.kind === 'ok' && handled.rows.map((r) => [r.id, r.handled_at])).toEqual([[id(1), '2026-11-02T10:00:00.000Z']]);
-    expect(await loadView(adapter, 'open')).toEqual({ kind: 'ok', rows: [] });
+    expect(await loadView(adapter, 'open')).toEqual({ kind: 'ok', rows: [], complete: true });
   });
 });
 
-describe('the adapter over the database functions (not wired yet)', () => {
-  it("calls Task 65's two functions by name", async () => {
-    const rpc = vi.fn(async () => ({ data: [], error: null }));
-    const adapter = makeRpcAdapter(rpc);
-    await adapter.loadFlags('handled');
-    await adapter.markHandled(id(1));
-    expect(rpc.mock.calls).toEqual([
-      ['admin_list_flags', { status: 'handled' }],
-      ['admin_mark_flag_handled', { flag_id: id(1) }],
-    ]);
+describe('a list cut off at the cap (Task 305)', () => {
+  const adapter = (complete?: boolean): AdminFlagsAdapter => ({
+    loadFlags: async () => ({ kind: 'ok', value: [row(1)], ...(complete === undefined ? {} : { complete }) }),
+    markHandled: async () => ({ kind: 'failed' }), reopen: async () => ({ kind: 'failed' }),
+  });
+  it('is reported by the view, and a plain outcome counts as complete', async () => {
+    expect(await loadView(adapter(false), 'open')).toMatchObject({ kind: 'ok', complete: false });
+    expect(await loadView(adapter(true), 'open')).toMatchObject({ kind: 'ok', complete: true });
+    expect(await loadView(adapter(), 'open')).toMatchObject({ kind: 'ok', complete: true });
+  });
+});
+
+describe('reopen (Task 305)', () => {
+  const refuseAll = { loadFlags: async () => ({ kind: 'refused' as const }), markHandled: async () => ({ kind: 'refused' as const }) };
+
+  it('calls the database once, even when pressed twice quickly', async () => {
+    let finish!: (v: { kind: 'ok'; value: unknown }) => void;
+    const reopen = vi.fn(() => new Promise<{ kind: 'ok'; value: unknown }>((resolve) => { finish = resolve; }));
+    const run = makeReopener({ ...refuseAll, reopen });
+    const first = run(id(1));
+    const second = run(id(1));
+    finish({ kind: 'ok', value: null });
+    expect(await first).toEqual({ kind: 'ok' });
+    expect(await second).toEqual({ kind: 'ok' });
+    expect(reopen).toHaveBeenCalledTimes(1);
   });
 
-  it('never sends a flag id that is not a uuid', async () => {
-    const rpc = vi.fn(async () => ({ data: null, error: null }));
-    expect(await makeRpcAdapter(rpc).markHandled('1; drop table')).toEqual({ kind: 'failed' });
-    expect(rpc).not.toHaveBeenCalled();
+  it('turns a thrown error into a failure and a refusal into a refusal', async () => {
+    expect(await makeReopener({ ...refuseAll, reopen: async () => { throw new Error('x'); } })(id(1))).toEqual({ kind: 'failed' });
+    expect(await makeReopener(UNWIRED_ADAPTER)(id(1))).toEqual({ kind: 'refused' });
   });
 
-  it('reads "not allowed" errors as a refusal and anything else as a failure', async () => {
-    for (const error of [{ code: '28000' }, { code: '42501' }, { code: 'PGRST301' }, { status: 401 }, { status: 403 }]) {
-      expect(isRefusal(error)).toBe(true);
-      expect(await makeRpcAdapter(async () => ({ data: null, error })).loadFlags('open')).toEqual({ kind: 'refused' });
-    }
-    for (const error of [{ code: '22023' }, { code: '08006' }, { message: 'network' }]) {
-      expect(isRefusal(error)).toBe(false);
-      expect(await makeRpcAdapter(async () => ({ data: null, error })).loadFlags('open')).toEqual({ kind: 'failed' });
-    }
+  it('opens just that row again, with no handled time', () => {
+    const rows = [row(1), row(2, { status: 'handled', handled_at: '2026-11-02T10:00:00Z' })];
+    const next = withReopened(rows, id(2));
+    expect(next[0]).toBe(rows[0]);
+    expect(next[1]).toEqual({ ...rows[1], status: 'open', handled_at: null });
+    expect(rows[1]!.status).toBe('handled');
+  });
+
+  it('the in-browser sample moves a reopened row back to open', async () => {
+    const adapter = makeMemoryAdapter([row(1, { status: 'handled', handled_at: '2026-11-02T10:00:00Z' })]);
+    expect(await makeReopener(adapter)(id(1))).toEqual({ kind: 'ok' });
+    const open = await loadView(adapter, 'open');
+    expect(open.kind === 'ok' && open.rows.map((r) => [r.id, r.status, r.handled_at])).toEqual([[id(1), 'open', null]]);
+    expect(await makeReopener(adapter)(id(9))).toEqual({ kind: 'failed' });
   });
 });
 

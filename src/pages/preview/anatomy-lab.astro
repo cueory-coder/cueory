@@ -43,18 +43,16 @@ const hasSystems = systems.length > 0 || lab.fixture !== null;
 
     {
       hasSystems ? (
-        <AnatomyLab client:only="react" systems={systems} fixture={lab.fixture} drafts={lab.drafts} />
+        <>
+          <AnatomyLab client:only="react" systems={systems} fixture={lab.fixture} drafts={lab.drafts} />
+          <noscript>
+            <p class="rounded-lg border border-line p-4 text-ink">
+              the 3D anatomy lab needs javascript. <a href="/preview/anatomy-text" class="underline">read structure names without JavaScript</a>, or <a href="/learn" class="underline">browse lessons</a> instead.
+            </p>
+          </noscript>
+        </>
       ) : (
         <p class="rounded-lg border border-line p-4 text-ink">the anatomy lab is coming soon.</p>
-      )
-    }
-    {
-      hasSystems && (
-        <noscript>
-          <p class="rounded-lg border border-line p-4 text-ink">
-            The 3D view needs JavaScript. <a class="underline" href="/preview/anatomy-text">read structure names without JavaScript</a>.
-          </p>
-        </noscript>
       )
     }
   </div>
