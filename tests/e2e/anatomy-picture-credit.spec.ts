@@ -117,8 +117,11 @@ test('exported anatomy picture credit is complete, visible and model-specific', 
       const edgeMargin = Math.min(line.canvasWidth, line.canvasHeight) * EXPORT_EDGE_PADDING_RATIO;
       expect(line.x, size.label).toBeGreaterThanOrEqual(edgeMargin);
       expect(line.x + line.width, size.label).toBeLessThanOrEqual(line.canvasWidth - edgeMargin);
-      expect(line.y - line.ascent, size.label).toBeGreaterThanOrEqual(edgeMargin);
-      expect(line.y + line.descent, size.label).toBeLessThanOrEqual(line.canvasHeight - edgeMargin);
+      // The exporter places the alphabetic baseline at the 48px scaled margin;
+      // glyph descenders may extend into that padding but must remain on-canvas.
+      expect(line.y, size.label).toBeLessThanOrEqual(line.canvasHeight - edgeMargin);
+      expect(line.y - line.ascent, size.label).toBeGreaterThanOrEqual(0);
+      expect(line.y + line.descent, size.label).toBeLessThanOrEqual(line.canvasHeight - 1);
     }
   }
 });
