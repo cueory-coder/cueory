@@ -32,7 +32,7 @@ function pull(over: Partial<PullRequest> = {}): PullRequest {
     title: 'Cards: a thing',
     user: { login: 'lilchristxan' },
     mergeable: true,
-    base: { ref: 'staging' },
+    base: { ref: 'staging', sha: 'staging-original' },
     head: { sha: HEAD, ref: 'task-4/thing', repo: { full_name: REPO } },
     labels: [],
     ...over,
@@ -45,6 +45,11 @@ const run = (name: string, conclusion: string | null = 'success', status = 'comp
   name,
   status,
   conclusion,
+  app: {
+    slug: name === 'CodeQL'
+      ? 'github-advanced-security'
+      : name === 'Workers Builds: cueory' ? 'cloudflare-workers-and-pages' : 'github-actions',
+  },
 });
 const greenChecks = () => [...REQUIRED_CHECKS.map((n) => run(n)), run('Analyze (actions)', 'skipped')];
 
@@ -332,6 +337,60 @@ describe('checks', () => {
     expect(checkProblems(greenChecks())).toEqual([]);
   });
 
+  it('refuses missing, running, skipped, neutral and failed CodeQL security verdicts', () => {
+    const withoutCodeQL = greenChecks().filter((check) => check.name !== 'CodeQL');
+    // A successful CodeQL Actions job does not establish a successful Advanced Security verdict.
+    const analysisPassed = [...withoutCodeQL, run('Analyze (javascript-typescript)'), run('Analyze (actions)')];
+    expect(checkProblems(analysisPassed)).toEqual(['"CodeQL" hasn\'t reported yet']);
+    expect(decide(input({ checks: analysisPassed })).action).toBe('wait');
+
+    const stillRunning = [...analysisPassed, run('CodeQL', null, 'in_progress')];
+    expect(checkProblems(stillRunning)).toEqual(['"CodeQL" is still running']);
+    expect(decide(input({ checks: stillRunning })).action).toBe('wait');
+
+    for (const conclusion of ['failure', 'skipped', 'neutral']) {
+      const checks = [...analysisPassed, run('CodeQL', conclusion)];
+      expect(checkProblems(checks)).toEqual([`"CodeQL" ended as ${conclusion}`]);
+      expect(decide(input({ checks })).action).toBe('wait');
+    }
+
+    const cleared = [...analysisPassed, run('CodeQL', 'success')];
+    expect(checkProblems(cleared)).toEqual([]);
+    expect(decide(input({ checks: cleared })).action).toBe('merge');
+  });
+
+  it('rejects a green CodeQL-named check that was not issued by GitHub Advanced Security', () => {
+    const otherChecks = greenChecks().filter((check) => check.name !== 'CodeQL');
+    for (const app of [undefined, { slug: 'github-actions' }, { slug: 'some-other-app' }]) {
+      const checks = [...otherChecks, { ...run('CodeQL'), app }];
+      expect(checkProblems(checks)).toEqual(['"CodeQL" was not published by its trusted GitHub app']);
+      expect(decide(input({ checks })).action).toBe('wait');
+    }
+  });
+
+  it('rejects impersonated successful CI, Semgrep, secret scan and Workers checks', () => {
+    for (const name of [
+      'Type check, build and test',
+      'Scan for leaked secrets',
+      'Scan code for security issues (Semgrep)',
+      'Workers Builds: cueory',
+    ]) {
+      const without = greenChecks().filter((check) => check.name !== name);
+      const expected = [`"${name}" was not published by its trusted GitHub app`];
+      for (const app of [undefined, { slug: 'github-advanced-security' }, { slug: 'unrelated-app' }]) {
+        const checks = [...without, { ...run(name), app }];
+        expect(checkProblems(checks)).toEqual(expected);
+        expect(decide(input({ checks })).action).toBe('wait');
+      }
+    }
+  });
+
+  it('refuses a later impersonated success even after a genuine required check passed', () => {
+    const checks = [...greenChecks(), { ...run('Workers Builds: cueory'), app: { slug: 'unrelated-app' } }];
+    expect(checkProblems(checks)).toEqual(['"Workers Builds: cueory" was not published by its trusted GitHub app']);
+    expect(decide(input({ checks })).action).toBe('wait');
+  });
+
   it('waits for a required check that is missing or still running', () => {
     const checks = greenChecks().filter((c) => c.name !== 'Workers Builds: cueory');
     expect(checkProblems(checks)).toEqual(['"Workers Builds: cueory" hasn\'t reported yet']);
@@ -346,6 +405,12 @@ describe('checks', () => {
     ]);
     expect(checkProblems([...greenChecks(), run('Something else', 'cancelled')])).toEqual([
       '"Something else" ended as cancelled',
+    ]);
+  });
+
+  it('blocks on a failed part of the browser tests, which is not itself a required check (Task 308)', () => {
+    expect(checkProblems([...greenChecks(), run('Browser tests, part 2', 'failure')])).toEqual([
+      '"Browser tests, part 2" ended as failure',
     ]);
   });
 
@@ -478,6 +543,8 @@ function fakeGitHub(
     later = undefined as Partial<PullRequest> | undefined,
     /** File texts by "ref:path", for GET /contents. */
     contents = {} as Record<string, string>,
+    /** Number of staging commits missing from the checked PR head. */
+    behind = 0,
   } = {},
 ) {
   const seen = new Map<number, number>();
@@ -497,6 +564,7 @@ function fakeGitHub(
     }
     if (method === 'GET' && (m = path.match(/^\/pulls\/(\d+)\/files$/))) return json(pr(m[1]!)!.files.map((filename) => ({ filename })));
     if (method === 'GET' && path.startsWith('/commits/')) return json({ total_count: 5, check_runs: greenChecks() });
+    if (method === 'GET' && path.startsWith('/compare/')) return json({ behind_by: behind });
     if (method === 'GET' && (m = path.match(/^\/contents\/(.+)\?ref=(.+)$/))) {
       const text = contents[`${decodeURIComponent(m[2]!)}:${decodeURIComponent(m[1]!)}`];
       if (text === undefined) return json({ message: 'Not Found' }, 404);
@@ -556,7 +624,7 @@ describe('the auto-merge run', () => {
     const before = JSON.stringify({ devDependencies: { typescript: '^6.0.3' } });
     const { gh, calls } = fakeGitHub(
       { 7: { pr: pull(), files: ['package.json', 'package-lock.json'] } },
-      { contents: { 'staging:package.json': before, [`${HEAD}:package.json`]: before.replace('^6.0.3', '^7.0.2') } },
+      { contents: { 'staging-original:package.json': before, [`${HEAD}:package.json`]: before.replace('^6.0.3', '^7.0.2') } },
     );
     const outcomes = await runAutomerge({ gh, repo: REPO, mode: 'prelaunch', dryRun: false, log: () => {} });
     expect(outcomes[0]!.done).toBe('labelled');
@@ -596,6 +664,36 @@ describe('the auto-merge run', () => {
     expect(outcomes[0]!.done).toBe('merge refused');
     expect(outcomes[0]!.decision.reasons.at(-1)).toContain('into main');
     expect(calls.filter((c) => c.method !== 'GET')).toEqual([]);
+  });
+
+  it('refuses a stale PR head even if both PR snapshots report the same base SHA', async () => {
+    const { gh, calls } = fakeGitHub({ 7: { pr: pull(), files: ['src/x.ts'] } }, { behind: 2 });
+    const outcomes = await runAutomerge({ gh, repo: REPO, mode: 'launched', dryRun: false, log: () => {} });
+    expect(outcomes[0]!.done).toBe('merge refused');
+    expect(outcomes[0]!.decision.reasons.at(-1)).toContain('not an ancestor');
+    expect(calls.some((c) => c.method === 'GET' && c.path === `/compare/staging...${HEAD}`)).toBe(true);
+    expect(calls.filter((c) => c.method !== 'GET')).toEqual([]);
+
+    const dry = fakeGitHub({ 7: { pr: pull(), files: ['src/x.ts'] } }, { behind: 1 });
+    const reported = await runAutomerge({ gh: dry.gh, repo: REPO, mode: 'launched', dryRun: true, log: () => {} });
+    expect(reported[0]!.done).toBe('merge refused');
+  });
+
+  it('refuses to merge if staging advances after the original checks were collected', async () => {
+    const { gh, calls } = fakeGitHub(
+      { 7: { pr: pull(), files: ['src/x.ts'] } },
+      { later: { base: { ref: 'staging', sha: 'staging-new' } } },
+    );
+    const outcomes = await runAutomerge({ gh, repo: REPO, mode: 'launched', dryRun: false, log: () => {} });
+    expect(outcomes[0]!.done).toBe('merge refused');
+    expect(outcomes[0]!.decision.reasons.at(-1)).toContain('staging changed');
+    expect(calls.filter((c) => c.method !== 'GET')).toEqual([]);
+  });
+
+  it('refuses to judge a merge when its staging base SHA is unknown', () => {
+    const decision = decide(input({ pr: pull({ base: { ref: 'staging' } }) }));
+    expect(decision.action).toBe('wait');
+    expect(decision.reasons).toContain('cannot verify the staging base commit');
   });
 
   it('stops if someone labelled it needs-christian while it was being checked', async () => {
