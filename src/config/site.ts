@@ -54,6 +54,8 @@ export const socials = [
 ] as const;
 
 export const footerLinks = [
+  { href: '/courses', label: 'courses' },
+  { href: '/coming-soon', label: 'coming soon' },
   { href: '/privacy', label: 'privacy' },
   { href: '/terms', label: 'terms' },
   { href: '/disclaimer', label: 'disclaimer' },
@@ -80,6 +82,7 @@ export const accountHref = accountLaunch(accountsOpen).accountHref;
  */
 export const menuLinks = [
   { href: '/', label: 'home' },
+  { href: '/courses', label: 'courses' },
   { href: '/#ways-to-study', label: 'ways to study' },
   { href: '/learn/study-skills', label: 'lessons' },
   { href: '/play', label: 'daily games' },

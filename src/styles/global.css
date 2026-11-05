@@ -764,6 +764,9 @@ html:has(dialog.menu-panel[open]) {
 */
 @layer components {
   .modes {
+    /* The projected carousel vials must not widen the document at 200% text zoom.
+       Keep vertical hover motion and the no-JavaScript row's own scrolling. */
+    overflow-x: clip;
     --vial-width: clamp(calc(var(--spacing) * 30), 13vw, calc(var(--spacing) * 40)); /* 120 to 160 px */
     --vial-ratio: 2.111;                              /* the bottle images are 225 × 475 */
     --vial-stand: calc(var(--spacing) * 21.5);        /* 86 px: how high above the stage's foot the vials stand */
@@ -1928,6 +1931,8 @@ html:has(dialog.mode-preview[open]) {
 @layer components {
   .segmented {
     display: inline-flex;
+    flex-wrap: wrap;
+    max-inline-size: 100%;
     align-items: center;
     padding: var(--segmented-inset);
     border: 1px solid var(--color-control);
