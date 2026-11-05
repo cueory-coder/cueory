@@ -18,7 +18,8 @@ describe('CI workflow', () => {
     expect(REQUIRED_CHECKS).toContain('Type check, build and test');
     const verify = job('verify');
     expect(verify).toContain('name: Type check, build and test');
-    expect(verify).toContain('needs: [checks, browser]');
+    expect(verify).toContain('needs: [checks, browser, engines]');
+    expect(verify).toContain('if [ "$MAIN_RELEASE_PR" = "true" ] && [ "$ENGINES" != "success" ]; then');
     // It must run (and fail) when a part failed, so it can't use the default success() condition.
     expect(verify).toContain('!cancelled()');
     expect(verify).toContain('if [ "$CHECKS" != "success" ]; then');
