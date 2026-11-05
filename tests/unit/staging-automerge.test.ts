@@ -112,6 +112,10 @@ describe('held paths', () => {
     'content/README.md',
     'supabase/migrations/001.sql',
     'wrangler.jsonc',
+    'src/config/site.ts',
+    'src/components/AccountCorner.astro',
+    'src/components/SignupForm.astro',
+    'src/scripts/accountcorner.ts',
   ];
   const launchedOnly = [
     'public/_headers',
@@ -121,7 +125,6 @@ describe('held paths', () => {
     'package.json',
     'package-lock.json',
     '.node-version',
-    'src/config/site.ts',
     'tools/extra/package.json',
   ];
   const never = ['src/islands/cards.ts', 'docs/STATUS.md', 'tests/unit/x.test.ts', 'public/favicon.svg', 'scripts/check_batch.ts'];

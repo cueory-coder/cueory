@@ -67,6 +67,11 @@ const ALWAYS_HELD_FILES = new Set([
   'AGENTS.md',
   'SECURITY.md',
   'wrangler.jsonc',
+  // Account session/menu and newsletter form code are security-sensitive even before launch.
+  'src/config/site.ts',
+  'src/components/AccountCorner.astro',
+  'src/components/SignupForm.astro',
+  'src/scripts/accountcorner.ts',
 ]);
 
 /**
@@ -102,7 +107,7 @@ function isSensitiveAuthSource(path: string): boolean {
  * the newsletter form settings (AGENTS.md sensitive areas).
  */
 const LAUNCHED_HELD_PREFIXES = ['brand-source/', 'public/brand/'];
-const LAUNCHED_HELD_FILES = new Set(['public/_headers', 'astro.config.mjs', '.node-version', 'src/config/site.ts']);
+const LAUNCHED_HELD_FILES = new Set(['public/_headers', 'astro.config.mjs', '.node-version']);
 /** A dependency list anywhere in the tree counts, not just the root one. */
 const LAUNCHED_HELD_BASENAMES = new Set(['package.json', 'package-lock.json']);
 
