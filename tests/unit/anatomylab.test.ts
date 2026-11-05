@@ -322,6 +322,20 @@ describe('the structure list', () => {
     expect(groupStructures(structures, 'nothing like this')).toEqual([]);
   });
 
+  it('finds source IDs without changing the original name-prefix matching', () => {
+    const source = [
+      { id: 'FMA7204', text: 'Left ventricle', group: 'heart' },
+      { id: 'FMA7205', text: 'Right ventricle', group: 'heart' },
+      { id: 'FMA100', text: 'Aorta', group: 'vessels' },
+    ];
+    expect(groupStructures(source, 'fma7204').flatMap((g) => g.items.map((s) => s.id))).toEqual(['FMA7204']);
+    expect(groupStructures(source, 'FMA720').flatMap((g) => g.items.map((s) => s.id))).toEqual(['FMA7204', 'FMA7205']);
+    expect(groupStructures(source, 'left vent').flatMap((g) => g.items.map((s) => s.id))).toEqual(['FMA7204']);
+    expect(groupStructures(source, '7204')).toEqual([]);
+    expect(groupStructures(source, 'FMA999')).toEqual([]);
+    expect(groupStructures(source, '').flatMap((g) => g.items)).toHaveLength(3);
+  });
+
   it('keeps the full text-only catalog searchable while showing a bounded first page', () => {
     const structures = Array.from({ length: TEXT_FALLBACK_BATCH + 3 }, (_, i) => ({
       id: `TEST${i}`,
