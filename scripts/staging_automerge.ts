@@ -129,6 +129,8 @@ export async function runAutomerge({
         const now = await gh.pull(n);
         if (now.state !== 'open' || now.head.sha !== decision.codexRetry.headSha) {
           decision.reasons.push('new commit arrived; no retry asked for the old head');
+        } else if (now.labels.some((l) => l.name === NEEDS_CHRISTIAN_LABEL)) {
+          decision.reasons.push(`labelled ${NEEDS_CHRISTIAN_LABEL} while it was being checked; no retry asked`);
         } else {
           await gh.createComment(n, codexRetryComment(decision.codexRetry.headSha));
           done = 'codex retry asked';

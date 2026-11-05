@@ -920,6 +920,16 @@ describe('the auto-merge run', () => {
     expect(calls.filter((c) => c.method !== 'GET')).toEqual([]);
   });
 
+  it('does not ask Codex to retry if the PR was labelled needs-christian meanwhile (Task 39)', async () => {
+    const { gh, calls } = fakeGitHub(
+      { 7: { pr: pull(), files: ['src/x.ts'] } },
+      { comments: [codexComment(failed())], later: { labels: [{ name: 'needs-christian' }] } },
+    );
+    const outcomes = await runAutomerge({ gh, repo: REPO, mode: 'prelaunch', dryRun: false, log: () => {} });
+    expect(outcomes[0]!.done).toBe('nothing');
+    expect(calls.filter((c) => c.method !== 'GET')).toEqual([]);
+  });
+
   it('asks Codex to retry a failed review with one comment, merges nothing, and only reports in a dry run (Task 39)', async () => {
     const one = { 7: { pr: pull(), files: ['src/x.ts'] } };
     const { gh, calls } = fakeGitHub(one, { comments: [codexComment(failed())] });
