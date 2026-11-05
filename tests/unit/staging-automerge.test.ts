@@ -147,6 +147,55 @@ describe('held paths', () => {
     expect(heldPaths(renamed, 'prelaunch')).toEqual([]);
     expect(heldPaths([{ filename: 'docs/x.json', previous_filename: 'content/x.json' }], 'prelaunch')).toEqual(['content/x.json']);
   });
+  const sensitiveAccountSources = [
+    'src/pages/auth/callback.astro',
+    'src/pages/account/two-factor.astro',
+    'src/pages/admin/flags.astro',
+    'src/pages/signin.astro',
+    'src/pages/signup.astro',
+    'src/pages/reset-password.astro',
+    'src/pages/account.astro',
+    'src/pages/start.astro',
+    'src/islands/supabaseenv.ts',
+    'src/islands/supabaseclient.ts',
+    'src/islands/supabasebuildcheck.ts',
+    'src/islands/SignIn.tsx',
+    'src/islands/AuthCallback.tsx',
+    'src/islands/adminflagsrpc.ts',
+    'src/islands/AccountSettings.tsx',
+    'src/islands/deleteaccount.ts',
+    'src/islands/Onboarding.tsx',
+    'src/islands/twofactor.ts',
+    'src/islands/guestimportrun.ts',
+    'src/islands/exportdata.ts',
+  ];
+
+  it.each(sensitiveAccountSources)('%s requires founder approval even before launch', (path) => {
+    expect(isHeldPath(path, 'prelaunch')).toBe(true);
+    expect(isHeldPath(path, 'launched')).toBe(true);
+  });
+
+  it('holds either side of a rename involving account or admin source', () => {
+    expect(heldPaths([{
+      filename: 'src/islands/cards.ts',
+      previous_filename: 'src/islands/supabaseclient.ts',
+    }], 'prelaunch')).toEqual(['src/islands/supabaseclient.ts']);
+    expect(heldPaths([{
+      filename: 'src/pages/account/settings.astro',
+      previous_filename: 'src/pages/learn/cards.astro',
+    }], 'launched')).toEqual(['src/pages/account/settings.astro']);
+  });
+
+  it.each([
+    'src/islands/AnatomyLab.tsx',
+    'src/islands/cards.ts',
+    'src/islands/anatomyscene.ts',
+    'src/pages/courses.astro',
+    'src/pages/learn/study-skills/cards.astro',
+  ])('%s remains eligible for ordinary review', (path) => {
+    expect(isHeldPath(path, 'prelaunch')).toBe(false);
+    expect(isHeldPath(path, 'launched')).toBe(false);
+  });
 });
 
 describe('dependency changes', () => {
