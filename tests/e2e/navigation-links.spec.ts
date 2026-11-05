@@ -14,7 +14,7 @@ for (const surface of ['footer', 'menu'] as const) {
       if (surface === 'footer') {
         await page.getByRole('contentinfo').locator('[data-footer-toggle]').click();
       } else {
-        await page.getByRole('button', { name: 'menu', exact: true }).click();
+        await page.getByRole('button', { name: 'open site menu', exact: true }).click();
       }
       const root = surface === 'footer' ? page.getByRole('contentinfo') : page.getByTestId('site-menu');
       const destination = root.locator(`a[href=${JSON.stringify(href)}]`).first();

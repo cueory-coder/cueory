@@ -2,6 +2,7 @@
 /** Matching for a lesson's cards (Task 300: built for every lesson whose deck may show; src/lessons/catalog.ts). */
 import { getEntry } from 'astro:content';
 import Layout from '../../../layouts/Layout.astro';
+import ContentLabel from '../../../components/ContentLabel.astro';
 import MatchingBoard from '../../../islands/MatchingBoard';
 import { pathsFor, statusNotice, type CatalogLesson } from '../../../lessons/catalog';
 import { lessonCatalog } from '../../../lessons/load';
@@ -36,5 +37,8 @@ const page = `${lesson.href}/matching`;
     <p class="mt-section text-sm">
       <a href={lesson.href}>back to the lesson</a>
     </p>
+    <div class="mt-8">
+      <ContentLabel />
+    </div>
   </div>
 </Layout>

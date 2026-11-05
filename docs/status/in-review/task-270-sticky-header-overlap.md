@@ -1,0 +1,1 @@
+status: Task 270, sticky-header clearance: checks the first heading and focused controls on every built non-home route at phone and desktop sizes, and explicitly verifies the homepage's intentional absolute hero-overlay header. The test no longer silently skips missing sticky headers on other routes; awaiting exact-head CI, browser checks, preview and independent review.
