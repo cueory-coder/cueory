@@ -57,6 +57,7 @@ import { basename, extname, join } from 'node:path';
 import { pack } from 'gltfpack';
 import { ancestorsOf, groupHeadings } from './anatomy-groups.mjs';
 import { checkCoordinates, readRelease4Tables, readZip, release4Files, resolveSystem4 } from './anatomy-release4.mjs';
+import { partsListCitationUrl } from './anatomy-source-url.mjs';
 
 const SYSTEMS_FILE = 'scripts/anatomy-systems.json';
 const MODELS_DIR = 'public/models/anatomy';
@@ -507,7 +508,7 @@ function visualFor(system, structures, partsLines, release, { retrieved, tree })
         quote: partsLines.get(s.id).replaceAll('\t', ' '),
         book: 'BodyParts3D',
         section: release.partsSection(tree),
-        url: release.url,
+        url: partsListCitationUrl(release.url, release.partsSection(tree)),
         license: 'CC BY 4.0',
         retrieved,
       })),
