@@ -1,7 +1,7 @@
 /**
  * Builds the anatomy lab's 3D models from BodyParts3D (Task 177; D-58, D-80; docs/VISUALS.md, "3D body").
  *
- *   node scripts/build-anatomy.mjs --source <dir> --release <3.0|4.0> [--system <id>] [--retrieved YYYY-MM-DD]
+ *   node scripts/build-anatomy.mjs --source <dir> --release 4.0 [--system <id>] [--retrieved YYYY-MM-DD]
  *                                  [--isa-source <dir>] [--tree partof|isa] [--update-definitions]
  *
  * Rebuilding from the official 4.0 download is one command, run from the repository's folder:
@@ -16,6 +16,8 @@
  *            <tree>_inclusion_relation_list.txt, <tree>_element_parts.txt and <tree>_BP3D_4.0_obj_99.zip, the names the
  *            4.0 README gives (read by scripts/anatomy-release4.mjs, which lists what the README confirms and what it
  *            doesn't). The zip is read as it is; there's no need to unpack it.
+ *            Release 3.0 is blocked: its historical license (CC BY-SA 2.1 Japan) cannot use Cueory's
+ *            current 4.0-only CC BY 4.0 metadata, model copyright and attribution without a separate review.
  * --release  3.0: the 2011-09-15 release, from the GitHub mirror Kevin-Mattheus-Moerman/BodyParts3D, whose README
  *            says it converted BodyParts3D_3.0_obj_95.zip to binary STL. 4.0: the official download (OBJ in zips).
  *            Release 4.0 also needs --retrieved, the day the files were downloaded.
@@ -57,6 +59,7 @@ import { basename, extname, join } from 'node:path';
 import { pack } from 'gltfpack';
 import { ancestorsOf, groupHeadings } from './anatomy-groups.mjs';
 import { checkCoordinates, readRelease4Tables, readZip, release4Files, resolveSystem4 } from './anatomy-release4.mjs';
+import { partsListCitationUrl } from './anatomy-source-url.mjs';
 
 const SYSTEMS_FILE = 'scripts/anatomy-systems.json';
 const MODELS_DIR = 'public/models/anatomy';
@@ -123,6 +126,9 @@ function parseArguments(argv) {
   if (options.isaSource !== undefined && options.release !== '4.0') fail('--isa-source is for Release 4.0 only');
   if (!RELEASES[options.release]) fail('--release must be 3.0 or 4.0');
   if (options.tree !== undefined && options.release !== '4.0') fail('--tree is for Release 4.0 only');
+  // Archived Release 3.0 is CC BY-SA 2.1 Japan, while this generator writes
+  // CC BY 4.0 source metadata and GLB credits. Reject before reading or writing files.
+  if (options.release === '3.0') fail('--release 3.0 is not approved: Release 3.0 generation is disabled until archived BodyParts3D share-alike licensing and attribution are separately reviewed; use --release 4.0');
   options.tree ??= 'partof';
   if (options.tree !== 'partof' && options.tree !== 'isa') fail('--tree must be partof or isa');
   options.retrieved ??= RELEASES[options.release].retrieved;
@@ -507,7 +513,7 @@ function visualFor(system, structures, partsLines, release, { retrieved, tree })
         quote: partsLines.get(s.id).replaceAll('\t', ' '),
         book: 'BodyParts3D',
         section: release.partsSection(tree),
-        url: release.url,
+        url: partsListCitationUrl(release.url, release.partsSection(tree)),
         license: 'CC BY 4.0',
         retrieved,
       })),
