@@ -58,7 +58,7 @@ export type Mode = 'prelaunch' | 'launched';
  */
 const ALWAYS_HELD_PREFIXES = [
   '.github/', 'scripts/automerge/', 'content/', 'supabase/',
-  'src/pages/auth/', 'src/pages/account/', 'src/pages/admin/',
+  'src/pages/auth/', 'src/pages/account/', 'src/pages/admin/', 'src/pages/preview/admin-',
 ];
 const ALWAYS_HELD_FILES = new Set([
   'automation.json',
