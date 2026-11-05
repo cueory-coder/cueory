@@ -99,7 +99,7 @@ const SENSITIVE_AUTH_ISLAND_STEMS = [
   'guestimport', 'mfa', 'oauth',
   'onboarding', 'password', 'pkce', 'progresspanel', 'publishedquestions',
   'questionsplayer', 'questionsremote', 'recovery', 'resetpassword',
-  'rpcerrors', 'reviewsync', 'session', 'signin', 'signup', 'studyrecorder', 'supabase', 'twofactor',
+  'rpcerrors', 'reviewsession', 'reviewsync', 'session', 'signin', 'signup', 'studyrecorder', 'supabase', 'twofactor',
 ];
 
 function isSensitiveAuthSource(path: string): boolean {
