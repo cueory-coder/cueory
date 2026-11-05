@@ -23,9 +23,9 @@ const STORAGE_KEY_DEFAULT = 'cueory-finals-survey-dismissed';
 const MAX_FEEDBACK_CHARS = 200;
 
 const primaryButton =
-  'min-h-11 rounded-pill bg-button px-5 py-2.5 text-on-button hover:bg-button-hover disabled:opacity-50';
+  'min-h-11 w-full min-w-0 whitespace-normal break-words rounded-pill bg-button px-2 py-2.5 text-sm text-on-button hover:bg-button-hover disabled:opacity-50 sm:w-auto sm:px-5';
 const secondaryButton =
-  'min-h-11 rounded-pill border border-control px-5 py-2.5 text-ink hover:bg-surface disabled:opacity-50';
+  'min-h-11 w-full min-w-0 whitespace-normal break-words rounded-pill border border-control px-2 py-2.5 text-sm text-ink hover:bg-surface disabled:opacity-50 sm:w-auto sm:px-5';
 
 function isDismissed(key: string, storage?: KeyValueStorage): boolean {
   try {
@@ -127,18 +127,18 @@ export default function SurveyPrompt({
     <section
       role="region"
       aria-labelledby={`${id}-title`}
-      className="rounded-lg border border-line bg-surface p-5 text-ink shadow-sm"
+      className="rounded-lg border border-line bg-surface p-3 text-ink shadow-sm sm:p-5"
       data-testid="finals-survey-prompt"
     >
-      <div className="flex items-start justify-between gap-4">
-        <h2 id={`${id}-title`} className="text-base font-semibold">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <h2 id={`${id}-title`} className="min-w-0 break-words text-base font-semibold">
           quick semester survey
         </h2>
         <button
           type="button"
           onClick={handleDismiss}
           aria-label="dismiss survey"
-          className="min-h-11 px-2 text-xs leading-relaxed text-ink-soft hover:text-ink"
+          className="min-h-11 max-w-full px-2 text-xs leading-relaxed text-ink-soft hover:text-ink"
         >
           dismiss
         </button>
@@ -149,7 +149,7 @@ export default function SurveyPrompt({
           <legend className="text-sm font-medium text-ink">
             did you use Cueory for a final or exit exam this semester?
           </legend>
-          <div className="mt-2 flex gap-4 text-sm">
+          <div className="mt-2 flex flex-wrap gap-4 text-sm">
             <label className="inline-flex items-center gap-2 cursor-pointer">
               <input
                 type="radio"
@@ -174,7 +174,7 @@ export default function SurveyPrompt({
         </fieldset>
 
         <div>
-          <div className="flex justify-between items-baseline">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
             <label htmlFor={`${id}-feedback`} className="text-sm font-medium text-ink">
               what would make it more useful?
             </label>
