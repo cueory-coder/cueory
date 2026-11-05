@@ -56,7 +56,10 @@ export type Mode = 'prelaunch' | 'launched';
  * - `supabase/` (sign-in and database policies) and `wrangler.jsonc` (deployment), which CLAUDE.md rule 3 reserves
  *   for Christian.
  */
-const ALWAYS_HELD_PREFIXES = ['.github/', 'scripts/automerge/', 'content/', 'supabase/'];
+const ALWAYS_HELD_PREFIXES = [
+  '.github/', 'scripts/automerge/', 'content/', 'supabase/',
+  'src/pages/auth/', 'src/pages/account/', 'src/pages/admin/',
+];
 const ALWAYS_HELD_FILES = new Set([
   'automation.json',
   'scripts/staging_automerge.ts',
@@ -65,6 +68,32 @@ const ALWAYS_HELD_FILES = new Set([
   'SECURITY.md',
   'wrangler.jsonc',
 ]);
+
+/**
+ * Account, authentication and privileged-admin code requires founder review in BOTH modes.
+ * These directories hold route entrypoints, while the flat islands folder uses narrow
+ * feature stems to include future helper modules without blocking ordinary study islands.
+ */
+const SENSITIVE_AUTH_PAGES = new Set([
+  'src/pages/account.astro',
+  'src/pages/signin.astro',
+  'src/pages/signup.astro',
+  'src/pages/reset-password.astro',
+  'src/pages/start.astro',
+]);
+const SENSITIVE_AUTH_ISLAND_STEMS = [
+  'account', 'admin', 'auth', 'deleteaccount', 'displayname',
+  'exportdata', 'exportload', 'guestimport', 'mfa', 'oauth',
+  'onboarding', 'password', 'pkce', 'recovery', 'resetpassword',
+  'session', 'signin', 'signup', 'supabase', 'twofactor',
+];
+
+function isSensitiveAuthSource(path: string): boolean {
+  if (SENSITIVE_AUTH_PAGES.has(path)) return true;
+  if (!path.startsWith('src/islands/')) return false;
+  const filename = path.slice('src/islands/'.length).toLowerCase();
+  return SENSITIVE_AUTH_ISLAND_STEMS.some((stem) => filename.startsWith(stem));
+}
 
 /**
  * Also held once the site is live: the rest of the brief's sensitive list, plus the Node version every build uses and
@@ -145,7 +174,7 @@ export function parseAutomation(text: string | undefined): { mode: Mode; note?: 
 }
 
 export function isHeldPath(path: string, mode: Mode): boolean {
-  if (ALWAYS_HELD_FILES.has(path) || ALWAYS_HELD_PREFIXES.some((prefix) => path.startsWith(prefix))) return true;
+  if (ALWAYS_HELD_FILES.has(path) || ALWAYS_HELD_PREFIXES.some((prefix) => path.startsWith(prefix)) || isSensitiveAuthSource(path)) return true;
   if (mode === 'prelaunch') return false;
   if (LAUNCHED_HELD_FILES.has(path) || LAUNCHED_HELD_PREFIXES.some((prefix) => path.startsWith(prefix))) return true;
   return LAUNCHED_HELD_BASENAMES.has(path.slice(path.lastIndexOf('/') + 1));
