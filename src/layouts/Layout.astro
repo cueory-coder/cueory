@@ -19,6 +19,8 @@ interface Props {
   variant?: 'default' | 'study' | 'home';
   /** Keep this page out of search engines. */
   noindex?: boolean;
+  /** Public noindex pages may stay discoverable through Cueory's on-site search. */
+  searchableNoindex?: boolean;
   /**
    * The once-only promo panel (D-59). Marketing pages show it unless they turn it off (the signup thank-you page does,
    * because its visitor has just joined); study screens never do.
@@ -33,7 +35,7 @@ interface Props {
   hideFlag?: boolean;
 }
 
-const { title, description = site.description, variant = 'default', noindex = false, promo = true, flagItem, hideFlag = false } = Astro.props;
+const { title, description = site.description, variant = 'default', noindex = false, searchableNoindex = false, promo = true, flagItem, hideFlag = false } = Astro.props;
 // Browser-tab titles use the lowercase brand voice: "privacy · cueory" (D-47).
 const fullTitle = title === site.name || title === site.wordmarkName ? site.wordmarkName : `${title} · ${site.wordmarkName}`;
 // Astro's static file build may expose /index.html or /privacy.html as the pathname.
@@ -46,6 +48,7 @@ const isHome = variant === 'home';
 const showPromo = promoSettings.show && promo && !isStudy;
 // The title a page has in site search results (D-49): its own title, and "home" for the home page.
 const searchTitle = isHome ? 'home' : title;
+const includeInSiteSearch = !noindex || searchableNoindex;
 ---
 
 <!doctype html>
@@ -101,13 +104,14 @@ const searchTitle = isHome ? 'home' : title;
     }
     <!--
       Site search (D-49) indexes only this main area of each page, never the menus, notice or footer, and leaves out
-      pages kept out of search engines (404, the signup thank-you page). Results are titled by the page's own title.
+      pages with private or non-searchable content. Public legal pages may opt into site search while still having
+      a robots noindex directive. Results are titled by the page's own title.
     -->
     <main
       id="main"
       class:list={['w-full flex-1', !isHome && 'mx-auto max-w-page px-gutter']}
-      data-pagefind-body={noindex ? undefined : ''}
-      data-pagefind-meta={noindex ? undefined : `title:${searchTitle}`}
+      data-pagefind-body={includeInSiteSearch ? '' : undefined}
+      data-pagefind-meta={includeInSiteSearch ? `title:${searchTitle}` : undefined}
     >
       <slot />
     </main>
