@@ -113,6 +113,9 @@ describe('read-only anatomy review inventory', () => {
     for (const url of [
       'https://example.org/sample',
       'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/20110915/README_e.html',
+      // URL() normalizes these back into the allowed LATEST path.
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/../LATEST/README_e.html',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/%2e%2e/LATEST/README_e.html',
       'https://dbarchive.biosciencedbc.jp.evil.example/data/bodyparts3d/fake',
       'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/',
       'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/../private',
