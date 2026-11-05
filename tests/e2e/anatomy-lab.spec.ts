@@ -481,6 +481,43 @@ test.describe('anatomy lab', () => {
     await expect(overlay).toHaveCount(0);
   });
 
+  test('re-measures visible labels after a larger-text setting changes without a viewport resize', async ({ page }, info) => {
+    test.skip(!isDesktopOfEachEngine(info), 'one text-size reflow check per browser engine');
+    await openLab(page);
+    await page.getByRole('button', { name: 'fixture cube A', exact: true }).click();
+    await page.getByRole('button', { name: 'show only this' }).click();
+    await page.getByRole('button', { name: 'labels' }).click();
+    const label = page.getByTestId('anatomy-labels').locator(':scope > span');
+    await expect(label).toHaveCount(1);
+    const before = await label.evaluate((node) => ({
+      fontPx: Number.parseFloat(getComputedStyle(node).fontSize),
+      height: Number.parseFloat((node as HTMLElement).style.height),
+    }));
+    expect(before.height).toBeGreaterThan(0);
+
+    // The viewport stays fixed; text and token-backed padding must be measured again.
+    await page.evaluate(() => document.documentElement.style.setProperty('font-size', '32px', 'important'));
+    await expect(page.locator('html')).toHaveCSS('font-size', '32px');
+    await expect.poll(() => label.evaluate((node) => Number.parseFloat((node as HTMLElement).style.height)))
+      .toBeGreaterThan(before.height * 1.5);
+    const enlarged = await label.evaluate((node) => {
+      const element = node as HTMLElement;
+      return {
+        fontPx: Number.parseFloat(getComputedStyle(element).fontSize),
+        height: Number.parseFloat(element.style.height),
+        scrollHeight: element.scrollHeight,
+        clientHeight: element.clientHeight,
+      };
+    });
+    expect(enlarged.fontPx).toBeGreaterThan(before.fontPx * 1.5);
+    expect(enlarged.scrollHeight).toBeLessThanOrEqual(enlarged.clientHeight + 2);
+
+    // Restoring the standard size must not leave oversized cached label boxes.
+    await page.evaluate(() => document.documentElement.style.removeProperty('font-size'));
+    await expect.poll(() => label.evaluate((node) => Number.parseFloat((node as HTMLElement).style.height)))
+      .toBeLessThan(enlarged.height * 0.8);
+  });
+
   test('marks the label of a structure hidden behind another, in words and with a dashed line', async ({ page }) => {
     await openLab(page);
     await page.getByRole('button', { name: 'labels' }).click();
