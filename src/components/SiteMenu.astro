@@ -25,7 +25,7 @@ const current = currentHref(
 <button
   type="button"
   class:list={['corner-button invisible', quiet && 'corner-button-quiet']}
-  aria-label="menu"
+  aria-label="open site menu"
   aria-expanded="false"
   aria-controls="site-menu"
   data-menu-open
@@ -35,10 +35,10 @@ const current = currentHref(
   </svg>
 </button>
 
-<dialog id="site-menu" class="menu-panel" aria-label="menu" data-testid="site-menu">
+<dialog id="site-menu" class="menu-panel" aria-label="site menu" data-testid="site-menu">
   <div class="menu-panel-inner">
     <div class="flex justify-end">
-      <button type="button" class="corner-button corner-button-panel" aria-label="close menu" data-menu-close>
+      <button type="button" class="corner-button corner-button-panel" aria-label="close site menu" data-menu-close>
         <svg viewBox="0 0 24 24" class="size-6" aria-hidden="true" focusable="false">
           <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
         </svg>
