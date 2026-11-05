@@ -473,7 +473,7 @@ export default function CardDeck({ deckId, cards, page = RESUME_PAGE }: Props) {
   const isStarred = starred.has(card.id);
   const round = state.roundNumber > 1 ? `Round ${state.roundNumber} · ` : '';
   const position = `${round}Card ${state.pos + 1} of ${state.round.length}`;
-  const face = 'col-start-1 row-start-1 flex min-h-56 flex-col justify-center rounded-xl border border-line bg-surface px-6 py-10 shadow-card sm:px-10';
+  const face = 'col-start-1 row-start-1 flex min-h-56 min-w-0 flex-col justify-center rounded-xl border border-line bg-surface px-6 py-10 shadow-card sm:px-10';
 
   return (
     <>
@@ -503,16 +503,16 @@ export default function CardDeck({ deckId, cards, page = RESUME_PAGE }: Props) {
         className={`flip mt-stack cursor-pointer touch-manipulation rounded-xl${state.flipped ? ' is-flipped' : ''}`}
         data-testid="flashcard"
       >
-        <div className="flip-inner grid">
+        <div className="flip-inner grid min-w-0 grid-cols-1">
           <div className={`flip-face ${face}`} aria-hidden={state.flipped || undefined}>
             <p className="text-sm text-ink-soft">Question</p>
-            <p data-testid="card-text" className="mt-3 text-xl">
+            <p data-testid="card-text" className="mt-3 wrap-anywhere text-xl">
               {card.front}
             </p>
           </div>
           <div className={`flip-back relative ${face}`} aria-hidden={!state.flipped || undefined}>
             <p className="text-sm text-ink-soft">Answer</p>
-            <p className="mt-3 text-xl">{card.back}</p>
+            <p className="mt-3 wrap-anywhere text-xl">{card.back}</p>
           </div>
         </div>
       </div>
