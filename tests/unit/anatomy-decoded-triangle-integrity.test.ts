@@ -47,6 +47,13 @@ function checkTriangles(
       !Number.isSafeInteger(vertexCount) || vertexCount < 3) {
     throw new Error('invalid triangle or vertex count');
   }
+  // Check all decoded POSITION vertices, including those in later triangles.
+  // Finding one drawable triangle must not hide NaN/Infinity elsewhere.
+  for (let index = 0; index < vertexCount; index++) {
+    if (!readPosition(index).every(Number.isFinite)) {
+      throw new Error('non-finite POSITION coordinate');
+    }
+  }
   let drawable = false;
   for (let n = 0; n < count; n += 3) {
     const a = readIndex(n);
@@ -121,6 +128,10 @@ describe('real BodyParts3D decoded triangles', () => {
       .toThrow('no nondegenerate triangle');
     expect(() => checkTriangles(3, 3, (i) => [0, 1, 2][i]!, (i) => vertices[i]!))
       .not.toThrow();
+    // A valid first triangle must not make a later corrupt vertex invisible to QA.
+    const withNonFinite: Point[] = [...vertices, [Number.NaN, 0, 0]];
+    expect(() => checkTriangles(6, 4, (i) => [0, 1, 2, 0, 3, 2][i]!, (i) => withNonFinite[i]!))
+      .toThrow('non-finite POSITION coordinate');
   });
 
   it('checks every indexed primitive in all eleven decoded models', async () => {
