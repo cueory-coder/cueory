@@ -74,6 +74,7 @@ const ALWAYS_HELD_FILES = new Set([
   'scripts/check-legal-release.mjs',
   'scripts/anatomy-production-audit.mjs',
   'scripts/check-anatomy-build.mjs',
+  'scripts/anatomy-postbuild-audit.mjs', // alternative production postbuild wrapper in PR #626
   'src/visuals/prunedrafts.ts',
   'src/visuals/sources.ts',
   // Founder approval is required for changes to secret-scan exceptions/config.

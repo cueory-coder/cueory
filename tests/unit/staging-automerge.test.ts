@@ -123,6 +123,7 @@ describe('held paths', () => {
     'scripts/check-legal-release.mjs',
     'scripts/anatomy-production-audit.mjs',
     'scripts/check-anatomy-build.mjs',
+    'scripts/anatomy-postbuild-audit.mjs',
     'src/visuals/prunedrafts.ts',
     'src/visuals/sources.ts',
     'src/config/site.ts',
