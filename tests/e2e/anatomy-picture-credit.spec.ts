@@ -2,6 +2,9 @@ import { expect, test } from '@playwright/test';
 import { isDesktopOfEachEngine } from './projects';
 
 const LICENSE_URL = 'https://creativecommons.org/licenses/by/4.0/';
+// The exporter uses a 48px margin at the 1080px reference size and scales it
+// with the picture's shorter side.
+const EXPORT_EDGE_PADDING_RATIO = 48 / 1080;
 
 interface DrawnText {
   value: string;
@@ -102,13 +105,20 @@ test('exported anatomy picture credit is complete, visible and model-specific', 
       mark.y >= mark.canvasHeight * 0.75 &&
       mark.x <= mark.canvasWidth * 0.1,
     );
+    const footerText = footer.map((mark) => mark.value).join('');
     expect(footer.length, size.label).toBeGreaterThan(0);
-    expect(footer.map((mark) => mark.value).join(''), size.label).toContain(LICENSE_URL);
+    expect(footerText, size.label).toContain(LICENSE_URL);
+    expect(footerText, size.label).toContain('BodyParts3D reference model: adult human male');
     for (const line of footer) {
-      expect(Number.isFinite(line.x + line.width), size.label).toBe(true);
-      expect(line.x + line.width, size.label).toBeLessThanOrEqual(line.canvasWidth - 1);
-      expect(line.y - line.ascent, size.label).toBeGreaterThanOrEqual(0);
-      expect(line.y + line.descent, size.label).toBeLessThanOrEqual(line.canvasHeight - 1);
+      // fillText's y is the alphabetic baseline. TextMetrics gives the actual
+      // ink bounds above and below it; x must not be reused for vertical math.
+      expect(Number.isFinite(line.ascent) && line.ascent > 0, size.label).toBe(true);
+      expect(Number.isFinite(line.descent) && line.descent >= 0, size.label).toBe(true);
+      const edgeMargin = Math.min(line.canvasWidth, line.canvasHeight) * EXPORT_EDGE_PADDING_RATIO;
+      expect(line.x, size.label).toBeGreaterThanOrEqual(edgeMargin);
+      expect(line.x + line.width, size.label).toBeLessThanOrEqual(line.canvasWidth - edgeMargin);
+      expect(line.y - line.ascent, size.label).toBeGreaterThanOrEqual(edgeMargin);
+      expect(line.y + line.descent, size.label).toBeLessThanOrEqual(line.canvasHeight - edgeMargin);
     }
   }
 });
