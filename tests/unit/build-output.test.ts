@@ -284,7 +284,7 @@ describe.skipIf(!existsSync(dist))('built site', () => {
     expect(htmlFiles(join(dist, 'pagefind'))).toEqual([]);
   });
 
-  it('the generated search index contains only indexable, non-preview pages (Task 249)', () => {
+  it('the generated site search index excludes preview and private pages while allowing public legal pages', () => {
     const entry = JSON.parse(readFileSync(join(dist, 'pagefind', 'pagefind-entry.json'), 'utf8')) as {
       languages?: { en?: { page_count?: number } };
     };
@@ -295,17 +295,22 @@ describe.skipIf(!existsSync(dist))('built site', () => {
 
     expect(entry.languages?.en?.page_count).toBe(searchablePages.length);
     expect(searchablePages).not.toEqual(expect.arrayContaining(pages.filter((page) => page.includes('/preview/'))));
-    expect(searchablePages.every((page) => !readFileSync(page, 'utf8').includes('content="noindex'))).toBe(true);
+    const publicLegalPages = new Set(['privacy.html', 'terms.html', 'disclaimer.html']);
+    expect(searchablePages.every((page) => {
+      const html = readFileSync(page, 'utf8');
+      return !html.includes('content="noindex') || publicLegalPages.has(page.slice(dist.length + 1).replaceAll('\\', '/'));
+    })).toBe(true);
   });
 
-  it.each(pages.map((p) => [p.replace(dist, '')]))('%s: site search indexes it only if search engines may (D-49)', (page) => {
+  it.each(pages.map((p) => [p.replace(dist, '')]))('%s: public legal pages may be searchable but other noindex pages stay private', (page) => {
     const html = readFileSync(join(dist, page), 'utf8');
     const noindex = html.includes('<meta name="robots" content="noindex');
-    const body = /<main[^>]*\sdata-pagefind-body(?:="")?[\s>]/.test(html);
-    expect(body, noindex ? 'a noindex page must stay out of site search' : 'this page should be searchable').toBe(
-      !noindex,
+    const body = /<main[^>]*\\sdata-pagefind-body(?:="")?[\\s>]/.test(html);
+    const legal = ['/privacy.html', '/terms.html', '/disclaimer.html'].includes(page.replaceAll('\\', '/'));
+    expect(body, noindex && !legal ? 'a private noindex page must stay out of site search' : 'this page should be searchable').toBe(
+      !noindex || legal,
     );
-    if (body) expect(html).toMatch(/<main[^>]*\sdata-pagefind-meta="title:[^"]+"/);
+    if (body) expect(html).toMatch(/<main[^>]*\\sdata-pagefind-meta="title:[^"]+"/);
   });
 
   it.each(pages.map((p) => [p.replace(dist, '')]))('%s: the CSP allows every inline script by hash', (page) => {
