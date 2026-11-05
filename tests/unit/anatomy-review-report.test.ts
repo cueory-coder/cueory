@@ -22,7 +22,7 @@ function source() {
     quote: 'FMA1 BP1 sample part | with punctuation',
     book: 'BodyParts3D',
     section: 'sample_parts_list_e.txt',
-    url: 'https://example.org/sample',
+    url: 'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/synthetic-test-only',
     license: 'CC BY 4.0',
   };
 }
@@ -53,7 +53,7 @@ describe('read-only anatomy review inventory', () => {
     const report = anatomyReviewMarkdown(anatomyInventory(root));
     expect(report).toContain('sample part \\| exact');
     expect(report).toContain('FMA1 BP1 sample part \\| with punctuation');
-    expect(report).toContain('[BodyParts3D, sample_parts_list_e.txt](https://example.org/sample)');
+    expect(report).toContain('[BodyParts3D, sample_parts_list_e.txt](https://dbarchive.biosciencedbc.jp/data/bodyparts3d/synthetic-test-only)');
     expect(report).toContain('4.0 KiB');
     expect(report).toContain('does not verify anatomy geometry or approve a draft');
   });
@@ -88,6 +88,24 @@ describe('read-only anatomy review inventory', () => {
     expect(() => anatomyInventory(root)).toThrow('has no cited source');
     writeSystem(root, 'sample', { ...visual(), sources: [{ ...source(), url: 'javascript:alert(1)' }] });
     expect(() => anatomyInventory(root)).toThrow('must be a safe HTTPS URL');
+  });
+
+  it('rejects non-BodyParts3D HTTPS sources and incorrect rights in the review inventory', () => {
+    const root = setup();
+    for (const url of [
+      'https://example.org/sample',
+      'https://dbarchive.biosciencedbc.jp.evil.example/data/bodyparts3d/fake',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/',
+    ]) {
+      writeSystem(root, 'sample', { ...visual(), sources: [{ ...source(), url }] });
+      expect(() => anatomyInventory(root), url).toThrow('must link to the official BodyParts3D source');
+    }
+    for (const override of [{ book: 'Unreviewed Atlas' }, { license: 'CC BY-NC 4.0' }]) {
+      writeSystem(root, 'sample', { ...visual(), sources: [{ ...source(), ...override }] });
+      expect(() => anatomyInventory(root)).toThrow('must cite BodyParts3D under CC BY 4.0');
+    }
+    writeSystem(root, 'sample');
+    expect(anatomyInventory(root)).toHaveLength(1);
   });
 
   it('refuses repeated source IDs, unknown layers and incomplete citations', () => {
