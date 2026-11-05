@@ -1,1 +1,0 @@
-status: Task 408, page-specific label it coverage: phone and desktop tests cover the page's heading, sample state, drawing credit, keyboard and tap controls, spoken status changes, lesson link, responsive boundary, and no-JavaScript fallback.

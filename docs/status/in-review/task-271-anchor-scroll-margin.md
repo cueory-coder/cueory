@@ -1,1 +1,0 @@
-status: Task 271, same-page anchor coverage: verifies the five home sections can be reached by fragment links without obstruction by the absolute hero overlay. Home does not have a sticky header; the test checks viewport intersection instead of incorrectly looking for data-scroll-header. Other routes retain the existing sticky-header behavior.

@@ -1,1 +1,0 @@
-status: Task 519 about-page shell, in review: added /about with four clearly marked founder-copy placeholders, semantic headings, a support link and synthetic browser coverage. Founder-approved copy is still needed before production publication. No clinical claims, dependencies, security settings or deployment changes.

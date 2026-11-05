@@ -1,1 +1,0 @@
-status: Release-only CI guard for public legal-page placeholders. A main-target release PR must not publish Terms, Disclaimer or Privacy draft text. Staging remains intentionally unblocked pending founder-approved legal content. Run CUEORY_LEGAL_RELEASE_AUDIT=1 after npm run build to reproduce.

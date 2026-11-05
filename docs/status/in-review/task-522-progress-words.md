@@ -1,1 +1,0 @@
-status: Task 522 progress words (#443): replace student-facing Learn mode mastery wording with recalled-today and still-learning states; scan literal visible JSX, accessible labels and configuration copy without false positives from internal identifiers; awaiting exact-head CI, browser tests, Codex review and locked staging checks.

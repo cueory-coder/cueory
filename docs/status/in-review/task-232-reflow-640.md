@@ -1,3 +1,0 @@
-status: Task 232, W40, 640 CSS px reflow checks. Planned files before edits: tests/e2e/reflow-640.spec.ts and this note only. Tests every built route at the board's specified 640 CSS px width for horizontal overflow and clipped visible controls, after islands hydrate. No source-layout or off-limits edits without a reproduced failure.
-
-Validation: check/build passed with 0 errors and 0 warnings. Serialized unit suite passed 3,682 tests in 127 files. Targeted desktop Playwright discovered 34 cases but the first browser launch failed because chromium_headless_shell-1248 is absent. With max-failures=1, the remaining 33 cases did not run. No browser assertion pass or layout fix is claimed. CI must run this spec. Source baseline: 2763c0a4944481f3ab761077216125218b04d397.

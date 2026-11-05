@@ -1,1 +1,0 @@
-status: Task 135, lowercase interface copy: study-mode links, study page headings and instructions, and signup confirmation follow the lowercase brand voice. Lesson content, navigation and study behavior stay unchanged.
