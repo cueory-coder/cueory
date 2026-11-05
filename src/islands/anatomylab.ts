@@ -308,7 +308,10 @@ export interface StructureGroup {
 export function groupStructures(structures: readonly AnatomyStructure[], query = ''): StructureGroup[] {
   const groups = new Map<string | null, AnatomyStructure[]>();
   for (const structure of structures) {
-    if (!matchesSearch(structure.text, query)) continue;
+    // Source IDs are useful when checking the BodyParts3D attribution sheet. Keep
+    // the existing word-prefix name search, but also accept an ID prefix.
+    // A blank query still returns the full catalog.
+    if (!matchesSearch(structure.text, query) && !normalizeSearch(structure.id).startsWith(normalizeSearch(query))) continue;
     const key = structure.group ?? null;
     const list = groups.get(key);
     if (list) list.push(structure);

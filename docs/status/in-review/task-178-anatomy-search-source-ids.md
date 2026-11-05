@@ -1,0 +1,1 @@
+status: Task 178, Anatomy Lab source-ID search: students and reviewers can find structures by their original BodyParts3D FMA ID prefix as well as their official name, in both 3D and text fallback. Added unit tests for exact/prefix IDs, name compatibility, unmatched queries and blank search. No clinical content, models, permissions or deployment settings changed.

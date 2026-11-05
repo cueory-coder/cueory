@@ -138,7 +138,7 @@ test.describe('anatomy lab', () => {
     await expect(catalog.getByRole('listitem').first()).toContainText('fixture cube B');
     await expect(catalog.getByText('fixture cube A')).toHaveCount(0);
     await search.fill('not a structure');
-    await expect(catalog.getByText('no structure names match this search.')).toBeVisible();
+    await expect(catalog.getByText('no structure names or source IDs match this search.')).toBeVisible();
 
     // A failed 3D startup must not take away the combined text catalog or its required attribution.
     const wholeBody = page.getByRole('button', { name: 'whole body', exact: true });

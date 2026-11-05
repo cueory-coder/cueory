@@ -776,7 +776,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
             </p>
             <p>{releaseNoteFor(system)}</p>
           </div>
-          <label className="block text-sm text-ink" htmlFor="anatomy-fallback-search">find a structure</label>
+          <label className="block text-sm text-ink" htmlFor="anatomy-fallback-search">find a structure by name or source ID</label>
           <input id="anatomy-fallback-search" type="search" value={query} autoComplete="off"
             onChange={(event) => { setQuery(event.target.value); setTextLimit(TEXT_FALLBACK_BATCH); }}
             className="min-h-11 w-full rounded-md border border-control bg-page px-3 text-ink"
@@ -785,7 +785,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
             showing {rows.length} of {shownCount} matching structures
           </p>
           {rows.length === 0 ? (
-            <p className="text-sm text-ink-soft">no structure names match this search.</p>
+            <p className="text-sm text-ink-soft">no structure names or source IDs match this search.</p>
           ) : (
             <ul className="space-y-2">
               {rows.map((item) => (
@@ -1222,7 +1222,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
 
         <section className="space-y-3" aria-labelledby="anatomy-list-heading">
           <h2 id="anatomy-list-heading" className="text-lg text-ink">structures</h2>
-          <label className="block text-sm text-ink-soft" htmlFor="anatomy-search">find a structure</label>
+          <label className="block text-sm text-ink-soft" htmlFor="anatomy-search">find a structure by name or source ID</label>
           <input
             id="anatomy-search"
             type="search"
