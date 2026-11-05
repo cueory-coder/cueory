@@ -8,9 +8,11 @@ import type { MapUnit } from '../islands/lessonmap';
 interface Props {
   unit: MapUnit;
   position: number;
+  /** This unit's lessons that are open now (Task 300); none means the unit says "coming soon". */
+  open?: readonly { href: string; name: string }[];
 }
 
-const { unit } = Astro.props;
+const { unit, open = [] } = Astro.props;
 const lessonCount = unit.topics.reduce((count, topic) => count + topic.lessons.length, 0);
 ---
 
@@ -19,7 +21,7 @@ const lessonCount = unit.topics.reduce((count, topic) => count + topic.lessons.l
     <summary class="flex min-h-14 cursor-pointer items-center gap-3 p-4">
       <span class="min-w-0 flex-1">
         <span class="block text-sm font-medium text-ink">{unit.title}</span>
-        <span class="mt-1 block text-sm text-ink-soft">coming soon</span>
+        <span class="mt-1 block text-sm text-ink-soft">{open.length ? `${open.length} open now` : 'coming soon'}</span>
       </span>
       <span class="shrink-0 text-sm font-medium text-ink-soft" aria-hidden="true">{lessonCount}</span>
       <span class="chevron shrink-0 text-ink-soft" aria-hidden="true">›</span>
@@ -29,6 +31,14 @@ const lessonCount = unit.topics.reduce((count, topic) => count + topic.lessons.l
       <ul class="mt-3 list-disc space-y-2 pl-5 text-sm text-ink">
         {unit.topics.map((topic) => <li>{topic.title}</li>)}
       </ul>
+      {open.length > 0 && (
+        <>
+          <p class="mt-4 text-sm text-ink-soft">open now</p>
+          <ul class="mt-2 space-y-2 text-sm">
+            {open.map((lesson) => <li><a href={lesson.href} class="inline-flex min-h-11 items-center underline underline-offset-4">{lesson.name}</a></li>)}
+          </ul>
+        </>
+      )}
     </div>
   </details>
 </article>
