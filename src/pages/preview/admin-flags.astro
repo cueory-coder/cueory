@@ -5,7 +5,7 @@
  * browser only; nothing is read from or sent to the database. Not linked from the site.
  */
 import Layout from '../../layouts/Layout.astro';
-import AdminFlags from '../../islands/AdminFlags';
+import AdminFlags from '../../islands/AdminFlags.tsx';
 import type { FlagRow } from '../../islands/flaginbox';
 
 const sample = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;

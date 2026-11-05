@@ -2,7 +2,7 @@
 import { getCollection } from 'astro:content';
 import Layout from '../layouts/Layout.astro';
 import ProgressPanel from '../islands/ProgressPanel';
-import GuestImportOffer from '../islands/GuestImportOffer';
+import GuestImportOffer from '../islands/GuestImportOffer.tsx';
 import BrandMark from '../components/BrandMark.astro';
 
 const decks = (await getCollection('cards'))
