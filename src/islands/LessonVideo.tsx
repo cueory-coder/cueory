@@ -52,7 +52,7 @@ export default function LessonVideo({ videoId, title, thumbnail, captionsUrl, tr
           aria-label={`Play video: ${title}`}
         >
           {thumbnail ? (
-            <img src={thumbnail} alt="" className="size-full object-cover" />
+            <img src={thumbnail} alt="" loading="lazy" decoding="async" className="size-full object-cover" />
           ) : (
             <svg
               viewBox="0 0 640 360"

@@ -60,9 +60,9 @@ for (const size of sizes) {
     await page.setViewportSize({ width: size.width, height: size.height });
     await page.goto(LEARN_URL);
     await expect(page.getByText('how to study for nursing school · lesson 1', { exact: true })).toBeVisible();
-    const bar = page.getByRole('progressbar', { name: 'Cards mastered' });
+    const bar = page.getByRole('progressbar', { name: 'Cards recalled today' });
     await expect(bar).toHaveAttribute('aria-valuenow', '0');
-    await expect(page.getByText('Mastered 0 of 3')).toBeVisible();
+    await expect(page.getByText('recalled today 0 of 3')).toBeVisible();
 
     const steps: string[] = [];
     for (let turn = 0; turn < 15; turn++) {
@@ -101,21 +101,21 @@ for (const size of sizes) {
     expect(steps.filter((s) => s === 'Choose the answer')).toHaveLength(3);
     expect(steps.filter((s) => s === 'Type the answer' || s === 'Fill in the blank')).toHaveLength(3);
 
-    // The calm summary: how many are mastered, what is still learning, go again or back to the lesson.
+    // The calm summary: how many are recalled today, what is still learning, go again or back to the lesson.
     await expect(page.getByText('You know all 3 cards.')).toBeVisible();
-    await expect(page.getByText('Mastered: 3 · Still learning: 0')).toBeVisible();
+    await expect(page.getByText('recalled today: 3 · still learning: 0')).toBeVisible();
     await expect(bar).toHaveAttribute('aria-valuenow', '3');
     await expect(page.getByRole('link', { name: 'Back to the lesson' }).first()).toHaveAttribute(
       'href',
       '/learn/study-skills',
     );
     await pressEnter(page, page.getByRole('button', { name: 'Start again' }));
-    await expect(page.getByText('Mastered 0 of 3')).toBeVisible();
+    await expect(page.getByText('recalled today 0 of 3')).toBeVisible();
     await expect(page.getByTestId('learn-step')).toHaveText('New card');
   });
 }
 
-test('the progress bar fills as cards are mastered', async ({ page }) => {
+test('the progress bar fills as cards are recalled today', async ({ page }) => {
   await page.goto(LEARN_URL);
   const fill = page.locator('.progress-track .progress-fill');
   const length = () => fill.evaluate((el) => getComputedStyle(el).getPropertyValue('--progress').trim());
@@ -125,8 +125,8 @@ test('the progress bar fills as cards are mastered', async ({ page }) => {
   const card = await cardOnScreen(page);
   await answers(page).getByRole('button', { name: card.back, exact: true }).click();
   await page.getByRole('button', { name: 'Continue' }).click();
-  // The next cards come first; play on until one card is mastered.
-  for (let turn = 0; turn < 6 && (await page.getByText('Mastered 0 of 3').isVisible()); turn++) {
+  // The next cards come first; play on until one card is recalled today.
+  for (let turn = 0; turn < 6 && (await page.getByText('recalled today 0 of 3').isVisible()); turn++) {
     const now = await cardOnScreen(page);
     const step = await stepOf(page);
     if (step === 'Choose the answer') {
@@ -137,8 +137,8 @@ test('the progress bar fills as cards are mastered', async ({ page }) => {
     }
     await page.getByRole('button', { name: 'Continue' }).click();
   }
-  await expect(page.getByText('Mastered 1 of 3')).toBeVisible();
-  await expect(page.getByRole('progressbar', { name: 'Cards mastered' })).toHaveAttribute('aria-valuenow', '1');
+  await expect(page.getByText('recalled today 1 of 3')).toBeVisible();
+  await expect(page.getByRole('progressbar', { name: 'Cards recalled today' })).toHaveAttribute('aria-valuenow', '1');
   await expect.poll(length).toBe(String(1 / 3));
 });
 

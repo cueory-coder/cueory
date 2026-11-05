@@ -191,7 +191,7 @@ test('Learn mode brings back what you miss until you know every card', async ({ 
   await page.goto('/learn/study-skills');
   await page.getByRole('link', { name: "learn this lesson's cards in learn mode" }).click();
   await expect(page).toHaveURL(/\/learn\/study-skills\/learn-mode$/);
-  await expect(page.getByText('Mastered 0 of 3')).toBeVisible();
+  await expect(page.getByText('recalled today 0 of 3')).toBeVisible();
 
   const steps: string[] = [];
   let missedOnce = false;
@@ -247,7 +247,7 @@ test('Learn mode brings back what you miss until you know every card', async ({ 
   expect(steps.filter((s) => s === 'Type the answer')).toHaveLength(2);
 
   await page.getByRole('button', { name: 'Start again' }).click();
-  await expect(page.getByText('Mastered 0 of 3')).toBeVisible();
+  await expect(page.getByText('recalled today 0 of 3')).toBeVisible();
 });
 
 test('Matching pairs terms with meanings by keyboard, counting misses', async ({ page }) => {
@@ -508,6 +508,8 @@ test.describe('marketing look (D-41)', () => {
     await expect(page.locator('footer').getByText('by nursing students, for nursing students.')).toBeVisible();
     await expect(page.locator('link[rel="icon"][sizes="32x32"]')).toHaveAttribute('href', '/brand/v1/icon-32.png');
     await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute('href', '/brand/v1/icon-180.png');
+    await expect(page.locator('link[rel="manifest"]')).toHaveCount(1);
+    await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/manifest.webmanifest');
 
     // Other pages: the logo in the header, named by its link. The full logo where it fits (640px and wider), the
     // emblem on phones, and the header never wider than the screen.
@@ -521,6 +523,39 @@ test.describe('marketing look (D-41)', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     const account = (await page.getByRole('button', { name: /account/i }).first().boundingBox())!;
     expect(account.x + account.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+  });
+
+  test('Open Graph and Twitter previews use the same page identity', async ({ page }) => {
+    for (const route of ['/', '/support']) {
+      await page.goto(route);
+      const title = await page.title();
+      const description = await page.locator('head meta[name="description"]').getAttribute('content');
+      const canonical = await page.locator('head link[rel="canonical"]').getAttribute('href');
+      const image = 'https://cueory.app/share/study-ivory.png';
+      expect(description).toBeTruthy();
+      expect(canonical).toBeTruthy();
+      for (const [property, content] of [
+        ['og:type', 'website'],
+        ['og:title', title],
+        ['og:description', description],
+        ['og:url', canonical],
+        ['og:image', image],
+      ]) {
+        const tag = page.locator(`head meta[property="${property}"]`);
+        await expect(tag).toHaveCount(1);
+        await expect(tag).toHaveAttribute('content', content!);
+      }
+      for (const [name, content] of [
+        ['twitter:card', 'summary_large_image'],
+        ['twitter:title', title],
+        ['twitter:description', description],
+        ['twitter:image', image],
+      ]) {
+        const tag = page.locator(`head meta[name="${name}"]`);
+        await expect(tag).toHaveCount(1);
+        await expect(tag).toHaveAttribute('content', content!);
+      }
+    }
   });
 
   test('the glassy button is see-through glass with a blur, and its text stays readable', async ({ page }) => {

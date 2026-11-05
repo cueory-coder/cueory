@@ -1,0 +1,1 @@
+status: Adds a source scan that rejects raw colors, font families, pixel/rem sizes and arbitrary sized classes outside tokens, with explicit reasons for the browser metadata, font-face, responsive, observer, safe-area and structural CSS exceptions already present on staging.
