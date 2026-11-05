@@ -28,7 +28,10 @@ interface Props {
 const { title, description = site.description, variant = 'default', noindex = false, promo = true } = Astro.props;
 // Browser-tab titles use the lowercase brand voice: "privacy · cueory" (D-47).
 const fullTitle = title === site.name || title === site.wordmarkName ? site.wordmarkName : `${title} · ${site.wordmarkName}`;
-const canonical = new URL(Astro.url.pathname, site.url).href;
+// Static Astro builds can expose /index.html or /privacy.html as the URL path.
+// Canonicals must use the actual extensionless public routes served by Cloudflare.
+const canonicalPath = (Astro.url.pathname.replace(/\/index\.html$/, '') || '/').replace(/\.html$/, '');
+const canonical = new URL(canonicalPath, site.url).href;
 const isStudy = variant === 'study';
 const isHome = variant === 'home';
 const showPromo = promoSettings.show && promo && !isStudy;
