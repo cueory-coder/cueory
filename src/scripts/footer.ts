@@ -6,7 +6,7 @@
  * centered). The footer's script calls setFooterPanel(…, false) once, then flips it on every tap.
  */
 
-export const FOOTER_TOGGLE_LABELS = { open: 'fewer links', closed: 'more links' } as const;
+export const FOOTER_TOGGLE_LABELS = { open: 'hide footer links', closed: 'show footer links' } as const;
 
 /** The parts of the chevron button and the panel that the toggle changes. */
 export interface FooterToggle {

@@ -485,6 +485,7 @@ test.describe('anatomy lab', () => {
     await expect(quiz.getByText('score: 1 of 3')).toBeVisible();
   });
 
+<<<<<<< HEAD
   test('find-it keeps asking its original targets after some become hidden', async ({ page }) => {
     await openLab(page);
     const quiz = page.getByRole('region', { name: 'find it' });
@@ -579,6 +580,36 @@ test.describe('anatomy lab', () => {
     await expect(quiz.locator('[data-feedback="right"]')).toContainText(target);
     await expect(list(page).getByRole('button', { name: target, exact: true })).toHaveAttribute('aria-pressed', 'true');
     await expect(list(page).getByRole('button', { name: `hide ${target}` })).toBeDisabled();
+  });
+
+  test('a finished quiz cannot restart with every structure hidden', async ({ page }) => {
+    await openLab(page);
+    const quiz = page.getByRole('region', { name: 'find it' });
+    const remaining = NAMES[0]!;
+
+    // Start a one-structure round so the result is deterministic, regardless
+    // of which random target a longer round might otherwise choose.
+    for (const name of NAMES.slice(1)) {
+      await list(page).getByRole('button', { name: `hide ${name}`, exact: true }).click();
+    }
+    await quiz.getByRole('button', { name: 'start the quiz' }).click();
+    await expect(quiz.getByText(/^find: /)).toContainText(remaining);
+
+    // The learner can hide the last visible shape before completing the round.
+    await list(page).getByRole('button', { name: `hide ${remaining}`, exact: true }).click();
+    await quiz.getByRole('button', { name: 'next' }).click();
+    await expect(quiz.getByText(/^round done:/)).toBeVisible();
+
+    const restart = quiz.getByRole('button', { name: 'start again' });
+    await expect(restart).toBeDisabled();
+    await expect(quiz.getByText('show a structure to start another round.')).toBeVisible();
+
+    // The same completed round becomes restartable as soon as a shape is shown.
+    const next = NAMES[1]!;
+    await list(page).getByRole('button', { name: `show ${next}`, exact: true }).click();
+    await expect(restart).toBeEnabled();
+    await restart.click();
+    await expect(quiz.getByText(/^find: /)).toContainText(next);
   });
 
   test('exports a phone picture as a 1080 × 1920 PNG with the right file name', async ({ page }, info) => {

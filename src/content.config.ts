@@ -4,10 +4,12 @@ import { z } from 'astro/zod';
 import { sentenceParts } from './islands/fillin';
 import { parseSet as parseLabelSet } from './islands/labelit';
 import { sampleChecker, type SampleItem } from './islands/questions';
+import { questionContentProblems } from './content/question-validation';
 import { existsSync } from 'node:fs';
 import { modelFileProblems, visualProblems } from './visuals/sources';
 import { videoSchema } from './videos/schema';
 import { repeatedCardIndexes } from './content/card-schema';
+import { lessonSentenceProblems } from './content/lesson-validation';
 
 /**
  * Lessons are content, not code: they live as JSON files in /content/lessons.
@@ -29,7 +31,12 @@ const lessons = defineCollection({
           text: z.string().min(1).max(400),
         }),
       )
-      .min(1),
+      .min(1)
+      .superRefine((sentences, context) => {
+        for (const message of lessonSentenceProblems(sentences)) {
+          context.addIssue({ code: 'custom', message });
+        }
+      }),
   }),
 });
 
@@ -243,6 +250,9 @@ const questions = defineCollection({
         sampleChecker(items as SampleItem[]);
       } catch (error) {
         context.addIssue({ code: 'custom', path: ['items'], message: (error as Error).message });
+      }
+      for (const message of questionContentProblems(items)) {
+        context.addIssue({ code: 'custom', path: ['items'], message });
       }
     }),
 });

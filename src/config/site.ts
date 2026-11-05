@@ -24,6 +24,9 @@ export const site = {
 
   /** Shown in the footer and on the privacy page. */
   contactEmail: 'hello@cueory.app',
+
+  /** Student-facing status of nursing-content review (Task 520). */
+  contentNotice: 'some lessons are samples or placeholders. content may not have citations or licensed-nurse review',
 } as const;
 
 /**
