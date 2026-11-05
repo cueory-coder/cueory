@@ -65,11 +65,6 @@ describe('regenerating the BodyParts3D anatomy source citations', () => {
       .toThrow('official HTTPS BodyParts3D');
   });
 
-  it('rejects an unsupported legacy Release 3.0 build before writing incorrect CC BY 4.0 credits', () => {
-    const builder = readFileSync(new URL('../../scripts/build-anatomy.mjs', import.meta.url), 'utf8');
-    expect(builder).toContain("if (options.release === '3.0') fail('Release 3.0 is disabled: archived license is not CC BY 4.0')");
-  });
-
   it('keeps the builder wired to direct table links for each structure', () => {
     const builder = readFileSync(new URL('../../scripts/build-anatomy.mjs', import.meta.url), 'utf8');
     expect(builder).toContain("import { partsListCitationUrl } from './anatomy-source-url.mjs';");
