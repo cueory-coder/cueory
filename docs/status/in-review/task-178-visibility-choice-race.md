@@ -1,0 +1,1 @@
+status: Task 178 follow-up, delayed lazy-layer downloads no longer undo a newer show-only, hide, layer-toggle or quiz reveal choice. Downloaded geometry and structure counts are still kept. A separate focused test covers the late-arrival race and peel behavior. This is a stacked assist PR into task-178/anatomy-lab and requires lead review before integration.

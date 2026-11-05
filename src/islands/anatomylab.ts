@@ -32,7 +32,7 @@ export interface AnatomySystem {
   title: string;
   status: 'draft' | 'approved';
   /** `files`: the whole-body view loads several systems' models together (src/islands/anatomylayers.ts). */
-  model: { file: string; files?: string[]; release: string; via?: string; layerFiles?: Record<string, string[]> };
+  model: { file: string; files?: string[]; release: string; via?: string; layerFiles?: Record<string, string[]>; fileIds?: Record<string, string[]> };
   structures: AnatomyStructure[];
   /** The automated tests' fixture: shapes made in code, not anatomy and not from BodyParts3D. */
   fixture?: boolean;
@@ -61,9 +61,64 @@ export function releaseNoteFor(system: Pick<AnatomySystem, 'status' | 'model' | 
     : `model release: ${system.model.release}`;
 }
 
-/** The full credit drawn at the bottom of an exported picture: the credit, then the release note. */
+/**
+ * A saved picture cannot retain the clickable license link below the 3D viewer.
+ * Print the license URL for real anatomy models, but never misattribute the synthetic fixture.
+ */
 export function pictureCreditFor(system: Pick<AnatomySystem, 'status' | 'model' | 'fixture'>): string {
-  return `${creditFor(system)} · ${releaseNoteFor(system)}`;
+  const license = system.fixture ? '' : ` · license: ${BODYPARTS3D_LICENSE_URL}`;
+  return `${creditFor(system)}${license} · ${releaseNoteFor(system)}`;
+}
+
+/**
+ * The picture can use a browser fallback font if a self-hosted face fails.
+ * A rejected FontFaceSet.load() (or one that throws) must never prevent
+ * drawing the model, its title, labels and mandatory source credit.
+ */
+export async function preparePictureFonts(
+  declarations: readonly string[],
+  load: (declaration: string) => Promise<unknown>,
+  maxWaitMs = 1_500,
+): Promise<void> {
+  // A font request can stay pending indefinitely. Give both faces a short
+  // chance to load, then let Canvas use a fallback so exporting still works.
+  // allSettled also observes late rejections after the deadline.
+  const finished = Promise.allSettled(
+    declarations.map((declaration) => Promise.resolve().then(() => load(declaration))),
+  ).then(() => {});
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      finished,
+      new Promise<void>((resolve) => { timer = setTimeout(resolve, maxWaitMs); }),
+    ]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
+/**
+ * The selected mesh is opaque while other structures become translucent.
+ * When two visible meshes overlap under the pointer, prefer the selected one
+ * if the ray actually crosses its geometry. Otherwise choose the nearest hit.
+ * The quiz disables this preference so earlier picks cannot bias answers.
+ */
+export function pickedStructure(
+  hitsNearestFirst: readonly string[],
+  selected: string | null,
+): string | null {
+  if (selected && hitsNearestFirst.includes(selected)) return selected;
+  return hitsNearestFirst[0] ?? null;
+}
+
+/**
+ * Never put loader or renderer exception text in student-facing messages.
+ * Browser and network errors can contain raw URLs, file paths and internal details.
+ */
+export function anatomyFailureMessage(kind: 'layer' | 'picture', _cause: unknown): string {
+  return kind === 'layer'
+    ? 'please try this layer again. if it still fails, choose another body system.'
+    : 'could not save the picture. please try again.';
 }
 
 /** Where a structure's name comes from, shown on its name card. */
@@ -78,8 +133,9 @@ export function systemKeyFromPath(path: string): string | null {
 }
 
 const STRUCTURE_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
-/** A same-site address of a .glb: starts with one slash, plain path characters only, no `..`. */
-const MODEL_FILE = /^\/(?!\/)[A-Za-z0-9/_-]+(?:\.[A-Za-z0-9_-]+)*\.glb$/;
+// The synthetic fixture has a preview-only route. Every real source manifest
+// must point to the GLB generated for its own anatomy-<system>.json file.
+const FIXTURE_MODEL_FILE = '/preview/anatomy-fixture/fixture.glb';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -101,15 +157,19 @@ export function parseAnatomyFile(json: unknown, path: string, options: { fixture
   if (!key) fail('an anatomy file is named anatomy-<system>.json');
   if (!isRecord(json)) fail('the file must hold one JSON object');
   const file = json as Record<string, unknown>;
+  // Refuse unrelated visual kinds and sources bound to the wrong anatomy model.
+  if (file['id'] !== `anatomy-${key}`) fail('"id" must match the anatomy source filename');
+  if (file['kind'] !== 'model') fail('"kind" must be "model"');
   if (!text(file['title'], 120)) fail('"title" must be a short line of text');
   const status = file['status'];
   if (status !== 'draft' && status !== 'approved') fail('"status" must be "draft" or "approved"');
   const model = file['model'];
   if (!isRecord(model)) fail('"model" must be { file, release }');
   const m = model as Record<string, unknown>;
-  if (typeof m['file'] !== 'string' || !MODEL_FILE.test(m['file']) || m['file'].includes('..')) {
-    fail('"model.file" must be this site\'s address of a .glb, such as /models/anatomy/heart.glb');
-  }
+  // Accept an exact per-system GLB or the explicit synthetic fixture, never
+  // an arbitrary public path or another system's 3D model.
+  const expectedModel = options.fixture ? FIXTURE_MODEL_FILE : `/models/anatomy/${key}.glb`;
+  if (m['file'] !== expectedModel) fail(`"model.file" must be ${expectedModel}`);
   if (!text(m['release'], 80)) fail('"model.release" must name the model release');
   if (m['via'] !== undefined && !text(m['via'], 200)) fail('"model.via", when given, must be a short line of text');
   const labels = file['labels'];
@@ -257,6 +317,22 @@ export function groupStructures(structures: readonly AnatomyStructure[], query =
   return [...groups].map(([group, items]) => ({ group, items }));
 }
 
+/** Keep a text-only fallback usable on phones even with a large whole-body catalog. */
+export const TEXT_FALLBACK_BATCH = 40;
+
+/** The first `limit` matching names, preserving group order; searching still checks the entire catalog. */
+export function textFallbackItems(groups: readonly StructureGroup[], limit: number): AnatomyStructure[] {
+  if (!Number.isSafeInteger(limit) || limit < 1) return [];
+  const entries: AnatomyStructure[] = [];
+  for (const group of groups) {
+    for (const item of group.items) {
+      if (entries.length >= limit) return entries;
+      entries.push(item);
+    }
+  }
+  return entries;
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 // Visibility
 // ---------------------------------------------------------------------------------------------------------------------
@@ -295,6 +371,8 @@ export function labelsToShow(
 // ---------------------------------------------------------------------------------------------------------------------
 
 export interface QuizState {
+  /** The eligible structure IDs fixed when this round starts, even if visibility changes. */
+  pool: string[];
   /** The structure to find, or null when every structure in the round has been asked. */
   target: string | null;
   /** Targets already asked this round, in order (the current one included). */
@@ -309,6 +387,12 @@ export interface QuizState {
   scored: boolean;
 }
 
+/** The target must stay visible once its answer is shown or found, even if layer controls are used. */
+export function revealedQuizTarget(state: Pick<QuizState, 'target' | 'feedback'> | null): string | null {
+  if (!state?.target) return null;
+  return state.feedback?.kind === 'right' || state.feedback?.kind === 'shown' ? state.target : null;
+}
+
 /** Picks the next target among `pool`, never one already asked this round. `random` returns [0, 1). */
 export function pickQuizTarget(pool: readonly string[], asked: readonly string[], random: () => number): string | null {
   const left = pool.filter((id) => !asked.includes(id));
@@ -318,8 +402,10 @@ export function pickQuizTarget(pool: readonly string[], asked: readonly string[]
 }
 
 export function startQuiz(pool: readonly string[], random: () => number): QuizState {
-  const target = pickQuizTarget(pool, [], random);
-  return { target, asked: target ? [target] : [], answered: 0, right: 0, feedback: null, scored: false };
+  // Snapshot the eligible structures for the full round. Visibility changes belong to the next round.
+  const roundPool = [...new Set(pool)];
+  const target = pickQuizTarget(roundPool, [], random);
+  return { pool: roundPool, target, asked: target ? [target] : [], answered: 0, right: 0, feedback: null, scored: false };
 }
 
 /** The student picked `picked` (in 3D or the list). Only the first pick of a question counts towards the score. */
@@ -342,9 +428,9 @@ export function revealQuiz(state: QuizState): QuizState {
   return { ...state, answered: state.answered + (state.scored ? 0 : 1), scored: true, feedback: { kind: 'shown' } };
 }
 
-/** "next": a new target from the pool, never repeating this round; null target when the round is done. */
-export function nextQuiz(state: QuizState, pool: readonly string[], random: () => number): QuizState {
-  const target = pickQuizTarget(pool, state.asked, random);
+/** "next": pick from the round's original pool, even if visible structures changed since it started. */
+export function nextQuiz(state: QuizState, random: () => number): QuizState {
+  const target = pickQuizTarget(state.pool, state.asked, random);
   return {
     ...state,
     // Skipping a question with "next" before answering it counts it as answered, not right.
@@ -429,11 +515,21 @@ export function placeLabels(anchors: readonly LabelAnchor[], options: LayoutOpti
   const top = margin;
   const bottom = height - margin;
   const room = bottom - top;
+  // A collapsed or non-finite canvas cannot fit even an empty label column.
+  // Return each omitted ID once, in source order, before the balancing loop.
+  if (!Number.isFinite(room) || room <= 0) {
+    return { placed: [], leftOut: [...new Set(anchors.map((anchor) => anchor.id))] };
+  }
   const mid = columns ? (columns.left + columns.right) / 2 : width / 2;
   const byOrder = (a: LabelAnchor, b: LabelAnchor) => a.y - b.y || a.x - b.x || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
   const usable = anchors
-    .filter((a) => Number.isFinite(a.x) && Number.isFinite(a.y))
-    .filter((a) => a.width + 2 * margin <= width && a.height + 2 * margin <= height)
+    // A projected center outside the canvas crop is not a visible anchor.
+    // Report its name as skipped instead of drawing a false leader line.
+    .filter((a) => Number.isFinite(a.x) && Number.isFinite(a.y) &&
+      a.x >= 0 && a.x < width && a.y >= 0 && a.y < height)
+    .filter((a) => Number.isFinite(a.width) && Number.isFinite(a.height) &&
+      a.width > 0 && a.height > 0 &&
+      a.width + 2 * margin <= width && a.height + 2 * margin <= height)
     .sort(byOrder);
   const side = { left: usable.filter((a) => a.x < mid), right: usable.filter((a) => a.x >= mid) };
   const need = (list: LabelAnchor[]) => list.reduce((sum, a) => sum + a.height, 0) + gap * Math.max(0, list.length - 1);
@@ -581,15 +677,28 @@ export function findVisibleAnchors(
     return pixels[i]! | (pixels[i + 1]! << 8) | (pixels[i + 2]! << 16);
   };
   const out = new Map<string, VisibleAnchor>();
-  const pending = new Map<number, { id: string; count: number; sx: number; sy: number; t: VisibilityTarget }>();
+  const pending = new Map<number, {
+    id: string;
+    count: number;
+    sx: number;
+    sy: number;
+    t: VisibilityTarget;
+    centerVisible: boolean;
+    minX: number;
+    maxX: number;
+    minY: number;
+    maxY: number;
+  }>();
   for (const [id, t] of targets) {
     const cx = Math.round(t.x);
     const cy = Math.round(t.y);
-    if (cx >= 0 && cy >= 0 && cx < width && cy < height && at(cx, cy) === t.index + 1) {
-      out.set(id, { visible: true, x: t.x, y: t.y });
-    } else {
-      pending.set(t.index + 1, { id, count: 0, sx: 0, sy: 0, t });
-    }
+    const centerVisible = cx >= 0 && cy >= 0 && cx < width && cy < height && at(cx, cy) === t.index + 1;
+    // Count pixels even when the projected center is visible. The minimum
+    // visible area must be the same for center hits and off-center structures.
+    pending.set(t.index + 1, {
+      id, count: 0, sx: 0, sy: 0, t, centerVisible,
+      minX: width, maxX: -1, minY: height, maxY: -1,
+    });
   }
   if (pending.size === 0) return out;
   for (let y = 0; y < height; y++) {
@@ -599,12 +708,24 @@ export function findVisibleAnchors(
         p.count++;
         p.sx += x;
         p.sy += y;
+        // Center-visible labels never need the nearest-pixel fallback.
+        if (!p.centerVisible) {
+          if (x < p.minX) p.minX = x;
+          if (x > p.maxX) p.maxX = x;
+          if (y < p.minY) p.minY = y;
+          if (y > p.maxY) p.maxY = y;
+        }
       }
     }
   }
   for (const [code, p] of pending) {
-    if (p.count < minPixels) {
+    if (p.count === 0 || p.count < minPixels) {
       out.set(p.id, { visible: false, x: p.t.x, y: p.t.y });
+      continue;
+    }
+    // Preserve the exact projected center when enough pixels are visible.
+    if (p.centerVisible) {
+      out.set(p.id, { visible: true, x: p.t.x, y: p.t.y });
       continue;
     }
     const mx = Math.round(p.sx / p.count);
@@ -613,10 +734,13 @@ export function findVisibleAnchors(
       out.set(p.id, { visible: true, x: mx, y: my });
       continue;
     }
-    // The middle of what can be seen is not on the structure (a curved or broken shape): take its nearest pixel.
+    // For a curved or disconnected structure, the centroid can land in
+    // empty space. Search only its occupied bounding rectangle, not the
+    // entire ID picture again for every such structure. The scan order and
+    // nearest-pixel tie-break remain unchanged.
     let best = { x: mx, y: my, d: Infinity };
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
+    for (let y = p.minY; y <= p.maxY; y++) {
+      for (let x = p.minX; x <= p.maxX; x++) {
         if (at(x, y) !== code) continue;
         const d = (x - mx) ** 2 + (y - my) ** 2;
         if (d < best.d) best = { x, y, d };
@@ -718,26 +842,79 @@ export function labelRoomFor(
   pictureWidth: number,
   extra: number,
 ): LabelRoom {
+  // A zero-width or hidden canvas cannot provide a usable label-column ratio.
+  // Return no reserved columns rather than Infinity, which would make exportRegion produce NaN coordinates.
+  if (!Number.isFinite(pictureWidth) || pictureWidth <= 0) return { left: 0, right: 0 };
   const widest = (list: ReadonlyArray<{ width: number }>) => list.reduce((most, a) => Math.max(most, a.width), 0);
   const share = (w: number) => (w > 0 ? (w + extra) / pictureWidth : 0);
   return { left: share(widest(anchors.filter((a) => a.x < mid))), right: share(widest(anchors.filter((a) => a.x >= mid))) };
 }
 
-/** Splits text into lines no wider than `maxWidth`, by words. `measure` gives a string's width. */
+/** Wrap words and split an oversized unbroken word without losing any source characters. */
 export function wrapText(value: string, maxWidth: number, measure: (s: string) => number): string[] {
   const words = value.split(/\s+/).filter(Boolean);
   const lines: string[] = [];
   let line = '';
   for (const word of words) {
     const candidate = line ? `${line} ${word}` : word;
-    if (!line || measure(candidate) <= maxWidth) line = candidate;
-    else {
+    if (measure(candidate) <= maxWidth) {
+      line = candidate;
+      continue;
+    }
+    if (line) {
       lines.push(line);
+      line = '';
+    }
+    if (measure(word) <= maxWidth) {
       line = word;
+      continue;
+    }
+    // Split only a word too wide on its own; Array.from preserves Unicode surrogate pairs.
+    for (const character of Array.from(word)) {
+      if (line && measure(line + character) > maxWidth) {
+        lines.push(line);
+        line = character;
+      } else {
+        line += character;
+      }
     }
   }
   if (line) lines.push(line);
   return lines;
+}
+
+/** The title band of a saved picture, measured with the same font used by the canvas renderer. */
+export interface PictureTitleLayout {
+  lines: string[];
+  lineHeight: number;
+  /** The y-coordinate where the 3D picture may begin, after the title and its padding. */
+  top: number;
+  /** Also passed to canvas fillText so even an unusually long unbroken word stays inside the picture. */
+  maxWidth: number;
+}
+
+/**
+ * A long system title must not run off the right edge of a saved phone, square or wide picture.
+ * Every wrapped line gets vertical space above the 3D view. The canvas renderer constrains single
+ * words longer than the available width with fillText's maxWidth (without truncating the text).
+ */
+export function pictureTitleLayout(
+  title: string,
+  pictureWidth: number,
+  padding: number,
+  fontSize: number,
+  leading: number,
+  measure: (value: string) => number,
+): PictureTitleLayout {
+  const maxWidth = Math.max(1, pictureWidth - 2 * padding);
+  const lines = wrapText(title, maxWidth, measure);
+  const lineHeight = Math.max(1, Math.round(fontSize * leading));
+  return {
+    lines,
+    lineHeight,
+    top: padding + lines.length * lineHeight + Math.round(padding / 2),
+    maxWidth,
+  };
 }
 
 /** Room around the model in the lab's starting view: 1.08 leaves 4% at the tighter edges. */
