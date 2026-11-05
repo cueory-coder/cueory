@@ -100,6 +100,8 @@ describe('automation.json', () => {
 
 describe('held paths', () => {
   const always = [
+    '.gitleaksignore',
+    '.gitleaks.toml',
     '.github/workflows/ci.yml',
     '.github/dependabot.yml',
     'automation.json',

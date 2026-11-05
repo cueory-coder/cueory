@@ -1,0 +1,5 @@
+# Exact historical false positive reviewed from metadata-only CI job 127072434128.
+# At commit cefdb48... the generic-api-key rule matched the literal
+# repository source path src/islands/resetpassword, not a credential.
+# Commit + file + rule + line only. Keep every other secret finding active.
+cefdb48a6e27bd0d3f73531f991f2dca6ed8ae83:scripts/automerge/decide.ts:generic-api-key:74

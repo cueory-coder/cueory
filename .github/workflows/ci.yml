@@ -216,17 +216,7 @@ jobs:
           tar -xzf "$f" gitleaks
 
       - name: Scan full history
-        run: |
-          # Temporary PR-only diagnosis: print only finding metadata.
-          set +e
-          ./gitleaks git --redact --no-banner --exit-code 1 --report-format json --report-path "$RUNNER_TEMP/cueory-leak-audit.json" .
-          result=$?
-          set -e
-          if [ -s "$RUNNER_TEMP/cueory-leak-audit.json" ]; then
-            node -e 'const fs=require("node:fs");for(const item of JSON.parse(fs.readFileSync(process.argv[1],"utf8")))console.log(["GITLEAKS_METADATA_ONLY",item.RuleID,item.File,String(item.Commit||"").slice(0,12),item.StartLine].join(" | "));' "$RUNNER_TEMP/cueory-leak-audit.json"
-          fi
-          rm -f "$RUNNER_TEMP/cueory-leak-audit.json"
-          exit "$result"
+        run: ./gitleaks git --redact --no-banner --exit-code 1 .
 
   code-scan:
     # Free stand-in for CodeQL while the repository is private (DECISIONS.md, D-18).
