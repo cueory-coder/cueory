@@ -121,6 +121,7 @@ export interface VisualProblem {
  * differently licensed archive releases. Fail closed on encoded paths.
  */
 function isAllowedSourcePage(value: string, prefix: string): boolean {
+  if (typeof value !== 'string') return false;
   // URL() erases dot segments, including percent-encoded ones. Reject them
   // before parsing so a path cannot leave and then re-enter the cited archive.
   const rawPath = value.split(/[?#]/, 1)[0] ?? '';
