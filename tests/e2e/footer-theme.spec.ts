@@ -41,7 +41,7 @@ test.describe('footer bar', () => {
 
     const flag = footer.getByRole('button', { name: 'flag or comment', exact: true });
     const home = footer.getByRole('link', { name: 'cueory, home', exact: true });
-    const more = footer.getByRole('button', { name: 'more links', exact: true });
+    const more = footer.getByRole('button', { name: 'show footer links', exact: true });
     await expect(flag).toBeVisible();
     await expect(home).toHaveAttribute('href', '/');
     await expect(more).toHaveAttribute('aria-expanded', 'false');
@@ -95,11 +95,11 @@ test.describe('footer bar', () => {
 
     await chevron(page).click();
     await expect(chevron(page)).toHaveAttribute('aria-expanded', 'true');
-    await expect(chevron(page)).toHaveAccessibleName('fewer links');
+    await expect(chevron(page)).toHaveAccessibleName('hide footer links');
     await expect(panel).toBeVisible();
     // Above the bar.
     expect((await panel.boundingBox())!.y).toBeLessThan((await chevron(page).boundingBox())!.y);
-    for (const name of ['privacy', 'terms', 'disclaimer', 'support cueory', 'hello@cueory.app']) {
+    for (const name of ['courses', 'coming soon', 'privacy', 'terms', 'disclaimer', 'support cueory', 'hello@cueory.app']) {
       await expect(footer.getByRole('link', { name, exact: true })).toBeVisible();
     }
     await expect(footer.getByText('by nursing students, for nursing students.', { exact: true })).toBeVisible();
@@ -108,12 +108,16 @@ test.describe('footer bar', () => {
 
     await chevron(page).click();
     await expect(panel).toBeHidden();
-    await expect(chevron(page)).toHaveAccessibleName('more links');
+    await expect(chevron(page)).toHaveAccessibleName('show footer links');
 
-    // Keyboard: Enter opens it, and Tab goes straight from the chevron into the panel.
+    // Keyboard: Enter opens it, and Tab follows the current footer link order.
     await chevron(page).focus();
     await page.keyboard.press('Enter');
     await expect(panel).toBeVisible();
+    await page.keyboard.press('Tab');
+    await expect(footer.getByRole('link', { name: 'courses', exact: true })).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(footer.getByRole('link', { name: 'coming soon', exact: true })).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(footer.getByRole('link', { name: 'privacy', exact: true })).toBeFocused();
     await chevron(page).focus();
