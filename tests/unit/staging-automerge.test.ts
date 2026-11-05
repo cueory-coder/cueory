@@ -45,6 +45,7 @@ const run = (name: string, conclusion: string | null = 'success', status = 'comp
   name,
   status,
   conclusion,
+  app: { slug: name === 'CodeQL' ? 'github-advanced-security' : 'github-actions' },
 });
 const greenChecks = () => [...REQUIRED_CHECKS.map((n) => run(n)), run('Analyze (actions)', 'skipped')];
 
@@ -354,6 +355,15 @@ describe('checks', () => {
     expect(decide(input({ checks: cleared })).action).toBe('merge');
   });
 
+  it('rejects a green CodeQL-named check that was not issued by GitHub Advanced Security', () => {
+    const otherChecks = greenChecks().filter((check) => check.name !== 'CodeQL');
+    for (const app of [undefined, { slug: 'github-actions' }, { slug: 'some-other-app' }]) {
+      const checks = [...otherChecks, { ...run('CodeQL'), app }];
+      expect(checkProblems(checks)).toEqual(['"CodeQL" was not published by GitHub Advanced Security']);
+      expect(decide(input({ checks })).action).toBe('wait');
+    }
+  });
+
   it('waits for a required check that is missing or still running', () => {
     const checks = greenChecks().filter((c) => c.name !== 'Workers Builds: cueory');
     expect(checkProblems(checks)).toEqual(['"Workers Builds: cueory" hasn\'t reported yet']);
@@ -506,6 +516,8 @@ function fakeGitHub(
     later = undefined as Partial<PullRequest> | undefined,
     /** File texts by "ref:path", for GET /contents. */
     contents = {} as Record<string, string>,
+    /** Number of staging commits missing from the checked PR head. */
+    behind = 0,
   } = {},
 ) {
   const seen = new Map<number, number>();
@@ -525,6 +537,7 @@ function fakeGitHub(
     }
     if (method === 'GET' && (m = path.match(/^\/pulls\/(\d+)\/files$/))) return json(pr(m[1]!)!.files.map((filename) => ({ filename })));
     if (method === 'GET' && path.startsWith('/commits/')) return json({ total_count: 5, check_runs: greenChecks() });
+    if (method === 'GET' && path.startsWith('/compare/')) return json({ behind_by: behind });
     if (method === 'GET' && (m = path.match(/^\/contents\/(.+)\?ref=(.+)$/))) {
       const text = contents[`${decodeURIComponent(m[2]!)}:${decodeURIComponent(m[1]!)}`];
       if (text === undefined) return json({ message: 'Not Found' }, 404);
@@ -624,6 +637,19 @@ describe('the auto-merge run', () => {
     expect(outcomes[0]!.done).toBe('merge refused');
     expect(outcomes[0]!.decision.reasons.at(-1)).toContain('into main');
     expect(calls.filter((c) => c.method !== 'GET')).toEqual([]);
+  });
+
+  it('refuses a stale PR head even if both PR snapshots report the same base SHA', async () => {
+    const { gh, calls } = fakeGitHub({ 7: { pr: pull(), files: ['src/x.ts'] } }, { behind: 2 });
+    const outcomes = await runAutomerge({ gh, repo: REPO, mode: 'launched', dryRun: false, log: () => {} });
+    expect(outcomes[0]!.done).toBe('merge refused');
+    expect(outcomes[0]!.decision.reasons.at(-1)).toContain('not an ancestor');
+    expect(calls.some((c) => c.method === 'GET' && c.path === `/compare/staging...${HEAD}`)).toBe(true);
+    expect(calls.filter((c) => c.method !== 'GET')).toEqual([]);
+
+    const dry = fakeGitHub({ 7: { pr: pull(), files: ['src/x.ts'] } }, { behind: 1 });
+    const reported = await runAutomerge({ gh: dry.gh, repo: REPO, mode: 'launched', dryRun: true, log: () => {} });
+    expect(reported[0]!.done).toBe('merge refused');
   });
 
   it('refuses to merge if staging advances after the original checks were collected', async () => {

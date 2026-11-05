@@ -83,6 +83,14 @@ export function createGitHub({
       all<ChangedFile>(`/pulls/${n}/files`, (p) => p as ChangedFile[], { maxPages: FILE_PAGES, failIfLonger: false }),
     checks: (sha: string) =>
       all<CheckRun>(`/commits/${sha}/check-runs`, (p) => (p as { check_runs: CheckRun[] }).check_runs),
+    /** Refuse stale-base merges: the current staging tip must be an ancestor of the checked PR head. */
+    compare: async (base: string, head: string): Promise<{ behind_by: number }> => {
+      const result = await call('GET', `/compare/${encodeURIComponent(base)}...${encodeURIComponent(head)}`) as { behind_by?: unknown };
+      if (typeof result.behind_by !== 'number' || !Number.isInteger(result.behind_by)) {
+        throw new TruncatedError('GitHub did not provide a valid branch ancestry comparison');
+      }
+      return { behind_by: result.behind_by };
+    },
     comments: (n: number) => all<IssueComment>(`/issues/${n}/comments`, (p) => p as IssueComment[]),
     /** Merge commit, and only if the head is still the commit that was checked (`sha`). */
     merge: (n: number, sha: string) => call('PUT', `/pulls/${n}/merge`, { merge_method: 'merge', sha }),

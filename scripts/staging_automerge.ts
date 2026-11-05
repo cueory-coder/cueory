@@ -72,7 +72,13 @@ export async function runAutomerge({
 
     let done: Done = 'nothing';
     if (decision.action === 'merge') {
-      if (dryRun) done = 'would merge';
+      // A green CI run can belong to an older staging merge-base. Exact-head
+      // checks are insufficient unless the PR head already contains staging.
+      const ancestry = await gh.compare(BASE_BRANCH, pull.head.sha);
+      if (ancestry.behind_by !== 0) {
+        done = 'merge refused';
+        decision.reasons.push('staging is not an ancestor of this PR head; synchronize and rerun checks');
+      } else if (dryRun) done = 'would merge';
       else {
         // Look again right before merging: the merge call goes to whatever base the pull request has now, and only
         // the head commit can be pinned in it. Anything that moved since the checks means: wait for the next event.

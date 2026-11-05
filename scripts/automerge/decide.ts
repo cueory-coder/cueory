@@ -91,6 +91,8 @@ export interface CheckRun {
   name: string;
   status: string;
   conclusion: string | null;
+  /** GitHub check-run publisher, used to verify the CodeQL verdict's origin. */
+  app?: { slug?: string };
 }
 
 export interface IssueComment {
@@ -348,6 +350,10 @@ export function checkProblems(checks: readonly CheckRun[]): string[] {
     if (!run) problems.push(`"${name}" hasn't reported yet`);
     else if (run.status !== 'completed') problems.push(`"${name}" is still running`);
     else if (run.conclusion !== 'success') problems.push(`"${name}" ended as ${run.conclusion ?? 'unknown'}`);
+    else if (name === 'CodeQL' && run.app?.slug !== 'github-advanced-security') {
+      // A green job with the same display name is not the GitHub Advanced Security verdict.
+      problems.push('"CodeQL" was not published by GitHub Advanced Security');
+    }
   }
   for (const [name, run] of latest) {
     if ((REQUIRED_CHECKS as readonly string[]).includes(name)) continue;
