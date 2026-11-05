@@ -41,6 +41,9 @@ function safeLink(value, name) {
     parsed.origin !== official.origin ||
     !parsed.pathname.startsWith(official.pathname) ||
     parsed.pathname.length === official.pathname.length ||
+    // Source records use literal public archive paths. Refuse escaped path bytes
+    // so encoded slashes/dot segments cannot be reinterpreted downstream.
+    parsed.pathname.includes('%') ||
     parsed.username || parsed.password || parsed.port
   ) {
     throw new Error(`${name} must link to the official BodyParts3D source`);
