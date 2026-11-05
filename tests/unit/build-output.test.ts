@@ -306,6 +306,7 @@ describe.skipIf(!existsSync(dist))('built site', () => {
     const html = readFileSync(join(dist, page), 'utf8');
     const noindex = html.includes('<meta name="robots" content="noindex');
     const body = /<main[^>]*\sdata-pagefind-body(?:="")?[\s>]/.test(html);
+    // Public legal pages remain searchable on-site while robots excludes external crawlers.
     const legal = ['/privacy.html', '/terms.html', '/disclaimer.html'].includes(page.replaceAll('\\', '/'));
     expect(body, noindex && !legal ? 'a private noindex page must stay out of site search' : 'this page should be searchable').toBe(
       !noindex || legal,
