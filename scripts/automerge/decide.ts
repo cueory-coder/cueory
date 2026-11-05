@@ -80,7 +80,9 @@ const ALWAYS_HELD_FILES = new Set([
   'src/islands/AnatomyLab.tsx', // Shows draft warnings, model attribution and export credits.
   'src/islands/anatomyscene.ts', // Renders mandatory source credits in exported anatomy PNGs.
   'src/pages/preview/anatomy-lab.astro', // Serializes the model selection into the page.
+  'src/pages/preview/anatomy-text.astro', // Serializes source names without JavaScript under the same draft gate.
   'scripts/build-anatomy.mjs', // Source-driven geometry and label generation.
+  'scripts/anatomy-review-report.mjs', // Provides the founder's prepublication labels and rights inventory.
   'scripts/anatomy-systems.json', // Model source selection and layer definitions.
   'src/visuals/prunedrafts.ts',
   'src/visuals/sources.ts',
