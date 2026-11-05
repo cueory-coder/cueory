@@ -126,16 +126,9 @@ function parseArguments(argv) {
   if (options.isaSource !== undefined && options.release !== '4.0') fail('--isa-source is for Release 4.0 only');
   if (!RELEASES[options.release]) fail('--release must be 3.0 or 4.0');
   if (options.tree !== undefined && options.release !== '4.0') fail('--tree is for Release 4.0 only');
-  // The archived Release 3.0 README requires CC BY-SA 2.1 Japan attribution.
-  // This generator emits CC BY 4.0 in both the manifest and model copyright.
-  // Refuse legacy output before reading inputs or writing model artifacts.
-  if (options.release === '3.0') {
-    fail('Release 3.0 generation is disabled until historical source rights and attribution are separately reviewed; use Release 4.0');
-  }
-  // Archived Release 3.0 is CC BY-SA 2.1 Japan, whereas this builder's manifests,
-  // GLB copyright and site credits currently assume CC BY 4.0 (Release 4.0 only).
-  // Refuse the legacy path before reading or writing any model/source files.
-  if (options.release === '3.0') fail('--release 3.0 is not approved: archived BodyParts3D has different attribution and share-alike licensing; use --release 4.0');
+  // Archived Release 3.0 is CC BY-SA 2.1 Japan, while this generator writes
+  // CC BY 4.0 source metadata and GLB credits. Reject before reading or writing files.
+  if (options.release === '3.0') fail('--release 3.0 is not approved: Release 3.0 generation is disabled until archived BodyParts3D share-alike licensing and attribution are separately reviewed; use --release 4.0');
   options.tree ??= 'partof';
   if (options.tree !== 'partof' && options.tree !== 'isa') fail('--tree must be partof or isa');
   options.retrieved ??= RELEASES[options.release].retrieved;
