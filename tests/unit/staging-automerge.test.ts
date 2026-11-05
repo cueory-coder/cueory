@@ -160,6 +160,7 @@ describe('held paths', () => {
     'src/pages/reset-password.astro',
     'src/pages/account.astro',
     'src/pages/start.astro',
+    'src/pages/progress.astro',
     'src/islands/supabaseenv.ts',
     'src/islands/supabaseclient.ts',
     'src/islands/supabasebuildcheck.ts',
@@ -181,6 +182,13 @@ describe('held paths', () => {
     'src/islands/flagsend.ts',
     'src/islands/flagsubmit.ts',
     'src/islands/flaginbox.ts', // private/admin comment rendering
+    'src/islands/FlagForm.tsx', // authenticated report submission UI
+    'src/islands/FlagMount.tsx', // sign-in state and report transport
+    'src/islands/ProgressPanel.tsx', // account exam-plan and personal progress
+    'src/islands/PublishedQuestions.tsx', // signed-in question transport
+    'src/islands/publishedquestions.ts', // authorized published-question query adapter
+    'src/islands/QuestionsPlayer.tsx', // answer-check feedback transport
+    'src/islands/questionsremote.ts', // check_answer RPC boundary
   ];
 
   it.each(sensitiveAccountSources)('%s requires founder approval even before launch', (path) => {

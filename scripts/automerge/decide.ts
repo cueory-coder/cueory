@@ -85,13 +85,16 @@ const SENSITIVE_AUTH_PAGES = new Set([
   'src/pages/signup.astro',
   'src/pages/reset-password.astro',
   'src/pages/start.astro',
+  'src/pages/progress.astro', // shows signed-in exam data and student export controls
 ]);
   // RPC bridges and signed-in progress sync are security boundaries too.
 const SENSITIVE_AUTH_ISLAND_STEMS = [
   'account', 'admin', 'auth', 'checkanswer', 'deleteaccount', 'displayname',
-  'examplan', 'exportdata', 'exportload', 'flagconnect', 'flaginbox', 'flagsend', 'flagsubmit',
+  'examplan', 'exportdata', 'exportload', 'flagconnect', 'flagform', 'flaginbox',
+  'flagmount', 'flagsend', 'flagsubmit',
   'guestimport', 'mfa', 'oauth',
-  'onboarding', 'password', 'pkce', 'recovery', 'resetpassword',
+  'onboarding', 'password', 'pkce', 'progresspanel', 'publishedquestions',
+  'questionsplayer', 'questionsremote', 'recovery', 'resetpassword',
   'reviewsync', 'session', 'signin', 'signup', 'studyrecorder', 'supabase', 'twofactor',
 ];
 
