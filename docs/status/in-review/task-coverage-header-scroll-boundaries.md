@@ -1,0 +1,1 @@
+status: Add focused synthetic unit tests for header scroll-state boundaries, including threshold, upward and stationary motion, invalid positions, focused navigation, and open-menu safeguards. Runtime code remains unchanged. Exact-head CI, preview and independent review remain required.
