@@ -337,6 +337,20 @@ describe('database adapters', () => {
       .toEqual({ error: { code: '42501' } });
   });
 
+  it('rejects multiple updated rows instead of treating them as one confirmed account plan', async () => {
+    const client: ImportClient = {
+      from: () => ({
+        insert: async () => ({ error: { code: '23505' } }),
+        update: () => ({ match: () => ({ select: async () => ({
+          data: [{ user_id: USER }, { user_id: USER }],
+          error: null,
+        }) }) }),
+      }),
+    };
+    expect(await plansDbFrom(client, USER).upsert('exam_plans', row, 'user_id,course'))
+      .toEqual({ error: { code: '42501' } });
+  });
+
   it('rejects an update confirmation belonging to a different account', async () => {
     const client: ImportClient = {
       from: () => ({
