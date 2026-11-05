@@ -168,6 +168,11 @@ describe('a visual source file (docs/VISUALS.md)', () => {
       'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/%2f..%2f20110915/README_e.html',
       'https://dbarchive.biosciencedbc.jp.evil.example/data/bodyparts3d/LATEST/README_e.html',
       'http://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/README_e.html',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/?page=1',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/../private',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/%2e%2e/private',
+      'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/%2fREADME_e.html',
+      'https://attacker@dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/README_e.html',
     ];
     for (const url of invalid) {
       visual.sources = [{ ...visual.sources[0]!, url }];
