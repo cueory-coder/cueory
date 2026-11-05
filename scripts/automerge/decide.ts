@@ -56,7 +56,10 @@ export type Mode = 'prelaunch' | 'launched';
  * - `supabase/` (sign-in and database policies) and `wrangler.jsonc` (deployment), which CLAUDE.md rule 3 reserves
  *   for Christian.
  */
-const ALWAYS_HELD_PREFIXES = ['.github/', 'scripts/automerge/', 'content/', 'supabase/'];
+const ALWAYS_HELD_PREFIXES = [
+  '.github/', 'scripts/automerge/', 'content/', 'supabase/',
+  'src/pages/auth/', 'src/pages/account/', 'src/pages/admin/', 'src/pages/preview/admin-',
+];
 const ALWAYS_HELD_FILES = new Set([
   'automation.json',
   'scripts/staging_automerge.ts',
@@ -64,14 +67,63 @@ const ALWAYS_HELD_FILES = new Set([
   'AGENTS.md',
   'SECURITY.md',
   'wrangler.jsonc',
+  // Founder approval is required for changes to secret-scan exceptions/config.
+  '.gitleaksignore',
+  '.gitleaks.toml',
+  // Legal/SEO release controls remain founder-held while their copy is in draft.
+  'src/pages/privacy.astro',
+  'src/pages/terms.astro',
+  'src/pages/disclaimer.astro',
+  'src/config/routes.ts',
+  // Account session/menu and newsletter form code are security-sensitive even before launch.
+  'src/config/site.ts',
+  'src/components/AccountCorner.astro',
+  'src/components/SignupForm.astro',
+  'src/scripts/accountcorner.ts',
+  'src/scripts/studyeventqueue.ts', // may pass signed-in study events to an RPC sender
+  'src/islands/questions.ts', // ensures public question state rejects pre-attempt answer keys
+  'src/islands/flag.ts', // validates authenticated student report payloads
+  'src/pages/learn/questions.astro', // publishes the signed-in question practice entry point
+  'src/scripts/progress.ts', // holds local onboarding answers later imported into an account
 ]);
+
+/**
+ * Account, authentication and privileged-admin code requires founder review in BOTH modes.
+ * These directories hold route entrypoints, while the flat islands folder uses narrow
+ * feature stems to include future helper modules without blocking ordinary study islands.
+ */
+const SENSITIVE_AUTH_PAGES = new Set([
+  'src/pages/account.astro',
+  'src/pages/signin.astro',
+  'src/pages/signup.astro',
+  'src/pages/reset-password.astro',
+  'src/pages/start.astro',
+  'src/pages/progress.astro', // shows signed-in exam data and student export controls
+]);
+  // RPC bridges and signed-in progress sync are security boundaries too.
+const SENSITIVE_AUTH_ISLAND_STEMS = [
+  'account', 'admin', 'auth', 'checkanswer', 'deleteaccount', 'displayname',
+  'examplan', 'exportdata', 'exportload', 'flagconnect', 'flagform', 'flaginbox',
+  'flagmount', 'flagsend', 'flagsubmit', 'flagitem',
+  'guestimport', 'mfa', 'oauth',
+  'onboarding', 'password', 'pkce', 'progresspanel', 'publishedquestions',
+  'questionsplayer', 'questionsremote', 'recovery', 'resetpassword',
+  'rpcerrors', 'reviewsession', 'reviewsync', 'session', 'signin', 'signup', 'studyrecorder', 'supabase', 'twofactor',
+];
+
+function isSensitiveAuthSource(path: string): boolean {
+  if (SENSITIVE_AUTH_PAGES.has(path)) return true;
+  if (!path.startsWith('src/islands/')) return false;
+  const filename = path.slice('src/islands/'.length).toLowerCase();
+  return SENSITIVE_AUTH_ISLAND_STEMS.some((stem) => filename.startsWith(stem));
+}
 
 /**
  * Also held once the site is live: the rest of the brief's sensitive list, plus the Node version every build uses and
  * the newsletter form settings (AGENTS.md sensitive areas).
  */
 const LAUNCHED_HELD_PREFIXES = ['brand-source/', 'public/brand/'];
-const LAUNCHED_HELD_FILES = new Set(['public/_headers', 'astro.config.mjs', '.node-version', 'src/config/site.ts']);
+const LAUNCHED_HELD_FILES = new Set(['public/_headers', 'astro.config.mjs', '.node-version']);
 /** A dependency list anywhere in the tree counts, not just the root one. */
 const LAUNCHED_HELD_BASENAMES = new Set(['package.json', 'package-lock.json']);
 
@@ -145,7 +197,7 @@ export function parseAutomation(text: string | undefined): { mode: Mode; note?: 
 }
 
 export function isHeldPath(path: string, mode: Mode): boolean {
-  if (ALWAYS_HELD_FILES.has(path) || ALWAYS_HELD_PREFIXES.some((prefix) => path.startsWith(prefix))) return true;
+  if (ALWAYS_HELD_FILES.has(path) || ALWAYS_HELD_PREFIXES.some((prefix) => path.startsWith(prefix)) || isSensitiveAuthSource(path)) return true;
   if (mode === 'prelaunch') return false;
   if (LAUNCHED_HELD_FILES.has(path) || LAUNCHED_HELD_PREFIXES.some((prefix) => path.startsWith(prefix))) return true;
   return LAUNCHED_HELD_BASENAMES.has(path.slice(path.lastIndexOf('/') + 1));

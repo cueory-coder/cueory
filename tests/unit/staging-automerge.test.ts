@@ -100,6 +100,12 @@ describe('automation.json', () => {
 
 describe('held paths', () => {
   const always = [
+    '.gitleaksignore',
+    '.gitleaks.toml',
+    'src/pages/privacy.astro',
+    'src/pages/terms.astro',
+    'src/pages/disclaimer.astro',
+    'src/config/routes.ts',
     '.github/workflows/ci.yml',
     '.github/dependabot.yml',
     'automation.json',
@@ -112,6 +118,11 @@ describe('held paths', () => {
     'content/README.md',
     'supabase/migrations/001.sql',
     'wrangler.jsonc',
+    'src/config/site.ts',
+    'src/components/AccountCorner.astro',
+    'src/components/SignupForm.astro',
+    'src/scripts/accountcorner.ts',
+    'src/scripts/studyeventqueue.ts',
   ];
   const launchedOnly = [
     'public/_headers',
@@ -121,7 +132,6 @@ describe('held paths', () => {
     'package.json',
     'package-lock.json',
     '.node-version',
-    'src/config/site.ts',
     'tools/extra/package.json',
   ];
   const never = ['src/islands/cards.ts', 'docs/STATUS.md', 'tests/unit/x.test.ts', 'public/favicon.svg', 'scripts/check_batch.ts'];
@@ -146,6 +156,88 @@ describe('held paths', () => {
     expect(heldPaths(renamed, 'launched')).toEqual(['public/_headers']);
     expect(heldPaths(renamed, 'prelaunch')).toEqual([]);
     expect(heldPaths([{ filename: 'docs/x.json', previous_filename: 'content/x.json' }], 'prelaunch')).toEqual(['content/x.json']);
+    expect(heldPaths([{ filename: 'docs/old-policy.md', previous_filename: 'src/pages/privacy.astro' }], 'prelaunch'))
+      .toEqual(['src/pages/privacy.astro']);
+  });
+  const sensitiveAccountSources = [
+    'src/pages/auth/callback.astro',
+    'src/pages/account/two-factor.astro',
+    'src/pages/admin/flags.astro',
+    'src/pages/preview/admin-flags.astro',
+    'src/pages/signin.astro',
+    'src/pages/signup.astro',
+    'src/pages/reset-password.astro',
+    'src/pages/account.astro',
+    'src/pages/start.astro',
+    'src/pages/progress.astro',
+    'src/pages/learn/questions.astro', // real published-question route
+    'src/islands/questions.ts', // reject answer-key fields from public question data
+    'src/islands/flag.ts', // validate authenticated reports
+    'src/scripts/progress.ts', // personal local onboarding data consumed by guest import
+    'src/islands/supabaseenv.ts',
+    'src/islands/supabaseclient.ts',
+    'src/islands/supabasebuildcheck.ts',
+    'src/islands/SignIn.tsx',
+    'src/islands/AuthCallback.tsx',
+    'src/islands/adminflagsrpc.ts',
+    'src/islands/AccountSettings.tsx',
+    'src/islands/deleteaccount.ts',
+    'src/islands/Onboarding.tsx',
+    'src/islands/twofactor.ts',
+    'src/islands/guestimportrun.ts',
+    'src/islands/exportdata.ts',
+    'src/islands/checkanswer.ts', // protects the answer-check RPC argument and response adapter
+    'src/islands/examplanimport.ts',
+    'src/islands/examplansync.ts', // account-backed exam-plan writes
+    'src/islands/ReviewSession.tsx', // invokes account-backed review sync from the review UI
+    'src/islands/reviewsync.ts', // account-backed review progress writes
+    'src/islands/studyrecorder.ts', // signed-in study-event RPC sender
+    'src/islands/flagconnect.ts',
+    'src/islands/flagsend.ts',
+    'src/islands/flagsubmit.ts',
+    'src/islands/flagitem.ts', // publishes the selected database item/version to the report form
+    'src/islands/flaginbox.ts', // private/admin comment rendering
+    'src/islands/FlagForm.tsx', // authenticated report submission UI
+    'src/islands/FlagMount.tsx', // sign-in state and report transport
+    'src/islands/ProgressPanel.tsx', // account exam-plan and personal progress
+    'src/islands/PublishedQuestions.tsx', // signed-in question transport
+    'src/islands/publishedquestions.ts', // authorized published-question query adapter
+    'src/islands/QuestionsPlayer.tsx', // answer-check feedback transport
+    'src/islands/questionsremote.ts', // check_answer RPC boundary
+    'src/islands/rpcerrors.ts', // maps account and privileged RPC failures
+  ];
+
+  it.each(sensitiveAccountSources)('%s requires founder approval even before launch', (path) => {
+    for (const mode of ['prelaunch', 'launched'] as const) {
+      expect(isHeldPath(path, mode)).toBe(true);
+      // Even with all exact-head checks and a clean review, no manual label
+      // must be needed to block an auth-sensitive PR from auto-merging.
+      const decision = decide(input({ mode, files: [{ filename: path }] }));
+      expect(decision.action).toBe('label');
+      expect(decision.reasons.join(' ')).toContain(path);
+    }
+  });
+
+  it('holds either side of a rename involving account or admin source', () => {
+    expect(heldPaths([{
+      filename: 'src/islands/cards.ts',
+      previous_filename: 'src/islands/supabaseclient.ts',
+    }], 'prelaunch')).toEqual(['src/islands/supabaseclient.ts']);
+    expect(heldPaths([{
+      filename: 'src/pages/account/settings.astro',
+      previous_filename: 'src/pages/learn/cards.astro',
+    }], 'launched')).toEqual(['src/pages/account/settings.astro']);
+  });
+
+  it.each([
+    'src/islands/AnatomyLab.tsx',
+    'src/islands/cards.ts',
+    'src/islands/anatomyscene.ts',
+    'src/pages/courses.astro',
+    'src/pages/learn/study-skills/cards.astro',
+  ])('%s remains eligible for ordinary review', (path) => {
+    expect(isHeldPath(path, 'prelaunch')).toBe(false);
+    expect(isHeldPath(path, 'launched')).toBe(false);
   });
 });
 
