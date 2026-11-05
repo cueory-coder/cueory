@@ -123,6 +123,10 @@ function parseArguments(argv) {
   if (!options.source) fail('--source <dir> is required');
   if (options.isaSource !== undefined && options.release !== '4.0') fail('--isa-source is for Release 4.0 only');
   if (!RELEASES[options.release]) fail('--release must be 3.0 or 4.0');
+  // Release 3.0 uses a different archived license. This generator embeds
+  // CC BY 4.0 in model copyright and manifest sources, so fail closed until
+  // complete per-release rights handling is reviewed and explicitly approved.
+  if (options.release === '3.0') fail('Release 3.0 is disabled: archived license is not CC BY 4.0');
   if (options.tree !== undefined && options.release !== '4.0') fail('--tree is for Release 4.0 only');
   options.tree ??= 'partof';
   if (options.tree !== 'partof' && options.tree !== 'isa') fail('--tree must be partof or isa');
