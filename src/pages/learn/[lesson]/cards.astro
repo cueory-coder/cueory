@@ -2,6 +2,7 @@
 /** A lesson's cards (Task 300: built for every lesson whose deck may show; src/lessons/catalog.ts). */
 import { getEntry } from 'astro:content';
 import Layout from '../../../layouts/Layout.astro';
+import ContentLabel from '../../../components/ContentLabel.astro';
 import CardDeck from '../../../islands/CardDeck';
 import { pathsFor, statusNotice, type CatalogLesson } from '../../../lessons/catalog';
 import { lessonCatalog } from '../../../lessons/load';
@@ -45,5 +46,8 @@ const page = `${lesson.href}/cards`;
       <li><a href={`${lesson.href}/learn-mode`}>learn these cards in learn mode</a></li>
       <li><a href={lesson.href}>back to the lesson</a></li>
     </ul>
+    <div class="mt-8">
+      <ContentLabel />
+    </div>
   </div>
 </Layout>
