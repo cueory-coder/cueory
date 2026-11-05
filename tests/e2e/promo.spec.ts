@@ -149,7 +149,7 @@ test.describe('once-only promo panel (D-59)', () => {
 
   test('a link that opens a new tab closes the panel, and focus comes back where it was', async ({ page }) => {
     // Nothing leaves the test machine: the supporting-our-mission page's address is answered with an error.
-    await page.context().route(/ko-fi\.com/, (route) => route.abort());
+    await page.context().route(/^https?:\/\/(?:[^/]*\.)?ko-fi\.com(?:[/:?#]|$)/, (route) => route.abort());
     await page.goto('/');
     const hero = page.getByRole('link', { name: 'create your free account' });
     await hero.focus();

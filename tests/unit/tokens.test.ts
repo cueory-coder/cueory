@@ -316,7 +316,7 @@ describe('glass button and side panel (D-46)', () => {
     // Codex review of #24: a light hover layer dropped the Taupe "coming soon" note below AA.
     const styles = readFileSync(new URL('../../src/styles/global.css', import.meta.url), 'utf8');
     for (const selector of ['.account-link:hover', '.menu-link:hover', '.menu-small-link:hover']) {
-      const rule = new RegExp(`${selector.replace(/[.:]/g, '\\$&')}\\s*\\{([^}]*)\\}`).exec(styles);
+      const rule = new RegExp(`${selector.replace(/[\\.:]/g, '\\$&')}\\s*\\{([^}]*)\\}`).exec(styles);
       expect(rule, `${selector} rule`).not.toBeNull();
       expect(rule![1]).not.toMatch(/background/);
     }
