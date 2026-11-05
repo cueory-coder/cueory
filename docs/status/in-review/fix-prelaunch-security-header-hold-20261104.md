@@ -1,0 +1,1 @@
+status: Issue #619. Hold edits to public/_headers and astro.config.mjs for founder review in both prelaunch and launched modes. Tests cover direct path, rename, prelaunch auto-merge action and ordinary feature eligibility. Proposal only: no production/DB/DNS/secret changes. Founder approval and independent exact-head CI/review required before staging merge.

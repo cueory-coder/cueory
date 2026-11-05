@@ -67,6 +67,9 @@ const ALWAYS_HELD_FILES = new Set([
   'AGENTS.md',
   'SECURITY.md',
   'wrangler.jsonc',
+  // Header/CSP changes affect browser security, including before public launch.
+  'public/_headers',
+  'astro.config.mjs',
   // Founder approval is required for changes to secret-scan exceptions/config.
   '.gitleaksignore',
   '.gitleaks.toml',
@@ -123,7 +126,7 @@ function isSensitiveAuthSource(path: string): boolean {
  * the newsletter form settings (AGENTS.md sensitive areas).
  */
 const LAUNCHED_HELD_PREFIXES = ['brand-source/', 'public/brand/'];
-const LAUNCHED_HELD_FILES = new Set(['public/_headers', 'astro.config.mjs', '.node-version']);
+const LAUNCHED_HELD_FILES = new Set(['.node-version']);
 /** A dependency list anywhere in the tree counts, not just the root one. */
 const LAUNCHED_HELD_BASENAMES = new Set(['package.json', 'package-lock.json']);
 

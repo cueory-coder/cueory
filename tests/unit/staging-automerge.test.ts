@@ -118,6 +118,8 @@ describe('held paths', () => {
     'content/README.md',
     'supabase/migrations/001.sql',
     'wrangler.jsonc',
+    'public/_headers',
+    'astro.config.mjs',
     'src/config/site.ts',
     'src/components/AccountCorner.astro',
     'src/components/SignupForm.astro',
@@ -125,8 +127,6 @@ describe('held paths', () => {
     'src/scripts/studyeventqueue.ts',
   ];
   const launchedOnly = [
-    'public/_headers',
-    'astro.config.mjs',
     'brand-source/cueory-geometry-master-v1.0.json',
     'public/brand/cueory-square-dark.svg',
     'package.json',
@@ -154,7 +154,7 @@ describe('held paths', () => {
   it('counts both sides of a rename', () => {
     const renamed = [{ filename: 'docs/old-headers.txt', previous_filename: 'public/_headers' }];
     expect(heldPaths(renamed, 'launched')).toEqual(['public/_headers']);
-    expect(heldPaths(renamed, 'prelaunch')).toEqual([]);
+    expect(heldPaths(renamed, 'prelaunch')).toEqual(['public/_headers']);
     expect(heldPaths([{ filename: 'docs/x.json', previous_filename: 'content/x.json' }], 'prelaunch')).toEqual(['content/x.json']);
     expect(heldPaths([{ filename: 'docs/old-policy.md', previous_filename: 'src/pages/privacy.astro' }], 'prelaunch'))
       .toEqual(['src/pages/privacy.astro']);
@@ -568,13 +568,16 @@ describe('decide', () => {
     expect(decision).toEqual({ action: 'label', reasons: ['needs Christian: changes .github/workflows/ci.yml'] });
   });
 
-  it('before launch, merges settings, brand and dependency changes that wait once the site is live', () => {
-    const files = [{ filename: 'astro.config.mjs' }, { filename: 'package.json' }, { filename: 'public/_headers' }];
-    expect(decide(input({ files, mode: 'prelaunch' })).action).toBe('merge');
-    expect(decide(input({ files, mode: 'launched' }))).toEqual({
-      action: 'label',
-      reasons: ['needs Christian: changes astro.config.mjs, package.json, public/_headers'],
-    });
+  it('founder-holds response headers and CSP in both modes while ordinary package changes remain prelaunch-eligible', () => {
+    const security = [{ filename: 'astro.config.mjs' }, { filename: 'public/_headers' }];
+    for (const mode of ['prelaunch', 'launched'] as const) {
+      expect(decide(input({ files: security, mode }))).toEqual({
+        action: 'label',
+        reasons: ['needs Christian: changes astro.config.mjs, public/_headers'],
+      });
+    }
+    expect(decide(input({ files: [{ filename: 'package.json' }], mode: 'prelaunch' })).action).toBe('merge');
+    expect(decide(input({ files: [{ filename: 'package.json' }], mode: 'launched' })).action).toBe('label');
   });
 
   it("before launch, still holds workflows, the automation and the agents' rules, content, the database and deployment", () => {
@@ -702,14 +705,15 @@ describe('the auto-merge run', () => {
     ]);
   });
 
-  it('before launch, merges the settings change too and labels nothing', async () => {
+  it('before launch, labels security-header changes and merges only unrelated study changes', async () => {
     const { gh, calls } = fakeGitHub(pulls());
     const outcomes = await runAutomerge({ gh, repo: REPO, mode: 'prelaunch', dryRun: false, log: () => {} });
     expect(outcomes.map((o) => [o.pr, o.done])).toEqual([
       [7, 'merged'],
-      [8, 'merged'],
+      [8, 'labelled'],
     ]);
-    expect(calls.filter((c) => c.method !== 'GET').map((c) => c.path)).toEqual(['/pulls/7/merge', '/pulls/8/merge']);
+    expect(calls.filter((c) => c.method !== 'GET').map((c) => c.path))
+      .toEqual(['/pulls/7/merge', '/labels', '/issues/8/labels']);
   });
 
   it('before launch, reads package.json on both sides and holds a major update', async () => {
