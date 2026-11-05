@@ -16,8 +16,16 @@ const astroText = rawAstroText.replace(CONNECT_CALL, JSON.stringify(BASE_CONNECT
 function readHeaders(text: string): Map<string, string> {
   const rows = text.split(/\r?\n/).map((row) => row.trim()).filter((row) => row && !row.startsWith('#'));
   if (rows[0] !== '/*') throw new Error('Missing site-wide Cloudflare /* rule');
+  // Allow one additional, exact static-asset cache rule. All other path rules remain forbidden.
+  // In particular, the global security headers below must still be present unchanged.
+  const sitemapIndex = rows.indexOf('/sitemap.xml');
+  if (sitemapIndex < 0) throw new Error('Missing sitemap-only cache rule');
+  if (sitemapIndex !== rows.length - 2 ||
+      rows[sitemapIndex + 1] !== 'Cache-Control: public, max-age=3600, s-maxage=86400') {
+    throw new Error('Unexpected sitemap cache rule or additional path');
+  }
   const headers = new Map<string, string>();
-  for (const row of rows.slice(1)) {
+  for (const row of rows.slice(1, sitemapIndex)) {
     const match = /^([A-Za-z-]+):\s+(.+)$/.exec(row);
     if (!match) throw new Error('Unexpected Cloudflare header or path rule: ' + row);
     const name = match[1]!.toLowerCase();
@@ -135,6 +143,12 @@ describe('security headers (Task 75)', () => {
 
   it('preserves Astro CSP directives, script sources, and narrow newsletter form action', () => {
     checkAstroPolicy(astroText);
+  });
+
+  it('rejects a broader sitemap cache path, changed lifetime, or extra path rules', () => {
+    expect(() => checkHeaderPolicy(headersText.replace('/sitemap.xml', '/*'))).toThrow();
+    expect(() => checkHeaderPolicy(headersText.replace('s-maxage=86400', 's-maxage=31536000'))).toThrow();
+    expect(() => checkHeaderPolicy(`${headersText}\n/another-path\n  Cache-Control: public, max-age=86400\n`)).toThrow();
   });
 
   it('refuses a wildcard frame source in the header', () => {
