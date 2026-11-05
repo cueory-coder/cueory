@@ -70,6 +70,12 @@ const ALWAYS_HELD_FILES = new Set([
   // Header/CSP changes affect browser security, including before public launch.
   'public/_headers',
   'astro.config.mjs',
+  // These legal/anatomy release gates decide whether draft material is shipped publicly.
+  'scripts/check-legal-release.mjs',
+  'scripts/anatomy-production-audit.mjs',
+  'scripts/check-anatomy-build.mjs',
+  'src/visuals/prunedrafts.ts',
+  'src/visuals/sources.ts',
   // Founder approval is required for changes to secret-scan exceptions/config.
   '.gitleaksignore',
   '.gitleaks.toml',

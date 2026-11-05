@@ -120,6 +120,11 @@ describe('held paths', () => {
     'wrangler.jsonc',
     'public/_headers',
     'astro.config.mjs',
+    'scripts/check-legal-release.mjs',
+    'scripts/anatomy-production-audit.mjs',
+    'scripts/check-anatomy-build.mjs',
+    'src/visuals/prunedrafts.ts',
+    'src/visuals/sources.ts',
     'src/config/site.ts',
     'src/components/AccountCorner.astro',
     'src/components/SignupForm.astro',
@@ -158,6 +163,8 @@ describe('held paths', () => {
     expect(heldPaths([{ filename: 'docs/x.json', previous_filename: 'content/x.json' }], 'prelaunch')).toEqual(['content/x.json']);
     expect(heldPaths([{ filename: 'docs/old-policy.md', previous_filename: 'src/pages/privacy.astro' }], 'prelaunch'))
       .toEqual(['src/pages/privacy.astro']);
+    expect(heldPaths([{ filename: 'scripts/deleted-gate.mjs', previous_filename: 'scripts/check-legal-release.mjs' }], 'prelaunch'))
+      .toEqual(['scripts/check-legal-release.mjs']);
   });
   const sensitiveAccountSources = [
     'src/pages/auth/callback.astro',
