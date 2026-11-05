@@ -2,6 +2,7 @@
 /** Learn mode for a lesson's cards (Task 300: built for every lesson whose deck may show; src/lessons/catalog.ts). */
 import { getEntry } from 'astro:content';
 import Layout from '../../../layouts/Layout.astro';
+import ContentLabel from '../../../components/ContentLabel.astro';
 import InfoTip from '../../../components/InfoTip.astro';
 import LearnSession from '../../../islands/LearnSession';
 import { pathsFor, statusNotice, type CatalogLesson } from '../../../lessons/catalog';
@@ -17,11 +18,14 @@ if (!deck) throw new Error(`The card file for lesson ${lesson.id} is missing.`);
 const { title, cards, status } = deck.data;
 const cardsNotice = statusNotice(status, 'cards');
 const learnCards = cards.map(({ front, back, blank }) => (blank ? { front, back, blank } : { front, back }));
+// Match the generated lesson hub's course count without restoring the deleted study-skills route.
+const olderLessons = (await lessonCatalog()).lessons.filter((candidate) => !candidate.curriculumId && candidate.name === lesson.name).length;
+const context = !lesson.curriculumId && olderLessons > 1 ? `${lesson.context} of ${olderLessons}` : lesson.context;
 ---
 
 <Layout title={`learn mode: ${title}`} description={`learn mode for ${lesson.about}.`} variant="study">
   <div class="mx-auto max-w-prose pt-8">
-    <p class="text-sm text-ink-soft">{lesson.context}</p>
+    <p class="text-sm text-ink-soft">{context}</p>
     <div class="mt-2 flex flex-wrap items-center gap-x-1">
       <h1 class="text-2xl">learn mode</h1>
       <InfoTip
@@ -43,5 +47,8 @@ const learnCards = cards.map(({ front, back, blank }) => (blank ? { front, back,
     <p class="mt-section text-sm">
       <a href={lesson.href}>back to the lesson</a>
     </p>
+    <div class="mt-8">
+      <ContentLabel />
+    </div>
   </div>
 </Layout>

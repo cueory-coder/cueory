@@ -16,7 +16,8 @@ test('a missing address shows a useful branded 404 page', async ({ page }) => {
   await expect(nav.getByRole('link', { name: 'home' })).toHaveAttribute('href', '/');
   await expect(nav.getByRole('link', { name: 'learn' })).toHaveAttribute('href', '/learn/study-skills');
   await expect(nav.getByRole('link', { name: 'play' })).toHaveAttribute('href', '/play');
-  await expect(nav.getByRole('link')).toHaveCount(3);
+  await expect(nav.getByRole('link', { name: 'support' })).toHaveAttribute('href', '/support');
+  await expect(nav.getByRole('link')).toHaveCount(4);
 });
 
 for (const path of unknownStudyPages) {
