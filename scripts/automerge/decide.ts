@@ -72,6 +72,7 @@ const ALWAYS_HELD_FILES = new Set([
   'src/components/AccountCorner.astro',
   'src/components/SignupForm.astro',
   'src/scripts/accountcorner.ts',
+  'src/scripts/studyeventqueue.ts', // may pass signed-in study events to an RPC sender
 ]);
 
 /**
@@ -95,7 +96,7 @@ const SENSITIVE_AUTH_ISLAND_STEMS = [
   'guestimport', 'mfa', 'oauth',
   'onboarding', 'password', 'pkce', 'progresspanel', 'publishedquestions',
   'questionsplayer', 'questionsremote', 'recovery', 'resetpassword',
-  'reviewsync', 'session', 'signin', 'signup', 'studyrecorder', 'supabase', 'twofactor',
+  'rpcerrors', 'reviewsync', 'session', 'signin', 'signup', 'studyrecorder', 'supabase', 'twofactor',
 ];
 
 function isSensitiveAuthSource(path: string): boolean {

@@ -116,6 +116,7 @@ describe('held paths', () => {
     'src/components/AccountCorner.astro',
     'src/components/SignupForm.astro',
     'src/scripts/accountcorner.ts',
+    'src/scripts/studyeventqueue.ts',
   ];
   const launchedOnly = [
     'public/_headers',
@@ -189,6 +190,7 @@ describe('held paths', () => {
     'src/islands/publishedquestions.ts', // authorized published-question query adapter
     'src/islands/QuestionsPlayer.tsx', // answer-check feedback transport
     'src/islands/questionsremote.ts', // check_answer RPC boundary
+    'src/islands/rpcerrors.ts', // maps account and privileged RPC failures
   ];
 
   it.each(sensitiveAccountSources)('%s requires founder approval even before launch', (path) => {
