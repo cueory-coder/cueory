@@ -1,0 +1,82 @@
+---
+/**
+ * Read-only Anatomy Lab catalog for visitors who cannot run JavaScript or WebGL.
+ * Names and grouping are rendered at build time from the same source files and
+ * production/draft gate as /preview/anatomy-lab. No scripts or model downloads.
+ */
+import Layout from '../../layouts/Layout.astro';
+import {
+  BODYPARTS3D_CREDIT_LEAD,
+  BODYPARTS3D_LICENSE_NAME,
+  BODYPARTS3D_LICENSE_URL,
+  groupStructures,
+  labDataForBuild,
+  nameSourceFor,
+  releaseNoteFor,
+} from '../../islands/anatomylab';
+import fixtureJson from '../../../tests/fixtures/anatomy-fixture.json';
+
+const files = import.meta.glob('../../../content/visuals/anatomy-*.json', { eager: true, import: 'default' });
+const lab = labDataForBuild(files, fixtureJson, {
+  WORKERS_CI: process.env.WORKERS_CI,
+  WORKERS_CI_BRANCH: process.env.WORKERS_CI_BRANCH,
+  CUEORY_ANATOMY_DRAFTS: process.env.CUEORY_ANATOMY_DRAFTS,
+});
+// The five-shape test fixture is intentionally not a real anatomy system.
+const systems = lab.systems.map((system) => ({ ...system, groups: groupStructures(system.structures) }));
+---
+
+<Layout title="preview: anatomy lab text" description="Text-only anatomy structure names." variant="study" noindex>
+  <div class="mx-auto max-w-page space-y-6 pt-8 pb-section">
+    <p class="text-sm text-ink-soft">preview · text-only</p>
+    <h1 class="text-2xl text-ink">anatomy lab: structure names</h1>
+    <p class="text-sm text-ink-soft">browse the names without loading 3D models or running JavaScript. Use your browser's find-in-page feature to search.</p>
+    <p><a class="underline text-ink" href="/preview/anatomy-lab">back to the 3D view</a></p>
+
+    {
+      systems.length === 0 ? (
+        <p class="rounded-lg border border-line p-4 text-ink">the anatomy lab is coming soon.</p>
+      ) : (
+        <div class="space-y-8">
+          <nav id="anatomy-text-systems" aria-label="body systems" class="rounded-lg border border-line p-4">
+            <h2 class="text-lg text-ink">body systems</h2>
+            <ul class="mt-3 flex flex-wrap gap-3">
+              {systems.map((system) => (
+                <li><a class="underline text-ink" href={`#system-${system.key}`}>{system.title}</a></li>
+              ))}
+            </ul>
+          </nav>
+
+          {systems.map((system) => (
+            <section
+              id={`system-${system.key}`}
+              data-anatomy-system={system.key}
+              class="space-y-4 rounded-lg border border-line p-4"
+              aria-labelledby={`heading-${system.key}`}
+            >
+              <h2 id={`heading-${system.key}`} class="text-xl text-ink">{system.title}</h2>
+              {lab.drafts && system.status === 'draft' && (
+                <p class="text-sm text-ink">draft · labels waiting for review</p>
+              )}
+              <p class="text-sm text-ink-soft">{nameSourceFor(system)}</p>
+              {system.groups.map((group) => (
+                <div class="space-y-2">
+                  {group.group && <h3 class="text-sm text-ink-soft">{group.group}</h3>}
+                  <ul class="list-disc space-y-1 pl-5 text-ink">
+                    {group.items.map((item) => <li class="break-words">{item.text}</li>)}
+                  </ul>
+                </div>
+              ))}
+              <p class="text-sm text-ink-soft">
+                {BODYPARTS3D_CREDIT_LEAD}{' '}
+                <a class="underline" href={BODYPARTS3D_LICENSE_URL} rel="license noopener">{BODYPARTS3D_LICENSE_NAME}</a>
+              </p>
+              <p class="text-sm text-ink-soft">{releaseNoteFor(system)}</p>
+              <p class="text-sm"><a class="underline text-ink" href="#anatomy-text-systems">back to body systems</a></p>
+            </section>
+          ))}
+        </div>
+      )
+    }
+  </div>
+</Layout>
