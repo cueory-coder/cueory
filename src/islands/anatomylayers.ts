@@ -36,6 +36,17 @@ export function missingLayers(structures: readonly AnatomyStructure[]): LayerId[
   return LAYERS.filter((id) => !structures.some((s) => s.layer === id));
 }
 
+/**
+ * Describe only what this lab build offers. Production may exclude draft
+ * systems, so a missing layer does not mean BodyParts3D lacks that anatomy.
+ */
+export function unavailableLayersNote(structures: readonly AnatomyStructure[]): string | null {
+  const missing = missingLayers(structures);
+  return missing.length > 0
+    ? `3D layers not available in this version of the lab: ${missing.join(', ')}.`
+    : null;
+}
+
 /** A layer is shown while any of its structures is. */
 export function layerShown(layer: Layer, hidden: ReadonlySet<string>): boolean {
   return layer.ids.some((id) => !hidden.has(id));
@@ -86,9 +97,15 @@ export function wholeBody(systems: readonly AnatomySystem[]): AnatomySystem | nu
   if (real.some((s) => s.model.release !== release)) return null;
   const seen = new Set<string>();
   const structures: AnatomyStructure[] = [];
+  // Distinct systems can reference the same physical GLB. Decode it only once.
+  const modelFiles = [...new Set(real.map((system) => system.model.file))];
   const layerFiles: Record<string, string[]> = {};
+  // Preserve the exact IDs from each source file; layerFiles alone cannot say which file owns a given ID.
+  const fileIds: Record<string, string[]> = {};
   for (const system of real) {
+    const ids = (fileIds[system.model.file] ??= []);
     for (const structure of system.structures) {
+      if (!ids.includes(structure.id)) ids.push(structure.id);
       if (structure.layer) {
         const files = (layerFiles[structure.layer] ??= []);
         if (!files.includes(system.model.file)) files.push(system.model.file);
@@ -102,9 +119,23 @@ export function wholeBody(systems: readonly AnatomySystem[]): AnatomySystem | nu
     key: WHOLE_BODY_KEY,
     title: 'whole body',
     status: real.every((s) => s.status === 'approved') ? 'approved' : 'draft',
-    model: { file: real[0]!.model.file, files: real.map((s) => s.model.file), release, layerFiles },
+    model: { file: modelFiles[0]!, files: modelFiles, release, layerFiles, fileIds },
     structures,
   };
   if (real[0]!.model.via) out.model.via = real[0]!.model.via;
   return out;
+}
+
+/**
+ * The page sends individual systems only. Build the combined whole-body grouping in the client once the lab
+ * is open, not in the serialized Astro island props or on the closed cover screen. The optional fixture comes
+ * first and is never included in the whole-body aggregate.
+ */
+export function systemsForView(
+  baseSystems: readonly AnatomySystem[],
+  includeWholeBody: boolean,
+  fixture: AnatomySystem | null = null,
+): AnatomySystem[] {
+  const body = includeWholeBody ? wholeBody(baseSystems) : null;
+  return [...(fixture ? [fixture] : []), ...baseSystems, ...(body ? [body] : [])];
 }
