@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url';
 
 const SYSTEM_FILE = /^anatomy-([a-z0-9]+(?:-[a-z0-9]+)*)\.json$/;
 const MODEL_PATH = /^\/models\/anatomy\/[a-z0-9]+(?:-[a-z0-9]+)*\.glb$/;
+const BODY_PARTS_SOURCE_PREFIX = 'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/';
 const DEFAULT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const ORDER = ['skin', 'muscle', 'nerves', 'vessels', 'organs', 'skeleton'];
 
@@ -30,6 +31,9 @@ function markdownCell(value) {
 function safeLink(value, name) {
   const url = requireText(value, name);
   if (!/^https:\/\/[^\s)\]]+$/i.test(url)) throw new Error(`${name} must be a safe HTTPS URL`);
+  if (!url.startsWith(BODY_PARTS_SOURCE_PREFIX) || url.length === BODY_PARTS_SOURCE_PREFIX.length) {
+    throw new Error(`${name} must link to the official BodyParts3D source`);
+  }
   return url;
 }
 
@@ -71,6 +75,9 @@ export function anatomyInventory(root = DEFAULT_ROOT, selectedSystem = null) {
       const sourceId = requireText(source.id, `${file} source id`);
       if (sources.has(sourceId)) fail(`source id repeated: ${sourceId}`);
       safeLink(source.url, `${file} source ${sourceId} URL`);
+      if (source.book !== 'BodyParts3D' || source.license !== 'CC BY 4.0') {
+        fail(`source ${sourceId} must cite BodyParts3D under CC BY 4.0`);
+      }
       sources.set(sourceId, source);
     }
     const labels = visual.labels.map((label, index) => {
