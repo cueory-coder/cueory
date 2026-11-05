@@ -37,9 +37,13 @@ test('exported anatomy picture credit is complete, visible and model-specific', 
     };
   });
 
-  const exportSquare = async (): Promise<DrawnText[]> => {
+  const exportPicture = async (label: string): Promise<DrawnText[]> => {
+    await page.evaluate(() => {
+      (window as typeof window & { __cueoryPictureText?: DrawnText[] }).__cueoryPictureText = [];
+    });
+    await expect(page.getByRole('button', { name: label })).toBeEnabled({ timeout: 20_000 });
     const download = page.waitForEvent('download');
-    await page.getByRole('button', { name: 'square 1080×1080' }).click();
+    await page.getByRole('button', { name: label }).click();
     await download;
     return page.evaluate(() => (window as typeof window & { __cueoryPictureText?: DrawnText[] })
       .__cueoryPictureText ?? []);
@@ -50,7 +54,7 @@ test('exported anatomy picture credit is complete, visible and model-specific', 
   await expect(page.getByRole('button', { name: 'fixture cube A', exact: true }))
     .toBeEnabled({ timeout: 20_000 });
 
-  const fixtureMarks = await exportSquare();
+  const fixtureMarks = await exportPicture('square 1080×1080');
   const fixtureText = fixtureMarks.map((mark) => mark.value).join(' ');
   expect(fixtureText).toContain('test shapes made in code for automated tests');
   expect(fixtureText).not.toContain(LICENSE_URL);
@@ -71,30 +75,33 @@ test('exported anatomy picture credit is complete, visible and model-specific', 
     .toHaveCount(1, { timeout: 20_000 });
   await expect(page.getByRole('button', { name: 'square 1080×1080' }))
     .toBeEnabled({ timeout: 20_000 });
-  await page.evaluate(() => {
-    (window as typeof window & { __cueoryPictureText?: DrawnText[] }).__cueoryPictureText = [];
-  });
+  // Verify the actual canvas-drawn credit in every output aspect ratio.
+  // The longer BodyParts3D source-scope note must fit without clipping.
+  for (const size of [
+    { label: 'phone 1080×1920', width: 1080, height: 1920 },
+    { label: 'wide 1920×1080', width: 1920, height: 1080 },
+    { label: 'square 1080×1080', width: 1080, height: 1080 },
+  ] as const) {
+    const anatomyMarks = await exportPicture(size.label);
+    const anatomyText = anatomyMarks.map((mark) => mark.value).join(' ');
+    expect(anatomyText, size.label).toContain('BodyParts3D');
+    expect(anatomyText, size.label).toContain('© The Database Center for Life Science');
+    expect(anatomyText, size.label).toContain('draft model, built from BodyParts3D 4.0');
+    expect(anatomyText, size.label).toContain('BodyParts3D reference model: adult human male');
+    expect(anatomyText, size.label).not.toContain('test shapes made in code');
 
-  const anatomyMarks = await exportSquare();
-  const anatomyText = anatomyMarks.map((mark) => mark.value).join(' ');
-  expect(anatomyText).toContain('BodyParts3D');
-  expect(anatomyText).toContain('© The Database Center for Life Science');
-  expect(anatomyText).toContain('draft model, built from BodyParts3D 4.0');
-  expect(anatomyText).toContain('BodyParts3D reference model: adult human male');
-  expect(anatomyText).not.toContain('test shapes made in code');
-
-  // A long URI can span multiple credit lines. Read the uninterrupted drawn characters,
-  // rather than requiring it to fit in one line, and verify each line stays inside the footer.
-  const footer = anatomyMarks.filter((mark) =>
-    mark.canvasWidth === 1080 &&
-    mark.canvasHeight === 1080 &&
-    mark.y >= mark.canvasHeight * 0.75 &&
-    mark.x <= mark.canvasWidth * 0.1,
-  );
-  expect(footer.length).toBeGreaterThan(0);
-  expect(footer.map((mark) => mark.value).join('')).toContain(LICENSE_URL);
-  for (const line of footer) {
-    expect(line.x + line.width).toBeLessThanOrEqual(line.canvasWidth - line.x + 1);
-    expect(line.y).toBeLessThanOrEqual(line.canvasHeight - line.x + 1);
+    // A long license URL may wrap across lines. Keep every line on canvas.
+    const footer = anatomyMarks.filter((mark) =>
+      mark.canvasWidth === size.width &&
+      mark.canvasHeight === size.height &&
+      mark.y >= mark.canvasHeight * 0.75 &&
+      mark.x <= mark.canvasWidth * 0.1,
+    );
+    expect(footer.length, size.label).toBeGreaterThan(0);
+    expect(footer.map((mark) => mark.value).join(''), size.label).toContain(LICENSE_URL);
+    for (const line of footer) {
+      expect(line.x + line.width, size.label).toBeLessThanOrEqual(line.canvasWidth - line.x + 1);
+      expect(line.y, size.label).toBeLessThanOrEqual(line.canvasHeight - line.x + 1);
+    }
   }
 });
