@@ -1,0 +1,3 @@
+# Public key that nightly backups of cueory-prod are encrypted to (docs/BACKUPS.md).
+# Christian makes the key pair on his own computer (`age-keygen`) and keeps the private key in his password manager.
+# Only the public key (one line starting with "age1") goes below. It is safe to publish: it can lock files, not open them.

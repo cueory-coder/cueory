@@ -124,12 +124,17 @@ test('arrow keys move the selection and bring the card into view', async ({ page
 test('the focused card draws its own visible focus ring', async ({ page }) => {
   await page.goto(ROUTE);
   const group = page.getByRole('radiogroup', { name: gameSheetName });
-  const radio = group.getByRole('radio', { name: 'scene' });
-  // Reach it by keyboard so :focus-visible applies: the "previous style" arrow comes right after the group.
+  const selected = group.getByRole('radio', { name: 'scene' });
+  await expect(selected).toBeChecked();
+  // Shift+Tab enters the native radio group from its next button. Chromium
+  // can focus a different member of that group depending on platform.
+  // Test the keyboard-focused radio's outline, not an assumed option.
   await page.getByRole('button', { name: 'previous style' }).first().focus();
   await page.keyboard.press('Shift+Tab');
-  await expect(radio).toBeFocused();
-  const ring = await radio.evaluate((el) => {
+  const focused = group.locator('input[type="radio"]:focus');
+  await expect(focused).toHaveCount(1);
+  await expect(selected).toBeChecked();
+  const ring = await focused.evaluate((el) => {
     const style = getComputedStyle(el);
     const box = el.getBoundingClientRect();
     const card = el.parentElement!.getBoundingClientRect();

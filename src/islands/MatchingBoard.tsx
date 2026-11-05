@@ -18,6 +18,8 @@ import {
 
 interface Props {
   cards: MatchCard[];
+  /** This page's own address, for the saved place (Task 300: every lesson has its own matching page). */
+  page?: string;
 }
 
 const primaryButton = 'min-h-11 rounded-pill bg-button px-5 py-2.5 text-on-button hover:bg-button-hover press';
@@ -25,11 +27,11 @@ const primaryButton = 'min-h-11 rounded-pill bg-button px-5 py-2.5 text-on-butto
 const MATCHING_PAGE = '/learn/study-skills/matching';
 
 /** The matching engine uses deck indices, not exposed card text, as its identifiers. */
-function matchingDraft(state: MatchState): ResumeDraft | null {
+function matchingDraft(state: MatchState, page: string): ResumeDraft | null {
   const total = state.terms.length;
   if (!total) return null;
   return {
-    tool: 'matching', page: MATCHING_PAGE, step: `round-${state.roundNumber}`,
+    tool: 'matching', page, step: `round-${state.roundNumber}`,
     itemIndex: Math.min(matchedCount(state), total - 1), totalItems: total,
     // Store only the term/meaning IDs the student successfully paired, in attempt order.
     answers: Object.fromEntries(state.matchedTerms.map((term, i) =>
@@ -40,8 +42,8 @@ function matchingDraft(state: MatchState): ResumeDraft | null {
 }
 
 /** Replay saved *student* pairs through the existing engine; reject stale or altered records. */
-function restoreMatching(cards: readonly MatchCard[], snapshot: ResumeSnapshot): MatchState | null {
-  if (snapshot.tool !== 'matching' || snapshot.page !== MATCHING_PAGE) return null;
+function restoreMatching(cards: readonly MatchCard[], snapshot: ResumeSnapshot, page: string): MatchState | null {
+  if (snapshot.tool !== 'matching' || snapshot.page !== page) return null;
   const match = /^round-([1-9]\d*)$/.exec(snapshot.step ?? '');
   if (!match) return null;
   const roundNumber = Number(match[1]);
@@ -69,7 +71,7 @@ function restoreMatching(cards: readonly MatchCard[], snapshot: ResumeSnapshot):
     state = pick(state, 'meaning', meaningIndex);
     if (!state.last?.correct) return null;
   }
-  const draft = matchingDraft(state);
+  const draft = matchingDraft(state, page);
   if (!draft || draft.itemIndex !== snapshot.itemIndex ||
       draft.phase !== snapshot.phase || Object.keys(draft.answers).length !== Object.keys(snapshot.answers).length) return null;
   // Restoring is not a new match and must not trigger a success animation.
@@ -91,11 +93,11 @@ function TickIcon() {
  * say so in words as well as looks, and focus stays on the button just used. Rendered only in the browser
  * (client:only); without JavaScript the page shows its <noscript> note instead.
  */
-export default function MatchingBoard({ cards }: Props) {
+export default function MatchingBoard({ cards, page = MATCHING_PAGE }: Props) {
   const [state, setState] = useState<MatchState>(() => startMatching(cards));
   const [resumePending, setResumePending] = useState(() => {
     const stored = readResume(browserStorage());
-    return stored?.tool === 'matching' && stored.page === MATCHING_PAGE;
+    return stored?.tool === 'matching' && stored.page === page;
   });
   const [focusRequest, setFocusRequest] = useState(0);
   const statusRef = useRef<HTMLDivElement>(null);
@@ -124,7 +126,7 @@ export default function MatchingBoard({ cards }: Props) {
   // remembers it. Incorrect attempts and unconfirmed selections are never saved.
   useLayoutEffect(() => {
     if (!state.last?.correct) return;
-    const draft = matchingDraft(state);
+    const draft = matchingDraft(state, page);
     if (draft) {
       latestDraft.current = draft;
       saveResume(browserStorage(), draft);
@@ -134,7 +136,7 @@ export default function MatchingBoard({ cards }: Props) {
   // Advancing to a new round resets the round's progress in the saved snapshot.
   useLayoutEffect(() => {
     if (state.roundNumber === 1 || !latestDraft.current) return;
-    const draft = matchingDraft(state);
+    const draft = matchingDraft(state, page);
     if (draft) {
       latestDraft.current = draft;
       saveResume(browserStorage(), draft);
@@ -181,12 +183,12 @@ export default function MatchingBoard({ cards }: Props) {
   };
 
   const continueSaved = (snapshot: ResumeSnapshot) => {
-    const restored = restoreMatching(cards, snapshot);
+    const restored = restoreMatching(cards, snapshot, page);
     if (!restored) {
       restart();
       return;
     }
-    latestDraft.current = matchingDraft(restored);
+    latestDraft.current = matchingDraft(restored, page);
     setResumePending(false);
     newRound(() => restored);
   };
@@ -238,7 +240,7 @@ export default function MatchingBoard({ cards }: Props) {
 
   return (
     <div>
-      <ResumePrompt page={MATCHING_PAGE} onContinue={continueSaved} onStartOver={restart} />
+      <ResumePrompt page={page} onContinue={continueSaved} onStartOver={restart} />
       {/* An existing saved session needs an explicit continue/start-over choice. */}
       <div inert={resumePending}>
       <div ref={statusRef} tabIndex={-1}>
