@@ -26,6 +26,8 @@ export const REQUIRED_CHECKS = [
   'Type check, build and test',
   'Scan for leaked secrets',
   'Scan code for security issues (Semgrep)',
+  // Require the GitHub Advanced Security verdict, not just the successful CodeQL analysis workflow.
+  'CodeQL',
   'Workers Builds: cueory',
 ] as const;
 

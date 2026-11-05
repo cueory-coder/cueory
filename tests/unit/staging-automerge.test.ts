@@ -332,6 +332,28 @@ describe('checks', () => {
     expect(checkProblems(greenChecks())).toEqual([]);
   });
 
+  it('refuses missing, running, skipped, neutral and failed CodeQL security verdicts', () => {
+    const withoutCodeQL = greenChecks().filter((check) => check.name !== 'CodeQL');
+    // A successful CodeQL Actions job does not establish a successful Advanced Security verdict.
+    const analysisPassed = [...withoutCodeQL, run('Analyze (javascript-typescript)'), run('Analyze (actions)')];
+    expect(checkProblems(analysisPassed)).toEqual(['"CodeQL" hasn\'t reported yet']);
+    expect(decide(input({ checks: analysisPassed })).action).toBe('wait');
+
+    const stillRunning = [...analysisPassed, run('CodeQL', null, 'in_progress')];
+    expect(checkProblems(stillRunning)).toEqual(['"CodeQL" is still running']);
+    expect(decide(input({ checks: stillRunning })).action).toBe('wait');
+
+    for (const conclusion of ['failure', 'skipped', 'neutral']) {
+      const checks = [...analysisPassed, run('CodeQL', conclusion)];
+      expect(checkProblems(checks)).toEqual([`"CodeQL" ended as ${conclusion}`]);
+      expect(decide(input({ checks })).action).toBe('wait');
+    }
+
+    const cleared = [...analysisPassed, run('CodeQL', 'success')];
+    expect(checkProblems(cleared)).toEqual([]);
+    expect(decide(input({ checks: cleared })).action).toBe('merge');
+  });
+
   it('waits for a required check that is missing or still running', () => {
     const checks = greenChecks().filter((c) => c.name !== 'Workers Builds: cueory');
     expect(checkProblems(checks)).toEqual(['"Workers Builds: cueory" hasn\'t reported yet']);
