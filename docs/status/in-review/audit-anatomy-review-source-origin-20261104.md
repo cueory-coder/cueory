@@ -1,0 +1,1 @@
+status: Task 178 anatomy-review provenance guard: reject unrelated HTTPS domains, incompatible rights records, and empty BodyParts3D citations in the human review inventory, with synthetic unit regressions. Only review-report script, tests, and this note change. All source models and labels remain draft. Founder review, exact-head CI, and independent review required before merge.
