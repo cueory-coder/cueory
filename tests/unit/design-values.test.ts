@@ -50,7 +50,7 @@ const exceptions: Exception[] = [
   {
     kind: 'size',
     path: 'styles/pillo.css',
-    matches: text => /^@media \(width >= 40rem\) \{$/.test(text.trim()),
+    matches: text => /^@media \(width (?:<|>=) 40rem\) \{$/.test(text.trim()),
     reason: 'the Pillo board changes layout at a responsive media-query breakpoint',
   },
   {
@@ -102,6 +102,14 @@ describe('design values', () => {
     }
 
     expect(violations).toEqual([]);
+  });
+
+  it('allows only the documented 40rem Pillo breakpoints', () => {
+    const finding = (text: string): Finding => ({ kind: 'size', path: 'styles/pillo.css', line: 1, text });
+    expect(exceptionFor(finding('  @media (width < 40rem) {'))?.reason).toBeTruthy();
+    expect(exceptionFor(finding('  @media (width >= 40rem) {'))?.reason).toBeTruthy();
+    expect(exceptionFor(finding('  @media (width < 41rem) {'))).toBeUndefined();
+    expect(exceptionFor(finding('  padding: 40rem;'))).toBeUndefined();
   });
 
   it('detects real raw design values and accepts token references', () => {
