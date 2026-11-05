@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 
 const SYSTEM_FILE = /^anatomy-([a-z0-9]+(?:-[a-z0-9]+)*)\.json$/;
 const MODEL_PATH = /^\/models\/anatomy\/[a-z0-9]+(?:-[a-z0-9]+)*\.glb$/;
-const BODY_PARTS_SOURCE_PREFIX = 'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/';
+const BODY_PARTS_SOURCE_PREFIX = 'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/';
 const DEFAULT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const ORDER = ['skin', 'muscle', 'nerves', 'vessels', 'organs', 'skeleton'];
 
