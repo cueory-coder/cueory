@@ -1,0 +1,1 @@
+status: Task 495, lowercase study UI (D-47): sentence reader buttons, progress and completion text, and learn-mode navigation now match the brand voice. Lesson content and study behavior are unchanged. Task 300's dynamic lesson routes are retained, with the lowercase Learn mode context applied to the generated page.

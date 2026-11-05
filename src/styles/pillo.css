@@ -226,9 +226,9 @@
 
   /*
     The letter keys: capsules in three rows. Each shows the best mark its letter has had, as a color and its symbol.
-    They share each row's width up to --pillo-key-max, and on phones they also use the panel's side padding. Every key
-    is 48 px tall; at 320 px a letter key is about 25 px wide with middles about 28 px apart (WCAG 2.5.8), and nothing
-    scrolls sideways (WCAG 1.4.10).
+    On wide screens they share each row's width up to --pillo-key-max. On phones, keys
+    wrap into additional lines instead of shrinking below the 44 px touch target. Each key
+    remains at least 48 px tall and every letter stays visible without sideways page scrolling.
   */
   .pillo-keys {
     display: flex;
@@ -286,6 +286,24 @@
     max-inline-size: var(--pillo-key-wide);
   }
 
+  /* A ten-letter QWERTY row cannot fit ten 44 px tap targets on a phone.
+     Keep every letter accessible: let the existing rows wrap, without zooming
+     out, hiding keys, or causing horizontal page scroll. */
+  @media (width < 40rem) {
+    .pillo-key-row {
+      flex-wrap: wrap;
+    }
+
+    .pillo-key {
+      flex: 0 0 var(--pillo-key-max);
+      min-inline-size: var(--tap-min);
+    }
+
+    .pillo-key-wide {
+      flex-basis: var(--pillo-key-wide);
+    }
+  }
+
   .pillo-key.pillo-here {
     border-color: var(--color-pillo-ring);
     color: var(--color-on-pillo-here);
@@ -320,6 +338,8 @@
 
   .pillo-legend-row {
     display: flex;
+    flex-wrap: wrap;
+    overflow-wrap: anywhere;
     align-items: center;
     gap: calc(var(--spacing) * 3);
   }

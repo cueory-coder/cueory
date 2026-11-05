@@ -184,17 +184,23 @@ test.describe('daily games on a narrow phone', () => {
         .filter((box) => box.left < 0 || box.right > window.innerWidth).length,
     );
     expect(outside).toBe(0);
-    // Every key keeps a 44 px height, and in every row their middles stay at least 24 px apart (WCAG 2.5.8).
-    for (const key of await page.locator('.pillo-key').evaluateAll((els) => els.map((el) => el.getBoundingClientRect()))) {
-      expect(key.height).toBeGreaterThanOrEqual(44);
-    }
+    // The three logical QWERTY rows can wrap onto extra visual lines on narrow phones.
+    // Check actual touch-target size and non-overlap, not horizontal center order.
     const rows = await page.locator('.pillo-key-row').evaluateAll((rowEls) =>
       rowEls.map((row) => [...row.querySelectorAll('.pillo-key')].map((el) => el.getBoundingClientRect())),
     );
     expect(rows.length).toBe(3);
-    for (const keys of rows) {
-      for (let i = 1; i < keys.length; i++) {
-        expect(keys[i]!.left + keys[i]!.width / 2 - (keys[i - 1]!.left + keys[i - 1]!.width / 2)).toBeGreaterThanOrEqual(24);
+    const keys = rows.flat();
+    for (const key of keys) {
+      expect(key.width).toBeGreaterThanOrEqual(44);
+      expect(key.height).toBeGreaterThanOrEqual(44);
+    }
+    for (let i = 0; i < keys.length; i++) {
+      for (let j = i + 1; j < keys.length; j++) {
+        const a = keys[i]!;
+        const b = keys[j]!;
+        const separated = a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top;
+        expect(separated, `keys ${i} and ${j} should not overlap at 320 px`).toBe(true);
       }
     }
   });
@@ -361,6 +367,23 @@ test.describe('daily games: crossword (D-70)', () => {
     const results = await axe(page);
     expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+
+  test('Tab leaves the grid, while Alt+Arrow changes the active word', async ({ page }) => {
+    const board = page.getByTestId('cueword');
+    const grid = board.getByRole('grid', { name: 'crossword grid' });
+    const activeCell = grid.locator('button[tabindex="0"]');
+
+    await activeCell.focus();
+    await page.keyboard.press('Alt+ArrowRight');
+    await expect(board.getByTestId('cueword-clue')).not.toHaveText('1 across: it twinkles in the night sky');
+    await expect(grid).toHaveAttribute('aria-keyshortcuts', 'Alt+ArrowLeft Alt+ArrowRight');
+
+    await activeCell.focus();
+    await page.keyboard.press('Tab');
+    await expect(board.getByRole('group', { name: 'letters' }).getByRole('button').first()).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(grid.locator('button[tabindex="0"]')).toBeFocused();
   });
 
   test('check marks a wrong letter with a symbol and says it in words', async ({ page }) => {
