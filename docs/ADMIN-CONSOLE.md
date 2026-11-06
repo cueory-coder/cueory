@@ -200,14 +200,31 @@ the staging database's settings; I confirmed the grant in the migration file, no
   - So the function becomes `security definer` with a fixed `search_path = ''`, owned by a dedicated database role that
     alone holds `update` on `item_versions.status`. `revoke update on public.item_versions from service_role` then `grant
     update` back only on the non-status columns the importer still needs.
-  - `execute` on the function is granted explicitly, only to the intended callers (the service role for the importer
-    and the admin publish function), and revoked from `public`, `anon` and `authenticated`.
+  - Row-level security: the dedicated role does not inherit the service role's bypass, and `item_versions` has row-level
+    security on with only a read policy for visitors and students
+    (`supabase/migrations/20261101090000_items_and_versions.sql`). Chosen model: the dedicated role is the table owner
+    of `item_versions` (alongside the other tables the function touches), and the migrations enable but never `force`
+    row-level security on them, so the owner is exempt. That is how Postgres works as I know it (owners bypass row
+    security unless `force row level security` is set); I could not open the Postgres page in this session, so the
+    migration author must re-check it against the Postgres "Row Security Policies" documentation first. This is
+    preferred over `bypassrls` (a broader power) and over a policy written for that role (extra rules to get wrong). If
+    ownership proves impractical, the fallback is a narrow policy for that one role on `item_versions`, never
+    `bypassrls` without a written reason. The plan also forbids ever adding `force row level security` to these tables
+    without revisiting this.
+  - Execute grants go to roles, not to functions. Name the roles: `publisher_owner` (the dedicated role that owns and
+    runs the publish functions) and `importer_role` (what the importer signs in as, today the service role). The inner
+    `publish_item_version` gets `execute` for exactly `publisher_owner` and `importer_role`, and it is revoked from
+    `public`, `anon` and `authenticated`. `admin_publish_version` is owned by `publisher_owner`, begins with `is_admin()`,
+    and is the only function website sign-ins can reach, with `execute` for `authenticated` only.
   - The receipt and digest check runs inside the function, and the guard trigger repeats it as a second, independent
     gate, so a grants mistake alone still cannot publish.
   - A receipt expires (proposal: 24 hours after approval; Christian can change it), so an old approval cannot be
     reused later.
 - Receipt rows are written only by the admin approval function (admin check first), never by the importer or by a
-  website role.
+  website role, and this is enforced by grants, not by row-level security (the service role bypasses that):
+  `revoke insert, update, delete` on the receipts table from `service_role`, `anon` and `authenticated`; only the
+  approval function's role may insert; receipts are immutable (no update or delete grant for anyone but the database
+  owner, plus a trigger that refuses changes), so a receipt can only expire, not be edited.
 - One canonical digest, versioned (a version label is stored with every receipt, so the recipe can change later without
   confusing old receipts). It is a hash over, in this fixed order: the question's type (single or select-all, from
   `items.type`), the ordered choices (id and text), for every choice its correctness flag (`item_answers.is_correct`) and
@@ -223,6 +240,11 @@ the staging database's settings; I confirmed the grant in the migration file, no
   negatives, a direct service-role `update ... set status = 'published'` is denied (even with a valid receipt on file);
   an expired receipt is denied; a receipt for a different version id or a mismatched digest is denied; a missing
   receipt is denied; the trigger alone also refuses when the grant is temporarily restored inside the test.
+  Also: the publish function succeeds while running as `publisher_owner` (this proves the row-level-security model
+  above works, with no `bypassrls`); `anon` and `authenticated` cannot call the inner `publish_item_version` directly;
+  a direct `service_role` insert, update or delete on the receipts table is denied; the signed-in owner's approval
+  function (two-factor session) creates a receipt for exactly that version id and digest, and a non-admin or
+  one-factor call is refused.
   Positives, the publish function succeeds for a draft with a matching, unexpired receipt; a service-role update of a
   non-status column still works.
 This is a requirement for the importer-gate pull request and for Phase 3. No grants, migrations or settings are
