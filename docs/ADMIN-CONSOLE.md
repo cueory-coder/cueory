@@ -162,8 +162,7 @@ student-callable function that returns just those fields and nothing about other
 actions. The other option is to leave them out and say plainly on `/privacy` that the owner's handling of a report is
 logged. This is an open decision (question 6).
 
-Retention: keep rows for 2 years, then delete older ones by hand or a scheduled job. The 2 years is only a proposal and
-is a decision for Christian (question 7).
+Retention: keep rows for 2 years, then delete older ones by hand or a scheduled job. The 2 years was a proposal; Christian agreed on 2026-11-05 (question 7, decided: 2 years).
 
 Each admin action writes its row inside the same function, so an action cannot happen without a row (the transaction
 fails together).
@@ -322,21 +321,23 @@ No admin work touches the live database until it is set up under the existing pr
 not verified: `cueory-staging` has the 17 migrations applied and `cueory-prod` has none yet. Everything in Phases 1 to 3
 is built and tried on staging only; the "repeat on `cueory-prod`" steps above wait for that prelaunch setup.
 
-## 10. Decisions for Christian (yes or no)
+## 10. Decisions for Christian
 
-1. **Plan:** approve building Phase 1 (read-only dashboard) first, with Phases 2 and 3 each needing a separate go-ahead?
-2. **Hide means reversible.** Add a "hidden" switch (separate from "retired") so hiding is undoable?
-3. **Extra lock:** put Cloudflare Access (free, your email only) in front of `/admin` on the live site too, on top of the
-   password, authenticator code and database checks?
-4. **Publishing rule (open: decide before any real content is published, by the console or the importer).** Must every
-   publish, from the console or the command-line importer, carry your approval receipt for that exact version and
-   content digest, so nothing real goes live without it? May only non-clinical formatting checks ever be overridden by a
-   button, each override audit-logged? The answer-key and reserved checks and the clinical review gate would never be
-   waivable. Until you decide, real content stays unpublished. The importer fix is a separate pull request that can come
-   before the console. (My recommendation: yes.)
-5. **Privacy:** keep student emails and names out of the console (short account ids only)?
-6. **Audit log and export.** Include the audit rows about a student's own flags in export-my-data (my proposal), or
+Christian answered on 2026-11-05. Nothing has been started; building Phase 1 begins only when he says so.
+
+1. **DECIDED, yes (2026-11-05).** Build Phase 1 (read-only dashboard) first. Phases 2 and 3 each need a separate go-ahead.
+2. **DECIDED, yes (2026-11-05).** A reversible "hidden" switch, separate from "retired".
+3. **DECIDED, yes (2026-11-05).** Cloudflare Access in front of `/admin` on the live site, on top of the sign-in,
+   authenticator code and database checks. His steps (section 9) come before any admin page is public.
+4. **Publishing rule: OPEN, and the approval-receipt/importer-gate question stays open.**
+   - **Deferred (2026-11-05):** no skip-checks button for now. Treat it as no override of any check in Phases 1 and 2;
+     revisit at Phase 3.
+   - **Still open:** must every publish, from the console or the command-line importer, carry your approval receipt for
+     that exact version and content digest? (My recommendation: yes.) Until you decide, real content stays unpublished.
+     The importer fix is a separate pull request that can come before the console.
+5. **DECIDED, yes (2026-11-05).** Students are shown by short account id only in Phase 1 (no emails or names). Later, a
+   separate small pull request adds an optional student handle ("@name") field; it needs his approval first.
+6. **OPEN: audit log and export.** Include the audit rows about a student's own flags in export-my-data (my proposal), or
    leave them out and say so on `/privacy`? Also: do you want backups and old log copies checked for leftover links
    before launch (not verified today)?
-7. **Audit log retention.** Keep the audit log for 2 years and then delete older rows? (A number for you to set; shorter
-   or longer is fine.)
+7. **DECIDED, yes (2026-11-05).** Keep the audit log for 2 years, then delete older rows.
