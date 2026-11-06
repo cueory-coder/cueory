@@ -145,7 +145,7 @@ test.describe('footer without JavaScript', () => {
     await expect(footer.getByRole('link', { name: 'terms', exact: true })).toBeVisible();
     const flag = footer.getByRole('link', { name: 'flag or comment', exact: true });
     await expect(flag).toBeVisible();
-    await expect(flag).toHaveAttribute('href', `mailto:hello@cueory.app?subject=${encodeURIComponent('flag or comment: /privacy')}`);
+    await expect(flag).toHaveAttribute('href', `mailto:hello@cueory.app?subject=${encodeURIComponent('flag or comment: /privacy')}&body=${encodeURIComponent("please don't include patient names, dates of birth, medical record numbers, or other details that could identify a real person.\n\n")}`);
     await expect(chevron(page)).toBeHidden();
     expect((await chevron(page).evaluate((el) => el.getBoundingClientRect().width))).toBeGreaterThan(0);
   });
