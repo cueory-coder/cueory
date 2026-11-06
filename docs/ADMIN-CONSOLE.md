@@ -184,6 +184,24 @@ for that exact version id and content digest. Closing the importer gap is its ow
 (database function plus importer change) and can ship before the console. Until Christian decides question 4, publishing
 real content through either path stays blocked: the importer keeps writing drafts only for real content.
 
+Design requirement: enforce the receipt at the database boundary, for every write that sets a version to published. A
+check inside `publish_item_version` or `admin_publish_version` alone is not enough, because the migration gives the
+service role direct update on the table (`supabase/migrations/20261101090000_items_and_versions.sql`, the `grant select,
+insert, update, delete on table public.item_versions to service_role` line), so a direct status update, from the
+importer or anything holding the service key, would skip a function-only check. (A review chat also reported this from
+the staging database's settings; I confirmed the grant in the migration file, not in the live database.) So:
+- The guard trigger on `item_versions` (`item_versions_guard`) refuses any change to `status = 'published'` unless an
+  approval receipt row exists for that exact version id and the current content digest of its text, choices, answers and
+  source. This holds for every writer, the owner and service role included, and for the importer.
+- The service role loses direct update of `status` (column-level grants or a restrictive policy), so the only way to
+  publish is the publish function, and the function writes nothing the trigger would not also accept.
+- Receipt rows are written only by the admin approval function (admin check first), never by the importer or by a
+  website role.
+- Tests: a direct `update ... set status = 'published'` as service role fails without a receipt; fails with a receipt
+  for an older digest after any edit; works with a matching receipt; the importer's publish path fails the same way.
+This is a requirement for the importer-gate pull request and for Phase 3. No grants, migrations or settings are
+changed by this plan, and real content stays unpublished until Christian decides question 4.
+
 ### 4.3 Open design question: lessons and cards
 
 Lessons, cards, videos and puzzles are files in `/content` built into a static site, so a database switch cannot hide
