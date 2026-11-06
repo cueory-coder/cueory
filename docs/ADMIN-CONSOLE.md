@@ -193,46 +193,29 @@ the staging database's settings; I confirmed the grant in the migration file, no
   approval receipt row exists for that exact version id and the current content digest (defined next). This holds for every writer, the owner and service role included, and for the importer.
 - The service role loses direct update of `status`, and the publish function becomes the only door. A restrictive
   row-level policy cannot do this, because the service role bypasses row-level security (Supabase docs, Row Level
-  Security, "Bypassing Row Level Security"), and today it holds table-wide update. The one model chosen:
+  Security, "Bypassing Row Level Security"), and today it holds table-wide update. The one model chosen, and why:
+  - Model: no new owner and no new powerful role. The tables stay owned by the existing database owner (`postgres`).
+    The publish functions become `security definer` with `search_path = ''`, owned by that same owner. `revoke update
+    on public.item_versions from service_role`, then `grant update` back only on the non-status columns the importer
+    still needs.
+  - Why not a dedicated `publisher_owner` role that owns the tables: moving table ownership could break later `alter
+    table` migrations (the staging owner is not a superuser, so the migration role would need to stay a member of the
+    new owner and the importer and website roles must never be able to assume it), and a non-owner definer cannot read
+    `admins` or `auth.mfa_factors` or pass row-level security without extra grants. Keeping `postgres` as owner avoids all
+    of that: it already reads those tables, is the owner, and is exempt from row-level security as long as the migrations
+    never `force row level security` (they only enable it; the plan forbids adding force without revisiting this). That
+    owner exemption is Postgres behavior as I know it; I could not open the Postgres page in this session, so the
+    migration author must re-check it against the Postgres "Row Security Policies" documentation first.
   - Today `publish_item_version` is `security invoker` with `execute` granted to `service_role`
-    (`supabase/migrations/20261102090000_publish_item_version.sql`), so it runs with the caller's rights. Revoking the
-    caller's update on `status` would therefore break the legitimate publish too.
-  - So the function becomes `security definer` with a fixed `search_path = ''`, owned by a dedicated database role that
-    alone holds `update` on `item_versions.status`. `revoke update on public.item_versions from service_role` then `grant
-    update` back only on the non-status columns the importer still needs.
-  - Row-level security: the dedicated role does not inherit the service role's bypass, and `item_versions` has row-level
-    security on with only a read policy for visitors and students
-    (`supabase/migrations/20261101090000_items_and_versions.sql`). Chosen model: the dedicated role is the table owner
-    of `item_versions` (alongside the other tables the function touches), and the migrations enable but never `force`
-    row-level security on them, so the owner is exempt. That is how Postgres works as I know it (owners bypass row
-    security unless `force row level security` is set); I could not open the Postgres page in this session, so the
-    migration author must re-check it against the Postgres "Row Security Policies" documentation first. This is
-    preferred over `bypassrls` (a broader power) and over a policy written for that role (extra rules to get wrong). If
-    ownership proves impractical, the fallback is a narrow policy for that one role on `item_versions`, never
-    `bypassrls` without a written reason. The plan also forbids ever adding `force row level security` to these tables
-    without revisiting this.
-  - Execute grants go to roles, not to functions. Name the roles: `publisher_owner` (the dedicated role that owns and
-    runs the publish functions) and `importer_role` (what the importer signs in as, today the service role). The inner
-    `publish_item_version` gets `execute` for exactly `publisher_owner` and `importer_role`, and it is revoked from
-    `public`, `anon` and `authenticated`. `admin_publish_version` is owned by `publisher_owner`, begins with `is_admin()`,
-    and is the only function website sign-ins can reach, with `execute` for `authenticated` only.
-  - Admin check for the publisher role. I checked `20261102153000_admin_flag_rpcs.sql`: `is_admin()` is `security
-    invoker`, reads `public.admins` and `auth.mfa_factors` (both with row-level security on and no read for website
-    roles), and its `execute` is revoked from every website role and the service role. It works today only because the
-    existing admin functions are `security definer` and owned by the database owner, who can read both tables. A
-    least-privilege `publisher_owner` could neither call `is_admin()` nor read those tables, so the real owner could be
-    refused or hit an error. Website roles are never given read on the admin or MFA tables. Instead, a narrow helper:
-    `app_private.publisher_admin_ok()`, `security definer`, `search_path = ''`, owned by the role that already can read
-    those tables, returning only true or false (no rows, no ids), containing the same checks as `is_admin()` (account in
-    `admins`, JWT `aal2`, verified factor still on file), with `execute` revoked from everyone and granted only to
-    `publisher_owner`. A definer function still sees the caller's own sign-in claims (`auth.uid()`, `auth.jwt()`), so it
-    judges the real visitor. Verified in the migration (lines 67 to 85): `is_admin()` has `execute` revoked from `public`, `anon`,
-    `authenticated` and `service_role`, so only the database owner can call it. The helper therefore gets its own `execute`
-    grant to `publisher_owner` only (nothing else may call it), and every pgTAP case below runs as `publisher_owner`
-    through `admin_publish_version`, not as the owner. The alternative, if a helper is unwanted, is to keep `admin_publish_version` owned by the
-    existing database owner and let it call a narrow `publisher_owner` function for the final write only.
-  - The migration author must test every grant here against Supabase's guidance on permissions in the `auth` schema and on
-    `security definer` functions, in a real Supabase database, before relying on it.
+    (`supabase/migrations/20261102090000_publish_item_version.sql`), so it runs with the caller's rights. Changing it to
+    `security definer` is what lets it keep working after the caller's `status` update is revoked.
+  - Execute grants go to roles, not to functions. The inner `publish_item_version` gets `execute` for exactly the
+    importer's role (today `service_role`) and the owner, revoked from `public`, `anon` and `authenticated`.
+    `admin_publish_version` gets `execute` for `authenticated` only and begins with `is_admin()` like every other admin
+    function: the owner can call `is_admin()` (its `execute` is revoked from every website role and the service role,
+    migration lines 67 to 85, but not from the owner), and a `security definer` function owned by the owner still sees the
+    real visitor's sign-in claims, so it judges the visitor, not the owner. The generic rule (every admin function starts
+    with `is_admin()`) therefore has no exception.
   - The receipt and digest check runs inside the function, and the guard trigger repeats it as a second, independent
     gate, so a grants mistake alone still cannot publish.
   - A receipt expires (proposal: 24 hours after approval; Christian can change it), so an old approval cannot be
@@ -257,18 +240,46 @@ the staging database's settings; I confirmed the grant in the migration file, no
   negatives, a direct service-role `update ... set status = 'published'` is denied (even with a valid receipt on file);
   an expired receipt is denied; a receipt for a different version id or a mismatched digest is denied; a missing
   receipt is denied; the trigger alone also refuses when the grant is temporarily restored inside the test.
-  Also: the publish function succeeds while running as `publisher_owner` (this proves the row-level-security model
-  above works, with no `bypassrls`); `anon` and `authenticated` cannot call the inner `publish_item_version` directly;
+  Also: the publish function succeeds when called by the importer's role (this proves the owner-exempt row-level-security
+  model works, with no `bypassrls`); `anon` and `authenticated` cannot call the inner `publish_item_version` directly;
   a direct `service_role` insert, update or delete on the receipts table is denied; the signed-in owner's approval
   function (two-factor session) creates a receipt for exactly that version id and digest, and a non-admin or
   one-factor call is refused.
-  Under the actual definer role (not as the test superuser): a real `aal2` admin with a verified factor succeeds through
-  `admin_publish_version`; an `aal1` session of the same admin is refused; a signed-in non-admin is refused; an admin
-  whose factor was removed is refused; and `publisher_owner` cannot select from `admins` or `auth.mfa_factors` directly.
+  Through `admin_publish_version`, called as real signed-in roles: a real `aal2` admin with a verified factor succeeds; an
+  unauthenticated call, an `aal1` session of the same admin, a signed-in non-admin, and an admin whose factor was removed
+  are each refused; and `authenticated` cannot select from `admins` or `auth.mfa_factors` directly.
   Positives, the publish function succeeds for a draft with a matching, unexpired receipt; a service-role update of a
   non-status column still works.
 This is a requirement for the importer-gate pull request and for Phase 3. No grants, migrations or settings are
 changed by this plan, and real content stays unpublished until this enforcement is built and verified.
+
+### 4.2a Implementation checklist for the migration author
+
+This plan is design intent. The migration pull request must prove every line below with pgTAP in a real Supabase
+database; nothing here is a verified design. No grants or migrations change in the plan pull request.
+
+- Roles and owners: tables and functions stay owned by `postgres`; no new role, no `bypassrls`, no `force row level
+  security`; `postgres` is never reachable by the importer or website roles.
+- `item_versions`: `revoke update` from `service_role`, then `grant update` on non-status columns only.
+- Functions: `publish_item_version` becomes `security definer`, `search_path = ''`; `execute` revoked from `public`,
+  `anon`, `authenticated`, granted to the importer's role (and owner). `admin_publish_version` and the receipt-approval
+  function are `security definer`, `search_path = ''`, start with `is_admin()`, `execute` for `authenticated` only.
+- Row-level security: owner exemption relied on; re-check the Postgres docs; test publishing as the importer role.
+- Receipts table: row-level security on, restrictive deny-all for website roles; `revoke insert, update, delete` from
+  `service_role`, `anon`, `authenticated`; only the approval function writes; immutable (trigger refuses update and
+  delete); expiry enforced.
+- Digest: one canonical versioned digest computed in the database over question type, ordered choices, every
+  correctness flag, rationales, stem and source.
+- Guard trigger: `item_versions_guard` refuses `status = 'published'` without a matching, unexpired receipt, for every
+  writer.
+- Audit: `admin_audit` append-only, no grants to website roles, one row written per action in the same transaction.
+- Schemas: no website role gets read on `admins` or `auth.mfa_factors`; `app_private` is not widened. If a separate
+  publisher role is ever chosen instead of this model, it needs `usage` on any schema it uses and `execute` on exactly
+  the helpers it calls, and the ownership-transfer risk above must be smoke-tested on a throwaway database first.
+- Tests: every item in the pgTAP lists above, plus the "approved list of executable functions" test, plus a
+  throwaway-database run of all migrations from scratch and from the current staging state.
+- Supabase guidance: test each grant against Supabase's guidance on `auth`-schema permissions and `security definer`
+  functions before relying on it.
 
 ### 4.3 Open design question: lessons and cards
 
