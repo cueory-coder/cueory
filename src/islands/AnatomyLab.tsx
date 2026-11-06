@@ -28,6 +28,8 @@ import {
   BODYPARTS3D_CREDIT_LEAD,
   BODYPARTS3D_LICENSE_NAME,
   BODYPARTS3D_LICENSE_URL,
+  BODYPARTS3D_REFERENCE_NOTE,
+  BODYPARTS3D_REFERENCE_URL,
   BEHIND_MARK,
   TEXT_FALLBACK_BATCH,
   EXPORT_SIZES,
@@ -783,6 +785,11 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
               )}
             </p>
             <p>{releaseNoteFor(system)}</p>
+            {!system.fixture && (
+              <p>{BODYPARTS3D_REFERENCE_NOTE}{' '}
+                <a className="underline" href={BODYPARTS3D_REFERENCE_URL} rel="noopener noreferrer">source details</a>
+              </p>
+            )}
           </div>
           <label className="block text-sm text-ink" htmlFor="anatomy-fallback-search">find a structure by name or source ID</label>
           <input id="anatomy-fallback-search" type="search" value={query} autoComplete="off"
@@ -1083,6 +1090,11 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
               )}
             </p>
             <p>{releaseNoteFor(system)}</p>
+            {!system.fixture && (
+              <p>{BODYPARTS3D_REFERENCE_NOTE}{' '}
+                <a className="underline" href={BODYPARTS3D_REFERENCE_URL} rel="noopener noreferrer">source details</a>
+              </p>
+            )}
             {budget && <p className="text-ink" data-testid="anatomy-budget-note">{budget}</p>}
             {ready && missingCount > 0 && (
               <p data-testid="anatomy-missing-count">
