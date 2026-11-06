@@ -341,6 +341,14 @@ database; nothing here is a verified design. No grants or migrations change in t
   the approved publish function set them, inside the same transaction as the version (so they stay unpublished until it
   succeeds). Negative integration test: `--publish` with a missing, invalid or expired receipt leaves every affected
   question version, concept and source unpublic.
+- Insert is covered too (verified: `service_role` has `insert` and `update` on `concepts` and `sources` in
+  `20261101080000_concepts_sources_rights.sql`, and the importer builds new rows with `published: options.publish` and inserts
+  them before it publishes). Revoking `update` of `published` alone would leave `insert ... published = true` open. So a
+  fail-closed guard trigger on both tables covers INSERT and UPDATE: a new row is always stored as `published = false`
+  whatever the caller sends, and `published` can become true only inside the authorized atomic publish function (which
+  checks the receipt, expiry and revocation). pgTAP: `--apply --publish` with new and with existing concepts and sources,
+  and with a missing, expired or revoked receipt, leaves every concept, source and question version unpublished; a direct
+  service-role insert of a published row is stored unpublished.
 - Concept reassignment: `items_guard` today refuses only type changes, and `service_role` has direct update on `items`,
   so an approved item could be moved to another concept (the importer refuses moves in `plan.ts`, but that is not a
   database rule). Add a guard that refuses changing `items.concept_id` once any version is published or retired, and
