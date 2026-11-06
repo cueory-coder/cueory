@@ -4,10 +4,11 @@ import data from '../../content/games/hello-cards/starters.json' with { type: 'j
 
 const card = (page: Page) => page.getByTestId('hello-card');
 const text = (page: Page) => page.getByTestId('hello-card-text');
-const category = (page: Page, name: string) => page.getByRole('group', { name: 'who is it for' }).getByRole('button', { name, exact: true });
-const depth = (page: Page, name: string) => page.getByRole('group', { name: 'how deep' }).getByRole('button', { name, exact: true });
+const depthSwitch = (page: Page) => page.getByRole('switch', { name: 'deep convo', exact: true });
+const update = (page: Page) => page.getByRole('status', { name: 'hello cards update' });
+const lead = (text: string) => (data.starters.find((s) => s.text === text)!.category === 'yourself' ? 'ask yourself' : 'try asking');
 const next = (page: Page) => page.getByRole('button', { name: 'next card', exact: true });
-const textsFor = (name: string, level?: string) => data.starters.filter((s) => s.category === name && (!level || s.depth === level)).map((s) => s.text);
+const textsFor = (level: string) => data.starters.filter((s) => s.depth === level).map((s) => s.text);
 
 test.beforeEach(async ({ page }) => {
   // The once-only promo panel would take keyboard focus mid-test (as in play.spec.ts).
@@ -27,11 +28,11 @@ test('the games page links to hello cards and the page says its cards are sample
   await expect(page).toHaveURL(/\/play\/hello-cards\/?$/);
 });
 
-test('the card flips by click and by keyboard and shows a starter from the chosen category', async ({ page }) => {
+test('the card flips by click and by keyboard and shows a starter', async ({ page }) => {
   await expect(card(page)).toHaveAttribute('aria-pressed', 'false');
   await card(page).click();
   await expect(card(page)).toHaveAttribute('aria-pressed', 'true');
-  expect(textsFor('patients', 'small')).toContain((await text(page).textContent())!.trim());
+  expect(textsFor('small')).toContain((await text(page).textContent())!.trim());
   await card(page).focus();
   await page.keyboard.press('Space');
   await expect(card(page)).toHaveAttribute('aria-pressed', 'false');
@@ -40,24 +41,25 @@ test('the card flips by click and by keyboard and shows a starter from the chose
   expect(await card(page).evaluate((el) => el.matches(':focus-visible') && parseFloat(getComputedStyle(el).outlineWidth) > 0)).toBe(true);
 });
 
-test('categories filter the cards and next card never repeats the card on screen', async ({ page }) => {
-  await expect(category(page, 'patients')).toHaveAttribute('aria-pressed', 'true');
-  for (const [button, key] of [['co-workers', 'coworkers'], ['classmates', 'classmates'], ['get to know yourself', 'yourself']] as const) {
-    await category(page, button).click();
-    await expect(category(page, button)).toHaveAttribute('aria-pressed', 'true');
-    await expect(card(page)).toHaveAttribute('aria-pressed', 'false');
-    let previous = '';
-    for (let i = 0; i < 6; i++) {
-      await card(page).click();
-      const shown = (await text(page).textContent())!.trim();
-      expect(textsFor(key, 'small')).toContain(shown);
-      expect(shown).not.toBe(previous);
-      previous = shown;
-      await next(page).click();
-      await expect(card(page)).toHaveAttribute('aria-pressed', 'false');
-      await expect(card(page)).toBeFocused();
-    }
+test('there is no audience picker; next card stays in the chosen depth, never repeats and mixes categories', async ({ page }) => {
+  await expect(page.getByRole('group', { name: 'who is it for' })).toHaveCount(0);
+  for (const name of ['patients', 'co-workers', 'classmates', 'get to know yourself']) {
+    await expect(page.getByRole('button', { name, exact: true })).toHaveCount(0);
   }
+  let previous = '';
+  const categories = new Set<string>();
+  for (let i = 0; i < 8; i++) {
+    await card(page).click();
+    const shown = (await text(page).textContent())!.trim();
+    expect(textsFor('small')).toContain(shown);
+    expect(shown).not.toBe(previous);
+    categories.add(data.starters.find((s) => s.text === shown)!.category);
+    previous = shown;
+    await next(page).click();
+    await expect(card(page)).toHaveAttribute('aria-pressed', 'false');
+    await expect(card(page)).toBeFocused();
+  }
+  expect(categories.size).toBeGreaterThan(1);
 });
 
 test('it keeps no data: no scores, no storage writes, no requests off the site', async ({ page }) => {
@@ -80,7 +82,7 @@ for (const scheme of ['light', 'dark'] as const) {
       expect(results.violations).toEqual([]);
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-    for (const button of [depth(page, 'small talk'), depth(page, 'deep convo'), category(page, 'get to know yourself'), category(page, 'patients'), category(page, 'co-workers'), category(page, 'classmates'), next(page), card(page)]) {
+    for (const button of [depthSwitch(page), next(page), card(page)]) {
       const box = (await button.boundingBox())!;
       expect(box.height).toBeGreaterThanOrEqual(44);
       expect(box.width).toBeGreaterThanOrEqual(44);
@@ -98,20 +100,44 @@ test('with reduced motion the card swaps without a 3D turn', async ({ page }) =>
   await expect(page.getByTestId('hello-card-back')).toBeVisible();
 });
 
-test('the small talk / deep convo switch filters cards, shows its state in text and is announced', async ({ page }) => {
-  await expect(depth(page, 'small talk')).toHaveAttribute('aria-pressed', 'true');
-  await expect(depth(page, 'small talk')).toContainText('✓');
-  await expect(depth(page, 'deep convo')).not.toContainText('✓');
-  await depth(page, 'deep convo').focus();
-  await page.keyboard.press('Enter');
-  await expect(depth(page, 'deep convo')).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByRole('status', { name: 'hello cards update' })).toHaveText('deep convo chosen. a new card is face down.');
+test('the small talk / deep convo slide switch works by keyboard and tap, shows its state without colour and is announced', async ({ page }) => {
+  const toggle = depthSwitch(page);
+  const labels = page.getByTestId('hello-depth');
+  await expect(toggle).toHaveAttribute('aria-checked', 'false');
+  await expect(labels).toContainText('small talk');
+  await expect(labels).toContainText('deep convo');
+  const weight = (name: string) => labels.getByText(name, { exact: true }).evaluate((el) => ({ bold: Number(getComputedStyle(el).fontWeight) >= 700, line: getComputedStyle(el).textDecorationLine }));
+  expect(await weight('small talk')).toEqual({ bold: true, line: 'underline' });
+  expect(await weight('deep convo')).toEqual({ bold: false, line: 'none' });
+  const offX = (await toggle.locator('span').boundingBox())!.x;
+  await toggle.focus();
+  expect(await toggle.evaluate((el) => el.matches(':focus-visible') && parseFloat(getComputedStyle(el).outlineWidth) > 0)).toBe(true);
+  await page.keyboard.press('Space');
+  await expect(toggle).toHaveAttribute('aria-checked', 'true');
+  await expect(update(page)).toHaveText('deep convo chosen. a new card is face down.');
+  await expect.poll(async () => (await toggle.locator('span').boundingBox())!.x).toBeGreaterThan(offX + 10);
+  expect(await weight('deep convo')).toEqual({ bold: true, line: 'underline' });
   for (let i = 0; i < 5; i++) {
     await card(page).click();
-    expect(textsFor('patients', 'deep')).toContain((await text(page).textContent())!.trim());
+    expect(textsFor('deep')).toContain((await text(page).textContent())!.trim());
     await next(page).click();
   }
   await expect(page.getByTestId('hello-daily')).toContainText('deep convo');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-checked', 'false');
+  await expect(update(page)).toHaveText('small talk chosen. a new card is face down.');
+  await toggle.focus();
+  await page.keyboard.press('Enter');
+  await expect(toggle).toHaveAttribute('aria-checked', 'true');
+});
+
+test('with reduced motion the switch thumb does not slide', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.reload();
+  await expect(depthSwitch(page)).toBeEnabled();
+  // The site's reduced-motion rule shortens transitions to a hair above zero (about 0.00001s), which is no slide.
+  const seconds = await depthSwitch(page).locator('span').evaluate((el) => parseFloat(getComputedStyle(el).transitionDuration));
+  expect(seconds).toBeLessThan(0.001);
 });
 
 test('the prompt of the day shows today\'s date, is the same on reload and changes the next day', async ({ page }) => {
@@ -143,13 +169,12 @@ test('a tab left open across local midnight moves on to the new day\'s prompt', 
 
 test('the card\'s accessible name is exact before flipping and includes the question after', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'conversation card', exact: true })).toHaveAttribute('aria-pressed', 'false');
-  await card(page).click();
-  const shown = (await text(page).textContent())!.trim();
-  const flippedCard = page.getByRole('button', { name: `conversation card. try asking: ${shown}`, exact: true });
-  await expect(flippedCard).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByRole('button', { name: 'conversation card', exact: true })).toHaveCount(0);
-  await category(page, 'get to know yourself').click();
-  await card(page).click();
-  const mine = (await text(page).textContent())!.trim();
-  await expect(page.getByRole('button', { name: `conversation card. ask yourself: ${mine}`, exact: true })).toBeVisible();
+  for (let i = 0; i < 3; i++) {
+    await card(page).click();
+    const shown = (await text(page).textContent())!.trim();
+    await expect(page.getByRole('button', { name: `conversation card. ${lead(shown)}: ${shown}`, exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('button', { name: 'conversation card', exact: true })).toHaveCount(0);
+    await next(page).click();
+    await expect(page.getByRole('button', { name: 'conversation card', exact: true })).toHaveAttribute('aria-pressed', 'false');
+  }
 });

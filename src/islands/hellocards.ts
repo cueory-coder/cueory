@@ -1,3 +1,5 @@
+import { draftsAllowed, type BuildEnv } from './anatomylab';
+
 /**
  * Hello cards (Task 201): pure logic for the flip-the-card conversation starters. No scoring, no accounts and nothing
  * saved or sent. The starters are draft sample text in content/games/hello-cards until Christian approves the wording.
@@ -30,8 +32,11 @@ export function isHelloCategory(value: unknown): value is HelloCategory {
 }
 
 /** Only the starters for one category, in the order given. */
-export function startersFor(starters: readonly HelloStarter[], category: HelloCategory, depth?: HelloDepth): HelloStarter[] {
-  return starters.filter((starter) => starter.category === category && (depth === undefined || starter.depth === depth));
+/** `all` draws from every category; the page uses it, since the audience is no longer chosen (Christian, Task 201). */
+export type HelloPile = HelloCategory | 'all';
+
+export function startersFor(starters: readonly HelloStarter[], category: HelloPile, depth?: HelloDepth): HelloStarter[] {
+  return starters.filter((starter) => (category === 'all' || starter.category === category) && (depth === undefined || starter.depth === depth));
 }
 
 /**
@@ -41,7 +46,7 @@ export function startersFor(starters: readonly HelloStarter[], category: HelloCa
  */
 export function nextStarter(
   starters: readonly HelloStarter[],
-  category: HelloCategory,
+  category: HelloPile,
   depth: HelloDepth,
   seen: readonly string[],
   lastId: string | null,
@@ -94,4 +99,14 @@ export function promptOfTheDay(starters: readonly HelloStarter[], date: Date, de
 export function msUntilNextDay(date: Date): number {
   const next = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
   return Math.max(1000, next.getTime() - date.getTime());
+}
+
+/**
+ * Release gate (Task 201): draft samples must never become a linked page on the live site. A build shows hello cards
+ * when the content file is marked `approved` (Christian's wording approval), or when the build may show drafts at all
+ * (staging, branch previews, local and test builds; the live `main` build and any build that does not name its branch
+ * may not, the same fail-closed rule as the anatomy drafts, D-56).
+ */
+export function helloCardsShown(status: string, env: BuildEnv): boolean {
+  return status === 'approved' || draftsAllowed(env);
 }

@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { dayLabel } from './daily';
 import {
-  HELLO_CATEGORIES,
   HELLO_CATEGORY_LABELS,
-  HELLO_DEPTHS,
   HELLO_DEPTH_LABELS,
   type HelloDepth,
   dayIndex,
@@ -12,7 +10,6 @@ import {
   promptOfTheDay,
   nextStarter,
   startersFor,
-  type HelloCategory,
   type HelloStarter,
 } from './hellocards';
 
@@ -24,7 +21,6 @@ const faceClass =
  * (aria-pressed says which side shows). Choices stay in memory only; nothing is scored, saved or sent.
  */
 export default function HelloCards({ starters }: { starters: readonly HelloStarter[] }) {
-  const [category, setCategory] = useState<HelloCategory>('patients');
   const [depth, setDepth] = useState<HelloDepth>('small');
   const [current, setCurrent] = useState<HelloStarter | null>(null);
   const [seen, setSeen] = useState<string[]>([]);
@@ -37,7 +33,7 @@ export default function HelloCards({ starters }: { starters: readonly HelloStart
 
   // The first card is drawn after hydration so the server and browser never disagree about a random pick.
   useEffect(() => {
-    const first = nextStarter(starters, 'patients', 'small', [], null);
+    const first = nextStarter(starters, 'all', 'small', [], null);
     setCurrent(first.starter);
     setSeen(first.seen);
     setReady(true);
@@ -74,25 +70,18 @@ export default function HelloCards({ starters }: { starters: readonly HelloStart
     };
   }, []);
 
-  const draw = (nextCategory: HelloCategory, nextDepth: HelloDepth, history: string[], last: string | null) => {
-    const result = nextStarter(starters, nextCategory, nextDepth, history, last);
+  const draw = (nextDepth: HelloDepth, history: string[], last: string | null) => {
+    const result = nextStarter(starters, 'all', nextDepth, history, last);
     setCurrent(result.starter);
     setSeen(result.seen);
     setFlipped(false);
     return result.starter;
   };
 
-  const choose = (next: HelloCategory) => {
-    if (next === category) return;
-    setCategory(next);
-    draw(next, depth, [], null);
-    setNotice(`${HELLO_CATEGORY_LABELS[next]} chosen. a new card is face down.`);
-  };
-
   const chooseDepth = (next: HelloDepth) => {
     if (next === depth) return;
     setDepth(next);
-    draw(category, next, [], null);
+    draw(next, [], null);
     setNotice(`${HELLO_DEPTH_LABELS[next]} chosen. a new card is face down.`);
   };
 
@@ -100,16 +89,16 @@ export default function HelloCards({ starters }: { starters: readonly HelloStart
     if (!current) return;
     const next = !flipped;
     setFlipped(next);
-    setNotice(next ? `card turned over. ${isReflective(category) ? 'ask yourself' : 'try asking'}: ${current.text}` : 'card turned face down.');
+    setNotice(next ? `card turned over. ${current && isReflective(current.category) ? 'ask yourself' : 'try asking'}: ${current.text}` : 'card turned face down.');
   };
 
   const another = () => {
-    draw(category, depth, seen, current?.id ?? null);
+    draw(depth, seen, current?.id ?? null);
     setNotice('a new card is face down.');
     cardRef.current?.focus();
   };
 
-  const count = startersFor(starters, category, depth).length;
+  const count = startersFor(starters, 'all', depth).length;
 
   return (
     <div className="text-ink">
@@ -120,35 +109,29 @@ export default function HelloCards({ starters }: { starters: readonly HelloStart
           <p className="mt-3 wrap-anywhere text-2xl" data-testid="hello-daily-text">{daily.text}</p>
         </section>
       )}
-      <div role="group" aria-label="how deep" className="mb-4 flex flex-wrap gap-3" data-testid="hello-depth">
-        {HELLO_DEPTHS.map((id) => (
-          <button
-            key={id}
-            type="button"
-            aria-pressed={depth === id}
-            disabled={!ready}
-            onClick={() => chooseDepth(id)}
-            className="press min-h-(--tap-min) min-w-(--tap-min) rounded-pill border border-control px-5 py-2.5 text-ink aria-pressed:border-2 aria-pressed:bg-surface aria-pressed:font-bold disabled:opacity-60"
+      <div className="mb-6 flex items-center justify-center gap-3" data-testid="hello-depth">
+        <span aria-hidden="true" className={`text-lg ${depth === 'small' ? 'font-bold underline underline-offset-4' : 'text-ink-soft'}`}>
+          {HELLO_DEPTH_LABELS.small}
+        </span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={depth === 'deep'}
+          aria-label="deep convo"
+          disabled={!ready}
+          onClick={() => chooseDepth(depth === 'deep' ? 'small' : 'deep')}
+          data-testid="hello-depth-switch"
+          className="press relative inline-flex h-(--tap-min) w-18 shrink-0 cursor-pointer touch-manipulation items-center rounded-pill border-2 border-control bg-page disabled:opacity-60"
+        >
+          <span
+            aria-hidden="true"
+            className={`absolute left-1 flex size-8 items-center justify-center rounded-full bg-button text-sm text-on-button transition-transform duration-(--duration-base) ease-(--ease-soft) motion-reduce:transition-none ${depth === 'deep' ? 'translate-x-8' : 'translate-x-0'}`}
           >
-            {depth === id && <span aria-hidden="true">✓ </span>}
-            {HELLO_DEPTH_LABELS[id]}
-          </button>
-        ))}
-      </div>
-      <div role="group" aria-label="who is it for" className="flex flex-wrap gap-3">
-        {HELLO_CATEGORIES.map((id) => (
-          <button
-            key={id}
-            type="button"
-            aria-pressed={category === id}
-            disabled={!ready}
-            onClick={() => choose(id)}
-            className="press min-h-(--tap-min) min-w-(--tap-min) rounded-pill border border-control px-5 py-2.5 text-ink aria-pressed:border-2 aria-pressed:bg-surface aria-pressed:font-bold disabled:opacity-60"
-          >
-            {category === id && <span aria-hidden="true">✓ </span>}
-            {HELLO_CATEGORY_LABELS[id]}
-          </button>
-        ))}
+          </span>
+        </button>
+        <span aria-hidden="true" className={`text-lg ${depth === 'deep' ? 'font-bold underline underline-offset-4' : 'text-ink-soft'}`}>
+          {HELLO_DEPTH_LABELS.deep}
+        </span>
       </div>
 
       <div className={`flip mt-stack${flipped ? ' is-flipped' : ''}`}>
@@ -156,7 +139,7 @@ export default function HelloCards({ starters }: { starters: readonly HelloStart
           ref={cardRef}
           type="button"
           aria-pressed={flipped}
-          aria-label={flipped && current ? `conversation card. ${isReflective(category) ? 'ask yourself' : 'try asking'}: ${current.text}` : 'conversation card'}
+          aria-label={flipped && current ? `conversation card. ${current && isReflective(current.category) ? 'ask yourself' : 'try asking'}: ${current.text}` : 'conversation card'}
           aria-describedby="hello-card-hint"
           disabled={!ready || !current}
           onClick={flip}
@@ -165,11 +148,11 @@ export default function HelloCards({ starters }: { starters: readonly HelloStart
         >
           <span className="flip-inner grid min-w-0 grid-cols-1">
             <span className={`flip-face ${faceClass}`} aria-hidden={flipped || undefined}>
-              <span className="text-sm text-ink-soft">{HELLO_CATEGORY_LABELS[category]}</span>
+              <span className="text-sm text-ink-soft">{HELLO_DEPTH_LABELS[depth]}</span>
               <span className="mt-3 text-xl font-bold">tap to turn over</span>
             </span>
             <span className={`flip-back relative ${faceClass}`} aria-hidden={!flipped || undefined} data-testid="hello-card-back">
-              <span className="text-sm text-ink-soft">{isReflective(category) ? 'ask yourself' : 'try asking'}</span>
+              <span className="text-sm text-ink-soft">{current && isReflective(current.category) ? 'ask yourself' : 'try asking'}</span>
               <span className="mt-3 wrap-anywhere text-xl" data-testid="hello-card-text">{current?.text ?? ''}</span>
             </span>
           </span>

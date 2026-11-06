@@ -372,7 +372,8 @@ const helloCards = defineCollection({
   loader: glob({ base: './content/games/hello-cards', pattern: '**/*.json' }),
   schema: z
     .object({
-      status: z.literal('sample'),
+      // `sample` is a draft awaiting Christian's wording review; only `approved` may reach the live site.
+      status: z.enum(['sample', 'approved']),
       note: z.string().max(300).optional(),
       starters: z
         .array(

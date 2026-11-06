@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import data from '../../content/games/hello-cards/starters.json';
-import { HELLO_CATEGORIES, HELLO_DEPTHS, dayIndex, isHelloCategory, isReflective, nextStarter, msUntilNextDay, promptOfTheDay, startersFor, type HelloStarter } from '../../src/islands/hellocards';
+import { HELLO_CATEGORIES, HELLO_DEPTHS, dayIndex, isHelloCategory, isReflective, nextStarter, helloCardsShown, msUntilNextDay, promptOfTheDay, startersFor, type HelloStarter } from '../../src/islands/hellocards';
 
 const starters = data.starters as HelloStarter[];
 const seeded = (values: number[]) => {
@@ -210,5 +211,56 @@ describe('msUntilNextDay', () => {
   });
   it('never returns less than a second, so a timer cannot fire before the day changes', () => {
     expect(msUntilNextDay(new Date(2026, 10, 7, 23, 59, 59, 999))).toBe(1000);
+  });
+});
+
+describe('the all pile (no audience picker)', () => {
+  it('draws from every category at the chosen depth', () => {
+    expect(startersFor(starters, 'all')).toHaveLength(60);
+    for (const depth of HELLO_DEPTHS) {
+      const pool = startersFor(starters, 'all', depth);
+      expect(pool).toHaveLength(depth === 'small' ? 32 : 28);
+      expect(new Set(pool.map((s) => s.category)).size).toBe(4);
+    }
+  });
+
+  it('walks the whole depth pile before repeating and never repeats the card on screen', () => {
+    let seen: string[] = [];
+    let last: string | null = null;
+    const shown: string[] = [];
+    let n = 0;
+    for (let i = 0; i < 32; i++) {
+      const result = nextStarter(starters, 'all', 'small', seen, last, () => ((n += 11) % 37) / 37);
+      expect(result.starter!.id).not.toBe(last);
+      shown.push(result.starter!.id);
+      seen = result.seen;
+      last = result.starter!.id;
+    }
+    expect(new Set(shown).size).toBe(32);
+    expect(nextStarter(starters, 'all', 'small', seen, last, () => 0).starter!.id).not.toBe(last);
+    expect(nextStarter([], 'all', 'deep', [], null)).toEqual({ starter: null, seen: [] });
+  });
+});
+
+describe('release gate: draft samples never become a linked live page', () => {
+  const live = { WORKERS_CI: '1', WORKERS_CI_BRANCH: 'main' };
+  it('hides a sample-status file from the live (main) build, however the branch is written', () => {
+    expect(helloCardsShown('sample', live)).toBe(false);
+    expect(helloCardsShown('sample', { WORKERS_CI: '1', WORKERS_CI_BRANCH: ' refs/heads/main ', CUEORY_ANATOMY_DRAFTS: '1' })).toBe(false);
+    expect(helloCardsShown('sample', { WORKERS_CI: '1' })).toBe(false);
+    expect(helloCardsShown('sample', {})).toBe(false);
+  });
+  it('shows samples on staging, previews and builds that ask for drafts, and approved files everywhere', () => {
+    expect(helloCardsShown('sample', { WORKERS_CI: '1', WORKERS_CI_BRANCH: 'staging' })).toBe(true);
+    expect(helloCardsShown('sample', { CUEORY_ANATOMY_DRAFTS: '1' })).toBe(true);
+    expect(helloCardsShown('approved', live)).toBe(true);
+  });
+  it('the page and the /play link both use the gate, and the seed file is still a sample', () => {
+    expect(data.status).toBe('sample');
+    for (const file of ['src/pages/play/hello-cards.astro', 'src/pages/play.astro']) {
+      expect(readFileSync(file, 'utf8'), file).toContain('helloCardsShown(');
+    }
+    expect(readFileSync('src/pages/play.astro', 'utf8')).toMatch(/showHello && <section/);
+    expect(readFileSync('src/pages/play/hello-cards.astro', 'utf8')).toMatch(/const starters = shown \?/);
   });
 });

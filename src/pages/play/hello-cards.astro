@@ -8,25 +8,36 @@ import { getCollection } from 'astro:content';
 import Layout from '../../layouts/Layout.astro';
 import HelloCards from '../../islands/HelloCards';
 import { helloCardsGame } from '../../config/games';
+import { helloCardsShown } from '../../islands/hellocards';
 
 const entries = await getCollection('hello-cards');
-const starters = entries.flatMap(({ data }) => data.starters);
+// Draft samples are only built into the page where drafts may show (staging, previews, local); the live build gets a
+// plain "coming soon" page with none of the starter text in it.
+const env = { WORKERS_CI: process.env.WORKERS_CI, WORKERS_CI_BRANCH: process.env.WORKERS_CI_BRANCH, CUEORY_ANATOMY_DRAFTS: process.env.CUEORY_ANATOMY_DRAFTS };
+const shown = entries.length > 0 && entries.every(({ data }) => helloCardsShown(data.status, env));
+const starters = shown ? entries.flatMap(({ data }) => data.starters) : [];
 ---
 
 <Layout title={helloCardsGame.name} description="Flip a card for a friendly conversation starter to use with patients, co-workers or classmates." noindex promo={false}>
   <article class="veil mx-auto mt-6 max-w-prose p-6 sm:mt-10 sm:p-10" data-pagefind-ignore>
-    <p class="text-sm text-ink-soft">sample cards · awaiting content approval</p>
+    {shown && <p class="text-sm text-ink-soft">sample cards · awaiting content approval</p>}
     <h1 class="display mt-2 text-title sm:text-title-lg">{helloCardsGame.name}</h1>
     <p class="mt-3 text-ink-soft">
       small, friendly questions for getting to know the people around you. choose who it is for, turn the card over and
       see what comes up. there is no score, and nothing is saved.
     </p>
-    <div class="mt-8">
-      <HelloCards client:only="react" starters={starters} />
-      <noscript>
-        <p>hello cards needs JavaScript to turn the cards over. you can still <a href="/play">go back to the daily games</a>.</p>
-      </noscript>
-    </div>
+    {
+      shown ? (
+        <div class="mt-8">
+          <HelloCards client:only="react" starters={starters} />
+          <noscript>
+            <p>hello cards needs JavaScript to turn the cards over. you can still <a href="/play">go back to the daily games</a>.</p>
+          </noscript>
+        </div>
+      ) : (
+        <p class="mt-8" data-testid="hello-cards-soon">hello cards are coming soon.</p>
+      )
+    }
     <a href="/play" class="mt-10 inline-flex min-h-(--tap-min) items-center rounded-pill border border-control px-5 py-2.5 text-ink">
       back to daily games
     </a>

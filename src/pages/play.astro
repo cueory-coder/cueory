@@ -15,6 +15,7 @@ import PilloTitle from '../components/PilloTitle.astro';
 import { parsePuzzle } from '../islands/cueword';
 import { parsePuzzle as parseWordPath } from '../islands/suture';
 import { dailyGames, helloCardsGame } from '../config/games';
+import { helloCardsShown } from '../islands/hellocards';
 
 const samples = (await getCollection('pulse'))
   .sort((a, b) => a.id.localeCompare(b.id))
@@ -41,6 +42,10 @@ const wordPathSamples = (await getCollection('suture'))
       throw new Error(`content/games/suture/${id}.json: ${(error as Error).message}`);
     }
   });
+// The hello cards link only exists where the cards may show: drafts stay off the live site (see helloCardsShown).
+const helloEnv = { WORKERS_CI: process.env.WORKERS_CI, WORKERS_CI_BRANCH: process.env.WORKERS_CI_BRANCH, CUEORY_ANATOMY_DRAFTS: process.env.CUEORY_ANATOMY_DRAFTS };
+const helloEntries = await getCollection('hello-cards');
+const showHello = helloEntries.length > 0 && helloEntries.every(({ data }) => helloCardsShown(data.status, helloEnv));
 const pulse = dailyGames.find((game) => game.id === 'pulse')!;
 const triage = dailyGames.find((game) => game.id === 'triage')!;
 const crossword = dailyGames.find((game) => game.id === 'cueword')!;
@@ -106,13 +111,13 @@ const later = dailyGames.filter((game) => !game.ready);
     no games to count, so nothing shows. */}
     <GameStatsPanel client:only="react" games={[pulse, triage, crossword, wordPath].map((game) => game.id)} />
 
-    <section class="mt-16" aria-labelledby="more-games-heading">
+    {showHello && <section class="mt-16" aria-labelledby="more-games-heading">
       <h2 id="more-games-heading" class="text-2xl font-medium">more games</h2>
       <p class="mt-2">
         <a href={helloCardsGame.href} class="font-medium" data-testid="hello-cards-link">{helloCardsGame.name}</a>
         <span class="text-ink-soft">: {helloCardsGame.line}</span>
       </p>
-    </section>
+    </section>}
 
     {
       later.length > 0 && (
