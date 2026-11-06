@@ -320,6 +320,14 @@ database; nothing here is a verified design. No grants or migrations change in t
   the helpers it calls, and the ownership-transfer risk above must be smoke-tested on a throwaway database first.
 - Step-up: destructive admin functions require the server-recorded step-up proof of 4.2b (not `iat` alone), with its
   tests; delete-my-account has the same `iat` weakness and is tracked separately.
+- Receipt revocation: receipts stay append-only and immutable, but a wrong approval must not stay usable for the whole 24
+  hours. A separate `receipt_revocations` record (receipt id, time, admin id, short reason from a fixed list) is written
+  only by a founder-authorized admin function (`is_admin()`, step-up, audit row). Both the publish functions and the
+  status guard check it and fail closed: a revoked receipt, or any failure to look the revocation up, means refuse, with
+  a "receipt revoked" reason. Revocation grants follow the receipts rules (no website or service-role write). pgTAP: approve,
+  then revoke, then try to publish through the importer path, through `admin_publish_version`, and through a direct
+  status transition (grant temporarily restored); each is refused with the revocation reason; an unrevoked receipt still
+  works; a simulated lookup failure refuses.
 - Receipt-read guard: `item_versions_guard` is `security invoker` today
   (`supabase/migrations/20261101090000_items_and_versions.sql`), so its planned receipt read would run as the caller. It
   becomes `security definer`, owned by `postgres`, `search_path = ''`, and receipts are readable only through it. pgTAP
