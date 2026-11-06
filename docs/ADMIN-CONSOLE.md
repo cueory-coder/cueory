@@ -137,6 +137,13 @@ directly; there is no update or delete function at all, so it is append-only for
 `admin_list_audit` lets him read it. Each admin action writes its row inside the same function, so an action cannot
 happen without a row (the transaction fails together).
 
+Approval receipt. A publish (and any override) is tied to exactly what Christian approved: the row records the
+immutable version id and a content digest (a hash, a short fingerprint) of the exact stem, choices, rationale and
+source being published, taken inside the same function. If even one character changes after he approves, the digest no
+longer matches and the publish is refused until he approves again. Only non-clinical formatting checks may be
+overridden by a button. The answer-key and reserved checks and the clinical review gate can never be waived this way;
+they pass or the version stays a draft. This is an open decision (question 4) and must be settled before Phase 3.
+
 ### 4.3 Open design question: lessons and cards
 
 Lessons, cards, videos and puzzles are files in `/content` built into a static site, so a database switch cannot hide
@@ -258,7 +265,9 @@ Claude gives the exact text to paste each time. Nothing below happens until he a
 2. **Hide means reversible.** Add a "hidden" switch (separate from "retired") so hiding is undoable?
 3. **Extra lock:** put Cloudflare Access (free, your email only) in front of `/admin` on the live site too, on top of the
    password, authenticator code and database checks?
-4. **Publishing rule (Phase 3):** may a question you edit in the console be published only after the existing reviewer
-   checks show as passed, with a one-click "I approve without checks" override that is written to the audit log? (My
-   recommendation: yes.)
+4. **Publishing rule (Phase 3, open: decide before Phase 3 starts).** May a question you edit in the console be
+   published only after the existing reviewer checks show as passed, and may only non-clinical formatting checks (for
+   example spacing or a missing credit line) ever be overridden by a button, each override written to the audit log
+   with your approval receipt (see 4.2)? The answer-key and reserved checks and the clinical review gate would never be
+   waivable by a button. (My recommendation: yes.)
 5. **Privacy:** keep student emails and names out of the console (short account ids only)?
