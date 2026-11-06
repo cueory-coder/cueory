@@ -160,7 +160,7 @@ Export-my-data: because rows that name a student's own flag are linkable to them
 export-my-data, only the audit rows (time, action code, new state) that reference that student's own flags, through a
 student-callable function that returns just those fields and nothing about other people or about the owner's other
 actions. The other option is to leave them out and say plainly on `/privacy` that the owner's handling of a report is
-logged. This is an open decision (question 6).
+logged. Decided on 2026-11-05 (question 6): included in export-my-data.
 
 Retention: keep rows for 2 years, then delete older ones by hand or a scheduled job. The 2 years was a proposal; Christian agreed on 2026-11-05 (question 7, decided: 2 years).
 
@@ -172,7 +172,7 @@ immutable version id and a content digest (a hash, a short fingerprint) of the e
 source being published, taken inside the same function. If even one character changes after he approves, the digest no
 longer matches and the publish is refused until he approves again. Only non-clinical formatting checks may be
 overridden by a button. The answer-key and reserved checks and the clinical review gate can never be waived this way;
-they pass or the version stays a draft. This is an open decision (question 4) and must be settled before Phase 3.
+they pass or the version stays a draft. Question 4 decided this on 2026-11-05.
 
 The receipt covers every way of publishing, not only the console. Today the command-line importer can publish too:
 the batch checker needs five reviewer files but no particular one (not Christian's; `scripts/check-batch/check.ts`,
@@ -347,15 +347,15 @@ Christian answered on 2026-11-05. Nothing has been started; building Phase 1 beg
 2. **DECIDED, yes (2026-11-05).** A reversible "hidden" switch, separate from "retired".
 3. **DECIDED, yes (2026-11-05).** Cloudflare Access in front of `/admin` on the live site, on top of the sign-in,
    authenticator code and database checks. His steps (section 9) come before any admin page is public.
-4. **Publishing rule: OPEN, and the approval-receipt/importer-gate question stays open.**
+4. **Publishing rule.**
+   - **DECIDED, yes (2026-11-05):** every publish, from the console or from the importer or service role, must carry an
+     approval receipt for the exact version and content digest, enforced at the database boundary (the design
+     requirement in section 4.2). Until that is built, real content stays unpublished.
    - **Deferred (2026-11-05):** no skip-checks button for now. Treat it as no override of any check in Phases 1 and 2;
      revisit at Phase 3.
-   - **Still open:** must every publish, from the console or the command-line importer, carry your approval receipt for
-     that exact version and content digest? (My recommendation: yes.) Until you decide, real content stays unpublished.
-     The importer fix is a separate pull request that can come before the console.
 5. **DECIDED, yes (2026-11-05).** Students are shown by short account id only in Phase 1 (no emails or names). Later, a
    separate small pull request adds an optional student handle ("@name") field; it needs his approval first.
-6. **OPEN: audit log and export.** Include the audit rows about a student's own flags in export-my-data (my proposal), or
-   leave them out and say so on `/privacy`? Also: do you want backups and old log copies checked for leftover links
-   before launch (not verified today)?
+6. **DECIDED, yes (2026-11-05):** a student's own audit rows (the ones that reference their own flags) are included in
+   export-my-data, as described in 4.2. Still to do before launch, not decided: check backups and old log copies for
+   leftover links (not verified today).
 7. **DECIDED, yes (2026-11-05).** Keep the audit log for 2 years, then delete older rows.
