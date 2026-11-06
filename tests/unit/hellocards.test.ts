@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import data from '../../content/games/hello-cards/starters.json';
-import { HELLO_CATEGORIES, HELLO_DEPTHS, dayIndex, isHelloCategory, isReflective, nextStarter, helloCardsShown, msUntilNextDay, promptOfTheDay, startersFor, type HelloStarter } from '../../src/islands/hellocards';
+import { HELLO_CATEGORIES, HELLO_DEPTHS, dayIndex, isHelloCategory, isReflective, nextStarter, HELLO_PENDING_LABEL, helloCardsPage, helloCardsShown, msUntilNextDay, promptOfTheDay, startersFor, type HelloStarter } from '../../src/islands/hellocards';
 
 const starters = data.starters as HelloStarter[];
 const seeded = (values: number[]) => {
@@ -258,9 +258,52 @@ describe('release gate: draft samples never become a linked live page', () => {
   it('the page and the /play link both use the gate, and the seed file is still a sample', () => {
     expect(data.status).toBe('sample');
     for (const file of ['src/pages/play/hello-cards.astro', 'src/pages/play.astro']) {
-      expect(readFileSync(file, 'utf8'), file).toContain('helloCardsShown(');
+      expect(readFileSync(file, 'utf8'), file).toContain('helloCardsPage(');
     }
     expect(readFileSync('src/pages/play.astro', 'utf8')).toMatch(/showHello && <section/);
-    expect(readFileSync('src/pages/play/hello-cards.astro', 'utf8')).toMatch(/const starters = shown \?/);
+    expect(readFileSync('src/pages/play/hello-cards.astro', 'utf8')).toContain('const { shown, starters } = page;');
+  });
+});
+
+describe('helloCardsPage: what each kind of build ships', () => {
+  const files = [{ status: 'sample', starters }];
+  const approved = [{ status: 'approved', starters }];
+  const main = { WORKERS_CI: '1', WORKERS_CI_BRANCH: 'main' };
+  const staging = { WORKERS_CI: '1', WORKERS_CI_BRANCH: 'staging' };
+
+  it('the main build ships no starter text and no /play link for sample files', () => {
+    const page = helloCardsPage(files, main, false);
+    expect(page).toEqual({ shown: false, starters: [], label: null, noindex: true, linked: false });
+    expect(JSON.stringify(page)).not.toContain(starters[0]!.text);
+    // A build that does not name its branch counts as live too.
+    expect(helloCardsPage(files, { WORKERS_CI: '1' }, false).starters).toEqual([]);
+  });
+
+  it('staging shows samples with the exact pending label, noindex and a link', () => {
+    const page = helloCardsPage(files, staging, true);
+    expect(page.label).toBe('sample cards · awaiting content approval');
+    expect(HELLO_PENDING_LABEL).toBe('sample cards · awaiting content approval');
+    expect(page.noindex).toBe(true);
+    expect(page.linked).toBe(true);
+    expect(page.starters).toHaveLength(60);
+  });
+
+  it('approved files show everywhere with no pending label, and stay noindex until the config flag is on', () => {
+    const live = helloCardsPage(approved, main, false);
+    expect(live).toMatchObject({ shown: true, label: null, noindex: true, linked: true });
+    expect(live.starters).toHaveLength(60);
+    expect(helloCardsPage(approved, main, true).noindex).toBe(false);
+    // A sample file is never indexable, whatever the flag says.
+    expect(helloCardsPage(files, staging, true).noindex).toBe(true);
+  });
+
+  it('shows nothing when there are no files, and hides everything if any file is still a sample on main', () => {
+    expect(helloCardsPage([], staging, false)).toMatchObject({ shown: false, linked: false, starters: [] });
+    expect(helloCardsPage([...approved, ...files], main, false).shown).toBe(false);
+  });
+
+  it('is what the page and the /play link use', () => {
+    expect(readFileSync('src/pages/play/hello-cards.astro', 'utf8')).toContain('helloCardsPage(');
+    expect(readFileSync('src/pages/play.astro', 'utf8')).toContain('helloCardsPage(');
   });
 });

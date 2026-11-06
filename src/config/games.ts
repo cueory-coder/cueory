@@ -61,5 +61,8 @@ export const forbiddenGameWords = ['wordle', 'connections', 'strands', 'nyt', 'n
 export const helloCardsGame = {
   name: 'hello cards',
   href: '/play/hello-cards',
-  line: 'flip a card for a friendly conversation starter. pick patients, co-workers or classmates.',
+  line: 'flip a card for a friendly conversation starter, for anyone you work or study with. choose small talk or a deeper conversation.',
 } as const;
+
+/** Keep the hello cards page out of search until Christian says otherwise, even once its wording is approved. */
+export const helloCardsIndexWhenApproved = false;

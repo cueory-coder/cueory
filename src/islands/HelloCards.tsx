@@ -109,8 +109,8 @@ export default function HelloCards({ starters }: { starters: readonly HelloStart
           <p className="mt-3 wrap-anywhere text-2xl" data-testid="hello-daily-text">{daily.text}</p>
         </section>
       )}
-      <div className="mb-6 flex items-center justify-center gap-3" data-testid="hello-depth">
-        <span aria-hidden="true" className={`text-lg ${depth === 'small' ? 'font-bold underline underline-offset-4' : 'text-ink-soft'}`}>
+      <div className="mb-6 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-center" data-testid="hello-depth">
+        <span aria-hidden="true" className={`min-w-0 wrap-anywhere text-lg ${depth === 'small' ? 'font-bold underline underline-offset-4' : 'text-ink-soft'}`}>
           {HELLO_DEPTH_LABELS.small}
         </span>
         <button
@@ -129,7 +129,7 @@ export default function HelloCards({ starters }: { starters: readonly HelloStart
           >
           </span>
         </button>
-        <span aria-hidden="true" className={`text-lg ${depth === 'deep' ? 'font-bold underline underline-offset-4' : 'text-ink-soft'}`}>
+        <span aria-hidden="true" className={`min-w-0 wrap-anywhere text-lg ${depth === 'deep' ? 'font-bold underline underline-offset-4' : 'text-ink-soft'}`}>
           {HELLO_DEPTH_LABELS.deep}
         </span>
       </div>
@@ -139,8 +139,8 @@ export default function HelloCards({ starters }: { starters: readonly HelloStart
           ref={cardRef}
           type="button"
           aria-pressed={flipped}
-          aria-label={flipped && current ? `conversation card. ${current && isReflective(current.category) ? 'ask yourself' : 'try asking'}: ${current.text}` : 'conversation card'}
-          aria-describedby="hello-card-hint"
+          aria-label="conversation card"
+          aria-describedby="hello-card-hint hello-card-question"
           disabled={!ready || !current}
           onClick={flip}
           data-testid="hello-card"
@@ -158,6 +158,9 @@ export default function HelloCards({ starters }: { starters: readonly HelloStart
           </span>
         </button>
       </div>
+      <p id="hello-card-question" className="sr-only">
+        {flipped && current ? `${isReflective(current.category) ? 'ask yourself' : 'try asking'}: ${current.text}` : ''}
+      </p>
       <p id="hello-card-hint" className="mt-2 text-sm text-ink-soft">
         {flipped ? 'press the card again to turn it face down.' : 'press the card to turn it over.'}
       </p>

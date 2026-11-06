@@ -167,14 +167,31 @@ test('a tab left open across local midnight moves on to the new day\'s prompt', 
   await expect(daily).not.toHaveText(before);
 });
 
-test('the card\'s accessible name is exact before flipping and includes the question after', async ({ page }) => {
-  await expect(page.getByRole('button', { name: 'conversation card', exact: true })).toHaveAttribute('aria-pressed', 'false');
+test('the card keeps one name; its description gives the hint and, face up, the question', async ({ page }) => {
+  const named = page.getByRole('button', { name: 'conversation card', exact: true });
+  const turnOver = 'press the card to turn it over.';
+  const turnBack = 'press the card again to turn it face down.';
+  await expect(named).toHaveAttribute('aria-pressed', 'false');
+  await expect(named).toHaveAccessibleDescription(turnOver);
+  const seenQuestions: string[] = [];
   for (let i = 0; i < 3; i++) {
     await card(page).click();
     const shown = (await text(page).textContent())!.trim();
-    await expect(page.getByRole('button', { name: `conversation card. ${lead(shown)}: ${shown}`, exact: true })).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.getByRole('button', { name: 'conversation card', exact: true })).toHaveCount(0);
+    seenQuestions.push(shown);
+    await expect(named).toHaveAttribute('aria-pressed', 'true');
+    await expect(named).toHaveAccessibleDescription(`${turnBack} ${lead(shown)}: ${shown}`);
     await next(page).click();
-    await expect(page.getByRole('button', { name: 'conversation card', exact: true })).toHaveAttribute('aria-pressed', 'false');
+    await expect(named).toHaveAttribute('aria-pressed', 'false');
+    await expect(named).toHaveAccessibleDescription(turnOver);
   }
+  // Keyboard revisit: Tab back to the card, flip with Space, hear the question, flip back with Enter.
+  await page.keyboard.press('Shift+Tab');
+  await page.keyboard.press('Tab');
+  await card(page).focus();
+  await page.keyboard.press('Space');
+  const again = (await text(page).textContent())!.trim();
+  expect(seenQuestions[seenQuestions.length - 1]).not.toBe(again);
+  await expect(named).toHaveAccessibleDescription(`${turnBack} ${lead(again)}: ${again}`);
+  await page.keyboard.press('Enter');
+  await expect(named).toHaveAccessibleDescription(turnOver);
 });

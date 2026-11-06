@@ -110,3 +110,27 @@ export function msUntilNextDay(date: Date): number {
 export function helloCardsShown(status: string, env: BuildEnv): boolean {
   return status === 'approved' || draftsAllowed(env);
 }
+
+export const HELLO_PENDING_LABEL = 'sample cards · awaiting content approval';
+
+/**
+ * Everything a build needs to know about the hello cards page, from the content files and the build environment, so the
+ * live (main) build can be tested without running a whole build. Starters are only passed on where the cards may show;
+ * the pending label is for sample files only; a sample page is always noindex, and an approved one is noindex too until
+ * `indexWhenApproved` (src/config/games.ts) is turned on.
+ */
+export function helloCardsPage(
+  files: readonly { status: string; starters: readonly HelloStarter[] }[],
+  env: BuildEnv,
+  indexWhenApproved: boolean,
+): { shown: boolean; starters: HelloStarter[]; label: string | null; noindex: boolean; linked: boolean } {
+  const shown = files.length > 0 && files.every((file) => helloCardsShown(file.status, env));
+  const allApproved = files.length > 0 && files.every((file) => file.status === 'approved');
+  return {
+    shown,
+    starters: shown ? files.flatMap((file) => file.starters) : [],
+    label: shown && !allApproved ? HELLO_PENDING_LABEL : null,
+    noindex: !(allApproved && indexWhenApproved),
+    linked: shown,
+  };
+}
