@@ -68,6 +68,16 @@ Each phase is its own small set of pull requests, each needing his approval (dat
 
 Nothing can be changed in this phase, so it is the lowest risk.
 
+Christian's picture of the goal: the master account works like the inside of a vending machine. He can read
+everything in spreadsheet-style tables, sort it, control which options exist, and decide what customers can see,
+especially "features of the day" (for example the prompt of the day and other daily features). Phase 1 delivers the
+reading half; the controls come in Phases 2 and 3, each needing his separate go-ahead. Nothing here is built yet.
+
+- Sortable, filterable, spreadsheet-style tables (column headers that sort, a filter box, paging) for: questions and
+  content, flags, features of the day, and users (short account id only, never email or name). A "download CSV" button
+  exports exactly what he is allowed to see on screen, and nothing the screens hide (no answer keys, no emails, no
+  names). Tables work by keyboard and touch.
+
 - `/admin` dashboard, for him only:
   - Counts: accounts, new accounts this week, open flags, questions by state (draft, published, retired), concepts
     published or not, attempts in the last 7 days. Counts only, no student names.
@@ -75,7 +85,8 @@ Nothing can be changed in this phase, so it is the lowest risk.
     is about.
   - Content list: every concept and question with its state (draft, published, retired, hidden once phase 2 exists),
     version number and open-flag count. Question text is shown; answer keys are not.
-- New RPCs (names are proposals): `admin_dashboard_counts()`, `admin_list_content(kind, state, limit, cursor)`.
+- New RPCs (names are proposals): `admin_dashboard_counts()`, `admin_list_features()`, `admin_list_users()` (short ids and
+  dates only), `admin_list_content(kind, state, limit, cursor)`.
   Reuse `admin_list_flags`.
 
 ### Phase 2: hide, show, unpublish, resolve
@@ -91,6 +102,12 @@ Nothing can be changed in this phase, so it is the lowest risk.
 - New RPCs: `admin_set_hidden(kind, id, hidden)`, `admin_retire_version(version_id)`, `admin_resolve_flag(flag_id,
   note)`, `admin_list_audit(limit, cursor)`.
 
+Features of the day (Phase 2 for scheduling, Phase 3 for new content): a `features` and `feature_schedule` table. For each
+feature (prompt of the day, other daily features) there is a deterministic fallback, for example today's prompt derives
+from the date, unless the admin has set an override for a date. The admin sets, clears or moves an override from the
+table view. Every such control goes through the same admin functions, `is_admin()`, step-up, audit log and, for
+anything that publishes new text, the approval-receipt gate as publishing does. Students see only today's choice.
+
 ### Phase 3: edit and post, with draft, preview, publish
 
 - Create or edit means a new draft version of a question (published versions never change, existing rule from D-85).
@@ -104,8 +121,13 @@ Nothing can be changed in this phase, so it is the lowest risk.
   where Christian types or pastes his own reviewed text. The reviewer-checks question is decision 4.
 - Lessons, cards and videos: see 4.3 for the open design question.
 - Audit log (5) covers every edit, publish and unpublish.
-- New RPCs: `admin_get_draft`, `admin_save_draft`, `admin_preview_version`, `admin_publish_version`, plus the importer
-  keeps working unchanged.
+- New RPCs: `admin_get_draft`, `admin_save_draft`, `admin_preview_version`, `admin_publish_version`. The importer
+  does not keep working unchanged: today `scripts/import-batch/db.ts` (lines 144 to 153) updates `sources` and
+  `concepts` to published directly, before it calls the publish function, and the plan's revocations would deny that.
+  It will be refactored to create new metadata unpublished, issue no direct visibility updates, and let the
+  receipt-checked publish function publish the references it needs. Tests: an existing unpublished and a brand-new source
+  and concept both publish with a valid receipt, and stay unpublic without one. Also, its draft rewrite deletes draft
+  `item_answers` and `item_choices` (db.ts, lines 173 to 183), so revoking `delete` needs a draft-only rewrite function.
 
 ## 4. Database and RPC design sketch
 
@@ -191,14 +213,44 @@ importer or anything holding the service key, would skip a function-only check. 
 the staging database's settings; I confirmed the grant in the migration file, not in the live database.) So:
 - The guard trigger on `item_versions` (`item_versions_guard`) refuses any change to `status = 'published'` unless an
   approval receipt row exists for that exact version id and the current content digest (defined next). This holds for every writer, the owner and service role included, and for the importer.
-- The service role loses direct update of `status` (column-level grants or a restrictive policy), so the only way to
-  publish is the publish function, and the function writes nothing the trigger would not also accept.
+- The service role loses direct update of `status`, and the publish function becomes the only door. A restrictive
+  row-level policy cannot do this, because the service role bypasses row-level security (Supabase docs, Row Level
+  Security, "Bypassing Row Level Security"), and today it holds table-wide update. The one model chosen, and why:
+  - Model: no new owner and no new powerful role. The tables stay owned by the existing database owner (`postgres`).
+    The publish functions become `security definer` with `search_path = ''`, owned by that same owner. `revoke update
+    on public.item_versions from service_role`, then `grant update` back only on the non-status columns the importer
+    still needs.
+  - Why not a dedicated `publisher_owner` role that owns the tables: moving table ownership could break later `alter
+    table` migrations (the staging owner is not a superuser, so the migration role would need to stay a member of the
+    new owner and the importer and website roles must never be able to assume it), and a non-owner definer cannot read
+    `admins` or `auth.mfa_factors` or pass row-level security without extra grants. Keeping `postgres` as owner avoids all
+    of that: it already reads those tables, is the owner, and is exempt from row-level security as long as the migrations
+    never `force row level security` (they only enable it; the plan forbids adding force without revisiting this). That
+    owner exemption is Postgres behavior as I know it; I could not open the Postgres page in this session, so the
+    migration author must re-check it against the Postgres "Row Security Policies" documentation first.
+  - Today `publish_item_version` is `security invoker` with `execute` granted to `service_role`
+    (`supabase/migrations/20261102090000_publish_item_version.sql`), so it runs with the caller's rights. Changing it to
+    `security definer` is what lets it keep working after the caller's `status` update is revoked.
+  - Execute grants go to roles, not to functions. The inner `publish_item_version` gets `execute` for exactly the
+    importer's role (today `service_role`) and the owner, revoked from `public`, `anon` and `authenticated`.
+    `admin_publish_version` gets `execute` for `authenticated` only and begins with `is_admin()` like every other admin
+    function: the owner can call `is_admin()` (its `execute` is revoked from every website role and the service role,
+    migration lines 67 to 85, but not from the owner), and a `security definer` function owned by the owner still sees the
+    real visitor's sign-in claims, so it judges the visitor, not the owner. The generic rule (every admin function starts
+    with `is_admin()`) therefore has no exception.
+  - The receipt and digest check runs inside the function, and the guard trigger repeats it as a second, independent
+    gate, so a grants mistake alone still cannot publish.
+  - A receipt expires (proposal: 24 hours after approval; Christian can change it), so an old approval cannot be
+    reused later.
 - Receipt rows are written only by the admin approval function (admin check first), never by the importer or by a
-  website role.
+  website role, and this is enforced by grants, not by row-level security (the service role bypasses that):
+  `revoke insert, update, delete` on the receipts table from `service_role`, `anon` and `authenticated`; only the
+  approval function's role may insert; receipts are immutable (no update or delete grant for anyone but the database
+  owner, plus a trigger that refuses changes), so a receipt can only expire, not be edited.
 - One canonical digest, versioned (a version label is stored with every receipt, so the recipe can change later without
   confusing old receipts). It is a hash over, in this fixed order: the question's type (single or select-all, from
-  `items.type`), the ordered choices (id and text), for every choice its correctness flag (`item_answers.is_correct`) and
-  its rationale, the stem, and the source. Nothing else, and nothing left out: the type matters because it can still
+  `items.type`), its concept (`items.concept_id`, proposed, see the checklist), the ordered choices (id and text), for every choice its correctness flag (`item_answers.is_correct`) and
+  its rationale, the stem, and the source (identity plus title, publisher, url and license). Nothing else, and nothing left out: the type matters because it can still
   change while every version is a draft (`items_guard`), and the correctness flags are the answer key itself. The
   database computes it; no caller supplies it.
 - Tests: a direct `update ... set status = 'published'` as service role fails without a receipt; fails with a receipt
@@ -206,8 +258,130 @@ the staging database's settings; I confirmed the grant in the migration file, no
   direct service-role status update: after approval, changing the question type blocks publishing; flipping any one
   correctness flag blocks it; editing a choice, a rationale, the stem or the source blocks it; reordering choices blocks
   it; a receipt with an old digest-recipe version blocks it.
+  Database (pgTAP) tests for the grant model:
+  negatives, a direct service-role `update ... set status = 'published'` is denied (even with a valid receipt on file);
+  an expired receipt is denied; a receipt for a different version id or a mismatched digest is denied; a missing
+  receipt is denied; the trigger alone also refuses when the grant is temporarily restored inside the test.
+  Also: the publish function succeeds when called by the importer's role (this proves the owner-exempt row-level-security
+  model works, with no `bypassrls`); `anon` and `authenticated` cannot call the inner `publish_item_version` directly;
+  a direct `service_role` insert, update or delete on the receipts table is denied; the signed-in owner's approval
+  function (two-factor session) creates a receipt for exactly that version id and digest, and a non-admin or
+  one-factor call is refused.
+  Through `admin_publish_version`, called as real signed-in roles: a real `aal2` admin with a verified factor succeeds; an
+  unauthenticated call, an `aal1` session of the same admin, a signed-in non-admin, and an admin whose factor was removed
+  are each refused; and `authenticated` cannot select from `admins` or `auth.mfa_factors` directly.
+  Positives, the publish function succeeds for a draft with a matching, unexpired receipt; a service-role update of a
+  non-status column still works.
 This is a requirement for the importer-gate pull request and for Phase 3. No grants, migrations or settings are
 changed by this plan, and real content stays unpublished until this enforcement is built and verified.
+
+### 4.2b Step-up for destructive admin actions
+
+Destructive actions (unpublish, retire, hide, publish) must not rely on the age of the sign-in token alone. I checked
+`supabase/migrations/20261102160000_fresh_sign_in_and_name_rules.sql`: delete-my-account compares the token's `iat`
+(issued-at) to the clock, and that file itself says a refreshed token gets a new `iat`, so it does not prove the person
+signed in just now. The same weakness exists in delete-my-account today and is tracked separately (not fixed here).
+
+For the admin console the requirement is a server-verifiable re-authentication event with a timestamp the server checks
+on its own:
+- Preferred: a short-lived step-up proof recorded in the database when the admin re-enters an authenticator code (a row
+  with the admin id, the session id, a created time and a few minutes of lifetime, written only by an admin function
+  that first confirms a fresh two-factor code). Each destructive function requires an unexpired proof for the caller's
+  current session and consumes or time-limits it.
+- Possible alternative, unverified: the `amr` claim in Supabase's token lists sign-in methods with timestamps. Its
+  behavior on refresh is not documented as far as the migration notes say, so it is not used unless Supabase's docs and
+  a staging test confirm the semantics.
+- The admin row, `aal2` and verified-factor checks stay on as additional requirements, not replacements.
+- Tests: an existing session whose token was just refreshed is rejected (new `iat`, no proof); an expired proof is
+  rejected; a simulated stolen refresh token (a new session for the same admin with no proof of its own) is rejected;
+  a proof from another session is rejected; a valid, unexpired proof for the current session succeeds.
+
+### 4.2a Implementation checklist for the migration author
+
+This plan is design intent. The migration pull request must prove every line below with pgTAP in a real Supabase
+database; nothing here is a verified design. No grants or migrations change in the plan pull request.
+
+- Roles and owners: tables and functions stay owned by `postgres`; no NEW `bypassrls` role, no `force row level
+  security`. Plainly: `postgres` (and `service_role`) already have `bypassrls` on staging (reported from `pg_roles`, to be
+  re-verified), so a `security definer` function owned by `postgres` runs with broad row-level-security bypass. The trust
+  boundary is therefore not an absence of bypass. It is the narrow `execute` grants, the `is_admin()` and `aal2` check,
+  the function's own logic, and the immutable receipt trigger. Visitors cannot become `postgres`, but any definer function
+  they can call runs with its privileges, so each one must be small and checked.
+- `item_versions`: `revoke update` from `service_role`, then `grant update` on non-status columns only.
+- Functions: `publish_item_version` becomes `security definer`, `search_path = ''`; `execute` revoked from `public`,
+  `anon`, `authenticated`, granted to the importer's role (and owner). `admin_publish_version` and the receipt-approval
+  function are `security definer`, `search_path = ''`, start with `is_admin()`, `execute` for `authenticated` only.
+- Row-level security: owner exemption relied on; re-check the Postgres docs; test publishing as the importer role.
+- Receipts table: row-level security on, restrictive deny-all for website roles; `revoke insert, update, delete` from
+  `service_role`, `anon`, `authenticated`; only the approval function writes; immutable (trigger refuses update and
+  delete); expiry enforced.
+- Digest: one canonical versioned digest computed in the database over question type, ordered choices, every
+  correctness flag, rationales, stem and source.
+- Guard trigger: `item_versions_guard` refuses `status = 'published'` without a matching, unexpired receipt, for every
+  writer.
+- Audit: `admin_audit` append-only, no grants to website roles, one row written per action in the same transaction.
+- Schemas: no website role gets read on `admins` or `auth.mfa_factors`; `app_private` is not widened. If a separate
+  publisher role is ever chosen instead of this model, it needs `usage` on any schema it uses and `execute` on exactly
+  the helpers it calls, and the ownership-transfer risk above must be smoke-tested on a throwaway database first.
+- Step-up: destructive admin functions require the server-recorded step-up proof of 4.2b (not `iat` alone), with its
+  tests; delete-my-account has the same `iat` weakness and is tracked separately.
+- Receipt revocation: receipts stay append-only and immutable, but a wrong approval must not stay usable for the whole 24
+  hours. A separate `receipt_revocations` record (receipt id, time, admin id, short reason from a fixed list) is written
+  only by a founder-authorized admin function (`is_admin()`, step-up, audit row). Both the publish functions and the
+  status guard check it and fail closed: a revoked receipt, or any failure to look the revocation up, means refuse, with
+  a "receipt revoked" reason. Revocation grants follow the receipts rules (no website or service-role write). pgTAP: approve,
+  then revoke, then try to publish through the importer path, through `admin_publish_version`, and through a direct
+  status transition (grant temporarily restored); each is refused with the revocation reason; an unrevoked receipt still
+  works; a simulated lookup failure refuses.
+- Receipt-read guard: `item_versions_guard` is `security invoker` today
+  (`supabase/migrations/20261101090000_items_and_versions.sql`), so its planned receipt read would run as the caller. It
+  becomes `security definer`, owned by `postgres`, `search_path = ''`, and receipts are readable only through it. pgTAP
+  must show the refusal is the receipt or digest refusal and not a generic "permission denied" on the receipts table:
+  (a) through the inner publish function, (b) through a direct service-role status update with the status grant
+  temporarily restored, (c) a valid receipt succeeds, (d) a stale digest is refused as its own case.
+- Sources and concepts visibility is gated too (chosen approach): today `--publish` sets `sources.published` and
+  `concepts.published` in separate requests before it calls `publish_item_version`
+  (`scripts/import-batch/db.ts`, `plan.ts`), and `service_role` can write them directly, so a refused receipt would not
+  roll them back. Chosen: revoke `update` of `published` on `concepts` and `sources` from `service_role`, and let only
+  the approved publish function set them, inside the same transaction as the version (so they stay unpublished until it
+  succeeds). Negative integration test: `--publish` with a missing, invalid or expired receipt leaves every affected
+  question version, concept and source unpublic.
+- Insert is covered too (verified: `service_role` has `insert` and `update` on `concepts` and `sources` in
+  `20261101080000_concepts_sources_rights.sql`, and the importer builds new rows with `published: options.publish` and inserts
+  them before it publishes). Revoking `update` of `published` alone would leave `insert ... published = true` open. So a
+  fail-closed guard trigger on both tables covers INSERT and UPDATE: a new row is always stored as `published = false`
+  whatever the caller sends, and `published` can become true only inside the authorized atomic publish function (which
+  checks the receipt, expiry and revocation). pgTAP: `--apply --publish` with new and with existing concepts and sources,
+  and with a missing, expired or revoked receipt, leaves every concept, source and question version unpublished; a direct
+  service-role insert of a published row is stored unpublished.
+- Deletes: `service_role` also holds `delete` on `items`, `item_versions` and `item_choices`, and the guard fires only on
+  insert and update, so a published version with no attempts could be hard-deleted with no step-up or audit. Revoke
+  `delete` on those three tables from `service_role`; retiring or hiding happens only through the audited admin functions.
+  pgTAP: a direct service-role delete of a newly published version is refused; the approved retire and hide functions
+  work and write their audit row.
+- Concept reassignment: `items_guard` today refuses only type changes, and `service_role` has direct update on `items`,
+  so an approved item could be moved to another concept (the importer refuses moves in `plan.ts`, but that is not a
+  database rule). Add a guard that refuses changing `items.concept_id` once any version is published or retired, and
+  include `concept_id` in the digest (proposed; Christian confirms that the concept mapping is part of what he
+  approves). pgTAP: reassigning a concept is refused after publication; before publication it is allowed but
+  invalidates an existing receipt (the digest changes), through both the publish function and a direct update.
+- Source details: `sources` rows (title, publisher, url, license) are writable by `service_role` and a change does not
+  change `source_id`, so attribution or license could change after approval. The approval covers the source's identity
+  and its attribution and license details, so the digest includes the source's title, publisher, url and license, not only
+  its id. Chosen: published sources are immutable for every writer (a guard), and any correction goes through an
+  owner-authorized, audited function that invalidates the receipts of every affected version (their digest changes, so
+  they must be approved again). pgTAP: after approval, changing a source's url, publisher or license (each separately)
+  is refused directly, and through the audited function it invalidates the receipt and blocks publishing until
+  re-approval.
+- Concept moves: after publication, a direct `items.concept_id` change is blocked for every writer (a guard, not just
+  the importer's rule). Any move goes through an owner-authorized, audited function that requires a fresh receipt
+  (new digest). pgTAP negative: a direct service-role update of `concept_id` on a published item is refused.
+- Unapproved callers: pgTAP shows `public`, `anon` and `authenticated` callers that are not the approved admin cannot use
+  the owner's elevated privileges through any definer function in this plan (every one refuses first).
+- Tests: every item in the pgTAP lists above, plus the "approved list of executable functions" test, plus a
+  throwaway-database run of all migrations from scratch and from the current staging state.
+- Supabase guidance: test each grant against Supabase's guidance on `auth`-schema permissions and `security definer`
+  functions before relying on it.
 
 ### 4.3 Open design question: lessons and cards
 
@@ -238,7 +412,7 @@ lessons and cards when Phase 2 is approved.
 | Public repo: someone reads our code to find the admin | The admin is a database row, not a secret in code. Knowing the design gives no access. No email, key or content in the repo. |
 | Fork pull request tries to add an admin or loosen a rule | Only `lilchristxan` gives instructions (D-79); forks never run or merge (auto-merge skips them); every database change is labeled `needs-christian` and never merges to `main` without him; Codex reviews each admin function against the checklist above. |
 | Stolen password | The database requires an authenticator code (`aal2`) and a still-verified factor on every admin call. |
-| Stolen session (cookie or token) | A stolen `aal2` session still works until it expires. Mitigations: short admin sessions (ask: set Supabase's session time-box and inactivity timeout, if the free plan allows; I will read the docs and confirm before proposing), destructive actions need a fresh sign-in within 10 minutes as delete-account already does (D-133), the audit log shows what happened, and Cloudflare Access (decision 3) is a second lock in front of the pages. |
+| Stolen session (cookie or token) | A stolen `aal2` session still works until it expires. Mitigations: short admin sessions (ask: set Supabase's session time-box and inactivity timeout, if the free plan allows; I will read the docs and confirm before proposing), destructive actions need a server-verified step-up (see 4.2b; the 10-minute `iat` check used by delete-account is not enough, because a refreshed token gets a new `iat`), the audit log shows what happened, and Cloudflare Access (decision 3) is a second lock in front of the pages. |
 | CSRF (a bad site makes his browser send an action) | Calls go to Supabase with his token in a request header, not a cookie that browsers attach automatically, so another site cannot send them. `form-action 'self'` and no state-changing GET. Each destructive action also requires a confirm step that sends the target id. |
 | XSS (a student's comment runs code in his admin page) | Flag comments and all content are shown as plain text by React (no `dangerouslySetInnerHTML`), the CSP blocks inline scripts and new origins, and a test will fail the build if admin screens render user text as HTML. This matters more once he edits rich text; phase 3 keeps text plain. |
 | Brute force or spam | Supabase's sign-in limits (D-111). Admin RPCs get a per-admin limit (for example 600 calls an hour) and edits/publishes a lower one, mainly to stop runaway loops, and every refusal is cheap because `is_admin()` runs first. |
