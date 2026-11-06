@@ -89,3 +89,9 @@ export function promptOfTheDay(starters: readonly HelloStarter[], date: Date, de
   const starter = pile[mod(Math.floor(day / piles.length), pile.length)]!;
   return { ...starter };
 }
+
+/** Milliseconds from `date` until the next local midnight (at least one second, so a timer never fires early). */
+export function msUntilNextDay(date: Date): number {
+  const next = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
+  return Math.max(1000, next.getTime() - date.getTime());
+}

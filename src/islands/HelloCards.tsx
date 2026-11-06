@@ -6,7 +6,9 @@ import {
   HELLO_DEPTHS,
   HELLO_DEPTH_LABELS,
   type HelloDepth,
+  dayIndex,
   isReflective,
+  msUntilNextDay,
   promptOfTheDay,
   nextStarter,
   startersFor,
@@ -30,7 +32,7 @@ export default function HelloCards({ starters }: { starters: readonly HelloStart
   const [notice, setNotice] = useState('');
   const [ready, setReady] = useState(false);
   const cardRef = useRef<HTMLButtonElement>(null);
-  const today = useMemo(() => new Date(), []);
+  const [today, setToday] = useState(() => new Date());
   const daily = useMemo(() => promptOfTheDay(starters, today, depth), [starters, today, depth]);
 
   // The first card is drawn after hydration so the server and browser never disagree about a random pick.
@@ -40,6 +42,37 @@ export default function HelloCards({ starters }: { starters: readonly HelloStart
     setSeen(first.seen);
     setReady(true);
   }, [starters]);
+
+  // A tab left open past local midnight moves on to the new day: a timer for midnight, plus a check when the tab
+  // comes back into view or focus (timers can pause while a device sleeps). Both are cleared on unmount.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const refresh = () => {
+      const now = new Date();
+      setToday((previous) => (dayIndex(previous) === dayIndex(now) ? previous : now));
+    };
+    const schedule = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        refresh();
+        schedule();
+      }, msUntilNextDay(new Date()));
+    };
+    const check = () => {
+      if (document.visibilityState === 'visible') {
+        refresh();
+        schedule();
+      }
+    };
+    schedule();
+    document.addEventListener('visibilitychange', check);
+    window.addEventListener('focus', check);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('visibilitychange', check);
+      window.removeEventListener('focus', check);
+    };
+  }, []);
 
   const draw = (nextCategory: HelloCategory, nextDepth: HelloDepth, history: string[], last: string | null) => {
     const result = nextStarter(starters, nextCategory, nextDepth, history, last);
@@ -123,7 +156,7 @@ export default function HelloCards({ starters }: { starters: readonly HelloStart
           ref={cardRef}
           type="button"
           aria-pressed={flipped}
-          aria-label="conversation card"
+          aria-label={flipped && current ? `conversation card. ${isReflective(category) ? 'ask yourself' : 'try asking'}: ${current.text}` : 'conversation card'}
           aria-describedby="hello-card-hint"
           disabled={!ready || !current}
           onClick={flip}

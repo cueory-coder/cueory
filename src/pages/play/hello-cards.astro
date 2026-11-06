@@ -24,7 +24,7 @@ const starters = entries.flatMap(({ data }) => data.starters);
     <div class="mt-8">
       <HelloCards client:only="react" starters={starters} />
       <noscript>
-        <p>hello cards needs JavaScript to turn the cards over.</p>
+        <p>hello cards needs JavaScript to turn the cards over. you can still <a href="/play">go back to the daily games</a>.</p>
       </noscript>
     </div>
     <a href="/play" class="mt-10 inline-flex min-h-(--tap-min) items-center rounded-pill border border-control px-5 py-2.5 text-ink">

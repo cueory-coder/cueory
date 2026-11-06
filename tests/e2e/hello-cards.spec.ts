@@ -128,3 +128,28 @@ test('the prompt of the day shows today\'s date, is the same on reload and chang
   await expect(daily).not.toHaveText(first);
   await expect(page.getByTestId('hello-daily')).toContainText('sun 8 nov');
 });
+
+test('a tab left open across local midnight moves on to the new day\'s prompt', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-11-07T23:59:30') });
+  await page.goto('/play/hello-cards');
+  await expect(card(page)).toBeEnabled();
+  const daily = page.getByTestId('hello-daily-text');
+  await expect(page.getByTestId('hello-daily')).toContainText('sat 7 nov');
+  const before = (await daily.textContent())!;
+  await page.clock.fastForward(60_000);
+  await expect(page.getByTestId('hello-daily')).toContainText('sun 8 nov');
+  await expect(daily).not.toHaveText(before);
+});
+
+test('the card\'s accessible name is exact before flipping and includes the question after', async ({ page }) => {
+  await expect(page.getByRole('button', { name: 'conversation card', exact: true })).toHaveAttribute('aria-pressed', 'false');
+  await card(page).click();
+  const shown = (await text(page).textContent())!.trim();
+  const flippedCard = page.getByRole('button', { name: `conversation card. try asking: ${shown}`, exact: true });
+  await expect(flippedCard).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'conversation card', exact: true })).toHaveCount(0);
+  await category(page, 'get to know yourself').click();
+  await card(page).click();
+  const mine = (await text(page).textContent())!.trim();
+  await expect(page.getByRole('button', { name: `conversation card. ask yourself: ${mine}`, exact: true })).toBeVisible();
+});

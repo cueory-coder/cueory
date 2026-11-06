@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import data from '../../content/games/hello-cards/starters.json';
-import { HELLO_CATEGORIES, HELLO_DEPTHS, dayIndex, isHelloCategory, isReflective, nextStarter, promptOfTheDay, startersFor, type HelloStarter } from '../../src/islands/hellocards';
+import { HELLO_CATEGORIES, HELLO_DEPTHS, dayIndex, isHelloCategory, isReflective, nextStarter, msUntilNextDay, promptOfTheDay, startersFor, type HelloStarter } from '../../src/islands/hellocards';
 
 const starters = data.starters as HelloStarter[];
 const seeded = (values: number[]) => {
@@ -200,5 +200,15 @@ describe('depth (small talk and deep convo)', () => {
       expect(ids.size).toBe(28);
     }
     expect(promptOfTheDay(starters.filter((s) => s.depth === 'small'), new Date(2026, 10, 7), 'deep')).toBeNull();
+  });
+});
+
+describe('msUntilNextDay', () => {
+  it('counts to the next local midnight', () => {
+    expect(msUntilNextDay(new Date(2026, 10, 7, 23, 59, 0))).toBe(60_000);
+    expect(msUntilNextDay(new Date(2026, 10, 7, 0, 0, 0))).toBe(86_400_000);
+  });
+  it('never returns less than a second, so a timer cannot fire before the day changes', () => {
+    expect(msUntilNextDay(new Date(2026, 10, 7, 23, 59, 59, 999))).toBe(1000);
   });
 });
