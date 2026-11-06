@@ -131,11 +131,34 @@ roles, as `admins` and `flags` already have.
 
 ### 4.2 The audit log
 
-New table `admin_audit`: id, time, admin user id, action name (an allowed list), target kind and id, a short note, and a
-small JSON of what changed (never an answer key, never a student's name or email). No website role can read or write it
-directly; there is no update or delete function at all, so it is append-only for everyone but the database owner.
-`admin_list_audit` lets him read it. Each admin action writes its row inside the same function, so an action cannot
-happen without a row (the transaction fails together).
+New table `admin_audit`: id, time, the admin's account id, an action name (from an allowed list), the kind and id of
+the thing acted on, a short fixed-vocabulary note, and a small JSON of what changed.
+
+What may go in it (and what may not):
+- Allowed targets: concepts, questions, question versions, and for flags only the opaque flag id and the new state
+  (open or handled). Never a student's account id, name or email.
+- Allowed notes and JSON: action codes, old and new state, version numbers, content digests. Never free text copied from
+  a student's report, never an answer key, never question text.
+- Because the log holds no student identifier and no report text, it contains no student data. A flag id alone points to
+  nothing once that report is deleted.
+
+What happens when a student deletes their account: the existing delete-my-account function removes the student's rows
+by cascade (profile, attempts, review state, exam plans, study events and their flag reports;
+`supabase/migrations/20261102110000_delete_my_account.sql`). The audit table is not one of those rows. Its flag ids
+simply stop pointing at anything, so nothing about the student survives in it. The pgTAP test for this stays, and a new
+test checks that no audit row can hold a student id. The admin's own account id is stored without a cascade, so the log
+is not wiped if his account were ever deleted; that case is covered by a plain note in the plan, not by code.
+
+Who can read it: only the admin, only through `admin_list_audit` (admin check first). No website role has any grant on the
+table, and nothing can edit or delete rows, so it is append-only for everyone but the database owner.
+
+Export-my-data: not included, because it holds nothing about a student. It is the owner's record of his own actions.
+
+Retention: keep rows for 2 years, then delete older ones by hand or a scheduled job. The 2 years is only a proposal and
+is a decision for Christian (question 6).
+
+Each admin action writes its row inside the same function, so an action cannot happen without a row (the transaction
+fails together).
 
 Approval receipt. A publish (and any override) is tied to exactly what Christian approved: the row records the
 immutable version id and a content digest (a hash, a short fingerprint) of the exact stem, choices, rationale and
@@ -187,9 +210,11 @@ lessons and cards when Phase 2 is approved.
 
 - Phase 1: a sentence that the site owner can read reports and sees aggregate counts.
 - Phase 2: that the owner can hide or remove content and mark reports handled with a private note.
-- Phase 3 and audit log: that admin actions are logged with the owner's account id and time, with no student data.
-- Delete-my-account and export-my-data: no change in Phase 1 to 3 because nothing new about students is stored. The
-  audit log holds only the admin's own id.
+- Phase 2 and 3, audit log: add a sentence such as "The site owner's actions (hiding, editing, publishing, handling
+  reports) are logged with the owner's account and the time. The log does not contain anything a student wrote or any
+  student identifier, and is kept for [period]." Wording to be finalized with the retention decision.
+- Delete-my-account and export-my-data: no change needed, because the audit log holds no student identifier or report
+  text (see 4.2); the delete test and a new "no student id in the audit table" test enforce it.
 
 ## 7. Cost
 
@@ -271,3 +296,5 @@ Claude gives the exact text to paste each time. Nothing below happens until he a
    with your approval receipt (see 4.2)? The answer-key and reserved checks and the clinical review gate would never be
    waivable by a button. (My recommendation: yes.)
 5. **Privacy:** keep student emails and names out of the console (short account ids only)?
+6. **Audit log retention.** Keep the audit log for 2 years and then delete older rows? (A number for you to set; shorter
+   or longer is fine.)
