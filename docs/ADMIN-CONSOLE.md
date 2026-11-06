@@ -349,12 +349,20 @@ database; nothing here is a verified design. No grants or migrations change in t
   checks the receipt, expiry and revocation). pgTAP: `--apply --publish` with new and with existing concepts and sources,
   and with a missing, expired or revoked receipt, leaves every concept, source and question version unpublished; a direct
   service-role insert of a published row is stored unpublished.
+- Deletes: `service_role` also holds `delete` on `items`, `item_versions` and `item_choices`, and the guard fires only on
+  insert and update, so a published version with no attempts could be hard-deleted with no step-up or audit. Revoke
+  `delete` on those three tables from `service_role`; retiring or hiding happens only through the audited admin functions.
+  pgTAP: a direct service-role delete of a newly published version is refused; the approved retire and hide functions
+  work and write their audit row.
 - Concept reassignment: `items_guard` today refuses only type changes, and `service_role` has direct update on `items`,
   so an approved item could be moved to another concept (the importer refuses moves in `plan.ts`, but that is not a
   database rule). Add a guard that refuses changing `items.concept_id` once any version is published or retired, and
   include `concept_id` in the digest (proposed; Christian confirms that the concept mapping is part of what he
   approves). pgTAP: reassigning a concept is refused after publication; before publication it is allowed but
   invalidates an existing receipt (the digest changes), through both the publish function and a direct update.
+- Concept moves: after publication, a direct `items.concept_id` change is blocked for every writer (a guard, not just
+  the importer's rule). Any move goes through an owner-authorized, audited function that requires a fresh receipt
+  (new digest). pgTAP negative: a direct service-role update of `concept_id` on a published item is refused.
 - Unapproved callers: pgTAP shows `public`, `anon` and `authenticated` callers that are not the approved admin cannot use
   the owner's elevated privileges through any definer function in this plan (every one refuses first).
 - Tests: every item in the pgTAP lists above, plus the "approved list of executable functions" test, plus a
