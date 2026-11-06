@@ -105,6 +105,19 @@ test.describe('flag or comment with accounts on', () => {
     expect(otherCalls).toEqual([]);
   });
 
+  test('the comment field shows a visible patient-information warning that describes it', async ({ page }) => {
+    await fixture(page, { signedIn: true });
+    await flagButton(page).click();
+    const warning = page.getByTestId('flag-patient-warning');
+    await expect(warning).toBeVisible();
+    await expect(warning).toContainText('please don\'t include patient names, dates of birth, medical record numbers');
+    const box = page.getByLabel('anything to add? (optional)');
+    const warningId = await warning.getAttribute('id');
+    expect((await box.getAttribute('aria-describedby'))?.split(' ')).toContain(warningId);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze()).violations).toEqual([]);
+  });
+
   test('a page with no item sends null item context', async ({ page }) => {
     const { rpcCalls } = await fixture(page, { signedIn: true });
     await fillReport(page);

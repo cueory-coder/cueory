@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { site } from '../config/site';
 import type { SendResult } from './flagsend';
-import { charactersLeft, checkReport, REASONS, reasonInWords, type FlagProblem, type FlagReport, type Reason } from './flag';
+import { charactersLeft, checkReport, PATIENT_INFO_WARNING, REASONS, reasonInWords, type FlagProblem, type FlagReport, type Reason } from './flag';
 
 interface Props {
   page: string;
@@ -45,7 +45,7 @@ export function SignedOutReportHelp() {
 function ReportForm({ page, itemId, itemVersionId, signedIn, send, onOpen, variant = 'text' }: Props) {
   const icon = variant === 'icon';
   const id = useId();
-  const panelId = `${id}-panel`, commentId = `${id}-comment`, countId = `${id}-count`;
+  const panelId = `${id}-panel`, commentId = `${id}-comment`, countId = `${id}-count`, warningId = `${id}-patient-warning`;
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState<Reason | undefined>();
   const [comment, setComment] = useState('');
@@ -116,8 +116,9 @@ function ReportForm({ page, itemId, itemVersionId, signedIn, send, onOpen, varia
           {problemText('reason')}
         </fieldset>
         <label htmlFor={commentId} className="mt-4 block">anything to add? ({reason === 'other' ? 'required' : 'optional'})</label>
+        <p id={warningId} className="mt-1 text-sm text-ink" data-testid="flag-patient-warning">{PATIENT_INFO_WARNING}</p>
         <textarea ref={commentBox} id={commentId} value={comment} onChange={event => setComment(event.target.value)} required={reason === 'other'} readOnly={pending}
-          aria-invalid={error('comment') ? true : undefined} aria-describedby={[countId, error('comment') ? errorId('comment') : ''].filter(Boolean).join(' ')}
+          aria-invalid={error('comment') ? true : undefined} aria-describedby={[warningId, countId, error('comment') ? errorId('comment') : ''].filter(Boolean).join(' ')}
           rows={4} className="mt-2 block min-h-11 w-full max-w-full rounded-md border border-control bg-page p-3 text-ink" />
         <p id={countId} className="mt-2 text-sm text-ink-soft">{charactersLeft(comment).toLocaleString('en-US')} characters left</p>
         {problemText('comment')}
