@@ -22,6 +22,10 @@ test('anatomy structure names remain reachable and credited without JavaScript',
   const first = systems.first();
   expect(await first.locator('li').count()).toBeGreaterThan(0);
   await expect(first.getByText('name from the BodyParts3D parts list')).toBeVisible();
+  await expect(first).toContainText("Male's Anatomy (BodyParts3D reference model, adult human male)");
+  await expect(first.getByRole('link', { name: 'source details' })).toHaveAttribute(
+    'href', 'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/README_e.html',
+  );
   await expect(first.getByRole('link', { name: 'CC Attribution 4.0 International' })).toHaveAttribute(
     'href',
     'https://creativecommons.org/licenses/by/4.0/',

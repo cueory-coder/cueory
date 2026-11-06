@@ -64,6 +64,7 @@ const initialJsBudget = {
   'learn/video-sample.html': 148178,
   'learn.html': 150346,
   'play.html': 168467,
+  'play/hello-cards.html': 91427,
   'preview/admin-flags.html': 92161,
   'preview/anatomy-text.html': 89104,
   'preview/anatomy-lab.html': 89027,

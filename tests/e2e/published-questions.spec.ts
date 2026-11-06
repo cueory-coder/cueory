@@ -43,13 +43,14 @@ test.beforeAll(async () => {
       import React, { useEffect, useState } from 'react';
       import { createRoot } from 'react-dom/client';
       import PublishedQuestions from './src/islands/PublishedQuestions.tsx';
+      import FlagMount from './src/islands/FlagMount.tsx';
       import { onFlagItem } from './src/islands/flagitem.ts';
       function FlagProbe() {
         const [item, setItem] = useState('none');
         useEffect(() => onFlagItem(next => setItem(next ? next.itemId + ' ' + next.itemVersionId : 'none')), []);
         return <p data-testid="flag-probe">{item}</p>;
       }
-      createRoot(document.getElementById('fixture')).render(<><PublishedQuestions /><FlagProbe /></>);
+      createRoot(document.getElementById('fixture')).render(<><PublishedQuestions /><FlagProbe />{new URLSearchParams(location.search).has('flag') && <div className="mt-section pt-section"><div className="mt-section pt-section"><FlagMount page="/learn/questions" variant="icon" /></div></div>}</>);
     `, resolveDir: process.cwd(), loader: 'tsx' },
     bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic', logLevel: 'silent',
     resolveExtensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
@@ -75,6 +76,9 @@ async function mockProject(page: Page, options: { checkReply?: unknown } = {}) {
     seen.push({ method: request.method(), path: url.pathname, query: url.searchParams, auth: request.headers()['authorization'] ?? null, body });
     const headers = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'content-type': 'application/json' };
     if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+    if (url.pathname === '/rest/v1/rpc/submit_flag' && request.method() === 'POST') {
+      return route.fulfill({ status: 200, headers, body: JSON.stringify(uuid(99)) });
+    }
     if (url.pathname === '/rest/v1/rpc/check_answer' && request.method() === 'POST') {
       return route.fulfill({ status: 200, headers, body: JSON.stringify(options.checkReply ?? feedback) });
     }
@@ -212,5 +216,49 @@ test.describe('Task 172: real questions with a fake project', () => {
     await openFixture(page, { signedIn: true, search: '?concept=sample-missing' });
     await expect(page.getByTestId('questions-not-found')).toContainText('there are no published questions for this topic yet.');
     expect(seen.filter(request => request.path.startsWith('/rest/')).map(request => request.path)).toEqual(['/rest/v1/concepts']);
+  });
+});
+
+test.describe('Task 172: the real flag form on the real questions page', () => {
+  test('reports carry the question being shown, and none after the last one', async ({ page }) => {
+    const seen = await mockProject(page);
+    await openFixture(page, { signedIn: true, search: '?concept=sample-concept&flag=1' });
+    await expect(page.getByText('question 1 of 2')).toBeVisible();
+
+    const send = async (words: string) => {
+      await page.getByRole('button', { name: 'flag or comment', exact: true }).click();
+      await page.getByRole('radio', { name: 'something confusing' }).check();
+      await page.getByLabel('anything to add? (optional)').fill(words);
+      await page.getByRole('button', { name: 'send', exact: true }).click();
+      await expect(page.getByTestId('flag-result')).toHaveText('thank you. your report is in.');
+    };
+    const flags = () => seen.filter(request => request.path === '/rest/v1/rpc/submit_flag').map(request => request.body);
+
+    await send('first question');
+    await page.getByLabel('sample circle').check();
+    await page.getByRole('button', { name: 'check', exact: true }).click();
+    await page.getByRole('button', { name: 'next question' }).click();
+    await expect(page.getByText('question 2 of 2')).toBeVisible();
+    await send('second question');
+
+    // Finish the set: the second question's reply, then "next question". The probe and the form both lose the item.
+    await page.route(`${PROJECT}/rest/v1/rpc/check_answer`, route => route.request().method() === 'POST'
+      ? route.fulfill({
+        status: 200, headers: { 'access-control-allow-origin': '*', 'content-type': 'application/json' },
+        body: JSON.stringify({ correct: true, key: ['a', 'c'], rationales: { a: 'sample rationale a', b: 'sample rationale b', c: 'sample rationale c' }, version_id: uuid(22) }),
+      })
+      : route.fallback());
+    await page.getByLabel('sample red').check();
+    await page.getByLabel('sample blue').check();
+    await page.getByRole('button', { name: 'check', exact: true }).click();
+    await page.getByRole('button', { name: 'next question' }).click();
+    await expect(page.getByTestId('flag-probe')).toHaveText('none');
+    await send('after the set');
+
+    expect(flags()).toMatchObject([
+      { item_id: uuid(11), item_version_id: uuid(21), comment: 'first question' },
+      { item_id: uuid(12), item_version_id: uuid(22), comment: 'second question' },
+      { item_id: null, item_version_id: null, comment: 'after the set' },
+    ]);
   });
 });
