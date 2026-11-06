@@ -216,6 +216,20 @@ the staging database's settings; I confirmed the grant in the migration file, no
     `publish_item_version` gets `execute` for exactly `publisher_owner` and `importer_role`, and it is revoked from
     `public`, `anon` and `authenticated`. `admin_publish_version` is owned by `publisher_owner`, begins with `is_admin()`,
     and is the only function website sign-ins can reach, with `execute` for `authenticated` only.
+  - Admin check for the publisher role. I checked `20261102153000_admin_flag_rpcs.sql`: `is_admin()` is `security
+    invoker`, reads `public.admins` and `auth.mfa_factors` (both with row-level security on and no read for website
+    roles), and its `execute` is revoked from every website role and the service role. It works today only because the
+    existing admin functions are `security definer` and owned by the database owner, who can read both tables. A
+    least-privilege `publisher_owner` could neither call `is_admin()` nor read those tables, so the real owner could be
+    refused or hit an error. Website roles are never given read on the admin or MFA tables. Instead, a narrow helper:
+    `app_private.publisher_admin_ok()`, `security definer`, `search_path = ''`, owned by the role that already can read
+    those tables, returning only true or false (no rows, no ids), containing the same checks as `is_admin()` (account in
+    `admins`, JWT `aal2`, verified factor still on file), with `execute` revoked from everyone and granted only to
+    `publisher_owner`. A definer function still sees the caller's own sign-in claims (`auth.uid()`, `auth.jwt()`), so it
+    judges the real visitor. The alternative, if a helper is unwanted, is to keep `admin_publish_version` owned by the
+    existing database owner and let it call a narrow `publisher_owner` function for the final write only.
+  - The migration author must test every grant here against Supabase's guidance on permissions in the `auth` schema and on
+    `security definer` functions, in a real Supabase database, before relying on it.
   - The receipt and digest check runs inside the function, and the guard trigger repeats it as a second, independent
     gate, so a grants mistake alone still cannot publish.
   - A receipt expires (proposal: 24 hours after approval; Christian can change it), so an old approval cannot be
@@ -245,6 +259,9 @@ the staging database's settings; I confirmed the grant in the migration file, no
   a direct `service_role` insert, update or delete on the receipts table is denied; the signed-in owner's approval
   function (two-factor session) creates a receipt for exactly that version id and digest, and a non-admin or
   one-factor call is refused.
+  Under the actual definer role (not as the test superuser): a real `aal2` admin with a verified factor succeeds through
+  `admin_publish_version`; an `aal1` session of the same admin is refused; a signed-in non-admin is refused; an admin
+  whose factor was removed is refused; and `publisher_owner` cannot select from `admins` or `auth.mfa_factors` directly.
   Positives, the publish function succeeds for a draft with a matching, unexpired receipt; a service-role update of a
   non-status column still works.
 This is a requirement for the importer-gate pull request and for Phase 3. No grants, migrations or settings are
