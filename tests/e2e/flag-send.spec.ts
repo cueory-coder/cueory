@@ -25,8 +25,6 @@ test.beforeAll(async () => {
       import React from 'react';
       import { createRoot } from 'react-dom/client';
       import FlagMount from './src/islands/FlagMount.tsx';
-      import { setFlagItem } from './src/islands/flagitem.ts';
-      window.__setFlagItem = setFlagItem;
       const params = new URLSearchParams(location.search);
       const item = params.has('item') ? { itemId: '${ITEM_ID}', itemVersionId: '${VERSION_ID}' } : {};
       createRoot(document.getElementById('fixture')).render(<FlagMount page="${PAGE_PATH}" variant="icon" {...item} />);
@@ -118,29 +116,6 @@ test.describe('flag or comment with accounts on', () => {
     expect((await box.getAttribute('aria-describedby'))?.split(' ')).toContain(warningId);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze()).violations).toEqual([]);
-  });
-
-  test('the footer form follows the item the page publishes, and clears at completion', async ({ page }) => {
-    const { rpcCalls } = await fixture(page, { signedIn: true });
-    const OTHER_ITEM = '55555555-5555-4555-8555-555555555555', OTHER_VERSION = '66666666-6666-4666-8666-666666666666';
-    const publish = (item: unknown) => page.evaluate((value) => (window as unknown as { __setFlagItem: (v: unknown) => void }).__setFlagItem(value), item);
-    await publish({ itemId: ITEM_ID, itemVersionId: VERSION_ID });
-    await fillReport(page);
-    await page.getByRole('button', { name: 'send', exact: true }).click();
-    await expect(page.getByTestId('flag-result')).toHaveText('thank you. your report is in.');
-    await publish({ itemId: OTHER_ITEM, itemVersionId: OTHER_VERSION });
-    await fillReport(page);
-    await page.getByRole('button', { name: 'send', exact: true }).click();
-    await expect(page.getByTestId('flag-result')).toHaveText('thank you. your report is in.');
-    await publish(undefined);
-    await fillReport(page);
-    await page.getByRole('button', { name: 'send', exact: true }).click();
-    await expect(page.getByTestId('flag-result')).toHaveText('thank you. your report is in.');
-    expect(rpcCalls.map(call => call.postDataJSON())).toMatchObject([
-      { item_id: ITEM_ID, item_version_id: VERSION_ID },
-      { item_id: OTHER_ITEM, item_version_id: OTHER_VERSION },
-      { item_id: null, item_version_id: null },
-    ]);
   });
 
   test('a page with no item sends null item context', async ({ page }) => {

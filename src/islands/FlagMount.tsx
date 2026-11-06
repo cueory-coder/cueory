@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import FlagForm from './FlagForm';
-import { currentFlagItem, onFlagItem, type FlagItem } from './flagitem';
 import { makeFlagSend, watchFlagSession, type FlagClient, type FlagSessionWatch, type LoadFlagClient } from './flagconnect';
 import { getSupabase } from './supabaseclient';
 
@@ -21,9 +20,6 @@ const loadShared: LoadFlagClient = () => getSupabase() as unknown as Promise<Fla
  */
 export default function FlagMount({ page, itemId, itemVersionId, variant }: Props) {
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
-  // Pages whose items load in the browser (the real questions) publish the current one; it wins over the fixed props.
-  const [published, setPublished] = useState<FlagItem | undefined>(currentFlagItem);
-  useEffect(() => { setPublished(currentFlagItem()); return onFlagItem(setPublished); }, []);
   const watch = useRef<FlagSessionWatch | null>(null);
   const send = useMemo(() => makeFlagSend(loadShared), []);
   const check = useCallback(() => watch.current?.check(), []);
@@ -49,8 +45,8 @@ export default function FlagMount({ page, itemId, itemVersionId, variant }: Prop
   return (
     <FlagForm
       page={page}
-      itemId={published ? published.itemId : itemId}
-      itemVersionId={published ? published.itemVersionId : itemVersionId}
+      itemId={itemId}
+      itemVersionId={itemVersionId}
       signedIn={signedIn}
       send={send}
       onOpen={check}
