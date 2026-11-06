@@ -2,6 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { site } from '../../src/config/site';
+import { PATIENT_INFO_WARNING } from '../../src/islands/flag';
 import { SignedOutReportHelp } from '../../src/islands/FlagForm';
 import { makeSend, type FlagRpc } from '../../src/islands/flagsend';
 import type { FlagReport } from '../../src/islands/flag';
@@ -85,6 +86,7 @@ describe('signed-out report help', () => {
     expect(html).toContain('a free account is needed');
     expect(html).toContain('href="mailto:' + site.contactEmail + '"');
     expect(html).toContain(site.contactEmail);
+    expect(html).toContain(PATIENT_INFO_WARNING.replace("'", '&#x27;'));
     expect(html).not.toMatch(/<button\b/i);
     expect(html).not.toContain('type="submit"');
   });

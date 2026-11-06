@@ -192,6 +192,7 @@ test.describe('flag or comment with accounts on', () => {
     const panel = page.getByTestId('flag-form');
     await expect(panel).toContainText('a free account is needed to send a report');
     await expect(panel.getByRole('link', { name: 'hello@cueory.app' })).toBeVisible();
+    await expect(panel.getByTestId('flag-patient-warning')).toContainText('please don\'t include patient names');
     await expect(panel.getByRole('button', { name: 'send', exact: true })).toHaveCount(0);
     expect(rpcCalls).toEqual([]);
     expect(otherCalls).toEqual([]);
