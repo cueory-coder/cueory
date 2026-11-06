@@ -158,9 +158,6 @@ export default function HelloCards({ starters }: { starters: readonly HelloStart
         <p className="text-sm text-ink-soft">{count} cards in this pile, shuffled</p>
       </div>
       <p className="sr-only" role="status" aria-label="hello cards update" aria-atomic="true">{notice}</p>
-      <noscript>
-        <p>hello cards needs JavaScript to turn the cards over.</p>
-      </noscript>
     </div>
   );
 }
