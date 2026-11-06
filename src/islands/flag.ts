@@ -20,6 +20,9 @@ export function reasonInWords(reason: Reason): string { return words[reason]; }
 function cleanComment(comment: string): string {
   return comment.replace(/\r\n?/g, '\n').replace(/[\u0000-\u0009\u000b-\u001f\u007f-\u009f]/g, '').trim();
 }
+/** Shown beside the comment field: Terms prohibit patient information, and reports are free text. */
+export const PATIENT_INFO_WARNING = "please don't include patient names, dates of birth, medical record numbers, or other details that could identify a real person.";
+
 export function charactersLeft(comment: string): number {
   return Math.max(0, 1_000 - [...cleanComment(comment)].length);
 }

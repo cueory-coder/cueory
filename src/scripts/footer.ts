@@ -1,3 +1,5 @@
+import { PATIENT_INFO_WARNING } from '../islands/flag';
+
 /**
  * The footer bar's chevron (Task 85): it opens and closes the links panel above the bar. Pure helpers, so the
  * behavior can be unit tested without a browser.
@@ -37,7 +39,10 @@ export function publicPath(pathname: string): string {
   return path === '' ? '/' : path;
 }
 
-/** The flag link's email subject names the page, so a report arrives with its context. */
+/**
+ * The flag link's email subject names the page, so a report arrives with its context. The draft's body starts with the
+ * patient-information reminder, so a visitor without JavaScript sees it where they type (Task 203).
+ */
 export function flagMailto(email: string, pathname: string): string {
-  return `mailto:${email}?subject=${encodeURIComponent(`flag or comment: ${publicPath(pathname)}`)}`;
+  return `mailto:${email}?subject=${encodeURIComponent(`flag or comment: ${publicPath(pathname)}`)}&body=${encodeURIComponent(`${PATIENT_INFO_WARNING}\n\n`)}`;
 }

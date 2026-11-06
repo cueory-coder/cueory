@@ -1,0 +1,1 @@
+status: Task 203, flag form patient-information warning: the "flag or comment" form now shows a plain-language line beside the comment field asking people not to include patient names, dates of birth, medical record numbers or other identifying details (matches the Terms); linked to the field with aria-describedby. No database change.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { charactersLeft, checkReport, REASONS, reasonInWords, type FlagReport } from '../../src/islands/flag';
+import { charactersLeft, checkReport, PATIENT_INFO_WARNING, REASONS, reasonInWords, type FlagReport } from '../../src/islands/flag';
 
 const SAMPLE_UUID = '00000000-0000-0000-0000-000000000001';
 const valid: FlagReport = { page: '/learn/study-skills', itemId: 'sample_1', itemVersionId: SAMPLE_UUID, reason: 'typo', comment: 'a sample note' };
@@ -78,5 +78,13 @@ describe('report reasons and comments', () => {
     expect(charactersLeft(' \r\na😀\t ')).toBe(998);
     expect(charactersLeft('a\r\nb')).toBe(997);
     expect(charactersLeft('a'.repeat(1001))).toBe(0);
+  });
+});
+
+describe('patient information warning', () => {
+  it('names the identifiers to leave out, in plain words', () => {
+    for (const phrase of ['patient names', 'dates of birth', 'medical record numbers', 'identify a real person']) {
+      expect(PATIENT_INFO_WARNING).toContain(phrase);
+    }
   });
 });

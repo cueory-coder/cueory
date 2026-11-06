@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { PATIENT_INFO_WARNING } from '../../src/islands/flag';
 import { FOOTER_TOGGLE_LABELS, flagMailto, isFooterPanelOpen, publicPath, setFooterPanel } from '../../src/scripts/footer';
 
 function fakeButton() {
@@ -42,7 +43,7 @@ describe('footer links panel (Task 85)', () => {
 describe('flag or comment email', () => {
   it('goes to the contact address with the page in the subject', () => {
     expect(flagMailto('hello@cueory.app', '/learn/study-skills')).toBe(
-      'mailto:hello@cueory.app?subject=flag%20or%20comment%3A%20%2Flearn%2Fstudy-skills',
+      'mailto:hello@cueory.app?subject=flag%20or%20comment%3A%20%2Flearn%2Fstudy-skills&body=' + encodeURIComponent(PATIENT_INFO_WARNING + '\n\n'),
     );
   });
 
@@ -53,13 +54,14 @@ describe('flag or comment email', () => {
     expect(publicPath('/learn/study-skills/cards')).toBe('/learn/study-skills/cards');
     expect(publicPath('/')).toBe('/');
     expect(flagMailto('hello@cueory.app', '/privacy.html')).toBe(
-      'mailto:hello@cueory.app?subject=flag%20or%20comment%3A%20%2Fprivacy',
+      'mailto:hello@cueory.app?subject=flag%20or%20comment%3A%20%2Fprivacy&body=' + encodeURIComponent(PATIENT_INFO_WARNING + '\n\n'),
     );
   });
 
   it('encodes characters that would break the link', () => {
     const link = flagMailto('hello@cueory.app', '/a b?c=1&d#e');
-    expect(link).not.toMatch(/[ &#]/);
-    expect(decodeURIComponent(link.split('subject=')[1]!)).toBe('flag or comment: /a b?c=1&d#e');
+    expect(link.split('&body=')[0]).not.toMatch(/[ &#]/);
+    expect(decodeURIComponent(link.split('&body=')[1]!)).toBe(PATIENT_INFO_WARNING + '\n\n');
+    expect(decodeURIComponent(link.split('subject=')[1]!.split('&body=')[0]!)).toBe('flag or comment: /a b?c=1&d#e');
   });
 });

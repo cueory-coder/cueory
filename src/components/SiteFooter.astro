@@ -16,6 +16,7 @@ import ThemePicker from './ThemePicker.astro';
 import Wordmark from './Wordmark.astro';
 import { footerLinks, site } from '../config/site';
 import FlagMount from '../islands/FlagMount';
+import { PATIENT_INFO_WARNING } from '../islands/flag';
 import { flagItemContext } from '../islands/flagconnect';
 import { FOOTER_TOGGLE_LABELS, flagMailto, publicPath } from '../scripts/footer';
 
@@ -46,9 +47,9 @@ const barButton =
             itemVersionId={item.itemVersionId}
             variant="icon"
           >
+            <div slot="fallback" class="flex items-center gap-2">
             <a
-              slot="fallback"
-              href={flagMailto(site.contactEmail, Astro.url.pathname)}
+                            href={flagMailto(site.contactEmail, Astro.url.pathname)}
               class={barButton}
               aria-label="flag or comment"
             >
@@ -62,6 +63,8 @@ const barButton =
                   stroke-linejoin="round"></path>
               </svg>
             </a>
+              <p class="max-w-56 text-xs leading-tight text-ink" data-testid="flag-fallback-warning">{PATIENT_INFO_WARNING}</p>
+            </div>
           </FlagMount>
         </div>
       )
