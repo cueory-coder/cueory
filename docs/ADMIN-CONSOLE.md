@@ -253,6 +253,27 @@ the staging database's settings; I confirmed the grant in the migration file, no
 This is a requirement for the importer-gate pull request and for Phase 3. No grants, migrations or settings are
 changed by this plan, and real content stays unpublished until this enforcement is built and verified.
 
+### 4.2b Step-up for destructive admin actions
+
+Destructive actions (unpublish, retire, hide, publish) must not rely on the age of the sign-in token alone. I checked
+`supabase/migrations/20261102160000_fresh_sign_in_and_name_rules.sql`: delete-my-account compares the token's `iat`
+(issued-at) to the clock, and that file itself says a refreshed token gets a new `iat`, so it does not prove the person
+signed in just now. The same weakness exists in delete-my-account today and is tracked separately (not fixed here).
+
+For the admin console the requirement is a server-verifiable re-authentication event with a timestamp the server checks
+on its own:
+- Preferred: a short-lived step-up proof recorded in the database when the admin re-enters an authenticator code (a row
+  with the admin id, the session id, a created time and a few minutes of lifetime, written only by an admin function
+  that first confirms a fresh two-factor code). Each destructive function requires an unexpired proof for the caller's
+  current session and consumes or time-limits it.
+- Possible alternative, unverified: the `amr` claim in Supabase's token lists sign-in methods with timestamps. Its
+  behavior on refresh is not documented as far as the migration notes say, so it is not used unless Supabase's docs and
+  a staging test confirm the semantics.
+- The admin row, `aal2` and verified-factor checks stay on as additional requirements, not replacements.
+- Tests: an existing session whose token was just refreshed is rejected (new `iat`, no proof); an expired proof is
+  rejected; a simulated stolen refresh token (a new session for the same admin with no proof of its own) is rejected;
+  a proof from another session is rejected; a valid, unexpired proof for the current session succeeds.
+
 ### 4.2a Implementation checklist for the migration author
 
 This plan is design intent. The migration pull request must prove every line below with pgTAP in a real Supabase
@@ -276,6 +297,8 @@ database; nothing here is a verified design. No grants or migrations change in t
 - Schemas: no website role gets read on `admins` or `auth.mfa_factors`; `app_private` is not widened. If a separate
   publisher role is ever chosen instead of this model, it needs `usage` on any schema it uses and `execute` on exactly
   the helpers it calls, and the ownership-transfer risk above must be smoke-tested on a throwaway database first.
+- Step-up: destructive admin functions require the server-recorded step-up proof of 4.2b (not `iat` alone), with its
+  tests; delete-my-account has the same `iat` weakness and is tracked separately.
 - Tests: every item in the pgTAP lists above, plus the "approved list of executable functions" test, plus a
   throwaway-database run of all migrations from scratch and from the current staging state.
 - Supabase guidance: test each grant against Supabase's guidance on `auth`-schema permissions and `security definer`
@@ -310,7 +333,7 @@ lessons and cards when Phase 2 is approved.
 | Public repo: someone reads our code to find the admin | The admin is a database row, not a secret in code. Knowing the design gives no access. No email, key or content in the repo. |
 | Fork pull request tries to add an admin or loosen a rule | Only `lilchristxan` gives instructions (D-79); forks never run or merge (auto-merge skips them); every database change is labeled `needs-christian` and never merges to `main` without him; Codex reviews each admin function against the checklist above. |
 | Stolen password | The database requires an authenticator code (`aal2`) and a still-verified factor on every admin call. |
-| Stolen session (cookie or token) | A stolen `aal2` session still works until it expires. Mitigations: short admin sessions (ask: set Supabase's session time-box and inactivity timeout, if the free plan allows; I will read the docs and confirm before proposing), destructive actions need a fresh sign-in within 10 minutes as delete-account already does (D-133), the audit log shows what happened, and Cloudflare Access (decision 3) is a second lock in front of the pages. |
+| Stolen session (cookie or token) | A stolen `aal2` session still works until it expires. Mitigations: short admin sessions (ask: set Supabase's session time-box and inactivity timeout, if the free plan allows; I will read the docs and confirm before proposing), destructive actions need a server-verified step-up (see 4.2b; the 10-minute `iat` check used by delete-account is not enough, because a refreshed token gets a new `iat`), the audit log shows what happened, and Cloudflare Access (decision 3) is a second lock in front of the pages. |
 | CSRF (a bad site makes his browser send an action) | Calls go to Supabase with his token in a request header, not a cookie that browsers attach automatically, so another site cannot send them. `form-action 'self'` and no state-changing GET. Each destructive action also requires a confirm step that sends the target id. |
 | XSS (a student's comment runs code in his admin page) | Flag comments and all content are shown as plain text by React (no `dangerouslySetInnerHTML`), the CSP blocks inline scripts and new origins, and a test will fail the build if admin screens render user text as HTML. This matters more once he edits rich text; phase 3 keeps text plain. |
 | Brute force or spam | Supabase's sign-in limits (D-111). Admin RPCs get a per-admin limit (for example 600 calls an hour) and edits/publishes a lower one, mainly to stop runaway loops, and every refusal is cheap because `is_admin()` runs first. |
