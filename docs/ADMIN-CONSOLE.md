@@ -245,7 +245,7 @@ the staging database's settings; I confirmed the grant in the migration file, no
 - One canonical digest, versioned (a version label is stored with every receipt, so the recipe can change later without
   confusing old receipts). It is a hash over, in this fixed order: the question's type (single or select-all, from
   `items.type`), its concept (`items.concept_id`, proposed, see the checklist), the ordered choices (id and text), for every choice its correctness flag (`item_answers.is_correct`) and
-  its rationale, the stem, and the source. Nothing else, and nothing left out: the type matters because it can still
+  its rationale, the stem, and the source (identity plus title, publisher, url and license). Nothing else, and nothing left out: the type matters because it can still
   change while every version is a draft (`items_guard`), and the correctness flags are the answer key itself. The
   database computes it; no caller supplies it.
 - Tests: a direct `update ... set status = 'published'` as service role fails without a receipt; fails with a receipt
@@ -360,6 +360,14 @@ database; nothing here is a verified design. No grants or migrations change in t
   include `concept_id` in the digest (proposed; Christian confirms that the concept mapping is part of what he
   approves). pgTAP: reassigning a concept is refused after publication; before publication it is allowed but
   invalidates an existing receipt (the digest changes), through both the publish function and a direct update.
+- Source details: `sources` rows (title, publisher, url, license) are writable by `service_role` and a change does not
+  change `source_id`, so attribution or license could change after approval. The approval covers the source's identity
+  and its attribution and license details, so the digest includes the source's title, publisher, url and license, not only
+  its id. Chosen: published sources are immutable for every writer (a guard), and any correction goes through an
+  owner-authorized, audited function that invalidates the receipts of every affected version (their digest changes, so
+  they must be approved again). pgTAP: after approval, changing a source's url, publisher or license (each separately)
+  is refused directly, and through the audited function it invalidates the receipt and blocks publishing until
+  re-approval.
 - Concept moves: after publication, a direct `items.concept_id` change is blocked for every writer (a guard, not just
   the importer's rule). Any move goes through an owner-authorized, audited function that requires a fresh receipt
   (new digest). pgTAP negative: a direct service-role update of `concept_id` on a published item is refused.
