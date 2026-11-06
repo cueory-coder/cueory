@@ -121,8 +121,13 @@ anything that publishes new text, the approval-receipt gate as publishing does. 
   where Christian types or pastes his own reviewed text. The reviewer-checks question is decision 4.
 - Lessons, cards and videos: see 4.3 for the open design question.
 - Audit log (5) covers every edit, publish and unpublish.
-- New RPCs: `admin_get_draft`, `admin_save_draft`, `admin_preview_version`, `admin_publish_version`, plus the importer
-  keeps working unchanged.
+- New RPCs: `admin_get_draft`, `admin_save_draft`, `admin_preview_version`, `admin_publish_version`. The importer
+  does not keep working unchanged: today `scripts/import-batch/db.ts` (lines 144 to 153) updates `sources` and
+  `concepts` to published directly, before it calls the publish function, and the plan's revocations would deny that.
+  It will be refactored to create new metadata unpublished, issue no direct visibility updates, and let the
+  receipt-checked publish function publish the references it needs. Tests: an existing unpublished and a brand-new source
+  and concept both publish with a valid receipt, and stay unpublic without one. Also, its draft rewrite deletes draft
+  `item_answers` and `item_choices` (db.ts, lines 173 to 183), so revoking `delete` needs a draft-only rewrite function.
 
 ## 4. Database and RPC design sketch
 
