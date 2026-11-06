@@ -1,0 +1,31 @@
+---
+/**
+ * Hello cards (Task 201): flip a card for a friendly conversation starter. No score, no account, nothing saved.
+ * The starters are draft samples in content/games/hello-cards until Christian approves the wording, so the page stays
+ * out of search like the other sample pages.
+ */
+import { getCollection } from 'astro:content';
+import Layout from '../../layouts/Layout.astro';
+import HelloCards from '../../islands/HelloCards';
+import { helloCardsGame } from '../../config/games';
+
+const entries = await getCollection('hello-cards');
+const starters = entries.flatMap(({ data }) => data.starters);
+---
+
+<Layout title={helloCardsGame.name} description="Flip a card for a friendly conversation starter to use with patients, co-workers or classmates." noindex promo={false}>
+  <article class="veil mx-auto mt-6 max-w-prose p-6 sm:mt-10 sm:p-10" data-pagefind-ignore>
+    <p class="text-sm text-ink-soft">sample cards · awaiting content approval</p>
+    <h1 class="display mt-2 text-title sm:text-title-lg">{helloCardsGame.name}</h1>
+    <p class="mt-3 text-ink-soft">
+      small, friendly questions for getting to know the people around you. choose who it is for, turn the card over and
+      see what comes up. there is no score, and nothing is saved.
+    </p>
+    <div class="mt-8">
+      <HelloCards client:only="react" starters={starters} />
+    </div>
+    <a href="/play" class="mt-10 inline-flex min-h-(--tap-min) items-center rounded-pill border border-control px-5 py-2.5 text-ink">
+      back to daily games
+    </a>
+  </article>
+</Layout>

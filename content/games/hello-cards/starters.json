@@ -1,0 +1,366 @@
+{
+  "status": "sample",
+  "note": "Draft conversation starters awaiting Christian's wording review. Not clinical content.",
+  "starters": [
+    {
+      "id": "patient-home",
+      "category": "patients",
+      "depth": "deep",
+      "text": "What's your favorite thing about being at home?"
+    },
+    {
+      "id": "patient-pace",
+      "category": "patients",
+      "depth": "deep",
+      "text": "What does a relaxed day look like for you?"
+    },
+    {
+      "id": "patient-hobby",
+      "category": "patients",
+      "depth": "deep",
+      "text": "What do you like to do when you have a free afternoon?"
+    },
+    {
+      "id": "patient-comfort",
+      "category": "patients",
+      "depth": "small",
+      "text": "Is there anything that would make this room feel a bit more comfortable for you?"
+    },
+    {
+      "id": "patient-music",
+      "category": "patients",
+      "depth": "small",
+      "text": "Do you have a favorite kind of music?"
+    },
+    {
+      "id": "patient-food",
+      "category": "patients",
+      "depth": "small",
+      "text": "What's a meal you always enjoy?"
+    },
+    {
+      "id": "patient-tv",
+      "category": "patients",
+      "depth": "small",
+      "text": "Is there a show or a movie you've been enjoying lately?"
+    },
+    {
+      "id": "patient-garden",
+      "category": "patients",
+      "depth": "deep",
+      "text": "Do you have a favorite spot at home to sit and relax?"
+    },
+    {
+      "id": "patient-pets",
+      "category": "patients",
+      "depth": "small",
+      "text": "Do you have any pets, or a favorite animal?"
+    },
+    {
+      "id": "patient-name",
+      "category": "patients",
+      "depth": "small",
+      "text": "What would you like me to call you?"
+    },
+    {
+      "id": "patient-book",
+      "category": "patients",
+      "depth": "deep",
+      "text": "Is there a book or a story you'd recommend to someone?"
+    },
+    {
+      "id": "patient-morning",
+      "category": "patients",
+      "depth": "small",
+      "text": "Are you more of a morning person or a night owl?"
+    },
+    {
+      "id": "patient-weather",
+      "category": "patients",
+      "depth": "small",
+      "text": "What's your favorite kind of weather?"
+    },
+    {
+      "id": "patient-visitors",
+      "category": "patients",
+      "depth": "deep",
+      "text": "Who are the people you enjoy spending time with?"
+    },
+    {
+      "id": "patient-hometown",
+      "category": "patients",
+      "depth": "deep",
+      "text": "What is your hometown like?"
+    },
+    {
+      "id": "coworker-start",
+      "category": "coworkers",
+      "depth": "deep",
+      "text": "What first got you interested in working in healthcare?"
+    },
+    {
+      "id": "coworker-unwind",
+      "category": "coworkers",
+      "depth": "deep",
+      "text": "What do you like to do to unwind after a long shift?"
+    },
+    {
+      "id": "coworker-snack",
+      "category": "coworkers",
+      "depth": "small",
+      "text": "What's your go-to snack for a busy day?"
+    },
+    {
+      "id": "coworker-playlist",
+      "category": "coworkers",
+      "depth": "small",
+      "text": "What kind of music do you like to have on in the background?"
+    },
+    {
+      "id": "coworker-proud",
+      "category": "coworkers",
+      "depth": "deep",
+      "text": "What's something small from this week that you were glad about?"
+    },
+    {
+      "id": "coworker-tip",
+      "category": "coworkers",
+      "depth": "deep",
+      "text": "Is there a handy tip you wish someone had told you earlier?"
+    },
+    {
+      "id": "coworker-weekend",
+      "category": "coworkers",
+      "depth": "small",
+      "text": "Do you have anything fun planned for your next day off?"
+    },
+    {
+      "id": "coworker-coffee",
+      "category": "coworkers",
+      "depth": "small",
+      "text": "How do you take your coffee or tea, if you have it at all?"
+    },
+    {
+      "id": "coworker-shows",
+      "category": "coworkers",
+      "depth": "small",
+      "text": "Seen any good shows or read any good books lately?"
+    },
+    {
+      "id": "coworker-place",
+      "category": "coworkers",
+      "depth": "small",
+      "text": "If you could visit anywhere for a weekend, where would you go?"
+    },
+    {
+      "id": "coworker-shoes",
+      "category": "coworkers",
+      "depth": "small",
+      "text": "What's the most comfortable thing you've found to wear on your feet at work?"
+    },
+    {
+      "id": "coworker-learn",
+      "category": "coworkers",
+      "depth": "deep",
+      "text": "Is there something new you'd like to learn this year?"
+    },
+    {
+      "id": "coworker-team",
+      "category": "coworkers",
+      "depth": "deep",
+      "text": "What makes a team feel good to work on, in your experience?"
+    },
+    {
+      "id": "coworker-local",
+      "category": "coworkers",
+      "depth": "small",
+      "text": "Do you have a favorite place to eat near here?"
+    },
+    {
+      "id": "coworker-mentor",
+      "category": "coworkers",
+      "depth": "deep",
+      "text": "Who is someone who made your first days on a job easier?"
+    },
+    {
+      "id": "classmate-why",
+      "category": "classmates",
+      "depth": "deep",
+      "text": "What made you choose to study nursing?"
+    },
+    {
+      "id": "classmate-study",
+      "category": "classmates",
+      "depth": "small",
+      "text": "Where do you like to study best?"
+    },
+    {
+      "id": "classmate-tool",
+      "category": "classmates",
+      "depth": "deep",
+      "text": "What's a study trick that has worked well for you?"
+    },
+    {
+      "id": "classmate-break",
+      "category": "classmates",
+      "depth": "small",
+      "text": "What do you do to take a good break between study sessions?"
+    },
+    {
+      "id": "classmate-eat",
+      "category": "classmates",
+      "depth": "small",
+      "text": "What's your favorite thing to eat during a long study day?"
+    },
+    {
+      "id": "classmate-dream",
+      "category": "classmates",
+      "depth": "deep",
+      "text": "What kind of place would you love to work in someday?"
+    },
+    {
+      "id": "classmate-hobby",
+      "category": "classmates",
+      "depth": "small",
+      "text": "What do you enjoy doing when you aren't studying?"
+    },
+    {
+      "id": "classmate-tunes",
+      "category": "classmates",
+      "depth": "small",
+      "text": "What do you listen to while you study, if anything?"
+    },
+    {
+      "id": "classmate-origin",
+      "category": "classmates",
+      "depth": "deep",
+      "text": "Where did you grow up, and what do you like about it?"
+    },
+    {
+      "id": "classmate-team",
+      "category": "classmates",
+      "depth": "deep",
+      "text": "What's it like for you to study with a group?"
+    },
+    {
+      "id": "classmate-show",
+      "category": "classmates",
+      "depth": "small",
+      "text": "Is there a show or a podcast you'd recommend?"
+    },
+    {
+      "id": "classmate-lunch",
+      "category": "classmates",
+      "depth": "small",
+      "text": "What's the best place to grab lunch near campus?"
+    },
+    {
+      "id": "classmate-weekend",
+      "category": "classmates",
+      "depth": "small",
+      "text": "What would a perfect free weekend look like for you?"
+    },
+    {
+      "id": "classmate-lesson",
+      "category": "classmates",
+      "depth": "deep",
+      "text": "What's one thing you're looking forward to learning?"
+    },
+    {
+      "id": "classmate-helped",
+      "category": "classmates",
+      "depth": "deep",
+      "text": "What's something a classmate did that made your week better?"
+    },
+    {
+      "id": "yourself-energy",
+      "category": "yourself",
+      "depth": "small",
+      "text": "What gives you energy when you are feeling a bit tired?"
+    },
+    {
+      "id": "yourself-proud",
+      "category": "yourself",
+      "depth": "deep",
+      "text": "What is something you did recently that you feel proud of?"
+    },
+    {
+      "id": "yourself-values",
+      "category": "yourself",
+      "depth": "deep",
+      "text": "What matters most to you about the kind of person you want to be?"
+    },
+    {
+      "id": "yourself-enjoy",
+      "category": "yourself",
+      "depth": "small",
+      "text": "What is something you enjoy so much that time seems to pass quickly?"
+    },
+    {
+      "id": "yourself-support",
+      "category": "yourself",
+      "depth": "deep",
+      "text": "What helps you feel supported when things are busy?"
+    },
+    {
+      "id": "yourself-calm",
+      "category": "yourself",
+      "depth": "small",
+      "text": "What is a small, simple thing that makes your day feel better?"
+    },
+    {
+      "id": "yourself-strength",
+      "category": "yourself",
+      "depth": "deep",
+      "text": "What is something other people could say they appreciate about you?"
+    },
+    {
+      "id": "yourself-learn",
+      "category": "yourself",
+      "depth": "small",
+      "text": "What is something you are curious to learn more about?"
+    },
+    {
+      "id": "yourself-place",
+      "category": "yourself",
+      "depth": "small",
+      "text": "Where is a place that makes you feel like yourself?"
+    },
+    {
+      "id": "yourself-people",
+      "category": "yourself",
+      "depth": "deep",
+      "text": "Which people or kinds of company help you feel at ease?"
+    },
+    {
+      "id": "yourself-morning",
+      "category": "yourself",
+      "depth": "small",
+      "text": "What would you like the first hour of your day to feel like?"
+    },
+    {
+      "id": "yourself-thanks",
+      "category": "yourself",
+      "depth": "deep",
+      "text": "What is one thing you are grateful for today?"
+    },
+    {
+      "id": "yourself-together",
+      "category": "yourself",
+      "depth": "small",
+      "text": "What do you like best about working or studying with others?"
+    },
+    {
+      "id": "yourself-fun",
+      "category": "yourself",
+      "depth": "small",
+      "text": "What is something playful or silly you would like to do more often?"
+    },
+    {
+      "id": "yourself-goal",
+      "category": "yourself",
+      "depth": "deep",
+      "text": "What is one small thing you are looking forward to this month?"
+    }
+  ]
+}

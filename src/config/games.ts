@@ -53,3 +53,13 @@ export function gameName(id: DailyGame['id']): string {
 
 /** Names and words the games must never use (CLAUDE.md). */
 export const forbiddenGameWords = ['wordle', 'connections', 'strands', 'nyt', 'new york times'] as const;
+
+/**
+ * Hello cards (Task 201): a flip-the-card game of conversation starters for patients, co-workers and classmates. It is
+ * not a daily puzzle, so it sits outside dailyGames (no score, no streak, no share). It is listed on /play.
+ */
+export const helloCardsGame = {
+  name: 'hello cards',
+  href: '/play/hello-cards',
+  line: 'flip a card for a friendly conversation starter. pick patients, co-workers or classmates.',
+} as const;
