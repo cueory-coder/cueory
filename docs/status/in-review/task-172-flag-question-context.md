@@ -1,0 +1,1 @@
+status: Task 172, flag question context: the footer "flag or comment" form now follows the question the real questions page is showing (subscribes to the published item, unsubscribes on unmount), so reports carry the exact item and version ids and clear at completion; before, it sent null item context on that route. No database change.
