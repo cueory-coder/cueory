@@ -226,7 +226,10 @@ the staging database's settings; I confirmed the grant in the migration file, no
     those tables, returning only true or false (no rows, no ids), containing the same checks as `is_admin()` (account in
     `admins`, JWT `aal2`, verified factor still on file), with `execute` revoked from everyone and granted only to
     `publisher_owner`. A definer function still sees the caller's own sign-in claims (`auth.uid()`, `auth.jwt()`), so it
-    judges the real visitor. The alternative, if a helper is unwanted, is to keep `admin_publish_version` owned by the
+    judges the real visitor. Verified in the migration (lines 67 to 85): `is_admin()` has `execute` revoked from `public`, `anon`,
+    `authenticated` and `service_role`, so only the database owner can call it. The helper therefore gets its own `execute`
+    grant to `publisher_owner` only (nothing else may call it), and every pgTAP case below runs as `publisher_owner`
+    through `admin_publish_version`, not as the owner. The alternative, if a helper is unwanted, is to keep `admin_publish_version` owned by the
     existing database owner and let it call a narrow `publisher_owner` function for the final write only.
   - The migration author must test every grant here against Supabase's guidance on permissions in the `auth` schema and on
     `security definer` functions, in a real Supabase database, before relying on it.
