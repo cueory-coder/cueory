@@ -168,8 +168,7 @@ Each admin action writes its row inside the same function, so an action cannot h
 fails together).
 
 Approval receipt. A publish (and any override) is tied to exactly what Christian approved: the row records the
-immutable version id and a content digest (a hash, a short fingerprint) of the exact stem, choices, rationale and
-source being published, taken inside the same function. If even one character changes after he approves, the digest no
+immutable version id and a content digest (a hash, a short fingerprint) defined once, below, and taken inside the same function. If even one character changes after he approves, the digest no
 longer matches and the publish is refused until he approves again. Only non-clinical formatting checks may be
 overridden by a button. The answer-key and reserved checks and the clinical review gate can never be waived this way;
 they pass or the version stays a draft. Question 4 decided this on 2026-11-05.
@@ -181,8 +180,8 @@ the batch checker needs five reviewer files but no particular one (not Christian
 caller is the service role (`supabase/migrations/20261102090000_publish_item_version.sql`). So the same rule applies to
 both paths: `publish_item_version` (and the future `admin_publish_version`) must refuse unless a matching receipt exists
 for that exact version id and content digest. Closing the importer gap is its own `needs-christian` pull request
-(database function plus importer change) and can ship before the console. Until Christian decides question 4, publishing
-real content through either path stays blocked: the importer keeps writing drafts only for real content.
+(database function plus importer change) and can ship before the console. Although question 4 is decided, publishing
+real content through either path stays blocked until the database enforcement is built and verified by tests: the importer keeps writing drafts only for real content.
 
 Design requirement: enforce the receipt at the database boundary, for every write that sets a version to published. A
 check inside `publish_item_version` or `admin_publish_version` alone is not enough, because the migration gives the
@@ -191,16 +190,24 @@ insert, update, delete on table public.item_versions to service_role` line), so 
 importer or anything holding the service key, would skip a function-only check. (A review chat also reported this from
 the staging database's settings; I confirmed the grant in the migration file, not in the live database.) So:
 - The guard trigger on `item_versions` (`item_versions_guard`) refuses any change to `status = 'published'` unless an
-  approval receipt row exists for that exact version id and the current content digest of its text, choices, answers and
-  source. This holds for every writer, the owner and service role included, and for the importer.
+  approval receipt row exists for that exact version id and the current content digest (defined next). This holds for every writer, the owner and service role included, and for the importer.
 - The service role loses direct update of `status` (column-level grants or a restrictive policy), so the only way to
   publish is the publish function, and the function writes nothing the trigger would not also accept.
 - Receipt rows are written only by the admin approval function (admin check first), never by the importer or by a
   website role.
+- One canonical digest, versioned (a version label is stored with every receipt, so the recipe can change later without
+  confusing old receipts). It is a hash over, in this fixed order: the question's type (single or select-all, from
+  `items.type`), the ordered choices (id and text), for every choice its correctness flag (`item_answers.is_correct`) and
+  its rationale, the stem, and the source. Nothing else, and nothing left out: the type matters because it can still
+  change while every version is a draft (`items_guard`), and the correctness flags are the answer key itself. The
+  database computes it; no caller supplies it.
 - Tests: a direct `update ... set status = 'published'` as service role fails without a receipt; fails with a receipt
-  for an older digest after any edit; works with a matching receipt; the importer's publish path fails the same way.
+  for an older digest after any edit; works with a matching receipt; the importer's publish path fails the same way. Negative tests, each run through the publish function AND through a
+  direct service-role status update: after approval, changing the question type blocks publishing; flipping any one
+  correctness flag blocks it; editing a choice, a rationale, the stem or the source blocks it; reordering choices blocks
+  it; a receipt with an old digest-recipe version blocks it.
 This is a requirement for the importer-gate pull request and for Phase 3. No grants, migrations or settings are
-changed by this plan, and real content stays unpublished until Christian decides question 4.
+changed by this plan, and real content stays unpublished until this enforcement is built and verified.
 
 ### 4.3 Open design question: lessons and cards
 
@@ -350,7 +357,7 @@ Christian answered on 2026-11-05. Nothing has been started; building Phase 1 beg
 4. **Publishing rule.**
    - **DECIDED, yes (2026-11-05):** every publish, from the console or from the importer or service role, must carry an
      approval receipt for the exact version and content digest, enforced at the database boundary (the design
-     requirement in section 4.2). Until that is built, real content stays unpublished.
+     requirement in section 4.2). The hold on real content stays until that enforcement is built and verified.
    - **Deferred (2026-11-05):** no skip-checks button for now. Treat it as no override of any check in Phases 1 and 2;
      revisit at Phase 3.
 5. **DECIDED, yes (2026-11-05).** Students are shown by short account id only in Phase 1 (no emails or names). Later, a
