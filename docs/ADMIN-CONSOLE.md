@@ -68,6 +68,16 @@ Each phase is its own small set of pull requests, each needing his approval (dat
 
 Nothing can be changed in this phase, so it is the lowest risk.
 
+Christian's picture of the goal: the master account works like the inside of a vending machine. He can read
+everything in spreadsheet-style tables, sort it, control which options exist, and decide what customers can see,
+especially "features of the day" (for example the prompt of the day and other daily features). Phase 1 delivers the
+reading half; the controls come in Phases 2 and 3, each needing his separate go-ahead. Nothing here is built yet.
+
+- Sortable, filterable, spreadsheet-style tables (column headers that sort, a filter box, paging) for: questions and
+  content, flags, features of the day, and users (short account id only, never email or name). A "download CSV" button
+  exports exactly what he is allowed to see on screen, and nothing the screens hide (no answer keys, no emails, no
+  names). Tables work by keyboard and touch.
+
 - `/admin` dashboard, for him only:
   - Counts: accounts, new accounts this week, open flags, questions by state (draft, published, retired), concepts
     published or not, attempts in the last 7 days. Counts only, no student names.
@@ -75,7 +85,8 @@ Nothing can be changed in this phase, so it is the lowest risk.
     is about.
   - Content list: every concept and question with its state (draft, published, retired, hidden once phase 2 exists),
     version number and open-flag count. Question text is shown; answer keys are not.
-- New RPCs (names are proposals): `admin_dashboard_counts()`, `admin_list_content(kind, state, limit, cursor)`.
+- New RPCs (names are proposals): `admin_dashboard_counts()`, `admin_list_features()`, `admin_list_users()` (short ids and
+  dates only), `admin_list_content(kind, state, limit, cursor)`.
   Reuse `admin_list_flags`.
 
 ### Phase 2: hide, show, unpublish, resolve
@@ -90,6 +101,12 @@ Nothing can be changed in this phase, so it is the lowest risk.
 - Every action asks "are you sure?" on the screen and writes an audit row (see 5).
 - New RPCs: `admin_set_hidden(kind, id, hidden)`, `admin_retire_version(version_id)`, `admin_resolve_flag(flag_id,
   note)`, `admin_list_audit(limit, cursor)`.
+
+Features of the day (Phase 2 for scheduling, Phase 3 for new content): a `features` and `feature_schedule` table. For each
+feature (prompt of the day, other daily features) there is a deterministic fallback, for example today's prompt derives
+from the date, unless the admin has set an override for a date. The admin sets, clears or moves an override from the
+table view. Every such control goes through the same admin functions, `is_admin()`, step-up, audit log and, for
+anything that publishes new text, the approval-receipt gate as publishing does. Students see only today's choice.
 
 ### Phase 3: edit and post, with draft, preview, publish
 
@@ -227,7 +244,7 @@ the staging database's settings; I confirmed the grant in the migration file, no
   owner, plus a trigger that refuses changes), so a receipt can only expire, not be edited.
 - One canonical digest, versioned (a version label is stored with every receipt, so the recipe can change later without
   confusing old receipts). It is a hash over, in this fixed order: the question's type (single or select-all, from
-  `items.type`), the ordered choices (id and text), for every choice its correctness flag (`item_answers.is_correct`) and
+  `items.type`), its concept (`items.concept_id`, proposed, see the checklist), the ordered choices (id and text), for every choice its correctness flag (`item_answers.is_correct`) and
   its rationale, the stem, and the source. Nothing else, and nothing left out: the type matters because it can still
   change while every version is a draft (`items_guard`), and the correctness flags are the answer key itself. The
   database computes it; no caller supplies it.
@@ -279,8 +296,12 @@ on its own:
 This plan is design intent. The migration pull request must prove every line below with pgTAP in a real Supabase
 database; nothing here is a verified design. No grants or migrations change in the plan pull request.
 
-- Roles and owners: tables and functions stay owned by `postgres`; no new role, no `bypassrls`, no `force row level
-  security`; `postgres` is never reachable by the importer or website roles.
+- Roles and owners: tables and functions stay owned by `postgres`; no NEW `bypassrls` role, no `force row level
+  security`. Plainly: `postgres` (and `service_role`) already have `bypassrls` on staging (reported from `pg_roles`, to be
+  re-verified), so a `security definer` function owned by `postgres` runs with broad row-level-security bypass. The trust
+  boundary is therefore not an absence of bypass. It is the narrow `execute` grants, the `is_admin()` and `aal2` check,
+  the function's own logic, and the immutable receipt trigger. Visitors cannot become `postgres`, but any definer function
+  they can call runs with its privileges, so each one must be small and checked.
 - `item_versions`: `revoke update` from `service_role`, then `grant update` on non-status columns only.
 - Functions: `publish_item_version` becomes `security definer`, `search_path = ''`; `execute` revoked from `public`,
   `anon`, `authenticated`, granted to the importer's role (and owner). `admin_publish_version` and the receipt-approval
@@ -299,6 +320,27 @@ database; nothing here is a verified design. No grants or migrations change in t
   the helpers it calls, and the ownership-transfer risk above must be smoke-tested on a throwaway database first.
 - Step-up: destructive admin functions require the server-recorded step-up proof of 4.2b (not `iat` alone), with its
   tests; delete-my-account has the same `iat` weakness and is tracked separately.
+- Receipt-read guard: `item_versions_guard` is `security invoker` today
+  (`supabase/migrations/20261101090000_items_and_versions.sql`), so its planned receipt read would run as the caller. It
+  becomes `security definer`, owned by `postgres`, `search_path = ''`, and receipts are readable only through it. pgTAP
+  must show the refusal is the receipt or digest refusal and not a generic "permission denied" on the receipts table:
+  (a) through the inner publish function, (b) through a direct service-role status update with the status grant
+  temporarily restored, (c) a valid receipt succeeds, (d) a stale digest is refused as its own case.
+- Sources and concepts visibility is gated too (chosen approach): today `--publish` sets `sources.published` and
+  `concepts.published` in separate requests before it calls `publish_item_version`
+  (`scripts/import-batch/db.ts`, `plan.ts`), and `service_role` can write them directly, so a refused receipt would not
+  roll them back. Chosen: revoke `update` of `published` on `concepts` and `sources` from `service_role`, and let only
+  the approved publish function set them, inside the same transaction as the version (so they stay unpublished until it
+  succeeds). Negative integration test: `--publish` with a missing, invalid or expired receipt leaves every affected
+  question version, concept and source unpublic.
+- Concept reassignment: `items_guard` today refuses only type changes, and `service_role` has direct update on `items`,
+  so an approved item could be moved to another concept (the importer refuses moves in `plan.ts`, but that is not a
+  database rule). Add a guard that refuses changing `items.concept_id` once any version is published or retired, and
+  include `concept_id` in the digest (proposed; Christian confirms that the concept mapping is part of what he
+  approves). pgTAP: reassigning a concept is refused after publication; before publication it is allowed but
+  invalidates an existing receipt (the digest changes), through both the publish function and a direct update.
+- Unapproved callers: pgTAP shows `public`, `anon` and `authenticated` callers that are not the approved admin cannot use
+  the owner's elevated privileges through any definer function in this plan (every one refuses first).
 - Tests: every item in the pgTAP lists above, plus the "approved list of executable functions" test, plus a
   throwaway-database run of all migrations from scratch and from the current staging state.
 - Supabase guidance: test each grant against Supabase's guidance on `auth`-schema permissions and `security definer`
