@@ -191,13 +191,21 @@ importer or anything holding the service key, would skip a function-only check. 
 the staging database's settings; I confirmed the grant in the migration file, not in the live database.) So:
 - The guard trigger on `item_versions` (`item_versions_guard`) refuses any change to `status = 'published'` unless an
   approval receipt row exists for that exact version id and the current content digest (defined next). This holds for every writer, the owner and service role included, and for the importer.
-- The service role loses direct update of `status`. A restrictive row-level policy cannot do this, because the service
-  role bypasses row-level security (Supabase docs, Row Level Security, "Bypassing Row Level Security"), and today it holds
-  table-wide update. So the fix is in grants: `revoke update on public.item_versions from service_role`, then `grant
-  update` only on the non-status columns it still needs. The alternative is to route every write through `security
-  definer` functions with a fixed `search_path` and explicit `execute` grants. Either way the only way to publish is the
-  publish function. The guard trigger's receipt and digest check stays on as a second, independent gate, so a mistake in
-  grants alone still cannot publish.
+- The service role loses direct update of `status`, and the publish function becomes the only door. A restrictive
+  row-level policy cannot do this, because the service role bypasses row-level security (Supabase docs, Row Level
+  Security, "Bypassing Row Level Security"), and today it holds table-wide update. The one model chosen:
+  - Today `publish_item_version` is `security invoker` with `execute` granted to `service_role`
+    (`supabase/migrations/20261102090000_publish_item_version.sql`), so it runs with the caller's rights. Revoking the
+    caller's update on `status` would therefore break the legitimate publish too.
+  - So the function becomes `security definer` with a fixed `search_path = ''`, owned by a dedicated database role that
+    alone holds `update` on `item_versions.status`. `revoke update on public.item_versions from service_role` then `grant
+    update` back only on the non-status columns the importer still needs.
+  - `execute` on the function is granted explicitly, only to the intended callers (the service role for the importer
+    and the admin publish function), and revoked from `public`, `anon` and `authenticated`.
+  - The receipt and digest check runs inside the function, and the guard trigger repeats it as a second, independent
+    gate, so a grants mistake alone still cannot publish.
+  - A receipt expires (proposal: 24 hours after approval; Christian can change it), so an old approval cannot be
+    reused later.
 - Receipt rows are written only by the admin approval function (admin check first), never by the importer or by a
   website role.
 - One canonical digest, versioned (a version label is stored with every receipt, so the recipe can change later without
@@ -211,10 +219,12 @@ the staging database's settings; I confirmed the grant in the migration file, no
   direct service-role status update: after approval, changing the question type blocks publishing; flipping any one
   correctness flag blocks it; editing a choice, a rationale, the stem or the source blocks it; reordering choices blocks
   it; a receipt with an old digest-recipe version blocks it.
-  Database (pgTAP) negatives for the grant fix: a direct service-role `update ... set status = 'published'` fails with
-  "permission denied" even when a valid receipt exists (the grant blocks it first), and with the grant temporarily
-  restored in the test it still fails with a missing receipt, a stale digest, or a receipt for a different version id;
-  a service-role update of a non-status column still works; the publish function still works with a matching receipt.
+  Database (pgTAP) tests for the grant model:
+  negatives, a direct service-role `update ... set status = 'published'` is denied (even with a valid receipt on file);
+  an expired receipt is denied; a receipt for a different version id or a mismatched digest is denied; a missing
+  receipt is denied; the trigger alone also refuses when the grant is temporarily restored inside the test.
+  Positives, the publish function succeeds for a draft with a matching, unexpired receipt; a service-role update of a
+  non-status column still works.
 This is a requirement for the importer-gate pull request and for Phase 3. No grants, migrations or settings are
 changed by this plan, and real content stays unpublished until this enforcement is built and verified.
 
