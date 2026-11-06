@@ -139,23 +139,31 @@ What may go in it (and what may not):
   (open or handled). Never a student's account id, name or email.
 - Allowed notes and JSON: action codes, old and new state, version numbers, content digests. Never free text copied from
   a student's report, never an answer key, never question text.
-- Because the log holds no student identifier and no report text, it contains no student data. A flag id alone points to
-  nothing once that report is deleted.
+- The log is pseudonymous, not anonymous. It holds no student account id and no report text, but a flag id sits beside
+  the student's account id in the `flags` table (`supabase/migrations/20261101120000_flags_and_submit_flag.sql`), so
+  while that report exists the owner (or anyone with database access) can link an audit row to that student. The link
+  exists only while the report exists.
 
 What happens when a student deletes their account: the existing delete-my-account function removes the student's rows
 by cascade (profile, attempts, review state, exam plans, study events and their flag reports;
-`supabase/migrations/20261102110000_delete_my_account.sql`). The audit table is not one of those rows. Its flag ids
-simply stop pointing at anything, so nothing about the student survives in it. The pgTAP test for this stays, and a new
+`supabase/migrations/20261102110000_delete_my_account.sql`). The audit table is not one of those rows. Its flag
+ids then point at nothing, so the link to the student is gone from the live database. Whether database backups or older
+copies of the log keep the link for a while is not verified (backups are still unverified, docs/BACKUPS.md); that is a
+question for Christian, and for a lawyer if he wants one, before launch. This plan makes no legal claim. The pgTAP test for this stays, and a new
 test checks that no audit row can hold a student id. The admin's own account id is stored without a cascade, so the log
 is not wiped if his account were ever deleted; that case is covered by a plain note in the plan, not by code.
 
 Who can read it: only the admin, only through `admin_list_audit` (admin check first). No website role has any grant on the
 table, and nothing can edit or delete rows, so it is append-only for everyone but the database owner.
 
-Export-my-data: not included, because it holds nothing about a student. It is the owner's record of his own actions.
+Export-my-data: because rows that name a student's own flag are linkable to them, the proposal is to include, in
+export-my-data, only the audit rows (time, action code, new state) that reference that student's own flags, through a
+student-callable function that returns just those fields and nothing about other people or about the owner's other
+actions. The other option is to leave them out and say plainly on `/privacy` that the owner's handling of a report is
+logged. This is an open decision (question 6).
 
 Retention: keep rows for 2 years, then delete older ones by hand or a scheduled job. The 2 years is only a proposal and
-is a decision for Christian (question 6).
+is a decision for Christian (question 7).
 
 Each admin action writes its row inside the same function, so an action cannot happen without a row (the transaction
 fails together).
@@ -220,11 +228,13 @@ lessons and cards when Phase 2 is approved.
 
 - Phase 1: a sentence that the site owner can read reports and sees aggregate counts.
 - Phase 2: that the owner can hide or remove content and mark reports handled with a private note.
-- Phase 2 and 3, audit log: add a sentence such as "The site owner's actions (hiding, editing, publishing, handling
-  reports) are logged with the owner's account and the time. The log does not contain anything a student wrote or any
-  student identifier, and is kept for [period]." Wording to be finalized with the retention decision.
-- Delete-my-account and export-my-data: no change needed, because the audit log holds no student identifier or report
-  text (see 4.2); the delete test and a new "no student id in the audit table" test enforce it.
+- Phase 2 and 3, audit log: add wording that matches what the code does, for example: "When the site owner handles or
+  acts on a report you sent, we log the time and the action next to that report's reference number. The log does not
+  contain what you wrote or your account details, but while your report exists the two can be linked. When you delete
+  your account your reports are deleted and the log no longer links to you. Entries are kept for [period]." Final
+  wording follows the export and retention decisions, and is not legal advice.
+- Delete-my-account and export-my-data: delete-my-account needs no change (the audit rows hold no student id and become
+  unlinked when the report is deleted; a test enforces both). Export-my-data may need a small addition, see 4.2.
 
 ## 7. Cost
 
@@ -294,6 +304,24 @@ Claude gives the exact text to paste each time. Nothing below happens until he a
 7. Check the audit log shows save, publish and the earlier hide and show.
 8. Promote to `main` and repeat the migration step in `cueory-prod`.
 
+### Before any admin page is public: Cloudflare Access (only if you say yes to decision 3)
+
+Reported by a review chat, not verified by me: Cloudflare Access is not set up for `cueory.app` today, and the database
+check (admin row, two-factor) is a separate control that does not depend on it. These are your steps, and I change no
+setting myself. Claude will first read Cloudflare's current Access docs and give you the exact button names.
+
+1. Sign in to Cloudflare with the business Gmail account. You should see the account home.
+2. Open Zero Trust (Cloudflare's access-control area). You should see its dashboard or a short first-time setup.
+3. Choose the free plan if asked. You should see no payment request (stop and tell Claude if there is one).
+4. Add a self-hosted application for the admin address of the live site. You should see it listed.
+5. Add a rule that allows only your own business Gmail address. You should see exactly one allowed email.
+6. Open the admin address in a private window. You should be asked for an emailed code and refused for any other email.
+7. Tell Claude it works. Only then does any admin page go on the live site.
+
+No admin work touches the live database until it is set up under the existing prelaunch plan. Reported by a review chat,
+not verified: `cueory-staging` has the 17 migrations applied and `cueory-prod` has none yet. Everything in Phases 1 to 3
+is built and tried on staging only; the "repeat on `cueory-prod`" steps above wait for that prelaunch setup.
+
 ## 10. Decisions for Christian (yes or no)
 
 1. **Plan:** approve building Phase 1 (read-only dashboard) first, with Phases 2 and 3 each needing a separate go-ahead?
@@ -307,5 +335,8 @@ Claude gives the exact text to paste each time. Nothing below happens until he a
    waivable. Until you decide, real content stays unpublished. The importer fix is a separate pull request that can come
    before the console. (My recommendation: yes.)
 5. **Privacy:** keep student emails and names out of the console (short account ids only)?
-6. **Audit log retention.** Keep the audit log for 2 years and then delete older rows? (A number for you to set; shorter
+6. **Audit log and export.** Include the audit rows about a student's own flags in export-my-data (my proposal), or
+   leave them out and say so on `/privacy`? Also: do you want backups and old log copies checked for leftover links
+   before launch (not verified today)?
+7. **Audit log retention.** Keep the audit log for 2 years and then delete older rows? (A number for you to set; shorter
    or longer is fine.)
