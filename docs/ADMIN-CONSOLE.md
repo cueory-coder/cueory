@@ -103,7 +103,7 @@ Nothing can be changed in this phase, so it is the lowest risk.
 - Clinical content rule (CLAUDE.md rule 5): Claude and the engineers never write clinical facts. The console is a place
   where Christian types or pastes his own reviewed text. The reviewer-checks question is decision 4.
 - Lessons, cards and videos: see 4.3 for the open design question.
-- Audit log (5) covers every edit, preview-less publish and unpublish.
+- Audit log (5) covers every edit, publish and unpublish.
 - New RPCs: `admin_get_draft`, `admin_save_draft`, `admin_preview_version`, `admin_publish_version`, plus the importer
   keeps working unchanged.
 
@@ -249,7 +249,7 @@ Claude gives the exact text to paste each time. Nothing below happens until he a
 4. Click "Preview". You should see the question as a student would, with a banner "draft, only you can see this".
 5. Click "Publish" and confirm. You should see the state change to "Published" in words.
 6. Open the question as a student. Your new text should appear.
-7. Check the audit log shows save, preview-less publish and the earlier retire.
+7. Check the audit log shows save, publish and the earlier hide and show.
 8. Promote to `main` and repeat the migration step in `cueory-prod`.
 
 ## 10. Decisions for Christian (yes or no)
