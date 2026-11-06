@@ -65,3 +65,18 @@ test('flag button passes axe with form open', async ({ page }) => {
 // D-pending (Task 64): hideFlag hides the button during sharpening / timed review.
 // Full behavioral test added when those pages exist (Task 4e / sharpening not yet built).
 // The hideFlag prop is wired: Layout.astro passes it to SiteFooter; !hideFlag gates the footer flag (Task 115).
+
+test.describe('Task 203: the flag link without JavaScript', () => {
+  test.use({ javaScriptEnabled: false });
+
+  test('the footer fallback link is described by the patient-information reminder and its draft opens with it', async ({ page }) => {
+    await page.goto('/privacy');
+    const link = page.locator('[data-footer-flag] a[aria-label="flag or comment"]');
+    await expect(link).toBeVisible();
+    const describedBy = await link.getAttribute('aria-describedby');
+    expect(describedBy).toBeTruthy();
+    await expect(page.locator(`#${describedBy}`)).toContainText("please don't include patient names, dates of birth, medical record numbers");
+    const href = (await link.getAttribute('href')) ?? '';
+    expect(decodeURIComponent(href.split('&body=')[1] ?? '')).toContain("please don't include patient names");
+  });
+});

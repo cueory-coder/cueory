@@ -86,7 +86,7 @@ describe('signed-out report help', () => {
     expect(html).toContain('a free account is needed');
     expect(html).toContain('href="mailto:' + site.contactEmail + '"');
     expect(html).toContain(site.contactEmail);
-    expect(html).toContain(PATIENT_INFO_WARNING.replace("'", '&#x27;'));
+    expect(html).toContain(PATIENT_INFO_WARNING.split("'")[1]); // the text after the apostrophe, which React escapes
     expect(html).not.toMatch(/<button\b/i);
     expect(html).not.toContain('type="submit"');
   });
