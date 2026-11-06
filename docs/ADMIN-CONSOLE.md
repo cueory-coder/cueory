@@ -167,6 +167,16 @@ longer matches and the publish is refused until he approves again. Only non-clin
 overridden by a button. The answer-key and reserved checks and the clinical review gate can never be waived this way;
 they pass or the version stays a draft. This is an open decision (question 4) and must be settled before Phase 3.
 
+The receipt covers every way of publishing, not only the console. Today the command-line importer can publish too:
+the batch checker needs five reviewer files but no particular one (not Christian's; `scripts/check-batch/check.ts`,
+`docs/BATCHES.md`), the importer's `--apply --publish --yes` is a typed flag and not a proof that Christian approved
+(`scripts/import_batch.ts`), and `publish_item_version` only checks that the version is a complete draft and that the
+caller is the service role (`supabase/migrations/20261102090000_publish_item_version.sql`). So the same rule applies to
+both paths: `publish_item_version` (and the future `admin_publish_version`) must refuse unless a matching receipt exists
+for that exact version id and content digest. Closing the importer gap is its own `needs-christian` pull request
+(database function plus importer change) and can ship before the console. Until Christian decides question 4, publishing
+real content through either path stays blocked: the importer keeps writing drafts only for real content.
+
 ### 4.3 Open design question: lessons and cards
 
 Lessons, cards, videos and puzzles are files in `/content` built into a static site, so a database switch cannot hide
@@ -290,11 +300,12 @@ Claude gives the exact text to paste each time. Nothing below happens until he a
 2. **Hide means reversible.** Add a "hidden" switch (separate from "retired") so hiding is undoable?
 3. **Extra lock:** put Cloudflare Access (free, your email only) in front of `/admin` on the live site too, on top of the
    password, authenticator code and database checks?
-4. **Publishing rule (Phase 3, open: decide before Phase 3 starts).** May a question you edit in the console be
-   published only after the existing reviewer checks show as passed, and may only non-clinical formatting checks (for
-   example spacing or a missing credit line) ever be overridden by a button, each override written to the audit log
-   with your approval receipt (see 4.2)? The answer-key and reserved checks and the clinical review gate would never be
-   waivable by a button. (My recommendation: yes.)
+4. **Publishing rule (open: decide before any real content is published, by the console or the importer).** Must every
+   publish, from the console or the command-line importer, carry your approval receipt for that exact version and
+   content digest, so nothing real goes live without it? May only non-clinical formatting checks ever be overridden by a
+   button, each override audit-logged? The answer-key and reserved checks and the clinical review gate would never be
+   waivable. Until you decide, real content stays unpublished. The importer fix is a separate pull request that can come
+   before the console. (My recommendation: yes.)
 5. **Privacy:** keep student emails and names out of the console (short account ids only)?
 6. **Audit log retention.** Keep the audit log for 2 years and then delete older rows? (A number for you to set; shorter
    or longer is fine.)
