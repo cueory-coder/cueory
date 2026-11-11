@@ -15,6 +15,25 @@ export const GAME_RESULT_EVENT = 'cueory:game-result';
 /** The separate event that opens the shared finished-game dialog. */
 export const GAME_RESULT_CARD_EVENT = 'cueory:game-result-card';
 
+/** Worker 1's additive Sudoku completion event; the Sudoku island can dispatch it without importing this host. */
+export const SUDOKU_SOLVED_EVENT = 'cueory:sudoku-solved';
+
+export interface SudokuSolvedDetail {
+  game: 'sudoku';
+  day: string;
+  level: string;
+  solved: boolean;
+  seconds: number;
+  time: string;
+  errors: number;
+}
+
+declare global {
+  interface WindowEventMap {
+    'cueory:sudoku-solved': CustomEvent<SudokuSolvedDetail>;
+  }
+}
+
 export type ResultGame = GameId | 'hello-cards' | 'sudoku';
 
 export interface ResultStat {
@@ -34,6 +53,26 @@ export interface GameResultCard {
   path: string;
   /** Optional official game wordmark asset. Omit it when the approved file is unavailable. */
   wordmarkPath?: string;
+}
+
+/** Maps Worker 1's completion payload into the same display-only result card as every other game. */
+export function sudokuResultCard(detail: SudokuSolvedDetail): GameResultCard {
+  const errors = `${detail.errors} ${detail.errors === 1 ? 'error' : 'errors'}`;
+  return {
+    game: 'sudoku',
+    name: 'sudoku',
+    date: detail.day,
+    level: detail.level,
+    result: detail.solved ? `solved in ${detail.time}` : 'not solved',
+    summary: detail.solved
+      ? `${detail.level} completed in ${detail.time} with ${errors}.`
+      : `${detail.level} ended after ${detail.time} with ${errors}.`,
+    stats: [
+      { label: 'time', value: detail.time },
+      { label: 'errors', value: String(detail.errors) },
+    ],
+    path: '/play/sudoku',
+  };
 }
 
 /** The exact, plain one-line share format approved for finished games. */

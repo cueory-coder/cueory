@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { buildResultShareLine } from '../../src/islands/gameresults';
+import { buildResultShareLine, sudokuResultCard } from '../../src/islands/gameresults';
 import { platformShareUrl } from '../../src/islands/share';
 
 const card = { name: 'pillo', date: 'nov 11, 2026', result: '4 / 6' };
@@ -10,6 +10,39 @@ describe('finished-game share line', () => {
     expect(buildResultShareLine(card)).toBe('pillo · nov 11, 2026 · 4 / 6 · cueory.app');
     expect(buildResultShareLine({ name: '  word   path ', date: ' nov 11 ', result: ' 12 / 15 ' }))
       .toBe('word path · nov 11 · 12 / 15 · cueory.app');
+  });
+});
+
+describe('Sudoku result adapter', () => {
+  it('maps Worker 1 completion details to the shared result card', () => {
+    expect(sudokuResultCard({
+      game: 'sudoku',
+      day: '2026-11-11',
+      level: 'medium',
+      solved: true,
+      seconds: 154,
+      time: '2:34',
+      errors: 1,
+    })).toEqual({
+      game: 'sudoku',
+      name: 'sudoku',
+      date: '2026-11-11',
+      level: 'medium',
+      result: 'solved in 2:34',
+      summary: 'medium completed in 2:34 with 1 error.',
+      stats: [
+        { label: 'time', value: '2:34' },
+        { label: 'errors', value: '1' },
+      ],
+      path: '/play/sudoku',
+    });
+  });
+
+  it('keeps the listener additive and typed at the shared host boundary', () => {
+    const source = readFileSync(new URL('../../src/islands/GameResultsHost.tsx', import.meta.url), 'utf8');
+    expect(source).toContain('SUDOKU_SOLVED_EVENT');
+    expect(source).toContain("WindowEventMap['cueory:sudoku-solved']");
+    expect(source).toContain('showResultCard(sudokuResultCard(event.detail))');
   });
 });
 
