@@ -350,7 +350,8 @@ function Board({ puzzle, levels, name, onLevelChange }: Props) {
         <ol>{puzzle.clues.down.map((item) => <li key={item.number}>{item.number}. {item.text}</li>)}</ol>
       </div>
 
-      {solved && (
+      <div data-crossword-screen>
+        {solved && (
         <div
           ref={result}
           tabIndex={-1}
@@ -369,7 +370,8 @@ function Board({ puzzle, levels, name, onLevelChange }: Props) {
           )}
           <ResultBrandMark path="/play" />
         </div>
-      )}
+        )}
+      </div>
     </section>
   );
 }
