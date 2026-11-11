@@ -2049,7 +2049,7 @@ html:has(dialog.mode-preview[open]) {
     background: var(--color-page);
     box-shadow: var(--shadow-card);
   }
-  .crossword-board-wrap { max-inline-size: 100%; overflow: clip; }
+  .crossword-board-wrap { container-type: inline-size; max-inline-size: 100%; overflow: clip; }
   .crossword-board-wrap[data-level="hard"] {
     position: relative;
     inset-inline-start: 50%;
