@@ -294,3 +294,21 @@ export function solvingTechnique(grid: SudokuGrid): SudokuTechnique {
   if (singlesSolve(grid, true)) return 'hidden singles';
   return 'search';
 }
+
+
+export interface SudokuResult {
+  game: 'sudoku';
+  day: string;
+  level: SudokuLevel;
+  solved: boolean;
+  seconds: number;
+  time: string;
+  errors: number;
+}
+
+/** Stable result hook for the shared results/share-card worker. */
+export function getResult(input: Omit<SudokuResult, 'game' | 'time'>): SudokuResult {
+  const minutes = Math.floor(input.seconds / 60);
+  const seconds = input.seconds % 60;
+  return { game: 'sudoku', ...input, time: `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}` };
+}
