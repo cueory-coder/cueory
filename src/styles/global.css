@@ -2078,7 +2078,6 @@ html:has(dialog.mode-preview[open]) {
   html[data-print-game="crossword"] main > :not([data-play-games]),
   html[data-print-game="crossword"] [data-play-games] > :not([data-game-print="crossword"]),
   html[data-print-game="crossword"] [data-play-games] > section:not([data-game-print="crossword"]),
-  html[data-print-game="crossword"] [data-play-games] section:not([data-game-print="crossword"]),
   html[data-print-game="crossword"] [data-game-print="crossword"] > :not(.crossword-print-host) { display: none !important; }
   html[data-print-game="crossword"] main,
   html[data-print-game="crossword"] [data-play-games],
