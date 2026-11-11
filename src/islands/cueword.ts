@@ -71,8 +71,7 @@ export function parsePuzzle(data: unknown): CuewordPuzzle {
   const { words: found } = structure(grid);
   const covered = new Set(found.flatMap((word) => word.cells));
   const letters = grid.join('');
-  if (!covered.size) throw new Error('the grid must contain a word.');
-  if (found.some((word) => word.cells.length < 3)) throw new Error('every entry must have at least three letters.');
+  if (!covered.size) throw new Error('the grid must contain a word of at least two letters.');
   if ([...letters].some((letter, cell) => letter !== '.' && !covered.has(cell))) {
     throw new Error('a one-letter run must cross a word in the other direction.');
   }

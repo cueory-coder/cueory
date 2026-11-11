@@ -77,7 +77,7 @@ function Board({ puzzle, levels, name, onLevelChange }: Props) {
       ? 'size-11 sm:size-16'
       : level.id === 'mid'
         ? 'size-10 sm:size-12'
-        : 'size-6 sm:size-8';
+        : 'size-8 sm:size-9';
 
   useEffect(() => {
     if (solved) return;
@@ -147,8 +147,9 @@ function Board({ puzzle, levels, name, onLevelChange }: Props) {
   };
 
   return (
-    <section aria-label={`${name} puzzle`} data-testid="cueword">
-      {puzzle.sample && <p className="text-sm text-ink-soft">today's puzzle is a sample</p>}
+    <section aria-label={`${name} puzzle`} data-testid="cueword" data-crossword-print-root>
+      <div data-crossword-screen>
+        {puzzle.sample && <p className="text-sm text-ink-soft">today's puzzle is a sample</p>}
 
       <div className="mt-3 flex flex-wrap justify-center gap-2" role="group" aria-label="crossword levels">
         {levels.map((item) => (
@@ -332,24 +333,21 @@ function Board({ puzzle, levels, name, onLevelChange }: Props) {
         </div>
       )}
 
-      <div data-print-only className="mt-6">
+      </div>
+
+      <div data-print-only data-crossword-print-only className="mt-6">
         <p>cueory.app</p>
+        <div className={"crossword-print-grid crossword-print-grid-" + width} aria-label="blank numbered crossword grid">
+          {puzzle.grid.map((row, rowIndex) => [...row].map((answer, columnIndex) => {
+            const cell = rowIndex * width + columnIndex;
+            const number = numbers[rowIndex]![columnIndex];
+            return <div key={cell} className={answer === "." ? "crossword-print-cell crossword-print-block" : "crossword-print-cell"}>{number !== null && <span>{number}</span>}</div>;
+          }))}
+        </div>
         <h2>across</h2>
-        <ul>
-          {puzzle.clues.across.map((item) => (
-            <li key={item.number}>
-              {item.number}. {item.text}
-            </li>
-          ))}
-        </ul>
+        <ol>{puzzle.clues.across.map((item) => <li key={item.number}>{item.number}. {item.text}</li>)}</ol>
         <h2>down</h2>
-        <ul>
-          {puzzle.clues.down.map((item) => (
-            <li key={item.number}>
-              {item.number}. {item.text}
-            </li>
-          ))}
-        </ul>
+        <ol>{puzzle.clues.down.map((item) => <li key={item.number}>{item.number}. {item.text}</li>)}</ol>
       </div>
 
       {solved && (
