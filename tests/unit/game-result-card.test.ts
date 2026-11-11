@@ -95,13 +95,15 @@ describe('story image implementation', () => {
       '--share-story-width', '--share-story-height', '--share-story-logo-width', '--share-story-logo-top',
       '--share-story-label-y', '--share-story-result-y', '--share-story-challenge-y', '--share-story-site-y',
       '--share-story-label-size', '--share-story-result-size', '--share-story-challenge-size', '--share-story-site-size',
+      '--share-story-dark-logo',
     ]) {
       expect(source).toContain(`number('${name}')`);
       expect(tokens).toContain(`${name}:`);
     }
     expect(source).toContain("logo-full-light-960.png");
     expect(source).toContain("logo-full-dark-960.png");
-    expect(source).toContain("page.toLowerCase()");
+    expect(source).toContain("number('--share-story-dark-logo') === 1");
+    expect(source).not.toContain('#1c1917');
     expect(source).not.toMatch(/font = ['"][^'"]*\d+px/);
   });
 

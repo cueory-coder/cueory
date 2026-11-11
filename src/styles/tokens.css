@@ -74,6 +74,7 @@
   --share-story-result-size: 132;
   --share-story-challenge-size: 52;
   --share-story-site-size: 42;
+  --share-story-dark-logo: 0;  /* Daytime uses the Espresso artwork; Evening overrides this to Ivory. */
   /* The logo is Christian's PNG artwork (Wordmark.astro, public/brand/v1/), never typed in a font (D-55). */
 
   /* ---------- Type scale (mobile first; large and readable) ----------
@@ -320,6 +321,7 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --color-page: #1c1917;      /* Charcoal      — page background */
+    --share-story-dark-logo: 1;
     --color-surface: #3a2d24;   /* Walnut        — cards and panels */
     --color-soft: #3a2d24;      /* Walnut        — notice bar */
     --color-highlight: #6b5243; /* Bronze        — accents and highlights (not for text) */
@@ -389,6 +391,7 @@
 
 :root[data-theme="dark"] {
   --color-page: #1c1917;      /* Charcoal      — page background */
+  --share-story-dark-logo: 1;
   --color-surface: #3a2d24;   /* Walnut        — cards and panels */
   --color-soft: #3a2d24;      /* Walnut        — notice bar */
   --color-highlight: #6b5243; /* Bronze        — accents and highlights (not for text) */

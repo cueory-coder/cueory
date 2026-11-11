@@ -215,6 +215,7 @@ export async function createStoryFile(input: StoryImageInput): Promise<File | nu
       number('--share-story-result-y'), number('--share-story-challenge-y'), number('--share-story-site-y'),
       number('--share-story-label-size'), number('--share-story-result-size'),
       number('--share-story-challenge-size'), number('--share-story-site-size'),
+      number('--share-story-dark-logo'),
     ];
     if (!page || !ink || !soft || !bodyFont || !displayFont || values.some((value) => !Number.isFinite(value))) return null;
 
@@ -229,7 +230,7 @@ export async function createStoryFile(input: StoryImageInput): Promise<File | nu
     context.fillRect(0, 0, width, height);
 
     // Match the logo ink to the active page palette: Espresso on Ivory, Ivory on Charcoal.
-    const logoPath = page.toLowerCase() === '#1c1917' ? '/brand/v1/logo-full-dark-960.png' : '/brand/v1/logo-full-light-960.png';
+    const logoPath = number('--share-story-dark-logo') === 1 ? '/brand/v1/logo-full-dark-960.png' : '/brand/v1/logo-full-light-960.png';
     const logo = await image(logoPath);
     const logoHeight = (logo.height * logoWidth) / logo.width;
     context.drawImage(logo, (width - logoWidth) / 2, number('--share-story-logo-top'), logoWidth, logoHeight);
