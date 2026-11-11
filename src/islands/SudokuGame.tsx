@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { applyChoice, readChoice, saveChoice, type ThemeChoice } from '../scripts/theme';
 import { browserStorage } from '../scripts/storage';
 import { localDay, reportRound } from './gameresults';
 import { LEVEL_RULES, candidates, conflictIndices, dailySudokuSeed, generateSudoku, getResult, type SudokuLevel } from './sudoku';
@@ -67,6 +68,7 @@ export default function SudokuGame() {
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [howOpen, setHowOpen] = useState(false);
+  const [theme, setTheme] = useState<ThemeChoice>(() => readChoice(browserStorage()));
   const [said, setSaid] = useState('');
   const dialog = useRef<HTMLDivElement>(null);
   const settingsButton = useRef<HTMLButtonElement>(null);
@@ -164,6 +166,11 @@ export default function SudokuGame() {
     if (key === 'autoCandidates') setHints(next.autoCandidates);
     return next;
   });
+  const chooseTheme = (choice: Exclude<ThemeChoice, 'device'>) => {
+    setTheme(choice);
+    applyChoice(document.documentElement, choice);
+    saveChoice(browserStorage(), choice);
+  };
   const printPuzzle = () => {
     const root = document.documentElement;
     root.dataset.printGame = 'sudoku';
@@ -219,6 +226,7 @@ export default function SudokuGame() {
     {settingsOpen && <div className="sudoku-overlay" onPointerDown={(event) => event.target === event.currentTarget && setSettingsOpen(false)}>
       <div ref={dialog} className="sudoku-settings" role="dialog" aria-modal="true" aria-labelledby="sudoku-settings-title">
         <div className="sudoku-settings-heading"><h3 id="sudoku-settings-title">settings</h3><button type="button" className="sudoku-icon-button" aria-label="close settings" onClick={() => setSettingsOpen(false)}>×</button></div>
+        <fieldset><legend>theme</legend>{(['dark', 'light'] as const).map((choice) => <label key={choice} className="sudoku-option"><span><strong>{choice} mode</strong><small>use the site's {choice} theme.</small></span><input type="radio" name="sudoku-theme" checked={theme === choice} onChange={() => chooseTheme(choice)} /></label>)}</fieldset>
         <fieldset><legend>gameboard settings</legend>{(Object.keys(DEFAULTS) as Array<keyof Settings>).map((key) => {
           const labels: Record<keyof Settings, string> = { checkGuesses: 'check guesses when entered', autoCandidates: 'start in auto candidate mode', showErrors: 'show error counter', showTimer: 'show timer', highlightConflicts: 'highlight conflicts', highlightRowColumn: 'highlight row and column', highlightBox: 'highlight box', highlightIdentical: 'highlight identical numbers', playSound: 'play sound on solve' };
           return <label key={key} className="sudoku-option"><span>{labels[key]}</span><input type="checkbox" checked={settings[key]} onChange={() => updateSetting(key)} /></label>;
