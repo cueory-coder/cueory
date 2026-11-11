@@ -276,7 +276,7 @@ describe.skipIf(!existsSync(dist))('built site', () => {
       expect(meta(html, 'og:title'), `${page}: og:title`).toBe(title);
       expect(meta(html, 'og:description'), `${page}: og:description`).toBe(description);
       const gameOgImage = ['pillo', 'crossword', 'word-path', 'sudoku', 'hello-cards'].find((game) => page.endsWith(`/play/${game}.html`));
-      const expectedOgImage = gameOgImage ? `https://cueory.app/share/${gameOgImage}-og.png` : 'https://cueory.app/share/study-ivory.png';
+      const expectedOgImage = gameOgImage ? `https://cueory.app/share/${gameOgImage}-og.png` : page.endsWith('/play.html') ? 'https://cueory.app/share/games-scene.png' : 'https://cueory.app/share/study-ivory.png';
       expect(meta(html, 'og:image'), `${page}: og:image`).toBe(expectedOgImage);
       expect(existsSync(join(dist, gameOgImage ? `share/${gameOgImage}-og.png` : 'share/study-ivory.png')), `${page}: og:image file`).toBe(true);
     }
