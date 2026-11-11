@@ -11,7 +11,7 @@ workflow:
         $CI_PIPELINE_SOURCE == "merge_request_event" &&
         $CI_PROJECT_ID == "88789754" &&
         $CI_MERGE_REQUEST_SOURCE_PROJECT_ID == "88789754" &&
-        $CI_MERGE_REQUEST_TARGET_PROJECT_ID == "88789754" &&
+        $CI_MERGE_REQUEST_PROJECT_ID == "88789754" &&
         $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "legacy/staging"
     # No duplicate push jobs, fork jobs, tags, schedules, or release pipelines.
     - when: never

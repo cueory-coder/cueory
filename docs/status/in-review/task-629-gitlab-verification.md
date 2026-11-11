@@ -12,7 +12,7 @@ branch do not validate this application.
 
 - Runs only for ready, same-project merge requests targeting `legacy/staging`.
   Draft merge requests wait until ready, preserving the existing resource-use policy.
-- Explicitly checks the execution, source, and target project IDs against
+- Explicitly checks the execution, source, and merge-request project IDs against
   `cueory1/cueory` (`88789754`). All other events are excluded.
 - Uses official `node:24.22.2-bookworm`, matching `.node-version`, and rejects a
   future mismatch between the image and the pin.
@@ -48,7 +48,10 @@ branch do not validate this application.
   cases passed. The cases cover permitted staging work, drafts, foreign/missing
   project IDs, wrong targets, and non-MR pipeline sources. This is local validation,
   not GitLab CI Lint.
-- Independent review found no material defect in the configuration.
+- GitLab's first pipeline request caught an unsupported target-project variable
+  in the workflow guard. Replaced it with the documented
+  `CI_MERGE_REQUEST_PROJECT_ID`. Remote validation remains required, even when
+  local parsing and independent review pass.
 - GitLab pipeline validation is pending on this merge request.
 
 ## Rollout limits and follow-ups
