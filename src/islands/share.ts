@@ -223,3 +223,13 @@ export async function createStoryFile(input: StoryImageInput): Promise<File | nu
     return null;
   }
 }
+
+
+/** Static, score-free Open Graph images. Each game has a stable file even while several games share /play. */
+export const GAME_OG_IMAGES = {
+  pulse: '/share/pillo-og.png',
+  cueword: '/share/crossword-og.png',
+  suture: '/share/word-path-og.png',
+  'hello-cards': '/share/hello-cards-og.png',
+  sudoku: '/share/sudoku-og.png',
+} as const;

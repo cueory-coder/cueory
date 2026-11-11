@@ -19,7 +19,7 @@ const page = helloCardsPage(entries.map(({ data }) => data), env, helloCardsInde
 const { shown, starters } = page;
 ---
 
-<Layout title={helloCardsGame.name} description="Flip a card for a friendly conversation starter to use with patients, co-workers or classmates." noindex={page.noindex} promo={false}>
+<Layout title={helloCardsGame.name} description="Flip a card for a friendly conversation starter to use with patients, co-workers or classmates." noindex={page.noindex} promo={false} socialImage="/share/hello-cards-og.png">
   <article class="veil mx-auto mt-6 max-w-prose p-6 sm:mt-10 sm:p-10" data-pagefind-ignore>
     {page.label && <p class="text-sm text-ink-soft">{page.label}</p>}
     <h1 class="display mt-2 text-title sm:text-title-lg">{helloCardsGame.name}</h1>
