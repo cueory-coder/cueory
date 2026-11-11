@@ -206,7 +206,7 @@ export default function SudokuGame() {
           const related = settings.highlightRowColumn && (row === selectedRow || column === selectedColumn);
           const box = settings.highlightBox && Math.floor(row / 3) === Math.floor(selectedRow / 3) && Math.floor(column / 3) === Math.floor(selectedColumn / 3);
           const identical = settings.highlightIdentical && Boolean(selectedValue) && value === selectedValue;
-          const options = !value && !marks.has(index) && (hints || settings.autoCandidates) ? candidates(entries, index) : [];
+          const options = !value && !marks.has(index) && hints ? candidates(entries, index) : [];
           const classes = ['sudoku-cell', given && 'is-given', !given && value && 'is-entered', selected === index && 'is-selected', selected !== index && related && 'is-related', selected !== index && box && 'is-box-related', identical && 'is-identical', settings.highlightConflicts && conflicts.has(index) && 'is-conflict', (column === 2 || column === 5) && 'sudoku-box-right', (row === 2 || row === 5) && 'sudoku-box-bottom'].filter(Boolean).join(' ');
           const spoken = paused ? 'hidden while paused' : marks.has(index) ? 'x mark' : value ? String(value) : options.length ? `empty, candidates ${options.join(', ')}` : 'empty';
           return <button ref={(element) => { if (element) cells.current.set(index, element); else cells.current.delete(index); }} key={index} type="button" role="gridcell" tabIndex={selected === index ? 0 : -1} className={classes} aria-rowindex={row + 1} aria-colindex={column + 1} aria-selected={selected === index} aria-label={`row ${row + 1}, column ${column + 1}, ${spoken}${given ? ', given' : ''}`} data-given={given ? 'true' : 'false'} onClick={() => setSelected(index)}>
