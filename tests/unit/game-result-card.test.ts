@@ -35,10 +35,22 @@ describe('plain platform share pages', () => {
 describe('shared result dialog design tokens', () => {
   it('uses the repository blur and radius tokens', () => {
     const source = readFileSync(new URL('../../src/islands/GameResultsHost.tsx', import.meta.url), 'utf8');
-    expect(source).toContain('backdrop-blur-(--blur-scrim)');
+    expect(source).toContain('result-dialog-overlay');
     expect(source).toContain('rounded-xl');
     expect(source).not.toContain('backdrop-blur-sm');
+    expect(source).not.toContain('bg-ink/40');
     expect(source).not.toContain('rounded-2xl');
+  });
+
+  it('uses small caps without text-transforming source content', () => {
+    const host = readFileSync(new URL('../../src/islands/GameResultsHost.tsx', import.meta.url), 'utf8');
+    const landing = readFileSync(new URL('../../src/components/GameShareLanding.astro', import.meta.url), 'utf8');
+    const styles = readFileSync(new URL('../../src/styles/global.css', import.meta.url), 'utf8');
+    expect(host).toContain('result-meta');
+    expect(landing).toContain('result-meta');
+    expect(host + landing).not.toContain('uppercase');
+    expect(styles).toContain('font-variant-caps: all-small-caps');
+    expect(styles).not.toMatch(/\.result-meta[^}]*text-transform/s);
   });
 });
 

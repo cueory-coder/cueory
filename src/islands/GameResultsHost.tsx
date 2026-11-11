@@ -99,7 +99,7 @@ export default function GameResultsHost() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 backdrop-blur-(--blur-scrim)"
+      className="result-dialog-overlay fixed inset-0 z-50 flex items-center justify-center p-4"
       onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}
       data-testid="game-result-overlay"
     >
@@ -113,7 +113,7 @@ export default function GameResultsHost() {
         data-testid="game-result-dialog"
       >
         <div className="flex items-start justify-between gap-4">
-          <p className="text-sm font-bold uppercase tracking-label text-ink-soft">
+          <p className="result-meta text-sm font-bold text-ink-soft">
             {card.name}{card.level ? ` · ${card.level}` : ''} · {card.date}
           </p>
           <button
