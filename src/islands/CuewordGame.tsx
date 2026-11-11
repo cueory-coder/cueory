@@ -171,6 +171,8 @@ function Board({ puzzle, name }: Props) {
         ))}
       </div>
 
+      <footer className="crossword-print-footer">cueory.app</footer>
+
       {solved && (
         <div ref={result} tabIndex={-1} className="crossword-result mt-6 rounded-md border border-control p-4" data-testid="cueword-result" role="status">
           <p className="text-lg font-medium">solved.</p>
