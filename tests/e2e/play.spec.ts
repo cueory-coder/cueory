@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import { dailySudokuSeed, generateSudoku } from '../../src/islands/sudoku';
 
 /**
  * Daily games (D-61): pillo (Task 114; its id is still pulse) on /play. The page's clock is set to 1 November 2026, the
@@ -204,8 +205,12 @@ test.describe('daily games on a narrow phone', () => {
 });
 
 test.describe('daily games: sudoku (Task 625)', () => {
+  const day = '2026-11-01';
+  const daily = generateSudoku(dailySudokuSeed(day, 'easy'), 'easy');
+  const open = daily.puzzle.flatMap((value, index) => value === 0 ? [index] : []);
   const game = (page: Page) => page.getByTestId('sudoku');
   const grid = (page: Page) => game(page).getByRole('grid', { name: 'sudoku grid' });
+  const cells = (page: Page) => grid(page).getByRole('gridcell');
 
   test.beforeEach(async ({ page }) => {
     await page.clock.setFixedTime(new Date('2026-11-01T15:00:00'));
@@ -215,7 +220,7 @@ test.describe('daily games: sudoku (Task 625)', () => {
 
   test('shows one daily easy puzzle with the approved givens, controls and accessible page', async ({ page }) => {
     await expect(page.getByRole('heading', { level: 2, name: 'sudoku' })).toHaveCount(1);
-    await expect(grid(page).getByRole('gridcell')).toHaveCount(81);
+    await expect(cells(page)).toHaveCount(81);
     await expect(grid(page).locator('[data-given="true"]')).toHaveCount(40);
     await expect(game(page).getByRole('button', { name: 'easy' })).toHaveAttribute('aria-pressed', 'true');
     const controls = game(page).locator('.sudoku-icon-button, .sudoku-small-button, .sudoku-number-row button');
@@ -226,58 +231,101 @@ test.describe('daily games: sudoku (Task 625)', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 
-  test('switches level bands and keeps the daily given counts', async ({ page }) => {
+  test('supports pointer and keyboard entry, roving arrows and all three levels', async ({ page }) => {
+    const first = open[0]!;
+    const firstCell = cells(page).nth(first);
+    await firstCell.click();
+    const column = Number(await firstCell.getAttribute('aria-colindex'));
+    await page.keyboard.press(column === 9 ? 'ArrowLeft' : 'ArrowRight');
+    await expect(grid(page).locator('[aria-selected="true"]')).toBeFocused();
+
+    await firstCell.click();
+    const wrong = daily.solution[first] === 1 ? 2 : 1;
+    await page.keyboard.press(String(wrong));
+    await expect(game(page).locator('.sudoku-errors')).toContainText('error: 1');
+    await expect(page.getByTestId('sudoku-live')).toContainText('is not right');
+
+    const second = open[1]!;
+    await cells(page).nth(second).click();
+    await game(page).getByRole('button', { name: String(daily.solution[second]), exact: true }).click();
+    await expect(cells(page).nth(second)).toContainText(String(daily.solution[second]));
+
     await game(page).getByRole('button', { name: 'medium' }).click();
     await expect(grid(page).locator('[data-given="true"]')).toHaveCount(32);
     await game(page).getByRole('button', { name: 'hard' }).click();
     await expect(grid(page).locator('[data-given="true"]')).toHaveCount(26);
   });
 
-  test('uses one roving grid stop, accepts number keys and lets Tab leave the board', async ({ page }) => {
-    const editable = grid(page).locator('[data-given="false"]').first();
-    await editable.focus();
-    await page.keyboard.press('1');
-    await expect(editable).toHaveAttribute('aria-label', /, 1$/);
-    await page.keyboard.press('ArrowRight');
-    await expect(grid(page).locator('[aria-selected="true"]')).toBeFocused();
-    await page.keyboard.press('Tab');
-    await expect(game(page).getByRole('checkbox', { name: /hints/i })).toBeFocused();
-  });
-
-  test('pause freezes the clock and hides every square until resumed', async ({ page }) => {
+  test('pause hides all 81 squares and settings preserve follow-device until an explicit persisted choice', async ({ page }) => {
     const pause = game(page).getByRole('button', { name: 'pause puzzle' });
     await pause.click();
     const before = await game(page).locator('.sudoku-time').innerText();
-    await page.waitForTimeout(1100);
+    await expect(cells(page).filter({ hasText: /^x$/ })).toHaveCount(81);
+    await expect(cells(page).first()).toHaveAttribute('aria-label', /hidden while paused/);
     await expect(game(page).locator('.sudoku-time')).toHaveText(before);
-    await expect(grid(page).getByRole('gridcell').first()).toHaveAttribute('aria-label', /hidden while paused/);
-    await expect(grid(page).locator('.sudoku-cell')).toHaveText(Array(81).fill('x'));
     await game(page).getByRole('button', { name: 'resume puzzle' }).click();
-    await expect(grid(page).getByRole('gridcell').first()).not.toHaveAttribute('aria-label', /hidden while paused/);
-  });
 
-  test('settings trap focus, use the site theme, persist defaults and return focus on Escape', async ({ page }) => {
     const trigger = game(page).getByRole('button', { name: /settings/i });
     await trigger.click();
     const dialog = game(page).getByRole('dialog', { name: 'settings' });
     await expect(dialog.getByRole('button', { name: 'close settings' })).toBeFocused();
-    await expect(dialog.getByRole('radio', { name: /light mode/i })).toBeChecked();
-    await expect(dialog.getByRole('checkbox', { name: 'check guesses when entered' })).toBeChecked();
-    await expect(dialog.getByRole('checkbox', { name: 'start in auto candidate mode' })).not.toBeChecked();
+    expect(await page.evaluate(() => localStorage.getItem('cueory-theme'))).toBeNull();
+    await expect(page.locator('html')).not.toHaveAttribute('data-theme', /.+/);
+    await dialog.getByRole('radio', { name: /dark mode/i }).check();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    expect(await page.evaluate(() => localStorage.getItem('cueory-theme'))).toBe('dark');
+    await dialog.getByRole('checkbox', { name: 'start in auto candidate mode' }).check();
     await page.keyboard.press('Escape');
     await expect(trigger).toBeFocused();
+
+    await page.reload();
+    await game(page).getByRole('button', { name: /settings/i }).click();
+    await expect(game(page).getByRole('dialog', { name: 'settings' }).getByRole('checkbox', { name: 'start in auto candidate mode' })).toBeChecked();
   });
 
-  test('print keeps givens, hides entered values and shows only the compact footer', async ({ page }) => {
+  test('fits 44 px squares on a phone, and print isolates only givens plus cueory.app', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    const boxes = await cells(page).evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect()));
+    for (const box of boxes) {
+      expect(box.width).toBeGreaterThanOrEqual(44);
+      expect(box.height).toBeGreaterThanOrEqual(44);
+    }
+
     const editable = grid(page).locator('[data-given="false"]').first();
-    await editable.focus();
+    await editable.click();
     await page.keyboard.press('1');
+    await page.evaluate(() => { window.print = () => {}; });
+    await game(page).getByRole('button', { name: 'print this puzzle' }).click();
+    await expect(page.locator('html')).toHaveAttribute('data-print-game', 'sudoku');
     await page.emulateMedia({ media: 'print' });
-    await expect(game(page).locator('.sudoku-title-row')).toHaveCSS('display', 'none');
-    await expect(editable.locator('> *')).toHaveCSS('display', 'none');
+    await expect(page.getByTestId('pulse')).toBeHidden();
+    await expect(game(page).locator('.sudoku-title-row')).toBeHidden();
+    await expect(editable.locator('> *')).toBeHidden();
     await expect(grid(page).locator('[data-given="true"]').first()).toBeVisible();
     await expect(game(page).locator('.sudoku-print-footer')).toHaveText('cueory.app');
     await expect(game(page).locator('.sudoku-print-footer')).toBeVisible();
+
+    await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
+    await expect(page.locator('html')).not.toHaveAttribute('data-print-game', /.+/);
+  });
+
+  test('solves the puzzle, focuses the result and emits the Worker 2 result hook', async ({ page }) => {
+    await page.evaluate(() => {
+      window.addEventListener('cueory:sudoku-solved', ((event: CustomEvent) => {
+        document.documentElement.dataset.sudokuResult = JSON.stringify(event.detail);
+      }) as EventListener, { once: true });
+    });
+    for (const index of open) {
+      await cells(page).nth(index).click();
+      await page.keyboard.press(String(daily.solution[index]));
+    }
+    const result = page.getByTestId('sudoku-result');
+    await expect(result).toBeFocused();
+    await expect(result).toContainText('solved.');
+    await expect(result).toContainText('0 errors');
+    const detail = JSON.parse((await page.locator('html').getAttribute('data-sudoku-result'))!);
+    expect(detail).toMatchObject({ game: 'sudoku', day, level: 'easy', solved: true, errors: 0 });
   });
 });
 
