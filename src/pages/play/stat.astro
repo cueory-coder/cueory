@@ -1,0 +1,48 @@
+---
+/**
+ * stat (Task 640): fifteen hard clinical questions, 20 seconds each, score at the end. For now the page runs on the
+ * labeled samples in content/games/stat ("[sample question 1]"), which only build where drafts may show (staging,
+ * previews, local and test builds, the same fail-closed gate as hello cards and the anatomy drafts). The live build gets
+ * a plain "coming soon" page with no sample text in it. Always out of search while it runs on samples.
+ */
+import Layout from '../../layouts/Layout.astro';
+import StatGame from '../../islands/StatGame';
+import { statGame } from '../../config/games';
+import { draftsAllowed } from '../../islands/anatomylab';
+import { parseStatSample } from '../../islands/stat';
+import sample from '../../../content/games/stat/sample.json';
+
+const env = { WORKERS_CI: process.env.WORKERS_CI, WORKERS_CI_BRANCH: process.env.WORKERS_CI_BRANCH, CUEORY_ANATOMY_DRAFTS: process.env.CUEORY_ANATOMY_DRAFTS };
+const shown = draftsAllowed(env);
+// The sample goes through the game's own rules here, so a broken or unlabeled file stops the build with a plain message.
+let parsed;
+try {
+  parsed = parseStatSample(sample);
+} catch (error) {
+  throw new Error(`content/games/stat/sample.json: ${(error as Error).message}`);
+}
+const { questions, sampleKey } = shown ? parsed : { questions: [], sampleKey: {} };
+---
+
+<Layout title={statGame.name} description="fifteen hard clinical questions, 20 seconds each. your score shows at the end." noindex promo={false}>
+  <article class="veil mx-auto mt-6 max-w-prose p-6 sm:mt-10 sm:p-10" data-pagefind-ignore>
+    {shown && <p class="text-sm text-ink-soft" data-testid="stat-sample-note">sample questions · awaiting content</p>}
+    <h1 class="display mt-2 text-title sm:text-title-lg">{statGame.name}</h1>
+    <p class="mt-3 text-ink-soft">20-second clinical questions. how sharp are you on shift today?</p>
+    {
+      shown ? (
+        <div class="mt-8">
+          <StatGame client:only="react" questions={questions} sampleKey={sampleKey} />
+          <noscript>
+            <p>{statGame.name} needs JavaScript for its clock. you can still <a href="/play">go back to the daily games</a>.</p>
+          </noscript>
+        </div>
+      ) : (
+        <p class="mt-8" data-testid="stat-soon">{statGame.name} is coming soon.</p>
+      )
+    }
+    <a href="/play" class="mt-10 inline-flex min-h-(--tap-min) items-center rounded-pill border border-control px-5 py-2.5 text-ink">
+      back to daily games
+    </a>
+  </article>
+</Layout>

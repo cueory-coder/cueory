@@ -260,7 +260,7 @@ describe('release gate: draft samples never become a linked live page', () => {
     for (const file of ['src/pages/play/hello-cards.astro', 'src/pages/play.astro']) {
       expect(readFileSync(file, 'utf8'), file).toContain('helloCardsPage(');
     }
-    expect(readFileSync('src/pages/play.astro', 'utf8')).toMatch(/showHello && <section/);
+    expect(readFileSync('src/pages/play.astro', 'utf8')).toMatch(/showHello && <p/);
     expect(readFileSync('src/pages/play/hello-cards.astro', 'utf8')).toContain('const { shown, starters } = page;');
   });
 });

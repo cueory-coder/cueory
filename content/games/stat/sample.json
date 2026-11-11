@@ -1,0 +1,21 @@
+{
+  "status": "sample",
+  "note": "[sample] placeholder text only. real questions and answers live in the private content store and the database, never here.",
+  "questions": [
+    { "id": "sample-01", "stem": "[sample question 1]", "choices": [{ "id": "a", "text": "[sample choice A]" },{ "id": "b", "text": "[sample choice B]" },{ "id": "c", "text": "[sample choice C]" },{ "id": "d", "text": "[sample choice D]" }], "sampleKey": "b" },
+    { "id": "sample-02", "stem": "[sample question 2]", "choices": [{ "id": "a", "text": "[sample choice A]" },{ "id": "b", "text": "[sample choice B]" },{ "id": "c", "text": "[sample choice C]" },{ "id": "d", "text": "[sample choice D]" }], "sampleKey": "d" },
+    { "id": "sample-03", "stem": "[sample question 3]", "choices": [{ "id": "a", "text": "[sample choice A]" },{ "id": "b", "text": "[sample choice B]" },{ "id": "c", "text": "[sample choice C]" },{ "id": "d", "text": "[sample choice D]" }], "sampleKey": "a" },
+    { "id": "sample-04", "stem": "[sample question 4]", "choices": [{ "id": "a", "text": "[sample choice A]" },{ "id": "b", "text": "[sample choice B]" },{ "id": "c", "text": "[sample choice C]" },{ "id": "d", "text": "[sample choice D]" }], "sampleKey": "c" },
+    { "id": "sample-05", "stem": "[sample question 5]", "choices": [{ "id": "a", "text": "[sample choice A]" },{ "id": "b", "text": "[sample choice B]" },{ "id": "c", "text": "[sample choice C]" },{ "id": "d", "text": "[sample choice D]" }], "sampleKey": "b" },
+    { "id": "sample-06", "stem": "[sample question 6]", "choices": [{ "id": "a", "text": "[sample choice A]" },{ "id": "b", "text": "[sample choice B]" },{ "id": "c", "text": "[sample choice C]" },{ "id": "d", "text": "[sample choice D]" }], "sampleKey": "a" },
+    { "id": "sample-07", "stem": "[sample question 7]", "choices": [{ "id": "a", "text": "[sample choice A]" },{ "id": "b", "text": "[sample choice B]" },{ "id": "c", "text": "[sample choice C]" },{ "id": "d", "text": "[sample choice D]" }], "sampleKey": "d" },
+    { "id": "sample-08", "stem": "[sample question 8]", "choices": [{ "id": "a", "text": "[sample choice A]" },{ "id": "b", "text": "[sample choice B]" },{ "id": "c", "text": "[sample choice C]" },{ "id": "d", "text": "[sample choice D]" }], "sampleKey": "c" },
+    { "id": "sample-09", "stem": "[sample question 9]", "choices": [{ "id": "a", "text": "[sample choice A]" },{ "id": "b", "text": "[sample choice B]" },{ "id": "c", "text": "[sample choice C]" },{ "id": "d", "text": "[sample choice D]" }], "sampleKey": "a" },
+    { "id": "sample-10", "stem": "[sample question 10]", "choices": [{ "id": "a", "text": "[sample choice A]" },{ "id": "b", "text": "[sample choice B]" },{ "id": "c", "text": "[sample choice C]" },{ "id": "d", "text": "[sample choice D]" }], "sampleKey": "b" },
+    { "id": "sample-11", "stem": "[sample question 11]", "choices": [{ "id": "a", "text": "[sample choice A]" },{ "id": "b", "text": "[sample choice B]" },{ "id": "c", "text": "[sample choice C]" },{ "id": "d", "text": "[sample choice D]" }], "sampleKey": "c" },
+    { "id": "sample-12", "stem": "[sample question 12]", "choices": [{ "id": "a", "text": "[sample choice A]" },{ "id": "b", "text": "[sample choice B]" },{ "id": "c", "text": "[sample choice C]" },{ "id": "d", "text": "[sample choice D]" }], "sampleKey": "d" },
+    { "id": "sample-13", "stem": "[sample question 13]", "choices": [{ "id": "a", "text": "[sample choice A]" },{ "id": "b", "text": "[sample choice B]" },{ "id": "c", "text": "[sample choice C]" },{ "id": "d", "text": "[sample choice D]" }], "sampleKey": "b" },
+    { "id": "sample-14", "stem": "[sample question 14]", "choices": [{ "id": "a", "text": "[sample choice A]" },{ "id": "b", "text": "[sample choice B]" },{ "id": "c", "text": "[sample choice C]" },{ "id": "d", "text": "[sample choice D]" }], "sampleKey": "a" },
+    { "id": "sample-15", "stem": "[sample question 15]", "choices": [{ "id": "a", "text": "[sample choice A]" },{ "id": "b", "text": "[sample choice B]" },{ "id": "c", "text": "[sample choice C]" },{ "id": "d", "text": "[sample choice D]" }], "sampleKey": "c" }
+  ]
+}
