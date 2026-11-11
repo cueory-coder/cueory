@@ -26,7 +26,7 @@ describe('static game Open Graph previews', () => {
     for (const [game, file] of Object.entries(routes)) {
       const source = readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8');
       if (game === 'hello-cards') expect(source).toContain('/share/hello-cards-og.png');
-      else expect(source).toMatch(new RegExp('GAME_OG_IMAGES(?:\\\\[' + "'" + game + "'" + '\\\\]|\\\\.' + game + ')'));
+      else expect(source.includes(`GAME_OG_IMAGES['${game}']`) || source.includes(`GAME_OG_IMAGES.${game}`)).toBe(true);
     }
   });
 });
