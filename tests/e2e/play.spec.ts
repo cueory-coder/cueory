@@ -447,7 +447,7 @@ test.describe('daily games: crossword levels (Task 627)', () => {
     await expect(board(page).locator('.crossword-print-clues')).toContainText('down');
     await expect(board(page).locator('.crossword-print-footer')).toBeVisible();
     await expect(board(page).locator('.crossword-print-footer')).toHaveText('cueory.app');
-    await expect(page.locator('#word-path-heading')).toHaveCSS('display', 'none');
+    await expect(page.locator('#word-path-heading')).toBeHidden();
     await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
     await expect(page.locator('html')).not.toHaveAttribute('data-print-game');
   });
