@@ -457,6 +457,9 @@ test.describe('daily games: private stats (D-76)', () => {
     await field(page).fill('grace');
     await field(page).press('Enter');
     await expect(page.getByTestId('pulse-result')).toContainText('solved.');
+    const resultDialog = page.getByTestId('game-result-dialog');
+    await expect(resultDialog.getByRole('button', { name: 'close results' })).toBeFocused();
+    await resultDialog.getByRole('button', { name: 'close results' }).click();
   };
 
   test.beforeEach(async ({ page }) => {
