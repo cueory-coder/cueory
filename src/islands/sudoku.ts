@@ -42,43 +42,58 @@ const STANDARD_SOLUTION = readGrid(`
 287419635
 345286179`);
 
-const EASY_PUZZLE = readGrid(`
-004078902
-002105000
-090042567
-000001003
-000850001
-710900850
-900507204
-280019600
-040286170`);
+const STANDARD_PUZZLE = readGrid(`
+530070000
+600195000
+098000060
+800060003
+400803001
+700020006
+060000280
+000419005
+000080079`);
 
-const MEDIUM_PUZZLE = readGrid(`
-534600000
-000095340
-198000500
-809701420
-406050090
-000020000
-001500000
-080419000
-340000070`);
+const HARD_SOLUTION = readGrid(`
+693784512
+487512936
+125963874
+932651487
+568247391
+741398625
+319475268
+856129743
+274836159`);
 
 const HARD_PUZZLE = readGrid(`
-004078000
-000000300
-198042500
-800760003
-026000090
-000904000
-000530004
-007000000
-040006009`);
+000000010
+400000000
+020000000
+000050407
+008000300
+001090000
+300400200
+050100000
+000806000`);
+
+function withAddedGivens(puzzle: number[], solution: number[], indices: readonly number[]): number[] {
+  const next = [...puzzle];
+  for (const index of indices) next[index] = solution[index]!;
+  return next;
+}
 
 const TEMPLATES: Readonly<Record<SudokuLevel, { puzzle: number[]; solution: number[] }>> = {
-  easy: { puzzle: EASY_PUZZLE, solution: STANDARD_SOLUTION },
-  medium: { puzzle: MEDIUM_PUZZLE, solution: STANDARD_SOLUTION },
-  hard: { puzzle: HARD_PUZZLE, solution: STANDARD_SOLUTION },
+  easy: {
+    puzzle: withAddedGivens(STANDARD_PUZZLE, STANDARD_SOLUTION, [2, 3, 5, 6, 7, 8, 10, 11, 15, 16]),
+    solution: STANDARD_SOLUTION,
+  },
+  medium: {
+    puzzle: withAddedGivens(STANDARD_PUZZLE, STANDARD_SOLUTION, [2, 3]),
+    solution: STANDARD_SOLUTION,
+  },
+  hard: {
+    puzzle: withAddedGivens(HARD_PUZZLE, HARD_SOLUTION, [0, 1, 2, 3, 4, 5, 6, 8, 10]),
+    solution: HARD_SOLUTION,
+  },
 };
 
 function hash(text: string): number {
@@ -293,22 +308,4 @@ export function solvingTechnique(grid: SudokuGrid): SudokuTechnique {
   if (singlesSolve(grid, false)) return 'naked singles';
   if (singlesSolve(grid, true)) return 'hidden singles';
   return 'search';
-}
-
-
-export interface SudokuResult {
-  game: 'sudoku';
-  day: string;
-  level: SudokuLevel;
-  solved: boolean;
-  seconds: number;
-  time: string;
-  errors: number;
-}
-
-/** Stable result hook for the shared results/share-card worker. */
-export function getResult(input: Omit<SudokuResult, 'game' | 'time'>): SudokuResult {
-  const minutes = Math.floor(input.seconds / 60);
-  const seconds = input.seconds % 60;
-  return { game: 'sudoku', ...input, time: `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}` };
 }
