@@ -5,6 +5,8 @@ workflow:
     on_new_commit: interruptible
   rules:
     # Preserve the existing policy of waiting until a change is ready for review.
+    # CI_MERGE_REQUEST_DRAFT is documented for GitLab 17.10 and later:
+    # https://docs.gitlab.com/ci/variables/predefined_variables/#predefined-variables-for-merge-request-pipelines
     - if: '$CI_MERGE_REQUEST_DRAFT == "true"'
       when: never
     - if: >-
@@ -54,7 +56,9 @@ browser:
   needs:
     - checks
   parallel: 4
-  timeout: 20 minutes
+  # This suite includes all four Chromium projects, including tablet and Evening.
+  # Keep individual test timeouts unchanged while allowing each shard to finish.
+  timeout: 30 minutes
   variables:
     PLAYWRIGHT_JUNIT_OUTPUT_FILE: test-results/junit.xml
     PLAYWRIGHT_JUNIT_INCLUDE_PROJECT_IN_TEST_NAME: "true"
