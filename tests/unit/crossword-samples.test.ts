@@ -45,12 +45,15 @@ describe('crossword samples (Worker 3)', () => {
   it('keeps only the new level samples placeholder-only and at least three letters long', () => {
     const samples = readSamples().filter(({ name }) => newSampleNames.has(name));
 
-    expect(samples.map(({ puzzle }) => [puzzle.grid.length, puzzle.grid[0]!.length])).toEqual([
+    expect(
+      samples
+        .map(({ puzzle }) => [puzzle.grid.length, puzzle.grid[0]!.length])
+        .sort((a, b) => Number(a[0]) - Number(b[0])),
+    ).toEqual([
       [5, 5],
       [7, 7],
       [15, 15],
     ]);
-
     for (const { puzzle } of samples) {
       expect(words(puzzle).every((word) => word.answer.length >= 3)).toBe(true);
       expect(
