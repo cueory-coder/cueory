@@ -276,7 +276,11 @@ test.describe('daily games: sudoku (Task 625)', () => {
     await expect(dialog.getByRole('checkbox', { name: 'play sound on solve' })).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(close).toBeFocused();
-    await expect(dialog.getByRole('radio')).toHaveCount(0);
+    expect(await page.evaluate(() => localStorage.getItem('cueory-theme'))).toBeNull();
+    await expect(page.locator('html')).not.toHaveAttribute('data-theme', /.+/);
+    await dialog.getByRole('radio', { name: /dark mode/i }).check();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    expect(await page.evaluate(() => localStorage.getItem('cueory-theme'))).toBe('dark');
     await dialog.getByRole('checkbox', { name: 'start in auto candidate mode' }).check();
     await page.keyboard.press('Escape');
     await expect(trigger).toBeFocused();
