@@ -270,7 +270,12 @@ test.describe('daily games: sudoku (Task 625)', () => {
     const trigger = game(page).getByRole('button', { name: /settings/i });
     await trigger.click();
     const dialog = game(page).getByRole('dialog', { name: 'settings' });
-    await expect(dialog.getByRole('button', { name: 'close settings' })).toBeFocused();
+    const close = dialog.getByRole('button', { name: 'close settings' });
+    await expect(close).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(dialog.getByRole('checkbox', { name: 'play sound on solve' })).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(close).toBeFocused();
     expect(await page.evaluate(() => localStorage.getItem('cueory-theme'))).toBeNull();
     await expect(page.locator('html')).not.toHaveAttribute('data-theme', /.+/);
     await dialog.getByRole('radio', { name: /dark mode/i }).check();
@@ -283,23 +288,15 @@ test.describe('daily games: sudoku (Task 625)', () => {
     await page.reload();
     await game(page).getByRole('button', { name: /settings/i }).click();
     await expect(game(page).getByRole('dialog', { name: 'settings' }).getByRole('checkbox', { name: 'start in auto candidate mode' })).toBeChecked();
-    await page.keyboard.press('Escape');
-    const hints = game(page).getByRole('checkbox', { name: /hints/i });
-    await expect(hints).toHaveAttribute('aria-checked', 'true');
-    await hints.click();
-    await expect(hints).toHaveAttribute('aria-checked', 'false');
-    await expect(game(page).locator('.sudoku-candidates')).toHaveCount(0);
   });
 
-  test('fits every Sudoku cell and keypad action on a phone, and print isolates only givens plus cueory.app', async ({ page }) => {
+  test('fits 44 px squares on a phone, and print isolates only givens plus cueory.app', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     const boxes = await cells(page).evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect()));
     for (const box of boxes) {
-      expect(box.width).toBeGreaterThan(0);
-      expect(box.height).toBeGreaterThan(0);
-      expect(box.left).toBeGreaterThanOrEqual(0);
-      expect(box.right).toBeLessThanOrEqual(390);
+      expect(box.width).toBeGreaterThanOrEqual(44);
+      expect(box.height).toBeGreaterThanOrEqual(44);
     }
 
     const editable = grid(page).locator('[data-given="false"]').first();

@@ -13,10 +13,6 @@ test.beforeEach(async ({ page }) => {
 });
 
 const mark = (page: Page) => page.getByTestId('result-brand-mark');
-const term = (page: Page, name: string) =>
-  page.getByRole('list', { name: 'terms to sort' }).getByRole('button', { name, exact: true });
-const place = (page: Page, name: string) =>
-  page.getByRole('group', { name: 'groups' }).getByRole('button', { name: new RegExp('^' + name + ',') });
 
 test('no game result mark appears while a student is answering', async ({ page }) => {
   await page.goto('/play');
