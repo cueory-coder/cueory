@@ -220,3 +220,9 @@ export function shareLine(result: { solved: boolean; seconds: number; cues: numb
   const name = gameName.replace(/\s+/g, ' ').trim().toLowerCase();
   return `${site.wordmarkName} ${name}, ${day}: ${result.solved ? `solved in ${time}` : 'not solved this time'} with ${result.cues} ${result.cues === 1 ? 'cue' : 'cues'}.`;
 }
+
+
+/** Result hook for the shared game results card. */
+export function getResult(state: CuewordState, seconds = 0): { solved: boolean; seconds: number; cues: number } {
+  return { solved: isSolved(state), seconds: Math.max(0, Math.floor(seconds)), cues: state.cued.length };
+}
