@@ -1,0 +1,1 @@
+status: Task 632, home print visibility: print styles reveal unvisited home sections and disable reveal motion on paper. Type check, production build, and 5,259 unit tests pass (3 skipped). Added a browser regression for printing before scrolling and returning to screen. Draft review: browser execution remains blocked by this workspace's Chromium socket restriction.
