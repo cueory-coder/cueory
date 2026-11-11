@@ -66,6 +66,20 @@ describe('static game Open Graph previews', () => {
     expect(new Set(hashes).size).toBe(hashes.length);
   });
 
+  it('regenerates previews from text-free brand-palette game motifs', () => {
+    const source = readFileSync(new URL('../../scripts/build-share-cards.mjs', import.meta.url), 'utf8');
+    const motif = source.slice(source.indexOf('function ogMotif'), source.indexOf('/**\n * The official logo'));
+    expect(motif).toContain('function ogMotif(gameId)');
+    for (const game of ['pillo', 'crossword', 'word-path', 'sudoku', 'hello-cards']) {
+      expect(motif).toContain(`case '${game}'`);
+    }
+    expect(motif).not.toMatch(/<text|<h1|game\.name/);
+    expect(motif).toContain('C.ivory');
+    expect(motif).toContain('C.espresso');
+    expect(motif).toContain('C.wine');
+    expect(motif).toContain('C.studyGreen');
+  });
+
   it('sets each crawlable game route to its own preview', () => {
     const routes = {
       pulse: 'src/pages/play/pillo.astro',
