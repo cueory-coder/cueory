@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { buildResultShareLine, discardPendingResultCard, GAME_RESULT_CARD_EVENT, takePendingResultCards, type GameResultCard } from './gameresults';
-import { buildShareData, createStoryFile, platformShareUrl, runShare, type SharePlatform } from './share';
+import { createStoryFile, platformShareUrl, shareFileOrCopy, type SharePlatform } from './share';
 
 const platforms: readonly { id: SharePlatform; label: string }[] = [
   { id: 'facebook', label: 'facebook' },
@@ -85,18 +85,12 @@ export default function GameResultsHost() {
       result: card.result,
       ...(card.wordmarkPath ? { wordmarkPath: card.wordmarkPath } : {}),
     });
-    if (!file || !navigator.canShare?.({ files: [file] })) {
-      await copy(line);
-      return;
-    }
-    const data = buildShareData(
+    await shareFileOrCopy(
       navigator,
       { title: `${card.name} result · cueory`, text: line, url: absoluteUrl(card.path) },
       file,
+      copy,
     );
-    const outcome = await runShare(navigator, data);
-    if (outcome === 'shared' || outcome === 'cancelled') return;
-    await copy(line);
   }
 
   if (!card) return null;

@@ -73,13 +73,17 @@ export function canNativeShare(target: ShareTarget | undefined): boolean {
 }
 
 /** Whether this browser can share an image file through the Web Share API. */
-export function canShareFiles(target: ShareTarget | undefined): boolean {
+export function canShareFile(target: ShareTarget | undefined, file: File): boolean {
   if (!canNativeShare(target) || typeof target?.canShare !== 'function') return false;
   try {
-    return target.canShare({ files: [new File([new Uint8Array(1)], 'cueory.png', { type: 'image/png' })] });
+    return target.canShare({ files: [file] });
   } catch {
     return false;
   }
+}
+
+export function canShareFiles(target: ShareTarget | undefined): boolean {
+  return canShareFile(target, new File([new Uint8Array(1)], 'cueory.png', { type: 'image/png' }));
 }
 
 /** Fetches a card image and turns it into a File for sharing; null if anything goes wrong. */
@@ -103,11 +107,12 @@ export function buildShareData(
   base: { title: string; text: string; url: string },
   file: File | null,
 ): ShareData {
-  if (file && target.canShare?.({ files: [file] })) return { ...base, files: [file] };
+  if (file && canShareFile(target, file)) return { ...base, files: [file] };
   return { ...base };
 }
 
 export type ShareOutcome = 'shared' | 'cancelled' | 'unavailable' | 'failed';
+export type FileShareOutcome = ShareOutcome | 'copied';
 
 /** Opens the system share sheet. Never throws: closing the sheet is 'cancelled', any other error is 'failed'. */
 export async function runShare(target: ShareTarget, data: ShareData): Promise<ShareOutcome> {
@@ -118,6 +123,26 @@ export async function runShare(target: ShareTarget, data: ShareData): Promise<Sh
   } catch (error) {
     return (error as { name?: unknown } | null)?.name === 'AbortError' ? 'cancelled' : 'failed';
   }
+}
+
+/**
+ * Shares the result only when this browser accepts the story image. Missing, false or throwing file capability copies
+ * the exact approved line instead of opening a text-only system share sheet.
+ */
+export async function shareFileOrCopy(
+  target: ShareTarget,
+  base: { title: string; text: string; url: string },
+  file: File | null,
+  copy: (text: string) => Promise<unknown> | unknown,
+): Promise<FileShareOutcome> {
+  if (!file || !canShareFile(target, file)) {
+    await copy(base.text);
+    return 'copied';
+  }
+  const outcome = await runShare(target, { ...base, files: [file] });
+  if (outcome === 'shared' || outcome === 'cancelled') return outcome;
+  await copy(base.text);
+  return 'copied';
 }
 
 /** Instant scrolling when the visitor asked for reduced motion, smooth otherwise. */

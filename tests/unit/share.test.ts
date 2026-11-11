@@ -12,6 +12,7 @@ import {
   GAME_IDS,
   loadCardFile,
   runShare,
+  shareFileOrCopy,
   scrollBehavior,
   SHARE_STYLES,
   shareFileName,
@@ -146,6 +147,23 @@ describe('native share', () => {
     expect(buildShareData({ share: vi.fn(), canShare: () => false }, base, file)).toEqual(base);
     expect(buildShareData({ share: vi.fn() }, base, file)).toEqual(base);
     expect(buildShareData({ share: vi.fn(), canShare: () => true }, base, null)).toEqual(base);
+  });
+
+  it.each([
+    ['missing capability', { share: vi.fn() }],
+    ['false capability', { share: vi.fn(), canShare: () => false }],
+    ['throwing capability', { share: vi.fn(), canShare: () => { throw new Error('no'); } }],
+  ] as const)('copies the exact line when file sharing has %s', async (_case, target) => {
+    const copy = vi.fn(async () => undefined);
+    await expect(shareFileOrCopy(target, base, png(), copy)).resolves.toBe('copied');
+    expect(copy).toHaveBeenCalledOnce();
+    expect(copy).toHaveBeenCalledWith(base.text);
+    expect(target.share).not.toHaveBeenCalled();
+  });
+
+  it('never throws when canShare rejects the supplied file', () => {
+    const target: ShareTarget = { share: vi.fn(), canShare: () => { throw new Error('no'); } };
+    expect(buildShareData(target, base, png())).toEqual(base);
   });
 
   it('never throws: a closed sheet is "cancelled", other errors are "failed"', async () => {
