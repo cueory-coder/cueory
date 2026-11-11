@@ -182,8 +182,7 @@ export default function SudokuGame() {
   const selectedRow = Math.floor(selected / 9); const selectedColumn = selected % 9; const selectedValue = entries[selected];
 
   return <section className="sudoku-game" data-testid="sudoku">
-    <div className="sudoku-title-row">
-      <h2 id="sudoku-heading" className="display text-title sm:text-title-lg">sudoku</h2>
+    <div className="sudoku-title-row" aria-label="puzzle actions">
       <div className="sudoku-corner-actions">
         <button type="button" className="sudoku-icon-button print-control" aria-label="print this puzzle" onClick={printPuzzle}><svg viewBox="0 0 24 24" className="size-6" aria-hidden="true" focusable="false"><path d="M7 9V4h10v5M7 17H5.5A2.5 2.5 0 0 1 3 14.5v-3A2.5 2.5 0 0 1 5.5 9h13a2.5 2.5 0 0 1 2.5 2.5v3a2.5 2.5 0 0 1-2.5 2.5H17M7 14h10v6H7z" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg></button>
         <button type="button" className="sudoku-icon-button" aria-label="how to play" aria-expanded={howOpen} onClick={() => setHowOpen((open) => !open)}>?</button>
