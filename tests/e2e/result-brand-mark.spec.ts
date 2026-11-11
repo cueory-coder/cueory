@@ -23,7 +23,7 @@ test('no game result mark appears while a student is answering', async ({ page }
   await expect(page.getByTestId('pulse')).toBeVisible();
   await expect(mark(page)).toHaveCount(0);
   await expect(page.getByRole('grid', { name: 'crossword grid' })).toBeVisible();
-  await expect(page.getByRole('list', { name: 'terms to sort' })).toBeVisible();
+  await expect(page.getByTestId('sudoku')).toBeVisible();
 });
 
 test('pillo completion adds the unobtrusive original-art mark inside the result only', async ({ page }) => {
@@ -40,15 +40,6 @@ test('pillo completion adds the unobtrusive original-art mark inside the result 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-test('sort result shows the mark after its answers, never in the answer list', async ({ page }) => {
-  await page.goto('/play');
-  await term(page, 'violin').click();
-  for (const group of ['fruits', 'weather', 'furniture']) await place(page, group).click();
-  const result = page.getByTestId('triage-result');
-  await expect(result).toBeFocused();
-  await expect(result.getByTestId('result-brand-mark')).toHaveText('cueory.app/play');
-  await expect(page.getByTestId('triage-answer').getByTestId('result-brand-mark')).toHaveCount(0);
-});
 
 test('crossword completion adds the mark to its finished card, not the clues', async ({ page }) => {
   await page.goto('/play');
