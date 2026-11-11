@@ -51,6 +51,9 @@ export function gameName(id: DailyGame['id']): string {
   return dailyGames.find((game) => game.id === id)!.name;
 }
 
+/** Names retained only for unmounted legacy game logic and its regression tests. */
+export const retiredGameNames = { triage: 'sort' } as const;
+
 /** Names and words the games must never use (CLAUDE.md). */
 export const forbiddenGameWords = ['wordle', 'connections', 'strands', 'nyt', 'new york times'] as const;
 

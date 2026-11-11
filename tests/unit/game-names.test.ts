@@ -124,6 +124,7 @@ describe('game names come only from src/config/games.ts (D-66, D-67)', () => {
     expect(check('Island.tsx', '<div data-testid="triage" className="triage">')).toEqual([]);
     expect(check('page.astro', '---\n---\n<noscript>suture needs it</noscript>')).toEqual(['the id "suture" as words']);
     expect(check('game.ts', "setSaid('cueword (a sample) is ready');")).toEqual(['the id "cueword" as words']);
+    expect(check('game.ts', 'return `cueory sort, ${day}: sorted.`;')).toEqual(['a share line typed with "sort"']);
     expect(check('game.ts', 'return `cueory triage, ${day}: sorted.`;')).toEqual([
       'a share line typed with "triage"',
       'the id "triage" as words',
