@@ -7,8 +7,8 @@ import {
 } from './cueword';
 
 interface Props { puzzle: CuewordPuzzle; name: string }
-const letterButton = 'flex min-h-11 min-w-11 items-center justify-center rounded-md border border-control bg-page px-3 text-ink';
-const quietButton = 'min-h-11 min-w-11 rounded-md border border-control bg-page px-4 py-2 text-ink';
+const letterButton = 'flex min-h-(--tap-min) min-w-(--tap-min) items-center justify-center rounded-md border border-control bg-page px-3 text-ink';
+const quietButton = 'min-h-(--tap-min) min-w-(--tap-min) rounded-md border border-control bg-page px-4 py-2 text-ink';
 
 function elapsedText(seconds: number): string {
   return Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0');
