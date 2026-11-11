@@ -30,6 +30,9 @@ test('pillo completion adds the unobtrusive original-art mark inside the result 
   await page.goto('/play');
   await page.getByTestId('pulse').getByLabel('your guess', { exact: true }).fill('grace');
   await page.getByTestId('pulse').getByRole('button', { name: 'enter', exact: true }).click();
+  const resultDialog = page.getByTestId('game-result-dialog');
+  await expect(resultDialog.getByRole('button', { name: 'close results' })).toBeFocused();
+  await resultDialog.getByRole('button', { name: 'close results' }).click();
   const result = page.getByTestId('pulse-result');
   await expect(result).toBeFocused();
   await expect(result.getByTestId('result-brand-mark')).toHaveText('cueory.app/play');

@@ -61,6 +61,9 @@ test.describe('word path: themed word search (Task 97)', () => {
         await expect(cell(page, first)).toHaveAccessibleName(new RegExp(`found: ${word}$`));
       }
     }
+    const resultDialog = page.getByTestId('game-result-dialog');
+    await expect(resultDialog.getByRole('button', { name: 'close results' })).toBeFocused();
+    await resultDialog.getByRole('button', { name: 'close results' }).click();
     const result = page.getByTestId('suture-result');
     await expect(result).toBeFocused();
     await expect(result).toContainText('cueory word path, sun 1 nov: found 12 of 12 words with 0 wrong picks.');
@@ -86,6 +89,9 @@ test.describe('word path: themed word search (Task 97)', () => {
       await page.keyboard.press('Enter');
       if (i < words.length - 1) await expect(page.getByTestId('suture-count')).toHaveText(`${i + 1} of 12 found`);
     }
+    const resultDialog = page.getByTestId('game-result-dialog');
+    await expect(resultDialog.getByRole('button', { name: 'close results' })).toBeFocused();
+    await resultDialog.getByRole('button', { name: 'close results' }).click();
     await expect(page.getByTestId('suture-result')).toBeFocused();
   });
 

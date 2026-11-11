@@ -1,6 +1,6 @@
 /**
  * Pure logic for sharing achievements (Task 103, D-pending). Share text, links and card images carry nothing personal:
- * no name, no email, no score. Game names come only from src/config/games.ts (D-66, D-67).
+ * no name, email, puzzle answer or tracking value. Game names come only from src/config/games.ts (D-66, D-67).
  */
 import { dailyGames, gameName, type DailyGame } from '../config/games';
 

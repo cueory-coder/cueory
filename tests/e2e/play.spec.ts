@@ -125,6 +125,10 @@ test.describe('daily games: pillo (Task 114)', () => {
     for (const letter of 'grace') await pulse.getByRole('button', { name: letter, exact: true }).click();
     await expect(field(page)).toHaveValue('grace');
     await pulse.getByRole('button', { name: 'enter', exact: true }).click();
+    const resultDialog = page.getByTestId('game-result-dialog');
+    await expect(resultDialog.getByRole('button', { name: 'close results' })).toBeFocused();
+    await expect(resultDialog.getByTestId('result-share-line')).toHaveText('pillo · sun 1 nov · 1 / 6 · cueory.app');
+    await resultDialog.getByRole('button', { name: 'close results' }).click();
     const result = page.getByTestId('pulse-result');
     await expect(result).toBeFocused();
     await expect(result).toContainText('solved.');
@@ -399,6 +403,10 @@ test.describe('daily games: crossword (D-70)', () => {
     await fill(page, 'across', 1, 'apple');
     await fill(page, 'down', 0, 'sofa');
     await fill(page, 'down', 1, 'rail');
+    const resultDialog = page.getByTestId('game-result-dialog');
+    await expect(resultDialog.getByRole('button', { name: 'close results' })).toBeFocused();
+    await expect(resultDialog.getByTestId('result-share-line')).toHaveText('crossword · sun 1 nov · solved · cueory.app');
+    await resultDialog.getByRole('button', { name: 'close results' }).click();
     const result = page.getByTestId('cueword-result');
     await expect(result).toBeFocused();
     await expect(result).toContainText('solved.');

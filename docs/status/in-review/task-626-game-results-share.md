@@ -1,7 +1,3 @@
-STATUS: implementation review in progress
-
-Base: legacy/staging at 6b5ae956984672953716f537ff10f371c40afe61.
-
-Current branch adds the shared finished-game result dialog, game-page result wiring, static social previews, image-share handling, and design-token contract fixes. Remaining review scope is the full /play flow for every game, share fallback behavior, and accessibility checks against the design handoff.
-
-D-pending: confirm the image/share preview direction and any product copy decisions with Christian.
+status: Task 626, one accessible finished-game dialog, exact plain share lines, on-demand 1080 × 1920 story images, distinct 1200 × 630 game previews and tracker-free platform links are in implementation review.
+decision: D-pending (Task 626) Per-score link previews require a server route and are intentionally not built. Official platform-link citations are still required before merge: Firecrawl exhausted its connected credit allowance and no browser connector was available, so this review did not claim that verification.
+testing: Shared-dialog browser coverage now checks announcement, focus trap/return, copy fallback and tracker-free links; existing solved-game tests close the required modal before checking the underlying result. `npm run verify` remains unrun because the execution environment is unavailable.
