@@ -28,7 +28,7 @@ const crosswordSamples = (await getCollection('cueword'))
   .sort((a, b) => a.id.localeCompare(b.id))
   .map(({ id, data }) => {
     try {
-      return parsePuzzle({ id, sample: true, grid: data.grid, clues: data.clues });
+      return parsePuzzle({ id, sample: true, level: data.level, grid: data.grid, clues: data.clues });
     } catch (error) {
       throw new Error(`content/games/cueword/${id}.json: ${(error as Error).message}`);
     }
