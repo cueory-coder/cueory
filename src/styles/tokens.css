@@ -197,7 +197,7 @@
   /* ---------- Crossword levels (Task 627) ---------- */
   --crossword-cell-easy: clamp(2.75rem, 12vw, 4.5rem);
   --crossword-cell-mid: clamp(2.5rem, 7vw, 3.875rem);
-  --crossword-cell-hard: clamp(1.375rem, calc((100vw - var(--spacing-gutter) - var(--spacing-gutter) - 0.875rem) / 15), 2.5rem);
+  --crossword-cell-hard: clamp(1.5rem, calc((100vw - var(--spacing-gutter) - var(--spacing-gutter) - 0.875rem) / 15), 2.5rem);
   --crossword-gap: 0.0625rem;
   --crossword-line: 0.0625rem;
   --crossword-number: clamp(0.45rem, 1.5vw, 0.75rem);

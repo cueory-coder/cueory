@@ -2041,6 +2041,7 @@ html:has(dialog.mode-preview[open]) {
     box-shadow: var(--shadow-card);
   }
   .crossword-board-wrap { max-inline-size: 100%; overflow: clip; }
+  .crossword-board-wrap[data-level="hard"] { margin-inline: calc(var(--spacing-gutter) * -1); }
   .crossword-board { --crossword-cell: var(--crossword-cell-easy); display: flex; inline-size: max-content; max-inline-size: 100%; margin-inline: auto; flex-direction: column; gap: var(--crossword-gap); }
   .crossword-board[data-level="mid"] { --crossword-cell: var(--crossword-cell-mid); }
   .crossword-board[data-level="hard"] { --crossword-cell: var(--crossword-cell-hard); }

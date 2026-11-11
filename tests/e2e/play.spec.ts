@@ -428,6 +428,9 @@ test.describe('daily games: crossword levels (Task 627)', () => {
     await page.goto('/play');
     await page.getByTestId('crossword-levels').getByLabel('hard, 15 by 15').check();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    const hardCell = await board(page).locator('.crossword-cell').first().boundingBox();
+    expect(hardCell?.width).toBeGreaterThanOrEqual(24);
+    expect(hardCell?.width).toBeLessThanOrEqual(40);
     const controls = board(page).locator('.crossword-toolbar button, .crossword-no-print [role="group"] button');
     const boxes = await controls.evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect()));
     for (const box of boxes) {

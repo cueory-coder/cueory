@@ -99,7 +99,7 @@ function Board({ puzzle, name }: Props) {
         type letters. arrows move. tap the selected square to switch direction. alt+left or alt+right changes word. tab leaves the grid.
       </p>
 
-      <div className="crossword-board-wrap mt-4">
+      <div className="crossword-board-wrap mt-4" data-level={level}>
         <div
           role="grid"
           aria-label={name + ' grid'}
