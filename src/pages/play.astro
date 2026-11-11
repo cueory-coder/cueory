@@ -70,7 +70,8 @@ const later = dailyGames.filter((game) => !game.ready);
       </div>
     </section>
 
-    <section class="sudoku-section mt-16" aria-label="sudoku" data-testid="sudoku-section">
+    <section class="sudoku-section mt-16" aria-labelledby="sudoku-heading" data-testid="sudoku-section">
+      <h2 id="sudoku-heading" class="display text-center text-title sm:text-title-lg">{sudokuGame.name}</h2>
       <p class="mt-2 text-center text-ink-soft">{sudokuGame.line}</p>
       <div class="sudoku-mount mt-6">
         <SudokuGame client:only="react" />
