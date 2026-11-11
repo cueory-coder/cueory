@@ -36,6 +36,9 @@ describe('daily Sudoku generator (Task 625)', () => {
     const hard = generateSudoku('band-check', 'hard');
     expect(easy.givens).toBeGreaterThan(medium.givens);
     expect(medium.givens).toBeGreaterThan(hard.givens);
+    expect(easy.technique).toBe('naked singles');
+    expect(medium.technique).toBe('hidden singles');
+    expect(hard.technique).toBe('search');
     expect(LEVEL_RULES.easy.technique).toContain('singles');
     expect(LEVEL_RULES.medium.technique).toContain('candidate');
     expect(LEVEL_RULES.hard.technique).toContain('search');
