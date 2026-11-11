@@ -8,7 +8,7 @@ vi.mock('../../src/lessons/load', () => ({ lessonCatalog: async () => ({ lessons
 
 const noindexPages = [
   '/auth/callback', '/reset-password', '/signin', '/signup', '/start', '/subscribed',
-  '/progress', '/breaks', '/play/hello-cards', '/account/two-factor',
+  '/progress', '/breaks', '/play/hello-cards', '/play/stat', '/account/two-factor',
   '/privacy', '/terms', '/disclaimer',
 ];
 

@@ -64,5 +64,15 @@ export const helloCardsGame = {
   line: 'flip a card for a friendly conversation starter, for anyone you work or study with. choose small talk or a deeper conversation.',
 } as const;
 
+/**
+ * stat (Task 640): fifteen hard clinical questions in a row, 20 seconds each, score at the end. It has its own page and
+ * sits outside dailyGames for now, so the stats panel and share cards (Task 626) can add it on purpose.
+ */
+export const statGame = {
+  name: 'stat',
+  href: '/play/stat',
+  line: 'fifteen hard clinical questions, 20 seconds each. your score shows at the end.',
+} as const;
+
 /** Keep the hello cards page out of search until Christian says otherwise, even once its wording is approved. */
 export const helloCardsIndexWhenApproved = false;
