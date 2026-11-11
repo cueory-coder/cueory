@@ -52,6 +52,7 @@ export default function SudokuGame() {
   useEffect(() => { if (solved) resultRef.current?.focus(); }, [solved]);
   useEffect(() => { if (settingsOpen) settingsRef.current?.focus(); else settingsTrigger.current?.focus(); }, [settingsOpen]);
   useEffect(() => { if (helpOpen) helpRef.current?.focus(); else helpTrigger.current?.focus(); }, [helpOpen]);
+  useEffect(() => { if (!paused) cellRefs.current[selected]?.focus(); }, [selected, paused]);
   useEffect(() => {
     if (solved && !reported.current) {
       reported.current = true;
