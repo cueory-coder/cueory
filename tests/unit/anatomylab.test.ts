@@ -159,9 +159,9 @@ describe('anatomy files', () => {
   it('credits BodyParts3D word for word on every real system', () => {
     const system = parseAnatomyFile(file(), 'content/visuals/anatomy-sample.json');
     expect(creditFor(system)).toBe(
-      '3D model: Cueory, adapted from BodyParts3D, © The Database Center for Life Science licensed under CC Attribution 4.0 International',
+      'BodyParts3D, © The Database Center for Life Science licensed under CC Attribution 4.0 International',
     );
-    expect(BODYPARTS3D_CREDIT).toContain('BodyParts3D, © The Database Center for Life Science licensed under CC Attribution 4.0 International');
+    expect(BODYPARTS3D_CREDIT).toBe('BodyParts3D, © The Database Center for Life Science licensed under CC Attribution 4.0 International');
     expect(nameSourceFor(system)).toBe('name from the BodyParts3D parts list');
   });
 });

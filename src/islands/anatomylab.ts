@@ -38,9 +38,13 @@ export interface AnatomySystem {
   fixture?: boolean;
 }
 
-/** The credit under every 3D view and on every exported picture (BodyParts3D is CC BY 4.0; we recolor and simplify). */
+/**
+ * The required credit under every real 3D view and on every exported picture.
+ * Keep this text exact: the BodyParts3D attribution requirement is part of the
+ * approved Task 178 handoff, not Cueory marketing copy.
+ */
 export const BODYPARTS3D_CREDIT_LEAD =
-  '3D model: Cueory, adapted from BodyParts3D, © The Database Center for Life Science licensed under';
+  'BodyParts3D, © The Database Center for Life Science licensed under';
 /** The license's name, linked to BODYPARTS3D_LICENSE_URL under the 3D view. */
 export const BODYPARTS3D_LICENSE_NAME = 'CC Attribution 4.0 International';
 export const BODYPARTS3D_CREDIT = `${BODYPARTS3D_CREDIT_LEAD} ${BODYPARTS3D_LICENSE_NAME}`;
