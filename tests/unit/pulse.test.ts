@@ -22,7 +22,7 @@ import {
 
 describe('daily games (task-114)', () => {
   it("lists the four games with pillo's new name, lowercase, all playable", () => {
-    expect(dailyGames.map((game) => game.name)).toEqual(['pillo', 'crossword', 'sort', 'word path']);
+    expect(dailyGames.map((game) => game.name)).toEqual(['pillo', 'crossword', 'sudoku', 'word path']);
     expect(dailyGames.map((game) => game.id)).toEqual(['pulse', 'cueword', 'triage', 'suture']);
     expect(dailyGames.filter((game) => game.ready).map((game) => game.id)).toEqual(['pulse', 'cueword', 'triage', 'suture']);
     for (const game of dailyGames) {
@@ -38,6 +38,7 @@ describe('daily games (task-114)', () => {
       '../../src/islands/PulseGame.tsx',
       '../../src/islands/pulse.ts',
       '../../src/islands/TriageGame.tsx',
+      '../../src/islands/SudokuGame.tsx',
       '../../src/islands/triage.ts',
       '../../src/islands/CuewordGame.tsx',
       '../../src/islands/CuewordToday.tsx',
