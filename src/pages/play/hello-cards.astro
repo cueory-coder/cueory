@@ -7,6 +7,7 @@
 import { getCollection } from 'astro:content';
 import Layout from '../../layouts/Layout.astro';
 import HelloCards from '../../islands/HelloCards';
+import GameResultsHost from '../../islands/GameResultsHost';
 import { helloCardsGame, helloCardsIndexWhenApproved } from '../../config/games';
 import { helloCardsPage } from '../../islands/hellocards';
 
@@ -18,7 +19,7 @@ const page = helloCardsPage(entries.map(({ data }) => data), env, helloCardsInde
 const { shown, starters } = page;
 ---
 
-<Layout title={helloCardsGame.name} description="Flip a card for a friendly conversation starter to use with patients, co-workers or classmates." noindex={page.noindex} promo={false}>
+<Layout title={helloCardsGame.name} description="Flip a card for a friendly conversation starter to use with patients, co-workers or classmates." noindex={page.noindex} promo={false} socialImage="/share/hello-cards-og.png">
   <article class="veil mx-auto mt-6 max-w-prose p-6 sm:mt-10 sm:p-10" data-pagefind-ignore>
     {page.label && <p class="text-sm text-ink-soft">{page.label}</p>}
     <h1 class="display mt-2 text-title sm:text-title-lg">{helloCardsGame.name}</h1>
@@ -30,6 +31,7 @@ const { shown, starters } = page;
       shown ? (
         <div class="mt-8">
           <HelloCards client:only="react" starters={starters} />
+          <GameResultsHost client:only="react" />
           <noscript>
             <p>hello cards needs JavaScript to turn the cards over. you can still <a href="/play">go back to the daily games</a>.</p>
           </noscript>

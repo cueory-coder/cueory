@@ -1,0 +1,16 @@
+---
+interface Props {
+  name: string;
+  line: string;
+  playHref: string;
+}
+const { name, line, playHref } = Astro.props;
+---
+<section class="veil mx-auto mt-6 max-w-prose p-6 text-center sm:mt-10 sm:p-10">
+  <p class="text-sm font-bold uppercase tracking-label text-ink-soft">daily game</p>
+  <h1 class="display mt-2 text-title sm:text-title-lg">{name}</h1>
+  <p class="mt-3 text-ink-soft">{line}</p>
+  <a href={playHref} class="mt-6 inline-flex min-h-(--tap-min) items-center rounded-pill bg-button px-5 py-2.5 text-on-button hover:bg-button-hover">
+    play today's {name}
+  </a>
+</section>

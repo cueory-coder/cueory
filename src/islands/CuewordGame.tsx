@@ -53,7 +53,24 @@ function Board({ puzzle, name }: Props) {
   useEffect(() => {
     if (!solved || reported.current) return;
     reported.current = true;
-    reportRound({ game: 'cueword', day: localDay(today), solved: true, tries: state.cued.length });
+    reportRound({
+      game: 'cueword',
+      day: localDay(today),
+      solved: true,
+      tries: state.cued.length,
+      card: {
+        game: 'cueword',
+        name,
+        date: dayLabel(today),
+        result: 'solved',
+        summary: 'you completed today\'s crossword.',
+        stats: [
+          { label: 'time', value: elapsedText(elapsed) },
+          { label: 'cues', value: String(state.cued.length) },
+        ],
+        path: '/play/crossword',
+      },
+    });
   }, [solved]);
 
   const update = (next: CuewordState, focus = true) => {

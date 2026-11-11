@@ -133,3 +133,115 @@ export function scrollBehavior(matchMediaFn: ((query: string) => { matches: bool
 export function centeredScrollLeft(row: { clientWidth: number }, card: { offsetLeft: number; offsetWidth: number }): number {
   return Math.max(0, card.offsetLeft - (row.clientWidth - card.offsetWidth) / 2);
 }
+
+
+/** Plain platform share-page links. No SDK, script, tracker or account token is loaded. */
+export type SharePlatform = 'facebook' | 'x' | 'threads' | 'reddit' | 'whatsapp';
+
+export function platformShareUrl(platform: SharePlatform, text: string, url: string): string {
+  const combined = `${text} ${url}`;
+  switch (platform) {
+    case 'facebook':
+      return `https://www.facebook.com/sharer/sharer.php?${new URLSearchParams({ u: url })}`;
+    case 'x':
+      return xIntentUrl(text, url);
+    case 'threads':
+      return `https://www.threads.net/intent/post?${new URLSearchParams({ text: combined })}`;
+    case 'reddit':
+      return `https://www.reddit.com/submit?${new URLSearchParams({ url, title: text })}`;
+    case 'whatsapp':
+      return `https://wa.me/?${new URLSearchParams({ text: combined })}`;
+  }
+}
+
+export interface StoryImageInput {
+  name: string;
+  date: string;
+  result: string;
+  /** Optional approved wordmark asset for a game. */
+  wordmarkPath?: string;
+}
+
+function image(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const asset = new Image();
+    asset.onload = () => resolve(asset);
+    asset.onerror = () => reject(new Error('image could not be loaded'));
+    asset.src = url;
+  });
+}
+
+/** Draws the 1080×1920 story card only after the visitor taps share. */
+export async function createStoryFile(input: StoryImageInput): Promise<File | null> {
+  if (typeof document === 'undefined') return null;
+  try {
+    const tokens = getComputedStyle(document.documentElement);
+    const number = (name: string) => Number.parseFloat(tokens.getPropertyValue(name));
+    const page = tokens.getPropertyValue('--color-page').trim();
+    const ink = tokens.getPropertyValue('--color-ink').trim();
+    const soft = tokens.getPropertyValue('--color-ink-soft').trim();
+    const bodyFont = tokens.getPropertyValue('--font-body').trim();
+    const displayFont = tokens.getPropertyValue('--font-display').trim();
+    const width = number('--share-story-width');
+    const height = number('--share-story-height');
+    const logoWidth = number('--share-story-logo-width');
+    const values = [
+      width, height, logoWidth, number('--share-story-logo-top'), number('--share-story-label-y'),
+      number('--share-story-result-y'), number('--share-story-challenge-y'), number('--share-story-site-y'),
+      number('--share-story-label-size'), number('--share-story-result-size'),
+      number('--share-story-challenge-size'), number('--share-story-site-size'),
+    ];
+    if (!page || !ink || !soft || !bodyFont || !displayFont || values.some((value) => !Number.isFinite(value))) return null;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d');
+    if (!context) return null;
+
+    await document.fonts.ready;
+    context.fillStyle = page;
+    context.fillRect(0, 0, width, height);
+
+    // Wordmark.astro confirms the "light" file is the unchanged Daytime Espresso artwork.
+    const logo = await image('/brand/v1/logo-full-light-960.png');
+    const logoHeight = (logo.height * logoWidth) / logo.width;
+    context.drawImage(logo, (width - logoWidth) / 2, number('--share-story-logo-top'), logoWidth, logoHeight);
+
+    if (input.wordmarkPath) {
+      const wordmark = await image(input.wordmarkPath);
+      const wordmarkWidth = logoWidth;
+      const wordmarkHeight = (wordmark.height * wordmarkWidth) / wordmark.width;
+      context.drawImage(wordmark, (width - wordmarkWidth) / 2, number('--share-story-logo-top') + logoHeight * 2, wordmarkWidth, wordmarkHeight);
+    }
+
+    context.textAlign = 'center';
+    context.fillStyle = soft;
+    context.font = `700 ${number('--share-story-label-size')}px ${bodyFont}`;
+    context.fillText(`today's ${input.name} · ${input.date}`, width / 2, number('--share-story-label-y'));
+
+    context.fillStyle = ink;
+    context.font = `500 ${number('--share-story-result-size')}px ${displayFont}`;
+    context.fillText(input.result, width / 2, number('--share-story-result-y'));
+
+    context.font = `700 ${number('--share-story-challenge-size')}px ${bodyFont}`;
+    context.fillText('can you beat me?', width / 2, number('--share-story-challenge-y'));
+    context.fillStyle = soft;
+    context.font = `400 ${number('--share-story-site-size')}px ${bodyFont}`;
+    context.fillText('cueory.app', width / 2, number('--share-story-site-y'));
+
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+    return blob ? new File([blob], `cueory-${input.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-story.png`, { type: 'image/png' }) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Static, score-free Open Graph images. Each game has a stable file even while several games share /play. */
+export const GAME_OG_IMAGES = {
+  pulse: '/share/pillo-og.png',
+  cueword: '/share/crossword-og.png',
+  suture: '/share/word-path-og.png',
+  'hello-cards': '/share/hello-cards-og.png',
+  sudoku: '/share/sudoku-og.png',
+} as const;
