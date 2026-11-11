@@ -34,8 +34,8 @@ export const dailyGames: readonly DailyGame[] = [
   },
   {
     id: 'triage',
-    name: 'sort',
-    line: 'sort ten terms into three groups. one fits none of them. three slips end the round.',
+    name: 'sudoku',
+    line: 'fill every row, column and box with the numbers one through nine. choose a level and solve today\'s puzzle.',
     ready: true,
   },
   {

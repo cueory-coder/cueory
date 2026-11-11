@@ -93,7 +93,7 @@ export default function SudokuGame() {
     reported.current = true;
     if (settings.playSound) playSolvedTone();
     const result = getResult({ day, level, seconds, errors, solved: true });
-    reportRound({ game: 'sudoku', day, solved: true, tries: errors });
+    reportRound({ game: 'triage', day, solved: true, tries: errors });
     window.dispatchEvent(new CustomEvent('cueory:sudoku-solved', { detail: result }));
     setSaid(`solved in ${result.time} with ${errors} ${errors === 1 ? 'error' : 'errors'}.`);
   }, [solved, day, level, seconds, errors, settings.playSound]);

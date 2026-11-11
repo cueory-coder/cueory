@@ -7,7 +7,7 @@
 import { getCollection } from 'astro:content';
 import Layout from '../layouts/Layout.astro';
 import PulseGame from '../islands/PulseGame';
-import TriageGame from '../islands/TriageGame';
+import SudokuGame from '../islands/SudokuGame';
 import CuewordToday from '../islands/CuewordToday';
 import SutureToday from '../islands/SutureToday';
 import GameStatsPanel from '../islands/GameStatsPanel';
@@ -20,9 +20,6 @@ import { helloCardsPage } from '../islands/hellocards';
 const samples = (await getCollection('pulse'))
   .sort((a, b) => a.id.localeCompare(b.id))
   .map(({ data }) => ({ word: data.word, cue: data.cue }));
-const triageSamples = (await getCollection('triage'))
-  .sort((a, b) => a.id.localeCompare(b.id))
-  .map(({ data }) => ({ groups: data.groups, oddOne: data.oddOne }));
 // Each crossword sample goes through the game's own rules here, so a broken one stops the build with a plain message.
 const crosswordSamples = (await getCollection('cueword'))
   .sort((a, b) => a.id.localeCompare(b.id))
@@ -47,7 +44,7 @@ const helloEnv = { WORKERS_CI: process.env.WORKERS_CI, WORKERS_CI_BRANCH: proces
 const helloEntries = await getCollection('hello-cards');
 const showHello = helloCardsPage(helloEntries.map(({ data }) => data), helloEnv, helloCardsIndexWhenApproved).linked;
 const pulse = dailyGames.find((game) => game.id === 'pulse')!;
-const triage = dailyGames.find((game) => game.id === 'triage')!;
+const sudokuGame = dailyGames.find((game) => game.id === 'triage')!;
 const crossword = dailyGames.find((game) => game.id === 'cueword')!;
 const wordPath = dailyGames.find((game) => game.id === 'suture')!;
 const later = dailyGames.filter((game) => !game.ready);
@@ -73,14 +70,13 @@ const later = dailyGames.filter((game) => !game.ready);
       </div>
     </section>
 
-    <section class="mt-16" aria-labelledby="triage-heading">
-      <h2 id="triage-heading" class="text-2xl font-medium">{triage.name}</h2>
-      <p class="mt-2 text-ink-soft">{triage.line}</p>
-      <p class="mt-1 text-sm text-ink-soft" data-testid="triage-sample-note">today's terms are a sample.</p>
+    <section class="mt-16" aria-labelledby="sudoku-heading">
+      <h2 id="sudoku-heading" class="text-2xl font-medium">{sudokuGame.name}</h2>
+      <p class="mt-2 text-ink-soft">{sudokuGame.line}</p>
       <div class="mt-6">
-        <TriageGame client:only="react" puzzles={triageSamples} />
+        <SudokuGame client:only="react" />
         <noscript>
-          <p>{triage.name} needs JavaScript.</p>
+          <p>{sudokuGame.name} needs JavaScript.</p>
         </noscript>
       </div>
     </section>
@@ -109,7 +105,7 @@ const later = dailyGames.filter((game) => !game.ready);
 
     {/* Private stats (D-76): off until the student turns them on, kept only in this browser. Without JavaScript there are
     no games to count, so nothing shows. */}
-    <GameStatsPanel client:only="react" games={[pulse, triage, crossword, wordPath].map((game) => game.id)} />
+    <GameStatsPanel client:only="react" games={[pulse, sudokuGame, crossword, wordPath].map((game) => game.id)} />
 
     {showHello && <section class="mt-16" aria-labelledby="more-games-heading">
       <h2 id="more-games-heading" class="text-2xl font-medium">more games</h2>
