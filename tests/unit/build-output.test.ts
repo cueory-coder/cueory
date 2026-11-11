@@ -1,3 +1,6 @@
+From https://gitlab.com/cueory1/cueory
+ * branch              task-626/game-results-share -> FETCH_HEAD
+   ca5b39c0..ae9d0964  task-626/game-results-share -> origin/task-626/game-results-share
 /**
  * Checks the built site in dist/. Run `npm run build` first (CI does).
  */
@@ -275,8 +278,10 @@ describe.skipIf(!existsSync(dist))('built site', () => {
       expect(html, `${page}: canonical`).toContain(`rel="canonical" href="https://cueory.app/`);
       expect(meta(html, 'og:title'), `${page}: og:title`).toBe(title);
       expect(meta(html, 'og:description'), `${page}: og:description`).toBe(description);
-      expect(meta(html, 'og:image'), `${page}: og:image`).toBe('https://cueory.app/share/study-ivory.png');
-      expect(existsSync(join(dist, 'share/study-ivory.png')), `${page}: og:image file`).toBe(true);
+      const gameOgImage = page.match(/^play\/(pillo|crossword|word-path|sudoku|hello-cards)\.html$/)?.[1];
+      const expectedOgImage = gameOgImage ? `https://cueory.app/share/${gameOgImage}-og.png` : 'https://cueory.app/share/study-ivory.png';
+      expect(meta(html, 'og:image'), `${page}: og:image`).toBe(expectedOgImage);
+      expect(existsSync(join(dist, gameOgImage ? `share/${gameOgImage}-og.png` : 'share/study-ivory.png')), `${page}: og:image file`).toBe(true);
     }
   });
 
