@@ -26,3 +26,11 @@ Follow-up fixes for GitLab Duo findings:
 
 Verification update:
 - npm run verify: not run; this connected environment still has no repository checkout/runtime.
+
+
+Follow-up review/build fixes:
+- preserved legacy sample-01 through sample-06 clue and entry contracts;
+- removed the global minimum-three-letter parser rule and retained the existing two-letter-compatible parser behavior;
+- limited placeholder and minimum-length assertions to sample-07, sample-08 and sample-09;
+- added crossword-only print markup and CSS for a blank numbered grid, across/down clues, and print-only visibility while hiding unrelated /play content;
+- increased hard-level mobile cells to 32px on small screens while retaining an internal overflow boundary so the page itself does not gain sideways scroll.

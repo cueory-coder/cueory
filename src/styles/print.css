@@ -34,3 +34,59 @@
     text-decoration: none;
   }
 }
+
+
+/* Crossword printing is isolated from the rest of /play. */
+[data-crossword-print-only] { display: none; }
+
+@media print {
+  body:has([data-crossword-print-root]) > header,
+  body:has([data-crossword-print-root]) > footer,
+  body:has([data-crossword-print-root]) > [data-testid='building-notice'],
+  body:has([data-crossword-print-root]) > dialog,
+  body:has([data-crossword-print-root]) > [data-testid='promo-panel'],
+  body:has([data-crossword-print-root]) [data-play-page] > :not(:has([data-crossword-print-root])) {
+    display: none !important;
+  }
+
+  body:has([data-crossword-print-root]) main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  [data-crossword-print-root] [data-crossword-screen] { display: none !important; }
+  [data-crossword-print-root] [data-crossword-print-only] {
+    display: block !important;
+    color: var(--color-ink) !important;
+  }
+
+  [data-crossword-print-root] .crossword-print-grid {
+    display: grid !important;
+    gap: 0 !important;
+    margin: 1rem auto 2rem !important;
+    width: fit-content !important;
+  }
+
+  [data-crossword-print-root] .crossword-print-grid-5 { grid-template-columns: repeat(5, 1.25rem); }
+  [data-crossword-print-root] .crossword-print-grid-7 { grid-template-columns: repeat(7, 1.25rem); }
+  [data-crossword-print-root] .crossword-print-grid-15 { grid-template-columns: repeat(15, 1.25rem); }
+
+  [data-crossword-print-root] .crossword-print-cell {
+    position: relative;
+    width: 1.25rem;
+    height: 1.25rem;
+    border: 1px solid var(--color-ink);
+    background: var(--color-page);
+  }
+
+  [data-crossword-print-root] .crossword-print-block { background: var(--color-ink); }
+  [data-crossword-print-root] .crossword-print-cell span {
+    position: absolute;
+    inset: 0.05rem auto auto 0.1rem;
+    font-size: 0.45rem;
+    line-height: 1;
+  }
+
+  [data-crossword-print-root] [data-crossword-print-only] h2 { margin-top: 1rem; }
+  [data-crossword-print-root] [data-crossword-print-only] ol { margin: 0.25rem 0 0.75rem 1.25rem; }
+}
