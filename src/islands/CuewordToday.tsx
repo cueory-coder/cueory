@@ -19,7 +19,7 @@ export default function CuewordToday({ puzzles, name }: Props) {
 
   return (
     <section aria-label={name + ' level'}>
-      <fieldset className="mb-4 flex justify-center">
+      <fieldset className="crossword-no-print mb-4 flex justify-center">
         <legend className="sr-only">crossword level</legend>
         <div className="segmented" data-testid="crossword-levels">
           {crosswordLevels.map(({ level: option, size }) => (

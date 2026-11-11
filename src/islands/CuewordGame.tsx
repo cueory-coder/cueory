@@ -58,6 +58,15 @@ function Board({ puzzle, name }: Props) {
     setState(next);
   };
 
+  const printPuzzle = () => {
+    const root = document.documentElement;
+    root.dataset.printGame = 'crossword';
+    window.addEventListener('afterprint', () => {
+      if (root.dataset.printGame === 'crossword') delete root.dataset.printGame;
+    }, { once: true });
+    window.print();
+  };
+
   const key = (event: KeyboardEvent<HTMLDivElement>) => {
     if (solved || event.ctrlKey || event.metaKey) return;
     let next: CuewordState;
@@ -79,7 +88,7 @@ function Board({ puzzle, name }: Props) {
   return (
     <section className="crossword-panel" aria-label={name + ' puzzle'} data-testid="cueword">
       <div className="crossword-toolbar crossword-no-print">
-        <button type="button" className="corner-button corner-button-quiet" aria-label="print this puzzle" onClick={() => window.print()}>
+        <button type="button" className="corner-button corner-button-quiet" aria-label="print this puzzle" onClick={printPuzzle}>
           <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="9" rx="2"/><path d="M7 14h10v7H7z"/></svg>
         </button>
         <details className="crossword-help">

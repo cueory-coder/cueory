@@ -409,10 +409,14 @@ test.describe('daily games: crossword levels (Task 627)', () => {
     await expect(result).toContainText('easy');
   });
 
-  test('print shows a blank grid, every clue and the cueory.app footer only', async ({ page }) => {
+  test('print isolates a blank grid, every clue and the cueory.app footer', async ({ page }) => {
     await board(page).getByRole('button', { name: 'row 1, column 2, 1 across, empty' }).click();
     await page.keyboard.type('a');
+    await page.evaluate(() => { window.print = () => undefined; });
+    await board(page).getByRole('button', { name: 'print this puzzle' }).click();
+    await expect(page.locator('html')).toHaveAttribute('data-print-game', 'crossword');
     await page.emulateMedia({ media: 'print' });
+    await expect(page.getByRole('heading', { level: 2, name: 'pillo' })).toHaveCSS('display', 'none');
     await expect(board(page).locator('.crossword-toolbar')).toHaveCSS('display', 'none');
     await expect(board(page).getByTestId('cueword-clue')).toHaveCSS('display', 'none');
     await expect(board(page).locator('.crossword-entry').first()).toHaveCSS('visibility', 'hidden');
@@ -421,6 +425,8 @@ test.describe('daily games: crossword levels (Task 627)', () => {
     await expect(board(page).locator('.crossword-print-clues')).toContainText('down');
     await expect(board(page).locator('.crossword-print-footer')).toBeVisible();
     await expect(board(page).locator('.crossword-print-footer')).toHaveText('cueory.app');
+    await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
+    await expect(page.locator('html')).not.toHaveAttribute('data-print-game');
   });
 
   test('phone controls remain 44 px and hard mode never scrolls the page sideways', async ({ page }) => {
