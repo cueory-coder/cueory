@@ -296,15 +296,6 @@
 
   /* !important: a print rule has to win over the Dark pick above, whatever the selector weight. */
   @media print {
-  html[data-print-game="crossword"] body > :not(main),
-  html[data-print-game="crossword"] main > :not([data-play-games]),
-  html[data-print-game="crossword"] [data-play-games] > :not([data-game-print="crossword"]),
-  html[data-print-game="crossword"] [data-game-print="crossword"] > :not(.crossword-print-host) { display: none !important; }
-  html[data-print-game="crossword"] main,
-  html[data-print-game="crossword"] [data-play-games],
-  html[data-print-game="crossword"] [data-game-print="crossword"],
-  html[data-print-game="crossword"] .crossword-print-host { max-inline-size: none; margin: 0; padding: 0; border: 0; background: var(--color-print-page); box-shadow: none; }
-
     .logo .logo-day {
       display: block !important;
     }
@@ -2083,6 +2074,15 @@ html:has(dialog.mode-preview[open]) {
 }
 
 @media print {
+  html[data-print-game="crossword"] body > :not(main),
+  html[data-print-game="crossword"] main > :not([data-play-games]),
+  html[data-print-game="crossword"] [data-play-games] > :not([data-game-print="crossword"]),
+  html[data-print-game="crossword"] [data-game-print="crossword"] > :not(.crossword-print-host) { display: none !important; }
+  html[data-print-game="crossword"] main,
+  html[data-print-game="crossword"] [data-play-games],
+  html[data-print-game="crossword"] [data-game-print="crossword"],
+  html[data-print-game="crossword"] .crossword-print-host { max-inline-size: none; margin: 0; padding: 0; border: 0; background: var(--color-print-page); box-shadow: none; }
+
   .crossword-no-print, .crossword-clue-bar, .crossword-toolbar { display: none !important; }
   .crossword-panel { color: var(--color-print-ink); background: var(--color-print-page); }
   .crossword-board { --crossword-cell: var(--crossword-print-cell) !important; gap: 0; overflow: visible; }
