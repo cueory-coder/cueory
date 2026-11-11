@@ -86,7 +86,7 @@ const later = dailyGames.filter((game) => !game.ready);
     </section>
 
     <section class="mt-16" aria-labelledby="crossword-heading">
-      <h2 id="crossword-heading" class="text-2xl font-medium">{crossword.name}</h2>
+      <h2 id="crossword-heading" class="display text-center text-title">{crossword.name}</h2>
       <p class="mt-2 text-ink-soft">{crossword.line}</p>
       <div class="mt-6">
         <CuewordToday client:only="react" puzzles={crosswordSamples} name={crossword.name} />
