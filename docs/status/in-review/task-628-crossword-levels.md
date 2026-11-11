@@ -15,3 +15,14 @@ Verification:
 - focused sample test added for labels, placeholders and 3+ letter entries.
 
 D-pending: Worker 2 results-card integration remains pending; this branch keeps the existing plain solved state until that work is merged.
+
+
+Follow-up fixes for GitLab Duo findings:
+- corrected across numbering for the 7x7 and 15x15 samples;
+- added a dedicated 5x5 sample-only grid;
+- level selection now retains the selected exact-size puzzle through state/hash changes and never falls back to another size;
+- restored readable formatting and kept the help description mounted so aria-describedby always resolves;
+- added focused exact-size level-selection coverage.
+
+Verification update:
+- npm run verify: not run; this connected environment still has no repository checkout/runtime.

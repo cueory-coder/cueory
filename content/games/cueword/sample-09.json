@@ -1,0 +1,56 @@
+{
+  "status": "sample",
+  "grid": [
+    "ABCDE",
+    "FGHIJ",
+    "KLMNO",
+    "PQRST",
+    "UVWXY"
+  ],
+  "clues": {
+    "across": [
+      {
+        "number": 1,
+        "text": "[sample clue]"
+      },
+      {
+        "number": 6,
+        "text": "[sample clue]"
+      },
+      {
+        "number": 11,
+        "text": "[sample clue]"
+      },
+      {
+        "number": 16,
+        "text": "[sample clue]"
+      },
+      {
+        "number": 21,
+        "text": "[sample clue]"
+      }
+    ],
+    "down": [
+      {
+        "number": 1,
+        "text": "[sample clue]"
+      },
+      {
+        "number": 2,
+        "text": "[sample clue]"
+      },
+      {
+        "number": 3,
+        "text": "[sample clue]"
+      },
+      {
+        "number": 4,
+        "text": "[sample clue]"
+      },
+      {
+        "number": 5,
+        "text": "[sample clue]"
+      }
+    ]
+  }
+}
