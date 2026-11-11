@@ -1,15 +1,10 @@
 ---
-/**
- * Daily games (D-61, D-63, D-66, D-70, D-71): one page for the four games, in the lowercase brand voice, all playable
- * now with sample puzzles (everyday words, labeled as samples). A "coming soon" list shows only while a game is still on
- * its way. The names live in src/config/games.ts, so a rename is one line.
- */
 import { getCollection } from 'astro:content';
 import Layout from '../layouts/Layout.astro';
 import PulseGame from '../islands/PulseGame';
-import TriageGame from '../islands/TriageGame';
 import CuewordToday from '../islands/CuewordToday';
 import SutureToday from '../islands/SutureToday';
+import SudokuGame from '../islands/SudokuGame';
 import GameStatsPanel from '../islands/GameStatsPanel';
 import PilloTitle from '../components/PilloTitle.astro';
 import { parsePuzzle } from '../islands/cueword';
@@ -17,122 +12,27 @@ import { parsePuzzle as parseWordPath } from '../islands/suture';
 import { dailyGames, helloCardsGame, helloCardsIndexWhenApproved } from '../config/games';
 import { helloCardsPage } from '../islands/hellocards';
 
-const samples = (await getCollection('pulse'))
-  .sort((a, b) => a.id.localeCompare(b.id))
-  .map(({ data }) => ({ word: data.word, cue: data.cue }));
-const triageSamples = (await getCollection('triage'))
-  .sort((a, b) => a.id.localeCompare(b.id))
-  .map(({ data }) => ({ groups: data.groups, oddOne: data.oddOne }));
-// Each crossword sample goes through the game's own rules here, so a broken one stops the build with a plain message.
-const crosswordSamples = (await getCollection('cueword'))
-  .sort((a, b) => a.id.localeCompare(b.id))
-  .map(({ id, data }) => {
-    try {
-      return parsePuzzle({ id, sample: true, grid: data.grid, clues: data.clues });
-    } catch (error) {
-      throw new Error(`content/games/cueword/${id}.json: ${(error as Error).message}`);
-    }
-  });
-const wordPathSamples = (await getCollection('suture'))
-  .sort((a, b) => a.id.localeCompare(b.id))
-  .map(({ id, data }) => {
-    try {
-      return parseWordPath({ id, sample: true, theme: data.theme, grid: data.grid, words: data.words });
-    } catch (error) {
-      throw new Error(`content/games/suture/${id}.json: ${(error as Error).message}`);
-    }
-  });
-// The hello cards link only exists where the cards may show: drafts stay off the live site (see helloCardsShown).
+const samples = (await getCollection('pulse')).sort((a, b) => a.id.localeCompare(b.id)).map(({ data }) => ({ word: data.word, cue: data.cue }));
+const crosswordSamples = (await getCollection('cueword')).sort((a, b) => a.id.localeCompare(b.id)).map(({ id, data }) => parsePuzzle({ id, sample: true, grid: data.grid, clues: data.clues }));
+const wordPathSamples = (await getCollection('suture')).sort((a, b) => a.id.localeCompare(b.id)).map(({ id, data }) => parseWordPath({ id, sample: true, theme: data.theme, grid: data.grid, words: data.words }));
 const helloEnv = { WORKERS_CI: process.env.WORKERS_CI, WORKERS_CI_BRANCH: process.env.WORKERS_CI_BRANCH, CUEORY_ANATOMY_DRAFTS: process.env.CUEORY_ANATOMY_DRAFTS };
 const helloEntries = await getCollection('hello-cards');
 const showHello = helloCardsPage(helloEntries.map(({ data }) => data), helloEnv, helloCardsIndexWhenApproved).linked;
 const pulse = dailyGames.find((game) => game.id === 'pulse')!;
-const triage = dailyGames.find((game) => game.id === 'triage')!;
 const crossword = dailyGames.find((game) => game.id === 'cueword')!;
 const wordPath = dailyGames.find((game) => game.id === 'suture')!;
-const later = dailyGames.filter((game) => !game.ready);
+const later = dailyGames.filter((game) => !game.ready && game.id !== 'triage');
 ---
-
-<Layout title="daily games" description="four short puzzles every day: a word to guess, terms to sort, a small crossword and a word path. sample puzzles for now.">
+<Layout title="daily games" description="four short puzzles every day: a word to guess, a sudoku, a small crossword and a word path. sample puzzles for now.">
   <article class="veil mx-auto mt-6 max-w-prose p-6 sm:mt-10 sm:p-10">
     <h1 class="display text-title sm:text-title-lg">daily games</h1>
-    <p class="mt-3 text-ink-soft">
-      a new puzzle every day. for now these are sample puzzles with everyday words.
-    </p>
-
-    <section class="mt-12" aria-labelledby="pulse-heading">
-      <h2 id="pulse-heading" class="display text-2xl sm:text-3xl"><PilloTitle name={pulse.name} /></h2>
-      <p class="mt-2 text-ink-soft">{pulse.line}</p>
-      <p class="mt-1 text-sm text-ink-soft" data-testid="sample-note">today's word is a sample.</p>
-      <div class="mt-6">
-        {/* client:only: nothing is pre-rendered, so without JavaScript only the note below shows. */}
-        <PulseGame client:only="react" puzzles={samples} />
-        <noscript>
-          <p>{pulse.name} needs JavaScript.</p>
-        </noscript>
-      </div>
-    </section>
-
-    <section class="mt-16" aria-labelledby="triage-heading">
-      <h2 id="triage-heading" class="text-2xl font-medium">{triage.name}</h2>
-      <p class="mt-2 text-ink-soft">{triage.line}</p>
-      <p class="mt-1 text-sm text-ink-soft" data-testid="triage-sample-note">today's terms are a sample.</p>
-      <div class="mt-6">
-        <TriageGame client:only="react" puzzles={triageSamples} />
-        <noscript>
-          <p>{triage.name} needs JavaScript.</p>
-        </noscript>
-      </div>
-    </section>
-
-    <section class="mt-16" aria-labelledby="crossword-heading">
-      <h2 id="crossword-heading" class="text-2xl font-medium">{crossword.name}</h2>
-      <p class="mt-2 text-ink-soft">{crossword.line}</p>
-      <div class="mt-6">
-        <CuewordToday client:only="react" puzzles={crosswordSamples} name={crossword.name} />
-        <noscript>
-          <p>{crossword.name} needs JavaScript.</p>
-        </noscript>
-      </div>
-    </section>
-
-    <section class="mt-16" aria-labelledby="word-path-heading">
-      <h2 id="word-path-heading" class="text-2xl font-medium">{wordPath.name}</h2>
-      <p class="mt-2 text-ink-soft">{wordPath.line}</p>
-      <div class="mt-6">
-        <SutureToday client:only="react" puzzles={wordPathSamples} name={wordPath.name} />
-        <noscript>
-          <p>{wordPath.name} needs JavaScript.</p>
-        </noscript>
-      </div>
-    </section>
-
-    {/* Private stats (D-76): off until the student turns them on, kept only in this browser. Without JavaScript there are
-    no games to count, so nothing shows. */}
-    <GameStatsPanel client:only="react" games={[pulse, triage, crossword, wordPath].map((game) => game.id)} />
-
-    {showHello && <section class="mt-16" aria-labelledby="more-games-heading">
-      <h2 id="more-games-heading" class="text-2xl font-medium">more games</h2>
-      <p class="mt-2">
-        <a href={helloCardsGame.href} class="font-medium" data-testid="hello-cards-link">{helloCardsGame.name}</a>
-        <span class="text-ink-soft">: {helloCardsGame.line}</span>
-      </p>
-    </section>}
-
-    {
-      later.length > 0 && (
-        <section class="mt-16" aria-labelledby="later-heading">
-          <h2 id="later-heading" class="text-2xl font-medium">coming soon</h2>
-          <ul class="mt-4 flex flex-col gap-3">
-            {later.map((game) => (
-              <li>
-                <span class="font-medium">{game.name}</span>
-                <span class="text-ink-soft">: {game.line}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )
-    }
+    <p class="mt-3 text-ink-soft">a new puzzle every day. for now these are sample puzzles with everyday words.</p>
+    <section class="mt-12" aria-labelledby="pulse-heading"><h2 id="pulse-heading" class="display text-2xl sm:text-3xl"><PilloTitle name={pulse.name} /></h2><p class="mt-2 text-ink-soft">{pulse.line}</p><p class="mt-1 text-sm text-ink-soft" data-testid="sample-note">today's word is a sample.</p><div class="mt-6"><PulseGame client:only="react" puzzles={samples} /><noscript><p>{pulse.name} needs JavaScript.</p></noscript></div></section>
+    <section class="mt-16" aria-labelledby="sudoku-heading"><h2 id="sudoku-heading" class="text-2xl font-medium">sudoku</h2><p class="mt-2 text-ink-soft">a daily number puzzle with one solution.</p><div class="mt-6"><SudokuGame client:only="react" /><noscript><p>sudoku needs JavaScript.</p></noscript></div></section>
+    <section class="mt-16" aria-labelledby="crossword-heading"><h2 id="crossword-heading" class="text-2xl font-medium">{crossword.name}</h2><p class="mt-2 text-ink-soft">{crossword.line}</p><div class="mt-6"><CuewordToday client:only="react" puzzles={crosswordSamples} name={crossword.name} /><noscript><p>{crossword.name} needs JavaScript.</p></noscript></div></section>
+    <section class="mt-16" aria-labelledby="word-path-heading"><h2 id="word-path-heading" class="text-2xl font-medium">{wordPath.name}</h2><p class="mt-2 text-ink-soft">{wordPath.line}</p><div class="mt-6"><SutureToday client:only="react" puzzles={wordPathSamples} name={wordPath.name} /><noscript><p>{wordPath.name} needs JavaScript.</p></noscript></div></section>
+    <GameStatsPanel client:only="react" games={[pulse, crossword, wordPath].map((game) => game.id)} />
+    {showHello && <section class="mt-16" aria-labelledby="more-games-heading"><h2 id="more-games-heading" class="text-2xl font-medium">more games</h2><p class="mt-2"><a href={helloCardsGame.href} class="font-medium" data-testid="hello-cards-link">{helloCardsGame.name}</a><span class="text-ink-soft">: {helloCardsGame.line}</span></p></section>}
+    {later.length > 0 && <section class="mt-16" aria-labelledby="later-heading"><h2 id="later-heading" class="text-2xl font-medium">coming soon</h2><ul class="mt-4 flex flex-col gap-3">{later.map((game) => <li><span class="font-medium">{game.name}</span><span class="text-ink-soft">: {game.line}</span></li>)}</ul></section>}
   </article>
 </Layout>
