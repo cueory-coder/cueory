@@ -15,8 +15,9 @@ import GameResultsHost from '../islands/GameResultsHost';
 import PilloTitle from '../components/PilloTitle.astro';
 import { parsePuzzle } from '../islands/cueword';
 import { parsePuzzle as parseWordPath } from '../islands/suture';
-import { dailyGames, helloCardsGame, helloCardsIndexWhenApproved } from '../config/games';
+import { dailyGames, helloCardsGame, helloCardsIndexWhenApproved, statGame } from '../config/games';
 import { helloCardsPage } from '../islands/hellocards';
+import { draftsAllowed } from '../islands/anatomylab';
 
 const samples = (await getCollection('pulse'))
   .sort((a, b) => a.id.localeCompare(b.id))
@@ -47,6 +48,8 @@ const wordPathSamples = (await getCollection('suture'))
 const helloEnv = { WORKERS_CI: process.env.WORKERS_CI, WORKERS_CI_BRANCH: process.env.WORKERS_CI_BRANCH, CUEORY_ANATOMY_DRAFTS: process.env.CUEORY_ANATOMY_DRAFTS };
 const helloEntries = await getCollection('hello-cards');
 const showHello = helloCardsPage(helloEntries.map(({ data }) => data), helloEnv, helloCardsIndexWhenApproved).linked;
+// stat runs on labeled samples, so its link follows the same guard as its page.
+const showStat = draftsAllowed(helloEnv);
 const pulse = dailyGames.find((game) => game.id === 'pulse')!;
 const triage = dailyGames.find((game) => game.id === 'triage')!;
 const crossword = dailyGames.find((game) => game.id === 'cueword')!;
@@ -112,12 +115,16 @@ const later = dailyGames.filter((game) => !game.ready);
     no games to count, so nothing shows. */}
     <GameStatsPanel client:only="react" games={[pulse, triage, crossword, wordPath].map((game) => game.id)} />
 
-    {showHello && <section class="mt-16" aria-labelledby="more-games-heading">
+    {(showHello || showStat) && <section class="mt-16" aria-labelledby="more-games-heading">
       <h2 id="more-games-heading" class="text-2xl font-medium">more games</h2>
-      <p class="mt-2">
+      {showHello && <p class="mt-2">
         <a href={helloCardsGame.href} class="font-medium" data-testid="hello-cards-link">{helloCardsGame.name}</a>
         <span class="text-ink-soft">: {helloCardsGame.line}</span>
-      </p>
+      </p>}
+      {showStat && <p class="mt-2">
+        <a href={statGame.href} class="font-medium" data-testid="stat-link">{statGame.name}</a>
+        <span class="text-ink-soft">: {statGame.line}</span>
+      </p>}
     </section>}
 
     {

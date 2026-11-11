@@ -65,6 +65,7 @@ const initialJsBudget = {
   'learn.html': 150346,
   'play.html': 168467,
   'play/hello-cards.html': 91427,
+  'play/stat.html': 96284, // Task 640: measured from a local Node 24.22.2 build, not yet from CI
   'play/crossword.html': 89662,
   'play/pillo.html': 89662,
   'play/sudoku.html': 89662,
