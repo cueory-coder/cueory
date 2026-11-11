@@ -62,7 +62,7 @@ const exceptions: Exception[] = [
   {
     kind: 'size',
     path: 'styles/global.css',
-    matches: text => /@media \\(orientation: portrait\\), \\(max-width: 50rem\\)/.test(text),
+    matches: text => /@media \(orientation: portrait\), \(max-width: 50rem\)/.test(text),
     reason: 'the Sudoku board and keypad use a mobile-only layout boundary to keep every control reachable',
   },
   {
