@@ -6,6 +6,7 @@ import {
   countSolutions,
   dailySudokuSeed,
   generateSudoku,
+  getResult,
   isCompleteAndValid,
   solveSudoku,
   type SudokuLevel,
@@ -47,6 +48,18 @@ describe('daily Sudoku generator (Task 625)', () => {
   it('builds one stable seed for a local day and level', () => {
     expect(dailySudokuSeed('2026-11-01', 'easy')).toBe('cueory-sudoku:2026-11-01:easy');
     expect(dailySudokuSeed('2026-11-01', 'easy')).not.toBe(dailySudokuSeed('2026-11-01', 'hard'));
+  });
+
+  it('exposes a stable result for the shared results and share-card island', () => {
+    expect(getResult({ day: '2026-11-01', level: 'medium', solved: true, seconds: 125, errors: 2 })).toEqual({
+      game: 'sudoku',
+      day: '2026-11-01',
+      level: 'medium',
+      solved: true,
+      seconds: 125,
+      time: '02:05',
+      errors: 2,
+    });
   });
 });
 

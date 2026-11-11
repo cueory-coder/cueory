@@ -68,10 +68,11 @@ export default function SudokuGame() {
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [howOpen, setHowOpen] = useState(false);
-  const [theme, setTheme] = useState<Exclude<ThemeChoice, 'device'>>(() => readChoice(browserStorage()) === 'dark' ? 'dark' : 'light');
+  const [theme, setTheme] = useState<ThemeChoice>(() => readChoice(browserStorage()));
   const [said, setSaid] = useState('');
   const dialog = useRef<HTMLDivElement>(null);
   const settingsButton = useRef<HTMLButtonElement>(null);
+  const solvedResult = useRef<HTMLDivElement>(null);
   const cells = useRef(new Map<number, HTMLButtonElement>());
   const solved = entries.every((value, index) => value === puzzle.solution[index]);
   const conflicts = useMemo(() => new Set(conflictIndices(entries)), [entries]);
@@ -92,6 +93,7 @@ export default function SudokuGame() {
   useEffect(() => {
     if (!solved || reported.current) return;
     reported.current = true;
+    solvedResult.current?.focus();
     if (settings.playSound) playSolvedTone();
     const result = getResult({ day, level, seconds, errors, solved: true });
     reportRound({ game: 'triage', day, solved: true, tries: errors });
@@ -100,7 +102,6 @@ export default function SudokuGame() {
   }, [solved, day, level, seconds, errors, settings.playSound]);
 
   useEffect(() => { saveSettings(settings); }, [settings]);
-  useEffect(() => { applyChoice(document.documentElement, theme); saveChoice(browserStorage(), theme); }, [theme]);
 
   useEffect(() => {
     if (!settingsOpen) return;
@@ -165,13 +166,25 @@ export default function SudokuGame() {
     if (key === 'autoCandidates') setHints(next.autoCandidates);
     return next;
   });
+  const chooseTheme = (choice: Exclude<ThemeChoice, 'device'>) => {
+    setTheme(choice);
+    applyChoice(document.documentElement, choice);
+    saveChoice(browserStorage(), choice);
+  };
+  const printPuzzle = () => {
+    const root = document.documentElement;
+    root.dataset.printGame = 'sudoku';
+    const cleanup = () => { delete root.dataset.printGame; };
+    window.addEventListener('afterprint', cleanup, { once: true });
+    window.print();
+  };
   const elapsed = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
   const selectedRow = Math.floor(selected / 9); const selectedColumn = selected % 9; const selectedValue = entries[selected];
 
   return <section className="sudoku-game" data-testid="sudoku">
     <div className="sudoku-title-row" aria-label="puzzle actions">
       <div className="sudoku-corner-actions">
-        <button type="button" className="sudoku-icon-button print-control" aria-label="print this puzzle" onClick={() => window.print()}><span aria-hidden="true">▣</span></button>
+        <button type="button" className="sudoku-icon-button print-control" aria-label="print this puzzle" onClick={printPuzzle}><svg viewBox="0 0 24 24" className="size-6" aria-hidden="true" focusable="false"><path d="M7 9V4h10v5M7 17H5.5A2.5 2.5 0 0 1 3 14.5v-3A2.5 2.5 0 0 1 5.5 9h13a2.5 2.5 0 0 1 2.5 2.5v3a2.5 2.5 0 0 1-2.5 2.5H17M7 14h10v6H7z" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg></button>
         <button type="button" className="sudoku-icon-button" aria-label="how to play" aria-expanded={howOpen} onClick={() => setHowOpen((open) => !open)}>?</button>
       </div>
       {howOpen && <div className="sudoku-how" role="region" aria-label="how to play sudoku">
@@ -205,11 +218,11 @@ export default function SudokuGame() {
         <button ref={settingsButton} type="button" className="sudoku-setting-button sudoku-settings-trigger" aria-haspopup="dialog" onClick={() => setSettingsOpen(true)}><span aria-hidden="true">⚙</span> settings</button>
       </div>
     </div>
-    {solved && <div className="sudoku-solved" tabIndex={-1} role="status" data-testid="sudoku-result"><p className="text-lg font-medium">solved.</p><p>{elapsed} · {errors} {errors === 1 ? 'error' : 'errors'}</p><p className="text-sm text-ink-soft">a new sudoku comes out tomorrow.</p></div>}
-    {settingsOpen && <div className="sudoku-overlay" onMouseDown={(event) => event.target === event.currentTarget && setSettingsOpen(false)}>
+    {solved && <div ref={solvedResult} className="sudoku-solved" tabIndex={-1} role="status" data-testid="sudoku-result"><p className="text-lg font-medium">solved.</p><p>{elapsed} · {errors} {errors === 1 ? 'error' : 'errors'}</p><p className="text-sm text-ink-soft">a new sudoku comes out tomorrow.</p></div>}
+    {settingsOpen && <div className="sudoku-overlay" onPointerDown={(event) => event.target === event.currentTarget && setSettingsOpen(false)}>
       <div ref={dialog} className="sudoku-settings" role="dialog" aria-modal="true" aria-labelledby="sudoku-settings-title">
         <div className="sudoku-settings-heading"><h3 id="sudoku-settings-title">settings</h3><button type="button" className="sudoku-icon-button" aria-label="close settings" onClick={() => setSettingsOpen(false)}>×</button></div>
-        <fieldset><legend>theme</legend>{(['dark', 'light'] as const).map((choice) => <label key={choice} className="sudoku-option"><span><strong>{choice} mode</strong><small>use the site's {choice} theme.</small></span><input type="radio" name="sudoku-theme" checked={theme === choice} onChange={() => setTheme(choice)} /></label>)}</fieldset>
+        <fieldset><legend>theme</legend>{(['dark', 'light'] as const).map((choice) => <label key={choice} className="sudoku-option"><span><strong>{choice} mode</strong><small>use the site's {choice} theme.</small></span><input type="radio" name="sudoku-theme" checked={theme === choice} onChange={() => chooseTheme(choice)} /></label>)}</fieldset>
         <fieldset><legend>gameboard settings</legend>{(Object.keys(DEFAULTS) as Array<keyof Settings>).map((key) => {
           const labels: Record<keyof Settings, string> = { checkGuesses: 'check guesses when entered', autoCandidates: 'start in auto candidate mode', showErrors: 'show error counter', showTimer: 'show timer', highlightConflicts: 'highlight conflicts', highlightRowColumn: 'highlight row and column', highlightBox: 'highlight box', highlightIdentical: 'highlight identical numbers', playSound: 'play sound on solve' };
           return <label key={key} className="sudoku-option"><span>{labels[key]}</span><input type="checkbox" checked={settings[key]} onChange={() => updateSetting(key)} /></label>;

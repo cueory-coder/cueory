@@ -1,2 +1,1 @@
-status: Task 625, Sudoku replaces sort on /play with deterministic easy, medium and hard puzzles, accessible keyboard/pointer play, settings, pause, print and a plain result hook; the existing sort content files are intentionally retained.
-decision: D-pending (Task 625) Runtime build, browser and visual verification remain blocked because this worker environment has no usable Node/npm executor; do not merge until `npm run verify` and the browser suite pass.
+status: Task 625, sudoku replaces sort on /play: seeded unique easy/medium/hard puzzles, keyboard and pointer play, hints, persisted settings, isolated print output, accessibility coverage, and a shared-result hook; legacy sort content files remain untouched.

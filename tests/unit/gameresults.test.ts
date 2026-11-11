@@ -79,7 +79,7 @@ describe('private game stats on /play (D-76)', () => {
 
   it('says each game’s tries in its own words, fewest first', () => {
     expect(triesInWords('pulse', { 3: 2, 1: 1 })).toBe('1 guess on 1 day, 3 guesses on 2 days.');
-    expect(triesInWords('triage', { 0: 3 })).toBe('0 slips on 3 days.');
+    expect(triesInWords('triage', { 0: 3, 1: 1 })).toBe('0 errors on 3 days, 1 error on 1 day.');
     expect(triesInWords('cueword', { 1: 1 })).toBe('1 cue on 1 day.');
     expect(triesInWords('suture', { 2: 1, 1: 4 })).toBe('1 loose stitch on 4 days, 2 loose stitches on 1 day.');
     expect(triesInWords('pulse', {})).toBe('');
