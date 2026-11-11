@@ -1,0 +1,1 @@
+STATUS: Task 641, print word path: a round print button (left of where the "?" goes, 44 × 44, named "print") prints only the letter grid, its theme, the words to find and a small cueory.app line, black on white on one letter or A4 page, with no found words or answers shown.

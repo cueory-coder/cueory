@@ -171,6 +171,15 @@
   /* ---------- Word path board (Task 97) ---------- */
   --border-board: 2.5px;        /* the frame around the word search grid (Christian's design, 2026-11-01) */
 
+  /* ---------- Printed puzzles (Task 641) ---------- */
+  /* Paper, not a screen palette: a printed puzzle is black ink on white paper in Daytime and Evening alike. These are
+     CSS color keywords, not --color-* tokens, so no utility class can put them on screen. */
+  --print-paper: white;
+  --print-ink: black;
+  --print-board: 16cm;          /* the word path grid's width on paper: fits letter and A4 inside default margins */
+  --print-letter: 16pt;         /* a letter in the printed grid, large enough to read at arm's length */
+  --print-gap: 0.5cm;           /* space between the grid, the word list and the footer on paper */
+
   /* ---------- Motion (D-41 brand bar: 150–400 ms, soft not bouncy, always off under reduced-motion) ---------- */
   --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);     /* gentle UI transitions */
   --ease-emphasis: cubic-bezier(0.2, 0, 0, 1);   /* snappier entrances */

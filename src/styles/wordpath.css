@@ -1,0 +1,106 @@
+/*
+  word path (Task 97) on /play: its print button and its printed copy (Task 641).
+
+  The round print button matches the game's other round corner buttons: 44 × 44 px, a ring in the form-border color,
+  the page color inside and the icon in ink. It sits at the top right of the game, left of the game's "?" (how to play)
+  button when the game has one, the same place as the print buttons on the other daily games.
+
+  Printing: the button marks the page (data-print-game="suture", src/islands/gameprint.ts), and then only the word path's
+  letter grid, its theme, the list of words to find and a small "cueory.app" line are printed, black on white with no
+  texture. Found words and picked letters are not shown on paper. A plain Ctrl+P without the button prints the whole
+  page, and the word path part of it still prints clean (print.css hides [data-print-hidden], shows [data-print-only]).
+*/
+@layer components {
+  .wordpath-corner {
+    display: flex;
+    justify-content: flex-end;
+    gap: calc(var(--spacing) * 2);
+  }
+
+  .wordpath-round {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: calc(var(--spacing) * 11);
+    block-size: calc(var(--spacing) * 11);
+    border: var(--border-share-icon) solid var(--color-control);
+    border-radius: var(--radius-pill);
+    background-color: var(--color-page);
+    color: var(--color-ink);
+    cursor: pointer;
+  }
+
+  .wordpath-round:hover {
+    background-color: var(--color-surface);
+  }
+
+  .wordpath-round svg {
+    inline-size: calc(var(--spacing) * 5);
+    block-size: calc(var(--spacing) * 5);
+  }
+}
+
+@media print {
+  /* The game's own part, in any print. */
+  .wordpath {
+    color: var(--print-ink) !important;
+    background: var(--print-paper) !important;
+  }
+
+  .wordpath * {
+    color: var(--print-ink) !important;
+  }
+
+  .wordpath-board {
+    inline-size: min(100%, var(--print-board)) !important;
+    margin: var(--print-gap) auto 0 !important;
+    padding: 0 !important;
+    border-color: var(--print-ink) !important;
+    background: var(--print-paper) !important;
+    break-inside: avoid;
+  }
+
+  /* Every letter looks the same on paper: no found, picked or highlighted letters, no focus ring. */
+  .wordpath-board button {
+    background: none !important;
+    color: var(--print-ink) !important;
+    box-shadow: none !important;
+    outline: none !important;
+    opacity: 1 !important;
+    font-size: var(--print-letter) !important;
+  }
+
+  .wordpath-print-words {
+    inline-size: min(100%, var(--print-board));
+    margin: var(--print-gap) auto 0;
+    break-inside: avoid;
+  }
+
+  .wordpath-print-foot {
+    margin-block-start: var(--print-gap);
+    text-align: center;
+  }
+
+  /* After the print button: only the word path is printed, on plain white paper. */
+  :root[data-print-game="suture"],
+  :root[data-print-game="suture"] body {
+    background: var(--print-paper) !important;
+    color: var(--print-ink) !important;
+  }
+
+  :root[data-print-game="suture"] body > :not(:has([data-print-area="suture"])),
+  :root[data-print-game="suture"] main :not([data-print-area="suture"], [data-print-area="suture"] *, :has([data-print-area="suture"])) {
+    display: none !important;
+  }
+
+  :root[data-print-game="suture"] body :has([data-print-area="suture"]) {
+    max-inline-size: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: none !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
