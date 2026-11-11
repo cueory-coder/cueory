@@ -379,6 +379,7 @@ test.describe('daily games: crossword levels (Task 627)', () => {
         const last = await cells.last().boundingBox();
         expect(first).not.toBeNull();
         expect(last).not.toBeNull();
+        if (size !== '15') expect(first!.width).toBeGreaterThanOrEqual(44);
         expect(first!.x).toBeGreaterThanOrEqual(0);
         expect(last!.x + last!.width).toBeLessThanOrEqual(width);
       }
