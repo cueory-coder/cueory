@@ -199,6 +199,7 @@
   --crossword-cell-mid: clamp(2.5rem, 7vw, 3.875rem);
   --crossword-cell-hard: clamp(1.375rem, calc((100vw - var(--spacing-gutter) - var(--spacing-gutter) - 0.875rem) / 15), 2.5rem);
   --crossword-gap: 0.0625rem;
+  --crossword-line: 0.0625rem;
   --crossword-number: clamp(0.45rem, 1.5vw, 0.75rem);
   --crossword-letter: clamp(0.75rem, 3vw, 1.5rem);
   --crossword-help: min(20rem, calc(100vw - var(--spacing-gutter) - var(--spacing-gutter)));

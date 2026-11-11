@@ -2034,7 +2034,7 @@ html:has(dialog.mode-preview[open]) {
     inset-inline-end: 0;
     inline-size: var(--crossword-help);
     padding: calc(var(--spacing) * 4);
-    border: 1px solid var(--color-control);
+    border: var(--crossword-line) solid var(--color-control);
     border-radius: var(--radius-lg);
     color: var(--color-ink);
     background: var(--color-page);
@@ -2061,7 +2061,7 @@ html:has(dialog.mode-preview[open]) {
   .crossword-cell-word { border-block-end-width: var(--border-board); background: var(--color-soft); text-decoration: underline; text-underline-offset: 0.2em; }
   .crossword-cell-current { z-index: 1; outline: var(--focus-width) solid var(--color-focus); outline-offset: calc(var(--focus-width) * -1); background: var(--color-highlight); }
   .crossword-number { position: absolute; inset-block-start: 0; inset-inline-start: 0; padding: var(--crossword-gap); font-size: var(--crossword-number); line-height: 1; }
-  .crossword-clue-bar { display: flex; min-block-size: var(--tap-min); align-items: center; justify-content: center; gap: calc(var(--spacing) * 3); margin-block-start: calc(var(--spacing) * 3); padding: calc(var(--spacing) * 2) calc(var(--spacing) * 3); border-block: 1px solid var(--color-line); text-align: start; }
+  .crossword-clue-bar { display: flex; min-block-size: var(--tap-min); align-items: center; justify-content: center; gap: calc(var(--spacing) * 3); margin-block-start: calc(var(--spacing) * 3); padding: calc(var(--spacing) * 2) calc(var(--spacing) * 3); border-block: var(--crossword-line) solid var(--color-line); text-align: start; }
   .crossword-print-clues, .crossword-print-footer { display: none; }
 }
 
@@ -2070,7 +2070,7 @@ html:has(dialog.mode-preview[open]) {
   .crossword-panel { color: var(--color-print-ink); background: var(--color-print-page); }
   .crossword-board { --crossword-cell: var(--crossword-print-cell) !important; gap: 0; overflow: visible; }
   .crossword-row { gap: 0; }
-  .crossword-cell, .crossword-gap { border: 1px solid var(--color-print-ink); box-shadow: none; }
+  .crossword-cell, .crossword-gap { border: var(--crossword-line) solid var(--color-print-ink); box-shadow: none; }
   .crossword-cell { color: var(--color-print-ink); background: var(--color-print-page); text-decoration: none; }
   .crossword-cell-word, .crossword-cell-current { outline: 0; background: var(--color-print-page); }
   .crossword-entry { visibility: hidden; }

@@ -29,7 +29,7 @@ export const dailyGames: readonly DailyGame[] = [
   {
     id: 'cueword',
     name: 'crossword',
-    line: 'a small crossword. up to three cues, and each one fills in a letter for you.',
+    line: 'choose an easy, mid or hard crossword, then solve each crossing clue.',
     ready: true,
   },
   {
