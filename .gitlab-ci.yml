@@ -1,0 +1,24 @@
+image: node:22-alpine
+
+stages:
+  - verify
+
+cache:
+  key:
+    files:
+      - package.json
+  paths:
+    - .npm/
+
+verify:
+  stage: verify
+  before_script:
+    - npm install --cache .npm --prefer-offline
+  script:
+    - npm run check
+    - npm run build
+  artifacts:
+    when: always
+    paths:
+      - dist/
+    expire_in: 1 week
