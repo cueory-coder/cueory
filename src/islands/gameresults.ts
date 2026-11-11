@@ -20,7 +20,7 @@ export interface RoundResult {
   /** The day of the puzzle that was played, in the visitor's own time zone, written YYYY-MM-DD. */
   day: string;
   solved: boolean;
-  /** Guesses for pillo, errors for sudoku, cues for the crossword and loose stitches for word path. */
+  /** Guesses for pillo, slips for the retired sort record, cues for the crossword and loose stitches for word path. */
   tries: number;
 }
 
@@ -123,7 +123,7 @@ export function deleteStats(storage: KeyValueStorage | undefined): boolean {
 /** What each game counts as a try, in the words its own rules use. */
 const TRIES: Record<GameId, { one: string; many: string }> = {
   pulse: { one: 'guess', many: 'guesses' },
-  triage: { one: 'error', many: 'errors' },
+  triage: { one: 'slip', many: 'slips' },
   cueword: { one: 'cue', many: 'cues' },
   suture: { one: 'loose stitch', many: 'loose stitches' },
 };

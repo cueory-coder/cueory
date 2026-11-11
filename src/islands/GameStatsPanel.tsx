@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { dailyGames } from '../config/games';
+import { dailyGames, retiredGameNames } from '../config/games';
 import { browserStorage } from '../scripts/storage';
 import {
   deleteStats,
@@ -199,6 +199,7 @@ export default function GameStatsPanel({ games: order }: Props) {
           <ul className="mt-6 flex flex-col gap-5" aria-label="stats for each game">
             {games.map((game) => {
               const result = summary(saved.stats, game.id);
+              const displayName = game.id === 'triage' ? retiredGameNames.triage : game.name;
               return (
                 <li key={game.id}>
                   <h3
@@ -209,14 +210,14 @@ export default function GameStatsPanel({ games: order }: Props) {
                     tabIndex={-1}
                     className="font-medium"
                   >
-                    {game.name}
+                    {displayName}
                   </h3>
                   <p className="mt-1">{result.played === 0 ? 'not played yet.' : summaryInWords(result)}</p>
                   {result.played > 0 && (
                     <>
                       <p className="mt-1 text-sm text-ink-soft">{triesInWords(game.id, result.triesCounts)}</p>
-                      <button type="button" className={`${button} mt-2`} onClick={() => forgetGame(game.id, game.name)}>
-                        forget {game.name}
+                      <button type="button" className={`${button} mt-2`} onClick={() => forgetGame(game.id, displayName)}>
+                        forget {displayName}
                       </button>
                     </>
                   )}

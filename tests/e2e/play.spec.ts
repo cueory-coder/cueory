@@ -258,7 +258,7 @@ test.describe('daily games: sudoku (Task 625)', () => {
     await expect(grid(page).locator('[data-given="true"]')).toHaveCount(26);
   });
 
-  test('pause hides all 81 squares and settings preserve follow-device until an explicit persisted choice', async ({ page }) => {
+  test('pause hides all 81 squares and gameboard settings persist separately from the site theme', async ({ page }) => {
     const pause = game(page).getByRole('button', { name: 'pause puzzle' });
     await pause.click();
     const before = await game(page).locator('.sudoku-time').innerText();
@@ -610,7 +610,7 @@ test.describe('daily games: private stats (D-76)', () => {
     await expect(toggle(page)).toHaveAttribute('aria-checked', 'true');
     await expect(pulseStats(page)).toContainText('not played yet.');
     await expect(
-      panel(page).getByRole('listitem').filter({ has: page.getByRole('heading', { name: 'sudoku', exact: true }) }),
+      panel(page).getByRole('listitem').filter({ has: page.getByRole('heading', { name: 'sort', exact: true }) }),
     ).toContainText('played 1 day, solved 1.');
     // Deleted from this browser, not only hidden.
     expect(JSON.parse((await kept(page))!).results).toEqual([recent]);
