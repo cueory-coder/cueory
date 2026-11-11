@@ -12,3 +12,13 @@ Verification: the implementation uses the Web Share API with an image File when 
 Per-score Open Graph previews are intentionally not implemented because they require a server route.
 
 D-pending: confirm the image/share preview direction and any product copy decisions with Christian.
+
+Follow-up for GitLab Duo findings:
+- Native Share now attempts the prepared story image immediately when ready, otherwise sends text and URL synchronously from the tap; copy is the fallback after an unavailable or failed native share.
+- Story generation is prepared when the result dialog opens, so slow canvas work does not consume the share gesture.
+- Hello Cards and Pillo names now come from `src/config/games.ts`.
+- Story logo selection follows the saved Light/Dark theme or device preference.
+- The future Sudoku landing route is `noindex,nofollow` until the Worker 1 route/config integration exists; the static OG mapping remains a marked future hook.
+- Added behavior tests for text-only native sharing, failure fallback, and logo palette selection.
+
+Verification remains pending: this workspace has no repository checkout, so `npm run verify` has not been run locally; no verification claim is made here.

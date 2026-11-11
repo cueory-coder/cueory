@@ -18,6 +18,7 @@ function absoluteUrl(path: string): string {
 export default function GameResultsHost() {
   const [card, setCard] = useState<GameResultCard | null>(null);
   const [status, setStatus] = useState('');
+  const [storyFile, setStoryFile] = useState<File | null>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   const dialog = useRef<HTMLDivElement>(null);
   const returnFocus = useRef<HTMLElement | null>(null);
@@ -36,6 +37,16 @@ export default function GameResultsHost() {
 
   useEffect(() => {
     if (!card) return;
+    setStoryFile(null);
+    let live = true;
+    void createStoryFile({
+      name: card.name,
+      date: card.date,
+      result: card.result,
+      ...(card.wordmarkPath ? { wordmarkPath: card.wordmarkPath } : {}),
+    }).then((file) => {
+      if (live) setStoryFile(file);
+    });
     closeButton.current?.focus();
     const key = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -57,7 +68,10 @@ export default function GameResultsHost() {
       }
     };
     document.addEventListener('keydown', key);
-    return () => document.removeEventListener('keydown', key);
+    return () => {
+      live = false;
+      document.removeEventListener('keydown', key);
+    };
   }, [card]);
 
   function close() {
@@ -77,23 +91,11 @@ export default function GameResultsHost() {
   }
 
   async function share(card: GameResultCard, line: string) {
-    const file = await createStoryFile({
-      name: card.name,
-      date: card.date,
-      result: card.result,
-      ...(card.wordmarkPath ? { wordmarkPath: card.wordmarkPath } : {}),
-    });
-    if (!file || !navigator.canShare?.({ files: [file] })) {
-      await copy(line);
-      return;
-    }
-    const data = buildShareData(
-      navigator,
-      { title: `${card.name} result · cueory`, text: line, url: absoluteUrl(card.path) },
-      file,
-    );
-    const outcome = await runShare(navigator, data);
-    if (outcome === 'shared' || outcome === 'cancelled') return;
+    const base = { title: `${card.name} result · cueory`, text: line, url: absoluteUrl(card.path) };
+    // Use the prepared file without awaiting it when it is ready; otherwise call text/url share directly from the tap.
+    // Waiting for canvas work here would lose Safari's user-activation window.
+    const first = await runShare(navigator, buildShareData(navigator, base, storyFile));
+    if (first === 'shared' || first === 'cancelled') return;
     await copy(line);
   }
 

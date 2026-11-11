@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { dayLabel } from './daily';
 import { showResultCard } from './gameresults';
+import { helloCardsGame } from '../config/games';
 import {
   HELLO_CATEGORY_LABELS,
   HELLO_DEPTH_LABELS,
@@ -113,7 +114,7 @@ export default function HelloCards({ starters }: { starters: readonly HelloStart
             className="mt-4 min-h-(--tap-min) rounded-pill border border-control px-5 py-2.5"
             onClick={() => showResultCard({
               game: 'hello-cards',
-              name: 'hello cards',
+              name: helloCardsGame.name,
               date: dayLabel(today),
               result: "today's card",
               summary: 'share the prompt, then start a conversation.',

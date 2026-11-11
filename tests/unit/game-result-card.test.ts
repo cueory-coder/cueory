@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { buildResultShareLine } from '../../src/islands/gameresults';
-import { platformShareUrl } from '../../src/islands/share';
+import { buildShareData, platformShareUrl, runShare, storyLogoPath } from '../../src/islands/share';
 
 const card = { name: 'pillo', date: 'nov 11, 2026', result: '4 / 6' };
 
@@ -58,3 +58,29 @@ function tokensValue(name: string): string {
   const tokens = readFileSync(new URL('../../src/styles/tokens.css', import.meta.url), 'utf8');
   return new RegExp(`${name}:\\s*([^;]+)`).exec(tokens)?.[1]?.trim() ?? '';
 }
+
+
+describe('native share fallback behavior', () => {
+  const base = { title: 'cueory result', text: 'pillo result', url: target };
+  it('keeps text and URL shareable when no story file is ready or files are unsupported', async () => {
+    const share = vi.fn(async () => undefined);
+    const targetWithTextOnly = { share, canShare: () => false };
+    const data = buildShareData(targetWithTextOnly, base, null);
+    expect(data).toEqual(base);
+    await expect(runShare(targetWithTextOnly, data)).resolves.toBe('shared');
+    expect(share).toHaveBeenCalledWith(base);
+  });
+  it('reports a native failure so the caller can copy the line', async () => {
+    const targetWithFailure = { share: vi.fn(async () => { throw new Error('blocked'); }) };
+    await expect(runShare(targetWithFailure, base)).resolves.toBe('failed');
+  });
+});
+
+describe('story logo palette selection', () => {
+  it('uses the saved theme choice before the device preference', () => {
+    expect(storyLogoPath('light', true)).toBe('/brand/v1/logo-full-light-960.png');
+    expect(storyLogoPath('dark', false)).toBe('/brand/v1/logo-full-dark-960.png');
+    expect(storyLogoPath(undefined, true)).toBe('/brand/v1/logo-full-dark-960.png');
+    expect(storyLogoPath(undefined, false)).toBe('/brand/v1/logo-full-light-960.png');
+  });
+});

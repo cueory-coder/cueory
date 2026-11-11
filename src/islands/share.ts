@@ -154,6 +154,12 @@ export function platformShareUrl(platform: SharePlatform, text: string, url: str
   }
 }
 
+/** Selects the official logo artwork for the active palette, including a saved Light/Dark choice. */
+export function storyLogoPath(theme: string | undefined, prefersDark: boolean): string {
+  const evening = theme === 'dark' || (theme !== 'light' && prefersDark);
+  return `/brand/v1/logo-full-${evening ? 'dark' : 'light'}-960.png`;
+}
+
 export interface StoryImageInput {
   name: string;
   date: string;
@@ -182,6 +188,7 @@ export async function createStoryFile(input: StoryImageInput): Promise<File | nu
     const soft = tokens.getPropertyValue('--color-ink-soft').trim();
     const bodyFont = tokens.getPropertyValue('--font-body').trim();
     const displayFont = tokens.getPropertyValue('--font-display').trim();
+    const prefersDark = typeof matchMedia === 'function' && matchMedia('(prefers-color-scheme: dark)').matches;
     const width = number('--share-story-width');
     const height = number('--share-story-height');
     const logoWidth = number('--share-story-logo-width');
@@ -203,8 +210,8 @@ export async function createStoryFile(input: StoryImageInput): Promise<File | nu
     context.fillStyle = page;
     context.fillRect(0, 0, width, height);
 
-    // Wordmark.astro confirms the "light" file is the unchanged Daytime Espresso artwork.
-    const logo = await image('/brand/v1/logo-full-light-960.png');
+    // Wordmark.astro supplies the official palette variants; match the saved theme choice or device palette.
+    const logo = await image(storyLogoPath(document.documentElement.dataset.theme, prefersDark));
     const logoHeight = (logo.height * logoWidth) / logo.width;
     context.drawImage(logo, (width - logoWidth) / 2, number('--share-story-logo-top'), logoWidth, logoHeight);
 

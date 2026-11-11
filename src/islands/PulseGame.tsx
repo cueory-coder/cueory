@@ -22,6 +22,7 @@ import {
 import { dayLabel } from './daily';
 import { localDay, reportRound } from './gameresults';
 import ResultBrandMark from './ResultBrandMark';
+import { gameName } from '../config/games';
 
 interface Puzzle {
   word: string;
@@ -83,7 +84,7 @@ export default function PulseGame({ puzzles }: Props) {
       tries,
       card: {
         game: 'pulse',
-        name: 'pillo',
+        name: gameName('pulse'),
         date: dayLabel(today),
         result: solved ? `${tries} / ${GUESSES}` : 'not solved',
         summary: solved ? 'you found today\'s word.' : 'today\'s word is ready for another try tomorrow.',
