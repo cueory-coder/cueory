@@ -90,7 +90,7 @@ const quickLinks = [
 <script>
   // Reuse the same local Pagefind index and safe text rendering as the site menu (D-49).
   // This only loads the search index after a visitor focuses the search field.
-  import { cleanUrl, excerptParts, keepFocus, MAX_RESULTS, moveFocus, PAGEFIND_URL, statusText } from '../scripts/search';
+  import { cleanUrl, createSearchLoader, excerptParts, keepFocus, MAX_RESULTS, moveFocus, PAGEFIND_URL, statusText } from '../scripts/search';
 
   interface PagefindResult {
     url: string;
@@ -110,18 +110,14 @@ const quickLinks = [
   const list = root?.querySelector<HTMLUListElement>('[data-404-results]');
 
   if (root && input && status && list) {
-    let pagefind: Promise<Pagefind> | undefined;
-    const load = () => {
-      pagefind ??= (async () => {
-        const url: string = PAGEFIND_URL;
-        const module = (await import(/* @vite-ignore */ url)) as Pagefind;
-        // The site CSP deliberately disallows workers that use blob: URLs.
-        await module.options({ noWorker: true });
-        await module.init();
-        return module;
-      })();
-      return pagefind;
-    };
+    const load = createSearchLoader(async () => {
+      const url: string = PAGEFIND_URL;
+      const module = (await import(/* @vite-ignore */ url)) as Pagefind;
+      // The site CSP deliberately disallows workers that use blob: URLs.
+      await module.options({ noWorker: true });
+      await module.init();
+      return module;
+    });
 
     const links = () => [...list.querySelectorAll<HTMLAnchorElement>('a')];
     let latest = 0;

@@ -1,7 +1,7 @@
 /**
  * Site search in the ☰ side panel (D-49). Pagefind builds a static index of the site when it is built; the browser
  * downloads only the small pieces a search needs, from this site, and nothing is sent anywhere else. These are the
- * pure helpers, kept apart from the panel's script so they can be unit tested (tests/unit/search.test.ts).
+ * shared helpers, kept apart from the panel's script so they can be unit tested (tests/unit/search.test.ts).
  */
 
 /** The most results shown at once, so the panel stays short. */
@@ -9,6 +9,19 @@ export const MAX_RESULTS = 8;
 
 /** Where `npm run build` puts Pagefind's bundle (pagefind --site dist). */
 export const PAGEFIND_URL = '/pagefind/pagefind.js';
+
+/**
+ * Load search on demand and share one pending or successful initialization.
+ * A failed download must not leave later searches reusing the same rejection.
+ * Retry only when another focus or search asks to load, never in a background loop.
+ */
+export function createSearchLoader<T>(initialize: () => Promise<T>): () => Promise<T> {
+  let loaded: Promise<T> | undefined;
+  return () => loaded ??= Promise.resolve().then(initialize).catch((error: unknown) => {
+    loaded = undefined;
+    throw error;
+  });
+}
 
 /**
  * Pagefind names results after the built files (`/privacy.html`, `/learn/study-skills/index.html`), but the site's
