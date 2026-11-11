@@ -2,26 +2,30 @@
   "status": "sample",
   "level": "hard",
   "grid": [
-    "ABCDEFGHIJKLMNO",
-    "BCDEFGHIJKLMNOA",
-    "CDEFGHIJKLMNOAB",
-    "DEFGHIJKLMNOABC",
-    "EFGHIJKLMNOABCD",
-    "FGHIJKLMNOABCDE",
-    "GHIJKLMNOABCDEF",
-    "HIJKLMNOABCDEFG",
-    "IJKLMNOABCDEFGH",
-    "JKLMNOABCDEFGHI",
-    "KLMNOABCDEFGHIJ",
-    "LMNOABCDEFGHIJK",
-    "MNOABCDEFGHIJKL",
-    "NOABCDEFGHIJKLM",
-    "OABCDEFGHIJKLMN"
+    "...DEFGHIJKLMNO",
+    "BCDEFGHIJKLMNOP",
+    "CDEFGHIJKLMNOPQ",
+    "DEFGHIJKLMNOPQR",
+    "EFGHIJKLMNOPQRS",
+    "FGHIJKLMNOPQRST",
+    "GHIJKLMNOPQRSTU",
+    "HIJKLMN.PQRSTUV",
+    "IJKLMNOPQRSTUVW",
+    "JKLMNOPQRSTUVWX",
+    "KLMNOPQRSTUVWXY",
+    "LMNOPQRSTUVWXYZ",
+    "MNOPQRSTUVWXYZA",
+    "NOPQRSTUVWXYZAB",
+    "OPQRSTUVWXYZ..."
   ],
   "clues": {
     "across": [
       {
         "number": 1,
+        "text": "[sample clue]"
+      },
+      {
+        "number": 13,
         "text": "[sample clue]"
       },
       {
@@ -57,10 +61,6 @@
         "text": "[sample clue]"
       },
       {
-        "number": 24,
-        "text": "[sample clue]"
-      },
-      {
         "number": 25,
         "text": "[sample clue]"
       },
@@ -78,6 +78,10 @@
       },
       {
         "number": 29,
+        "text": "[sample clue]"
+      },
+      {
+        "number": 30,
         "text": "[sample clue]"
       }
     ],
@@ -140,6 +144,10 @@
       },
       {
         "number": 15,
+        "text": "[sample clue]"
+      },
+      {
+        "number": 24,
         "text": "[sample clue]"
       }
     ]

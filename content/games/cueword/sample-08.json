@@ -2,18 +2,22 @@
   "status": "sample",
   "level": "mid",
   "grid": [
-    "ABCDEFG",
-    "BCDEFGA",
-    "CDEFGAB",
-    "DEFGABC",
-    "EFGABCD",
-    "FGABCDE",
-    "GABCDEF"
+    "...DEFG",
+    "BCDEFGH",
+    "CDEFGHI",
+    "DEF.HIJ",
+    "EFGHIJK",
+    "FGHIJKL",
+    "GHIJ..."
   ],
   "clues": {
     "across": [
       {
         "number": 1,
+        "text": "[sample clue]"
+      },
+      {
+        "number": 5,
         "text": "[sample clue]"
       },
       {
@@ -33,11 +37,11 @@
         "text": "[sample clue]"
       },
       {
-        "number": 12,
+        "number": 13,
         "text": "[sample clue]"
       },
       {
-        "number": 13,
+        "number": 14,
         "text": "[sample clue]"
       }
     ],
@@ -68,6 +72,10 @@
       },
       {
         "number": 7,
+        "text": "[sample clue]"
+      },
+      {
+        "number": 12,
         "text": "[sample clue]"
       }
     ]

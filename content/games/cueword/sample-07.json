@@ -2,16 +2,20 @@
   "status": "sample",
   "level": "easy",
   "grid": [
-    "ABCDE",
-    "BCDEA",
-    "CDEAB",
-    "DEABC",
-    "EABCD"
+    "..CDE",
+    "BCDEF",
+    "CDEFG",
+    "DEFGH",
+    "EFG.."
   ],
   "clues": {
     "across": [
       {
         "number": 1,
+        "text": "[sample clue]"
+      },
+      {
+        "number": 4,
         "text": "[sample clue]"
       },
       {
@@ -24,10 +28,6 @@
       },
       {
         "number": 8,
-        "text": "[sample clue]"
-      },
-      {
-        "number": 9,
         "text": "[sample clue]"
       }
     ],

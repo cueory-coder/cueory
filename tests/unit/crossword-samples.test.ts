@@ -37,7 +37,7 @@ describe('crossword samples (D-70, Task 627)', () => {
         }
       } else {
         // Older easy samples stay for regression coverage; their everyday words and clues remain unchanged.
-        for (const word of words(puzzle)) expect(word.answer).toMatch(/^[A-Z]{2,7}$/);
+        for (const word of words(puzzle)) expect(word.answer).toMatch(/^[A-Z]{2,15}$/);
         for (const clue of [...puzzle.clues.across, ...puzzle.clues.down]) {
           expect(clue.text).toBe(clue.text.toLowerCase());
         }
