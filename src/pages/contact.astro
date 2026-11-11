@@ -1,0 +1,29 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+<BaseLayout title="Message us" description="Tell Cueory what is broken, confusing, missing, or could be better.">
+  <section class="page-shell contact">
+    <header><p class="eyebrow">message us</p><h1 class="display">tell us what to fix.</h1><p>Something broken, confusing or missing? An idea that would help? We read every message.</p></header>
+    <form class="glass panel">
+      <label>what's this about?
+        <select name="topic" required><option value="">choose one</option><option>something isn't working</option><option>an idea to make cueory better</option><option>a mistake in a lesson or question</option><option>advertise or work with us</option><option>something else</option></select>
+      </label>
+      <label>which page? <span>(optional)</span><input name="page" type="url" inputmode="url" /></label>
+      <label>your message<textarea name="message" rows="8" required></textarea><small>Please don't include any patient information.</small></label>
+      <label>email, if you'd like a reply <span>(optional)</span><input name="email" type="email" autocomplete="email" /></label>
+      <button class="button copper" type="submit">send message</button>
+    </form>
+  </section>
+</BaseLayout>
+<style>
+  .contact { max-width: 54rem; padding-block: clamp(3rem, 8vw, 7rem); }
+  header { margin-bottom: 2rem; }
+  h1 { margin: .25rem 0; font-size: clamp(4rem, 10vw, 7rem); line-height: .95; }
+  header p:last-child { max-width: 40rem; font-size: 1.1rem; color: var(--ink-muted); }
+  form { display: grid; gap: 1.25rem; }
+  label { display: grid; gap: .4rem; font-weight: 700; }
+  label span, small { color: var(--ink-muted); font-weight: 400; }
+  input, select, textarea { width: 100%; border: 1px solid var(--line); border-radius: .9rem; padding: .8rem 1rem; color: var(--ink); background: var(--paper); }
+  textarea { resize: vertical; }
+  button { justify-self: start; border: 0; }
+</style>

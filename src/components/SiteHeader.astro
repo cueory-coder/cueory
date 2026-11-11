@@ -1,0 +1,148 @@
+---
+import BrandLogo from "./BrandLogo.astro";
+const path = Astro.url.pathname;
+const isCurrent = (href: string) => href !== "/" && path.startsWith(href);
+---
+<div class="build-banner no-print">
+  <span>we're still building. more coming soon.</span>
+</div>
+<header class="site-header page-shell no-print">
+  <a class="logo-link" href="/" aria-label="cueory home">
+    <BrandLogo class="logo" />
+  </a>
+
+  <nav class="glass main-nav" aria-label="Main navigation">
+    <a href="/#study">study</a>
+    <a href="/anatomy-lab/" aria-current={isCurrent("/anatomy-lab/") ? "page" : undefined}>anatomy lab</a>
+    <a href="/games/" aria-current={isCurrent("/games/") ? "page" : undefined}>games</a>
+    <a href="/#support">support</a>
+    <details class="about-menu">
+      <summary>about <span aria-hidden="true">▾</span></summary>
+      <div class="glass about-popover">
+        <a href="/about/">about us</a>
+        <a href="/resources/">how to use cueory</a>
+        <a href="/#mailing">coming soon + mailing list</a>
+        <a href="/contact/">contact us</a>
+        <a href="/legal/">privacy, terms + disclaimer</a>
+      </div>
+    </details>
+  </nav>
+
+  <div class="header-actions">
+    <a class="round-action glass" href="/search/" aria-label="Search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+    </a>
+    <a class="button copper sign-in" href="/sign-in/">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"></path></svg>
+      <span>sign in</span>
+    </a>
+  </div>
+</header>
+
+<style>
+  .build-banner {
+    min-height: 2.75rem;
+    display: grid;
+    place-items: center;
+    padding: .55rem 1rem 1rem;
+    text-align: center;
+    background: linear-gradient(180deg, rgb(255 250 245 / 45%), transparent);
+  }
+  .site-header {
+    position: relative;
+    z-index: 20;
+    display: grid;
+    grid-template-columns: minmax(8rem, 1fr) auto minmax(8rem, 1fr);
+    align-items: center;
+    gap: 1rem;
+    padding-block: .25rem 1rem;
+  }
+  .logo-link { width: max-content; display: block; }
+  .logo { width: 9.5rem; height: auto; display: block; }
+  .main-nav {
+    display: flex;
+    align-items: center;
+    gap: .15rem;
+    border-radius: var(--radius-pill);
+    padding: .35rem;
+  }
+  .main-nav > a,
+  .about-menu > summary {
+    min-height: 2.65rem;
+    display: flex;
+    align-items: center;
+    border-radius: var(--radius-pill);
+    padding: .45rem .85rem;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .main-nav > a:hover,
+  .main-nav > a[aria-current="page"],
+  .about-menu > summary:hover {
+    background: rgb(255 255 255 / 34%);
+  }
+  .about-menu { position: relative; }
+  .about-menu > summary { list-style: none; }
+  .about-menu > summary::-webkit-details-marker { display: none; }
+  .about-popover {
+    position: absolute;
+    top: calc(100% + .65rem);
+    left: 50%;
+    width: 17rem;
+    translate: -50% 0;
+    display: grid;
+    border-radius: 1.15rem;
+    padding: .5rem;
+    background: var(--glass-strong);
+  }
+  .about-popover a {
+    min-height: 2.75rem;
+    display: flex;
+    align-items: center;
+    border-radius: .75rem;
+    padding: .5rem .85rem;
+    text-decoration: none;
+  }
+  .about-popover a:hover { background: rgb(255 255 255 / 28%); }
+  .header-actions { display: flex; justify-content: flex-end; gap: .65rem; }
+  .round-action {
+    width: var(--touch);
+    height: var(--touch);
+    display: grid;
+    place-items: center;
+    flex: none;
+    border-radius: 50%;
+  }
+  .round-action svg,
+  .sign-in svg {
+    width: 1.25rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+  }
+  @media (max-width: 68rem) {
+    .site-header { grid-template-columns: auto 1fr auto; }
+    .main-nav { justify-self: center; }
+    .main-nav > a,
+    .about-menu > summary { padding-inline: .65rem; }
+    .sign-in span { display: none; }
+    .sign-in { width: var(--touch); padding-inline: 0; }
+  }
+  @media (max-width: 48rem) {
+    .site-header { grid-template-columns: 1fr auto; align-items: start; }
+    .logo { width: 8.25rem; }
+    .header-actions { grid-column: 2; grid-row: 1; }
+    .main-nav {
+      grid-column: 1 / -1;
+      width: 100%;
+      justify-content: flex-start;
+      overflow-x: auto;
+      overscroll-behavior-inline: contain;
+      scrollbar-width: none;
+    }
+    .main-nav::-webkit-scrollbar { display: none; }
+    .main-nav > a,
+    .about-menu > summary { white-space: nowrap; }
+    .about-popover { left: 0; translate: 0; }
+  }
+</style>

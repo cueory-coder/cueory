@@ -1,0 +1,23 @@
+<footer class="page-shell footer no-print">
+  <nav aria-label="Footer">
+    <a href="/about/">about us</a>
+    <a href="/legal/#privacy">privacy</a>
+    <a href="/legal/#terms">terms</a>
+    <a href="/legal/#disclaimer">disclaimer</a>
+    <a href="/contact/">contact</a>
+  </nav>
+  <small>© {new Date().getFullYear()} cueory</small>
+</footer>
+
+<style>
+  .footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 1rem 2rem;
+    padding-block: 2.5rem;
+    color: var(--ink-muted);
+  }
+  nav { display: flex; flex-wrap: wrap; gap: 1rem; }
+  a { text-underline-offset: .22em; }
+</style>

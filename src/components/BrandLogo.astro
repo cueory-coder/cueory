@@ -1,0 +1,14 @@
+---
+interface Props {
+  class?: string;
+}
+const { class: className = "" } = Astro.props;
+---
+<img
+  class={className}
+  src="/brand/v1/cueory-logo.png"
+  width="190"
+  height="56"
+  alt="cueory"
+  decoding="async"
+/>

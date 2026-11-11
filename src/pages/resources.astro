@@ -1,0 +1,28 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+const steps = ["Pick a course, then the lesson your class is on.", "Watch the short video, then try one way to study it.", "Check yourself with the quick quiz.", "Come back when Cueory reminds you to review."];
+---
+<BaseLayout title="Resources" description="How to use Cueory and practical resources for nursing students.">
+  <div class="page-shell resources">
+    <header><p class="eyebrow">resources</p><h1 class="display">how to use cueory</h1></header>
+    <section class="glass panel"><h2 class="display">how to use cueory</h2><ol>{steps.map(step => <li>{step}</li>)}</ol></section>
+    <section class="glass panel">
+      <h2 class="display">how learning works</h2>
+      <div class="learning"><article><h3>pull it out</h3><p>Recalling an answer beats re-reading it.</p></article><article><h3>space it out</h3><p>Short reviews over days stick better than one long night.</p></article><article><h3>mix it up</h3><p>Switching topics trains you for exam questions.</p></article></div>
+      <p class="placeholder">[Sources for each point go here before release.]</p>
+    </section>
+    <section class="glass panel"><h2 class="display">tips</h2><p>[Study tips from Christian's reviewed batch.]</p></section>
+    <section class="glass panel"><p class="eyebrow">coming soon</p><h2 class="display">nurse pay by state</h2><p>Shared anonymously by nurses. Self-reported and not verified.</p></section>
+    <section class="glass panel"><p class="eyebrow">coming soon</p><h2 class="display">adhd tools</h2></section>
+    <section class="glass panel"><p class="eyebrow">coming soon</p><h2 class="display">rate my nursing school</h2><p>Honest reviews of nursing programs from the students in them.</p></section>
+  </div>
+</BaseLayout>
+<style>
+  .resources { max-width: 64rem; display: grid; gap: 1.5rem; padding-block: clamp(3rem, 8vw, 7rem); }
+  h1 { margin: .25rem 0 1.5rem; font-size: clamp(4rem, 10vw, 7rem); line-height: .95; }
+  h2 { margin: 0 0 .75rem; font-size: clamp(2rem, 5vw, 3rem); }
+  .learning { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+  h3 { margin-bottom: .25rem; }
+  .learning p, .placeholder { color: var(--ink-muted); }
+  @media (max-width: 42rem) { .learning { grid-template-columns: 1fr; } }
+</style>

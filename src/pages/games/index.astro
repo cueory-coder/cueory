@@ -1,0 +1,31 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+const games = [
+  ["pillo", "Daily five-letter word game", "/games/pillo/"],
+  ["hello cards", "Conversation starters", "/games/hello-cards/"],
+  ["word path", "Trace connected letters", "/games/word-path/"],
+  ["crossword", "A compact daily crossword", "/games/crossword/"],
+  ["sudoku", "A daily number puzzle", "/games/sudoku/"],
+];
+---
+<BaseLayout title="Daily games" description="Original daily games from Cueory.">
+  <section class="page-shell games">
+    <header><p class="eyebrow">a new set every day</p><h1 class="display">daily games.</h1><p>Each one takes a couple of minutes. Play one, or all five.</p></header>
+    <div class="grid">
+      {games.map(([name, description, href], index) => <a class="glass panel" href={href}><span class="eyebrow">0{index + 1}</span><h2 class="display">{name}</h2><p>{description}</p><strong>play today's <span aria-hidden="true">→</span></strong></a>)}
+    </div>
+  </section>
+</BaseLayout>
+<style>
+  .games { padding-block: clamp(3rem, 8vw, 7rem); }
+  header { max-width: 48rem; margin-bottom: 2rem; }
+  h1 { margin: .2rem 0; font-size: clamp(4rem, 11vw, 8rem); line-height: .9; }
+  header p:last-child { color: var(--ink-muted); font-size: 1.1rem; }
+  .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 1rem; }
+  .grid a { min-height: 18rem; display: flex; flex-direction: column; color: inherit; text-decoration: none; }
+  .grid a:nth-child(1), .grid a:nth-child(2) { grid-column: span 3; }
+  .grid a:nth-child(n+3) { grid-column: span 2; }
+  h2 { margin: auto 0 .25rem; font-size: clamp(2.2rem, 5vw, 4rem); }
+  .grid p { margin: 0 0 1.5rem; color: var(--ink-muted); }
+  @media (max-width: 46rem) { .grid { grid-template-columns: 1fr; } .grid a:nth-child(n) { grid-column: auto; min-height: 14rem; } }
+</style>

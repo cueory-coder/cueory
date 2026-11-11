@@ -1,0 +1,186 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const studyMethods = [
+  ["lessons", "clear steps through each topic"],
+  ["study materials", "use the format that fits today"],
+  ["daily games", "a few focused minutes"],
+  ["resources", "practical tools for nursing students"],
+];
+const games = [
+  ["pillo", "a daily five-letter word game", "/games/pillo/"],
+  ["hello cards", "conversation starters", "/games/hello-cards/"],
+  ["word path", "trace today's hidden words", "/games/word-path/"],
+  ["crossword", "a compact daily crossword", "/games/crossword/"],
+  ["sudoku", "a daily number puzzle", "/games/sudoku/"],
+];
+---
+<BaseLayout title="Cueory" description="Nursing school made simpler, by nursing students for nursing students.">
+  <section class="hero page-shell">
+    <div class="hero-copy">
+      <p class="display hero-kicker"><em>by nursing students, for nursing students</em></p>
+      <h1 class="display">nursing school<br /><span>made simpler.</span></h1>
+      <p class="hero-intro">Structured lessons, multiple ways to study, and a calmer place to practice.</p>
+      <a class="button copper hero-button" href="#study">start studying for free <span aria-hidden="true">→</span></a>
+      <ul class="benefits" role="list">
+        <li><strong>structured learning</strong><span>from basics to med-surg</span></li>
+        <li><strong>multiple ways to study</strong><span>learn the way that works for you</span></li>
+        <li><strong>adhd friendly</strong><span>less overwhelm, more focus</span></li>
+      </ul>
+    </div>
+    <div class="hero-art" aria-label="Approved Cueory hero artwork">
+      <img src="/brand/v1/home-hero.png" alt="" width="720" height="860" decoding="async" fetchpriority="high" />
+    </div>
+  </section>
+
+  <nav class="glass explore page-shell" aria-label="Explore Cueory">
+    <span class="eyebrow">explore</span>
+    {studyMethods.map(([label]) => <a href={label === "daily games" ? "/games/" : `#${label.replaceAll(" ", "-")}`}>{label}</a>)}
+    <a href="/contact/">give us suggestions</a>
+  </nav>
+
+  <section id="study" class="section page-shell">
+    <div class="section-heading">
+      <p class="eyebrow">start with</p>
+      <h2 class="display">what you need.</h2>
+      <p>One lesson, multiple ways to study. Pick the method that fits your brain today.</p>
+    </div>
+    <div class="method-grid">
+      {studyMethods.map(([title, text], index) => (
+        <article class="glass panel method-card" id={title.replaceAll(" ", "-")}>
+          <span class="method-number" aria-hidden="true">0{index + 1}</span>
+          <h3 class="display">{title}</h3>
+          <p>{text}</p>
+        </article>
+      ))}
+    </div>
+  </section>
+
+  <section class="section page-shell" aria-labelledby="games-heading">
+    <div class="section-heading">
+      <p class="eyebrow">daily games</p>
+      <h2 class="display" id="games-heading">a few minutes, every day.</h2>
+      <p>A new set of nursing games each day. Play one, or all five.</p>
+    </div>
+    <div class="game-grid">
+      {games.map(([name, blurb, href], index) => (
+        <a class="glass panel game-card" href={href}>
+          <span class="eyebrow">{String(index + 1).padStart(2, "0")} · daily game</span>
+          <h3 class="display">{name}</h3>
+          <p>{blurb}</p>
+          <span class="play-link">play today's <span aria-hidden="true">→</span></span>
+        </a>
+      ))}
+    </div>
+  </section>
+
+  <section id="mailing" class="section page-shell">
+    <div class="glass panel mailing">
+      <div>
+        <p class="eyebrow">coming soon</p>
+        <h2 class="display">Mental Health I and Med Math are next.</h2>
+        <p>Get one email when they open.</p>
+      </div>
+      <form action="#" method="post">
+        <label class="sr-only" for="email">email</label>
+        <input id="email" name="email" type="email" autocomplete="email" placeholder="email" required />
+        <button class="button copper" type="submit">join the list</button>
+      </form>
+    </div>
+  </section>
+
+  <section id="support" class="section page-shell">
+    <div class="support-heading">
+      <p class="eyebrow">support our mission</p>
+      <h2 class="display">help keep cueory growing.</h2>
+    </div>
+    <div class="support-grid">
+      <article class="glass panel"><h3 class="display">expand our resources</h3><p>More courses, lessons and practice, so nursing school gets simpler.</p></article>
+      <article class="glass panel"><h3 class="display">help students who are struggling</h3><p>Tools for the classes where students fall behind most.</p></article>
+      <article class="glass panel"><h3 class="display">build what's next</h3><p>New ways to help students and nurses.</p></article>
+    </div>
+    <a class="button copper support-button" href="#" aria-disabled="true">Ko-fi link coming soon</a>
+  </section>
+</BaseLayout>
+
+<style>
+  .hero {
+    min-height: min(52rem, calc(100svh - 8rem));
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(20rem, .95fr);
+    align-items: center;
+    gap: clamp(1rem, 4vw, 4rem);
+    padding-block: clamp(2rem, 7vw, 6rem);
+  }
+  .hero-copy { position: relative; z-index: 1; text-align: center; }
+  .hero-kicker { margin: 0 0 1rem; font-size: clamp(1.1rem, 2vw, 1.5rem); letter-spacing: .035em; }
+  h1 { margin: 0; font-size: clamp(3.7rem, 8.7vw, 8rem); line-height: .82; }
+  h1 span { color: var(--copper); }
+  .hero-intro { max-width: 34rem; margin: 1.75rem auto; font-size: clamp(1.05rem, 1.6vw, 1.25rem); }
+  .hero-button { font-size: 1.05rem; }
+  .benefits {
+    margin: 3rem auto 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    gap: 1rem 2.5rem;
+    list-style: none;
+  }
+  .benefits li { display: grid; gap: .1rem; }
+  .benefits span { color: var(--ink-muted); font-size: .85rem; }
+  .hero-art { align-self: stretch; display: grid; place-items: end center; }
+  .hero-art img { width: min(100%, 44rem); height: 100%; object-fit: contain; object-position: center bottom; filter: drop-shadow(0 2rem 4rem rgb(99 60 40 / 18%)); }
+  .explore {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .35rem;
+    border-radius: var(--radius-pill);
+    padding: .5rem .75rem;
+    overflow-x: auto;
+  }
+  .explore > * { flex: none; }
+  .explore a { min-height: 2.7rem; display: flex; align-items: center; border-radius: var(--radius-pill); padding: .45rem .9rem; text-decoration: none; }
+  .explore a:hover { background: rgb(255 255 255 / 30%); }
+  .section { padding-block: clamp(4.5rem, 10vw, 9rem); }
+  .section-heading { max-width: 48rem; margin-bottom: 2.25rem; }
+  .section-heading h2, .support-heading h2 { margin: .2rem 0 .5rem; font-size: clamp(3rem, 7vw, 6.2rem); line-height: .95; }
+  .section-heading > p:last-child { max-width: 38rem; color: var(--ink-muted); font-size: 1.1rem; }
+  .method-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+  .method-card { min-height: 17rem; display: flex; flex-direction: column; }
+  .method-number { color: var(--ink-muted); font-weight: 700; letter-spacing: .18em; }
+  .method-card h3, .game-card h3, .support-grid h3 { margin: auto 0 .25rem; font-size: clamp(1.8rem, 3vw, 2.6rem); line-height: 1; }
+  .method-card p, .game-card p, .support-grid p { margin: .35rem 0 0; color: var(--ink-muted); }
+  .game-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 1rem; }
+  .game-card { min-height: 18rem; display: flex; flex-direction: column; color: inherit; text-decoration: none; transition: translate .25s ease, box-shadow .25s ease; }
+  .game-card:nth-child(1), .game-card:nth-child(2) { grid-column: span 3; }
+  .game-card:nth-child(n+3) { grid-column: span 2; }
+  .game-card:hover { translate: 0 -.35rem; box-shadow: 0 24px 65px rgb(110 70 40 / 20%); }
+  .game-card .play-link { margin-top: auto; padding-top: 2rem; font-weight: 700; }
+  .mailing { display: flex; align-items: center; justify-content: space-between; gap: 2rem; }
+  .mailing h2 { margin: .25rem 0; font-size: clamp(2rem, 4vw, 3.5rem); }
+  .mailing form { display: flex; gap: .65rem; }
+  .mailing input { min-height: var(--touch); width: min(22rem, 50vw); border: 1px solid var(--line); border-radius: var(--radius-pill); padding: .7rem 1rem; color: var(--ink); background: var(--paper); }
+  .support-heading { max-width: 50rem; text-align: center; margin: 0 auto 2.25rem; }
+  .support-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+  .support-grid article { min-height: 13rem; }
+  .support-button { margin: 2rem auto 0; display: flex; width: max-content; }
+  @media (max-width: 62rem) {
+    .hero { grid-template-columns: 1fr; }
+    .hero-art { min-height: 28rem; grid-row: 1; }
+    .hero-copy { grid-row: 2; }
+    .method-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 45rem) {
+    .hero { padding-top: 1rem; }
+    .hero-art { min-height: 20rem; }
+    .benefits { flex-direction: column; }
+    .explore { justify-content: flex-start; }
+    .method-grid, .support-grid { grid-template-columns: 1fr; }
+    .game-grid { grid-template-columns: 1fr; }
+    .game-card:nth-child(n) { grid-column: auto; min-height: 14rem; }
+    .mailing { align-items: stretch; flex-direction: column; }
+    .mailing form { flex-direction: column; }
+    .mailing input { width: 100%; }
+  }
+</style>

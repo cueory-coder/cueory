@@ -1,0 +1,26 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+<BaseLayout title="About us" description="Why Cueory exists and how its nursing study materials are made.">
+  <article class="page-shell about">
+    <header>
+      <p class="display kicker"><em>by nursing students, for nursing students</em></p>
+      <h1 class="display">we know nursing school is hard.</h1>
+    </header>
+    <p class="story">[Christian's story: why Cueory exists, in his own words.]</p>
+    <section class="glass panel"><h2 class="display">our mission</h2><p>To make studying for nursing school simpler, and to give nursing students the materials they need to succeed and become great nurses at an affordable price.</p></section>
+    <section class="glass panel">
+      <h2 class="display">how we make our lessons</h2>
+      <ul><li>Every lesson is researched and cites its sources.</li><li>Higher-risk topics wait for a nurse reviewer before they go live.</li><li>Spot a mistake? The flag button is on every page, and we fix it.</li></ul>
+    </section>
+    <section class="glass panel"><h2 class="display">what's coming</h2><p>Mental Health I and Med Math are next, then Med-Surg II.</p><a href="/#mailing">join the mailing list</a></section>
+  </article>
+</BaseLayout>
+<style>
+  .about { max-width: 58rem; display: grid; gap: 2rem; padding-block: clamp(3rem, 8vw, 7rem); }
+  .kicker { font-size: 1.35rem; letter-spacing: .04em; }
+  h1 { margin: .6rem 0; font-size: clamp(4rem, 10vw, 7rem); line-height: .96; }
+  .story { font-size: 1.2rem; line-height: 1.8; }
+  h2 { margin: 0 0 .7rem; font-size: clamp(2rem, 5vw, 3.2rem); }
+  li + li { margin-top: .65rem; }
+</style>
