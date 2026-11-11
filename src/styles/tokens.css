@@ -203,6 +203,8 @@
   --crossword-letter: clamp(0.75rem, 3vw, 1.5rem);
   --crossword-help: min(20rem, calc(100vw - var(--spacing-gutter) - var(--spacing-gutter)));
   --crossword-print-cell: 2rem;
+  --color-print-page: #f9f5ef; /* Ivory */
+  --color-print-ink: #1c1917;  /* Charcoal */
 }
 
 /* Pillo rules are a separate entry: always emit their shared theme variables. */

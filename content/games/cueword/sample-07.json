@@ -2,11 +2,11 @@
   "status": "sample",
   "level": "easy",
   "grid": [
-    "..CDE",
-    "BCDEF",
-    "CDEFG",
+    ".ABC.",
     "DEFGH",
-    "EFG.."
+    "IJKLM",
+    "NOPQR",
+    ".STU."
   ],
   "clues": {
     "across": [
