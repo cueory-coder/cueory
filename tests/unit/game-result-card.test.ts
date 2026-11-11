@@ -26,9 +26,9 @@ describe('Sudoku result adapter', () => {
     })).toEqual({
       game: 'sudoku',
       name: 'sudoku',
-      date: '2026-11-11',
+      date: 'wed 11 nov',
       level: 'medium',
-      result: 'solved in 2:34',
+      result: 'solved',
       summary: 'medium completed in 2:34 with 1 error.',
       stats: [
         { label: 'time', value: '2:34' },

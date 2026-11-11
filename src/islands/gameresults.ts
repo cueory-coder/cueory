@@ -7,6 +7,7 @@
  * turning them off deletes it. Nothing here is ever sent anywhere.
  */
 import type { KeyValueStorage } from '../scripts/storage';
+import { dayLabel } from './daily';
 import { parseStats, serialize, type GameId, type GameStats } from './gamestats';
 
 /** The event a game sends on `window` when a round ends. */
@@ -32,6 +33,13 @@ declare global {
   interface WindowEventMap {
     'cueory:sudoku-solved': CustomEvent<SudokuSolvedDetail>;
   }
+}
+
+function resultDayLabel(day: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
+  if (!match) return day;
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return Number.isNaN(date.getTime()) ? day : dayLabel(date);
 }
 
 export type ResultGame = GameId | 'hello-cards' | 'sudoku';
@@ -61,9 +69,9 @@ export function sudokuResultCard(detail: SudokuSolvedDetail): GameResultCard {
   return {
     game: 'sudoku',
     name: 'sudoku',
-    date: detail.day,
+    date: resultDayLabel(detail.day),
     level: detail.level,
-    result: detail.solved ? `solved in ${detail.time}` : 'not solved',
+    result: detail.solved ? 'solved' : 'not solved',
     summary: detail.solved
       ? `${detail.level} completed in ${detail.time} with ${errors}.`
       : `${detail.level} ended after ${detail.time} with ${errors}.`,
