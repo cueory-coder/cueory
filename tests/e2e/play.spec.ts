@@ -371,9 +371,29 @@ test.describe('daily games: crossword levels (Task 627)', () => {
       await page.setViewportSize({ width, height: 900 });
       for (const [label, size] of [['mid, 7 by 7', '7'], ['hard, 15 by 15', '15'], ['easy, 5 by 5', '5']] as const) {
         await page.getByTestId('crossword-levels').getByLabel(label).check();
-        await expect(board(page).getByRole('grid', { name: 'crossword grid' })).toHaveAttribute('aria-rowcount', size);
+        const grid = board(page).getByRole('grid', { name: 'crossword grid' });
+        await expect(grid).toHaveAttribute('aria-rowcount', size);
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        const cells = grid.locator('.crossword-cell');
+        const first = await cells.first().boundingBox();
+        const last = await cells.last().boundingBox();
+        expect(first).not.toBeNull();
+        expect(last).not.toBeNull();
+        expect(first!.x).toBeGreaterThanOrEqual(0);
+        expect(last!.x + last!.width).toBeLessThanOrEqual(width);
       }
+    }
+  });
+
+  test('a filled selected cell passes contrast in Light and Evening', async ({ page }) => {
+    const first = board(page).getByRole('grid', { name: 'crossword grid' }).locator('.crossword-cell').first();
+    await first.focus();
+    await page.keyboard.type('a');
+    await first.click();
+    for (const theme of ['light', 'dark']) {
+      await page.locator('html').evaluate((element, value) => element.setAttribute('data-theme', value), theme);
+      const results = await axe(page);
+      expect(results.violations.map((violation) => violation.id + ': ' + violation.help)).toEqual([]);
     }
   });
 
