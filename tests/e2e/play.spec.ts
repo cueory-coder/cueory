@@ -201,23 +201,6 @@ test.describe('daily games on a narrow phone', () => {
     }
   });
 
-  test('at 320 px triage fits too: every term and group is on screen, each at least 44 px tall', async ({ page }) => {
-    await page.setViewportSize({ width: 320, height: 700 });
-    await page.clock.setFixedTime(new Date('2026-11-03T15:00:00'));
-    await page.goto('/play');
-    // 3 November: the third sample, with the longest group name ("musical instruments").
-    await page.getByRole('list', { name: 'terms to sort' }).getByRole('button').first().click();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-    const boxes = await page.locator('.triage-term, .triage-place-button').evaluateAll((els) =>
-      els.map((el) => el.getBoundingClientRect()),
-    );
-    expect(boxes).toHaveLength(14);
-    for (const box of boxes) {
-      expect(box.left).toBeGreaterThanOrEqual(0);
-      expect(box.right).toBeLessThanOrEqual(320);
-      expect(box.height).toBeGreaterThanOrEqual(44);
-    }
-  });
 });
 
 test.describe('daily games: sudoku (Task 625)', () => {
@@ -566,7 +549,7 @@ test.describe('daily games: private stats (D-76)', () => {
     await expect(toggle(page)).toHaveAttribute('aria-checked', 'true');
     await expect(pulseStats(page)).toContainText('not played yet.');
     await expect(
-      panel(page).getByRole('listitem').filter({ has: page.getByRole('heading', { name: 'sort', exact: true }) }),
+      panel(page).getByRole('listitem').filter({ has: page.getByRole('heading', { name: 'sudoku', exact: true }) }),
     ).toContainText('played 1 day, solved 1.');
     // Deleted from this browser, not only hidden.
     expect(JSON.parse((await kept(page))!).results).toEqual([recent]);
@@ -643,16 +626,15 @@ test.describe('daily games: private stats (D-76)', () => {
 test.describe('daily games without JavaScript', () => {
   test.use({ javaScriptEnabled: false });
 
-  test('pillo and triage say they need JavaScript', async ({ page }) => {
+  test('pillo and sudoku say they need JavaScript', async ({ page }) => {
     await page.goto('/play');
     // Playwright's text matching skips <noscript>, so this uses CSS.
     await expect(page.locator('noscript p')).toHaveText([
       'pillo needs JavaScript.',
-      'sort needs JavaScript.',
+      'sudoku needs JavaScript.',
       'crossword needs JavaScript.',
       'word path needs JavaScript.',
     ]);
     await expect(page.getByTestId('sample-note')).toBeVisible();
-    await expect(page.getByTestId('triage-sample-note')).toBeVisible();
   });
 });
