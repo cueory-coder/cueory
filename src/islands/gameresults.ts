@@ -45,7 +45,19 @@ export function buildResultShareLine(card: Pick<GameResultCard, 'name' | 'date' 
 /** Opens the shared result dialog without adding anything to private browser stats. */
 export function showResultCard(card: GameResultCard): void {
   if (typeof window === 'undefined') return;
+  pendingCards.push(card);
   window.dispatchEvent(new CustomEvent<GameResultCard>(GAME_RESULT_CARD_EVENT, { detail: card }));
+}
+
+/** Consume display-only cards that finished before the result host hydrated. */
+export function takePendingResultCards(): GameResultCard[] {
+  return pendingCards.splice(0, pendingCards.length);
+}
+
+/** Remove the event's queued copy when a live host receives it. */
+export function discardPendingResultCard(card: GameResultCard): void {
+  const index = pendingCards.indexOf(card);
+  if (index >= 0) pendingCards.splice(index, 1);
 }
 
 /** Where the stats record is kept, when the student has turned stats on. */
@@ -74,6 +86,7 @@ export function localDay(date: Date): string {
  * shares this module, so they share the list.
  */
 const held: RoundResult[] = [];
+const pendingCards: GameResultCard[] = [];
 
 /** Drops the waiting rounds of one game, or of every game, so none of them can be kept later. */
 export function forgetHeldRounds(game?: GameId): void {

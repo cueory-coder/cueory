@@ -203,8 +203,9 @@ export async function createStoryFile(input: StoryImageInput): Promise<File | nu
     context.fillStyle = page;
     context.fillRect(0, 0, width, height);
 
-    // Wordmark.astro confirms the "light" file is the unchanged Daytime Espresso artwork.
-    const logo = await image('/brand/v1/logo-full-light-960.png');
+    // Match the logo ink to the active page palette: Espresso on Ivory, Ivory on Charcoal.
+    const logoPath = page.toLowerCase() === '#1c1917' ? '/brand/v1/logo-full-dark-960.png' : '/brand/v1/logo-full-light-960.png';
+    const logo = await image(logoPath);
     const logoHeight = (logo.height * logoWidth) / logo.width;
     context.drawImage(logo, (width - logoWidth) / 2, number('--share-story-logo-top'), logoWidth, logoHeight);
 

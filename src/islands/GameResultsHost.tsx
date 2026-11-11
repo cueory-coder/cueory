@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { buildResultShareLine, GAME_RESULT_CARD_EVENT, type GameResultCard } from './gameresults';
+import { buildResultShareLine, discardPendingResultCard, GAME_RESULT_CARD_EVENT, takePendingResultCards, type GameResultCard } from './gameresults';
 import { buildShareData, createStoryFile, platformShareUrl, runShare, type SharePlatform } from './share';
 
 const platforms: readonly { id: SharePlatform; label: string }[] = [
@@ -26,11 +26,13 @@ export default function GameResultsHost() {
     const open = (event: Event) => {
       const detail = (event as CustomEvent<GameResultCard>).detail;
       if (!detail) return;
+      discardPendingResultCard(detail);
       returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       setStatus('');
       setCard(detail);
     };
     window.addEventListener(GAME_RESULT_CARD_EVENT, open);
+    for (const pending of takePendingResultCards()) open(new CustomEvent<GameResultCard>(GAME_RESULT_CARD_EVENT, { detail: pending }));
     return () => window.removeEventListener(GAME_RESULT_CARD_EVENT, open);
   }, []);
 
