@@ -44,7 +44,8 @@ describe('story image implementation', () => {
       expect(source).toContain(`number('${name}')`);
       expect(tokens).toContain(`${name}:`);
     }
-    expect(source).toContain("image('/brand/v1/logo-full-light-960.png')");
+    expect(source).toContain("'/brand/v1/logo-full-light-960.png'");
+    expect(source).toContain("'/brand/v1/logo-full-dark-960.png'");
     expect(source).not.toMatch(/font = ['"][^'"]*\d+px/);
   });
 
