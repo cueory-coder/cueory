@@ -65,15 +65,15 @@ const HARD_SOLUTION = readGrid(`
 274836159`);
 
 const HARD_PUZZLE = readGrid(`
-000000010
-400000000
-020000000
-000050407
-008000300
-001090000
-300400200
-050100000
-000806000`);
+093700000
+007000906
+000063070
+030051000
+060000001
+700000000
+000005208
+050109000
+074030150`);
 
 function withAddedGivens(puzzle: number[], solution: number[], indices: readonly number[]): number[] {
   const next = [...puzzle];
@@ -91,7 +91,7 @@ const TEMPLATES: Readonly<Record<SudokuLevel, { puzzle: number[]; solution: numb
     solution: STANDARD_SOLUTION,
   },
   hard: {
-    puzzle: withAddedGivens(HARD_PUZZLE, HARD_SOLUTION, [0, 1, 2, 3, 4, 5, 6, 8, 10]),
+    puzzle: HARD_PUZZLE,
     solution: HARD_SOLUTION,
   },
 };
