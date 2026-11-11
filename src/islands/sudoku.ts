@@ -309,3 +309,33 @@ export function solvingTechnique(grid: SudokuGrid): SudokuTechnique {
   if (singlesSolve(grid, true)) return 'hidden singles';
   return 'search';
 }
+
+export interface SudokuResult {
+  game: 'sudoku';
+  day: string;
+  level: SudokuLevel;
+  solved: boolean;
+  seconds: number;
+  time: string;
+  errors: number;
+}
+
+export function getResult(input: {
+  day: string;
+  level: SudokuLevel;
+  solved: boolean;
+  seconds: number;
+  errors: number;
+}): SudokuResult {
+  const minutes = Math.floor(input.seconds / 60);
+  const seconds = input.seconds % 60;
+  return {
+    game: 'sudoku',
+    day: input.day,
+    level: input.level,
+    solved: input.solved,
+    seconds: input.seconds,
+    time: `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`,
+    errors: input.errors,
+  };
+}
