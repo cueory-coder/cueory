@@ -140,15 +140,15 @@ describe('triage (D-63)', () => {
 
   it('shares the result as plain words: no squares, no grid', () => {
     const line = triageShareText(sortAll(), 'sun 1 nov');
-    expect(line).toBe('cueory sort, sun 1 nov: sorted with no slips.');
+    expect(line).toBe('cueory sudoku, sun 1 nov: sorted with no slips.');
     expect(line).toMatch(/^[\x20-\x7e]+$/);
     let one = startTriage(puzzle, 0);
     one = placeTerm(one, puzzle, 'apple', 'none');
     for (const term of one.terms) one = placeTerm(one, puzzle, term, answerFor(puzzle, term)!);
-    expect(triageShareText(one, 'sun 1 nov')).toBe('cueory sort, sun 1 nov: sorted with 1 slip.');
+    expect(triageShareText(one, 'sun 1 nov')).toBe('cueory sudoku, sun 1 nov: sorted with 1 slip.');
     let out = startTriage(puzzle, 0);
     for (let i = 0; i < SLIPS; i++) out = placeTerm(out, puzzle, 'apple', 'none');
-    expect(triageShareText(out, 'sun 1 nov')).toBe('cueory sort, sun 1 nov: not sorted this time.');
+    expect(triageShareText(out, 'sun 1 nov')).toBe('cueory sudoku, sun 1 nov: not sorted this time.');
   });
 
   it('writes the date on the share line in plain lowercase words', () => {
