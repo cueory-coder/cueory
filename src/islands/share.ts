@@ -133,3 +133,93 @@ export function scrollBehavior(matchMediaFn: ((query: string) => { matches: bool
 export function centeredScrollLeft(row: { clientWidth: number }, card: { offsetLeft: number; offsetWidth: number }): number {
   return Math.max(0, card.offsetLeft - (row.clientWidth - card.offsetWidth) / 2);
 }
+
+
+/** Plain platform share-page links. No SDK, script, tracker or account token is loaded. */
+export type SharePlatform = 'facebook' | 'x' | 'threads' | 'reddit' | 'whatsapp';
+
+export function platformShareUrl(platform: SharePlatform, text: string, url: string): string {
+  const combined = `${text} ${url}`;
+  switch (platform) {
+    case 'facebook':
+      return `https://www.facebook.com/sharer/sharer.php?${new URLSearchParams({ u: url })}`;
+    case 'x':
+      return xIntentUrl(text, url);
+    case 'threads':
+      return `https://www.threads.net/intent/post?${new URLSearchParams({ text: combined })}`;
+    case 'reddit':
+      return `https://www.reddit.com/submit?${new URLSearchParams({ url, title: text })}`;
+    case 'whatsapp':
+      return `https://wa.me/?${new URLSearchParams({ text: combined })}`;
+  }
+}
+
+export interface StoryImageInput {
+  name: string;
+  date: string;
+  result: string;
+  /** Optional approved wordmark asset for a game. */
+  wordmarkPath?: string;
+}
+
+function image(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const asset = new Image();
+    asset.onload = () => resolve(asset);
+    asset.onerror = () => reject(new Error('image could not be loaded'));
+    asset.src = url;
+  });
+}
+
+/** Draws the 1080×1920 story card only after the visitor taps share. */
+export async function createStoryFile(input: StoryImageInput): Promise<File | null> {
+  if (typeof document === 'undefined') return null;
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1080;
+    canvas.height = 1920;
+    const context = canvas.getContext('2d');
+    if (!context) return null;
+    const tokens = getComputedStyle(document.documentElement);
+    const page = tokens.getPropertyValue('--color-page').trim();
+    const ink = tokens.getPropertyValue('--color-ink').trim();
+    const soft = tokens.getPropertyValue('--color-ink-soft').trim();
+    if (!page || !ink || !soft) return null;
+
+    await document.fonts.ready;
+    context.fillStyle = page;
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    const logo = await image('/brand/v1/logo-full-light-960.png');
+    const logoWidth = 480;
+    const logoHeight = (logo.height * logoWidth) / logo.width;
+    context.drawImage(logo, (canvas.width - logoWidth) / 2, 120, logoWidth, logoHeight);
+
+    if (input.wordmarkPath) {
+      const wordmark = await image(input.wordmarkPath);
+      const width = Math.min(560, wordmark.width);
+      const height = (wordmark.height * width) / wordmark.width;
+      context.drawImage(wordmark, (canvas.width - width) / 2, 430, width, height);
+    }
+
+    context.textAlign = 'center';
+    context.fillStyle = soft;
+    context.font = '700 34px Lato';
+    context.fillText(`today's ${input.name} · ${input.date}`, canvas.width / 2, 690);
+
+    context.fillStyle = ink;
+    context.font = '500 132px "Bodoni Moda"';
+    context.fillText(input.result, canvas.width / 2, 960);
+
+    context.font = '700 52px Lato';
+    context.fillText('can you beat me?', canvas.width / 2, 1240);
+    context.fillStyle = soft;
+    context.font = '400 42px Lato';
+    context.fillText('cueory.app', canvas.width / 2, 1680);
+
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+    return blob ? new File([blob], `cueory-${input.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-story.png`, { type: 'image/png' }) : null;
+  } catch {
+    return null;
+  }
+}
