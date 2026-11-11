@@ -186,9 +186,11 @@ export function clearResume(storage: KeyValueStorage | undefined): boolean {
 }
 
 /**
- * The study-island owner calls this after every answer and step. Also call it
- * on pagehide and when the page becomes hidden (iOS can skip beforeunload).
- * This hook only installs listeners; it never writes without the caller's draft.
+ * Study actions save their checkpoint with saveResume. Page exit and hidden
+ * visibility (iOS can skip beforeunload) may refresh that same checkpoint, but
+ * must not recreate a deleted save or overwrite another tab's newer session.
+ * Check storage at the event itself because a storage event can arrive later.
+ * A new or changed session must be saved by an explicit study action first.
  */
 export function attachResumeLifecycle(
   storage: KeyValueStorage | undefined,
@@ -199,7 +201,17 @@ export function attachResumeLifecycle(
   const save = () => {
     try {
       const draft = currentDraft();
-      if (draft) saveResume(storage, draft, now());
+      if (!draft || !storage) return;
+      const time = now();
+      // Use the pure parser: an old tab must not remove another tab's invalid or
+      // expired entry as a side effect of deciding whether it may refresh it.
+      const saved = parseResume(storage.getItem(RESUME_STORAGE_KEY), time);
+      if (!saved) return;
+      const candidate = parseResume(JSON.stringify({
+        ...draft, version: RESUME_VERSION, savedAt: saved.savedAt,
+      }), time);
+      if (!candidate || JSON.stringify(candidate) !== JSON.stringify(saved)) return;
+      saveResume(storage, draft, time);
     } catch {
       // Page exit must never crash the student, even if the island is unmounting.
     }

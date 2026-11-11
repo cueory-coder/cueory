@@ -194,27 +194,148 @@ describe('resume snapshot persistence', () => {
 });
 
 describe('safe page lifecycle saves', () => {
-  it('saves on pagehide or hidden visibility, but not while the page is visible; cleanup removes listeners', () => {
+  function lifecyclePage() {
     const windowEvents = new EventTarget();
     const documentEvents = Object.assign(new EventTarget(), { visibilityState: 'visible' });
     vi.stubGlobal('window', windowEvents);
     vi.stubGlobal('document', documentEvents);
+    return {
+      windowEvents, documentEvents,
+      hide: () => {
+        documentEvents.visibilityState = 'hidden';
+        documentEvents.dispatchEvent(new Event('visibilitychange'));
+      },
+    };
+  }
+
+  it('refreshes an explicit checkpoint on pagehide or hidden visibility; cleanup removes listeners', () => {
+    const { windowEvents, documentEvents, hide } = lifecyclePage();
     const storage = memory();
     const current = vi.fn(() => draft());
-    const unsubscribe = attachResumeLifecycle(storage, current, () => NOW);
+    let time = NOW;
+    const unsubscribe = attachResumeLifecycle(storage, current, () => time);
     documentEvents.dispatchEvent(new Event('visibilitychange'));
     expect(storage.values.size).toBe(0);
-    documentEvents.visibilityState = 'hidden';
-    documentEvents.dispatchEvent(new Event('visibilitychange'));
-    expect(readResume(storage, NOW)?.itemId).toBe('card-04');
+    expect(current).not.toHaveBeenCalled();
+    expect(saveResume(storage, draft(), NOW)).toBe(true);
+    time++;
+    hide();
+    expect(readResume(storage, time)).toMatchObject({ itemId: 'card-04', savedAt: time });
     expect(current).toHaveBeenCalledTimes(1);
-    storage.removeItem(RESUME_STORAGE_KEY);
+    time++;
     windowEvents.dispatchEvent(new Event('pagehide'));
-    expect(readResume(storage, NOW)?.itemIndex).toBe(3);
+    expect(readResume(storage, time)).toMatchObject({ itemIndex: 3, savedAt: time });
     unsubscribe();
     storage.removeItem(RESUME_STORAGE_KEY);
     windowEvents.dispatchEvent(new Event('pagehide'));
     expect(storage.getItem(RESUME_STORAGE_KEY)).toBeNull();
+    expect(current).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(['remove', 'clear'] as const)('does not recreate a deleted checkpoint after storage %s, even before its event arrives', (deletion) => {
+    const { windowEvents, hide } = lifecyclePage();
+    const storage = memory();
+    const retained = draft();
+    const unsubscribe = attachResumeLifecycle(storage, () => retained, () => NOW + 1);
+    expect(saveResume(storage, retained, NOW)).toBe(true);
+    if (deletion === 'clear') storage.values.clear();
+    else storage.removeItem(RESUME_STORAGE_KEY);
+
+    // pagehide can precede delivery of the other tab's storage event.
+    windowEvents.dispatchEvent(new Event('pagehide'));
+    expect(storage.getItem(RESUME_STORAGE_KEY)).toBeNull();
+    hide();
+    expect(storage.getItem(RESUME_STORAGE_KEY)).toBeNull();
+
+    windowEvents.dispatchEvent(Object.assign(new Event('storage'), {
+      key: deletion === 'clear' ? null : RESUME_STORAGE_KEY, newValue: null, storageArea: storage,
+    }));
+    windowEvents.dispatchEvent(new Event('pagehide'));
+    expect(storage.getItem(RESUME_STORAGE_KEY)).toBeNull();
+    unsubscribe();
+  });
+
+  it.each(['another-mode', 'same-page-newer-answer'] as const)('leaves a replacement checkpoint untouched: %s', (replacement) => {
+    const { windowEvents, hide } = lifecyclePage();
+    const storage = memory();
+    const retained = draft();
+    expect(saveResume(storage, retained, NOW)).toBe(true);
+    const unsubscribe = attachResumeLifecycle(storage, () => retained, () => NOW + 2);
+    const newer: ResumeDraft = replacement === 'another-mode'
+      ? { ...draft(), tool: 'fill-in', page: '/learn/study-skills/fill-in' }
+      : { ...draft(), answers: { 'card-01': 'changed-response' } };
+    expect(saveResume(storage, newer, NOW + 1)).toBe(true);
+    const stored = storage.getItem(RESUME_STORAGE_KEY);
+
+    hide();
+    windowEvents.dispatchEvent(new Event('pagehide'));
+    expect(storage.getItem(RESUME_STORAGE_KEY)).toBe(stored);
+    unsubscribe();
+  });
+
+  it('waits for an explicit fresh save and can refresh it after an earlier checkpoint was deleted', () => {
+    const { windowEvents } = lifecyclePage();
+    const storage = memory();
+    let current = draft();
+    const unsubscribe = attachResumeLifecycle(storage, () => current, () => NOW + 2);
+    windowEvents.dispatchEvent(new Event('pagehide'));
+    expect(storage.getItem(RESUME_STORAGE_KEY)).toBeNull();
+    expect(saveResume(storage, current, NOW)).toBe(true);
+    clearResume(storage);
+    current = { ...draft(), answers: { 'card-01': 'fresh-response' } };
+    windowEvents.dispatchEvent(new Event('pagehide'));
+    expect(storage.getItem(RESUME_STORAGE_KEY)).toBeNull();
+
+    expect(saveResume(storage, current, NOW + 1)).toBe(true);
+    windowEvents.dispatchEvent(new Event('pagehide'));
+    expect(readResume(storage, NOW + 2)).toMatchObject({ answers: current.answers, savedAt: NOW + 2 });
+    unsubscribe();
+  });
+
+  it('does not repair or refresh invalid or expired storage during page exit', () => {
+    const { windowEvents } = lifecyclePage();
+    const storage = memory();
+    const unsubscribe = attachResumeLifecycle(storage, () => draft(), () => NOW + RESUME_TTL_MS);
+    saveResume(storage, draft(), NOW);
+    const expired = storage.getItem(RESUME_STORAGE_KEY)!;
+    for (const raw of ['not json', expired]) {
+      storage.setItem(RESUME_STORAGE_KEY, raw);
+      windowEvents.dispatchEvent(new Event('pagehide'));
+      expect(storage.getItem(RESUME_STORAGE_KEY)).toBe(raw);
+    }
+    unsubscribe();
+  });
+
+  it('leaves matching checkpoints usable after unrelated storage changes', () => {
+    const { windowEvents } = lifecyclePage();
+    const storage = memory();
+    saveResume(storage, draft(), NOW);
+    const unsubscribe = attachResumeLifecycle(storage, () => draft(), () => NOW + 1);
+    storage.setItem('cueory-theme', 'dark');
+    windowEvents.dispatchEvent(Object.assign(new Event('storage'), {
+      key: 'cueory-theme', newValue: 'dark', storageArea: storage,
+    }));
+    windowEvents.dispatchEvent(new Event('pagehide'));
+    expect(readResume(storage, NOW + 1)?.savedAt).toBe(NOW + 1);
+    expect(storage.getItem('cueory-theme')).toBe('dark');
+    unsubscribe();
+  });
+
+  it('does not throw or attempt a write when storage is absent or cannot be read', () => {
+    const { windowEvents, hide } = lifecyclePage();
+    const blocked: KeyValueStorage = {
+      getItem: () => { throw new Error('blocked'); },
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    };
+    for (const storage of [undefined, blocked]) {
+      const unsubscribe = attachResumeLifecycle(storage, () => draft(), () => NOW);
+      expect(() => windowEvents.dispatchEvent(new Event('pagehide'))).not.toThrow();
+      expect(hide).not.toThrow();
+      unsubscribe();
+    }
+    expect(blocked.setItem).not.toHaveBeenCalled();
+    expect(blocked.removeItem).not.toHaveBeenCalled();
   });
 
   it('ignores a missing or throwing draft during page exit without crashing', () => {
