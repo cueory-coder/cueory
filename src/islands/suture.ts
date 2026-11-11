@@ -176,6 +176,14 @@ export function outcomeInWords(state: SutureState, puzzle: SuturePuzzle, outcome
   }
 }
 
+/**
+ * The words a printed copy lists under the grid (Task 641): every word in the puzzle's own order, in capitals like the
+ * grid, and never marked found, so a printed page gives away no answers.
+ */
+export function printableWords(puzzle: Pick<SuturePuzzle, 'words'>): string[] {
+  return puzzle.words.map((word) => word.answer.trim().toUpperCase()).filter((word) => word.length > 0);
+}
+
 /** The result as plain words: no grid of squares or circles, nothing that copies another game's share format. */
 export function shareLine(state: SutureState, dateLabel: string, gameName: string): string {
   const clean = (text: string) => text.replace(/\s+/g, ' ').trim().toLowerCase();
