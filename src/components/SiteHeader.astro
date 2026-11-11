@@ -1,0 +1,46 @@
+---
+const links = [
+  { href: "/#study", label: "study" },
+  { href: "/anatomy-lab", label: "anatomy lab" },
+  { href: "/games", label: "games" },
+  { href: "/#support", label: "support" },
+];
+---
+<div class="building-banner"><span aria-hidden="true">✦</span><span>we're still building. more coming soon.</span></div>
+<header class="site-header page-shell">
+  <a class="brand" href="/" aria-label="cueory home"><span aria-hidden="true">cueory</span></a>
+  <nav class="main-nav glass" aria-label="Main navigation">
+    {links.map((link) => <a href={link.href}>{link.label}</a>)}
+    <details>
+      <summary>about <span aria-hidden="true">▾</span></summary>
+      <div class="about-menu glass">
+        <a href="/about">about us</a>
+        <a href="/resources">how to use cueory</a>
+        <a href="/#mailing">coming soon + mailing list</a>
+        <a href="/contact">contact us</a>
+        <a href="/legal">privacy, terms + disclaimer</a>
+      </div>
+    </details>
+  </nav>
+  <div class="header-actions">
+    <a class="search-button" href="/search" aria-label="Search"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></a>
+    <a class="copper-button sign-in" href="/sign-in">sign in</a>
+  </div>
+</header>
+<style>
+.building-banner{display:flex;min-height:3.25rem;align-items:center;justify-content:center;gap:.625rem;padding:.625rem 1rem 1rem;background:linear-gradient(180deg,rgb(255 250 245/.42),transparent);font-size:.9375rem}
+.site-header{position:relative;z-index:20;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:1rem;padding-block:.25rem 1rem}
+.brand{font-family:var(--font-display);font-size:2rem;font-style:italic;font-weight:500;text-decoration:none}
+.main-nav{display:flex;width:fit-content;align-items:center;justify-self:center;padding:.375rem .625rem;border-radius:999px}
+.main-nav>a,summary{display:inline-flex;min-height:2.75rem;align-items:center;padding:0 1rem;border-radius:999px;cursor:pointer;list-style:none;text-decoration:none}
+.main-nav>a:hover,summary:hover{background:rgb(255 255 255/.5)}
+summary::-webkit-details-marker{display:none}
+details{position:relative}
+.about-menu{position:absolute;top:3.25rem;left:50%;display:flex;width:17rem;flex-direction:column;padding:.5rem;border-radius:1.125rem;transform:translateX(-50%)}
+.about-menu a{display:flex;min-height:2.75rem;align-items:center;padding:0 .875rem;border-radius:.75rem;text-decoration:none}
+.about-menu a:hover{background:rgb(255 255 255/.45)}
+.header-actions{display:flex;align-items:center;gap:.625rem}
+.search-button{display:grid;width:3rem;height:3rem;place-items:center;border:1px solid rgb(255 255 255/.78);border-radius:50%;background:rgb(255 250 245/.54)}
+@media(max-width:64rem){.site-header{grid-template-columns:1fr auto}.main-nav{grid-column:1/-1;grid-row:2;max-width:100%;overflow-x:auto;justify-self:stretch}}
+@media(max-width:40rem){.building-banner{font-size:.8125rem}.site-header{gap:.5rem}.brand{font-size:1.75rem}.main-nav{justify-content:flex-start}.main-nav>a,summary{padding-inline:.75rem;white-space:nowrap}.sign-in{padding-inline:1rem}.about-menu{position:fixed;top:8.5rem;left:.5rem;width:calc(100vw - 1rem);transform:none}}
+</style>

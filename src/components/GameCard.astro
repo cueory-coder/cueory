@@ -1,0 +1,19 @@
+---
+interface Props { href:string; index:string; title:string; description:string; accent:string; }
+const { href,index,title,description,accent }=Astro.props;
+---
+<a class="game-card glass" href={href} style={`--accent:${accent}`}>
+  <span class="game-index">{index}</span>
+  <span class="game-title">{title}</span>
+  <span class="game-description">{description}</span>
+  <span class="game-action">play today's <span aria-hidden="true">→</span></span>
+</a>
+<style>
+.game-card{position:relative;display:flex;min-height:17rem;flex-direction:column;gap:.75rem;overflow:hidden;padding:1.5rem;border-radius:var(--radius-md);text-decoration:none;transition:transform 180ms ease,box-shadow 180ms ease}
+.game-card::before{position:absolute;right:-4rem;bottom:-6rem;width:15rem;height:15rem;border-radius:50%;background:radial-gradient(closest-side,var(--accent),transparent);content:"";opacity:.65}
+.game-card:hover,.game-card:focus-visible{transform:translateY(-.375rem);box-shadow:var(--glass-shadow),0 0 2rem rgb(240 180 130/.45)}
+.game-index{color:var(--copper);font-size:.75rem;letter-spacing:.2em}
+.game-title{position:relative;color:var(--ink-strong);font-family:var(--font-display);font-size:clamp(2.5rem,5vw,4rem);line-height:1}
+.game-description{position:relative;max-width:24ch;color:var(--ink-muted);font-size:1.0625rem}
+.game-action{position:relative;margin-top:auto;font-weight:700}
+</style>

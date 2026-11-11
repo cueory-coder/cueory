@@ -1,0 +1,28 @@
+---
+import SiteFooter from "../components/SiteFooter.astro";
+import SiteHeader from "../components/SiteHeader.astro";
+import "../styles/global.css";
+interface Props { title: string; description?: string; hideChrome?: boolean; }
+const { title, description = "Cueory makes nursing school simpler.", hideChrome = false } = Astro.props;
+---
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="description" content={description} />
+  <meta name="viewport" content="width=device-width" />
+  <meta name="generator" content={Astro.generator} />
+  <meta name="theme-color" content="#f2decb" />
+  <title>{title}</title>
+</head>
+<body>
+  <a class="skip-link" href="#main">skip to content</a>
+  {!hideChrome && <SiteHeader />}
+  <main id="main"><slot /></main>
+  {!hideChrome && <SiteFooter />}
+</body>
+</html>
+<style is:global>
+.skip-link{position:fixed;z-index:100;top:.5rem;left:.5rem;padding:.75rem 1rem;border-radius:.75rem;color:var(--paper-bright);background:var(--ink-strong);transform:translateY(-160%)}
+.skip-link:focus{transform:translateY(0)}
+</style>
