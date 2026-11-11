@@ -1,0 +1,1 @@
+status: Task 631, GitLab worker guidance: align AGENTS.md, CLAUDE.md and CONTRIBUTING.md with Christian's November 11 branch map, legacy/staging merge-request target and no-agent-merge rule. Preserve existing security, clinical-content, review and test requirements. Documentation only, with no workflow or hosting configuration change.

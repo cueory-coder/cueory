@@ -21,9 +21,9 @@ steps, one action per step, and say exactly what he should see. Never ask him to
    sign-in (name, profile-photo link and account id), and the sign-in sessions Supabase keeps (device and IP address,
    until you sign out). Delete-my-account and export-my-data must work. No cross-site trackers. Keep the
    plain-language privacy page (`/privacy`) true.
-3. **Small pull requests with tests.** Never merge to `main` yourself. Codex reviews every pull request (see
-   [AGENTS.md](AGENTS.md)). Christian approves anything touching auth, database policies, payments, workflows,
-   deployment or secrets.
+3. **Small merge requests with tests.** Never merge any merge request or enable auto-merge. Codex reviews every
+   merge request (see [AGENTS.md](AGENTS.md)). Christian approves anything touching auth, database policies,
+   payments, workflows, deployment or secrets. This includes GitLab CI/CD configuration.
 4. **Staging first.** Every change appears on the locked staging site before it can reach the live site.
 5. **Never invent facts, files, settings or API behavior.** Read the official docs before using a service. If unsure,
    say so. This includes nursing content: never write clinical facts; content comes from Christian's reviewed batches.
@@ -46,24 +46,32 @@ approval. Free-tier limits to remember: Cloudflare Workers Builds has a monthly 
 
 ## Branches and deploys
 
-```
-task-N/feature ──PR──▶ staging ──PR──▶ main
-   tests + Codex       locked test site     live site (cueory.app)
-   (locked preview)    locked preview address
-```
+Current GitLab instructions from Christian, 2026-11-11:
 
-- Feature branches get CI and Codex review, never a deploy.
-- `staging` deploys to the locked staging site. Christian checks it there.
-- A pull request into `staging` is merged automatically once CI, the Workers preview build and Codex are all clean,
-  unless it touches a sensitive path; those get the `needs-christian` label and wait for him (D-39). Never weaken
-  those rules in `scripts/automerge/` without his approval.
-- `main` is the live site. Only Christian merges into `main`.
+| Repository or branch | Purpose |
+| --- | --- |
+| `cueory1/cueory`, `legacy/staging` | Newest games and site code. Base new feature branches here and target it in merge requests. |
+| `cueory1/cueory`, `legacy/main` | Old live-site source. Preserve it. |
+| `cueory1/cueory`, `legacy/anatomy-lab` | Task 178 source. Preserve it. |
+| `cueory1/cueory-design`, `task-0/design-notes` | Design briefs in `docs/handoff/CODEX-WORKER-BRIEFS.md` and references in `renderings/`. |
+
+- Work on a new `task-N/short-description` branch or this worker's existing task branch. Check current ownership
+  and merge requests first so parallel workers do not overwrite each other.
+- Do not directly commit to, force-push, rewrite or delete `main` or any `legacy/*` branch. Open merge requests for
+  Christian to review and merge. Agents never merge or enable auto-merge, including for non-sensitive changes.
+- Keep CI, Codex review and the locked-staging requirements. Imported GitHub workflows and historical checks do
+  not prove GitLab CI or preview deployment is configured. Verify the current source head and report missing
+  evidence. Do not deploy or change hosting settings as part of routine feature work.
+- Older `staging` branch references and automatic-merge directions (D-39) describe the previous GitHub workflow.
+  They do not authorize an agent to merge on GitLab. Do not weaken `scripts/automerge/` or any review gate.
+- Nothing reaches the live site without the required locked-staging verification and Christian's approval.
 
 ## Stack
 
 - Astro (static output) with React islands, TypeScript (strict) and Tailwind CSS v4.
-- Cloudflare Workers with static assets (`wrangler.jsonc`): production branch `main`; every other branch gets a
-  preview locked with Cloudflare Access (docs/DECISIONS.md D-38).
+- Cloudflare Workers with static assets (`wrangler.jsonc`). The imported GitHub configuration used `main` for
+  production and Cloudflare Access for previews (D-38). Verify current hosting connections before relying on a
+  GitLab branch to deploy. The branch map above does not change hosting configuration.
 - Kit for launch-update emails (plain HTML form, no Kit script on our pages).
 - Cloudflare Web Analytics now; PostHog later for study events.
 - From Task 2: Supabase (`cueory-staging`, `cueory-prod`), Google sign-in first and email magic links as backup,
@@ -104,7 +112,8 @@ screens stay plain: nothing decorative, no texture behind lesson text, and no ma
 - Node is pinned in `.node-version`. On Christian's Mac it is installed at `~/.local/node/bin` (not on PATH by
   default): prefix commands with `export PATH=~/.local/node/bin:$PATH`.
 - Run `npm run verify` before every pull request (type check, build, unit tests, browser tests).
-- Branch from `staging`. Branch names: `task-N/short-description`. One topic per pull request, aimed at `staging`.
+- Branch from `legacy/staging`. Branch names: `task-N/short-description`. One topic per merge request, aimed at
+  `legacy/staging`. Do not merge it yourself.
 - Never use a color, font or spacing value directly in a component. Add a token instead.
 - No inline `<script>` or `style=""` that the CSP would block. No third-party scripts, fonts or CDNs; self-host.
 - Lesson videos (Christian's decision, 2026-10-31) are the one exception: they live on Cueory's YouTube channel and

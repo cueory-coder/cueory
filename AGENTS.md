@@ -1,9 +1,24 @@
-# Cueory — instructions for Codex (pull request reviewer)
+# Cueory — instructions for Codex (merge request reviewer)
 
-You review every pull request to Cueory. You do not merge. Christian, the founder, is not a developer: write your
+You review every merge request to Cueory. You do not merge. Christian, the founder, is not a developer: write your
 summary so he can understand it, then give precise technical findings for the author.
 
 Read [CLAUDE.md](CLAUDE.md) (project rules) and [SECURITY.md](SECURITY.md) first.
+
+## Current GitLab workflow (Christian, 2026-11-11)
+
+- Code repository: `cueory1/cueory`. Start new `task-N/short-description` branches from `legacy/staging` and target
+  `legacy/staging` in merge requests. It contains the newest games and site code.
+- `legacy/main` is the old live-site source. `legacy/anatomy-lab` contains Task 178. `main` is not a substitute for
+  `legacy/staging` when starting feature work.
+- Do not directly commit to, force-push, rewrite or delete `main` or any `legacy/*` branch. Open merge requests for
+  Christian to review. Never merge a merge request or enable auto-merge, even when all checks pass.
+- Design handoff: `cueory1/cueory-design`, branch `task-0/design-notes`, at
+  `docs/handoff/CODEX-WORKER-BRIEFS.md` and `renderings/`. Read the relevant brief before implementation.
+- Check current branches, open merge requests and task ownership before starting work. Preserve other workers'
+  changes. These instructions replace older branch names and agent auto-merge directions in imported documents.
+- Imported GitHub workflows and historical green checks do not establish passing GitLab CI. Verify the current
+  source head and report missing checks accurately. Keep every existing security, review and test requirement.
 
 ## The repository is public (D-75)
 
@@ -21,9 +36,9 @@ Read [CLAUDE.md](CLAUDE.md) (project rules) and [SECURITY.md](SECURITY.md) first
 4. End with one line: `Verdict: approve`, `Verdict: approve after fixes`, or `Verdict: request changes`.
 5. If the pull request touches a sensitive area (list below), add the line
    `Needs Christian's approval: <area>` even if you approve it.
-6. Your review is the last gate for non-sensitive pull requests: once CI and the preview build pass and your latest
-   review of the head commit has no findings, the staging auto-merge merges it into `staging` (D-39). Anything that
-   should stop a merge must be posted as a finding, not only mentioned in prose.
+6. Your review informs Christian's merge decision. Passing CI, a preview build and a clean review do not authorize
+   an agent to merge or enable auto-merge. Anything that should stop a merge must be recorded as a finding, not
+   only mentioned in prose.
 
 ## Review guidelines
 
@@ -88,7 +103,8 @@ Read [CLAUDE.md](CLAUDE.md) (project rules) and [SECURITY.md](SECURITY.md) first
 - From Task 2, every lesson, card, question, puzzle and page has the "Flag or comment" button.
 
 ### Process
-- Pull request is small and on one topic, and targets `staging` (only `staging` → `main` pull requests target `main`).
+- Merge request is small and on one topic, and targets `legacy/staging`. Agents do not open release requests to
+  `main` or `legacy/main` as part of feature work.
 - The pull request adds its own status note: one new file, `docs/status/in-review/<branch-name-with-dashes>.md`, with
   one `status:` line and, only when it makes a decision, one `decision:` line. For example:
   ```
@@ -105,6 +121,8 @@ Read [CLAUDE.md](CLAUDE.md) (project rules) and [SECURITY.md](SECURITY.md) first
 Auth and accounts, database schema and policies (`/supabase`), payments, `.github/workflows`, deployment and hosting
 settings, `public/_headers`, `astro.config.mjs` security settings, the newsletter form settings, and anything
 involving secrets or DNS.
+
+GitLab CI/CD configuration, including `.gitlab-ci.yml`, is a sensitive workflow area too.
 
 ## Running the project
 
