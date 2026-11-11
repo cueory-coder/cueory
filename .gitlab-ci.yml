@@ -1,0 +1,186 @@
+# Cueory CI on GitLab.com Free (Task 631). Plain-language guide: docs/CI-GITLAB.md.
+#
+# Budget: GitLab Free gives 400 compute minutes a month per top-level group; the default small Linux runner
+# (2 vCPU, 8 GB) costs 1 minute per minute of job time (https://docs.gitlab.com/ci/pipelines/compute_minutes/,
+# https://docs.gitlab.com/ci/runners/hosted_runners/linux/). When they run out, GitLab's runners stop taking jobs
+# until the 1st of the next month. So:
+# - draft merge requests run nothing until they are marked ready (as D-74 did on GitHub);
+# - a push to staging or main runs only the secret scan (main also gets Semgrep): those commits already passed an MR;
+# - a merge request that changes only Markdown outside content/ and src/ skips the build and browser tests (D-74);
+# - browser tests wait for the fast checks, and any failed job cancels the rest of the pipeline;
+# - a newer push to the same merge request cancels the older pipeline (needs "Auto-cancel redundant pipelines").
+#
+# Estimated billed minutes (small runner; browser-test time is extrapolated from GitHub, D-135; check the first runs):
+#   MR into staging:  verify-fast ~5 + e2e-chromium ~25-35 + secrets-scan ~1 + semgrep ~2  =  about 35 (range 30-45)
+#   MR into main:     verify-fast ~5 + all Chromium ~45-60 + engines 3 x ~25-35 + scans ~3   =  about 140 (range 120-170)
+#   Markdown-only MR into staging: about 5.   Push to staging: about 1.   Push to main: about 3.
+#   400 minutes is therefore about 10 ordinary MRs a month. See docs/CI-GITLAB.md, "If the minutes run out".
+#
+# No secrets or CI/CD variables are needed: every job uses only GitLab's predefined variables.
+
+stages:
+  - checks
+  - browsers
+
+variables:
+  # Must equal .node-version (verify-fast fails if the two differ). Docker Hub tag checked 2026-11-11.
+  NODE_IMAGE: "node:24.22.2-bookworm"
+  # Must equal the installed @playwright/test version in package-lock.json (1.64.1). https://playwright.dev/docs/docker
+  PLAYWRIGHT_IMAGE: "mcr.microsoft.com/playwright:v1.64.1-noble"
+
+workflow:
+  auto_cancel:
+    on_new_commit: interruptible
+    on_job_failure: all
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_DRAFT == "true"
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "push" && ($CI_COMMIT_BRANCH == "staging" || $CI_COMMIT_BRANCH == "main")
+
+default:
+  interruptible: true
+  retry:
+    max: 1
+    when: runner_system_failure
+
+# npm's download cache, keyed on the lockfile. GitLab can cache only paths inside the project folder, so npm is told
+# to keep its cache in .npm/ there instead of ~/.npm (https://docs.gitlab.com/ci/yaml/#cachepaths).
+.npm-cache: &npm-cache
+  key:
+    files:
+      - package-lock.json
+  paths:
+    - .npm/
+  policy: pull
+
+verify-fast:
+  stage: checks
+  image: $NODE_IMAGE
+  needs: []
+  timeout: 15 minutes
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  cache:
+    <<: *npm-cache
+    policy: pull-push
+  script:
+    # Markdown-only MRs into staging skip the build and tests (D-74). If the MR's base commit is not in this shallow
+    # clone, or the MR targets main, everything is tested.
+    - |
+      DOCS_ONLY=false
+      base="$CI_MERGE_REQUEST_DIFF_BASE_SHA"
+      if [ "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME" != "main" ] && [ -n "$base" ] && git cat-file -e "${base}^{commit}" 2>/dev/null; then
+        files=$(git diff --name-only "$base" HEAD)
+        if [ -n "$files" ] && ! printf '%s\n' "$files" | grep -qvE '\.md$' && ! printf '%s\n' "$files" | grep -qE '^(content|src)/'; then
+          DOCS_ONLY=true
+        fi
+      fi
+      echo "DOCS_ONLY=$DOCS_ONLY" > ci.env
+      if [ "$DOCS_ONLY" = "true" ]; then
+        echo "Only Markdown files changed, so the build and tests are skipped:"
+        printf '%s\n' "$files"
+        exit 0
+      fi
+    - |
+      if [ "v$(cat .node-version)" != "$(node --version)" ]; then
+        echo "NODE_IMAGE runs Node $(node --version) but .node-version says $(cat .node-version). Update NODE_IMAGE."
+        exit 1
+      fi
+    - npm ci --cache .npm --prefer-offline --engine-strict --no-audit --no-fund
+    - npm run check
+    - npm run build
+    - npm test
+  artifacts:
+    reports:
+      dotenv: ci.env
+
+# Chromium browser tests. MRs into staging: phone and desktop (D-74). MRs into main: every Chromium project (D-48).
+# The Playwright web server builds the site itself (playwright.config.ts), so there is no separate build step.
+e2e-chromium:
+  stage: browsers
+  image: $PLAYWRIGHT_IMAGE
+  needs:
+    - job: verify-fast
+  timeout: 60 minutes
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  cache:
+    <<: *npm-cache
+  script:
+    - |
+      if [ "$DOCS_ONLY" = "true" ]; then
+        echo "Only Markdown files changed, so the browser tests are skipped."
+        exit 0
+      fi
+    - npm ci --cache .npm --prefer-offline --engine-strict --no-audit --no-fund
+    - |
+      if [ "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME" = "main" ]; then
+        npm run test:e2e -- --reporter=list
+      else
+        npm run test:e2e -- --reporter=list --project=phone --project=desktop
+      fi
+  artifacts:
+    when: on_failure
+    expire_in: 7 days
+    paths:
+      - test-results/
+
+# Release MRs into main also run Safari's engine (WebKit) and Firefox (D-48), one job per project side by side.
+e2e-engines:
+  stage: browsers
+  image: $PLAYWRIGHT_IMAGE
+  needs:
+    - job: verify-fast
+  timeout: 45 minutes
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"
+  parallel:
+    matrix:
+      - PROJECT: [webkit-phone, webkit-desktop, firefox-desktop]
+  variables:
+    ALL_ENGINES: "1"
+  cache:
+    <<: *npm-cache
+  script:
+    - npm ci --cache .npm --prefer-offline --engine-strict --no-audit --no-fund
+    - npm run test:e2e -- --reporter=list --project="$PROJECT"
+  artifacts:
+    when: on_failure
+    expire_in: 7 days
+    paths:
+      - test-results/
+
+# Full-history gitleaks scan with its default rules (the repository has no .gitleaks.toml), same command as the
+# GitHub workflow. https://github.com/gitleaks/gitleaks#docker
+secrets-scan:
+  stage: checks
+  image:
+    name: zricethezav/gitleaks:v8.30.1
+    entrypoint: [""]
+  needs: []
+  timeout: 5 minutes
+  variables:
+    GIT_DEPTH: "0"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "push"
+  script:
+    - gitleaks git --redact --no-banner --exit-code 1 .
+
+# Semgrep Community Edition with the same registry rulesets as the GitHub workflow (the repository has no local
+# Semgrep rules file). https://docs.semgrep.dev/semgrep-ci/sample-ci-configs
+semgrep:
+  stage: checks
+  image: semgrep/semgrep:1.183.0
+  needs: []
+  timeout: 10 minutes
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"
+  script:
+    - >-
+      semgrep scan --metrics=off --error
+      --config p/javascript --config p/typescript --config p/react
+      --config p/github-actions --config p/secrets
+      --exclude node_modules --exclude dist .
