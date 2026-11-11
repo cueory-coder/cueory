@@ -48,7 +48,9 @@ function pattern(row: number, column: number) {
 
 function solutionFor(seed: number): Grid {
   const random = rng(seed);
-  const rows = shuffled([0, 1, 2, 3, 4, 5, 6, 7, 8], random);
+  const rows = shuffled([0, 1, 2], random).flatMap((band) =>
+    shuffled([0, 1, 2], random).map((row) => band * 3 + row),
+  );
   const columns = [...shuffled([0, 1, 2], random).flatMap((band) => shuffled([0, 1, 2], random).map((row) => band * 3 + row))];
   const digits = shuffled(DIGITS, random);
   return rows.flatMap((row) => columns.map((column) => digits[pattern(row, column)]!));
@@ -66,17 +68,29 @@ function peers(index: number) {
   ].filter((cell) => cell !== index));
 }
 
+function nextCell(grid: Grid): { index: number; choices: number[] } | null {
+  let best: { index: number; choices: number[] } | null = null;
+  for (let index = 0; index < grid.length; index += 1) {
+    if (grid[index] !== 0) continue;
+    const choices = candidates(grid, index);
+    if (choices.length === 0) return { index, choices };
+    if (!best || choices.length < best.choices.length) best = { index, choices };
+    if (choices.length === 1) break;
+  }
+  return best;
+}
+
 function countSolutions(grid: Grid, limit = 2, budget = { nodes: 0 }): number {
   if (++budget.nodes > 250000) return limit;
   const next = [...grid];
-  const empty = next.findIndex((value) => value === 0);
-  if (empty === -1) return 1;
-  const choices = candidates(next, empty);
+  const cell = nextCell(next);
+  if (!cell) return 1;
+  if (cell.choices.length === 0) return 0;
   let count = 0;
-  for (const value of choices) {
-    next[empty] = value;
+  for (const value of cell.choices) {
+    next[cell.index] = value;
     count += countSolutions(next, limit, budget);
-    next[empty] = 0;
+    next[cell.index] = 0;
     if (count >= limit) return count;
   }
   return count;
@@ -95,13 +109,13 @@ export function solve(grid: Grid): Grid | null {
   if (grid.length !== 81 || grid.some((value) => !Number.isInteger(value) || value < 0 || value > 9)) return null;
   if (conflicts(grid).size) return null;
   const next = [...grid];
-  const empty = next.findIndex((value) => value === 0);
-  if (empty === -1) return next;
-  for (const value of candidates(next, empty)) {
-    next[empty] = value;
+  const cell = nextCell(next);
+  if (!cell) return next;
+  for (const value of cell.choices) {
+    next[cell.index] = value;
     const solved = solve(next);
     if (solved) return solved;
-    next[empty] = 0;
+    next[cell.index] = 0;
   }
   return null;
 }
