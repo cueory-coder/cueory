@@ -2023,8 +2023,8 @@ html:has(dialog.mode-preview[open]) {
 /* Sudoku game page (Task 625): sizes and colors come from tokens.css. */
 @layer components {
   .sudoku-game { position: relative; margin-block: calc(var(--spacing) * 8); }
-  .sudoku-title-row { position: relative; display: flex; justify-content: center; margin-block-end: calc(var(--spacing) * 3); }
-  .sudoku-corner-actions { position: absolute; inset-inline-end: 0; inset-block-end: 0; display: flex; gap: calc(var(--spacing) * 2); }
+  .sudoku-title-row { display: flex; min-block-size: var(--tap-min); justify-content: flex-end; margin-block-end: calc(var(--spacing) * 3); }
+  .sudoku-corner-actions { display: flex; gap: calc(var(--spacing) * 2); }
   .sudoku-icon-button, .sudoku-small-button { display: inline-flex; min-inline-size: var(--tap-min); min-block-size: var(--tap-min); align-items: center; justify-content: center; border: var(--sudoku-line) solid var(--color-control); border-radius: var(--radius-pill); background: var(--color-page); color: var(--color-ink); cursor: pointer; }
   .sudoku-how { position: absolute; z-index: 5; inset-inline-end: 0; inset-block-start: 100%; inline-size: min(100%, var(--container-prose)); padding: calc(var(--spacing) * 5); border: var(--sudoku-line) solid var(--color-line); border-radius: var(--radius-lg); background: var(--color-page); box-shadow: var(--shadow-card); }
   .sudoku-how ol { margin-block: calc(var(--spacing) * 2) 0; padding-inline-start: calc(var(--spacing) * 6); }

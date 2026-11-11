@@ -72,6 +72,7 @@ export default function SudokuGame() {
   const [said, setSaid] = useState('');
   const dialog = useRef<HTMLDivElement>(null);
   const settingsButton = useRef<HTMLButtonElement>(null);
+  const cells = useRef(new Map<number, HTMLButtonElement>());
   const solved = entries.every((value, index) => value === puzzle.solution[index]);
   const conflicts = useMemo(() => new Set(conflictIndices(entries)), [entries]);
   const reported = useRef(false);
@@ -142,7 +143,7 @@ export default function SudokuGame() {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (settingsOpen || howOpen || paused || solved || event.metaKey || event.ctrlKey || event.altKey) return;
-      if ((event.target as HTMLElement | null)?.matches('input, textarea, select')) return;
+      if (!(event.target as HTMLElement | null)?.closest('.sudoku-board')) return;
       const row = Math.floor(selected / 9); const column = selected % 9; let next = selected;
       if (event.key === 'ArrowUp') next = row ? selected - 9 : selected;
       else if (event.key === 'ArrowDown') next = row < 8 ? selected + 9 : selected;
@@ -151,7 +152,9 @@ export default function SudokuGame() {
       else if (/^[1-9]$/.test(event.key)) { event.preventDefault(); enter(Number(event.key)); return; }
       else if (event.key.toLowerCase() === 'x' || event.key === 'Backspace' || event.key === 'Delete') { event.preventDefault(); mark(); return; }
       else return;
-      event.preventDefault(); setSelected(next);
+      event.preventDefault();
+      setSelected(next);
+      cells.current.get(next)?.focus();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -166,8 +169,7 @@ export default function SudokuGame() {
   const selectedRow = Math.floor(selected / 9); const selectedColumn = selected % 9; const selectedValue = entries[selected];
 
   return <section className="sudoku-game" data-testid="sudoku">
-    <div className="sudoku-title-row">
-      <h2 id="sudoku-heading" className="display text-title sm:text-title-lg">sudoku</h2>
+    <div className="sudoku-title-row" aria-label="puzzle actions">
       <div className="sudoku-corner-actions">
         <button type="button" className="sudoku-icon-button print-control" aria-label="print this puzzle" onClick={() => window.print()}><span aria-hidden="true">▣</span></button>
         <button type="button" className="sudoku-icon-button" aria-label="how to play" aria-expanded={howOpen} onClick={() => setHowOpen((open) => !open)}>?</button>
@@ -192,7 +194,7 @@ export default function SudokuGame() {
           const options = !value && !marks.has(index) && (hints || settings.autoCandidates) ? candidates(entries, index) : [];
           const classes = ['sudoku-cell', given && 'is-given', !given && value && 'is-entered', selected === index && 'is-selected', selected !== index && related && 'is-related', selected !== index && box && 'is-box-related', identical && 'is-identical', settings.highlightConflicts && conflicts.has(index) && 'is-conflict', (column === 2 || column === 5) && 'sudoku-box-right', (row === 2 || row === 5) && 'sudoku-box-bottom'].filter(Boolean).join(' ');
           const spoken = paused ? 'hidden while paused' : marks.has(index) ? 'x mark' : value ? String(value) : options.length ? `empty, candidates ${options.join(', ')}` : 'empty';
-          return <button key={index} type="button" role="gridcell" className={classes} aria-rowindex={row + 1} aria-colindex={column + 1} aria-selected={selected === index} aria-label={`row ${row + 1}, column ${column + 1}, ${spoken}${given ? ', given' : ''}`} data-given={given ? 'true' : 'false'} onClick={() => setSelected(index)}>
+          return <button ref={(element) => { if (element) cells.current.set(index, element); else cells.current.delete(index); }} key={index} type="button" role="gridcell" tabIndex={selected === index ? 0 : -1} className={classes} aria-rowindex={row + 1} aria-colindex={column + 1} aria-selected={selected === index} aria-label={`row ${row + 1}, column ${column + 1}, ${spoken}${given ? ', given' : ''}`} data-given={given ? 'true' : 'false'} onClick={() => setSelected(index)}>
             {paused ? <span aria-hidden="true">x</span> : marks.has(index) ? <span className="sudoku-mark" aria-hidden="true">x</span> : value ? <span>{value}</span> : options.length ? <span className="sudoku-candidates" aria-hidden="true">{NUMBERS.map((number) => <i key={number}>{options.includes(number) ? number : ''}</i>)}</span> : null}
           </button>;
         })}
