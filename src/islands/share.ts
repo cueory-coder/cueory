@@ -175,47 +175,60 @@ function image(url: string): Promise<HTMLImageElement> {
 export async function createStoryFile(input: StoryImageInput): Promise<File | null> {
   if (typeof document === 'undefined') return null;
   try {
-    const canvas = document.createElement('canvas');
-    canvas.width = 1080;
-    canvas.height = 1920;
-    const context = canvas.getContext('2d');
-    if (!context) return null;
     const tokens = getComputedStyle(document.documentElement);
+    const number = (name: string) => Number.parseFloat(tokens.getPropertyValue(name));
     const page = tokens.getPropertyValue('--color-page').trim();
     const ink = tokens.getPropertyValue('--color-ink').trim();
     const soft = tokens.getPropertyValue('--color-ink-soft').trim();
-    if (!page || !ink || !soft) return null;
+    const bodyFont = tokens.getPropertyValue('--font-body').trim();
+    const displayFont = tokens.getPropertyValue('--font-display').trim();
+    const width = number('--share-story-width');
+    const height = number('--share-story-height');
+    const logoWidth = number('--share-story-logo-width');
+    const values = [
+      width, height, logoWidth, number('--share-story-logo-top'), number('--share-story-label-y'),
+      number('--share-story-result-y'), number('--share-story-challenge-y'), number('--share-story-site-y'),
+      number('--share-story-label-size'), number('--share-story-result-size'),
+      number('--share-story-challenge-size'), number('--share-story-site-size'),
+    ];
+    if (!page || !ink || !soft || !bodyFont || !displayFont || values.some((value) => !Number.isFinite(value))) return null;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d');
+    if (!context) return null;
 
     await document.fonts.ready;
     context.fillStyle = page;
-    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillRect(0, 0, width, height);
 
+    // Wordmark.astro confirms the "light" file is the unchanged Daytime Espresso artwork.
     const logo = await image('/brand/v1/logo-full-light-960.png');
-    const logoWidth = 480;
     const logoHeight = (logo.height * logoWidth) / logo.width;
-    context.drawImage(logo, (canvas.width - logoWidth) / 2, 120, logoWidth, logoHeight);
+    context.drawImage(logo, (width - logoWidth) / 2, number('--share-story-logo-top'), logoWidth, logoHeight);
 
     if (input.wordmarkPath) {
       const wordmark = await image(input.wordmarkPath);
-      const width = Math.min(560, wordmark.width);
-      const height = (wordmark.height * width) / wordmark.width;
-      context.drawImage(wordmark, (canvas.width - width) / 2, 430, width, height);
+      const wordmarkWidth = logoWidth;
+      const wordmarkHeight = (wordmark.height * wordmarkWidth) / wordmark.width;
+      context.drawImage(wordmark, (width - wordmarkWidth) / 2, number('--share-story-logo-top') + logoHeight * 2, wordmarkWidth, wordmarkHeight);
     }
 
     context.textAlign = 'center';
     context.fillStyle = soft;
-    context.font = '700 34px Lato';
-    context.fillText(`today's ${input.name} · ${input.date}`, canvas.width / 2, 690);
+    context.font = `700 ${number('--share-story-label-size')}px ${bodyFont}`;
+    context.fillText(`today's ${input.name} · ${input.date}`, width / 2, number('--share-story-label-y'));
 
     context.fillStyle = ink;
-    context.font = '500 132px "Bodoni Moda"';
-    context.fillText(input.result, canvas.width / 2, 960);
+    context.font = `500 ${number('--share-story-result-size')}px ${displayFont}`;
+    context.fillText(input.result, width / 2, number('--share-story-result-y'));
 
-    context.font = '700 52px Lato';
-    context.fillText('can you beat me?', canvas.width / 2, 1240);
+    context.font = `700 ${number('--share-story-challenge-size')}px ${bodyFont}`;
+    context.fillText('can you beat me?', width / 2, number('--share-story-challenge-y'));
     context.fillStyle = soft;
-    context.font = '400 42px Lato';
-    context.fillText('cueory.app', canvas.width / 2, 1680);
+    context.font = `400 ${number('--share-story-site-size')}px ${bodyFont}`;
+    context.fillText('cueory.app', width / 2, number('--share-story-site-y'));
 
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
     return blob ? new File([blob], `cueory-${input.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-story.png`, { type: 'image/png' }) : null;
@@ -223,7 +236,6 @@ export async function createStoryFile(input: StoryImageInput): Promise<File | nu
     return null;
   }
 }
-
 
 /** Static, score-free Open Graph images. Each game has a stable file even while several games share /play. */
 export const GAME_OG_IMAGES = {

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { buildResultShareLine } from '../../src/islands/gameresults';
 import { platformShareUrl } from '../../src/islands/share';
@@ -29,3 +30,31 @@ describe('plain platform share pages', () => {
     expect(url.searchParams.has('utm_source')).toBe(false);
   });
 });
+
+
+describe('story image implementation', () => {
+  it('takes every canvas dimension and font from design tokens', () => {
+    const source = readFileSync(new URL('../../src/islands/share.ts', import.meta.url), 'utf8');
+    const tokens = readFileSync(new URL('../../src/styles/tokens.css', import.meta.url), 'utf8');
+    for (const name of [
+      '--share-story-width', '--share-story-height', '--share-story-logo-width', '--share-story-logo-top',
+      '--share-story-label-y', '--share-story-result-y', '--share-story-challenge-y', '--share-story-site-y',
+      '--share-story-label-size', '--share-story-result-size', '--share-story-challenge-size', '--share-story-site-size',
+    ]) {
+      expect(source).toContain(`number('${name}')`);
+      expect(tokens).toContain(`${name}:`);
+    }
+    expect(source).toContain("image('/brand/v1/logo-full-light-960.png')");
+    expect(source).not.toMatch(/font = ['"][^'"]*\d+px/);
+  });
+
+  it('sets the story canvas to the required 1080 by 1920 through tokens', () => {
+    expect(tokensValue('--share-story-width')).toBe('1080');
+    expect(tokensValue('--share-story-height')).toBe('1920');
+  });
+});
+
+function tokensValue(name: string): string {
+  const tokens = readFileSync(new URL('../../src/styles/tokens.css', import.meta.url), 'utf8');
+  return new RegExp(`${name}:\\s*([^;]+)`).exec(tokens)?.[1]?.trim() ?? '';
+}

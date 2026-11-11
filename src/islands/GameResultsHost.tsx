@@ -83,6 +83,10 @@ export default function GameResultsHost() {
       result: card.result,
       ...(card.wordmarkPath ? { wordmarkPath: card.wordmarkPath } : {}),
     });
+    if (!file || !navigator.canShare?.({ files: [file] })) {
+      await copy(line);
+      return;
+    }
     const data = buildShareData(
       navigator,
       { title: `${card.name} result · cueory`, text: line, url: absoluteUrl(card.path) },
