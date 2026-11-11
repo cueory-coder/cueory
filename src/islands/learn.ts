@@ -70,10 +70,11 @@ export function normalize(text: string): string {
       const end = offset + separator.length;
       const numberBefore = /\p{N}$/u.test(folded.slice(Math.max(0, offset - 2), offset));
       const numberAfter = /^\p{N}/u.test(folded.slice(end, end + 2));
+      const hasNotEqual = /!\s*=/u.test(separator);
       const significant = Array.from(separator).filter((symbol) =>
         // Unit glyphs such as ℃ are symbols too. Do not discard them after preserving their original form.
         /[\p{S}%‰‱/*]/u.test(symbol)
-        || (symbol === '!' && /!\s*=/u.test(separator))
+        || (symbol === '!' && hasNotEqual)
         || (symbol === '.' && numberAfter)
         || (/[,:]/u.test(symbol) && numberBefore && numberAfter)
         || (/[-–—]/u.test(symbol) && (numberBefore || numberAfter)),

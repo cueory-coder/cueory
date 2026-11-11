@@ -97,6 +97,12 @@ describe('comparing answers', () => {
     expect(normalize(left)).toBe(normalize(right));
   });
 
+  it('handles a long punctuation-only answer and preserves a final not-equal operator', () => {
+    const punctuation = '!'.repeat(32_000);
+    expect(normalize(punctuation)).toBe('');
+    expect(normalize(`${punctuation}=5`)).not.toBe(normalize('=5'));
+  });
+
   it('splits an answer around its blank', () => {
     expect(fillParts(deck[1]!)).toEqual({ before: 'Back two, ', after: '.' });
     expect(fillParts(deck[0]!)).toBeNull();
