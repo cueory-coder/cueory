@@ -1,15 +1,9 @@
-STATUS: implementation review in progress
-
-Base: legacy/staging at 6b5ae956984672953716f537ff10f371c40afe61.
-
-Current branch adds the shared finished-game result dialog, game-page result wiring, static social previews, image-share handling, and design-token contract fixes. Remaining review scope is the full /play flow for every game, share fallback behavior, and accessibility checks against the design handoff.
-
-D-pending: confirm the image/share preview direction and any product copy decisions with Christian.
-
-Official platform documentation used for the share-link contracts:
-
-- Facebook Share Dialog: https://developers.facebook.com/docs/sharing/reference/share-dialog
-- X Web Intent: https://developer.x.com/en/docs/x-for-websites/tweet-button/guides/web-intent
-- Threads sharing: https://developers.facebook.com/docs/threads/threads-profiles/threads-publishing
-- Reddit submit API: https://www.reddit.com/dev/api/#POST_api_submit
-- WhatsApp click to chat: https://faq.whatsapp.com/general/chats/how-to-use-click-to-chat
+status: Task 626, one accessible finished-game dialog, exact plain share lines, on-demand 1080 × 1920 story images, distinct 1200 × 630 game previews and tracker-free platform links are in implementation review.
+decision: D-pending (Task 626) Per-score link previews require a server route and are intentionally not built.
+platform-link-evidence:
+  - Facebook Share Dialog: https://developers.facebook.com/docs/sharing/reference/share-dialog/ — uses the destination URL in the `u` parameter.
+  - X Web Intent: https://developer.x.com/en/docs/x-for-websites/tweet-button/guides/web-intent — supports text and URL parameters for the composed post.
+  - Threads Web Intents: https://developers.facebook.com/docs/threads/threads-web-intents/ — supports text for the composed post.
+  - Reddit API submit: https://www.reddit.com/dev/api/#POST_api_submit — accepts the destination `url` and post `title`.
+  - WhatsApp FAQ: https://faq.whatsapp.com/5913398998672934 — documents the message-only `wa.me/?text=...` URL form.
+testing: The shared-dialog browser coverage checks announcement, focus trap/return, copy fallback and tracker-free links; existing solved-game tests close the required modal before checking the underlying result. Local verification on the current head: `npm run build` passed (47 static pages plus Pagefind); the focused share/results/build-output run passed 211 of 212 tests, with the one remaining failure being the existing JavaScript-budget fixture gap for the four game routes. Browser/print verification was not run here.
