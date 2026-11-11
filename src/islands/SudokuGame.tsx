@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { saveChoice } from '../scripts/theme';
 import { browserStorage } from '../scripts/storage';
 import { localDay, reportRound } from './gameresults';
 import { LEVEL_RULES, candidates, conflictIndices, dailySudokuSeed, generateSudoku, getResult, type SudokuLevel } from './sudoku';
@@ -165,11 +164,6 @@ export default function SudokuGame() {
     if (key === 'autoCandidates') setHints(next.autoCandidates);
     return next;
   });
-  const chooseTheme = (choice: Exclude<ThemeChoice, 'device'>) => {
-    setTheme(choice);
-    applyChoice(document.documentElement, choice);
-    saveChoice(browserStorage(), choice);
-  };
   const printPuzzle = () => {
     const root = document.documentElement;
     root.dataset.printGame = 'sudoku';
