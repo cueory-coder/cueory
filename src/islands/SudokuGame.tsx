@@ -186,7 +186,7 @@ export default function SudokuGame() {
     </div>
     <div className="sudoku-panel">
       <div className="sudoku-toolbar">
-        <div className="sudoku-time">{settings.showTimer && <span>time: <strong>{elapsed}</strong></span>}<button type="button" className="sudoku-small-button" aria-label={paused ? 'resume puzzle' : 'pause puzzle'} onClick={() => setPaused((value) => !value)}><span aria-hidden="true">{paused ? '▶' : 'Ⅱ'}</span></button></div>
+        <div className="sudoku-time">{settings.showTimer && <span>time: <strong>{elapsed}</strong></span>}{settings.showTimer && ' '}<button type="button" className="sudoku-small-button" aria-label={paused ? 'resume puzzle' : 'pause puzzle'} onClick={() => setPaused((value) => !value)}><span aria-hidden="true">{paused ? '▶' : 'Ⅱ'}</span></button></div>
         <div className="segmented" aria-label="difficulty">{LEVELS.map((choice) => <button key={choice} type="button" className="segmented-option" aria-pressed={level === choice} onClick={() => setLevel(choice)}>{choice}</button>)}</div>
         <span className="sudoku-errors">{settings.showErrors ? <>error: <strong>{errors}</strong></> : null}</span>
       </div>
