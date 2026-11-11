@@ -5,6 +5,7 @@ import {
   TEXT_FALLBACK_BATCH,
   BODYPARTS3D_CREDIT,
   BODYPARTS3D_LICENSE_URL,
+  BODYPARTS3D_MODIFICATION_NOTE,
   BODYPARTS3D_REFERENCE_NOTE,
   BODYPARTS3D_REFERENCE_URL,
   EXPORT_PAD,
@@ -193,17 +194,19 @@ describe('the release note', () => {
   it('says a draft model is a draft, built from its release, under the view and on every picture', () => {
     const draft = parseAnatomyFile(file({ model: { file: '/models/anatomy/sample.glb', release: 'BodyParts3D 3.0 (2011-09-15)' } }), 'content/visuals/anatomy-sample.json');
     expect(releaseNoteFor(draft)).toBe('draft model, built from BodyParts3D 3.0 (2011-09-15)');
-    expect(pictureCreditFor(draft)).toBe(`${BODYPARTS3D_CREDIT} · license: ${BODYPARTS3D_LICENSE_URL} · draft model, built from BodyParts3D 3.0 (2011-09-15) · ${BODYPARTS3D_REFERENCE_NOTE}`);
+    expect(pictureCreditFor(draft)).toBe(`${BODYPARTS3D_CREDIT} · license: ${BODYPARTS3D_LICENSE_URL} · draft model, built from BodyParts3D 3.0 (2011-09-15) · ${BODYPARTS3D_REFERENCE_NOTE} · ${BODYPARTS3D_MODIFICATION_NOTE}`);
     expect(BODYPARTS3D_REFERENCE_URL).toBe('https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/README_e.html');
     const approved = { ...draft, status: 'approved' as const };
     expect(releaseNoteFor(approved)).toBe('model release: BodyParts3D 3.0 (2011-09-15)');
     expect(pictureCreditFor(approved)).toContain(`license: ${BODYPARTS3D_LICENSE_URL}`);
     expect(pictureCreditFor(approved)).toContain(BODYPARTS3D_REFERENCE_NOTE);
+    expect(pictureCreditFor(approved)).toContain(BODYPARTS3D_MODIFICATION_NOTE);
     const fixture = parseAnatomyFile(fixtureJson, 'tests/fixtures/anatomy-fixture.json', { fixture: true });
     expect(releaseNoteFor(fixture)).toBe('model release: fixture 1 (made in code)');
     expect(pictureCreditFor(fixture)).toBe(`${FIXTURE_CREDIT} · model release: fixture 1 (made in code)`);
     expect(pictureCreditFor(fixture)).not.toContain(BODYPARTS3D_LICENSE_URL);
     expect(pictureCreditFor(fixture)).not.toContain(BODYPARTS3D_REFERENCE_NOTE);
+    expect(pictureCreditFor(fixture)).not.toContain(BODYPARTS3D_MODIFICATION_NOTE);
   });
 });
 

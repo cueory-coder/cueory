@@ -52,6 +52,8 @@ export const BODYPARTS3D_LICENSE_URL = 'https://creativecommons.org/licenses/by/
 /** The publisher describes the underlying reference geometry as an adult human male. */
 export const BODYPARTS3D_REFERENCE_NOTE = "Male's Anatomy (BodyParts3D reference model, adult human male)";
 export const BODYPARTS3D_REFERENCE_URL = 'https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/README_e.html';
+/** CC BY 4.0 requires a clear indication when licensed material was modified. */
+export const BODYPARTS3D_MODIFICATION_NOTE = 'Modified for Cueory.';
 export const FIXTURE_CREDIT = 'test shapes made in code for automated tests: not anatomy, not from BodyParts3D';
 
 export function creditFor(system: Pick<AnatomySystem, 'fixture'>): string {
@@ -75,7 +77,8 @@ export function releaseNoteFor(system: Pick<AnatomySystem, 'status' | 'model' | 
 export function pictureCreditFor(system: Pick<AnatomySystem, 'status' | 'model' | 'fixture'>): string {
   const license = system.fixture ? '' : ` · license: ${BODYPARTS3D_LICENSE_URL}`;
   const scope = system.fixture ? '' : ` · ${BODYPARTS3D_REFERENCE_NOTE}`;
-  return `${creditFor(system)}${license} · ${releaseNoteFor(system)}${scope}`;
+  const modification = system.fixture ? '' : ` · ${BODYPARTS3D_MODIFICATION_NOTE}`;
+  return `${creditFor(system)}${license} · ${releaseNoteFor(system)}${scope}${modification}`;
 }
 
 /**
