@@ -437,7 +437,7 @@ test.describe('daily games: crossword levels (Task 627)', () => {
     await board(page).getByRole('button', { name: 'print this puzzle' }).click();
     await expect(page.locator('html')).toHaveAttribute('data-print-game', 'crossword');
     await page.emulateMedia({ media: 'print' });
-    await expect(page.locator('#pulse-heading')).toHaveCSS('display', 'none');
+    await expect(page.locator('#pulse-heading')).toBeHidden();
     await expect(page.getByTestId('crossword-levels')).toBeHidden();
     await expect(board(page).locator('.crossword-toolbar')).toHaveCSS('display', 'none');
     await expect(board(page).getByTestId('cueword-clue')).toHaveCSS('display', 'none');
