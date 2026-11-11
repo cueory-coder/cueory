@@ -268,7 +268,7 @@ const cueword = defineCollection({
   schema: z.object({
     status: z.literal('sample'),
     grid: z
-      .array(z.string().regex(/^[A-Z.]{3,7}$/, 'a crossword row is 3 to 15 capital letters or dots'))
+      .array(z.string().regex(/^[A-Z.]{3,15}$/, 'a crossword row is 3 to 15 capital letters or dots'))
       .min(3)
       .max(15),
     clues: z.object({ across: z.array(clue), down: z.array(clue) }),
