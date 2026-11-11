@@ -26,7 +26,7 @@ describe('plain platform share pages', () => {
   ] as const)('%s uses only a plain share-page link', (platform, route, parameter) => {
     const url = new URL(platformShareUrl(platform, line, target));
     expect(url.origin + url.pathname).toBe(route);
-    expect(url.searchParams.get(parameter)).toContain(parameter === 'text' && platform !== 'x' ? line : target);
+    expect(url.searchParams.get(parameter)).toContain(parameter === 'text' && platform !== 'threads' ? line : target);
     expect(url.searchParams.has('utm_source')).toBe(false);
   });
 });
