@@ -64,7 +64,7 @@ function Board({ puzzle, name }: Props) {
           { label: 'words found', value: `${state.found.length}` },
           { label: 'wrong picks', value: `${state.misses}` },
         ],
-        path: '/play#word-path-heading',
+        path: '/play/word-path',
       },
     });
   }, [done]);

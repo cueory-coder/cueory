@@ -88,7 +88,7 @@ export default function PulseGame({ puzzles }: Props) {
         result: solved ? `${tries} / ${GUESSES}` : 'not solved',
         summary: solved ? 'you found today\'s word.' : 'today\'s word is ready for another try tomorrow.',
         stats: [{ label: 'guesses', value: `${tries}` }],
-        path: '/play#pulse-heading',
+        path: '/play/pillo',
       },
     });
   }, [state.status]);

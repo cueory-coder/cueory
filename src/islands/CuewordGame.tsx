@@ -68,7 +68,7 @@ function Board({ puzzle, name }: Props) {
           { label: 'time', value: elapsedText(elapsed) },
           { label: 'cues', value: String(state.cued.length) },
         ],
-        path: '/play#crossword-heading',
+        path: '/play/crossword',
       },
     });
   }, [solved]);
