@@ -105,7 +105,7 @@ export default function GameResultsHost() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 backdrop-blur-(--blur-scrim)"
       onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}
       data-testid="game-result-overlay"
     >
@@ -115,7 +115,7 @@ export default function GameResultsHost() {
         aria-modal="true"
         aria-labelledby="game-result-title"
         aria-describedby="game-result-summary"
-        className="max-h-full w-full max-w-lg overflow-y-auto rounded-2xl border border-line bg-page p-6 text-ink shadow-card sm:p-8"
+        className="max-h-full w-full max-w-lg overflow-y-auto rounded-xl border border-line bg-page p-6 text-ink shadow-card sm:p-8"
         data-testid="game-result-dialog"
       >
         <div className="flex items-start justify-between gap-4">

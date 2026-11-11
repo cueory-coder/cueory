@@ -32,6 +32,16 @@ describe('plain platform share pages', () => {
 });
 
 
+describe('shared result dialog design tokens', () => {
+  it('uses the repository blur and radius tokens', () => {
+    const source = readFileSync(new URL('../../src/islands/GameResultsHost.tsx', import.meta.url), 'utf8');
+    expect(source).toContain('backdrop-blur-(--blur-scrim)');
+    expect(source).toContain('rounded-xl');
+    expect(source).not.toContain('backdrop-blur-sm');
+    expect(source).not.toContain('rounded-2xl');
+  });
+});
+
 describe('story image implementation', () => {
   it('takes every canvas dimension and font from design tokens', () => {
     const source = readFileSync(new URL('../../src/islands/share.ts', import.meta.url), 'utf8');
