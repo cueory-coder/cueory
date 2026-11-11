@@ -11,6 +11,7 @@ import TriageGame from '../islands/TriageGame';
 import CuewordToday from '../islands/CuewordToday';
 import SutureToday from '../islands/SutureToday';
 import GameStatsPanel from '../islands/GameStatsPanel';
+import GameResultsHost from '../islands/GameResultsHost';
 import PilloTitle from '../components/PilloTitle.astro';
 import { parsePuzzle } from '../islands/cueword';
 import { parsePuzzle as parseWordPath } from '../islands/suture';
@@ -110,6 +111,7 @@ const later = dailyGames.filter((game) => !game.ready);
     {/* Private stats (D-76): off until the student turns them on, kept only in this browser. Without JavaScript there are
     no games to count, so nothing shows. */}
     <GameStatsPanel client:only="react" games={[pulse, triage, crossword, wordPath].map((game) => game.id)} />
+    <GameResultsHost client:only="react" />
 
     {showHello && <section class="mt-16" aria-labelledby="more-games-heading">
       <h2 id="more-games-heading" class="text-2xl font-medium">more games</h2>

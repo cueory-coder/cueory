@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { dayLabel } from './daily';
+import { showResultCard } from './gameresults';
 import {
   HELLO_CATEGORY_LABELS,
   HELLO_DEPTH_LABELS,
@@ -107,6 +108,21 @@ export default function HelloCards({ starters }: { starters: readonly HelloStart
           <h2 id="hello-daily-heading" className="text-sm font-bold">prompt of the day · {dayLabel(today)} · {HELLO_DEPTH_LABELS[depth]}</h2>
           <p className="mt-1 text-sm text-ink-soft">{isReflective(daily.category) ? 'a question for yourself' : `for ${HELLO_CATEGORY_LABELS[daily.category]}`}</p>
           <p className="mt-3 wrap-anywhere text-2xl" data-testid="hello-daily-text">{daily.text}</p>
+          <button
+            type="button"
+            className="mt-4 min-h-(--tap-min) rounded-pill border border-control px-5 py-2.5"
+            onClick={() => showResultCard({
+              game: 'hello-cards',
+              name: 'hello cards',
+              date: dayLabel(today),
+              result: "today's card",
+              summary: 'share the prompt, then start a conversation.',
+              stats: [{ label: 'deck', value: HELLO_DEPTH_LABELS[depth] }],
+              path: '/play/hello-cards',
+            })}
+          >
+            share today's card
+          </button>
         </section>
       )}
       <div className="mb-6 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-center" data-testid="hello-depth">

@@ -7,6 +7,7 @@
 import { getCollection } from 'astro:content';
 import Layout from '../../layouts/Layout.astro';
 import HelloCards from '../../islands/HelloCards';
+import GameResultsHost from '../../islands/GameResultsHost';
 import { helloCardsGame, helloCardsIndexWhenApproved } from '../../config/games';
 import { helloCardsPage } from '../../islands/hellocards';
 
@@ -30,6 +31,7 @@ const { shown, starters } = page;
       shown ? (
         <div class="mt-8">
           <HelloCards client:only="react" starters={starters} />
+          <GameResultsHost client:only="react" />
           <noscript>
             <p>hello cards needs JavaScript to turn the cards over. you can still <a href="/play">go back to the daily games</a>.</p>
           </noscript>
