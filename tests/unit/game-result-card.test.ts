@@ -4,6 +4,7 @@ import { buildResultShareLine } from '../../src/islands/gameresults';
 import { buildShareData, platformShareUrl, runShare, storyLogoPath } from '../../src/islands/share';
 
 const card = { name: 'pillo', date: 'nov 11, 2026', result: '4 / 6' };
+const target = 'https://cueory.app/play#pulse-heading';
 
 describe('finished-game share line', () => {
   it('uses the exact plain one-line format', () => {
@@ -15,8 +16,6 @@ describe('finished-game share line', () => {
 
 describe('plain platform share pages', () => {
   const line = buildResultShareLine(card);
-  const target = 'https://cueory.app/play#pulse-heading';
-
   it.each([
     ['facebook', 'https://www.facebook.com/sharer/sharer.php', 'u'],
     ['x', 'https://x.com/intent/post', 'url'],
