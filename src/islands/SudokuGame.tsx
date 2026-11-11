@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { browserStorage } from '../scripts/storage';
-import { localDay, reportRound } from './gameresults';
+import { localDay } from './gameresults';
 import { LEVEL_RULES, candidates, conflictIndices, dailySudokuSeed, generateSudoku, getResult, type SudokuLevel } from './sudoku';
 
 interface Settings {
@@ -94,7 +94,6 @@ export default function SudokuGame() {
     solvedResult.current?.focus();
     if (settings.playSound) playSolvedTone();
     const result = getResult({ day, level, seconds, errors, solved: true });
-    reportRound({ game: 'triage', day, solved: true, tries: errors });
     window.dispatchEvent(new CustomEvent('cueory:sudoku-solved', { detail: result }));
     setSaid(`solved in ${result.time} with ${errors} ${errors === 1 ? 'error' : 'errors'}.`);
   }, [solved, day, level, seconds, errors, settings.playSound]);

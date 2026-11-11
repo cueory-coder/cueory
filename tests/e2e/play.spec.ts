@@ -324,6 +324,9 @@ test.describe('daily games: sudoku (Task 625)', () => {
       window.addEventListener('cueory:sudoku-solved', ((event: CustomEvent) => {
         document.documentElement.dataset.sudokuResult = JSON.stringify(event.detail);
       }) as EventListener, { once: true });
+      window.addEventListener('cueory:game-result', ((event: CustomEvent) => {
+        if (event.detail?.game === 'triage') document.documentElement.dataset.sudokuMisreported = 'true';
+      }) as EventListener);
     });
     for (const index of open) {
       await cells(page).nth(index).click();
@@ -335,6 +338,7 @@ test.describe('daily games: sudoku (Task 625)', () => {
     await expect(result).toContainText('0 errors');
     const detail = JSON.parse((await page.locator('html').getAttribute('data-sudoku-result'))!);
     expect(detail).toMatchObject({ game: 'sudoku', day, level: 'easy', solved: true, errors: 0 });
+    await expect(page.locator('html')).not.toHaveAttribute('data-sudoku-misreported', 'true');
   });
 });
 
