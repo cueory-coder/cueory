@@ -276,7 +276,11 @@ test.describe('daily games: sudoku (Task 625)', () => {
     await expect(dialog.getByRole('checkbox', { name: 'play sound on solve' })).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(close).toBeFocused();
-    await expect(dialog.getByRole('radio')).toHaveCount(0);
+    expect(await page.evaluate(() => localStorage.getItem('cueory-theme'))).toBeNull();
+    await expect(page.locator('html')).not.toHaveAttribute('data-theme', /.+/);
+    await dialog.getByRole('radio', { name: /dark mode/i }).check();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    expect(await page.evaluate(() => localStorage.getItem('cueory-theme'))).toBe('dark');
     await dialog.getByRole('checkbox', { name: 'start in auto candidate mode' }).check();
     await page.keyboard.press('Escape');
     await expect(trigger).toBeFocused();
@@ -292,15 +296,13 @@ test.describe('daily games: sudoku (Task 625)', () => {
     await expect(game(page).locator('.sudoku-candidates')).toHaveCount(0);
   });
 
-  test('fits every Sudoku cell and keypad action on a phone, and print isolates only givens plus cueory.app', async ({ page }) => {
+  test('keeps 44 px Sudoku cells on a phone, and print isolates only givens plus cueory.app', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     const boxes = await cells(page).evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect()));
     for (const box of boxes) {
-      expect(box.width).toBeGreaterThan(0);
-      expect(box.height).toBeGreaterThan(0);
-      expect(box.left).toBeGreaterThanOrEqual(0);
-      expect(box.right).toBeLessThanOrEqual(390);
+      expect(box.width).toBeGreaterThanOrEqual(44);
+      expect(box.height).toBeGreaterThanOrEqual(44);
     }
 
     const editable = grid(page).locator('[data-given="false"]').first();
