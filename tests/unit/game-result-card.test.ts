@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { buildResultShareLine } from '../../src/islands/gameresults';
 import { buildShareData, platformShareUrl, runShare, storyLogoPath } from '../../src/islands/share';
 
@@ -44,7 +44,8 @@ describe('story image implementation', () => {
       expect(source).toContain(`number('${name}')`);
       expect(tokens).toContain(`${name}:`);
     }
-    expect(source).toContain("image('/brand/v1/logo-full-light-960.png')");
+    expect(source).toContain('storyLogoPath(document.documentElement.dataset.theme, prefersDark)');
+    expect(source).not.toContain("image('/brand/v1/logo-full-light-960.png')");
     expect(source).not.toMatch(/font = ['"][^'"]*\d+px/);
   });
 
