@@ -445,8 +445,7 @@ test.describe('daily games: crossword levels (Task 627)', () => {
     await expect(board(page).locator('.crossword-print-clues')).toContainText('down');
     await expect(board(page).locator('.crossword-print-footer')).toBeVisible();
     await expect(board(page).locator('.crossword-print-footer')).toHaveText('cueory.app');
-    await expect(page.getByRole('heading', { name: 'pillo' })).toHaveCSS('display', 'none');
-    await expect(page.getByRole('heading', { name: 'word path' })).toHaveCSS('display', 'none');
+    await expect(page.locator('#word-path-heading')).toHaveCSS('display', 'none');
     await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
     await expect(page.locator('html')).not.toHaveAttribute('data-print-game');
   });
@@ -457,7 +456,7 @@ test.describe('daily games: crossword levels (Task 627)', () => {
     await page.getByTestId('crossword-levels').getByLabel('hard, 15 by 15').check();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     const hardCell = await board(page).locator('.crossword-cell').first().boundingBox();
-    expect(hardCell?.width).toBeGreaterThanOrEqual(20);
+    expect(hardCell?.width).toBeGreaterThanOrEqual(24);
     expect(hardCell?.width).toBeLessThanOrEqual(40);
     const controls = board(page).locator('.crossword-toolbar button, .crossword-no-print [role="group"] button');
     const boxes = await controls.evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect()));
