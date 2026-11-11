@@ -2071,6 +2071,9 @@ html:has(dialog.mode-preview[open]) {
   @media (orientation: portrait), (max-width: 50rem) {
     .sudoku-pad-wrap { grid-template-columns: 1fr 1fr; }
     .sudoku-number-row { grid-column: 1 / -1; grid-row: 1; overflow-x: auto; }
+    .sudoku-board { --sudoku-cell-size: clamp(1.75rem, calc((100vw - 3rem) / 9), var(--sudoku-cell-max)); }
+    .sudoku-number-row { grid-template-columns: repeat(5, minmax(44px, 1fr)); overflow-x: visible; }
+    .sudoku-number-row button { min-inline-size: 0; }
     .sudoku-hints { justify-self: start; }
     .sudoku-settings-trigger { justify-self: end; }
     .sudoku-toolbar { grid-template-columns: 1fr 1fr; }
