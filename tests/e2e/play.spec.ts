@@ -366,11 +366,14 @@ test.describe('daily games: crossword levels (Task 627)', () => {
     expect(results.violations.map((violation) => violation.id + ': ' + violation.help)).toEqual([]);
   });
 
-  test('switches among 5, 7 and 15 square boards without page overflow', async ({ page }) => {
-    for (const [label, size] of [['mid, 7 by 7', '7'], ['hard, 15 by 15', '15'], ['easy, 5 by 5', '5']] as const) {
-      await page.getByTestId('crossword-levels').getByLabel(label).check();
-      await expect(board(page).getByRole('grid', { name: 'crossword grid' })).toHaveAttribute('aria-rowcount', size);
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  test('switches among 5, 7 and 15 square boards without overflow at 390, 820 or 1440 px', async ({ page }) => {
+    for (const width of [390, 820, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      for (const [label, size] of [['mid, 7 by 7', '7'], ['hard, 15 by 15', '15'], ['easy, 5 by 5', '5']] as const) {
+        await page.getByTestId('crossword-levels').getByLabel(label).check();
+        await expect(board(page).getByRole('grid', { name: 'crossword grid' })).toHaveAttribute('aria-rowcount', size);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      }
     }
   });
 
