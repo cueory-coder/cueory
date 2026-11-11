@@ -31,7 +31,6 @@ const { shown, starters } = page;
       shown ? (
         <div class="mt-8">
           <HelloCards client:only="react" starters={starters} />
-          <GameResultsHost client:only="react" />
           <noscript>
             <p>hello cards needs JavaScript to turn the cards over. you can still <a href="/play">go back to the daily games</a>.</p>
           </noscript>
@@ -44,4 +43,5 @@ const { shown, starters } = page;
       back to daily games
     </a>
   </article>
+  {shown && <GameResultsHost client:only="react" />}
 </Layout>

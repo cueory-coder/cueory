@@ -65,6 +65,26 @@ describe('plain platform share pages', () => {
 });
 
 
+describe('shared result dialog placement and touch targets', () => {
+  it('mounts result hosts outside filtered veil articles', () => {
+    const play = readFileSync(new URL('../../src/pages/play.astro', import.meta.url), 'utf8');
+    const hello = readFileSync(new URL('../../src/pages/play/hello-cards.astro', import.meta.url), 'utf8');
+    for (const source of [play, hello]) {
+      expect(source.lastIndexOf('<GameResultsHost')).toBeGreaterThan(source.lastIndexOf('</article>'));
+      expect(source.lastIndexOf('<GameResultsHost')).toBeLessThan(source.lastIndexOf('</Layout>'));
+    }
+    expect(hello).toContain('{shown && <GameResultsHost client:only="react" />}');
+  });
+
+  it('gives every platform link a tokenized square minimum target', () => {
+    const source = readFileSync(new URL('../../src/islands/GameResultsHost.tsx', import.meta.url), 'utf8');
+    const platformLink = source.slice(source.indexOf('platforms.map'), source.indexOf('</nav>'));
+    expect(platformLink).toContain('min-h-(--tap-min)');
+    expect(platformLink).toContain('min-w-(--tap-min)');
+    expect(platformLink).toContain('justify-center');
+  });
+});
+
 describe('shared result dialog design tokens', () => {
   it('uses the repository overlay and radius tokens', () => {
     const source = readFileSync(new URL('../../src/islands/GameResultsHost.tsx', import.meta.url), 'utf8');

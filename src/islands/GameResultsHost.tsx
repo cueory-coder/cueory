@@ -168,7 +168,7 @@ export default function GameResultsHost() {
 
         <nav aria-label="share result on a website" className="mt-4 flex flex-wrap gap-x-4 gap-y-2">
           {platforms.map((platform) => (
-            <a key={platform.id} href={platformShareUrl(platform.id, line, url)} target="_blank" rel="noopener noreferrer" className="min-h-(--tap-min) inline-flex items-center underline underline-offset-4">
+            <a key={platform.id} href={platformShareUrl(platform.id, line, url)} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-(--tap-min) min-w-(--tap-min) items-center justify-center underline underline-offset-4">
               {platform.label}<span className="sr-only"> (opens in a new tab)</span>
             </a>
           ))}
