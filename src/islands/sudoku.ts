@@ -53,6 +53,17 @@ const STANDARD_PUZZLE = readGrid(`
 000419005
 000080079`);
 
+const MEDIUM_PUZZLE = readGrid(`
+534600000
+000095340
+198000500
+809701420
+406050090
+000020000
+001500000
+080419000
+340000070`);
+
 const HARD_SOLUTION = readGrid(`
 693784512
 487512936
@@ -87,7 +98,7 @@ const TEMPLATES: Readonly<Record<SudokuLevel, { puzzle: number[]; solution: numb
     solution: STANDARD_SOLUTION,
   },
   medium: {
-    puzzle: withAddedGivens(STANDARD_PUZZLE, STANDARD_SOLUTION, [2, 3]),
+    puzzle: MEDIUM_PUZZLE,
     solution: STANDARD_SOLUTION,
   },
   hard: {
