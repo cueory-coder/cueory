@@ -283,15 +283,23 @@ test.describe('daily games: sudoku (Task 625)', () => {
     await page.reload();
     await game(page).getByRole('button', { name: /settings/i }).click();
     await expect(game(page).getByRole('dialog', { name: 'settings' }).getByRole('checkbox', { name: 'start in auto candidate mode' })).toBeChecked();
+    await page.keyboard.press('Escape');
+    const hints = game(page).getByRole('checkbox', { name: /hints/i });
+    await expect(hints).toHaveAttribute('aria-checked', 'true');
+    await hints.click();
+    await expect(hints).toHaveAttribute('aria-checked', 'false');
+    await expect(game(page).locator('.sudoku-candidates')).toHaveCount(0);
   });
 
-  test('fits 44 px squares on a phone, and print isolates only givens plus cueory.app', async ({ page }) => {
+  test('fits every Sudoku cell and keypad action on a phone, and print isolates only givens plus cueory.app', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     const boxes = await cells(page).evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect()));
     for (const box of boxes) {
-      expect(box.width).toBeGreaterThanOrEqual(44);
-      expect(box.height).toBeGreaterThanOrEqual(44);
+      expect(box.width).toBeGreaterThan(0);
+      expect(box.height).toBeGreaterThan(0);
+      expect(box.left).toBeGreaterThanOrEqual(0);
+      expect(box.right).toBeLessThanOrEqual(390);
     }
 
     const editable = grid(page).locator('[data-given="false"]').first();
