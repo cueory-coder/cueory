@@ -221,6 +221,8 @@ test.describe('daily games: sudoku (Task 625)', () => {
   test('shows one daily easy puzzle with the approved givens, controls and accessible page', async ({ page }) => {
     await expect(page.getByRole('heading', { level: 2, name: 'sudoku' })).toHaveCount(1);
     await expect(cells(page)).toHaveCount(81);
+    await expect(grid(page).getByRole('row')).toHaveCount(9);
+    for (const row of await grid(page).getByRole('row').all()) await expect(row.getByRole('gridcell')).toHaveCount(9);
     await expect(grid(page).locator('[data-given="true"]')).toHaveCount(40);
     await expect(game(page).getByRole('button', { name: 'easy' })).toHaveAttribute('aria-pressed', 'true');
     const controls = game(page).locator('.sudoku-icon-button, .sudoku-small-button, .sudoku-number-row button');

@@ -2023,8 +2023,8 @@ html:has(dialog.mode-preview[open]) {
 /* Sudoku game page (Task 625): sizes and colors come from tokens.css. */
 @layer components {
   .sudoku-game { position: relative; margin-block: calc(var(--spacing) * 8); }
-  .sudoku-title-row { display: flex; min-block-size: var(--tap-min); justify-content: flex-end; margin-block-end: calc(var(--spacing) * 3); }
-  .sudoku-corner-actions { display: flex; gap: calc(var(--spacing) * 2); }
+  .sudoku-title-row { position: relative; display: flex; min-block-size: var(--tap-min); align-items: center; justify-content: center; margin-block-end: calc(var(--spacing) * 3); }
+  .sudoku-corner-actions { position: absolute; inset-inline-end: 0; display: flex; gap: calc(var(--spacing) * 2); }
   .sudoku-icon-button, .sudoku-small-button { display: inline-flex; min-inline-size: var(--tap-min); min-block-size: var(--tap-min); align-items: center; justify-content: center; border: var(--sudoku-line) solid var(--color-control); border-radius: var(--radius-pill); background: var(--color-page); color: var(--color-ink); cursor: pointer; }
   .sudoku-how { position: absolute; z-index: 5; inset-inline-end: 0; inset-block-start: 100%; inline-size: min(100%, var(--container-prose)); padding: calc(var(--spacing) * 5); border: var(--sudoku-line) solid var(--color-line); border-radius: var(--radius-lg); background: var(--color-page); box-shadow: var(--shadow-card); }
   .sudoku-how ol { margin-block: calc(var(--spacing) * 2) 0; padding-inline-start: calc(var(--spacing) * 6); }
@@ -2032,10 +2032,12 @@ html:has(dialog.mode-preview[open]) {
   .sudoku-toolbar { display: grid; inline-size: 100%; grid-template-columns: 1fr auto 1fr; align-items: center; gap: calc(var(--spacing) * 2); }
   .sudoku-time { display: flex; align-items: center; gap: calc(var(--spacing) * 2); }
   .sudoku-errors { justify-self: end; }
-  .sudoku-board { --sudoku-cell-size: clamp(var(--sudoku-cell-min), min(calc((100vh - var(--sudoku-height-reserve)) / 9), calc((100vw - var(--sudoku-width-reserve)) / 9)), var(--sudoku-cell-max)); display: grid; grid-template-columns: repeat(9, var(--sudoku-cell-size)); border: var(--sudoku-box-line) solid var(--color-ink); background: var(--color-ink); }
+  .sudoku-board-scroll { inline-size: 100%; overflow-x: auto; }
+  .sudoku-board { --sudoku-cell-size: clamp(var(--sudoku-cell-min), min(calc((100vh - var(--sudoku-height-reserve)) / 9), calc((100vw - var(--sudoku-width-reserve)) / 9)), var(--sudoku-cell-max)); display: grid; inline-size: max-content; grid-template-rows: repeat(9, var(--sudoku-cell-size)); margin-inline: auto; border: var(--sudoku-box-line) solid var(--color-ink); background: var(--color-ink); }
+  .sudoku-row { display: grid; grid-template-columns: repeat(9, var(--sudoku-cell-size)); }
   .sudoku-cell { position: relative; display: flex; inline-size: var(--sudoku-cell-size); block-size: var(--sudoku-cell-size); align-items: center; justify-content: center; border: 0; border-inline-end: var(--sudoku-line) solid var(--color-line); border-block-end: var(--sudoku-line) solid var(--color-line); background: var(--color-page); color: var(--color-ink); cursor: pointer; font-size: calc(var(--sudoku-cell-size) / 2); line-height: 1; }
-  .sudoku-cell:nth-child(9n) { border-inline-end: 0; }
-  .sudoku-cell:nth-child(n + 73) { border-block-end: 0; }
+  .sudoku-cell:last-child { border-inline-end: 0; }
+  .sudoku-row:last-child .sudoku-cell { border-block-end: 0; }
   .sudoku-cell.sudoku-box-right { border-inline-end: var(--sudoku-box-line) solid var(--color-ink); }
   .sudoku-cell.sudoku-box-bottom { border-block-end: var(--sudoku-box-line) solid var(--color-ink); }
   .sudoku-cell.is-given { background: var(--color-sudoku-given); font-weight: 700; }
@@ -2082,6 +2084,7 @@ html:has(dialog.mode-preview[open]) {
     :root[data-print-game="sudoku"] .sudoku-section, :root[data-print-game="sudoku"] .sudoku-mount { margin: 0 !important; }
     main { max-inline-size: none !important; padding: 0 !important; }
     .sudoku-game { margin: 0; }
+    .sudoku-board-scroll { overflow: visible; }
     .sudoku-board { --sudoku-cell-size: var(--sudoku-cell-max); }
     .sudoku-cell { background: var(--color-page) !important; box-shadow: none !important; outline: 0 !important; color: var(--color-ink) !important; }
     .sudoku-cell[data-given="false"] > * { display: none !important; }

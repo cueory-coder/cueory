@@ -182,7 +182,8 @@ export default function SudokuGame() {
   const selectedRow = Math.floor(selected / 9); const selectedColumn = selected % 9; const selectedValue = entries[selected];
 
   return <section className="sudoku-game" data-testid="sudoku">
-    <div className="sudoku-title-row" aria-label="puzzle actions">
+    <div className="sudoku-title-row">
+      <h2 id="sudoku-heading" className="display text-title sm:text-title-lg">sudoku</h2>
       <div className="sudoku-corner-actions">
         <button type="button" className="sudoku-icon-button print-control" aria-label="print this puzzle" onClick={printPuzzle}><svg viewBox="0 0 24 24" className="size-6" aria-hidden="true" focusable="false"><path d="M7 9V4h10v5M7 17H5.5A2.5 2.5 0 0 1 3 14.5v-3A2.5 2.5 0 0 1 5.5 9h13a2.5 2.5 0 0 1 2.5 2.5v3a2.5 2.5 0 0 1-2.5 2.5H17M7 14h10v6H7z" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg></button>
         <button type="button" className="sudoku-icon-button" aria-label="how to play" aria-expanded={howOpen} onClick={() => setHowOpen((open) => !open)}>?</button>
@@ -198,9 +199,11 @@ export default function SudokuGame() {
         <div className="segmented" aria-label="difficulty">{LEVELS.map((choice) => <button key={choice} type="button" className="segmented-option" aria-pressed={level === choice} onClick={() => setLevel(choice)}>{choice}</button>)}</div>
         <span className="sudoku-errors">{settings.showErrors ? <>error: <strong>{errors}</strong></> : null}</span>
       </div>
-      <div className={`sudoku-board${paused ? ' is-paused' : ''}`} role="grid" aria-label="sudoku grid" aria-rowcount={9} aria-colcount={9}>
-        {entries.map((value, index) => {
-          const row = Math.floor(index / 9); const column = index % 9; const given = puzzle.puzzle[index] !== 0;
+      <div className="sudoku-board-scroll">
+        <div className={`sudoku-board${paused ? ' is-paused' : ''}`} role="grid" aria-label="sudoku grid" aria-rowcount={9} aria-colcount={9}>
+        {Array.from({ length: 9 }, (_, row) => <div key={row} className="sudoku-row" role="row">
+          {entries.slice(row * 9, row * 9 + 9).map((value, column) => {
+          const index = row * 9 + column; const given = puzzle.puzzle[index] !== 0;
           const related = settings.highlightRowColumn && (row === selectedRow || column === selectedColumn);
           const box = settings.highlightBox && Math.floor(row / 3) === Math.floor(selectedRow / 3) && Math.floor(column / 3) === Math.floor(selectedColumn / 3);
           const identical = settings.highlightIdentical && Boolean(selectedValue) && value === selectedValue;
@@ -210,7 +213,9 @@ export default function SudokuGame() {
           return <button ref={(element) => { if (element) cells.current.set(index, element); else cells.current.delete(index); }} key={index} type="button" role="gridcell" tabIndex={selected === index ? 0 : -1} className={classes} aria-rowindex={row + 1} aria-colindex={column + 1} aria-selected={selected === index} aria-label={`row ${row + 1}, column ${column + 1}, ${spoken}${given ? ', given' : ''}`} data-given={given ? 'true' : 'false'} onClick={() => setSelected(index)}>
             {paused ? <span aria-hidden="true">x</span> : marks.has(index) ? <span className="sudoku-mark" aria-hidden="true">x</span> : value ? <span>{value}</span> : options.length ? <span className="sudoku-candidates" aria-hidden="true">{NUMBERS.map((number) => <i key={number}>{options.includes(number) ? number : ''}</i>)}</span> : null}
           </button>;
-        })}
+          })}
+        </div>)}
+        </div>
       </div>
       <div className="sudoku-pad-wrap">
         <button type="button" className="sudoku-setting-button sudoku-hints" role="checkbox" aria-checked={hints} onClick={() => setHints((value) => !value)}><span aria-hidden="true">{hints ? '☑' : '☐'}</span> hints</button>
