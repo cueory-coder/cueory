@@ -42,6 +42,14 @@ const C = {
 const MOTTO = 'by nursing students, for nursing students.';
 
 /** Tool groups: every game shares one set of cards, study skills has its own. */
+const OG_GAMES = [
+  { id: 'pillo', name: 'pillo', scene: C.wine },
+  { id: 'crossword', name: 'crossword', scene: C.studyGreen },
+  { id: 'word-path', name: 'word path', scene: C.coinDeep },
+  { id: 'sudoku', name: 'sudoku', scene: C.espresso },
+  { id: 'hello-cards', name: 'hello cards', scene: C.walnut },
+];
+
 const GROUPS = [
   { id: 'games', scene: C.wine, name: 'daily games', glyph: 'G' },
   { id: 'study', scene: C.studyGreen, name: 'study skills', glyph: 'S' },
@@ -121,6 +129,15 @@ function html(group, style) {
   return `<!doctype html><html><head><meta charset="utf-8"><style>${FONTS}${BASE}${css}</style></head><body>${body}</body></html>`;
 }
 
+function ogHtml(game) {
+  return `<!doctype html><html><head><meta charset="utf-8"><style>${FONTS}${BASE}
+    body { background: ${game.scene}; color: ${C.ivory}; }
+    .card { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; padding: 72px; }
+    h1 { font-family: 'Bodoni Moda', serif; font-size: 112px; line-height: 1; letter-spacing: -0.025em; }
+    p { margin-top: 28px; color: ${C.sand}; font-size: 30px; }
+  </style></head><body><div class="card"><h1>${game.name}</h1><p>daily games · ${MOTTO}</p></div></body></html>`;
+}
+
 /**
  * The official logo file at LOGO_WIDTH, the way scripts/build-brand-v1.mjs scales it: resizing changes only the
  * transparency (how much ink covers each pixel), and every pixel is put back to the file's exact ink color.
@@ -164,6 +181,17 @@ async function main() {
           .toFile(outPath);
         console.log(`wrote ${outPath}`);
       }
+    }
+    for (const game of OG_GAMES) {
+      await page.setContent(ogHtml(game));
+      await page.evaluate(async () => { await document.fonts.ready; });
+      const background = await page.screenshot({ type: 'png' });
+      const outPath = `${OUT_DIR}/${game.id}-og.png`;
+      await sharp(background)
+        .composite([{ input: logos.ivory, left: LOGO_LEFT, top: LOGO_TOP }])
+        .png({ compressionLevel: 9 })
+        .toFile(outPath);
+      console.log(`wrote ${outPath}`);
     }
   } finally {
     await browser.close();
