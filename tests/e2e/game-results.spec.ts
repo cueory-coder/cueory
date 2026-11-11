@@ -37,7 +37,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('finished-game result announces the exact card and traps focus', async ({ page }) => {
-  const returnTo = page.getByRole('heading', { level: 1, name: 'daily games' });
+  const returnTo = page.getByTestId('pulse').getByRole('button', { name: 'a', exact: true });
   await returnTo.focus();
   const dialog = await openResult(page);
   const close = dialog.getByRole('button', { name: 'close results' });
