@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { candidates, conflicts, dailySeed, getResult, generatePuzzle, type Level } from './sudoku';
+import { localDay, reportRound } from './gameresults';
 
 const levels: Level[] = ['easy', 'medium', 'hard'];
 const button = 'min-h-11 rounded-pill border border-control px-4 py-2 text-sm text-ink hover:bg-surface';
@@ -22,9 +23,11 @@ export default function SudokuGame() {
   const [errors, setErrors] = useState(0);
   const [seconds, setSeconds] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const resultRef = useRef<HTMLDivElement>(null);
   const started = useRef(Date.now());
+  const pausedAt = useRef<number | null>(null);
   const givens = useMemo(() => new Set(puzzle.givens.map((value, index) => value ? index : -1).filter((index) => index >= 0)), [puzzle]);
   const solved = grid.every((value) => value > 0) && conflicts(grid).size === 0;
 
@@ -37,6 +40,7 @@ export default function SudokuGame() {
 
   useEffect(() => { if (solved) resultRef.current?.focus(); }, [solved]);
 
+  const togglePause = () => { if (paused) { if (pausedAt.current !== null) started.current += Date.now() - pausedAt.current; pausedAt.current = null; setPaused(false); } else { setSeconds(Math.floor((Date.now() - started.current) / 1000)); pausedAt.current = Date.now(); setPaused(true); } };
   const newLevel = (next: Level) => {
     const nextPuzzle = generatePuzzle(next, dailySeed(new Date(), next));
     setLevel(next); setPuzzle(nextPuzzle); setGrid(nextPuzzle.givens); setSelected(0); setPaused(false); setErrors(0); setSeconds(0); started.current = Date.now();
@@ -79,8 +83,8 @@ export default function SudokuGame() {
 
   return <section aria-label="sudoku puzzle" data-testid="sudoku">
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <p className="text-sm text-ink-soft">{showTimer ? `time: ${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}` : 'timer hidden'} <span aria-hidden="true">Â·</span> {showErrors ? `errors: ${errors}` : 'errors hidden'}</p>
-      <div className="flex items-center gap-2"><button type="button" className={button} onClick={() => setPaused(!paused)} aria-pressed={paused}>{paused ? 'play' : 'pause'}</button><button type="button" className={button} aria-label="how to play">?</button><button type="button" className={button} onClick={() => window.print()} aria-label="print puzzle">â</button></div>
+      <p className="text-sm text-ink-soft">{showTimer ? `time: ${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}` : 'timer hidden'} <span aria-hidden="true">·</span> {showErrors ? `errors: ${errors}` : 'errors hidden'}</p>
+      <div className="flex items-center gap-2"><button type="button" className={button} onClick={togglePause} aria-pressed={paused}>{paused ? 'play' : 'pause'}</button><button type="button" className={button} aria-label="how to play" onClick={() => setHelpOpen(true)}>?</button><button type="button" className={button} onClick={() => window.print()} aria-label="print puzzle">print</button></div>
     </div>
     <div className="mt-4 flex justify-center gap-1" role="group" aria-label="difficulty">{levels.map((item) => <button type="button" key={item} className={`${button} ${item === level ? activeButton : ''}`} aria-pressed={item === level} onClick={() => newLevel(item)}>{item}</button>)}</div>
     <div className="mt-4 overflow-x-auto">
@@ -91,16 +95,17 @@ export default function SudokuGame() {
           const indexBox = Math.floor(Math.floor(index / 9) / 3) * 3 + Math.floor((index % 9) / 3);
           const cellConflict = conflictCells.has(index);
           return <button type="button" role="gridcell" key={index} aria-label={label(index)} aria-selected={selected === index} onClick={() => { if (!paused) setSelected(index); }} disabled={paused} className={`relative flex min-h-11 items-center justify-center border border-control text-lg ${givens.has(index) ? 'font-bold' : 'underline underline-offset-4'} ${selected === index ? 'outline outline-2 outline-control outline-offset-[-3px]' : ''} ${highlightUnits && selectedUnit ? 'bg-soft' : ''} ${highlightBox && indexBox === box ? 'bg-surface' : ''} ${highlightSame && same ? 'bg-highlight' : ''} ${cellConflict ? 'border-2 border-control font-bold' : ''}`}>
-            {paused ? 'Ã' : value || ''}<span className="sr-only">{cellConflict ? ', conflict' : ''}</span>
+            {paused ? 'x' : value || ''}<span className="sr-only">{cellConflict ? ', conflict' : ''}</span>
           </button>;
         })}
       </div>
     </div>
     {paused && <p className="mt-3 text-center text-sm text-ink-soft" aria-live="polite">paused. the puzzle is hidden.</p>}
-    {!paused && <><p className="mt-3 min-h-6 text-center text-sm text-ink-soft" aria-live="polite">{shownCandidates.length ? `hints: ${shownCandidates.join(', ')}` : 'select a square, then use the number keys or buttons.'}</p><div className="mt-3 flex flex-wrap justify-center gap-2" role="group" aria-label="numbers">{[1,2,3,4,5,6,7,8,9].map((n) => <button type="button" className={button} key={n} onClick={() => enter(n)}>{n}</button>)}<button type="button" className={button} onClick={erase} aria-label="erase square">Ã</button></div></>}
-    <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={hints} onChange={(event) => setHints(event.target.checked)} /> hints</label><button type="button" className={button} onClick={() => setSettingsOpen(true)} aria-expanded={settingsOpen}>â settings</button></div>
-    {settingsOpen && <div role="dialog" aria-modal="true" aria-label="settings" className="mt-4 rounded-md border border-control bg-surface p-4"><div className="flex items-center justify-between"><h3 className="text-lg font-medium">settings</h3><button type="button" className={button} onClick={() => setSettingsOpen(false)} aria-label="close settings">Ã</button></div><div className="mt-3 grid gap-2 sm:grid-cols-2">{settings.map(([keyName, text, checked, setChecked]) => <label key={keyName} className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={checked} onChange={(event) => setChecked(event.target.checked)} /> {text}</label>)}</div></div>}
-    {solved && <div ref={resultRef} tabIndex={-1} className="mt-6 rounded-md border border-control bg-surface p-4" data-testid="sudoku-result"><p className="text-lg font-medium">solved.</p><p className="mt-1 text-ink-soft">time: {seconds}s Â· errors: {errors}</p><button type="button" className={`${button} mt-3`} onClick={share}>share result</button>{copied && <p className="mt-2 text-sm text-ink-soft" aria-live="polite">copied.</p>}</div>}
-    <p className="mt-6 text-sm text-ink-soft">same numbers cannot repeat in a row, column or 3 Ã 3 box.</p>
+    {!paused && <><p className="mt-3 min-h-6 text-center text-sm text-ink-soft" aria-live="polite">{shownCandidates.length ? `hints: ${shownCandidates.join(', ')}` : 'select a square, then use the number keys or buttons.'}</p><div className="mt-3 flex flex-wrap justify-center gap-2" role="group" aria-label="numbers">{[1,2,3,4,5,6,7,8,9].map((n) => <button type="button" className={button} key={n} onClick={() => enter(n)}>{n}</button>)}<button type="button" className={button} onClick={erase} aria-label="erase square">ÃÂ</button></div></>}
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={hints} onChange={(event) => setHints(event.target.checked)} /> hints</label><button type="button" className={button} onClick={() => setSettingsOpen(true)} aria-expanded={settingsOpen}>settings settings</button></div>
+    {settingsOpen && <div role="dialog" aria-modal="true" aria-label="settings" className="mt-4 rounded-md border border-control bg-surface p-4"><div className="flex items-center justify-between"><h3 className="text-lg font-medium">settings</h3><button type="button" className={button} onClick={() => setSettingsOpen(false)} aria-label="close settings">ÃÂ</button></div><div className="mt-3 grid gap-2 sm:grid-cols-2">{settings.map(([keyName, text, checked, setChecked]) => <label key={keyName} className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={checked} onChange={(event) => setChecked(event.target.checked)} /> {text}</label>)}</div></div>}
+    {helpOpen && <div role="dialog" aria-modal="true" aria-label="how to play" tabIndex={-1} className="mt-4 rounded-md border border-control bg-surface p-4"><div className="flex items-center justify-between"><h3 className="text-lg font-medium">how to play</h3><button type="button" className={button} onClick={() => setHelpOpen(false)}>close</button></div><p className="mt-3">Fill every row, column and 3 by 3 box with the numbers 1 through 9. Select a square, then use number buttons or the keyboard. Arrow keys move within the board. Given numbers cannot be changed.</p></div>}
+    {solved && <div ref={resultRef} tabIndex={-1} className="mt-6 rounded-md border border-control bg-surface p-4" data-testid="sudoku-result"><p className="text-lg font-medium">solved.</p><p className="mt-1 text-ink-soft">time: {seconds}s ÃÂ· errors: {errors}</p><button type="button" className={`${button} mt-3`} onClick={share}>share result</button>{copied && <p className="mt-2 text-sm text-ink-soft" aria-live="polite">copied.</p>}</div>}
+    <p className="mt-6 text-sm text-ink-soft">same numbers cannot repeat in a row, column or 3 by 3 box.</p>
   </section>;
 }

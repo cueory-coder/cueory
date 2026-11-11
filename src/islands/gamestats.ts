@@ -16,7 +16,7 @@ export interface GameSummary {
   triesCounts: Record<number, number>;
 }
 
-const GAMES: readonly string[] = ['pulse', 'cueword', 'triage', 'suture'];
+const GAMES: readonly string[] = ['pulse', 'sudoku', 'cueword', 'suture'];
 const DAY = 86_400_000;
 const WINDOW_DAYS = 400;
 const VERSION = 1;

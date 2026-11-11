@@ -1,3 +1,3 @@
-status: Task 628, Sudoku replaces sort on /play: seeded exact-one-solution daily easy, medium and hard puzzles with accessible play controls, validation, conflicts, candidates, pause, settings, print and result payload.
+STATUS: Task 628, Sudoku replaces sort on /play (#5): deterministic daily Sudoku with bounded generation, accessible controls, pause timing, result reporting and private stats.
 
-decision: D-pending (Task 628) Sudoku uses deterministic generated sample puzzles with no clinical content; difficulty targets 40/32/26 givens and every published seed is checked for exactly one solution.
+DECISION: D-pending (Task 628) Sudoku uses generated sample puzzles with no clinical content; difficulty targets 40/32/26 givens and generation validates the target and uniqueness. Reason: keep the public game deterministic and safe while avoiding real clinical content.

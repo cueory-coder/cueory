@@ -123,7 +123,7 @@ export function deleteStats(storage: KeyValueStorage | undefined): boolean {
 /** What each game counts as a try, in the words its own rules use. */
 const TRIES: Record<GameId, { one: string; many: string }> = {
   pulse: { one: 'guess', many: 'guesses' },
-  triage: { one: 'slip', many: 'slips' },
+  sudoku: { one: 'second', many: 'seconds' },
   cueword: { one: 'cue', many: 'cues' },
   suture: { one: 'loose stitch', many: 'loose stitches' },
 };

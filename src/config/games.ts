@@ -10,7 +10,7 @@
  */
 export interface DailyGame {
   /** Inside the code only; never shown. */
-  id: 'pulse' | 'cueword' | 'triage' | 'suture';
+  id: 'pulse' | 'cueword' | 'sudoku' | 'suture';
   /** The name visitors see, on /play, in headings and in the share line. */
   name: string;
   /** One line on what you do. */
@@ -33,9 +33,9 @@ export const dailyGames: readonly DailyGame[] = [
     ready: true,
   },
   {
-    id: 'triage',
-    name: 'sort',
-    line: 'sort ten terms into three groups. one fits none of them. three slips end the round.',
+    id: 'sudoku',
+    name: 'sudoku',
+    line: 'fill every row, column and 3 by 3 box with the numbers 1 through 9.',
     ready: true,
   },
   {

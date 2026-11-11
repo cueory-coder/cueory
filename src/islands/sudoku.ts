@@ -1,3 +1,4 @@
+import { localDay } from './gameresults';
 export type Level = 'easy' | 'medium' | 'hard';
 export type Grid = number[];
 export type CellSet = Set<number>;
@@ -65,7 +66,8 @@ function peers(index: number) {
   ].filter((cell) => cell !== index));
 }
 
-function countSolutions(grid: Grid, limit = 2): number {
+function countSolutions(grid: Grid, limit = 2, budget = { nodes: 0 }): number {
+  if (++budget.nodes > 250000) return limit;
   const next = [...grid];
   const empty = next.findIndex((value) => value === 0);
   if (empty === -1) return 1;
@@ -73,7 +75,7 @@ function countSolutions(grid: Grid, limit = 2): number {
   let count = 0;
   for (const value of choices) {
     next[empty] = value;
-    count += countSolutions(next, limit);
+    count += countSolutions(next, limit, budget);
     next[empty] = 0;
     if (count >= limit) return count;
   }
@@ -143,6 +145,7 @@ export function generatePuzzle(level: Level, seed: number): SudokuPuzzle {
     givens[index] = 0;
     if (countSolutions(givens) !== 1) givens[index] = previous;
   }
+  if (givens.filter(Boolean).length !== target || countSolutions([...givens]) !== 1) throw new Error(`could not generate bounded ${level} Sudoku for seed ${seed}`);
   return { level, seed, givens, solution };
 }
 
