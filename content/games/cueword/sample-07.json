@@ -1,0 +1,74 @@
+{
+  "status": "sample",
+  "grid": [
+    "ABCDEFG",
+    "HIJKLMN",
+    "OPQRSTU",
+    "VWXYZAB",
+    "CDEFGHI",
+    "JKLMNOP",
+    "QRSTUVW"
+  ],
+  "clues": {
+    "across": [
+      {
+        "number": 1,
+        "text": "[sample clue]"
+      },
+      {
+        "number": 8,
+        "text": "[sample clue]"
+      },
+      {
+        "number": 15,
+        "text": "[sample clue]"
+      },
+      {
+        "number": 22,
+        "text": "[sample clue]"
+      },
+      {
+        "number": 29,
+        "text": "[sample clue]"
+      },
+      {
+        "number": 36,
+        "text": "[sample clue]"
+      },
+      {
+        "number": 43,
+        "text": "[sample clue]"
+      }
+    ],
+    "down": [
+      {
+        "number": 1,
+        "text": "[sample clue]"
+      },
+      {
+        "number": 2,
+        "text": "[sample clue]"
+      },
+      {
+        "number": 3,
+        "text": "[sample clue]"
+      },
+      {
+        "number": 4,
+        "text": "[sample clue]"
+      },
+      {
+        "number": 5,
+        "text": "[sample clue]"
+      },
+      {
+        "number": 6,
+        "text": "[sample clue]"
+      },
+      {
+        "number": 7,
+        "text": "[sample clue]"
+      }
+    ]
+  }
+}

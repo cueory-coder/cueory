@@ -63,15 +63,16 @@ export function parsePuzzle(data: unknown): CuewordPuzzle {
   if (!record(data)) throw new Error('the puzzle must be an object.');
   if (typeof data.id !== 'string' || !data.id.trim() || data.id.length > 128) throw new Error('the puzzle needs a short id.');
   if (typeof data.sample !== 'boolean') throw new Error('the puzzle must say whether it is a sample.');
-  if (!Array.isArray(data.grid) || data.grid.length < 3 || data.grid.length > 7) throw new Error('the grid must have 3 to 7 rows.');
+  if (!Array.isArray(data.grid) || data.grid.length < 3 || data.grid.length > 15) throw new Error('the grid must have 3 to 15 rows.');
   const grid = data.grid;
-  if (grid.some((row) => typeof row !== 'string' || row.length < 3 || row.length > 7)) throw new Error('each row must have 3 to 7 cells.');
+  if (grid.some((row) => typeof row !== 'string' || row.length < 3 || row.length > 15)) throw new Error('each row must have 3 to 15 cells.');
   if (grid.some((row) => row.length !== grid[0].length)) throw new Error('the grid rows must have equal lengths.');
   if (grid.some((row) => !/^[A-Z.]+$/.test(row))) throw new Error('use a to z in uppercase, or a dot for a gap.');
   const { words: found } = structure(grid);
   const covered = new Set(found.flatMap((word) => word.cells));
   const letters = grid.join('');
-  if (!covered.size) throw new Error('the grid must contain a word of at least two letters.');
+  if (!covered.size) throw new Error('the grid must contain a word.');
+  if (found.some((word) => word.cells.length < 3)) throw new Error('every entry must have at least three letters.');
   if ([...letters].some((letter, cell) => letter !== '.' && !covered.has(cell))) {
     throw new Error('a one-letter run must cross a word in the other direction.');
   }
