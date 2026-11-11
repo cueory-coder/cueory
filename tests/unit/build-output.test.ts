@@ -1,4 +1,3 @@
-From https://gitlab.com/cueory1/cueory
  * branch              task-626/game-results-share -> FETCH_HEAD
    ca5b39c0..ae9d0964  task-626/game-results-share -> origin/task-626/game-results-share
 /**
