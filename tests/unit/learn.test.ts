@@ -44,12 +44,57 @@ function answerRight(s: LearnState, cards = deck): LearnState {
   return advance(s, cards, seeded(2));
 }
 
+const distinctNumericAnswers = [
+  ['.5', '5'],
+  ['-3', '+3'],
+  ['<5', '>5'],
+  ['<=5', '>=5'],
+  ['1/2', '1-2'],
+  ['1.5', '1 5'],
+  ['5%', '5'],
+  ['1:2', '1 2'],
+  ['1,500', '1 500'],
+  ['10²', '102'],
+  ['2*3', '2 3'],
+  ['5°', '5'],
+  ['-0.5', '0.5'],
+  ['2 - 3', '2 3'],
+  ['≠5', '=5'],
+  ['≮5', '<5'],
+  ['!=5', '=5'],
+  ['3̅', '3'],
+  ['5℃', '5'],
+  ['5℉', '5'],
+  ['5㎎', '5'],
+  ['$5', '5'],
+];
+
 describe('comparing answers', () => {
-  it("ignores case, accents, punctuation and extra spaces", () => {
+  it("ignores case, accents, sentence punctuation and extra spaces", () => {
     expect(normalize('  Cell   Membrane. ')).toBe('cell membrane');
     expect(normalize('Café, crème!')).toBe('cafe creme');
     expect(normalize('Placeholder card 1, back.')).toBe(normalize('placeholder card 1 back'));
     expect(normalize('...')).toBe('');
+    expect(normalize('two-word answer')).toBe('two word answer');
+  });
+
+  it.each(distinctNumericAnswers)('keeps %s distinct from %s', (expected, typed) => {
+    expect(normalize(expected)).not.toBe(normalize(typed));
+  });
+
+  it.each([
+    ['1 / 2', '1/2'],
+    ['- 0.5', '-0.5'],
+    ['<= 5', '<=5'],
+    ['−3', '-3'],
+    ['1 – 2', '1-2'],
+    ['5.', '5'],
+    ['1.5.', '1.5'],
+    ['5%!', '5%'],
+    ['! = 5', '!=5'],
+    ['≠5', '≠5'],
+  ])('accepts harmless spacing or sentence punctuation: %s and %s', (left, right) => {
+    expect(normalize(left)).toBe(normalize(right));
   });
 
   it('splits an answer around its blank', () => {
@@ -78,9 +123,42 @@ describe('choices', () => {
     const choices = pickChoices(twins, 0, seeded(4));
     expect(choices.sort()).toEqual([0, 2]);
   });
+
+  it('offers numerically different answers and keeps the choice step', () => {
+    const numbers = [
+      { front: 'Synthetic sample A', back: '.5' },
+      { front: 'Synthetic sample B', back: '5' },
+    ];
+    expect(pickChoices(numbers, 0, seeded(4)).sort()).toEqual([0, 1]);
+    let state = startLearn(numbers);
+    state = advance(reveal(state, numbers), numbers, seeded(4));
+    expect(state.stages[0]).toBe(1);
+    state = advance(reveal(state, numbers), numbers, seeded(4));
+    expect(stepOf(state, numbers)).toBe('choose');
+    expect(choose(state, numbers, 1).result?.correct).toBe(false);
+    expect(choose(state, numbers, 0).result?.correct).toBe(true);
+  });
 });
 
 describe('a Learn session', () => {
+  it.each(distinctNumericAnswers)('does not master %s after recalling %s', (expected, typed) => {
+    // Exercise the real session progression for both whole-answer and fill-in recall.
+    for (const fill of [false, true]) {
+      const cards: LearnCard[] = [fill
+        ? { front: 'Synthetic numeric sample', back: `Sample ${expected}`, blank: expected }
+        : { front: 'Synthetic numeric sample', back: expected }];
+      let state = startLearn(cards);
+      state = advance(reveal(state, cards), cards);
+      expect(stepOf(state, cards)).toBe(fill ? 'fill' : 'type');
+      const answered = submit(state, cards, typed);
+      expect(answered.result?.correct).toBe(false);
+      const retry = advance(answered, cards);
+      expect(masteredCount(retry)).toBe(0);
+      expect(isOver(retry)).toBe(false);
+      expect(submit(retry, cards, expected).result?.correct).toBe(true);
+    }
+  });
+
   it('starts with every card on step 1, in the order given', () => {
     const s = startLearn(deck, [2, 0, 1]);
     expect(s.queue).toEqual([2, 0, 1]);
