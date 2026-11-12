@@ -3,11 +3,14 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import { parseLessonMap } from '../../src/islands/lessonmap';
 import { studyModes } from '../../src/config/modes';
+import { unitAvailability } from '../../src/lessons/availability';
+import { contentCatalog } from '../lessonroutes';
 
 const sourceCsv = readFileSync(new URL('../../docs/curriculum/medsurg-lesson-map.csv', import.meta.url), 'utf8');
 const source = parseLessonMap(sourceCsv);
 const totalLessons = source.units.reduce((sum, unit) =>
   sum + unit.topics.reduce((count, topic) => count + topic.lessons.length, 0), 0);
+const catalog = contentCatalog();
 const deck = JSON.parse(readFileSync(new URL('../../content/cards/study-skills-01.json', import.meta.url), 'utf8')) as {
   cards: { id: string }[];
 };
@@ -24,13 +27,26 @@ test('the library shows real counts from the CSV and a link only to an open less
 
   const cards = page.locator('main [data-unit-id]');
   await expect(cards).toHaveCount(source.units.length);
-  const headings = cards.locator('summary span.font-medium.text-ink');
+  const headings = cards.getByRole('heading', { level: 3 });
   await expect(headings).toHaveText(source.units.map((unit) => unit.title));
   for (const unit of source.units) {
     const card = page.locator('main [data-unit-id="' + unit.id + '"]');
-    await expect(card.getByText('coming soon', { exact: true })).toBeVisible();
-    await expect(card.locator('a')).toHaveCount(0);
-    await expect(card.locator('summary')).toContainText(unit.topics.reduce((sum, topic) => sum + topic.lessons.length, 0).toString());
+    const available = unitAvailability(catalog.lessons, unit.id);
+    const summary = card.locator('summary');
+    await expect(summary).toContainText(available.hasLessons ? available.open.length + ' open now' : 'coming soon');
+    await expect(summary).toContainText(unit.topics.reduce((sum, topic) => sum + topic.lessons.length, 0).toString());
+    await summary.click();
+    if (available.hasLessons) {
+      await expect(card.getByTestId('unit-empty-state')).toHaveCount(0);
+      for (const lesson of available.open) {
+        await expect(card.getByRole('link', { name: lesson.name })).toHaveAttribute('href', lesson.href);
+        expect((await page.request.get(lesson.href)).status()).toBe(200);
+      }
+    } else {
+      await expect(card.getByTestId('unit-empty-state')).toHaveText('no lessons yet · coming soon');
+      await expect(card.locator('a')).toHaveCount(0);
+    }
+    await summary.click();
   }
 
   const start = page.locator('main').getByRole('link', { name: /how to study for nursing school/i });
@@ -107,19 +123,50 @@ test('native unit disclosures open and close by keyboard', async ({ page }) => {
   await expect(topics.first()).toBeHidden();
 });
 
-test('the approved row layout fits three screens and passes axe', async ({ page }) => {
-  await page.goto('/learn');
-  for (const { width, height, columns } of [
-    { width: 390, height: 844, columns: 1 },
-    { width: 820, height: 1180, columns: 2 },
-    { width: 1440, height: 900, columns: 3 },
-  ]) {
-    await page.setViewportSize({ width, height });
-    const renderedColumns = await page.getByTestId('unit-grid').evaluate((grid) =>
-      getComputedStyle(grid).gridTemplateColumns.split(/\s+/).filter(Boolean).length);
-    expect(renderedColumns).toBe(columns);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-    const accessibility = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
-    expect(accessibility.violations.map((violation) => violation.id + ': ' + violation.help)).toEqual([]);
+for (const { width, height, columns } of [
+  { width: 390, height: 844, columns: 1 },
+  { width: 820, height: 1180, columns: 2 },
+  { width: 1440, height: 900, columns: 3 },
+]) {
+  for (const scheme of ['light', 'dark'] as const) {
+    test(`the unit grid fits ${width}px in ${scheme} mode without accessibility errors`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
+      await page.goto('/learn');
+      const renderedColumns = await page.getByTestId('unit-grid').evaluate((grid) =>
+        getComputedStyle(grid).gridTemplateColumns.split(/\s+/).filter(Boolean).length);
+      expect(renderedColumns).toBe(columns);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      const accessibility = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+      expect(accessibility.violations.map((violation) => violation.id + ': ' + violation.help)).toEqual([]);
+    });
   }
+}
+
+test.describe('library without JavaScript', () => {
+  test.use({ javaScriptEnabled: false });
+
+  test('keeps every planned unit available as a keyboard-operated disclosure', async ({ page }) => {
+    const response = await page.goto('/learn');
+    expect(response?.status()).toBe(200);
+    await expect(page.locator('[data-unit-id]')).toHaveCount(source.units.length);
+
+    const firstUnit = source.units[0]!;
+    const first = page.locator('[data-unit-id="' + firstUnit.id + '"]');
+    const summary = first.locator('summary');
+    await expect(first.getByRole('heading', { level: 3, name: firstUnit.title })).toBeVisible();
+    await summary.focus();
+    await expect(summary).toBeFocused();
+    await summary.press('Enter');
+    await expect(first.locator('details')).toHaveAttribute('open', '');
+    await expect(first.locator('ul').first().locator('li')).toHaveText(firstUnit.topics.map((topic) => topic.title));
+
+    if (!unitAvailability(catalog.lessons, firstUnit.id).hasLessons) {
+      await expect(first.getByTestId('unit-empty-state')).toHaveText('no lessons yet · coming soon');
+      await expect(first.locator('a')).toHaveCount(0);
+    }
+    await summary.press('Space');
+    await expect(first.locator('details')).not.toHaveAttribute('open', '');
+    await expect(page.locator('[data-open-lesson]')).toHaveCount(catalog.lessons.length);
+  });
 });

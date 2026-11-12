@@ -1,15 +1,23 @@
+import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
+import { courses } from '../../src/config/courses';
 
 test.describe('courses page', () => {
   test('lists available and coming-soon courses', async ({ page }) => {
     await page.goto('/courses');
     await expect(page.getByRole('heading', { level: 1, name: 'courses' })).toBeVisible();
 
-    // Med-Surg I is available
-    await expect(page.getByRole('heading', { level: 2, name: 'Med-Surg I', exact: true })).toBeVisible();
-    const openLink = page.getByRole('link', { name: 'open course' });
-    await expect(openLink).toBeVisible();
+    // Med-Surg I always links to the library, including its sample and planned units.
+    const medSurgConfig = courses.find((course) => course.href === '/learn');
+    expect(medSurgConfig?.title).toBe('Med-Surg I');
+    const medSurg = page.locator('[data-course-id="' + medSurgConfig!.id + '"]');
+    await expect(medSurg.getByRole('heading', { level: 2, name: 'Med-Surg I', exact: true })).toBeVisible();
+    const openLink = medSurg.getByRole('link', { name: 'open course' });
     await expect(openLink).toHaveAttribute('href', '/learn');
+    await openLink.click();
+    await expect(page).toHaveURL(/\/learn\/?$/);
+    await expect(page.getByRole('heading', { level: 1, name: 'med-surg i' })).toBeVisible();
+    await page.goto('/courses');
 
     // Other courses are coming soon
     await expect(page.getByRole('heading', { level: 2, name: 'Med-Surg II', exact: true })).toBeVisible();
@@ -22,10 +30,12 @@ test.describe('courses page', () => {
     await expect(badges).toHaveCount(3);
     expect(await badges.evaluateAll((elements) => elements.every((el) => el.classList.contains('text-ink')))).toBe(true);
 
-    // The available course should open the course library, not one sample lesson.
-    await openLink.click();
-    await expect(page).toHaveURL(/\/learn\/?$/);
-    await expect(page.getByRole('heading', { level: 1, name: 'med-surg i' })).toBeVisible();
+    // Planned courses never present a dead link.
+    for (const id of ['med-surg-2', 'mental-health', 'med-math']) {
+      const card = page.locator('[data-course-id="' + id + '"]');
+      await expect(card.getByText('no lessons yet · coming soon')).toBeVisible();
+      await expect(card.getByRole('link')).toHaveCount(0);
+    }
   });
 
   test('is linked from the navigation menu', async ({ page }) => {
@@ -37,5 +47,36 @@ test.describe('courses page', () => {
     const coursesLink = page.getByRole('dialog').getByRole('link', { name: 'courses', exact: true });
     await expect(coursesLink).toBeVisible();
     await expect(coursesLink).toHaveAttribute('href', '/courses');
+  });
+});
+
+for (const { width, height } of [
+  { width: 390, height: 844 },
+  { width: 820, height: 1180 },
+  { width: 1440, height: 900 },
+]) {
+  for (const scheme of ['light', 'dark'] as const) {
+    test(`courses have no overflow or axe violations at ${width}px in ${scheme} mode`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
+      await page.goto('/courses');
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      const accessibility = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+      expect(accessibility.violations.map((violation) => violation.id + ': ' + violation.help)).toEqual([]);
+    });
+  }
+}
+
+test.describe('courses without JavaScript', () => {
+  test.use({ javaScriptEnabled: false });
+
+  test('keeps planned course status in words without empty links', async ({ page }) => {
+    const response = await page.goto('/courses');
+    expect(response?.status()).toBe(200);
+    for (const id of ['med-surg-2', 'mental-health', 'med-math']) {
+      const course = page.locator('[data-course-id="' + id + '"]');
+      await expect(course.getByText('no lessons yet · coming soon')).toBeVisible();
+      await expect(course.getByRole('link')).toHaveCount(0);
+    }
   });
 });
