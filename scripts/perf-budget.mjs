@@ -79,15 +79,193 @@ export function extractHtmlAssetUrls(html) {
   return [...urls];
 }
 
+/** Extract module import paths without reading comments, strings or templates as code. */
+function javascriptTokens(source) {
+  const tokens = [];
+  const wordStart = /[A-Za-z_$]/;
+  const wordBody = /[A-Za-z0-9_$]/;
+  const skipString = (at) => {
+    const quote = source[at++];
+    while (at < source.length) {
+      if (source[at] === '\\') { at += 2; continue; }
+      if (source[at++] === quote) break;
+    }
+    return at;
+  };
+  const skipLineComment = (at) => {
+    const end = source.indexOf('\n', at + 2);
+    return end === -1 ? source.length : end;
+  };
+  const skipBlockComment = (at) => {
+    const end = source.indexOf('*/', at + 2);
+    return end === -1 ? source.length : end + 2;
+  };
+  // Template interpolation can itself contain strings or nested templates.
+  const skipExpression = (initial) => {
+    let at = initial;
+    let depth = 1;
+    while (at < source.length && depth > 0) {
+      if (source[at] === '"' || source[at] === "'") { at = skipString(at); continue; }
+      if (source[at] === '`') { at = skipTemplate(at); continue; }
+      if (source.startsWith('//', at)) { at = skipLineComment(at); continue; }
+      if (source.startsWith('/*', at)) { at = skipBlockComment(at); continue; }
+      if (source[at] === '{') depth += 1;
+      if (source[at] === '}') depth -= 1;
+      at += 1;
+    }
+    return at;
+  };
+  const skipTemplate = (initial) => {
+    let at = initial + 1;
+    while (at < source.length) {
+      if (source[at] === '\\') { at += 2; continue; }
+      if (source[at] === '`') return at + 1;
+      if (source[at] === '$' && source[at + 1] === '{') { at = skipExpression(at + 2); continue; }
+      at += 1;
+    }
+    return at;
+  };
+  const startsRegex = () => {
+    const prior = tokens.at(-1);
+    return !prior ||
+      (prior.kind === 'punct' && /[([{=,:;!?&|+*%^~<>-]/.test(prior.value)) ||
+      (prior.kind === 'word' && /^(?:return|throw|case|yield|await|delete|void|typeof|instanceof|in|of|else)$/.test(prior.value));
+  };
+  const skipRegex = (initial) => {
+    let at = initial + 1;
+    let inClass = false;
+    while (at < source.length && source[at] !== '\n') {
+      if (source[at] === '\\') { at += 2; continue; }
+      if (source[at] === '[') inClass = true;
+      else if (source[at] === ']') inClass = false;
+      else if (source[at] === '/' && !inClass) {
+        at += 1;
+        while (/[a-z]/i.test(source[at] ?? '')) at += 1;
+        return at;
+      }
+      at += 1;
+    }
+    return initial;
+  };
+  for (let at = 0; at < source.length;) {
+    const ch = source[at];
+    if (/\s/.test(ch)) { at += 1; continue; }
+    if (source.startsWith('//', at)) { at = skipLineComment(at); continue; }
+    if (source.startsWith('/*', at)) { at = skipBlockComment(at); continue; }
+    if (ch === '"' || ch === "'") {
+      const end = skipString(at);
+      tokens.push({ kind: 'string', value: source.slice(at + 1, end - 1) });
+      at = end;
+      continue;
+    }
+    if (ch === '`') { at = skipTemplate(at); tokens.push({ kind: 'punct', value: '<template>' }); continue; }
+    if (ch === '/' && startsRegex()) {
+      const end = skipRegex(at);
+      if (end > at) { at = end; tokens.push({ kind: 'punct', value: '<regex>' }); continue; }
+    }
+    if (wordStart.test(ch)) {
+      let end = at + 1;
+      while (end < source.length && wordBody.test(source[end])) end += 1;
+      tokens.push({ kind: 'word', value: source.slice(at, end) });
+      at = end;
+      continue;
+    }
+    tokens.push({ kind: 'punct', value: ch });
+    at += 1;
+  }
+  return tokens;
+}
+
+/** Static module declarations only, excluding dynamic imports and non-code text. */
+function staticJavascriptImports(content) {
+  const tokens = javascriptTokens(content);
+  const imports = [];
+  for (let i = 0; i < tokens.length; i += 1) {
+    const current = tokens[i];
+    if (current.kind !== 'word' || !['import', 'export'].includes(current.value)) continue;
+    const next = tokens[i + 1];
+    if (!next || next.value === '(' || next.value === '.' || tokens[i - 1]?.value === '.') continue;
+    if (current.value === 'import' && next.kind === 'string') {
+      imports.push(next.value);
+      continue;
+    }
+    if (current.value === 'export' && !['{', '*'].includes(next.value)) continue;
+    for (let j = i + 1; j < tokens.length && tokens[j].value !== ';'; j += 1) {
+      if (tokens[j].kind === 'word' && tokens[j].value === 'from' && tokens[j + 1]?.kind === 'string') {
+        imports.push(tokens[j + 1].value);
+        break;
+      }
+    }
+  }
+  return imports;
+}
+
+/** Find real CSS @import directives, skipping comments and quoted content. */
+function staticCssImports(content) {
+  const imports = [];
+  const skipComment = (at) => {
+    const end = content.indexOf('*/', at + 2);
+    return end < 0 ? content.length : end + 2;
+  };
+  const skipString = (at) => {
+    const quote = content[at++];
+    while (at < content.length) {
+      if (content[at] === '\\') { at += 2; continue; }
+      if (content[at++] === quote) break;
+    }
+    return at;
+  };
+  const skipTrivia = (start) => {
+    let at = start;
+    while (at < content.length) {
+      if (/\s/.test(content[at])) { at += 1; continue; }
+      if (content.startsWith('/*', at)) { at = skipComment(at); continue; }
+      break;
+    }
+    return at;
+  };
+  for (let at = 0; at < content.length;) {
+    if (content.startsWith('/*', at)) { at = skipComment(at); continue; }
+    if (content[at] === '"' || content[at] === "'") { at = skipString(at); continue; }
+    if (content.slice(at, at + 7).toLowerCase() !== '@import' || /[\w-]/.test(content[at + 7] ?? '')) {
+      at += 1;
+      continue;
+    }
+    let pos = skipTrivia(at + 7);
+    let wrapped = false;
+    const urlStart = /^url\s*\(/i.exec(content.slice(pos));
+    if (urlStart) {
+      pos = skipTrivia(pos + urlStart[0].length);
+      wrapped = true;
+    }
+    let path = null;
+    if (content[pos] === '"' || content[pos] === "'") {
+      const end = skipString(pos);
+      if (end > pos + 1 && content[end - 1] === content[pos]) path = content.slice(pos + 1, end - 1);
+      pos = end;
+    } else if (wrapped) {
+      const start = pos;
+      while (pos < content.length && !/[\s)]/.test(content[pos]) && !content.startsWith('/*', pos)) pos += 1;
+      if (pos > start) path = content.slice(start, pos);
+    }
+    if (wrapped) {
+      pos = skipTrivia(pos);
+      if (content[pos] !== ')') path = null;
+      else pos += 1;
+    }
+    if (path) imports.push(path);
+    at = Math.max(pos, at + 7);
+  }
+  return imports;
+}
+
 /** Static imports in bundled JavaScript and CSS @imports. Lazy imports are not initial loads. */
 export function extractImportedAssetUrls(content, kind) {
   if (kind === 'css') {
-    return [...content.matchAll(/@import\s+(?:url\(\s*)?(?:"([^"]+)"|'([^']+)'|([^\s;)]+))/gi)]
-      .map((match) => match[1] ?? match[2] ?? match[3]);
+    return staticCssImports(content);
   }
   if (kind === 'js') {
-    return [...content.matchAll(/\b(?:import|export)\s*(?:[^"'();]*?\bfrom\s*)?["']([^"']+)["']/g)]
-      .map((match) => match[1]);
+    return staticJavascriptImports(content);
   }
   return [];
 }
