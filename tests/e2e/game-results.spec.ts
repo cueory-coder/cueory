@@ -74,6 +74,92 @@ test('the page behind an open result cannot be reached, and comes back on close'
   await expect(behind).toBeFocused();
 });
 
+test('an open result locks page scrolling and restores the exact page position and styles', async ({ page }) => {
+  const before = await page.evaluate(() => {
+    const maxY = Math.max(0, document.documentElement.scrollHeight - innerHeight);
+    const y = Math.min(120, Math.floor(maxY / 3));
+    scrollTo(0, y);
+    return {
+      x: scrollX,
+      y,
+      maxY,
+      root: {
+        overflow: document.documentElement.style.overflow,
+        overscrollBehavior: document.documentElement.style.overscrollBehavior,
+      },
+      body: {
+        position: document.body.style.position,
+        top: document.body.style.top,
+        left: document.body.style.left,
+        right: document.body.style.right,
+        width: document.body.style.width,
+        overflow: document.body.style.overflow,
+        overscrollBehavior: document.body.style.overscrollBehavior,
+      },
+    };
+  });
+  expect(before.maxY).toBeGreaterThan(before.y + 300);
+  await expect.poll(() => page.evaluate(() => scrollY)).toBe(before.y);
+
+  const dialog = await openResult(page);
+  await expect(dialog).toBeVisible();
+  expect(await page.evaluate(() => ({
+    root: {
+      overflow: document.documentElement.style.overflow,
+      overscrollBehavior: document.documentElement.style.overscrollBehavior,
+    },
+    body: {
+      position: document.body.style.position,
+      top: document.body.style.top,
+      left: document.body.style.left,
+      right: document.body.style.right,
+      width: document.body.style.width,
+      overflow: document.body.style.overflow,
+      overscrollBehavior: document.body.style.overscrollBehavior,
+    },
+  }))).toEqual({
+    root: { overflow: 'hidden', overscrollBehavior: 'none' },
+    body: {
+      position: 'fixed',
+      top: `${-before.y}px`,
+      left: `${-before.x}px`,
+      right: '0px',
+      width: '100%',
+      overflow: 'hidden',
+      overscrollBehavior: 'none',
+    },
+  });
+
+  const lockedY = await page.evaluate(() => scrollY);
+  await page.mouse.wheel(0, 400);
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  }));
+  expect(await page.evaluate(() => scrollY)).toBe(lockedY);
+
+  await dialog.getByRole('button', { name: 'close results' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => scrollY)).toBe(before.y);
+  expect(await page.evaluate(() => ({
+    root: {
+      overflow: document.documentElement.style.overflow,
+      overscrollBehavior: document.documentElement.style.overscrollBehavior,
+    },
+    body: {
+      position: document.body.style.position,
+      top: document.body.style.top,
+      left: document.body.style.left,
+      right: document.body.style.right,
+      width: document.body.style.width,
+      overflow: document.body.style.overflow,
+      overscrollBehavior: document.body.style.overscrollBehavior,
+    },
+  }))).toEqual({ root: before.root, body: before.body });
+
+  await page.mouse.wheel(0, 300);
+  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(before.y);
+});
+
 test('replacing an open result preserves its original keyboard return target', async ({ page }) => {
   const returnTo = page.getByTestId('pulse').getByRole('button', { name: 'a', exact: true });
   await returnTo.focus();
