@@ -87,13 +87,14 @@ function shippedKeys(text: string, javascript = true): string[] {
   }
 
   function inspectJson(value: string, depth: number) {
-    if (depth > 8 || seenJson.has(value) || !/^[\s]*[\[{]/.test(value)) return;
+    if (seenJson.has(value) || !/^[\s]*[\[{]/.test(value)) return;
+    if (depth > 8) { found.add('serialized data exceeds inspection depth'); return; }
     seenJson.add(value);
     try {
       // JSON validity avoids treating ordinary prose or shader strings as object data.
       JSON.parse(value);
-      inspectJs(`(${value})`, depth + 1);
-    } catch { /* Not serialized JSON. */ }
+    } catch { return; } // Not serialized JSON.
+    inspectJs(`(${value})`, depth + 1);
   }
   function inspectJs(sourceText: string, depth = 0) {
     const source = ts.createSourceFile('built.js', sourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
@@ -161,6 +162,12 @@ describe('built answer-key guard (T16)', () => {
     ['an answer-key heading', '<h2 class="text-lg">answer key</h2>', false],
   ])('rejects %s', (_name, text, javascript) => {
     expect(shippedKeys(text as string, javascript as boolean).length).toBeGreaterThan(0);
+  });
+
+  it('fails closed instead of ignoring deeply serialized data', () => {
+    let payload = JSON.stringify({ correct: true });
+    for (let index = 0; index < 10; index++) payload = JSON.stringify({ payload });
+    expect(shippedKeys(`const payload = ${JSON.stringify(payload)};`)).toContain('serialized data exceeds inspection depth');
   });
 
   it('allows runtime RPC mapping, calculated scores and privacy copy without a filename allowlist', () => {
