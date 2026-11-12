@@ -11,7 +11,19 @@ describe('support page link and copy safeguards', () => {
     expect(anchorTags).toHaveLength(1);
     expect(anchorTags[0]).toContain('href={site.tipPageUrl}');
     expect(source).not.toMatch(/\bhref\s*=\s*["']https?:\/\//i);
-    expect(new URL(site.tipPageUrl).protocol).toBe('https:');
+  });
+
+  it('accepts an HTTPS tip URL or the documented empty setting, never an unsafe destination', () => {
+    expect(typeof site.tipPageUrl).toBe('string');
+    if (site.tipPageUrl === '') {
+      expect(source).toContain('the support link is not available yet.');
+    } else {
+      const url = new URL(site.tipPageUrl);
+      expect(url.protocol).toBe('https:');
+      expect(url.hostname).not.toBe('');
+      expect(url.username).toBe('');
+      expect(url.password).toBe('');
+    }
   });
 
   it('protects the outside link against reverse tabnabbing', () => {
