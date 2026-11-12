@@ -122,12 +122,14 @@ export const isSampleQuestionsPath = (src: unknown): src is string =>
 
 /** Pure load states for the sample-only questions island. Never expose the fetch error to students. */
 export type SampleQuestionsView =
-  | { status: 'loading' | 'failed' | 'empty'; src: string; message: string }
+  | { status: 'loading'; src: string; message: string }
+  | { status: 'failed'; src: string; message: string }
+  | { status: 'empty'; src: string; message: string }
   | { status: 'ready'; src: string; questions: Question[]; check: Checker };
 
-export const sampleQuestionsLoading = (src: string): SampleQuestionsView =>
+export const sampleQuestionsLoading = (src: string): Extract<SampleQuestionsView, { status: 'loading' }> =>
   ({ status: 'loading', src, message: 'loading questions…' });
-export const sampleQuestionsFailed = (src: string): SampleQuestionsView =>
+export const sampleQuestionsFailed = (src: string): Extract<SampleQuestionsView, { status: 'failed' }> =>
   ({ status: 'failed', src, message: "couldn't load sample questions. please try again." });
 
 /** Converts only labeled samples into a safe player; malformed content is a calm failure, not an exception. */
