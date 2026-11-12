@@ -102,3 +102,35 @@ describe('buildSudokuSheet (W08-3)', () => {
     expect(() => buildSudokuSheet(valid, 'medium', 'not-a-day')).toThrow();
   });
 });
+
+
+describe('Sudoku print sheet edge cases (W08-3)', () => {
+  const source = generateSudoku('edge-case-print', 'medium').puzzle;
+
+  it('accepts leap day, but rejects non-existent dates and year zero', () => {
+    const leap = buildSudokuSheet(source, 'medium', '2028-02-29');
+    expect(leap.day).toBe('2028-02-29');
+    for (const day of ['2026-02-29', '2026-02-30', '2026-04-31', '2026-00-12', '2026-13-01',
+      '2026-11-00', '0000-01-01', '2026-11-01T12:00:00', '2026-11-1']) {
+      expect(() => buildSudokuSheet(source, 'medium', day), day).toThrow();
+    }
+  });
+
+  it('rejects fractional, negative, NaN and missing numbers without changing the source', () => {
+    const original = [...source];
+    for (const invalidValue of [-1, 2.5, Number.NaN, undefined, '5']) {
+      const altered = [...source];
+      altered[0] = invalidValue as number;
+      expect(() => buildSudokuSheet(altered, 'medium', '2026-11-01')).toThrow();
+    }
+    expect(source).toEqual(original);
+  });
+
+  it('repeatedly makes identical blank sheets without carrying any game state', () => {
+    const first = buildSudokuSheet(source, 'medium', '2026-11-01');
+    first.rows[0]![0] = 'changed in printed copy';
+    const second = buildSudokuSheet(source, 'medium', '2026-11-01');
+    expect(second.rows[0]![0]).toBe(source[0] ? String(source[0]) : '');
+    expect(second.rows.flat().filter(Boolean)).toHaveLength(LEVEL_RULES.medium.givens);
+  });
+});

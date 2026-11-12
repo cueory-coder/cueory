@@ -32,8 +32,17 @@ export function buildSudokuSheet(puzzle: SudokuGrid, level: SudokuLevel, day: st
   if (puzzle.length !== 81 || puzzle.some((value) => !Number.isInteger(value) || value < 0 || value > 9)) {
     throw new Error('Sudoku print sheet requires exactly 81 numbers from 0 through 9.');
   }
-  if (!['easy', 'medium', 'hard'].includes(level) || !/^\d{4}-\d{2}-\d{2}$/.test(day)) {
+  const parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
+  if (!['easy', 'medium', 'hard'].includes(level) || !parts) {
     throw new Error('Sudoku print sheet requires a valid level and YYYY-MM-DD day.');
+  }
+  const year = Number(parts[1]);
+  const month = Number(parts[2]);
+  const date = Number(parts[3]);
+  const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const maxDate = [31, leapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
+  if (year < 1 || !maxDate || date < 1 || date > maxDate) {
+    throw new Error('Sudoku print sheet requires a real calendar day.');
   }
 
   return {

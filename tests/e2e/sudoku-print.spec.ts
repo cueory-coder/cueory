@@ -67,3 +67,41 @@ for (const [size, width, height] of [['phone', 390, 844], ['tablet', 820, 1180],
     });
   }
 }
+
+
+for (const level of ['medium', 'hard'] as const) {
+  test('printing ' + level + ' while paused still shows only immutable givens', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' });
+    await page.goto('/play');
+    await expect(game(page)).toBeVisible();
+    await game(page).getByRole('button', { name: level, exact: true }).click();
+
+    const source = generateSudoku(dailySudokuSeed('2026-11-01', level), level).puzzle;
+    const blank = source.findIndex((value) => value === 0);
+    await game(page).getByRole('gridcell').nth(blank).click();
+    await page.keyboard.press('1');
+    await game(page).getByRole('button', { name: 'pause puzzle' }).click();
+    await expect(game(page).getByRole('button', { name: 'resume puzzle' })).toBeVisible();
+
+    // Print is deliberately reachable even while the game is paused.
+    const print = game(page).getByRole('button', { name: 'print this puzzle' });
+    await print.focus();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('html')).toHaveAttribute('data-print-game', 'sudoku');
+    await page.emulateMedia({ media: 'print' });
+    await expect(sheet(page)).toBeVisible();
+    await expect(sheet(page).getByRole('table', { name: 'sudoku ' + level + ' for 2026-11-01' })).toBeVisible();
+    expect(await sheet(page).locator('td').allTextContents()).toEqual(source.map((digit) => digit ? String(digit) : ''));
+    await expect(game(page).locator('.sudoku-board')).toBeHidden();
+    await expect(sheet(page)).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+    await expect(sheet(page)).toHaveCSS('color', 'rgb(0, 0, 0)');
+
+    await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
+    await page.emulateMedia({ media: 'screen' });
+    await expect(sheet(page)).toBeHidden();
+    await expect(game(page).getByRole('button', { name: 'resume puzzle' })).toBeVisible();
+    await game(page).getByRole('button', { name: 'resume puzzle' }).click();
+    await expect(game(page).getByRole('gridcell').nth(blank)).toHaveText('1');
+  });
+}
