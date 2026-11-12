@@ -13,6 +13,7 @@ import {
   markAnnouncement,
   markOf,
   nextRound,
+  ownsLabelResume,
   parseSet,
   readingOrder,
   reveal,
@@ -237,6 +238,25 @@ describe('label ids that match built-in object names', () => {
     expect(next.round).toEqual(['constructor', '__proto__']);
     expect(next.known).toEqual(['toString']);
     expect(isRoundOver(next)).toBe(false);
+  });
+});
+
+describe('restart saved-session ownership', () => {
+  const page = '/learn/study-skills/label-it';
+  const own = { tool: 'label-it', page, module: 'house' };
+
+  it('can clear the current diagram save', () => {
+    expect(ownsLabelResume(own, page, 'house')).toBe(true);
+  });
+
+  it.each([
+    ['no save', null],
+    ['another tool', { ...own, tool: 'cards' }],
+    ['another page', { ...own, page: '/learn/study-skills/cards' }],
+    ['another diagram', { ...own, module: 'other-sample' }],
+    ['no diagram id', { tool: 'label-it', page }],
+  ])('keeps %s untouched', (_name, snapshot) => {
+    expect(ownsLabelResume(snapshot, page, 'house')).toBe(false);
   });
 });
 

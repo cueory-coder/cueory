@@ -170,6 +170,28 @@ test.describe('complete label-it rounds', () => {
     await expect(page.getByTestId('labelit-live')).toHaveText('every label covered again.');
     await expect(board.locator('[tabindex="-1"]').first()).toBeFocused();
   });
+
+  test('mid-round start over keeps a different study mode saved through reload', async ({ page }) => {
+    await page.goto('/learn/study-skills/cards');
+    await page.getByRole('button', { name: 'Show answer' }).click();
+    await page.getByRole('button', { name: 'Know it', exact: true }).click();
+    await expect(page.getByTestId('card-status')).toContainText('Card 2 of 3');
+
+    await page.goto(samplePage);
+    const saved = await page.evaluate(() => localStorage.getItem('cueory-resume'));
+    expect(saved).not.toBeNull();
+    expect(JSON.parse(saved!)).toMatchObject({ tool: 'cards', itemIndex: 1 });
+    const board = page.getByTestId('labelit');
+    await board.getByRole('button', { name: 'reveal all' }).click();
+    await board.getByRole('button', { name: 'start over', exact: true }).click();
+    expect(await page.evaluate(() => localStorage.getItem('cueory-resume'))).toBe(saved);
+
+    await page.reload();
+    expect(await page.evaluate(() => localStorage.getItem('cueory-resume'))).toBe(saved);
+    await page.goto('/learn/study-skills/cards');
+    await page.getByRole('button', { name: 'continue question 2' }).click();
+    await expect(page.getByTestId('card-status')).toContainText('Card 2 of 3 · Know it: 1 · Still learning: 0');
+  });
 });
 
 for (const { width, height } of [

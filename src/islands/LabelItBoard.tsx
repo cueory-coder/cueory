@@ -13,6 +13,7 @@ import {
   markAnnouncement,
   markOf,
   nextRound,
+  ownsLabelResume,
   parseSet,
   readingOrder,
   reveal,
@@ -167,7 +168,8 @@ function Board({ set }: Props) {
 
   const restart = () => {
     latestDraft.current = null;
-    clearResume(browserStorage());
+    const storage = browserStorage();
+    if (ownsLabelResume(readResume(storage), LABEL_PAGE, set.id)) clearResume(storage);
     setResumePending(false);
     setState(start(set));
     setSaid('every label covered. starting over.');
