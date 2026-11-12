@@ -74,6 +74,33 @@ describe('lessonModeTiles', () => {
       .toBeUndefined();
   });
 
+  it('does not turn wrong same-lesson routes or query variants into dead links', () => {
+    const fake = {
+      href: '/learn/u00-t01-l01',
+      modes: [
+        { id: 'cards' as const, href: '/learn/u00-t01-l01/questions' },
+        { id: 'learn' as const, href: '/learn/u00-t01-l01/learn-mode?preview=1' },
+        { id: 'matching' as const, href: '/learn/u00-t01-l01/../other/matching' },
+        { id: 'fill-in' as const, href: '/learn/u00-t01-l01/fill-in' },
+      ],
+    };
+    const tiles = lessonModeTiles(fake, studyModes);
+    for (const id of ['cards', 'learn', 'matching'] as const) {
+      expect(tiles.find(({ mode }) => mode.id === id)?.href).toBeUndefined();
+    }
+    expect(tiles.find(({ mode }) => mode.id === 'fill-in')?.href).toBe('/learn/u00-t01-l01/fill-in');
+  });
+
+  it('does not invent routes for a visible lesson whose companions are all hidden', () => {
+    const catalog = buildCatalog(input({
+      cards: [companion('deck', 'u00-t01-l01', 'draft')],
+      organizer: [companion('group', 'u00-t01-l01', 'in_review')],
+      fillIn: [companion('blank', 'u00-t01-l01', 'draft')],
+    }));
+    expect(catalog.problems).toEqual([]);
+    expect(lessonModeTiles(catalog.lessons[0]!, studyModes).every(({ href }) => href === undefined)).toBe(true);
+  });
+
   it('throws for a missing study-mode definition', () => {
     const catalog = buildCatalog(input());
     expect(() => lessonModeTiles(catalog.lessons[0]!, studyModes.filter(({ id }) => id !== 'cards')))

@@ -144,6 +144,13 @@ for (const lesson of contentCatalog().lessons) {
         await expect(tile.getByRole('link')).toHaveCount(0);
         await expect(tile.getByText('coming soon', { exact: true })).toBeVisible();
         await expect(tile.getByRole('heading', { level: 3 })).toBeVisible();
+        const info = tile.getByRole('button', { name: /^more about / });
+        await info.focus();
+        await expect(info).toBeFocused();
+        await page.keyboard.press('Enter');
+        await expect(info).toHaveAttribute('aria-expanded', 'true');
+        await page.keyboard.press('Escape');
+        await expect(info).toHaveAttribute('aria-expanded', 'false');
       }
     }
   });

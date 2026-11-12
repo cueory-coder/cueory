@@ -3,7 +3,7 @@
  * A globally available mode may be unavailable for this lesson.
  */
 import type { StudyMode } from '../config/modes';
-import { HUB_ORDER, type CatalogLesson, type ModeId } from './catalog';
+import { GENERATED_MODES, HUB_ORDER, type CatalogLesson, type ModeId } from './catalog';
 
 export interface LessonModeTile {
   mode: StudyMode;
@@ -29,8 +29,10 @@ export function lessonModeTiles(
     const mode = modes.find((candidate) => candidate.id === id);
     if (!mode) throw new Error('Study mode is missing from src/config/modes.ts: ' + id);
     const route = lesson.modes.find((candidate) => candidate.id === id)?.href;
-    // Invalid routes outside the lesson also render as unavailable, never as links.
-    const href = route?.startsWith(lesson.href + '/') ? route : undefined;
+    // Require the exact route the catalog would build for this mode: no cross-lesson,
+    // unrelated same-lesson routes, fragments, or query-string variants can become dead links.
+    const page = GENERATED_MODES.find((candidate) => candidate.id === id)?.page ?? id;
+    const href = route === `${lesson.href}/${page}` ? route : undefined;
     return { mode, href, linkLabel: linkLabels[id] };
   });
 }
