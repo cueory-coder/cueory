@@ -206,4 +206,31 @@ describe('deterministic promo timing (W14)', () => {
       animate: false,
     });
   });
+  it('does not open when storage could not be read, even after the full delay', () => {
+    const timer = newTimer();
+    vi.advanceTimersByTime(5_000);
+    expect(mayShowSaved(Date.now(), undefined, 30)).toBe(false);
+    expect(promoDecision(Date.now(), undefined, 30, timer, readyContext).show).toBe(false);
+    expect(promoDecision(Date.now(), null, 30, timer, readyContext).show).toBe(true);
+  });
+
+  it('keeps a monotonic timer separate from the stored wall-clock date', () => {
+    const wallNow = Date.now();
+    const performanceStart = 1_000;
+    const timer = resumePromoTimer(performanceStart, { remainingMs: 5_000, startedAt: null });
+    expect(promoDecision(wallNow, null, 30, timer, readyContext, performanceStart + 4_999)).toEqual({
+      show: false,
+      remainingMs: 1,
+      animate: true,
+    });
+    expect(promoDecision(wallNow, null, 30, timer, readyContext, performanceStart + 5_000)).toEqual({
+      show: true,
+      remainingMs: 0,
+      animate: true,
+    });
+    // A recent wall-clock date still suppresses the panel regardless of the timer's clock origin.
+    expect(promoDecision(wallNow, String(wallNow), 30, timer, readyContext, performanceStart + 5_000).show).toBe(false);
+  });
+
+
 });

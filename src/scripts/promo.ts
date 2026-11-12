@@ -13,7 +13,9 @@ export const PROMO_DISMISSED_FOREVER = 'never';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** The saved-state eligibility check, independent of browser APIs and timer scheduling. */
-export function mayShowSaved(now: number, saved: string | null, rememberDays: number): boolean {
+export function mayShowSaved(now: number, saved: string | null | undefined, rememberDays: number): boolean {
+  // Undefined means storage was unavailable or could not be read. Never show a panel that would repeat on refresh.
+  if (saved === undefined) return false;
   if (saved?.trim() === PROMO_DISMISSED_FOREVER) return false;
   if (saved === null || !/^\d+$/.test(saved.trim())) return true;
   const lastShown = Number(saved);
@@ -96,12 +98,15 @@ export interface PromoDecisionContext {
 /** The single, pure show decision. All clock and saved-state values are supplied by the caller. */
 export function promoDecision(
   now: number,
-  saved: string | null,
+  saved: string | null | undefined,
   rememberDays: number,
   timerState: PromoTimerState,
   context: PromoDecisionContext,
+  timerNow = now,
 ): { show: boolean; remainingMs: number; animate: boolean } {
-  const remainingMs = promoTimeRemaining(now, timerState);
+  // Saved timestamps use wall time (Date.now). Visible elapsed time should use a monotonic clock
+  // (performance.now). Pass timerNow separately when these clocks have different origins.
+  const remainingMs = promoTimeRemaining(timerNow, timerState);
   return {
     show:
       mayShowSaved(now, saved, rememberDays) &&
