@@ -1,0 +1,63 @@
+---
+/**
+ * S9 (#70): unlinked, noindex preview of the existing spaced-review session.
+ * All inputs are visibly labeled samples. No account, storage, or network sync.
+ */
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout
+  title="review session preview"
+  description="Internal preview of a spaced-review session with labeled sample cards only."
+  variant="study"
+  noindex
+  promo={false}
+>
+  <div class="mx-auto max-w-prose space-y-8 py-section font-body leading-relaxed" data-review-preview>
+    <header>
+      <p class="text-sm text-ink-soft">internal preview · not linked from the site</p>
+      <h1 class="mt-2 text-2xl font-semibold text-ink">review session</h1>
+      <p class="mt-3 text-sm text-ink-soft">
+        four labeled sample cards only, with a fixed sample day. this preview does not access an account
+        or save progress outside this open page.
+      </p>
+    </header>
+
+    <section aria-labelledby="sample-review-heading" class="rounded-lg border border-line bg-page p-6">
+      <h2 id="sample-review-heading" class="text-lg font-semibold text-ink">sample review session</h2>
+      <p class="mt-2 text-sm text-ink-soft">sample day: november 5, 2026. no real study material is shown.</p>
+      <div class="mt-5" data-review-preview-root data-saved-cards="0"></div>
+      <noscript>
+        <p>enable javascript to try the sample review session. no progress is saved.</p>
+      </noscript>
+    </section>
+  </div>
+</Layout>
+
+<!-- Astro bundles this first-party script as an external module, not an inline script. -->
+<script>
+  import { createElement } from 'react';
+  import { createRoot } from 'react-dom/client';
+  import ReviewSession from '../../islands/ReviewSession';
+  import type { ReviewSessionCard, SessionHistories } from '../../islands/reviewsession';
+
+  const container = document.querySelector<HTMLElement>('[data-review-preview-root]');
+  if (container) {
+    const cards: ReviewSessionCard[] = [
+      { id: 'sample-1', front: '[sample front]', back: '[sample back]' },
+      { id: 'sample-2', front: '[sample front]', back: '[sample back]' },
+      { id: 'sample-3', front: '[sample front]', back: '[sample back]' },
+      { id: 'sample-4', front: '[sample front]', back: '[sample back]' },
+    ];
+    // The component needs an onSave callback. Only this page's JS memory receives snapshots.
+    // The callback does not touch an account, browser storage, or the network.
+    let inMemoryHistories: SessionHistories = {};
+    const onSave = (next: SessionHistories) => {
+      inMemoryHistories = structuredClone(next);
+      container.dataset.savedCards = String(Object.values(inMemoryHistories).filter((history) => history.length > 0).length);
+    };
+    createRoot(container).render(createElement(ReviewSession, {
+      cards, histories: inMemoryHistories, today: '2026-11-05', onSave,
+    }));
+  }
+</script>
