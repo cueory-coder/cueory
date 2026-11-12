@@ -31,7 +31,6 @@ Each link has a one-line summary and says whether Christian needs to read it. Gu
 - [Offline behavior](OFFLINE.md) — Learn what the service worker stores for offline use. **Christian:** Usually not needed.
 - [Testing](TESTING.md) — Find commands for type checks, builds, unit tests, and browser tests. **Christian:** Usually not needed.
 - [Launch report](LAUNCH-CHECK.md) — Learn how builders check built pages for placeholders and launch gaps. **Christian:** Read if checking the launch report.
-- [Performance budget](PERFORMANCE.md) — Learn how builders check how much each built page downloads. **Christian:** Usually not needed.
 
 ## Plans and history
 
