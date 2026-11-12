@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { strategyFor } from '../../src/scripts/swlogic';
 
 // The offline service worker (ROADMAP Task 5). Every other test runs with service workers blocked (playwright.config.ts),
 // because a worker answers requests before a test's page.route() would see them.
@@ -58,17 +59,21 @@ test('the play page is never kept, because today\'s puzzles are inside it', asyn
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   await page.reload();
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-  // A controller was already present before reload; that alone cannot prove its cache writes settled.
-  // Explicitly fetch /play again, then use a new cacheable lesson as the worker's observable write barrier.
+  // The worker's decision is pure: /play must not enter a fetch handler at all.
+  // A different page's cache write cannot prove that /play's asynchronous work is complete.
+  const origin = new URL(page.url()).origin;
+  for (const path of ['/play', '/play/']) {
+    expect(strategyFor({ method: 'GET', url: new URL(path, origin).href }, origin),
+      path + ' must bypass the service worker cache').toBeNull();
+  }
+  // Wait for the document's own navigation and fetch to finish, then inspect every cache.
+  // No per-fetch waitUntil-completion event exists: policy enforcement above is the
+  // deterministic guard, not an unrelated cache entry or a fixed delay.
   await page.evaluate(async () => {
     const response = await fetch('/play');
-    if (!response.ok) throw new Error('The refreshed play page must load successfully.');
+    if (!response.ok) throw new Error('The play document did not load successfully.');
     await response.text();
-    const lesson = await fetch('/learn/study-skills/cards');
-    if (!lesson.ok) throw new Error('The cacheable lesson must load successfully.');
-    await lesson.text();
   });
-  await expect.poll(() => kept(page), { timeout: 15_000 }).toContain('/learn/study-skills/cards');
   await page.waitForLoadState('networkidle');
   const urls = await kept(page);
   expect(urls.filter((url) => url.startsWith('/play'))).toEqual([]);
