@@ -1,0 +1,1 @@
+STATUS: Task 759 (W12-3) (#53): course lesson-start counts are visible beside decorative, motionless rings; saved card activity is counted without implying completion. Tests cover zero, some, all and courses without published lessons.

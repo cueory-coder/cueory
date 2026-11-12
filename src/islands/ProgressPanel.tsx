@@ -14,7 +14,7 @@ import {
 import { browserStorage } from '../scripts/storage';
 import { connectExamPlans, isConnectFailure, loadExamPlan, loadTickets } from './examplansync';
 import ProgressRing from './ProgressRing';
-import { examCountdown, progressView, readDeviceProgress } from './progressview';
+import { courseLessonProgress, examCountdown, progressView, readDeviceProgress, type VisibleProgressLesson } from './progressview';
 
 interface Deck {
   id: string;
@@ -25,6 +25,7 @@ interface Deck {
 
 interface Props {
   decks: Deck[];
+  lessons?: VisibleProgressLesson[];
 }
 
 const primaryButton = 'min-h-11 rounded-pill bg-button px-5 py-2.5 text-on-button hover:bg-button-hover';
@@ -38,7 +39,7 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
  * Nothing here is sent anywhere. Rendered only in the browser (client:only).
  * Signed in (Task 145), the account's exam date is read on load and wins over the device's; it is only read here.
  */
-export default function ProgressPanel({ decks }: Props) {
+export default function ProgressPanel({ decks, lessons = [] }: Props) {
   const [storage] = useState(browserStorage);
   // Stars saved before D-69 move into the record first, so this page shows (and forgets) all of it.
   const [snapshot, setSnapshot] = useState(() => readDeviceProgress(storage));
@@ -94,6 +95,7 @@ export default function ProgressPanel({ decks }: Props) {
   const { progress, state } = snapshot;
   const { course, examDate, done } = progress.onboarding;
   const view = progressView(progress, decks);
+  const courseSummaries = courseLessonProgress(progress, lessons, decks);
   const countdown = examCountdown(examDate, localDay(new Date()));
 
   const download = () => {
@@ -182,6 +184,25 @@ export default function ProgressPanel({ decks }: Props) {
         </p>
       </section>
 
+      <section aria-labelledby="course-progress-heading" className="mt-section">
+        <h2 id="course-progress-heading" className="text-xl">course progress</h2>
+        <p className="mt-3 text-ink-soft">
+          a lesson counts as started when you save card activity in it. simply opening a lesson does not save a start.
+        </p>
+        <ul className="mt-4 grid gap-4 sm:grid-cols-2">
+          {courseSummaries.map((course) => (
+            <li key={course.id} data-testid="course-progress-card"
+              className="min-w-0 rounded-xl border border-line bg-surface p-5">
+              <h3 className="text-lg">{course.name}</h3>
+              <div className="mt-3 flex items-center gap-4">
+                <ProgressRing know={course.started} learning={0} notStarted={course.total - course.started} />
+                <p data-testid="course-progress-words" className="text-ink-soft">{course.words}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       <section aria-labelledby="decks-heading" className="mt-section">
         <h2 id="decks-heading" className="text-xl">card decks</h2>
         {!view.hasSavedDecks && (
@@ -192,7 +213,6 @@ export default function ProgressPanel({ decks }: Props) {
             <h3 className="text-lg">across current decks</h3>
             <div className="mt-3 flex flex-wrap items-center gap-4">
               <ProgressRing
-                label="overall card progress"
                 know={view.overall.know}
                 learning={view.overall.learning}
                 notStarted={view.overall.notStarted}
@@ -210,7 +230,6 @@ export default function ProgressPanel({ decks }: Props) {
               <div className="mt-3 flex flex-wrap items-center gap-4">
                 {line.notStarted !== null && (
                   <ProgressRing
-                    label={line.title}
                     know={line.know}
                     learning={line.learning}
                     notStarted={line.notStarted}

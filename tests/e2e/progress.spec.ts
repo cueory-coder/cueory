@@ -356,3 +356,45 @@ for (const width of [390, 820, 1440]) {
     });
   }
 }
+
+test('course lesson totals appear as text beside a decorative ring', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('cueory-progress', JSON.stringify({
+      version: 1,
+      onboarding: { course: null, examDate: null, done: true },
+      decks: { 'study-skills-01': { know: ['ss01-c01'], learning: [], starred: [] } },
+    }));
+  });
+  await page.goto('/progress');
+  const section = page.getByRole('region', { name: 'course progress' });
+  await expect(section).toBeVisible();
+  const study = section.getByTestId('course-progress-card').filter({ hasText: 'how to study for nursing school' });
+  await expect(study.getByText('1 of 1 lesson started')).toBeVisible();
+  await expect(study.locator('svg[aria-hidden="true"]')).toHaveCount(1);
+  await expect(section.getByText('no published lessons to track yet.')).toHaveCount(2);
+  await axe(page);
+});
+
+for (const width of [390, 820, 1440]) {
+  for (const colorScheme of ['light', 'dark'] as const) {
+    test(`course progress at ${width}px in ${colorScheme}: visible words, reduced motion, axe`, async ({ page }) => {
+      test.slow();
+      await page.setViewportSize({ width, height: width === 390 ? 844 : width === 820 ? 1180 : 900 });
+      await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+      await page.goto('/progress');
+      const section = page.getByRole('region', { name: 'course progress' });
+      await expect(section.getByText('0 of 1 lesson started')).toBeVisible();
+      const rings = section.locator('svg');
+      await expect(rings).toHaveCount(3);
+      for (const ring of await rings.all()) {
+        await expect(ring).toHaveAttribute('aria-hidden', 'true');
+        expect(await ring.evaluate((element) => {
+          const style = getComputedStyle(element);
+          return parseFloat(style.animationDuration) === 0 && parseFloat(style.transitionDuration) === 0;
+        })).toBe(true);
+      }
+      await noSideScroll(page);
+      await axe(page);
+    });
+  }
+}

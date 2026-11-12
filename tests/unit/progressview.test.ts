@@ -58,13 +58,14 @@ describe('truthful progress dashboard counts', () => {
     expect(view.overall).toEqual({ know: 1, learning: 1, notStarted: 0, total: 2 });
   });
 
-  it('renders an accessible, labeled SVG ring with no animation', () => {
-    const html = renderToStaticMarkup(createElement(ProgressRing, {
-      label: 'first deck', know: 2, learning: 1, notStarted: 1,
-    }));
-    expect(html).toContain('role="img"');
-    expect(html).toContain('aria-label="first deck: 2 know it, 1 still learning, 1 not started."');
-    expect(html).toContain('<title>first deck: 2 know it, 1 still learning, 1 not started.</title>');
+  it('renders a decorative, motionless ring with no duplicate accessible label', () => {
+    const html = renderToStaticMarkup(createElement(ProgressRing, { know: 2, learning: 1, notStarted: 1 }));
+    expect(html).toContain('aria-hidden="true"');
+    expect(html).toContain('focusable="false"');
+    expect(html).not.toContain('role="img"');
+    expect(html).not.toContain('aria-label=');
+    expect(html).not.toContain('<title>');
+    expect(html).not.toContain('animation');
     expect(html).not.toContain('transition');
   });
 });

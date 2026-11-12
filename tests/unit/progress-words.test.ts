@@ -2,6 +2,11 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import ProgressRing from '../../src/islands/ProgressRing';
+import { courseLessonProgress, courseProgressWords, type VisibleProgressLesson } from '../../src/islands/progressview';
+import { emptyProgress, withPile, withStars } from '../../src/scripts/progress';
 
 const forbidden = /\b(?:master|mastered|mastery)\b/i;
 const srcRoot = fileURLToPath(new URL('../../src/', import.meta.url));
@@ -62,5 +67,81 @@ describe('Task 522 student-facing progress words', () => {
       }
     }
     expect(violations).toEqual([]);
+  });
+});
+
+const progressLessons: VisibleProgressLesson[] = [
+  { id: 'sample-one', courseId: 'sample-course', courseName: '[sample course]', deckId: 'sample-deck-one' },
+  { id: 'sample-two', courseId: 'sample-course', courseName: '[sample course]', deckId: 'sample-deck-two' },
+  { id: 'sample-three', courseId: 'sample-course', courseName: '[sample course]', deckId: null },
+];
+const progressDecks = [
+  { id: 'sample-deck-one', title: '[sample deck one]', cardIds: ['a', 'b'] },
+  { id: 'sample-deck-two', title: '[sample deck two]', cardIds: ['c'] },
+];
+const progressCourses = [
+  { id: 'sample-course', name: '[sample course]' },
+  { id: 'empty-course', name: '[sample empty course]' },
+];
+
+describe('per-course lesson progress with visible words', () => {
+  it('formats zero, some, all, singular and a course with no lessons', () => {
+    expect(courseProgressWords(0, 3)).toBe('0 of 3 lessons started');
+    expect(courseProgressWords(1, 3)).toBe('1 of 3 lessons started');
+    expect(courseProgressWords(3, 3)).toBe('3 of 3 lessons started');
+    expect(courseProgressWords(1, 1)).toBe('1 of 1 lesson started');
+    expect(courseProgressWords(4, 12)).toBe('4 of 12 lessons started');
+    expect(courseProgressWords(0, 0)).toBe('no published lessons to track yet.');
+  });
+
+  it('includes visible cardless lessons and courses with no published lessons', () => {
+    expect(courseLessonProgress(emptyProgress(), progressLessons, progressDecks, progressCourses)).toEqual([
+      { id: 'sample-course', name: '[sample course]', started: 0, total: 3, words: '0 of 3 lessons started' },
+      { id: 'empty-course', name: '[sample empty course]', started: 0, total: 0, words: 'no published lessons to track yet.' },
+    ]);
+  });
+
+  it('counts sorted and starred visible cards as started, but never hidden decks', () => {
+    let progress = withPile(emptyProgress(), 'sample-deck-one', 'a', 'learning');
+    progress = withStars(progress, 'sample-deck-two', ['c']);
+    progress = withPile(progress, 'hidden-deck', 'secret', 'know');
+    const [summary] = courseLessonProgress(progress, progressLessons, progressDecks, progressCourses);
+    expect(summary).toMatchObject({ started: 2, total: 3, words: '2 of 3 lessons started' });
+  });
+
+  it('does not count stale card ids or retired decks', () => {
+    let progress = withPile(emptyProgress(), 'sample-deck-one', 'retired-card', 'know');
+    progress = withPile(progress, 'retired-deck', 'secret', 'learning');
+    const [summary] = courseLessonProgress(progress, progressLessons, progressDecks, progressCourses);
+    expect(summary).toMatchObject({ started: 0, total: 3, words: '0 of 3 lessons started' });
+  });
+
+  it('reports all started only when every tracked lesson has current activity', () => {
+    let progress = withPile(emptyProgress(), 'sample-deck-one', 'a', 'know');
+    progress = withPile(progress, 'sample-deck-two', 'c', 'learning');
+    const tracked = progressLessons.filter((lesson) => lesson.deckId !== null);
+    const [summary] = courseLessonProgress(progress, tracked, progressDecks, progressCourses);
+    expect(summary).toMatchObject({ started: 2, total: 2, words: '2 of 2 lessons started' });
+  });
+
+  it('deduplicates lesson ids and keeps courses separate', () => {
+    const lessons = [
+      ...progressLessons,
+      progressLessons[0]!,
+      { id: 'different', courseId: 'other', courseName: '[sample other]', deckId: 'sample-deck-one' },
+    ];
+    const result = courseLessonProgress(withPile(emptyProgress(), 'sample-deck-one', 'a', 'know'), lessons, progressDecks, progressCourses);
+    expect(result.map((course) => [course.id, course.started, course.total])).toEqual([
+      ['sample-course', 1, 3], ['empty-course', 0, 0], ['other', 1, 1],
+    ]);
+  });
+
+  it('keeps the SVG ring decorative and without animation', () => {
+    const html = renderToStaticMarkup(createElement(ProgressRing, { know: 1, learning: 0, notStarted: 2 }));
+    expect(html).toContain('aria-hidden="true"');
+    expect(html).not.toContain('role="img"');
+    expect(html).not.toContain('aria-label=');
+    expect(html).not.toContain('animation');
+    expect(html).not.toContain('transition');
   });
 });

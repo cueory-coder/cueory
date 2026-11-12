@@ -1,5 +1,5 @@
 /** Pure, truthful card counts for the progress dashboard. No module or question completion is recorded. */
-import { deckProgress, emptyProgress, isEmptyProgress, isExamDate, migrateLegacyStars, PROGRESS_STORAGE_KEY, PROGRESS_VERSION, type Progress } from '../scripts/progress';
+import { COURSES, deckProgress, emptyProgress, isEmptyProgress, isExamDate, migrateLegacyStars, PROGRESS_STORAGE_KEY, PROGRESS_VERSION, type Progress } from '../scripts/progress';
 import { readResume } from '../scripts/resume';
 import type { KeyValueStorage } from '../scripts/storage';
 import type { Catalog } from '../lessons/catalog';
@@ -129,6 +129,62 @@ export function visibleProgressLessons(catalog: Pick<Catalog, 'lessons'>): Visib
     courseId: lesson.curriculumId ? 'med-surg-1' : 'legacy:' + lesson.name,
     courseName: lesson.curriculumId ? 'med-surg i' : lesson.name,
     deckId: lesson.cards?.id ?? null,
+  }));
+}
+
+
+/** "both" is an onboarding choice, not a separate course. */
+export const COURSE_PROGRESS_GROUPS: readonly { id: string; name: string }[] =
+  COURSES.filter((course) => course.id !== 'both').map((course) => ({ id: course.id, name: course.label }));
+
+export interface CourseLessonCount {
+  id: string;
+  name: string;
+  started: number;
+  total: number;
+  words: string;
+}
+
+/** Counts are activity, never lesson completion or an exam-score prediction. */
+export function courseProgressWords(started: number, total: number): string {
+  return total === 0
+    ? 'no published lessons to track yet.'
+    : `${started} of ${total} ${total === 1 ? 'lesson' : 'lessons'} started`;
+}
+
+/**
+ * Count every visible lesson once, including those with no cards, in the denominator.
+ * A lesson is started only if it has saved activity on its currently visible cards.
+ * Unavailable card ids and retired decks never increase started lesson counts.
+ */
+export function courseLessonProgress(
+  progress: Progress,
+  visibleLessons: readonly VisibleProgressLesson[],
+  visibleDecks: readonly DeckDefinition[],
+  courses: readonly { id: string; name: string }[] = COURSE_PROGRESS_GROUPS,
+): CourseLessonCount[] {
+  const currentDecks = progressView(progress, visibleDecks).decks.filter((deck) => !deck.retired);
+  const currentById = new Map(currentDecks.map((deck) => [deck.id, deck]));
+  const grouped = new Map<string, { id: string; name: string; started: number; total: number }>();
+  for (const course of courses) {
+    if (!grouped.has(course.id)) grouped.set(course.id, { ...course, started: 0, total: 0 });
+  }
+
+  const seenLessons = new Set<string>();
+  for (const lesson of visibleLessons) {
+    if (seenLessons.has(lesson.id)) continue;
+    seenLessons.add(lesson.id);
+    if (!grouped.has(lesson.courseId)) {
+      grouped.set(lesson.courseId, { id: lesson.courseId, name: lesson.courseName, started: 0, total: 0 });
+    }
+    const summary = grouped.get(lesson.courseId)!;
+    summary.total++;
+    const deck = lesson.deckId ? currentById.get(lesson.deckId) : undefined;
+    if (deck && deck.know + deck.learning + deck.starred > 0) summary.started++;
+  }
+  return [...grouped.values()].map((summary) => ({
+    ...summary,
+    words: courseProgressWords(summary.started, summary.total),
   }));
 }
 
