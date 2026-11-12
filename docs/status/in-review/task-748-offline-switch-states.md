@@ -1,0 +1,2 @@
+status: W07-2 (#42), offline-study switch: visible screen-reader status for on/ready, saving, unsupported, quota-full, unavailable and off, with pure decisions and tests for partial failures and cleanup.
+decision: D-pending (W07-2) Show a quiet, text-only live offline status in the existing footer without modifying shared layout or style files. Reason: students need to read the switch outcome, including failed and incomplete saves.
