@@ -56,6 +56,12 @@ describe('sitemap', () => {
     expect(sourceDeclaresNoindex('<Layout title="public" description={a > b} />')).toBe(false);
     expect(sourceDeclaresNoindex('<Layout description={{ text: "noindex" }} title="public" />')).toBe(false);
     expect(sourceDeclaresNoindex('<Layout description={a > b} noindex={page.hidden}/>')).toBe(true);
+    expect(sourceDeclaresNoindex('<Layout {...Astro.props} title="hidden" />')).toBe(true);
+    expect(sourceDeclaresNoindex('<Layout title="hidden" noindex={false} {...meta}/>')).toBe(true);
+    expect(sourceDeclaresNoindex('<Layout {...meta} noindex={false}/>')).toBe(true);
+    expect(sourceDeclaresNoindex('<Layout title="public" noindex={false} />')).toBe(false);
+    expect(sourceDeclaresNoindex('<Layout title="public" description="{...meta}"/>')).toBe(false);
+    expect(sourceDeclaresNoindex('<!-- <Layout noindex /> -->')).toBe(true); // No real Layout is fail closed.
   });
 
   it('fails closed when a page source is missing or outside the site', () => {
