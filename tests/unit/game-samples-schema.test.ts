@@ -191,3 +191,33 @@ describe('hello-cards malformed samples', () => {
     expect(helloCardsSampleSchema.safeParse({ ...helloCards(), hidden: true }).success).toBe(false);
   });
 });
+
+describe('plain-language validation failures', () => {
+  it('provides readable text problems for each unlabeled sample format', () => {
+    const failures = [
+      pulseSampleSchema.safeParse({ ...pulse(), status: 'draft' }),
+      triageSampleSchema.safeParse({ ...triage(), status: 'draft' }),
+      statSampleSchema.safeParse({ ...stat(), status: 'draft' }),
+      helloCardsSampleSchema.safeParse({ ...helloCards(), status: 'draft' }),
+    ];
+    for (const failure of failures) {
+      expect(failure.success).toBe(false);
+      if (failure.success) continue;
+      expect(failure.error.issues.length).toBeGreaterThan(0);
+      for (const issue of failure.error.issues) {
+        // Errors must have written explanations; users must not rely on color.
+        expect(typeof issue.message).toBe('string');
+        expect(issue.message.trim().length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('rejects empty, non-object, or unlabeled input for all four formats', () => {
+    for (const value of [null, [], 42, {}, { status: '' }]) {
+      expect(pulseSampleSchema.safeParse(value).success).toBe(false);
+      expect(triageSampleSchema.safeParse(value).success).toBe(false);
+      expect(statSampleSchema.safeParse(value).success).toBe(false);
+      expect(helloCardsSampleSchema.safeParse(value).success).toBe(false);
+    }
+  });
+});
