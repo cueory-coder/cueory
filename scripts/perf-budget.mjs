@@ -175,11 +175,69 @@ function staticJavascriptImports(content) {
   return imports;
 }
 
+/** Find real CSS @import directives, skipping comments and quoted content. */
+function staticCssImports(content) {
+  const imports = [];
+  const skipComment = (at) => {
+    const end = content.indexOf('*/', at + 2);
+    return end < 0 ? content.length : end + 2;
+  };
+  const skipString = (at) => {
+    const quote = content[at++];
+    while (at < content.length) {
+      if (content[at] === '\\') { at += 2; continue; }
+      if (content[at++] === quote) break;
+    }
+    return at;
+  };
+  const skipTrivia = (start) => {
+    let at = start;
+    while (at < content.length) {
+      if (/\s/.test(content[at])) { at += 1; continue; }
+      if (content.startsWith('/*', at)) { at = skipComment(at); continue; }
+      break;
+    }
+    return at;
+  };
+  for (let at = 0; at < content.length;) {
+    if (content.startsWith('/*', at)) { at = skipComment(at); continue; }
+    if (content[at] === '"' || content[at] === "'") { at = skipString(at); continue; }
+    if (content.slice(at, at + 7).toLowerCase() !== '@import' || /[\w-]/.test(content[at + 7] ?? '')) {
+      at += 1;
+      continue;
+    }
+    let pos = skipTrivia(at + 7);
+    let wrapped = false;
+    const urlStart = /^url\s*\(/i.exec(content.slice(pos));
+    if (urlStart) {
+      pos = skipTrivia(pos + urlStart[0].length);
+      wrapped = true;
+    }
+    let path = null;
+    if (content[pos] === '"' || content[pos] === "'") {
+      const end = skipString(pos);
+      if (end > pos + 1 && content[end - 1] === content[pos]) path = content.slice(pos + 1, end - 1);
+      pos = end;
+    } else if (wrapped) {
+      const start = pos;
+      while (pos < content.length && !/[\s)]/.test(content[pos]) && !content.startsWith('/*', pos)) pos += 1;
+      if (pos > start) path = content.slice(start, pos);
+    }
+    if (wrapped) {
+      pos = skipTrivia(pos);
+      if (content[pos] !== ')') path = null;
+      else pos += 1;
+    }
+    if (path) imports.push(path);
+    at = Math.max(pos, at + 7);
+  }
+  return imports;
+}
+
 /** Static imports in bundled JavaScript and CSS @imports. Lazy imports are not initial loads. */
 export function extractImportedAssetUrls(content, kind) {
   if (kind === 'css') {
-    return [...content.matchAll(/@import\s+(?:url\(\s*)?(?:"([^"]+)"|'([^']+)'|([^\s;)]+))/gi)]
-      .map((match) => match[1] ?? match[2] ?? match[3]);
+    return staticCssImports(content);
   }
   if (kind === 'js') {
     return staticJavascriptImports(content);

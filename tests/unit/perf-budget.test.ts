@@ -56,6 +56,37 @@ describe('built-site performance budgets', () => {
       .toEqual(['./base.css', '../color.css']);
   });
 
+  it('ignores fake CSS imports in comments and strings', () => {
+    const css = [
+      "/* @import './missing-comment.css'; */",
+      'body::after { content: "@import \'./missing-content.css\'"; }',
+      "@import /* valid whitespace */ url('./real.css');",
+      "@import '../second.css' screen;",
+    ].join('\n');
+    expect(extractImportedAssetUrls(css, 'css')).toEqual(['./real.css', '../second.css']);
+    expect(extractImportedAssetUrls('@import url(./bare.css); @IMPORT "./upper.css";', 'css'))
+      .toEqual(['./bare.css', './upper.css']);
+  });
+
+  it('scans only live CSS imports in a built-site fixture', () => {
+    const f = fixture();
+    const html = '<link rel="stylesheet" href="/_astro/site.css">';
+    const css = [
+      "/* @import './missing-comment.css'; */",
+      'body::after { content: "@import \'./missing-content.css\'"; }',
+      "@import url('./real.css');",
+    ].join('\n');
+    const real = 'body { margin: 0; }';
+    f.file('index.html', html);
+    f.file('_astro/site.css', css);
+    f.file('_astro/real.css', real);
+    const [page] = scanPerformanceBudget(f.root);
+    expect(page!.html).toBe(gzipSync(html).length);
+    expect(page!.css).toBe(gzipSync(css).length + gzipSync(real).length);
+    expect(page!.js).toBe(0);
+    expect(page!.breaches).toEqual([]);
+  });
+
   it('ignores comment, string, template and regex impostors while keeping real static imports', () => {
     const code = [
       "// import './missing-line.js'",
