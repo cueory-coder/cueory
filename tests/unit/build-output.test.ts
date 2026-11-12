@@ -70,6 +70,7 @@ const initialJsBudget = {
   'preview/anatomy-text.html': 89104,
   'preview/anatomy-lab.html': 89027,
   'preview/body-viewer.html': 151504,
+  'preview/concept-map.html': 91589,
   'preview/email.html': 146752,
   'preview/prose.html': 146752,
   'preview/reminders.html': 148152,
