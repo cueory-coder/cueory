@@ -22,7 +22,6 @@ const knownWithoutAxe: Readonly<Record<string, string>> = {
   "auth-callback-page.spec.ts": "Failure callback recovery and safe URL cleanup; a11y-sweep.spec.ts checks the rendered callback route.",
   "body-line-height.spec.ts": "Cross-route computed Lato line spacing; a11y-sweep.spec.ts covers full markup.",
   "body-viewer.spec.ts": "Lazy 3D model asset loading and controls; page-wide axe is covered by the built-page sweep.",
-  "coming-soon.spec.ts": "Planned course listing and navigation targets; the global axe sweep covers the page.",
   "courses.spec.ts": "Course listing and navigation regression; the global axe sweep covers the page.",
   "csp-sweep.spec.ts": "Security-only CSP test deliberately produces a violation in a fixture; a11y-sweep.spec.ts audits pages.",
   "exam-plan-sync.spec.ts": "Mocked account-plan timing, race and RPC states; start.spec.ts and progress.spec.ts run axe.",
@@ -49,6 +48,7 @@ const knownWithoutAxe: Readonly<Record<string, string>> = {
   "resume-cleared-progress.spec.ts": "Cross-tab progress deletion and stale-save lifecycle test; progress, fill-in and matching/organizer suites run axe on those interfaces.",
   "sticky-header-overlap.spec.ts": "Cross-route heading and focused-control geometry; global axe audits the corresponding pages.",
   "storage-blocked-pages.spec.ts": "Deliberately disabled browser storage to expose crashes; normal pages have global axe.",
+  "sudoku-highlight.spec.ts": "Focused selected-cell, related-row/column/box color and contrast geometry, with semantic Sudoku and keyboard accessibility covered by sudoku-keyboard-a11y.spec.ts.",
   "study-events.spec.ts": "Isolated RPC telemetry fixture and privacy checks; questions-page.spec.ts runs axe on the question UI.",
   "console-clean.spec.ts": "W15-2 issue #58 is a deliberate error/network/CSP detector, including failure fixtures; a11y-sweep.spec.ts runs axe.",
 };
