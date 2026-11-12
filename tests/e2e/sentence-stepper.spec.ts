@@ -93,3 +93,22 @@ for (const width of [390, 820, 1440]) {
     });
   }
 }
+
+test('touch-only controls reveal the next sentence and show all', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({
+    baseURL, hasTouch: true, viewport: { width: 390, height: 844 }, serviceWorkers: 'block',
+  });
+  try {
+    const page = await context.newPage();
+    await page.goto(path);
+    await expect(sentences(page)).toHaveCount(1);
+    await nextButton(page).tap();
+    await expect(sentences(page)).toHaveCount(2);
+    await showAllButton(page).tap();
+    await expect(sentences(page)).toHaveCount(3);
+    await expect(notice(page)).toHaveText('all 3 sentences are now shown.');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  } finally {
+    await context.close();
+  }
+});
