@@ -1,0 +1,1 @@
+status: W03 (#3), stat review list: pure right/wrong/timed-out review rows, clear time-used and counted-pick labels, fifteen keyboard-focusable numbered entries, sample rationale placeholders, and unit/browser coverage.
