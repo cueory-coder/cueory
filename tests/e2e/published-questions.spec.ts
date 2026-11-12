@@ -335,6 +335,41 @@ test.describe('W20: clear question loading, empty, and retry states', () => {
     await expect(page.locator('fieldset')).toHaveCount(0);
   });
 
+  test('a real touchscreen tap retries a failed concept load and reaches empty guidance', async ({ browser }, testInfo) => {
+    // hasTouch and .tap() exercise touch events rather than Playwright mouse clicks.
+    const context = await browser.newContext({
+      baseURL: testInfo.project.use.baseURL,
+      viewport: { width: 390, height: 844 },
+      hasTouch: true,
+      reducedMotion: 'reduce',
+      serviceWorkers: 'block',
+    });
+    try {
+      const touchPage = await context.newPage();
+      const seen = await mockProject(touchPage, { empty: true, failConceptReads: 1 });
+      await openFixture(touchPage, { signedIn: true });
+      await expect(touchPage.getByRole('alert')).toHaveText("couldn't load questions. please try again.");
+      await expect(touchPage.getByText('sample private server detail')).toHaveCount(0);
+
+      const retry = touchPage.getByRole('button', { name: 'try again', exact: true });
+      await expect(retry).toBeVisible();
+      const box = await retry.boundingBox();
+      expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
+      expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+      await retry.tap();
+
+      const empty = touchPage.getByTestId('questions-not-found');
+      await expect(empty).toContainText('there are no published questions for this topic yet.');
+      await expect(empty).toBeFocused();
+      await expect(empty.getByRole('link', { name: 'back to the course library' })).toHaveAttribute('href', '/learn');
+      await expect(touchPage.getByText('sample private server detail')).toHaveCount(0);
+      await expect(touchPage.locator('fieldset')).toHaveCount(0);
+      expect(seen.filter(request => request.method === 'GET' && request.path === '/rest/v1/concepts')).toHaveLength(2);
+    } finally {
+      await context.close();
+    }
+  });
+
   test('an invalid concept slug is empty without requesting any public question data', async ({ page }) => {
     const seen = await mockProject(page);
     await openFixture(page, { signedIn: true, search: '?concept=bad%20slug' });
