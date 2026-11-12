@@ -2,41 +2,83 @@
 import Layout from '../layouts/Layout.astro';
 ---
 
-<Layout title="about us" description="About cueory and our mission.">
-  <div class="mx-auto max-w-3xl space-y-10 py-8">
-    <div class="space-y-2">
-      <h1 class="text-2xl text-ink">about cueory</h1>
-    </div>
+<Layout
+  title="about us"
+  description="about cueory: founder information and page sections are being prepared."
+  noindex
+>
+  <div class="mx-auto flex w-full max-w-page flex-col gap-8 py-section">
+    <header class="mx-auto w-full max-w-hero space-y-5">
+      <p class="text-sm font-bold tracking-label text-ink-soft" data-placeholder="CHRISTIAN-TEXT">
+        [Christian writes this]
+      </p>
+      <h1 class="display text-display text-ink sm:text-display-lg">about cueory</h1>
+      <p class="text-lg text-ink" data-placeholder="CHRISTIAN-TEXT">
+        [Christian writes this]
+      </p>
+    </header>
 
-    <section class="space-y-3" aria-labelledby="mission-heading">
-      <h2 id="mission-heading" class="text-xl text-ink">our mission</h2>
-      <p class="text-sm text-ink-soft" data-placeholder="CHRISTIAN-TEXT">
+    <section class="veil min-w-0 p-6 sm:p-10" aria-labelledby="mission-heading">
+      <h2 id="mission-heading" class="display text-2xl text-ink sm:text-title">our mission</h2>
+      <p class="mt-4 text-ink" data-placeholder="CHRISTIAN-TEXT">
         [Christian writes this]
       </p>
     </section>
 
-    <section class="space-y-3" aria-labelledby="who-heading">
-      <h2 id="who-heading" class="text-xl text-ink">who we are</h2>
-      <p class="text-sm text-ink-soft" data-placeholder="CHRISTIAN-TEXT">
-        [Christian writes this]
-      </p>
+    <section class="veil min-w-0 p-6 sm:p-10" aria-labelledby="lessons-heading">
+      <h2 id="lessons-heading" class="display text-2xl text-ink sm:text-title">
+        how we make our lessons
+      </h2>
+      <ul class="mt-4 list-disc space-y-3 pl-6 text-ink">
+        <li>
+          <p data-placeholder="CHRISTIAN-TEXT">[Christian writes this]</p>
+        </li>
+        <li>
+          <p data-placeholder="CHRISTIAN-TEXT">[Christian writes this]</p>
+        </li>
+        <li>
+          <p data-placeholder="CHRISTIAN-TEXT">[Christian writes this]</p>
+        </li>
+      </ul>
     </section>
 
-    <section class="space-y-3" aria-labelledby="content-heading">
-      <h2 id="content-heading" class="text-xl text-ink">how content is made</h2>
-      <p class="text-sm text-ink-soft" data-placeholder="CHRISTIAN-TEXT">
-        [Christian writes this]
-      </p>
+    <section class="veil flex min-w-0 flex-col gap-6 p-6 sm:flex-row sm:items-center sm:p-10" aria-labelledby="coming-heading">
+      <div class="min-w-0 flex-1">
+        <h2 id="coming-heading" class="display text-2xl text-ink sm:text-title">what's coming</h2>
+        <p class="mt-3 text-ink" data-placeholder="CHRISTIAN-TEXT">
+          [Christian writes this]
+        </p>
+      </div>
+      <a href="/#signup" class="glass-button inline-flex min-h-11 shrink-0 items-center justify-center text-center">
+        get launch updates
+      </a>
     </section>
 
-    <section class="space-y-3" aria-labelledby="support-heading">
-      <h2 id="support-heading" class="text-xl text-ink">support us</h2>
-      <p class="text-sm text-ink-soft" data-placeholder="CHRISTIAN-TEXT">
-        [Christian writes this]
-      </p>
-      <div class="mt-4">
-        <a href="/support" class="inline-flex min-h-11 items-center underline text-sm text-ink">
-          visit our support page
+    <section class="veil min-w-0 p-6 sm:p-10" aria-labelledby="support-heading">
+      <div class="flex flex-col gap-6 sm:flex-row sm:items-center">
+        <svg
+          class="size-14 shrink-0 text-ink-soft"
+          viewBox="0 0 48 48"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <rect x="5" y="11" width="29" height="28" rx="6" />
+          <path d="M34 17h4a7 7 0 0 1 0 14h-4" />
+          <path d="M20 30c-5-3-8-6-8-9 0-3 4-5 8-1 4-4 8-2 8 1 0 3-3 6-8 9Z" />
+        </svg>
+        <div class="min-w-0 flex-1">
+          <h2 id="support-heading" class="display text-2xl text-ink sm:text-title">
+            help keep cueory free.
+          </h2>
+          <p class="mt-3 text-ink" data-placeholder="CHRISTIAN-TEXT">
+            [Christian writes this]
+          </p>
+        </div>
+        <a href="/support" class="glass-button inline-flex min-h-11 shrink-0 items-center justify-center text-center">
+          support our mission
         </a>
       </div>
     </section>
