@@ -11,13 +11,16 @@ const tokens: Record<string, string> = {
 for (const name of ['width', 'height', 'logo-width', 'logo-top', 'label-y', 'result-y', 'challenge-y', 'site-y',
   'label-size', 'result-size', 'challenge-size', 'site-size', 'dark-logo']) tokens[`--share-story-${name}`] = '1';
 
-function stubPage(fontsReady: Promise<unknown>) {
+function stubPage(
+  fontsReady: Promise<unknown>,
+  toBlob: (done: (blob: Blob | null) => void) => void = (done) => done(new Blob(['[sample]'])),
+) {
   const context = { fillRect: vi.fn(), drawImage: vi.fn(), fillText: vi.fn() };
   vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: (name: string) => tokens[name] ?? '' }));
   vi.stubGlobal('document', {
     documentElement: {},
     fonts: { ready: fontsReady },
-    createElement: () => ({ getContext: () => context, toBlob: (done: (blob: Blob) => void) => done(new Blob(['[sample]'])) }),
+    createElement: () => ({ getContext: () => context, toBlob }),
   });
 }
 
@@ -52,6 +55,68 @@ describe('story image never hangs the share flow', () => {
     expect(settled).toBeUndefined();
     await vi.advanceTimersByTimeAsync(1);
     expect(settled).toBeNull();
+  });
+
+  it('returns null after the total timeout when canvas toBlob never calls back', async () => {
+    vi.useFakeTimers();
+    stubPage(Promise.resolve(), () => undefined);
+    vi.stubGlobal('Image', class {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      width = 1;
+      height = 1;
+      set src(_value: string) { this.onload?.(); }
+    });
+    let settled: File | null | undefined;
+    void createStoryFile({ name: 'pillo', date: 'nov 11', result: '[sample result]' }).then((file) => { settled = file; });
+    await vi.advanceTimersByTimeAsync(STORY_ASSET_TIMEOUT_MS);
+    expect(settled).toBeNull();
+  });
+
+  it('uses one total budget across fonts, logo and wordmark', async () => {
+    vi.useFakeTimers();
+    const delayedFonts = new Promise<void>((resolve) => setTimeout(resolve, 1500));
+    stubPage(delayedFonts);
+    vi.stubGlobal('Image', class {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      width = 1;
+      height = 1;
+      set src(_value: string) { setTimeout(() => this.onload?.(), 1500); }
+    });
+    let settled: File | null | undefined;
+    void createStoryFile({
+      name: 'pillo',
+      date: 'nov 11',
+      result: '[sample result]',
+      wordmarkPath: '/brand/v1/pillo-wordmark.png',
+    }).then((file) => { settled = file; });
+    await vi.advanceTimersByTimeAsync(STORY_ASSET_TIMEOUT_MS - 1);
+    expect(settled).toBeUndefined();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(settled).toBeNull();
+  });
+
+  it('clears the total timer after a successful render and an immediate image failure', async () => {
+    vi.useFakeTimers();
+    stubPage(Promise.resolve());
+    vi.stubGlobal('Image', class {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      width = 1;
+      height = 1;
+      set src(_value: string) { this.onload?.(); }
+    });
+    await expect(createStoryFile({ name: 'pillo', date: 'nov 11', result: '[sample result]' })).resolves.toBeInstanceOf(File);
+    expect(vi.getTimerCount()).toBe(0);
+
+    vi.stubGlobal('Image', class {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      set src(_value: string) { this.onerror?.(); }
+    });
+    await expect(createStoryFile({ name: 'pillo', date: 'nov 11', result: '[sample result]' })).resolves.toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it('keeps a value that arrives in time and clears its timer', async () => {

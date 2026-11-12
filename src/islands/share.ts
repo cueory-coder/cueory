@@ -209,10 +209,8 @@ function image(url: string): Promise<HTMLImageElement> {
   });
 }
 
-/** Draws the 1080×1920 story card only after the visitor taps share. */
-export async function createStoryFile(input: StoryImageInput): Promise<File | null> {
-  if (typeof document === 'undefined') return null;
-  try {
+/** Draws the 1080×1920 story card. The caller bounds this whole renderer with one timeout. */
+async function renderStoryFile(input: StoryImageInput): Promise<File | null> {
     const tokens = getComputedStyle(document.documentElement);
     const number = (name: string) => Number.parseFloat(tokens.getPropertyValue(name));
     const page = tokens.getPropertyValue('--color-page').trim();
@@ -238,18 +236,18 @@ export async function createStoryFile(input: StoryImageInput): Promise<File | nu
     const context = canvas.getContext('2d');
     if (!context) return null;
 
-    await withTimeout(document.fonts.ready, STORY_ASSET_TIMEOUT_MS);
+    await document.fonts.ready;
     context.fillStyle = page;
     context.fillRect(0, 0, width, height);
 
     // Match the logo ink to the active page palette: Espresso on Ivory, Ivory on Charcoal.
     const logoPath = number('--share-story-dark-logo') === 1 ? '/brand/v1/logo-full-dark-960.png' : '/brand/v1/logo-full-light-960.png';
-    const logo = await withTimeout(image(logoPath), STORY_ASSET_TIMEOUT_MS);
+    const logo = await image(logoPath);
     const logoHeight = (logo.height * logoWidth) / logo.width;
     context.drawImage(logo, (width - logoWidth) / 2, number('--share-story-logo-top'), logoWidth, logoHeight);
 
     if (input.wordmarkPath) {
-      const wordmark = await withTimeout(image(input.wordmarkPath), STORY_ASSET_TIMEOUT_MS);
+      const wordmark = await image(input.wordmarkPath);
       const wordmarkWidth = logoWidth;
       const wordmarkHeight = (wordmark.height * wordmarkWidth) / wordmark.width;
       context.drawImage(wordmark, (width - wordmarkWidth) / 2, number('--share-story-logo-top') + logoHeight * 2, wordmarkWidth, wordmarkHeight);
@@ -272,6 +270,13 @@ export async function createStoryFile(input: StoryImageInput): Promise<File | nu
 
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
     return blob ? new File([blob], `cueory-${input.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-story.png`, { type: 'image/png' }) : null;
+}
+
+/** Draws the story card after the visitor taps share, with one end-to-end preparation budget. */
+export async function createStoryFile(input: StoryImageInput): Promise<File | null> {
+  if (typeof document === 'undefined') return null;
+  try {
+    return await withTimeout(Promise.resolve().then(() => renderStoryFile(input)), STORY_ASSET_TIMEOUT_MS);
   } catch {
     return null;
   }
