@@ -186,7 +186,7 @@ export interface StoryImageInput {
   wordmarkPath?: string;
 }
 
-/** Longest wait for fonts or a logo before the story image gives up and the copy fallback runs. */
+/** Longest total wait for complete story-image preparation before the copy fallback runs. */
 export const STORY_ASSET_TIMEOUT_MS = 4000;
 
 /** Settles with the promise, or rejects once `ms` passes, so a stalled asset can never hang the share flow. */
