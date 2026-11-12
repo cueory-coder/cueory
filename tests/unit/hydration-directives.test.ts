@@ -243,7 +243,7 @@ describe('eager Astro island hydration', () => {
     ];
     for (const route of routes) {
       const source = readFileSync(join(projectRoot, route), 'utf8');
-      expect(/<noscript>\s*<p>[^<]*javascript/i.test(source)).toBe(true);
+      expect(/<noscript>\s*<p\b[^>]*>[^<]*javascript/i.test(source)).toBe(true);
     }
   });
 
