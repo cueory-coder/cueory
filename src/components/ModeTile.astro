@@ -15,14 +15,14 @@ interface Props {
   href?: string;
 }
 
-const { mode, linkLabel } = Astro.props;
-const href = Astro.props.href ?? mode.link?.href;
-if (!href) throw new Error('Only available study modes may be linked from the lesson hub.');
+const { mode, linkLabel, href } = Astro.props;
+// Never fall back to mode.link: that destination belongs to the home-page sample.
 ---
 
 <article
   class="study-mode-tile lift flex h-full min-w-0 flex-col rounded-xl border border-line bg-surface p-3 sm:p-5"
   data-mode-tile={mode.id}
+  data-mode-status={href ? 'available' : 'coming-soon'}
 >
   <div class="mode-art mb-3 overflow-hidden" aria-hidden="true">
     <ModeIllustration mode={mode.id} />
@@ -31,13 +31,19 @@ if (!href) throw new Error('Only available study modes may be linked from the le
     <h3 class="min-w-0 wrap-anywhere text-lg font-semibold">{mode.name}</h3>
     <InfoTip id={`mode-tile-${mode.id}-info`} label={mode.name} text={mode.text} />
   </div>
-  <a
-    href={href}
-    class="mt-auto inline-flex min-h-11 items-center rounded-md border border-control px-3 py-2 text-sm font-medium text-ink no-underline hover:bg-page focus-visible:bg-page"
-  >
-    <span class="min-w-0">{linkLabel}</span>
-    <span class="ml-2 shrink-0" aria-hidden="true">→</span>
-  </a>
+  {href ? (
+    <a
+      href={href}
+      class="mt-auto inline-flex min-h-11 items-center rounded-md border border-control px-3 py-2 text-sm font-medium text-ink no-underline hover:bg-page focus-visible:bg-page"
+    >
+      <span class="min-w-0">{linkLabel}</span>
+      <span class="ml-2 shrink-0" aria-hidden="true">→</span>
+    </a>
+  ) : (
+    <p class="mt-auto flex min-h-11 items-center rounded-md border border-line bg-page px-3 py-2 text-sm font-medium text-ink-soft">
+      coming soon
+    </p>
+  )}
 </article>
 
 <style>
