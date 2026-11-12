@@ -1,0 +1,1 @@
+status: Spare S13 (#74) sentence reader keeps keyboard focus on stable accessible controls, politely announces only newly shown content, supports show-all and empty lessons, and respects reduced motion with no animations.

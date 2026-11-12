@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { back, isDone, next, showAll, start } from './stepper';
+import {
+  applyStep, isDone, start, stepAnnouncement,
+  type StepperAction, type StepperState,
+} from './stepper';
 
 interface Sentence {
   id: string;
@@ -10,74 +13,76 @@ interface Props {
   sentences: Sentence[];
 }
 
-/**
- * Reveals a lesson one atomic sentence at a time.
- * Rendered only in the browser (client:only); without JavaScript the page shows its <noscript> list instead.
- */
+/** Reveals a lesson one sentence at a time, without moving focus from the student's controls. */
 export default function SentenceStepper({ sentences }: Props) {
   const [state, setState] = useState(() => start(sentences.length));
-  const latestRef = useRef<HTMLLIElement>(null);
-  const firstRender = useRef(true);
-
-  useEffect(() => {
-    if (firstRender.current) {
-      firstRender.current = false;
-      return;
-    }
-    latestRef.current?.focus();
-  }, [state.shown]);
-
+  const [announcement, setAnnouncement] = useState('');
+  const previous = useRef<StepperState>(state);
+  const lastAction = useRef<StepperAction>('next');
   const visible = sentences.slice(0, state.shown);
   const done = isDone(state);
 
+  useEffect(() => {
+    const words = stepAnnouncement(previous.current, state, lastAction.current, sentences);
+    previous.current = state;
+    if (words !== null) setAnnouncement(words);
+  }, [state, sentences]);
+
+  const move = (action: StepperAction) => {
+    lastAction.current = action;
+    setState(current => applyStep(current, action));
+  };
+
+  // Keep the native buttons in place even on the last sentence.
+  // aria-disabled announces the boundary while allowing keyboard focus to remain on the control.
+  const control = 'min-h-11 min-w-11 rounded-pill px-5 py-2.5 aria-disabled:opacity-50';
+
   return (
-    <div>
-      <ol className="space-y-stack" aria-live="polite">
-        {visible.map((s, i) => (
-          <li
-            key={s.id}
-            ref={i === visible.length - 1 ? latestRef : undefined}
-            tabIndex={-1}
-            className="text-lg"
-          >
-            {s.text}
-          </li>
-        ))}
-      </ol>
+    <div data-testid="sentence-stepper">
+      {state.total > 0 ? (
+        <ol className="space-y-stack" aria-live="off" data-testid="stepper-sentences">
+          {visible.map(sentence => <li key={sentence.id} className="text-lg">{sentence.text}</li>)}
+        </ol>
+      ) : <p className="text-ink-soft">there are no sentences in this lesson yet.</p>}
 
       <p className="mt-stack text-sm text-ink-soft">
         sentence {state.shown} of {state.total}
       </p>
 
-      <div className="mt-stack flex flex-wrap gap-3">
+      {state.total > 0 && <div className="mt-stack flex flex-wrap gap-3">
         <button
           type="button"
-          onClick={() => setState(back)}
-          disabled={state.shown <= 1}
-          className="rounded-pill border border-line px-5 py-2.5 text-ink disabled:opacity-50"
+          onClick={() => move('back')}
+          aria-disabled={state.shown <= 1}
+          className={`${control} border border-control bg-page text-ink`}
         >
           back
         </button>
         <button
           type="button"
-          onClick={() => setState(next)}
-          disabled={done}
-          className="rounded-pill bg-button px-5 py-2.5 text-on-button hover:bg-button-hover disabled:opacity-50"
+          onClick={() => move('next')}
+          aria-disabled={done}
+          className={`${control} bg-button text-on-button hover:bg-button-hover`}
         >
           next sentence
         </button>
-        {!done && (
-          <button
-            type="button"
-            onClick={() => setState(showAll)}
-            className="rounded-pill px-3 py-2.5 text-ink-soft underline"
-          >
-            show all
-          </button>
-        )}
-      </div>
+        <button
+          type="button"
+          onClick={() => move('show-all')}
+          aria-disabled={done}
+          className={`${control} border border-control bg-page text-ink underline`}
+        >
+          show all
+        </button>
+      </div>}
 
-      {done && <p className="mt-stack text-ink-soft">that's the whole lesson for now. more is coming soon.</p>}
+      <p className="sr-only" role="status" aria-label="lesson sentence update" aria-atomic="true">
+        {announcement}
+      </p>
+
+      {done && state.total > 0 && (
+        <p className="mt-stack text-ink-soft">that's the whole lesson for now. more is coming soon.</p>
+      )}
     </div>
   );
 }
