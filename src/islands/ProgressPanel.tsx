@@ -1,17 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   COURSES,
+  PROGRESS_STORAGE_KEY,
   emptyProgress,
   examDateWords,
   exportProgress,
   forgetProgress,
   isEmptyProgress,
   localDay,
+  legacyStarsKey,
   readProgress,
   saveProgress,
   withOnboarding,
 } from '../scripts/progress';
-import { browserStorage } from '../scripts/storage';
+import { browserStorage, type KeyValueStorage } from '../scripts/storage';
 import { RESUME_STORAGE_KEY } from '../scripts/resume';
 import { connectExamPlans, isConnectFailure, loadExamPlan, loadTickets } from './examplansync';
 import ProgressRing from './ProgressRing';
@@ -33,6 +35,36 @@ const secondaryButton = 'min-h-11 rounded-pill border border-control px-5 py-2.5
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
+/**
+ * Read only the exact device keys that a confirmed Forget will delete.
+ * This must not call readDeviceProgress: that can migrate and remove legacy star keys.
+ * A failed or incomplete scan cannot authorize an irreversible deletion.
+ */
+function savedProgressFingerprint(storage: KeyValueStorage | undefined): string | null {
+  if (!storage) return null;
+  try {
+    const count = storage.length;
+    if (typeof count !== 'number' || !Number.isSafeInteger(count) || count < 0 ||
+      typeof storage.key !== 'function') return null;
+    const primary = storage.getItem(PROGRESS_STORAGE_KEY);
+    const prefix = legacyStarsKey('');
+    const legacy: [string, string][] = [];
+    for (let index = 0; index < count; index++) {
+      const key = storage.key(index);
+      if (key === null) return null;
+      if (!key.startsWith(prefix)) continue;
+      const value = storage.getItem(key);
+      if (value === null) return null;
+      legacy.push([key, value]);
+    }
+    if (storage.length !== count) return null;
+    legacy.sort(([a], [b]) => a.localeCompare(b));
+    return JSON.stringify([primary, legacy]);
+  } catch {
+    return null;
+  }
+}
+
 
 /**
  * What this browser keeps for the student (D-69), with "download my progress" and "forget my progress on this device".
@@ -48,6 +80,7 @@ export default function ProgressPanel({ decks }: Props) {
   const forgetRef = useRef<HTMLButtonElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
   const resumeAtConfirmation = useRef<string | null>(null);
+  const progressAtConfirmation = useRef<string | null>(null);
   const retryRef = useRef<HTMLButtonElement>(null);
   const saidRef = useRef<HTMLParagraphElement>(null);
   const [signedIn, setSignedIn] = useState(false);
@@ -133,6 +166,17 @@ export default function ProgressPanel({ decks }: Props) {
       loads.cancel();
       setConfirming(false);
       setSaid('your saved study place changed or could not be checked. review it before choosing to forget it.');
+      requestAnimationFrame(() => forgetRef.current?.focus());
+      return;
+    }
+    // Compare original JSON and every old-star key before reading a progress snapshot.
+    // Parsed progress can be identical even when a damaged record gained unknown data.
+    // A readDeviceProgress call here could otherwise migrate and delete a newly added star key.
+    const progressFingerprint = savedProgressFingerprint(storage);
+    if (progressFingerprint === null || progressFingerprint !== progressAtConfirmation.current) {
+      loads.cancel();
+      setConfirming(false);
+      setSaid('your saved progress changed or could not be checked. reload the page to review it before choosing to forget it.');
       requestAnimationFrame(() => forgetRef.current?.focus());
       return;
     }
@@ -304,9 +348,13 @@ export default function ProgressPanel({ decks }: Props) {
               onClick={() => {
                 try {
                   if (!storage) throw new Error('storage unavailable');
-                  resumeAtConfirmation.current = storage.getItem(RESUME_STORAGE_KEY);
+                  const resume = storage.getItem(RESUME_STORAGE_KEY);
+                  const progressFingerprint = savedProgressFingerprint(storage);
+                  if (progressFingerprint === null) throw new Error('saved progress unavailable');
+                  resumeAtConfirmation.current = resume;
+                  progressAtConfirmation.current = progressFingerprint;
                 } catch {
-                  setSaid('this browser could not check your saved study place. try again.');
+                  setSaid('this browser could not check your saved progress and study place. try again.');
                   return;
                 }
                 setConfirming(true);

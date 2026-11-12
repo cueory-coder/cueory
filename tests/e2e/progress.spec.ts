@@ -358,6 +358,60 @@ test('a stale forget confirmation preserves a newly saved study-resume snapshot'
   }))).toEqual({ progress: null, resume: null });
 });
 
+test('stale forget confirmation preserves new raw fields in equally recovered saved progress', async ({ page }) => {
+  const initial = JSON.stringify({
+    version: 1, onboarding: null,
+    decks: { 'study-skills-01': { know: ['ss01-c01'] } },
+  });
+  const updated = JSON.stringify({
+    version: 1, onboarding: null,
+    decks: { 'study-skills-01': { know: ['ss01-c01'] } },
+    newField: { userData: 'must not be discarded' },
+  });
+  await page.addInitScript((raw) => localStorage.setItem('cueory-progress', raw), initial);
+  await page.goto('/progress');
+  await expect(page.getByRole('heading', { name: 'some saved progress was recovered' })).toBeVisible();
+  await expect(page.getByText('1 know it · 0 still learning · 0 stars')).toBeVisible();
+  await page.getByRole('button', { name: 'forget my progress on this device' }).click();
+  await expect(page.getByRole('button', { name: 'yes, forget it' })).toBeFocused();
+
+  // Both records recover to identical card counts and onboarding, but the new raw bytes differ.
+  await page.evaluate((raw) => localStorage.setItem('cueory-progress', raw), updated);
+  await page.getByRole('button', { name: 'yes, forget it' }).click();
+
+  await expect(page.getByText(
+    'your saved progress changed or could not be checked. reload the page to review it before choosing to forget it.',
+  )).toBeVisible();
+  await expect(page.getByRole('button', { name: 'forget my progress on this device' })).toBeFocused();
+  await expect(page.getByRole('button', { name: 'yes, forget it' })).toHaveCount(0);
+  expect(await page.evaluate(() => localStorage.getItem('cueory-progress'))).toBe(updated);
+});
+
+test('stale forget confirmation does not migrate a newly added legacy-star key', async ({ page }) => {
+  const initial = JSON.stringify({
+    version: 1, onboarding: { done: true },
+    decks: { 'study-skills-01': { know: ['ss01-c01'] } },
+  });
+  const oldStars = '["legacy-c01"]';
+  await page.addInitScript((raw) => localStorage.setItem('cueory-progress', raw), initial);
+  await page.goto('/progress');
+  await page.getByRole('button', { name: 'forget my progress on this device' }).click();
+  await expect(page.getByRole('button', { name: 'yes, forget it' })).toBeFocused();
+
+  // New old-format stars are valid. They must be preserved without migration or deletion.
+  await page.evaluate((raw) => localStorage.setItem('cueory-stars-retired', raw), oldStars);
+  await page.getByRole('button', { name: 'yes, forget it' }).click();
+  await expect(page.getByText(
+    'your saved progress changed or could not be checked. reload the page to review it before choosing to forget it.',
+  )).toBeVisible();
+  await expect(page.getByRole('button', { name: 'forget my progress on this device' })).toBeFocused();
+  expect(await page.evaluate(() => ({
+    progress: localStorage.getItem('cueory-progress'),
+    retired: localStorage.getItem('cueory-stars-retired'),
+  }))).toEqual({ progress: initial, retired: oldStars });
+  await expect(page.getByRole('button', { name: 'yes, forget it' })).toHaveCount(0);
+});
+
 test('bad saved data remains untouched and the retry state is keyboard-operable', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('cueory-progress', '{not json'));
   await page.goto('/progress');
