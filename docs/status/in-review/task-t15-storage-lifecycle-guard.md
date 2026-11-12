@@ -1,0 +1,1 @@
+status: T15 blocked: source storage discovery found Sudoku settings missing from account deletion and privacy coverage. Adds baseline regression cases; exhaustive discovery/export guard remains unfinished. Protected account integration needs Christian; do not merge or mark Ready.
