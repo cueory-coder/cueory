@@ -11,6 +11,7 @@ import SudokuGame from '../islands/SudokuGame';
 import CuewordToday from '../islands/CuewordToday';
 import SutureToday from '../islands/SutureToday';
 import GameStatsPanel from '../islands/GameStatsPanel';
+import HomeScreenTip from '../islands/HomeScreenTip';
 import PilloTitle from '../components/PilloTitle.astro';
 import { parsePuzzle } from '../islands/cueword';
 import { parsePuzzle as parseWordPath } from '../islands/suture';
@@ -59,6 +60,8 @@ const later = dailyGames.filter((game) => !game.ready);
     <p class="mt-3 text-ink-soft">
       a new puzzle every day. for now these are sample puzzles with everyday words.
     </p>
+    {/* Home screen tip (L2): only after puzzles finished on 3 different days, decided on page load, never mid-game. */}
+    <HomeScreenTip client:only="react" />
 
     <section class="mt-12" aria-labelledby="pulse-heading">
       <h2 id="pulse-heading" class="display text-2xl sm:text-3xl"><PilloTitle name={pulse.name} /></h2>
