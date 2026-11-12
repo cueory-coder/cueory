@@ -8,10 +8,13 @@ import {
   connectExamPlans, isConnectFailure, type ConnectFailure, loadExamPlans, resolveAccountAnswers, saveSetupToAccount, SYNC_MESSAGES, withServerPlan,
   type ExamPlanSyncDb, type ScreenAnswers, type ServerPlan, type Touched,
 } from './examplansync';
+import {
+  ONBOARDING_FIELDS, nextOnboardingStep, previousOnboardingStep, skipOnboardingStep, type OnboardingStep,
+} from './onboardingsteps';
 
 const primaryButton = 'min-h-11 rounded-pill bg-button px-5 py-2.5 text-on-button hover:bg-button-hover';
 const quietButton = 'min-h-11 rounded-pill px-3 py-2.5 text-ink-soft underline';
-const TOTAL_QUESTIONS = 2;
+const TOTAL_QUESTIONS = ONBOARDING_FIELDS.length;
 
 /**
  * D-69's two optional answers, shown one question per screen (Task 108).
@@ -33,7 +36,7 @@ export default function Onboarding() {
   const [saved] = useState(() => readProgress(storage).onboarding);
   const [course, setCourse] = useState<string>(saved.course ?? '');
   const [examDate, setExamDate] = useState(saved.examDate ?? '');
-  const [step, setStep] = useState<0 | 1>(0);
+  const [step, setStep] = useState<OnboardingStep>(0);
   const [dateProblem, setDateProblem] = useState('');
   const [result, setResult] = useState<'saved' | 'skipped' | 'not-kept' | null>(null);
   const resultRef = useRef<HTMLDivElement>(null);
@@ -154,10 +157,10 @@ export default function Onboarding() {
     await send();
   };
 
-  const focusQuestion = (next: 0 | 1) => {
+  const focusQuestion = (next: OnboardingStep) => {
     setStep(next);
     requestAnimationFrame(() => {
-      (next === 0 ? courseLegendRef.current : dateHeadingRef.current)?.focus();
+      (ONBOARDING_FIELDS[next] === 'course' ? courseLegendRef.current : dateHeadingRef.current)?.focus();
     });
   };
 
@@ -185,20 +188,21 @@ export default function Onboarding() {
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (step === 0) focusQuestion(1);
+    const move = nextOnboardingStep(step);
+    if (move.kind === 'question') focusQuestion(move.step);
     else saveAnswers();
   };
 
   const skipQuestion = () => {
-    if (step === 0) {
-      // Only this answer is cleared. The exam-date answer stays in state.
-      changeCourse('');
-      focusQuestion(1);
-    } else {
+    const skipped = skipOnboardingStep(step);
+    // Keep the account-sync touched flags and all other answers exactly as before.
+    if (skipped.clear === 'course') changeCourse('');
+    else {
       changeExamDate('');
       setDateProblem('');
-      finish(answers.current, 'saved');
     }
+    if (skipped.move.kind === 'question') focusQuestion(skipped.move.step);
+    else finish(answers.current, 'saved');
   };
 
   const skipForNow = () => {
@@ -246,7 +250,7 @@ export default function Onboarding() {
           question {step + 1} of {TOTAL_QUESTIONS}
         </p>
         <div aria-hidden="true" className="flex items-center gap-2">
-          {[0, 1].map((index) => (
+          {ONBOARDING_FIELDS.map((_, index) => (
             <span
               key={index}
               className={`block size-3 rounded-pill ${step === index ? 'bg-ink' : 'bg-soft'}`}
@@ -255,7 +259,7 @@ export default function Onboarding() {
         </div>
       </div>
 
-      {step === 0 ? (
+      {ONBOARDING_FIELDS[step] === 'course' ? (
         <fieldset
           className="min-w-0 space-y-4"
           onKeyDown={(event) => {
@@ -263,7 +267,8 @@ export default function Onboarding() {
             // change the selection using the browser's normal radio behavior.
             if (event.key === 'Enter' && event.target instanceof HTMLInputElement && event.target.type === 'radio') {
               event.preventDefault();
-              focusQuestion(1);
+              const move = nextOnboardingStep(step);
+              if (move.kind === 'question') focusQuestion(move.step);
             }
           }}
         >
@@ -338,14 +343,23 @@ export default function Onboarding() {
       )}
 
       <div className="flex flex-wrap items-center gap-3">
-        {step === 0 ? (
+        {previousOnboardingStep(step) === null ? (
           <a href="/" className={quietButton}>back</a>
         ) : (
-          <button type="button" onClick={() => focusQuestion(0)} className={quietButton}>back</button>
+          <button
+            type="button"
+            onClick={() => {
+              const previous = previousOnboardingStep(step);
+              if (previous !== null) focusQuestion(previous);
+            }}
+            className={quietButton}
+          >
+            back
+          </button>
         )}
         <button type="button" onClick={skipQuestion} className={quietButton}>skip</button>
         <button type="submit" className={primaryButton}>
-          {step === 0 ? 'continue' : 'save my answers'}
+          {nextOnboardingStep(step).kind === 'question' ? 'continue' : 'save my answers'}
         </button>
       </div>
       <button type="button" onClick={skipForNow} className={`${quietButton} block`}>
