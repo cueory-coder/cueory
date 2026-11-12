@@ -14,6 +14,38 @@ import { createAnatomyOpenGate } from './anatomyopen';
 import { STRUCTURE_PAGE_SIZE, visibleStructureGroups } from './anatomy-list-window';
 import { anatomyTriangleNote } from './anatomybudget';
 import {
+  KEY_MAP,
+  VIEW_PRESETS,
+  canvasKeyAction,
+  coverDownloadNote,
+  focusFromSearch,
+  formatDownloadSize,
+  initialSystemKey,
+  presetDirection,
+  type ViewPreset,
+} from './anatomyviews';
+import {
+  answerRecallChoice,
+  answerRecallTyped,
+  nextRecall,
+  recallSettled,
+  revealRecall,
+  startRecall,
+  type RecallCatalog,
+  type RecallState,
+} from './anatomyrecall';
+import {
+  worksheetBlockReason,
+  worksheetCreditLines,
+  worksheetFileName,
+  worksheetLabels,
+  worksheetLeftOutNote,
+  worksheetOrder,
+  worksheetRows,
+  type WorksheetRow,
+} from './anatomyworksheet';
+import { printGame } from './gameprint';
+import {
   WHOLE_BODY_KEY,
   systemsForView,
   type Layer,
@@ -64,6 +96,28 @@ interface Props {
   fixture?: AnatomySystem | null;
   /** True on builds that show drafts: draft systems then carry the "draft · labels waiting for review" note. */
   drafts: boolean;
+  /** Each system's model file size in bytes, measured at build time, for the "download" notes. */
+  modelBytes?: Readonly<Record<string, number>>;
+}
+
+interface Worksheet {
+  systemKey: string;
+  title: string;
+  /** The numbered picture, as a data: URL (the content security policy allows data: images, not blob: ones). */
+  src: string;
+  fileName: string;
+  rows: WorksheetRow[];
+  note: string;
+}
+
+/** A saved picture as a data: URL, for an <img> the content security policy allows. */
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => (typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('unreadable')));
+    reader.onerror = () => reject(new Error('unreadable'));
+    reader.readAsDataURL(blob);
+  });
 }
 
 type Phase = 'cover' | 'opening' | 'open' | 'error';
@@ -134,7 +188,7 @@ function measureLabel(font: string, fontPx: number): (s: string) => number {
  * or from the list, labels with leader lines, a "find it" quiz and picture export for Christian's posts and videos.
  * Nothing from three.js loads before the student taps "open the anatomy lab". Rendered client:only.
  */
-export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Props) {
+export default function AnatomyLab({ systems: baseSystems, fixture, drafts, modelBytes = {} }: Props) {
   const [phase, setPhase] = useState<Phase>('cover');
   const [textLimit, setTextLimit] = useState(TEXT_FALLBACK_BATCH);
   const systems = useMemo(() => {
@@ -143,7 +197,11 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     // It is never duplicated in the unopened page's hydration data. Keep the fixture first.
     return systemsForView(baseSystems, phase === 'open' || phase === 'error', wantsFixture ? fixture : null);
   }, [baseSystems, fixture, phase]);
-  const [systemKey, setSystemKey] = useState(systems[0]?.key ?? '');
+  // A lesson can link straight to a system and structure: ?system=heart&structure=FMA7204 (src/islands/anatomyviews.ts).
+  const focus = useMemo(() => focusFromSearch(window.location.search), []);
+  const focusSystemDone = useRef(false);
+  const focusStructureDone = useRef(false);
+  const [systemKey, setSystemKey] = useState(() => initialSystemKey(systems.map((s) => s.key), focus));
   const [load, setLoad] = useState<SystemLoad>({ state: 'loading' });
   const [initialRetry, setInitialRetry] = useState(0);
   const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
@@ -152,6 +210,17 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
   const [listLimit, setListLimit] = useState(STRUCTURE_PAGE_SIZE);
   const [labelsOn, setLabelsOn] = useState(false);
   const [quiz, setQuiz] = useState<QuizState | null>(null);
+  const [recall, setRecall] = useState<RecallState | null>(null);
+  const [typed, setTyped] = useState('');
+  const [alone, setAlone] = useState(false);
+  const aloneSavedRef = useRef<ReadonlySet<string>>(new Set());
+  const [keysOpen, setKeysOpen] = useState(false);
+  const keysButtonRef = useRef<HTMLButtonElement>(null);
+  const [worksheet, setWorksheet] = useState<Worksheet | null>(null);
+  const [worksheetBusy, setWorksheetBusy] = useState(false);
+  const [worksheetNote, setWorksheetNote] = useState('');
+  const [answersShown, setAnswersShown] = useState(false);
+  const worksheetHeadingRef = useRef<HTMLHeadingElement>(null);
   const [transparent, setTransparent] = useState(false);
   const [exporting, setExporting] = useState<ExportSize | null>(null);
   const [exportNote, setExportNote] = useState('');
@@ -191,6 +260,11 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
 
   const system = systems.find((s) => s.key === systemKey) ?? systems[0];
   const names = useMemo(() => new Map(system?.structures.map((s) => [s.id, s.text]) ?? []), [system]);
+  const recallCatalog = useMemo<RecallCatalog>(() => ({
+    ids: system?.structures.map((s) => s.id) ?? [],
+    names,
+    groups: new Map(system?.structures.map((s) => [s.id, s.group]) ?? []),
+  }), [system, names]);
   const found = load.state === 'ready' ? load.result.found : [];
   const foundSet = useMemo(() => new Set(found), [found]);
   const visible = useMemo(() => found.filter((id) => !hidden.has(id)), [found, hidden]);
@@ -216,8 +290,8 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
   const toRestore = lazy ? lazyRestore(layers, hidden) : nextToRestore(layers, hidden);
   const layerGapNote = system?.key === WHOLE_BODY_KEY ? unavailableLayersNote(system.structures) : null;
   const labelIds = useMemo(
-    () => (labelsOn && !quiz ? labelsToShow(visible, selected) : []),
-    [labelsOn, quiz, visible, selected],
+    () => (labelsOn && !quiz && !recall ? labelsToShow(visible, selected) : []),
+    [labelsOn, quiz, recall, visible, selected],
   );
   labelIdsRef.current = labelIds;
 
@@ -288,6 +362,8 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     setLoad({ state: 'loading' });
     setSelected(null);
     setQuiz(null);
+    setRecall(null);
+    setAlone(false);
     setPending(new Set());
     setLayerError(null);
     setFilesLoaded(0);
@@ -353,6 +429,8 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     setLoad({ state: 'loading' });
     setSelected(null);
     setQuiz(null);
+    setRecall(null);
+    setAlone(false);
     setPending(new Set());
     setLayerError(null);
     loaderRef.current = null;
@@ -519,6 +597,72 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     if (load.state === 'ready') sceneRef.current?.setAppearance({ hidden, selected });
   }, [hidden, selected, load]);
 
+  // A linked system that only exists once the lab is open (the whole body) is chosen as soon as it appears.
+  useEffect(() => {
+    if (focusSystemDone.current || !focus.system) return;
+    if (systemKey === focus.system) {
+      focusSystemDone.current = true;
+    } else if (systems.some((s) => s.key === focus.system)) {
+      focusSystemDone.current = true;
+      setSystemKey(focus.system);
+    } else if (phase === 'open' || phase === 'error') {
+      focusSystemDone.current = true; // this build doesn't have it: stay on the first system
+    }
+  }, [focus, systems, systemKey, phase]);
+
+  // A linked structure is selected once, when its system's model is ready and really contains it.
+  useEffect(() => {
+    if (focusStructureDone.current || !focus.structure || load.state !== 'ready' || !system) return;
+    if (focus.system && focus.system !== system.key && !focusSystemDone.current) return;
+    focusStructureDone.current = true;
+    const id = focus.structure;
+    if (!load.result.found.includes(id)) return;
+    setHidden((current) => {
+      if (!current.has(id)) return current;
+      const next = new Set(current);
+      next.delete(id);
+      return next;
+    });
+    setSelected(id);
+    setAnnounce(`selected ${names.get(id) ?? id}`);
+  }, [focus, load, system, names]);
+
+  // "name it": the asked structure is the highlighted one, and stays showing (alone, if the student asked for that).
+  const recallTarget = recall?.target ?? null;
+  useEffect(() => {
+    if (!recallTarget || !system) return;
+    setSelected(recallTarget);
+    setHidden((current) => {
+      if (alone) {
+        const only = onlyThis(system.structures.map((s) => s.id), recallTarget);
+        return only.size === current.size && [...only].every((id) => current.has(id)) ? current : only;
+      }
+      if (!current.has(recallTarget)) return current;
+      const next = new Set(current);
+      next.delete(recallTarget);
+      return next;
+    });
+  }, [recallTarget, alone, system, hidden]);
+
+  // Reduced motion follows the device setting while the lab is open: no drag inertia when it is on.
+  useEffect(() => {
+    if (phase !== 'open') return;
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const apply = () => sceneRef.current?.setReducedMotion(mq.matches);
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, [phase]);
+
+  // A worksheet belongs to the system it was made from.
+  useEffect(() => {
+    setWorksheet(null);
+    setWorksheetNote('');
+    setWorksheetBusy(false);
+  }, [systemKey, phase]);
+  useEffect(() => {
+    if (worksheet) worksheetHeadingRef.current?.focus();
+  }, [worksheet]);
+
   // Mobile GPUs can lose their WebGL context after the viewer opens.
   // Retire asynchronous work and preserve the accessible text catalog.
   useEffect(() => {
@@ -544,6 +688,8 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
       setLoad({ state: 'loading' });
       setSelected(null);
       setQuiz(null);
+      setRecall(null);
+      setAlone(false);
       setPending(new Set());
       setLayerError(null);
       setFilesLoaded(0);
@@ -605,6 +751,8 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
   // ── Picking ───────────────────────────────────────────────────────────────────────────────────────────────────────
   const pickStructure = useCallback(
     (id: string | null) => {
+      // "name it" asks about the highlighted structure: a tap must not move the highlight (or announce a name).
+      if (recall) return;
       if (quiz && quiz.target) {
         if (!id) return;
         // Once the answer is shown or found, further clicks must not move the highlight off the target.
@@ -617,7 +765,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
       setSelected((current) => (id === null ? null : current === id ? current : id));
       if (id) setAnnounce(`selected ${names.get(id) ?? id}`);
     },
-    [quiz, names],
+    [quiz, recall, names],
   );
 
   const onPointerDown = (e: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -637,6 +785,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     // mouse click, touch contact or pen-tip release can select a structure.
     if (!p || p.id !== e.pointerId || p.moved || e.button !== 0) return;
     // In quizzes, choose the nearest hit rather than favoring a previous selection.
+    if (recall) return;
     const id = sceneRef.current?.pick(e.clientX, e.clientY, quiz === null) ?? null;
     pickStructure(id);
   };
@@ -649,17 +798,19 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
     const scene = sceneRef.current;
     // The old scene can exist while the newly selected GLB is still loading.
     // Keyboard camera controls must follow the same readiness gate as buttons.
-    if (!scene || load.state !== 'ready') return;
-    switch (e.key) {
-      case 'ArrowLeft': scene.orbit(-STEP, 0); break;
-      case 'ArrowRight': scene.orbit(STEP, 0); break;
-      case 'ArrowUp': scene.orbit(0, -STEP); break;
-      case 'ArrowDown': scene.orbit(0, STEP); break;
-      case '+': case '=': scene.zoom(ZOOM_IN); break;
-      case '-': case '_': scene.zoom(1 / ZOOM_IN); break;
-      default: return;
-    }
+    if (!scene || load.state !== 'ready' || e.altKey || e.ctrlKey || e.metaKey) return;
+    const action = canvasKeyAction(e.key, STEP, ZOOM_IN);
+    if (!action) return;
+    if (action.kind === 'orbit') scene.orbit(action.yaw, action.pitch);
+    else if (action.kind === 'zoom') scene.zoom(action.factor);
+    else if (action.kind === 'reset') scene.resetView();
+    else showView(action.preset);
     e.preventDefault();
+  };
+
+  const showView = (preset: ViewPreset) => {
+    sceneRef.current?.viewFrom(presetDirection(preset));
+    setAnnounce(`${VIEW_PRESETS.find((p) => p.id === preset)?.label ?? preset} view`);
   };
 
   // ── Quiz ──────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -667,11 +818,85 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
   const toggleQuiz = () => {
     if (quiz) {
       setQuiz(null);
+      setRecall(null);
+      setAlone(false);
       setSelected(null);
       return;
     }
+    stopRecall();
     setSelected(null);
     setQuiz(startQuiz(quizPool, Math.random));
+  };
+
+  // ── "name it" (recall) ────────────────────────────────────────────────────────────────────────────────────────────
+  const stopRecall = () => {
+    if (!recall) return;
+    if (alone) {
+      visibilityIntent.bump();
+      setHidden(aloneSavedRef.current);
+    }
+    setAlone(false);
+    setRecall(null);
+    setTyped('');
+    setSelected(null);
+  };
+  const toggleRecall = () => {
+    if (recall) {
+      stopRecall();
+      return;
+    }
+    setQuiz(null);
+    setLabelsOn(false);
+    setTyped('');
+    setRecall(startRecall(visible, recallCatalog, Math.random));
+  };
+  const toggleAlone = () => {
+    if (!recall?.target) return;
+    visibilityIntent.bump();
+    if (alone) setHidden(aloneSavedRef.current);
+    else aloneSavedRef.current = hidden;
+    setAlone(!alone);
+  };
+
+  // ── Worksheet ─────────────────────────────────────────────────────────────────────────────────────────────────────
+  const makeWorksheet = async () => {
+    const scene = sceneRef.current;
+    if (!scene || !system || worksheetBusy) return;
+    const blocked = worksheetBlockReason(visible.length);
+    if (blocked) {
+      setWorksheetNote(blocked);
+      return;
+    }
+    const mine = generation.token();
+    const forSystem = system;
+    setWorksheetBusy(true);
+    setWorksheetNote('');
+    try {
+      const order = worksheetOrder(visible, scene.locate(visible));
+      const { blob, leftOut } = await scene.exportPicture({
+        size: 'square',
+        transparent: false,
+        title: forSystem.title,
+        credit: pictureCreditFor(forSystem),
+        labels: worksheetLabels(order),
+      });
+      if (!generation.isCurrent(mine)) return;
+      const src = await blobToDataUrl(blob);
+      if (!generation.isCurrent(mine)) return;
+      setAnswersShown(false);
+      setWorksheet({
+        systemKey: forSystem.key,
+        title: forSystem.title,
+        src,
+        fileName: worksheetFileName(forSystem.key),
+        rows: worksheetRows(order, leftOut, names),
+        note: worksheetLeftOutNote(order, leftOut),
+      });
+    } catch {
+      if (generation.isCurrent(mine)) setWorksheetNote('could not make the worksheet. please try again.');
+    } finally {
+      if (generation.isCurrent(mine)) setWorksheetBusy(false);
+    }
   };
 
   // ── Export ────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -726,7 +951,9 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
           </svg>
           open the anatomy lab
         </button>
-        <p className="text-sm text-ink-soft">loads the 3D viewer, then one body system at a time.</p>
+        <p className="text-sm text-ink-soft" data-testid="anatomy-cover-note">
+          {coverDownloadNote(system.fixture ? null : system.title, system.fixture ? undefined : modelBytes[system.key])}
+        </p>
       </div>
     );
   }
@@ -878,6 +1105,8 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
                   setLoad({ state: 'loading' });
                   setSelected(null);
                   setQuiz(null);
+                  setRecall(null);
+                  setAlone(false);
                   setPending(new Set());
                   setLayerError(null);
                   setFilesLoaded(0);
@@ -919,7 +1148,10 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
             <LabelOverlay setterRef={setPlacedRef} onMount={updateLabels} />
             {(phase === 'opening' || load.state === 'loading') && (
               <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-surface">
-                <span className="text-sm text-ink-soft">loading {system.title}…</span>
+                <span className="text-sm text-ink-soft">
+                  loading {system.title}
+                  {modelBytes[system.key] !== undefined && formatDownloadSize(modelBytes[system.key]!) ? ` (${formatDownloadSize(modelBytes[system.key]!)})` : ''}…
+                </span>
               </div>
             )}
             {load.state === 'error' && (
@@ -933,6 +1165,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
           </div>
           <p id="anatomy-lab-help" className="sr-only">
             Turn the model by dragging or with the arrow keys; zoom by pinching, scrolling or pressing plus and minus.
+            Number keys 1 to 5 show the front, back, left side, right side and top; 0 resets the view.
             Tap a structure to select it. The list of structures does the same as tapping in 3D.
           </p>
 
@@ -944,17 +1177,71 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
             <button type="button" className={iconButton} aria-label="zoom in" disabled={!ready} onClick={() => sceneRef.current?.zoom(ZOOM_IN)}>+</button>
             <button type="button" className={iconButton} aria-label="zoom out" disabled={!ready} onClick={() => sceneRef.current?.zoom(1 / ZOOM_IN)}>−</button>
             <button type="button" className={secondaryButton} disabled={!ready} onClick={() => sceneRef.current?.resetView()}>reset view</button>
+            <button
+              ref={keysButtonRef}
+              type="button"
+              className={secondaryButton}
+              aria-expanded={keysOpen}
+              aria-controls="anatomy-keys"
+              onClick={() => setKeysOpen((open) => !open)}
+            >
+              <span aria-hidden="true">? </span>keys
+            </button>
             <button ref={showAllButtonRef} type="button" className={secondaryButton} disabled={!ready} onClick={showAll}>show all</button>
             <button
               type="button"
               className={secondaryButton}
               aria-pressed={labelsOn}
-              disabled={!ready || quiz !== null}
+              disabled={!ready || quiz !== null || recall !== null}
               onClick={() => setLabelsOn((on) => !on)}
             >
               labels
             </button>
           </div>
+          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="preset views">
+            <span className="text-sm text-ink-soft" aria-hidden="true">look from:</span>
+            {VIEW_PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                className={secondaryButton}
+                aria-label={`${preset.label} view`}
+                aria-keyshortcuts={preset.key}
+                disabled={!ready}
+                onClick={() => showView(preset.id)}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+          {keysOpen && (
+            <div
+              id="anatomy-keys"
+              role="region"
+              aria-label="keys for the 3D view"
+              className="space-y-2 rounded-lg border border-line bg-surface p-4 text-sm text-ink"
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') {
+                  event.preventDefault();
+                  setKeysOpen(false);
+                  keysButtonRef.current?.focus();
+                }
+              }}
+            >
+              <p className="text-ink-soft">select the 3D view first (tap it, or press Tab until it is outlined), then:</p>
+              <dl className="space-y-1">
+                {KEY_MAP.map((row) => (
+                  <div key={row.keys} className="flex gap-3">
+                    <dt className="w-24 shrink-0"><kbd className="rounded-sm border border-line bg-page px-1.5 font-body text-ink">{row.keys}</kbd></dt>
+                    <dd className="min-w-0">{row.does}</dd>
+                  </div>
+                ))}
+              </dl>
+              <button type="button" className={secondaryButton} onClick={() => { setKeysOpen(false); keysButtonRef.current?.focus(); }}>
+                close keys
+              </button>
+            </div>
+          )}
           {bulkPrompt?.systemKey === system.key && (
             <div
               role="group"
@@ -1067,7 +1354,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
               )}
             </fieldset>
           )}
-          {labelsOn && !quiz && visible.length > labelIds.length && (
+          {labelsOn && !quiz && !recall && visible.length > labelIds.length && (
             <p className="text-sm text-ink-soft">
               {selected ? 'with this many structures showing, only the selected one is labeled.' : 'with this many structures showing, select one to label it.'}
             </p>
@@ -1103,7 +1390,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
             )}
           </div>
 
-          {selectedName && !quiz && (
+          {selectedName && !quiz && !recall && (
             <section className="rounded-lg border border-line bg-surface p-4" aria-labelledby="anatomy-name-card">
               <h2 id="anatomy-name-card" className="text-lg text-ink">{selectedName}</h2>
               {selectedGroup && <p className="text-sm text-ink-soft">{selectedGroup}</p>}
@@ -1223,11 +1510,152 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
             )}
           </section>
 
+          <section className="space-y-3 rounded-lg border border-line p-4" aria-labelledby="anatomy-recall-heading">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 id="anatomy-recall-heading" className="text-lg text-ink">name it</h2>
+              <button
+                type="button"
+                className={secondaryButton}
+                aria-pressed={recall !== null}
+                disabled={!ready || (recall === null && visible.length === 0)}
+                onClick={toggleRecall}
+              >
+                {recall ? 'stop name it' : 'start name it'}
+              </button>
+            </div>
+            {!recall && (
+              <p className="text-sm text-ink-soft">the lab highlights a structure; you pick or type its name.</p>
+            )}
+            {recall && (
+              <div className="space-y-3">
+                <div aria-live="polite" className="space-y-2">
+                  {recall.target ? (
+                    <p className="text-ink">which structure is highlighted? it is drawn solid, and the rest see-through.</p>
+                  ) : (
+                    <p className="text-ink">round done: every structure in this round has been asked.</p>
+                  )}
+                  {recall.feedback?.kind === 'right' && (
+                    <p className="text-ink" data-feedback="right">
+                      <span aria-hidden="true">✓ </span>right: {names.get(recall.target ?? '') ?? recall.target}.
+                    </p>
+                  )}
+                  {recall.feedback?.kind === 'wrong' && (
+                    <p className="text-ink" data-feedback="wrong">
+                      <span aria-hidden="true">✗ </span>not this one: {recall.feedback.how === 'typed' ? 'you typed' : 'you picked'} {recall.feedback.answer}. try again, or tap show me.
+                    </p>
+                  )}
+                  {recall.feedback?.kind === 'shown' && (
+                    <p className="text-ink" data-feedback="shown">it is: {names.get(recall.target ?? '') ?? recall.target}.</p>
+                  )}
+                </div>
+                {recall.target && (
+                  <>
+                    <button type="button" className={secondaryButton} aria-pressed={alone} onClick={toggleAlone}>
+                      see it alone
+                    </button>
+                    {recall.choices.length > 0 && (
+                      <fieldset className="space-y-2">
+                        <legend className="text-sm text-ink-soft">pick its name</legend>
+                        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                          {recall.choices.map((id) => {
+                            const settled = recallSettled(recall);
+                            const isTarget = settled && id === recall.target;
+                            const isWrongPick = recall.feedback?.kind === 'wrong' && recall.feedback.how === 'picked'
+                              && recall.feedback.answer === (names.get(id) ?? id);
+                            return (
+                              <button
+                                key={id}
+                                type="button"
+                                className="min-h-11 rounded-md border border-control px-3 py-2 text-left text-sm text-ink disabled:opacity-60"
+                                disabled={settled}
+                                onClick={() => setRecall(answerRecallChoice(recall, id, recallCatalog))}
+                              >
+                                {isTarget && <span aria-hidden="true">✓ </span>}
+                                {isWrongPick && <span aria-hidden="true">✗ </span>}
+                                {names.get(id) ?? id}
+                                {isTarget && <span className="sr-only"> (the answer)</span>}
+                                {isWrongPick && <span className="sr-only"> (not this one)</span>}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </fieldset>
+                    )}
+                    <form
+                      className="flex flex-wrap items-end gap-2"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        setRecall(answerRecallTyped(recall, typed, recallCatalog));
+                      }}
+                    >
+                      <label className="block min-w-0 flex-1 text-sm text-ink" htmlFor="anatomy-recall-typed">
+                        {recall.choices.length > 0 ? 'or type its name' : 'type its name'}
+                        <input
+                          id="anatomy-recall-typed"
+                          type="text"
+                          value={typed}
+                          autoComplete="off"
+                          spellCheck={false}
+                          maxLength={200}
+                          disabled={recallSettled(recall)}
+                          onChange={(event) => setTyped(event.target.value)}
+                          className="mt-1 min-h-11 w-full rounded-md border border-control bg-page px-3 text-ink"
+                        />
+                      </label>
+                      <button type="submit" className={secondaryButton} disabled={recallSettled(recall) || typed.trim() === ''}>
+                        check
+                      </button>
+                    </form>
+                  </>
+                )}
+                <p className="text-sm text-ink-soft">
+                  guided practice: a typed name must match the official name (capitals and punctuation don't matter). not a scored assessment.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {recall.target ? (
+                    <>
+                      <button
+                        type="button"
+                        className={secondaryButton}
+                        disabled={recallSettled(recall)}
+                        onClick={() => setRecall(revealRecall(recall))}
+                      >
+                        show me
+                      </button>
+                      <button
+                        type="button"
+                        className={primaryButton}
+                        onClick={() => {
+                          setTyped('');
+                          setRecall(nextRecall(recall, recallCatalog, Math.random));
+                        }}
+                      >
+                        next
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className={primaryButton}
+                      disabled={recall.pool.length === 0}
+                      onClick={() => {
+                        setTyped('');
+                        setRecall(startRecall(recall.pool, recallCatalog, Math.random));
+                      }}
+                    >
+                      start again
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </section>
+
           <fieldset className="space-y-3 rounded-lg border border-line p-4">
             <legend className="px-1 text-sm text-ink-soft">export a picture</legend>
             <div className="flex flex-wrap gap-2">
               {(Object.keys(EXPORT_SIZES) as ExportSize[]).map((size) => (
-                <button key={size} type="button" className={secondaryButton} disabled={!ready || exporting !== null} onClick={() => exportPicture(size)}>
+                <button key={size} type="button" className={secondaryButton} disabled={!ready || exporting !== null || recall !== null} onClick={() => exportPicture(size)}>
                   {EXPORT_SIZES[size].label}
                 </button>
               ))}
@@ -1238,10 +1666,85 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
             </label>
             <p className="text-sm text-ink-soft" aria-live="polite">{exporting ? 'drawing the picture…' : exportNote}</p>
           </fieldset>
+
+          <section className="space-y-3 rounded-lg border border-line p-4" aria-labelledby="anatomy-worksheet-tools">
+            <h2 id="anatomy-worksheet-tools" className="text-lg text-ink">worksheet</h2>
+            <p className="text-sm text-ink-soft">
+              a picture of this view with numbers instead of names, and a numbered list to fill in. up to 12 structures.
+            </p>
+            <button
+              type="button"
+              className={secondaryButton}
+              disabled={!ready || worksheetBusy || recall !== null || exporting !== null}
+              onClick={() => void makeWorksheet()}
+            >
+              make a worksheet
+            </button>
+            <p className="text-sm text-ink-soft" aria-live="polite" data-testid="anatomy-worksheet-status">
+              {worksheetBusy ? 'drawing the worksheet…' : worksheetNote}
+            </p>
+          </section>
+
+          {worksheet && worksheet.systemKey === system.key && (
+            <section className="anatomy-worksheet space-y-4 rounded-lg border border-line bg-page p-4" aria-labelledby="anatomy-worksheet-heading">
+              <h2 ref={worksheetHeadingRef} tabIndex={-1} id="anatomy-worksheet-heading" className="text-lg text-ink">
+                worksheet: {worksheet.title}
+              </h2>
+              {drafts && system.status === 'draft' && (
+                <p className="rounded-md border border-line px-3 py-2 text-sm text-ink">draft · labels waiting for review</p>
+              )}
+              <img
+                src={worksheet.src}
+                alt={`numbered picture of ${worksheet.title}. each number points to a structure; write its name on the matching line below.`}
+                className="block h-auto w-full max-w-prose rounded-md border border-line"
+                width={1080}
+                height={1080}
+              />
+              {worksheet.note && <p className="text-sm text-ink-soft">{worksheet.note}</p>}
+              <ol className="space-y-3" aria-label="names to fill in">
+                {worksheet.rows.map((row) => (
+                  <li key={row.id} className="flex flex-wrap items-baseline gap-2 text-ink">
+                    <span className="min-w-8">{row.number}.</span>
+                    {answersShown ? (
+                      <span>{row.name}</span>
+                    ) : (
+                      <>
+                        <span className="anatomy-worksheet-blank min-w-0 flex-1 border-b border-ink" aria-hidden="true" />
+                        <span className="sr-only">blank: write the name of structure {row.number}</span>
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ol>
+              <div className="anatomy-worksheet-credit space-y-1 text-sm text-ink-soft" data-testid="anatomy-worksheet-credit">
+                {worksheetCreditLines(system).map((line) => <p key={line}>{line}</p>)}
+              </div>
+              <div className="anatomy-worksheet-tools flex flex-wrap gap-2">
+                <button type="button" className={secondaryButton} aria-pressed={answersShown} onClick={() => setAnswersShown((on) => !on)}>
+                  show answers
+                </button>
+                <button type="button" className={primaryButton} onClick={() => printGame('anatomy-worksheet')}>
+                  print worksheet
+                </button>
+                <a className={`${secondaryButton} inline-flex items-center`} href={worksheet.src} download={worksheet.fileName}>
+                  save the picture
+                </a>
+                <button type="button" className={secondaryButton} onClick={() => setWorksheet(null)}>
+                  close worksheet
+                </button>
+              </div>
+            </section>
+          )}
+
         </div>
 
         <section className="space-y-3" aria-labelledby="anatomy-list-heading">
           <h2 id="anatomy-list-heading" className="text-lg text-ink">structures</h2>
+          {recall ? (
+            <p className="text-sm text-ink-soft" data-testid="anatomy-list-paused">
+              the list is put away during name it, so it doesn't give the answer away. stop name it to see it again.
+            </p>
+          ) : (<>
           <label className="block text-sm text-ink-soft" htmlFor="anatomy-search">find a structure by name or source ID</label>
           <input
             id="anatomy-search"
@@ -1320,6 +1823,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts }: Pr
               </button>
             )}
           </div>
+          </>)}
         </section>
       </div>
     </div>
