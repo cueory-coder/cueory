@@ -1,16 +1,23 @@
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, sep } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const contentRoot = new URL('../../content/', import.meta.url);
 const doc = readFileSync(new URL('../../docs/CONTENT-MAP.md', import.meta.url), 'utf8');
 
-/** List every directory, including empty ones and directories nested inside games. */
-function contentFolders(root: URL, prefix = 'content'): string[] {
-  return readdirSync(root, { withFileTypes: true }).flatMap((entry) => {
-    if (!entry.isDirectory()) return [];
-    const path = `${prefix}/${entry.name}/`;
-    return [path, ...contentFolders(new URL(`${entry.name}/`, root), path.slice(0, -1))];
-  });
+/** Map top-level folders plus game subfolders, not private local batch folders. */
+function contentFolders(root: URL = contentRoot): string[] {
+  const top = readdirSync(root, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name);
+  const games = top.includes('games')
+    ? readdirSync(new URL('games/', root), { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => `content/games/${entry.name}/`)
+    : [];
+  return [...top.map((name) => `content/${name}/`), ...games].sort();
 }
 
 /** Only the folder column of the guide's Markdown table is authoritative. */
@@ -24,11 +31,33 @@ function mappedFolders(markdown: string): { path: string; cells: string[] }[] {
 
 describe('public content folder map', () => {
   it('includes every existing folder exactly once and no folder that is gone', () => {
-    const actual = contentFolders(contentRoot).sort();
+    const actual = contentFolders();
     const mapped = mappedFolders(doc).map((row) => row.path);
     expect(actual.length).toBeGreaterThan(0);
     expect(new Set(mapped).size, 'duplicate folder rows').toBe(mapped.length);
     expect(mapped.sort(), 'update docs/CONTENT-MAP.md when a content folder changes').toEqual(actual);
+  });
+
+
+  it('ignores locally created private batch folders and other nested files', () => {
+    const sandbox = mkdtempSync(join(tmpdir(), 'cueory-content-map-'));
+    try {
+      mkdirSync(join(sandbox, 'batches', 'private-review-batch'), { recursive: true });
+      mkdirSync(join(sandbox, 'lessons', 'local-working-copy'), { recursive: true });
+      mkdirSync(join(sandbox, 'games', 'pulse', 'nested-draft'), { recursive: true });
+      mkdirSync(join(sandbox, 'games', 'cueword'), { recursive: true });
+      const folders = contentFolders(pathToFileURL(sandbox + sep));
+      expect(folders).toEqual([
+        'content/batches/',
+        'content/games/',
+        'content/games/cueword/',
+        'content/games/pulse/',
+        'content/lessons/',
+      ]);
+      expect(folders).not.toContain('content/batches/private-review-batch/');
+    } finally {
+      rmSync(sandbox, { recursive: true, force: true });
+    }
   });
 
   it('explains the purpose, location and publication rule for each folder', () => {
