@@ -133,23 +133,40 @@ export interface DeviceProgressSnapshot {
 }
 
 /** Run the canonical legacy merge on a private copy, never on the student's storage. */
-function recoveredCopy(storage: KeyValueStorage, raw: string): Progress {
-  const values = new Map<string, string>([[PROGRESS_STORAGE_KEY, raw]]);
+function recoveredCopy(storage: KeyValueStorage, raw: string | null): Progress {
+  const values = new Map<string, string>();
+  if (raw !== null) values.set(PROGRESS_STORAGE_KEY, raw);
+  const sourceStars: [string, readonly string[]][] = Object.entries(parseProgress(raw).decks)
+    .map(([id, deck]) => [id, deck.starred]);
   const prefix = legacyStarsKey('');
   const length = storage.length ?? 0;
   for (let index = 0; index < length; index++) {
     const key = storage.key?.(index);
     if (!key?.startsWith(prefix)) continue;
     const value = storage.getItem(key);
-    if (value !== null) values.set(key, value);
+    if (value !== null) {
+      values.set(key, value);
+      sourceStars.push([key.slice(prefix.length), JSON.parse(value)]);
+    }
   }
-  return migrateLegacyStars({
+  const merged = migrateLegacyStars({
     getItem: (key) => values.get(key) ?? null,
     setItem: (key, value) => { values.set(key, value); },
     removeItem: (key) => { values.delete(key); },
     get length() { return values.size; },
     key: (index) => [...values.keys()][index] ?? null,
   });
+  // Individually valid sources can exceed the combined star/deck limits. Check the
+  // private result before allowing real writes, preserving stars from BOTH sources.
+  for (const [id, stars] of sourceStars) {
+    const combined = new Set(merged.decks[id]?.starred ?? []);
+    if (!stars.every((star) => combined.has(star))) throw new Error('saved stars exceed export limits');
+  }
+  const serialized = JSON.stringify(merged);
+  if (JSON.stringify(parseProgress(serialized)) !== serialized) {
+    throw new Error('saved progress exceeds export limits');
+  }
+  return merged;
 }
 
 /** Check the stored record before any legacy migration or other storage writes. */
@@ -161,13 +178,14 @@ export function readDeviceProgress(storage: KeyValueStorage | undefined): Device
     // A malformed old-star key cannot safely be included in a recovery download.
     // Do not migrate or offer a partial backup that could be followed by Forget.
     if (!readableLegacyStars(storage)) return unreadable;
+    const merged = recoveredCopy(storage, raw);
     if (!readableRecord(raw)) {
       // The canonical parser may still recover valid piles from a partly damaged record.
       // Display those fields read-only, preserving the original bytes and legacy star keys.
       const recovered = parseProgress(raw);
       return isEmptyProgress(recovered)
         ? unreadable
-        : { progress: recoveredCopy(storage, raw!), state: 'ready', recovered: true };
+        : { progress: merged, state: 'ready', recovered: true };
     }
     const progress = migrateLegacyStars(storage);
     return {

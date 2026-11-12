@@ -347,6 +347,28 @@ describe('readDeviceProgress guards storage before migration', () => {
     expect(existing.values.has(legacyStarsKey('one'))).toBe(false);
   });
 
+  it.each([false, true])('blocks a migration whose combined stars exceed the canonical limit (old stars sort first: %s)', (legacyFirst) => {
+    const many = Array.from({ length: 2000 }, (_, i) => 'b-' + i);
+    const primaryStars = legacyFirst ? ['z'] : many;
+    const legacyStars = legacyFirst ? many : ['z'];
+    const raw = JSON.stringify({ version: 1, decks: { one: { starred: primaryStars } } });
+    const existing = store({ [PROGRESS_STORAGE_KEY]: raw, [legacyStarsKey('one')]: JSON.stringify(legacyStars) });
+    const original = [...existing.values.entries()];
+    expect(readDeviceProgress(existing.storage).state).toBe('unreadable');
+    expect(existing.mutations).toEqual([]);
+    expect([...existing.values.entries()]).toEqual(original);
+  });
+
+  it('blocks migration when a valid legacy deck would exceed the canonical deck limit', () => {
+    const decks = Object.fromEntries(Array.from({ length: 500 }, (_, i) => ['sample-' + i, { know: ['a'] }]));
+    const raw = JSON.stringify({ version: 1, decks });
+    const existing = store({ [PROGRESS_STORAGE_KEY]: raw, [legacyStarsKey('new-sample')]: '["b"]' });
+    const original = [...existing.values.entries()];
+    expect(readDeviceProgress(existing.storage).state).toBe('unreadable');
+    expect(existing.mutations).toEqual([]);
+    expect([...existing.values.entries()]).toEqual(original);
+  });
+
   it('migrates old stars only when the primary record is readable', () => {
     const existing = store({
       [PROGRESS_STORAGE_KEY]: JSON.stringify({ version: 1, onboarding: { done: true }, decks: { one: { know: ['a'] } } }),

@@ -402,6 +402,33 @@ test('malformed legacy stars do not disappear during the progress-page read or k
   }))).toEqual({ original: raw, stars: badStars });
 });
 
+test('combined legacy stars beyond the safe limit preserve both records and hide destructive controls', async ({ page }) => {
+  const raw = JSON.stringify({ version: 1, decks: { 'study-skills-01': {
+    starred: Array.from({ length: 2000 }, (_, i) => 'sample-' + i),
+  } } });
+  const legacy = '["z-sample"]';
+  await page.addInitScript(({ raw, legacy }) => {
+    if (sessionStorage.getItem('combined-limit-seeded')) return;
+    sessionStorage.setItem('combined-limit-seeded', '1');
+    localStorage.setItem('cueory-progress', raw);
+    localStorage.setItem('cueory-stars-study-skills-01', legacy);
+  }, { raw, legacy });
+  const original = () => page.evaluate(() => ({
+    primary: localStorage.getItem('cueory-progress'),
+    legacy: localStorage.getItem('cueory-stars-study-skills-01'),
+  }));
+  await page.goto('/progress');
+  await expect(page.getByRole('heading', { name: 'we couldn’t read your progress' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'download my progress' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'forget my progress on this device' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'try again' }).focus();
+  await page.keyboard.press('Enter');
+  expect(await original()).toEqual({ primary: raw, legacy });
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'we couldn’t read your progress' })).toBeVisible();
+  expect(await original()).toEqual({ primary: raw, legacy });
+});
+
 test('retry recovers when previously unreadable data becomes readable', async ({ page }) => {
   await page.addInitScript(() => {
     if (sessionStorage.getItem('seeded-corruption')) return;

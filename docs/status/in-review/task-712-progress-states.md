@@ -1,1 +1,1 @@
-STATUS: Task 712 (W12), progress-page states (#12): explicit empty, ready and unreadable views, non-destructive recovery including legacy stars, guarded card lists, retry and accessibility tests; current-head browser verification pending.
+STATUS: Task 712 (W12), progress-page states (#12): read-only preflight preserves primary and legacy data, including combined star/deck limits; incomplete backups hide Download/Forget; Draft pending current-head browser verification.
