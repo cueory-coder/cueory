@@ -86,6 +86,42 @@ describe('bad sample fixture detection', () => {
     }
   });
 
+  it('accepts each current crossword level and matches the game parser for larger grids', () => {
+    const samples = readGameSampleFiles('cueword');
+    for (const [level, size] of [['easy', 5], ['mid', 7], ['hard', 15]] as const) {
+      const sample = samples.find((item) => (item.data as { level?: string } | null)?.level === level);
+      expect(sample, level + ' sample must exist').toBeDefined();
+      const data = sample!.data as { grid: string[]; level: string; clues: unknown };
+      expect(data.grid).toHaveLength(size);
+      expect(data.grid.every((row) => row.length === size)).toBe(true);
+      expect(() => parseCrossword({ id: sample!.name.slice(0, -5), sample: true, ...data })).not.toThrow();
+      expect(analyzePuzzleRunway('cueword', [sample!], at(1)).invalidFiles).toEqual([]);
+    }
+  });
+
+  it('rejects invalid crossword levels, dimensions, asymmetric blocks and short entries', () => {
+    const easy = readGameSampleFiles('cueword').find((item) =>
+      (item.data as { level?: string } | null)?.level === 'easy')!.data as {
+        status: string; level: string; grid: string[]; clues: unknown;
+      };
+    const badSymmetry = [...easy.grid];
+    badSymmetry[0] = badSymmetry[0]!.slice(0, 1) + '.' + badSymmetry[0]!.slice(2);
+    const shortEntries = [...easy.grid];
+    shortEntries[0] = '.AB..';
+    shortEntries[shortEntries.length - 1] = '..ST.';
+    const malformed = [
+      { ...easy, level: 'hard' },
+      { ...easy, level: 'expert' },
+      { ...easy, grid: badSymmetry },
+      { ...easy, grid: shortEntries },
+    ];
+    for (const data of malformed) {
+      expect(() => parseCrossword({ id: 'sample-01', sample: true, ...data })).toThrow();
+      const report = analyzePuzzleRunway('cueword', [{ name: 'sample-01.json', data }], at(1));
+      expect(report.invalidFiles).toContain('sample-01.json');
+      expect(report.daysLeft).toBe(0);
+    }
+  });
   it('rejects malformed word paths before counting a playable day', () => {
     const filename = 'sample-01.json';
     const malformed = [

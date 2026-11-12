@@ -1,1 +1,1 @@
-status: W11-2 (#50), daily-puzzle runway: Node-only sample inventory, local-date coverage and duplicate/repeat/gap tests, with a plain-English inventory guide. Ready for Claude review.
+STATUS: W11-2 (#50), daily-puzzle runway: sample rotation and gap/duplicate/repeat tests; updated parser parity for 5/7/15-square crossword levels. Draft until Claude includes the required docs/README.md index line and runs current-head tests.

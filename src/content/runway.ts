@@ -86,7 +86,19 @@ function validGrid(value: unknown, maximum: number, allowGaps: boolean): value i
 function playableCrossword(data: Record<string, unknown>): boolean {
   const grid = data.grid;
   const clues = data.clues;
-  if (!validGrid(grid, 7, true) || !isRecord(clues)) return false;
+  if (!validGrid(grid, 15, true) || !isRecord(clues)) return false;
+  // Match cueword.parsePuzzle: old samples may omit a level, while
+  // easy/mid/hard require 5/7/15-square grids and valid block patterns.
+  if (data.level !== undefined) {
+    const size = data.level === 'easy' ? 5 : data.level === 'mid' ? 7 : data.level === 'hard' ? 15 : null;
+    if (size === null || grid.length !== size || grid[0]!.length !== size) return false;
+    const flat = grid.join('');
+    if ([...flat].some((letter, index) => (letter === '.') !== (flat[flat.length - 1 - index] === '.'))) return false;
+    const across = grid.flatMap((row) => row.split('.'));
+    const down = Array.from({ length: grid[0]!.length }, (_, column) =>
+      grid.map((row) => row[column]).join('')).flatMap((column) => column.split('.'));
+    if ([...across, ...down].some((entry) => entry.length > 0 && entry.length < 3)) return false;
+  }
   const width = grid[0]!.length;
   const expected = { across: new Set<number>(), down: new Set<number>() };
   const covered = new Set<number>();

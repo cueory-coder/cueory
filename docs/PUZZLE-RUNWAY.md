@@ -17,9 +17,11 @@ Each line gives a game, how many fresh sample days remain **including today**, t
 | Game on site | Public sample files | First fresh day | Last fresh day | Fresh days left on Nov 11 |
 | --- | ---: | --- | --- | ---: |
 | pillo (folder `pulse`) | 10 | Nov 1 | Nov 10 | 0 |
-| crossword (folder `cueword`) | 6 | Nov 1 | Nov 6 | 0 |
+| crossword (folder `cueword`) | 9 | Nov 1 | Nov 9 | 0 |
 | sudoku | Not file-based | No end date | No end date | No file limit |
 | word path (folder `suture`) | 5 | Nov 1 | Nov 5 | 0 |
+
+The crossword samples now include easy (5 × 5), mid (7 × 7) and hard (15 × 15) grids. These are checked against the same size, symmetry and entry-length rules as the game.
 
 The old `triage` folder has **7** sorting-game samples, with a first window of **November 1–7, 2026**. Those files are **not** used by the current Sudoku game. `stat` and `hello-cards` are other games and are not part of this four-game daily puzzle runway.
 
