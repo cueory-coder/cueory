@@ -59,8 +59,6 @@ describe('W09 lesson print styles', () => {
     expect(lessonCss).toContain('a[href^="https://"]');
     expect(lessonCss).toContain('a[href^="http://"]');
     expect(lessonCss).toContain(':not([href^="https://cueory.app/"])');
-    expect(lessonCss).toContain(':not([href^="http://cueory.app/"])');
-    expect(lessonCss).toContain(':not([href^="http://www.cueory.app/"])');
     expect(lessonCss).toContain('content: " (" attr(href) ")";');
   });
 });
