@@ -2,7 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readBreakState, writeBreakState } from '../../src/scripts/breakstore';
 import {
   DEFAULT_BREAK_SETTINGS,
+  applyMove,
+  breakAnnouncement,
   nextRefreshMs,
+  roundedMinutesLeft,
   parseSettings,
   pause,
   remainingMs,
@@ -236,5 +239,101 @@ describe('W19: minute-boundary refresh precision', () => {
     expect(nextRefreshMs(pause(running, at + 12_345), at + 100 * MINUTE)).toBe(0);
     expect(nextRefreshMs(turnOff(running, at), at)).toBe(0);
     expect(nextRefreshMs(tick(running, at + 20 * MINUTE), at + 20 * MINUTE)).toBe(0);
+  });
+});
+
+describe('W19: pure accessible announcements', () => {
+  const base = turnOn(startBreaks(), at);
+
+  it('announces phase changes, including break due, paused, and off', () => {
+    const due = tick(base, at + 25 * MINUTE);
+    const paused = pause(base, at + 7 * MINUTE);
+    expect(breakAnnouncement({ status: 'off', minutes: 0 }, base, at)).toBe('studying: 25 minutes left.');
+    expect(breakAnnouncement({ status: 'focusing', minutes: 1 }, due, at + 25 * MINUTE))
+      .toBe('time for a short break.');
+    expect(breakAnnouncement({ status: 'focusing', minutes: 18 }, paused, at + 7 * MINUTE))
+      .toBe('studying paused: 18 minutes left.');
+    expect(breakAnnouncement({ status: 'paused', minutes: 18 }, turnOff(paused, at), at))
+      .toBe('break timer is off.');
+  });
+
+  it('does not announce an ordinary minute change from 25 to 24', () => {
+    expect(roundedMinutesLeft(base, at + MINUTE)).toBe(24);
+    expect(breakAnnouncement({ status: 'focusing', minutes: 25 }, base, at + MINUTE)).toBeNull();
+  });
+
+  it('announces a five-minute boundary from 21 to 20', () => {
+    expect(breakAnnouncement({ status: 'focusing', minutes: 21 }, base, at + 5 * MINUTE))
+      .toBe('studying: 20 minutes left.');
+  });
+
+  it('announces the final minute from 2 to 1', () => {
+    expect(breakAnnouncement({ status: 'focusing', minutes: 2 }, base, at + 24 * MINUTE))
+      .toBe('studying: 1 minute left.');
+  });
+
+  it('does not repeat an unchanged minute or announce minute-only marks when paused or off', () => {
+    const paused = pause(base, at + 7 * MINUTE);
+    const off = turnOff(base, at);
+    expect(breakAnnouncement({ status: 'focusing', minutes: 20 }, base, at + 5 * MINUTE)).toBeNull();
+    expect(breakAnnouncement({ status: 'paused', minutes: 20 }, paused, at + 70 * MINUTE)).toBeNull();
+    expect(breakAnnouncement({ status: 'off', minutes: 5 }, off, at + 70 * MINUTE)).toBeNull();
+  });
+
+  it('announces meaningful marks while on a break but not while break is due', () => {
+    const breaking = startBreak(tick(base, at + 25 * MINUTE), at + 25 * MINUTE);
+    expect(breakAnnouncement({ status: 'on break', minutes: 2 }, breaking, at + 29 * MINUTE))
+      .toBe('on a break: 1 minute left.');
+    const due = tick(base, at + 25 * MINUTE);
+    expect(breakAnnouncement({ status: 'break due', minutes: 1 }, due, at + 90 * MINUTE)).toBeNull();
+  });
+});
+
+describe('W19: pure settle-first user moves', () => {
+  const focusing = turnOn(startBreaks(settings), at);
+  const breaking = startBreak(tick(focusing, at + 20 * MINUTE), at + 20 * MINUTE);
+
+  it('uses pause itself to settle an expired focus or break without freezing the next phase', () => {
+    expect(applyMove(pause, focusing, at + 20 * MINUTE)).toMatchObject({
+      status: 'break due', endsAt: null,
+    });
+    expect(applyMove(pause, breaking, at + 24 * MINUTE)).toMatchObject({
+      status: 'focusing', endsAt: at + 44 * MINUTE, pausedFrom: null,
+    });
+  });
+
+  it('keeps a normal pause precise, then resumes its remaining time', () => {
+    const paused = applyMove(pause, focusing, at + 7 * MINUTE + 501);
+    expect(paused).toMatchObject({ status: 'paused', pausedRemainingMs: 13 * MINUTE - 501 });
+    expect(applyMove(resume, paused, at + 100 * MINUTE)).toMatchObject({
+      status: 'focusing', endsAt: at + 113 * MINUTE - 501,
+    });
+  });
+
+  it('starts a break when a stale focusing view has just expired', () => {
+    expect(applyMove(startBreak, focusing, at + 20 * MINUTE)).toMatchObject({
+      status: 'on break', endsAt: at + 24 * MINUTE,
+    });
+  });
+
+  it('settles an expired break before resume rather than keeping its stale phase', () => {
+    expect(applyMove(resume, breaking, at + 24 * MINUTE)).toMatchObject({
+      status: 'focusing', endsAt: at + 44 * MINUTE,
+    });
+  });
+
+  it('allows turning off an expired timer and leaves no pending deadline', () => {
+    expect(applyMove(turnOff, breaking, at + 24 * MINUTE)).toMatchObject({
+      status: 'off', endsAt: null, pausedFrom: null, pausedRemainingMs: 0,
+    });
+  });
+
+  it('settles a stale focus before skip or snooze', () => {
+    expect(applyMove(skipBreak, focusing, at + 20 * MINUTE)).toMatchObject({
+      status: 'focusing', endsAt: at + 40 * MINUTE,
+    });
+    expect(applyMove(snooze, focusing, at + 20 * MINUTE)).toMatchObject({
+      status: 'focusing', endsAt: at + 25 * MINUTE,
+    });
   });
 });

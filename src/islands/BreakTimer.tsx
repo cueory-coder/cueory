@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { BREAK_STORAGE_KEY, readBreakState, writeBreakState } from '../scripts/breakstore';
 import {
+  applyMove,
+  breakAnnouncement,
   pause,
   nextRefreshMs,
-  remainingMs,
+  roundedMinutesLeft,
   resume,
   skipBreak,
   snooze,
@@ -16,16 +18,15 @@ import {
   type BreakSettings,
   type BreakState,
   type BreakStatus,
+  type BreakMove,
 } from './breaks';
 
 interface Props {
   settings?: BreakSettings;
 }
 
-type Move = (state: BreakState, now: number) => BreakState;
 type FocusTarget = 'pause-resume' | 'break-choice';
 
-const MINUTE_MS = 60_000;
 const control = 'min-h-11 min-w-11 rounded-md border border-control bg-page px-4 py-2 text-ink disabled:opacity-50';
 
 /** Optional and deliberately plain: no sound, automatic opening or animated ring. */
@@ -44,7 +45,7 @@ export default function BreakTimer({ settings }: Props) {
   const on = state.status !== 'off';
   const canPause = state.status === 'focusing' || state.status === 'on break' || state.status === 'paused';
   const isPaused = state.status === 'paused';
-  const minutes = Math.ceil(remainingMs(state, now) / MINUTE_MS);
+  const minutes = roundedMinutesLeft(state, now);
 
   // Hydrate from the tab's saved end time. In restrictive browsers, keep the timer in memory.
   useEffect(() => {
@@ -77,12 +78,8 @@ export default function BreakTimer({ settings }: Props) {
   // The visible text stays readable to screen readers without announcing every second.
   useEffect(() => {
     if (!ready) return;
-    const previous = previousAnnouncement.current;
-    const running = state.status === 'focusing' || state.status === 'on break';
-    if (
-      state.status !== previous.status
-      || (running && minutes !== previous.minutes && (minutes === 1 || (minutes > 0 && minutes % 5 === 0)))
-    ) setAnnouncement(statusInWords(state, now));
+    const words = breakAnnouncement(previousAnnouncement.current, state, now);
+    if (words !== null) setAnnouncement(words);
     previousAnnouncement.current = { status: state.status, minutes };
   }, [ready, state, minutes, now]);
 
@@ -129,7 +126,7 @@ export default function BreakTimer({ settings }: Props) {
       ?.focus({ preventScroll: true });
   });
 
-  const move = (change: Move, focus?: FocusTarget) => {
+  const move = (change: BreakMove, focus?: FocusTarget) => {
     const current = Date.now();
     focusAfterMove.current = focus ?? null;
     if (
@@ -139,9 +136,7 @@ export default function BreakTimer({ settings }: Props) {
       && document.activeElement === pauseResumeControl.current
     ) focusAfterMove.current = 'break-choice';
     setNow(current);
-    // Pause must settle an expired phase without pausing the brand-new focus period.
-    // Other commands reconcile stale deadlines before executing their requested action.
-    setState(value => change === pause ? pause(value, current) : change(tick(value, current), current));
+    setState(value => applyMove(change, value, current));
   };
 
   return (

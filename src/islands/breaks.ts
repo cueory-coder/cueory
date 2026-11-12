@@ -125,6 +125,13 @@ export function tick(state: BreakState, now: number): BreakState {
   return state;
 }
 
+/** Settle a stale deadline before a command. Pause has its own settle-first rule. */
+export type BreakMove = (state: BreakState, now: number) => BreakState;
+
+export function applyMove(change: BreakMove, state: BreakState, now: number): BreakState {
+  return change === pause ? pause(state, now) : change(tick(state, now), now);
+}
+
 export function remainingMs(state: BreakState, now: number): number {
   if (state.status === 'paused') return state.pausedRemainingMs;
   if ((state.status === 'focusing' || state.status === 'on break') && state.endsAt !== null) {
@@ -141,8 +148,13 @@ export function nextRefreshMs(state: BreakState, now: number): number {
   return remaining % MINUTE_MS || MINUTE_MS;
 }
 
+/** Rounded minute label displayed to the student and used to pace screen reader updates. */
+export function roundedMinutesLeft(state: BreakState, now: number): number {
+  return Math.ceil(remainingMs(state, now) / MINUTE_MS);
+}
+
 function minutesLeft(state: BreakState, now: number): string {
-  const minutes = Math.ceil(remainingMs(state, now) / MINUTE_MS);
+  const minutes = roundedMinutesLeft(state, now);
   return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'} left`;
 }
 
@@ -153,4 +165,16 @@ export function statusInWords(state: BreakState, now: number): string {
   if (state.status === 'on break') return `on a break: ${minutesLeft(state, now)}.`;
   if (state.pausedFrom === 'on break') return `break paused: ${minutesLeft(state, now)}.`;
   return `studying paused: ${minutesLeft(state, now)}.`;
+}
+
+/** Announce a new phase or a meaningful minute mark, never every timer tick. */
+export function breakAnnouncement(
+  previous: { status: BreakStatus; minutes: number }, state: BreakState, now: number,
+): string | null {
+  if (state.status !== previous.status) return statusInWords(state, now);
+  const running = state.status === 'focusing' || state.status === 'on break';
+  const minutes = roundedMinutesLeft(state, now);
+  return running && minutes !== previous.minutes && (minutes === 1 || (minutes > 0 && minutes % 5 === 0))
+    ? statusInWords(state, now)
+    : null;
 }
