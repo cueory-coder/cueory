@@ -1,0 +1,1 @@
+status: W05 (#5), resources page shell: isolated noindex route with responsive sections, labeled placeholders and accessibility tests. Awaiting Claude review, browser checks and shared JS-budget registration.
