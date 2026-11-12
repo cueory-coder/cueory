@@ -1,6 +1,20 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
+// The marketing promo can open after navigation and steal focus from the link under test.
+// Suppress it for every browser case. Clear theme overrides so the requested
+// Light/Evening device setting is actually exercised.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem('cueory-promo-seen', String(Date.now()));
+      localStorage.removeItem('cueory-theme');
+    } catch {
+      // Pages must still be usable if browser storage is unavailable.
+    }
+  });
+});
+
 test.describe('coming soon page', () => {
   test('lists planned courses and roadmap study features', async ({ page }) => {
     await page.goto('/coming-soon');
