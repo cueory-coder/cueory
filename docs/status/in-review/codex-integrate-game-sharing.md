@@ -28,3 +28,9 @@ Two behavioral Vitest regressions reproduced the old handler calling native shar
 Four unit cases run the actual result-host handlers with controlled hooks and browser/share stand-ins: fresh activation, close during preparation, result replacement, and immediate copy fallback. The first two failed against the original handler. A browser regression was added for delayed logo loading, no premature native share, retained keyboard focus, and Enter invoking file sharing with active user activation. It was discovered across all four configured Chromium projects, but actual browser assertions did not run because Playwright's pinned Chromium executable is missing. Historical browser results do not validate this new flow.
 
 Validation on the repaired source: Astro check 0 errors / 0 warnings / 26 hints, build passed, full Vitest 214 files / 5491 tests passed with 3 existing skips, browser discovery 20 cases in game-results.spec.ts. Node 24.22.1, unchanged lockfile dependencies. No passing browser or full npm run verify claim. All remaining integration/design holds above stay in place. No new PR was opened.
+
+## Integration follow-through: shared Sudoku copy and hello-cards message
+
+Completed two explicit items from Claude's integration review. The Sudoku landing title, description, heading and introductory copy now read the Sudoku entry in src/config/games.ts, matching the other landing pages. Hello-cards results now say "a new card of the day comes out tomorrow." The other games keep their existing message.
+
+Validation: Astro check 0 errors / 0 warnings / 26 hints, build passed, full Vitest 214 files / 5491 tests passed with 3 existing skips. A readback of the built Sudoku HTML confirmed its title, description, heading and landing copy match the current shared configuration. No new browser result or full npm run verify pass is claimed. The remaining platform/share-format/stat/design and hard-grid/browser holds still apply. No new PR was opened.

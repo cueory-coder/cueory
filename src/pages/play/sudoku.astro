@@ -2,7 +2,9 @@
 import Layout from '../../layouts/Layout.astro';
 import GameShareLanding from '../../components/GameShareLanding.astro';
 import { GAME_OG_IMAGES } from '../../islands/share';
+import { dailyGames } from '../../config/games';
+const game = dailyGames.find((game) => game.id === 'triage')!;
 ---
-<Layout title="sudoku" description="a calm daily number puzzle." socialImage={GAME_OG_IMAGES.sudoku} promo={false}>
-  <GameShareLanding name="sudoku" line="a calm daily number puzzle." playHref="/play#sudoku-heading" />
+<Layout title={game.name} description={game.line} socialImage={GAME_OG_IMAGES.sudoku} promo={false}>
+  <GameShareLanding name={game.name} line={game.line} playHref="/play#sudoku-heading" />
 </Layout>
