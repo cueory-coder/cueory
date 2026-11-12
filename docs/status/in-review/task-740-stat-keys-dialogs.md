@@ -1,1 +1,1 @@
-STATUS: W03-2 (#34), stat shortcuts: pure key intent ignores editable fields, visible dialogs, site search and expanded menus, with keyboard/unit/axe coverage. Stacked on !25 until its source merges into staging.
+STATUS: W03-2 (#34), Stat keyboard safety: pure shortcuts ignore editable fields, visible dialogs, site and account menus, and search. Unit and responsive Playwright/axe regressions authored. Parent !25 merged; rebased on staging. Awaiting Claude's Node 24 check, build, unit and browser tests.
