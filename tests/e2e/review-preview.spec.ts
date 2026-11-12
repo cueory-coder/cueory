@@ -68,6 +68,37 @@ test('taps can complete the same session without dragging', async ({ page }) => 
   await finish(page, 'tap');
 });
 
+test('Space reveals and rates a card, and grading actions stay hidden until the answer appears', async ({ page }) => {
+  await openReview(page);
+  await expect(region(page).getByRole('button', { name: 'know it' })).toHaveCount(0);
+  await expect(region(page).getByRole('button', { name: 'still learning' })).toHaveCount(0);
+  const reveal = region(page).getByRole('button', { name: 'show the answer' });
+  await reveal.focus();
+  await expect(reveal).toBeFocused();
+  await page.keyboard.press('Space');
+  await expect(region(page).getByText('[sample back]', { exact: true })).toBeVisible();
+  await expect(region(page).getByRole('button', { name: 'show the answer' })).toHaveCount(0);
+  const missed = region(page).getByRole('button', { name: 'still learning' });
+  await missed.focus();
+  await expect(missed).toBeFocused();
+  await page.keyboard.press('Space');
+  await expect(region(page)).toContainText('card 2 of 4');
+  await expect(root(page)).toHaveAttribute('data-saved-cards', '1');
+  // The outcome must be spoken in words at completion, not communicated only by color.
+  await finishRemaining(page);
+});
+
+async function finishRemaining(page: Page): Promise<void> {
+  for (let i = 1; i < 4; i++) {
+    await expect(region(page)).toContainText(`card ${i + 1} of 4`);
+    await region(page).getByRole('button', { name: 'show the answer' }).click();
+    await expect(region(page).getByText('[sample back]', { exact: true })).toBeVisible();
+    await region(page).getByRole('button', { name: 'know it' }).click();
+  }
+  await expect(region(page)).toContainText('you reviewed 4 cards: 3 you knew, 1 comes back tomorrow.');
+  await expect(root(page)).toHaveAttribute('data-saved-cards', '4');
+}
+
 test('answers are kept only in page memory, never sent or restored after reload', async ({ page }) => {
   const writes: string[] = [];
   const accountRequests: string[] = [];
