@@ -24,14 +24,19 @@ function shippedKeys(text: string, javascript = true): string[] {
     return false;
   }
   function inspectObject(node: ts.ObjectLiteralExpression) {
-    // Dynamic RPC results, scoring calculations and UI props contain references/calls/spreads.
-    // A fully literal object is deploy-time data, including nested Astro serialization tuples.
-    if (!literal(node)) return;
+    // Inspect each literal field even when an id or other sibling is calculated.
+    // Runtime sample checking passes a constant success flag alongside dynamic RPC-shaped fields;
+    // learning-mode overruling updates an existing runtime result with a spread.
+    const runtimeResult = node.properties.some((property) => ts.isPropertyAssignment(property) &&
+      ['key', 'rationales'].includes(nameOf(property.name) ?? '') && !literal(property.initializer));
+    const overridesResult = node.properties.some(ts.isSpreadAssignment);
     for (const property of node.properties) {
       if (!ts.isPropertyAssignment(property)) continue;
       const name = nameOf(property.name);
       const normalized = name?.replace(/[-_]/g, '').toLowerCase();
-      if (normalized && ['answerkey', 'correct', 'rationale', 'rationales'].includes(normalized)) found.add(name!);
+      if (!literal(property.initializer)) continue;
+      if (normalized && ['answerkey', 'rationale', 'rationales'].includes(normalized)) found.add(name!);
+      if (normalized === 'correct' && !runtimeResult && !overridesResult) found.add(name!);
       if (name === 'key' && ts.isArrayLiteralExpression(property.initializer)) found.add('key');
     }
   }
@@ -87,6 +92,9 @@ function assets(directory: string): string[] {
 describe('built answer-key guard (T16)', () => {
   it.each([
     ['a literal correctness field', 'const items = [{id:"sample", correct:true}];', true],
+    ['a mixed dynamic identifier', 'const item={id:currentId,correct:true};', true],
+    ['a key beside a dynamic identifier', 'const item={id:currentId,key:["a"]};', true],
+    ['a rationale added to another record', 'const item={...other,rationale:"[sample]"};', true],
     ['minified booleans', 'const items=[{correct:!0}];', true],
     ['quoted and computed field names', 'const items=[{"rationale":"[sample]",["correct"]:false}];', true],
     ['an answer-key property', 'const data={answer_key:["a"]};', true],
@@ -104,6 +112,7 @@ describe('built answer-key guard (T16)', () => {
 
   it('allows runtime RPC mapping, calculated scores and privacy copy without a filename allowlist', () => {
     expect(shippedKeys('function result(reply){return {correct:reply.correct,key:reply.key,rationales:reply.rationales}}')).toEqual([]);
+    expect(shippedKeys('function validate(n){return {correct:!0,key:n.key,rationales:n.rationales}}')).toEqual([]);
     expect(shippedKeys('function score(a,b){return {correct:a===b}}')).toEqual([]);
     expect(shippedKeys('function overrule(old){return {...old,correct:!0}}')).toEqual([]);
     expect(shippedKeys('<p>The saved state never holds the answer key or a rationale.</p>', false)).toEqual([]);
