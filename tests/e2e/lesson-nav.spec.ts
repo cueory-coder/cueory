@@ -1,9 +1,25 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { contentCatalog } from '../lessonroutes';
 import { lessonNeighbors } from '../../src/lessons/neighbors';
 
 const catalog = contentCatalog();
+
+async function tabToLessonLink(page: Page, target: Locator) {
+  // Begin at a known earlier keyboard stop. Do not focus the target programmatically.
+  const start = page.getByTestId('mode-grid').locator('[data-mode-tile]').last()
+    .getByRole('button', { name: /^more about / });
+  await start.focus();
+  await expect(start).toBeFocused();
+  for (let step = 0; step < 80; step++) {
+    await page.keyboard.press('Tab');
+    if (await target.evaluate((element) => document.activeElement === element)) {
+      await expect(target).toBeFocused();
+      return;
+    }
+  }
+  throw new Error('lesson link was not reachable by Tab from the final study-mode InfoTip');
+}
 
 test('course-library unit cards expose unique destinations for lesson back links', async ({ page }) => {
   await page.goto('/learn');
@@ -51,8 +67,7 @@ for (const lesson of catalog.lessons) {
     const neighbor = next ?? previous;
     if (neighbor) {
       const link = next ? nextLink : prevLink;
-      await link.focus();
-      await expect(link).toBeFocused();
+      await tabToLessonLink(page, link);
       await page.keyboard.press('Enter');
       await expect(page).toHaveURL((url) => url.pathname === neighbor.href || url.pathname === neighbor.href + '.html');
     }
@@ -68,9 +83,7 @@ for (const theme of ['light', 'dark'] as const) {
       const nav = page.getByTestId('lesson-nav');
       await expect(nav).toBeVisible();
       const back = nav.locator('[data-lesson-back]');
-      await page.keyboard.press('Tab');
-      await back.focus();
-      await expect(back).toBeFocused();
+      await tabToLessonLink(page, back);
       const outline = await back.evaluate((element) => {
         const style = getComputedStyle(element);
         return { width: Number.parseFloat(style.outlineWidth), kind: style.outlineStyle };
@@ -86,20 +99,32 @@ for (const theme of ['light', 'dark'] as const) {
       const scan = await new AxeBuilder({ page })
         .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
       expect(scan.violations.map((v) => v.id + ': ' + v.help), theme + ' ' + width).toEqual([]);
-      await back.focus();
+      await expect(back).toBeFocused();
       await page.keyboard.press('Enter');
       await expect(page).toHaveURL((url) => url.pathname === '/learn' || url.pathname === '/learn.html');
     }
   });
 }
 
-test('touchscreen tap on back returns to the course library', async ({ page }, testInfo) => {
+test('touchscreen tap on back reaches the same unit when one exists', async ({ page }, testInfo) => {
   test.skip(
     !['phone', 'phone-evening', 'tablet', 'webkit-phone'].includes(testInfo.project.name),
     'Touch test belongs to phone or tablet projects',
   );
-  await page.goto('/learn/study-skills');
+  // Disposable curriculum fixtures make this exercise the #unit-... fragment.
+  // Without fixtures, retain the real legacy lesson's /learn fallback assertion.
+  const lesson = catalog.lessons.find((candidate) => candidate.unitId)
+    ?? catalog.lessons.find((candidate) => candidate.href === '/learn/study-skills');
+  expect(lesson).toBeDefined();
+  const expected = new URL(lessonNeighbors(catalog, lesson!).back.href, 'https://cueory.app');
+  await page.goto(lesson!.href);
   await page.getByTestId('lesson-nav').locator('[data-lesson-back]').tap();
-  await expect(page).toHaveURL(/\/learn(?:\.html)?$/);
+  await expect(page).toHaveURL((url) =>
+    (url.pathname === expected.pathname || url.pathname === expected.pathname + '.html') &&
+    url.hash === expected.hash,
+  );
   await expect(page.getByRole('heading', { level: 1, name: 'med-surg i' })).toBeVisible();
+  if (lesson!.unitId) {
+    await expect(page.locator(`[data-unit-id="${lesson!.unitId}"]`)).toBeInViewport();
+  }
 });
