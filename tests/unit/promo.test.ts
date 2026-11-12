@@ -1,11 +1,18 @@
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { promo, site } from '../../src/config/site';
 import {
+  dismissPromoForever,
   isTextEntry,
   mayShow,
+  mayShowSaved,
+  pausePromoTimer,
+  PROMO_DISMISSED_FOREVER,
   PROMO_STORAGE_KEY,
+  promoDecision,
+  promoTimeRemaining,
   remember,
+  resumePromoTimer,
   SCROLL_TRIGGER,
   scrollProgress,
 } from '../../src/scripts/promo';
@@ -116,5 +123,87 @@ describe('once-only promo panel (D-59)', () => {
     expect(layout).toContain('const showPromo = promoSettings.show && promo && !isStudy;');
     const subscribed = readFileSync(new URL('../../src/pages/subscribed.astro', import.meta.url), 'utf8');
     expect(subscribed).toContain('promo={false}');
+  });
+});
+
+
+describe('deterministic promo timing (W14)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+  });
+  afterEach(() => vi.useRealTimers());
+
+  const readyContext = { visible: true, busy: false, scrollFraction: 0, reducedMotion: false };
+  const newTimer = () => resumePromoTimer(Date.now(), { remainingMs: promo.delaySeconds * 1000, startedAt: null });
+
+  it('waits for exactly five seconds of visible time, without a real sleep', () => {
+    const timer = newTimer();
+    expect(promoDecision(Date.now(), null, 30, timer, readyContext).show).toBe(false);
+    vi.advanceTimersByTime(4_999);
+    expect(promoDecision(Date.now(), null, 30, timer, readyContext)).toEqual({
+      show: false,
+      remainingMs: 1,
+      animate: true,
+    });
+    vi.advanceTimersByTime(1);
+    expect(promoDecision(Date.now(), null, 30, timer, readyContext).show).toBe(true);
+  });
+
+  it('opens early after halfway scroll, but never while busy or hidden', () => {
+    const timer = newTimer();
+    vi.advanceTimersByTime(1_000);
+    expect(promoDecision(Date.now(), null, 30, timer, { ...readyContext, scrollFraction: 0.5 }).show).toBe(true);
+    expect(promoDecision(Date.now(), null, 30, timer, { ...readyContext, busy: true, scrollFraction: 0.5 }).show).toBe(false);
+    expect(promoDecision(Date.now(), null, 30, timer, { ...readyContext, visible: false, scrollFraction: 0.5 }).show).toBe(false);
+  });
+
+  it('pauses while hidden and keeps the remaining time when the tab returns', () => {
+    let timer = newTimer();
+    vi.advanceTimersByTime(2_000);
+    timer = pausePromoTimer(Date.now(), timer);
+    vi.advanceTimersByTime(60_000);
+    expect(promoTimeRemaining(Date.now(), timer)).toBe(3_000);
+    expect(promoDecision(Date.now(), null, 30, timer, { ...readyContext, visible: false }).show).toBe(false);
+    timer = resumePromoTimer(Date.now(), timer);
+    vi.advanceTimersByTime(2_999);
+    expect(promoDecision(Date.now(), null, 30, timer, readyContext).show).toBe(false);
+    vi.advanceTimersByTime(1);
+    expect(promoDecision(Date.now(), null, 30, timer, readyContext).show).toBe(true);
+  });
+
+  it('snoozes the panel for 30 days after showing it', () => {
+    const storage = memory();
+    expect(remember(storage, Date.now())).toBe(true);
+    expect(mayShowSaved(Date.now(), storage.getItem(PROMO_STORAGE_KEY), 30)).toBe(false);
+    vi.setSystemTime(NOW + 29 * DAY);
+    expect(mayShow(storage, Date.now(), 30)).toBe(false);
+    vi.setSystemTime(NOW + 30 * DAY);
+    expect(mayShow(storage, Date.now(), 30)).toBe(true);
+  });
+
+  it('respects an explicit permanent opt-out even if a later close tries to remember a date', () => {
+    const storage = memory();
+    expect(dismissPromoForever(storage)).toBe(true);
+    expect(storage.getItem(PROMO_STORAGE_KEY)).toBe(PROMO_DISMISSED_FOREVER);
+    expect(remember(storage, Date.now())).toBe(true);
+    vi.setSystemTime(NOW + 365 * DAY);
+    expect(mayShow(storage, Date.now(), 30)).toBe(false);
+  });
+
+  it('fails closed when storage is blocked', () => {
+    expect(mayShow(blocked, Date.now(), 30)).toBe(false);
+    expect(remember(blocked, Date.now())).toBe(false);
+    expect(dismissPromoForever(blocked)).toBe(false);
+  });
+
+  it('shows without animation for reduced-motion users', () => {
+    const timer = newTimer();
+    vi.advanceTimersByTime(5_000);
+    expect(promoDecision(Date.now(), null, 30, timer, { ...readyContext, reducedMotion: true })).toEqual({
+      show: true,
+      remainingMs: 0,
+      animate: false,
+    });
   });
 });
