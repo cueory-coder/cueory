@@ -699,3 +699,81 @@ test.describe('daily games without JavaScript', () => {
     await expect(page.getByTestId('sample-note')).toBeVisible();
   });
 });
+
+test.describe('W02 private stats: stat, sudoku and retired sort', () => {
+  const panel = (page: Page) => page.getByTestId('game-stats');
+  const row = (page: Page, name: string) =>
+    panel(page).getByRole('listitem').filter({ has: page.getByRole('heading', { name, exact: true }) });
+  const sudoku = { game: 'sudoku', day: '2026-11-01', solved: true, tries: 1, level: 'easy', seconds: 95 };
+  const medium = { game: 'sudoku', day: '2026-11-01', solved: true, tries: 0, level: 'medium', seconds: 120 };
+  const legacy = { game: 'triage', day: '2026-11-01', solved: true, tries: 2 };
+  const stat = { game: 'stat', day: '2026-11-01', solved: true, tries: 2, score: 13 };
+
+  test.beforeEach(async ({ page }) => {
+    await page.clock.setFixedTime(new Date('2026-11-01T15:00:00'));
+  });
+
+  test('old sort rows stay separate, and new summaries and forget buttons work by keyboard and tap', async ({ page }) => {
+    await page.addInitScript((results) => {
+      localStorage.setItem('cueory-game-stats', JSON.stringify({ version: 1, results }));
+    }, [legacy, sudoku, medium, stat, { ...stat, day: '2026-10-31', score: 11, tries: 4 }]);
+    await page.goto('/play');
+    await expect(panel(page).getByRole('switch', { name: 'keep my stats' })).toHaveAttribute('aria-checked', 'true');
+
+    await expect(row(page, 'sort')).toContainText('played 1 day, solved 1.');
+    await expect(row(page, 'sudoku')).toContainText('solved 2 puzzles.');
+    await expect(row(page, 'sudoku')).toContainText('easy: best time 1 minute 35 seconds.');
+    await expect(row(page, 'sudoku')).toContainText('medium: best time 2 minutes 0 seconds.');
+    await expect(row(page, 'sudoku')).toContainText('hard: not solved yet.');
+    await expect(row(page, 'stat')).toContainText('best score 13 out of 15.');
+    await expect(row(page, 'stat')).toContainText('longest daily streak 2 days.');
+
+    const forgetSudoku = row(page, 'sudoku').getByRole('button', { name: 'forget sudoku' });
+    await forgetSudoku.focus();
+    await page.keyboard.press('Enter');
+    await expect(row(page, 'sudoku')).toContainText('not played yet.');
+    await expect(row(page, 'sudoku').getByRole('heading', { name: 'sudoku' })).toBeFocused();
+    await expect(row(page, 'sort')).toContainText('played 1 day, solved 1.');
+    await expect(row(page, 'stat')).toContainText('best score 13 out of 15.');
+
+    await row(page, 'stat').getByRole('button', { name: 'forget stat' }).click();
+    await expect(row(page, 'stat')).toContainText('not played yet.');
+    const retained = JSON.parse((await page.evaluate(() => localStorage.getItem('cueory-game-stats')))!);
+    expect(retained.results).toEqual([legacy]);
+
+    for (const width of [390, 820, 1440]) {
+      await page.setViewportSize({ width, height: width === 390 ? 844 : width === 820 ? 1180 : 900 });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      const boxes = await panel(page).getByRole('button').evaluateAll((buttons) =>
+        buttons.map((button) => button.getBoundingClientRect()));
+      for (const box of boxes) expect(box.height).toBeGreaterThanOrEqual(44);
+      const violations = (await axe(page)).violations;
+      expect(violations.map((violation) => violation.id + ': ' + violation.help)).toEqual([]);
+    }
+  });
+
+  test('sudoku completion is kept on this device only after opt-in, independently by level', async ({ page }) => {
+    await page.goto('/play');
+    const toggle = panel(page).getByRole('switch', { name: 'keep my stats' });
+    await expect(toggle).toHaveAttribute('aria-checked', 'false');
+    await toggle.click();
+    await page.evaluate(() => {
+      window.dispatchEvent(new CustomEvent('cueory:sudoku-solved', {
+        detail: { game: 'sudoku', day: '2026-11-01', solved: true, errors: 2, seconds: 83, level: 'easy', time: '01:23' },
+      }));
+      window.dispatchEvent(new CustomEvent('cueory:sudoku-solved', {
+        detail: { game: 'sudoku', day: '2026-11-01', solved: true, errors: 0, seconds: 175, level: 'hard', time: '02:55' },
+      }));
+    });
+    await expect(row(page, 'sudoku')).toContainText('solved 2 puzzles.');
+    await expect(row(page, 'sudoku')).toContainText('easy: best time 1 minute 23 seconds.');
+    await expect(row(page, 'sudoku')).toContainText('hard: best time 2 minutes 55 seconds.');
+    expect(JSON.parse((await page.evaluate(() => localStorage.getItem('cueory-game-stats')))!)).toEqual({
+      version: 1,
+      results: [
+        { game: 'sudoku', day: '2026-11-01', solved: true, tries: 2, level: 'easy', seconds: 83 },
+        { game: 'sudoku', day: '2026-11-01', solved: true, tries: 0, level: 'hard', seconds: 175 },
+      ],
+    });
+  });
+});

@@ -108,7 +108,7 @@ const later = dailyGames.filter((game) => !game.ready);
 
     {/* Private stats (D-76): off until the student turns them on, kept only in this browser. Without JavaScript there are
     no games to count, so nothing shows. */}
-    <GameStatsPanel client:only="react" games={[pulse, sudokuGame, crossword, wordPath].map((game) => game.id)} />
+    <GameStatsPanel client:only="react" games={[pulse, sudokuGame, crossword, wordPath].map((game) => game.id)} showStat={showStat} />
 
     {(showHello || showStat) && <section class="mt-16" aria-labelledby="more-games-heading">
       <h2 id="more-games-heading" class="text-2xl font-medium">more games</h2>

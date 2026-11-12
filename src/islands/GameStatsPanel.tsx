@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { dailyGames, retiredGameNames } from '../config/games';
+import { dailyGames, retiredGameNames, statGame } from '../config/games';
 import { browserStorage } from '../scripts/storage';
 import {
   deleteStats,
@@ -13,7 +13,7 @@ import {
   triesInWords,
   type SavedStats,
 } from './gameresults';
-import { forget, recordResult, summary, summaryInWords, type GameId, type GameStats } from './gamestats';
+import { forget, recordResult, statInWords, sudokuInWords, summary, summaryInWords, type GameId, type GameStats } from './gamestats';
 
 const button = 'min-h-11 rounded-pill border border-control bg-page px-5 py-2.5 text-ink';
 
@@ -22,9 +22,9 @@ const latest = (): SavedStats => loadStats(browserStorage(), localDay(new Date()
 
 /**
  * Private stats for the daily games (D-76). Off until the student turns them on; then this browser keeps each finished
- * round (the day, solved or not, and the tries) and shows a short summary per game. Nothing is ever sent to us, there
- * are no streaks, and turning stats off or "forget" deletes them. Results older than 400 days are deleted when the page
- * opens. Rendered only in the browser (client:only).
+ * round (the day, solved or not, and its small progress fields) and shows a summary per game. Nothing is sent
+ * to us. Only stat has a streak (consecutive days played). Turning stats off or "forget" deletes the records.
+ * Results older than 400 days are deleted when the page opens. Rendered only in the browser (client:only).
  *
  * Every change starts from what storage holds at that moment, not from what this tab last showed, so turning stats off
  * in one tab holds in every other open tab too. Rounds not kept yet wait in ./gameresults, which drops them whenever
@@ -33,9 +33,11 @@ const latest = (): SavedStats => loadStats(browserStorage(), localDay(new Date()
 interface Props {
   /** The games in the order the page shows them. */
   games: readonly GameId[];
+  /** Stat samples are shown only on staging and previews until reviewed content is approved. */
+  showStat?: boolean;
 }
 
-export default function GameStatsPanel({ games: order }: Props) {
+export default function GameStatsPanel({ games: order, showStat = false }: Props) {
   const [saved, setSaved] = useState(latest);
   const [said, setSaid] = useState('');
   const [blocked, setBlocked] = useState(false);
@@ -86,7 +88,10 @@ export default function GameStatsPanel({ games: order }: Props) {
       let stats = now.stats;
       let message = '';
       for (const result of waiting) {
-        const name = dailyGames.find((game) => game.id === result.game)?.name ?? '';
+        const name = result.game === 'stat' ? statGame.name
+          : result.game === 'sudoku' ? dailyGames.find((game) => game.id === 'triage')?.name ?? ''
+          : result.game === 'triage' ? retiredGameNames.triage
+          : dailyGames.find((game) => game.id === result.game)?.name ?? '';
         const next = recordResult(stats, result);
         // The first result of each game and day counts; a replay changes nothing.
         if (name) message = next === stats ? `${name}: today's first game is already in your stats.` : `${name} added to your stats.`;
@@ -162,7 +167,13 @@ export default function GameStatsPanel({ games: order }: Props) {
     keep([], 'all your stats are forgotten. stats stay on.');
   };
 
-  const games = order.flatMap((id) => dailyGames.filter((game) => game.id === id && game.ready));
+  const games: { id: GameId; name: string }[] = order.flatMap((id) =>
+    dailyGames.filter((game) => game.id === id && game.ready)
+      .map((game) => ({ id: game.id === 'triage' ? 'sudoku' : game.id, name: game.name })),
+  );
+  if (showStat) games.push({ id: 'stat', name: statGame.name });
+  // The old game is listed only when a student has previous sort results.
+  if (summary(saved.stats, 'triage').played > 0) games.push({ id: 'triage', name: retiredGameNames.triage });
 
   return (
     <section className="mt-16" aria-labelledby="stats-heading" data-testid="game-stats">
@@ -170,7 +181,7 @@ export default function GameStatsPanel({ games: order }: Props) {
         your stats
       </h2>
       <p className="mt-2 text-ink-soft">
-        only if you want them. they stay in this browser, on this device, and never reach us. there are no streaks.
+        only if you want them. they stay in this browser, on this device, and never reach us. stat's streak counts days played in a row.
       </p>
       <button
         ref={toggleButton}
@@ -199,7 +210,7 @@ export default function GameStatsPanel({ games: order }: Props) {
           <ul className="mt-6 flex flex-col gap-5" aria-label="stats for each game">
             {games.map((game) => {
               const result = summary(saved.stats, game.id);
-              const displayName = game.id === 'triage' ? retiredGameNames.triage : game.name;
+              const displayName = game.name;
               return (
                 <li key={game.id}>
                   <h3
@@ -212,10 +223,15 @@ export default function GameStatsPanel({ games: order }: Props) {
                   >
                     {displayName}
                   </h3>
-                  <p className="mt-1">{result.played === 0 ? 'not played yet.' : summaryInWords(result)}</p>
+                  <p className="mt-1">
+                    {game.id === 'stat' ? statInWords(saved.stats)
+                      : game.id === 'sudoku' ? sudokuInWords(saved.stats)
+                      : result.played === 0 ? 'not played yet.' : summaryInWords(result)}
+                  </p>
                   {result.played > 0 && (
                     <>
-                      <p className="mt-1 text-sm text-ink-soft">{triesInWords(game.id, result.triesCounts)}</p>
+                      {game.id !== 'stat' && game.id !== 'sudoku' &&
+                        <p className="mt-1 text-sm text-ink-soft">{triesInWords(game.id, result.triesCounts)}</p>}
                       <button type="button" className={`${button} mt-2`} onClick={() => forgetGame(game.id, displayName)}>
                         forget {displayName}
                       </button>

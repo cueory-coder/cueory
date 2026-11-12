@@ -8,6 +8,7 @@ import {
   localDay,
   reportRound,
   saveStats,
+  saveCompletedRound,
   STATS_STORAGE_KEY,
   triesInWords,
 } from '../../src/islands/gameresults';
@@ -129,5 +130,47 @@ describe('private game stats on /play (D-76)', () => {
   it('reporting a round never throws, even where there is no window (as during the build)', () => {
     expect(() => reportRound({ game: 'triage', day: '2026-11-01', solved: false, tries: 3 })).not.toThrow();
     forgetHeldRounds();
+  });
+});
+
+describe('other-page game results and new stats ids', () => {
+  const stat = { game: 'stat', day: '2026-11-01', solved: true, tries: 4, score: 11 } as const;
+  const sudoku = { game: 'sudoku', day: '2026-11-01', solved: true, tries: 2, level: 'easy', seconds: 180 } as const;
+
+  it('does not silently opt a student in when a stat round finishes on another page', () => {
+    const storage = memoryStorage();
+    expect(saveCompletedRound(storage, TODAY, stat)).toBe('off');
+    expect(storage.data.has(STATS_STORAGE_KEY)).toBe(false);
+    expect(saveCompletedRound(undefined, TODAY, stat)).toBe('off');
+  });
+
+  it('saves a stat result only when opted in, prevents replay, and keeps older rows', () => {
+    const storage = memoryStorage();
+    const old = { game: 'triage', day: TODAY, solved: true, tries: 2 } as const;
+    expect(saveStats(storage, [old])).toBe(true);
+    expect(saveCompletedRound(storage, TODAY, stat)).toBe('saved');
+    expect(saveCompletedRound(storage, TODAY, { ...stat, score: 15, tries: 0 })).toBe('duplicate');
+    expect(loadStats(storage, TODAY).stats).toEqual([old, stat]);
+    expect(saveCompletedRound(storage, TODAY, { ...stat, score: 20 })).toBe('duplicate');
+  });
+
+  it('records independent sudoku levels', () => {
+    const storage = memoryStorage();
+    expect(saveStats(storage, [stat])).toBe(true);
+    expect(saveCompletedRound(storage, TODAY, sudoku)).toBe('saved');
+    expect(saveCompletedRound(storage, TODAY, { ...sudoku, level: 'hard', seconds: 300 })).toBe('saved');
+    expect(loadStats(storage, TODAY).stats).toEqual([stat, sudoku, { ...sudoku, level: 'hard', seconds: 300 }]);
+    expect(deleteStats(storage)).toBe(true);
+    expect(loadStats(storage, TODAY)).toEqual({ on: false, stats: [] });
+  });
+
+  it('honors blocked writes and never saves malformed stat data', () => {
+    const storage = memoryStorage();
+    expect(saveStats(storage, [])).toBe(true);
+    expect(saveCompletedRound(storage, TODAY, { ...stat, score: -1 })).toBe('duplicate');
+    expect(loadStats(storage, TODAY).stats).toEqual([]);
+    const blocked = { ...storage, setItem: () => { throw new Error('blocked'); } };
+    expect(saveCompletedRound(blocked, TODAY, stat)).toBe('blocked');
+    expect(loadStats(storage, TODAY).stats).toEqual([]);
   });
 });

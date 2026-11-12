@@ -2,7 +2,8 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { dailyGames, gameName } from '../../src/config/games';
+import { dailyGames, gameName, retiredGameNames, statGame } from '../../src/config/games';
+import type { GameId } from '../../src/islands/gamestats';
 
 /**
  * The games' names are plain for now and will change again (D-66), so every name a visitor sees must come from
@@ -139,5 +140,15 @@ describe('game names come only from src/config/games.ts (D-66, D-67)', () => {
         ),
       );
     expect(found).toEqual([]);
+  });
+});
+
+describe('W02 private progress names', () => {
+  it('has separate storage ids for new games and retired sort history', () => {
+    const ids: GameId[] = ['triage', 'sudoku', 'stat'];
+    expect(new Set(ids).size).toBe(3);
+    expect(retiredGameNames.triage).toBe('sort');
+    expect(gameName('triage')).toBe('sudoku');
+    expect(statGame.name).toBe('stat');
   });
 });

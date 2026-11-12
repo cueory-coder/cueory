@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
-  forget, parseStats, recordResult, serialize, summary, summaryInWords,
-  type GameId, type GameResult, type GameStats,
+  forget, fromSudokuCompletion, parseStats, recordResult, serialize, statInWords, sudokuInWords, summary, summaryInWords,
+  type LegacyGameId, type GameResult, type GameStats,
 } from '../../src/islands/gamestats';
 
-const result = (game: GameId = 'pulse', day = '2026-11-01', solved = true, tries = 3): GameResult => ({ game, day, solved, tries });
+const result = (game: LegacyGameId = 'pulse', day = '2026-11-01', solved = true, tries = 3): GameResult => ({ game, day, solved, tries });
 const saved = (results: unknown[], version: unknown = 1) => JSON.stringify({ version, results });
 const dayAt = (offset: number) => new Date(Date.UTC(2025, 0, 1) + offset * 86_400_000).toISOString().slice(0, 10);
 
@@ -130,5 +130,81 @@ describe('versioned data and forgetting', () => {
     expect(forget(stats, 'unknown')).toEqual(stats);
     expect(forget(stats)).toEqual([]);
     expect(stats).toHaveLength(2);
+  });
+});
+
+describe('separate sudoku, stat and retired sort stats', () => {
+  const sort = result('triage', '2026-11-01', true, 2);
+  const easy = { game: 'sudoku', day: '2026-11-01', solved: true, tries: 1, level: 'easy', seconds: 95 } as const;
+  const medium = { game: 'sudoku', day: '2026-11-01', solved: true, tries: 0, level: 'medium', seconds: 120 } as const;
+  const stat1 = { game: 'stat', day: '2026-11-01', solved: true, tries: 5, score: 10 } as const;
+  const stat2 = { game: 'stat', day: '2026-11-02', solved: true, tries: 2, score: 13 } as const;
+
+  it('reads version-1 sort history while keeping new sudoku and stat ids separate', () => {
+    const stats = parseStats(saved([sort, easy, medium, stat1]));
+    expect(stats).toEqual([sort, easy, medium, stat1]);
+    expect(summary(stats, 'triage').played).toBe(1);
+    expect(summary(stats, 'sudoku')).toEqual({ played: 2, solved: 2, triesCounts: { 0: 1, 1: 1 } });
+    expect(summary(stats, 'stat').played).toBe(1);
+    expect(sudokuInWords([sort])).toBe('not played yet.');
+    expect(statInWords([sort])).toBe('not played yet.');
+    expect(parseStats(serialize(stats))).toEqual(stats);
+  });
+
+  it('allows all three sudoku difficulties on one day but retains the first round per level and day', () => {
+    let stats = recordResult([], easy);
+    stats = recordResult(stats, medium);
+    stats = recordResult(stats, { ...medium, level: 'hard', seconds: 240 });
+    expect(stats).toHaveLength(3);
+    expect(recordResult(stats, { ...easy, seconds: 50 })).toBe(stats);
+    expect(parseStats(saved([easy, { ...easy, seconds: 50 }, medium]))).toEqual([easy, medium]);
+  });
+
+  it('shows stat best score and longest streak of consecutive days, even with gaps', () => {
+    const rounds = [stat1, stat2, { ...stat1, day: '2026-11-04', score: 15, tries: 0 }];
+    expect(statInWords(rounds)).toBe('played 3 days. best score 15 out of 15. longest daily streak 2 days.');
+    expect(statInWords([stat1])).toBe('played 1 day. best score 10 out of 15. longest daily streak 1 day.');
+    expect(statInWords([])).toBe('not played yet.');
+  });
+
+  it('shows solved counts and best time per level in words', () => {
+    const stats = [sort, easy, medium, { ...easy, day: '2026-11-02', seconds: 62 }];
+    expect(sudokuInWords(stats)).toBe(
+      'solved 3 puzzles. easy: best time 1 minute 2 seconds. medium: best time 2 minutes 0 seconds. hard: not solved yet.',
+    );
+    expect(sudokuInWords([easy])).toContain('solved 1 puzzle.');
+  });
+
+  it('converts only valid sudoku completion events and strips extra fields', () => {
+    expect(fromSudokuCompletion({
+      game: 'sudoku', day: easy.day, solved: true, level: 'easy',
+      seconds: 95, errors: 1, time: '01:35', privateNote: '[sample clue]',
+    })).toEqual(easy);
+    for (const invalid of [
+      {}, null, { ...easy, errors: -1 }, { ...easy, errors: 0.5 },
+      { ...easy, errors: 1, seconds: -1 }, { ...easy, errors: 1, level: 'expert' },
+      { ...easy, errors: 1, solved: false }, { ...easy, errors: 1, game: 'triage' },
+    ]) expect(fromSudokuCompletion(invalid)).toBeUndefined();
+    expect(fromSudokuCompletion({ get game() { throw new Error('broken'); } })).toBeUndefined();
+  });
+
+  it('rejects corrupt new records rather than mixing them with valid old records', () => {
+    const bad = [
+      { ...easy, level: 'expert' }, { ...easy, seconds: -1 }, { ...easy, seconds: '95' },
+      { ...easy, solved: false }, { ...stat1, score: 16 }, { ...stat1, score: 5 },
+      { ...stat1, score: 12.5 }, { ...stat1, solved: false },
+    ];
+    for (const invalid of bad) {
+      expect(recordResult([sort], invalid)).toEqual([sort]);
+      expect(parseStats(saved([sort, invalid]))).toEqual([]);
+    }
+  });
+
+  it('forgets one new id without deleting other games or retired sort data', () => {
+    const stats = [sort, easy, medium, stat1];
+    expect(forget(stats, 'sudoku')).toEqual([sort, stat1]);
+    expect(forget(stats, 'stat')).toEqual([sort, easy, medium]);
+    expect(forget(stats, 'triage')).toEqual([easy, medium, stat1]);
+    expect(forget(stats)).toEqual([]);
   });
 });

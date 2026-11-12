@@ -1,13 +1,13 @@
 /**
  * Private daily-game stats on /play (D-76). Each game reports a finished round; the stats panel keeps the results
- * only when the student has turned stats on. The record itself (first result of each game and day, no streaks) is the
- * helper's logic in ./gamestats, and results older than 400 days are dropped by today's date.
+ * only when the student has turned stats on. The first result of each game/day (each sudoku day/level)
+ * is retained. Only stat shows a daily-play streak. Results older than 400 days are dropped.
  *
  * Stats are off until the student turns them on: turned on means the record exists in this browser's storage, and
  * turning them off deletes it. Nothing here is ever sent anywhere.
  */
 import type { KeyValueStorage } from '../scripts/storage';
-import { parseStats, serialize, type GameId, type GameStats } from './gamestats';
+import { fromSudokuCompletion, parseStats, recordResult, serialize, type GameId, type GameResult, type GameStats } from './gamestats';
 
 /** The event a game sends on `window` when a round ends. */
 export const GAME_RESULT_EVENT = 'cueory:game-result';
@@ -15,14 +15,8 @@ export const GAME_RESULT_EVENT = 'cueory:game-result';
 /** Where the stats record is kept, when the student has turned stats on. */
 export const STATS_STORAGE_KEY = 'cueory-game-stats';
 
-export interface RoundResult {
-  game: GameId;
-  /** The day of the puzzle that was played, in the visitor's own time zone, written YYYY-MM-DD. */
-  day: string;
-  solved: boolean;
-  /** Guesses for pillo, slips for the retired sort record, cues for the crossword and loose stitches for word path. */
-  tries: number;
-}
+/** Each completed round stores only public game progress, never its questions or answers. */
+export type RoundResult = GameResult;
 
 /** A date as YYYY-MM-DD in the visitor's own time zone: the same day the games pick their puzzle by. */
 export function localDay(date: Date): string {
@@ -53,6 +47,11 @@ if (typeof window !== 'undefined') {
   });
   window.addEventListener('pageshow', (event) => {
     if (event.persisted) forgetHeldRounds();
+  });
+  // This module loads with SudokuGame, before the stats panel, so even early completions are held.
+  window.addEventListener('cueory:sudoku-solved', (event) => {
+    const round = fromSudokuCompletion((event as CustomEvent).detail);
+    if (round) reportRound(round);
   });
 }
 
@@ -109,6 +108,19 @@ export function saveStats(storage: KeyValueStorage | undefined, stats: GameStats
   }
 }
 
+/** Persist a result finished on another page (stat), where the /play panel is not mounted.
+ * Never turns stats on by itself: the student must opt in on /play first.
+ */
+export function saveCompletedRound(
+  storage: KeyValueStorage | undefined, today: string, result: unknown,
+): 'off' | 'saved' | 'duplicate' | 'blocked' {
+  const current = loadStats(storage, today);
+  if (!current.on) return 'off';
+  const next = recordResult(current.stats, result);
+  if (next === current.stats) return 'duplicate';
+  return saveStats(storage, next) ? 'saved' : 'blocked';
+}
+
 /** Turns stats off by deleting the record. False when the browser won't let us. */
 export function deleteStats(storage: KeyValueStorage | undefined): boolean {
   try {
@@ -126,6 +138,8 @@ const TRIES: Record<GameId, { one: string; many: string }> = {
   triage: { one: 'slip', many: 'slips' },
   cueword: { one: 'cue', many: 'cues' },
   suture: { one: 'loose stitch', many: 'loose stitches' },
+  sudoku: { one: 'error', many: 'errors' },
+  stat: { one: 'miss', many: 'misses' },
 };
 
 /**
