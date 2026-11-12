@@ -7,18 +7,14 @@ import {
   forgetProgress,
   isEmptyProgress,
   localDay,
-  migrateLegacyStars,
-  PROGRESS_STORAGE_KEY,
-  type Progress,
   readProgress,
   saveProgress,
   withOnboarding,
 } from '../scripts/progress';
-import { browserStorage, type KeyValueStorage } from '../scripts/storage';
-import { readResume } from '../scripts/resume';
+import { browserStorage } from '../scripts/storage';
 import { connectExamPlans, isConnectFailure, loadExamPlan, loadTickets } from './examplansync';
 import ProgressRing from './ProgressRing';
-import { examCountdown, progressScreenState, progressView, type ProgressScreenState } from './progressview';
+import { examCountdown, progressView, readDeviceProgress } from './progressview';
 
 interface Deck {
   id: string;
@@ -36,25 +32,6 @@ const secondaryButton = 'min-h-11 rounded-pill border border-control px-5 py-2.5
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-
-/** Check readability before migrating old stars, so a corrupt record is never silently replaced. */
-function readDeviceProgress(storage: KeyValueStorage | undefined): { progress: Progress; state: ProgressScreenState } {
-  const unreadable = { progress: emptyProgress(), state: 'unreadable' as const };
-  if (!storage) return unreadable;
-  try {
-    const raw = storage.getItem(PROGRESS_STORAGE_KEY);
-    if (progressScreenState({ raw, progress: emptyProgress(), hasResume: false, canReadStorage: true }) === 'unreadable') {
-      return unreadable;
-    }
-    const progress = migrateLegacyStars(storage);
-    return {
-      progress,
-      state: progressScreenState({ raw, progress, hasResume: readResume(storage) !== null, canReadStorage: true }),
-    };
-  } catch {
-    return unreadable;
-  }
-}
 
 /**
  * What this browser keeps for the student (D-69), with "download my progress" and "forget my progress on this device".
