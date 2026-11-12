@@ -1,0 +1,19 @@
+---
+/** Quiet study-screen notice: displayed only after a stable offline signal. */
+import { NETWORK_COPY } from '../scripts/networknotice';
+---
+
+<div data-network-notice class="mx-auto w-full max-w-page px-gutter">
+  <div
+    data-network-notice-panel
+    hidden
+    class="rounded-lg border border-line bg-surface px-5 py-4 text-ink shadow-card"
+  >
+    <p class="text-sm leading-relaxed">
+      <strong class="font-semibold">{NETWORK_COPY.title}</strong> {NETWORK_COPY.description}
+    </p>
+  </div>
+  <p data-network-notice-live role="status" aria-live="polite" aria-atomic="true" class="sr-only"></p>
+</div>
+
+<script src="../scripts/networknotice.ts"></script>

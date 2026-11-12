@@ -3,6 +3,7 @@
 import EmptyState from '../../components/EmptyState.astro';
 import Skeleton from '../../islands/Skeleton';
 import { ErrorBoundaryDemo } from '../../islands/ErrorBoundary';
+import NetworkNotice from '../../components/NetworkNotice.astro';
 import Layout from '../../layouts/Layout.astro';
 ---
 
@@ -95,6 +96,12 @@ import Layout from '../../layouts/Layout.astro';
       <h2 id="error-heading" class="text-xl font-semibold text-ink">when an interactive part fails</h2>
       <p class="text-sm text-ink-soft">choose the sample button to simulate a failed part. the rest of the page stays usable.</p>
       <ErrorBoundaryDemo client:only="react" />
+    </section>
+
+    <section aria-labelledby="network-heading" class="space-y-5" data-network-preview>
+      <h2 id="network-heading" class="text-xl font-semibold text-ink">when the connection drops</h2>
+      <p class="text-sm text-ink-soft">a preview of the offline notice. it appears after the connection stays offline.</p>
+      <NetworkNotice />
     </section>
   </div>
 </Layout>

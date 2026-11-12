@@ -226,4 +226,77 @@ test.describe('Task 91: loading and empty states', () => {
       });
     }
   }
+  test('repeat offline events do not repeat a polite screen-reader announcement', async ({ page, context }) => {
+    await page.goto(preview);
+    const live = page.locator('[data-network-notice-live]');
+    await live.evaluate((element) => {
+      const node = element as HTMLElement;
+      node.dataset.announcements = '0';
+      new MutationObserver(() => {
+        if (!node.textContent?.trim()) return;
+        node.dataset.announcements = String(Number(node.dataset.announcements ?? '0') + 1);
+      }).observe(node, { childList: true, subtree: true, characterData: true });
+    });
+    await context.setOffline(true);
+    await expect(live).toHaveText("you're offline. saved lessons and games already loaded may still work.");
+    await expect(live).toHaveAttribute('data-announcements', '1');
+    await page.evaluate(() => {
+      window.dispatchEvent(new Event('offline'));
+      window.dispatchEvent(new Event('offline'));
+    });
+    await expect(live).toHaveAttribute('data-announcements', '1');
+    await context.setOffline(false);
+    await expect(live).toBeEmpty();
+    await expect(live).toHaveAttribute('data-announcements', '1');
+  });
+
+  test('offline notice appears politely once and hides when the connection returns', async ({ page, context }) => {
+    await page.goto(preview);
+    const panel = page.locator('[data-network-notice-panel]');
+    const live = page.locator('[data-network-notice-live]');
+    await expect(panel).toBeHidden();
+    await expect(live).toBeEmpty();
+    await expect(live).toHaveAttribute('role', 'status');
+    await expect(live).toHaveAttribute('aria-live', 'polite');
+    await expect(live).toHaveAttribute('aria-atomic', 'true');
+
+    await context.setOffline(true);
+    await expect(panel).toBeVisible();
+    await expect(panel).toContainText("you're offline.");
+    await expect(panel).toContainText('saved lessons');
+    await expect(panel).toContainText('games already loaded');
+    await expect(live).toHaveText("you're offline. saved lessons and games already loaded may still work.");
+    await page.evaluate(() => window.dispatchEvent(new Event('offline')));
+    await expect(live).toHaveText("you're offline. saved lessons and games already loaded may still work.");
+
+    await context.setOffline(false);
+    await expect(panel).toBeHidden();
+    await expect(live).toBeEmpty();
+  });
+
+  for (const width of [390, 820, 1440]) {
+    for (const palette of ['Light', 'Dark']) {
+      test('offline notice: axe and no overflow at ' + width + 'px in ' + palette, async ({ page, context }) => {
+        await page.setViewportSize({ width, height: 900 });
+        await page.goto(preview);
+        const toggle = page.getByRole('contentinfo').locator('[data-footer-toggle]');
+        await toggle.scrollIntoViewIfNeeded();
+        if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+        await page.getByRole('radio', { name: palette }).check();
+
+        await context.setOffline(true);
+        await expect(page.locator('[data-network-notice-panel]')).toBeVisible();
+        const results = await new AxeBuilder({ page })
+          .include('[data-state-preview]')
+          .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'])
+          .analyze();
+        expect(results.violations.map((v) => v.id + ': ' + v.help)).toEqual([]);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+        await context.setOffline(false);
+        await expect(page.locator('[data-network-notice-panel]')).toBeHidden();
+      });
+    }
+  }
+
 });
