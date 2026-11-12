@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { dayLabel } from './daily';
-import { helloResultCard, showResultCard } from './gameresults';
+import { showResultCard } from './gameresults';
 import {
   HELLO_CATEGORY_LABELS,
   HELLO_DEPTH_LABELS,
