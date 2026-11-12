@@ -284,7 +284,7 @@ describe.skipIf(!existsSync(dist))('built site', () => {
       new RegExp(`<meta name="${name}" content="([^"]*)"`).exec(html)?.[1];
 
     for (const pagePath of pages) {
-      const page = pagePath.replace(`${dist}/`, '');
+      const page = relative(dist, pagePath);
       const html = readFileSync(pagePath, 'utf8');
       // A page kept out of search still needs an image and identity when someone shares its link.
       if (html.includes('<meta name="robots" content="noindex') && !informationPages.has(page)) continue;
