@@ -788,9 +788,13 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
     await page.clock.install();
     await page.goto('/');
     await section(page).scrollIntoViewIfNeeded();
+    // install() still lets time run during page loading. Pause before the rapid clicks so
+    // a slow browser cannot trigger the 760 ms rest announcement between presses.
+    await page.clock.pauseAt(new Date(Date.now() + 1000));
     await listen(page);
     const next = section(page).getByRole('button', { name: 'next study mode' });
     for (let i = 0; i < 4; i++) await next.click({ force: true });
+    expect(await heard(page), 'rapid presses must not announce intermediate cards').toEqual([]);
     // The final announcement is debounced: fire it on the virtual clock first.
     await page.clock.runFor(800);
     await expect(section(page).locator('[data-modes-live]')).toHaveText('matching, 5 of 11');
