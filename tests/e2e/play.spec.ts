@@ -122,6 +122,9 @@ test.describe('daily games: pillo (Task 114)', () => {
     for (const letter of 'grace') await pulse.getByRole('button', { name: letter, exact: true }).click();
     await expect(field(page)).toHaveValue('grace');
     await pulse.getByRole('button', { name: 'enter', exact: true }).click();
+    const resultDialog = page.getByTestId('game-result-dialog');
+    await expect(resultDialog.getByRole('button', { name: 'close results' })).toBeFocused();
+    await resultDialog.getByRole('button', { name: 'close results' }).click();
     const result = page.getByTestId('pulse-result');
     await expect(result).toBeFocused();
     await expect(result).toContainText('solved.');
@@ -344,6 +347,9 @@ test.describe('daily games: sudoku (Task 625)', () => {
       await cells(page).nth(index).click();
       await page.keyboard.press(String(daily.solution[index]));
     }
+    const resultDialog = page.getByTestId('game-result-dialog');
+    await expect(resultDialog.getByRole('button', { name: 'close results' })).toBeFocused();
+    await resultDialog.getByRole('button', { name: 'close results' }).click();
     const result = page.getByTestId('sudoku-result');
     await expect(result).toBeFocused();
     await expect(result).toContainText('solved.');
@@ -434,6 +440,9 @@ test.describe('daily games: crossword levels (Task 627)', () => {
         await page.keyboard.type(letter);
       }
     }
+    const resultDialog = page.getByTestId('game-result-dialog');
+    await expect(resultDialog.getByRole('button', { name: 'close results' })).toBeFocused();
+    await resultDialog.getByRole('button', { name: 'close results' }).click();
     const result = board(page).getByTestId('cueword-result');
     await expect(result).toBeFocused();
     await expect(result).toContainText('solved.');
@@ -507,6 +516,9 @@ test.describe('daily games: private stats (D-76)', () => {
     await field(page).fill('grace');
     await field(page).press('Enter');
     await expect(page.getByTestId('pulse-result')).toContainText('solved.');
+    const resultDialog = page.getByTestId('game-result-dialog');
+    await expect(resultDialog.getByRole('button', { name: 'close results' })).toBeFocused();
+    await resultDialog.getByRole('button', { name: 'close results' }).click();
   };
 
   test.beforeEach(async ({ page }) => {

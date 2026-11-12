@@ -315,6 +315,11 @@ test('the clock runs out and moves on, the timer is read out at 10 and 5 seconds
 
   // Question 2 onward: right on 2 to 11, wrong after (a wrong letter is any letter that isn't the key).
   await finish(page, 1, (index) => (index <= 10 ? key[index]! : key[index] === 'a' ? 'b' : 'a'));
+  const resultDialog = page.getByTestId('game-result-dialog');
+  await expect(resultDialog.getByRole('button', { name: 'close results' })).toBeFocused();
+  await resultDialog.getByRole('button', { name: 'close results' }).click();
+  // This test runs on a fake clock, so the animation frame that returns focus needs the clock to move.
+  await page.clock.runFor(100);
   const result = page.getByTestId('stat-result');
   await expect(result).toBeFocused();
   await expect(page.getByTestId('stat-score')).toHaveText('10 / 15');
