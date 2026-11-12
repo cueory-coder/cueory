@@ -28,7 +28,8 @@ describe('message page shell', () => {
   });
 
   it('is not added to the menu, footer links or public sitemap', () => {
-    expect([...menuLinks, ...footerLinks].some((link) => link.href === '/message')).toBe(false);
+    const hrefs: string[] = [...menuLinks, ...footerLinks].map((link) => link.href);
+    expect(hrefs).not.toContain('/message');
     expect(indexablePages).not.toContain('/message');
   });
 
