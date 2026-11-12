@@ -1,0 +1,68 @@
+---
+/** A static, no-JavaScript card sheet for each visible lesson with a visible deck (W09-2, #46). */
+import { getCollection, getEntry } from 'astro:content';
+import Layout from '../../../layouts/Layout.astro';
+import { pathsFor, statusNotice, type CatalogLesson } from '../../../lessons/catalog';
+import { lessonCatalog } from '../../../lessons/load';
+import { creditsFor } from '../../../visuals/credits';
+import { visualsForLesson } from '../../../visuals/forlesson';
+
+export async function getStaticPaths() {
+  return pathsFor(await lessonCatalog(), 'cards');
+}
+
+const { lesson } = Astro.props as { lesson: CatalogLesson };
+const deck = lesson.cards && await getEntry('cards', lesson.cards.id);
+if (!deck) throw new Error(`The card file for lesson ${lesson.id} is missing.`);
+const { title, status, cards } = deck.data;
+const notice = statusNotice(status, 'cards');
+// Only approved drawings may contribute credits; never expose draft visual sources.
+const shownVisuals = visualsForLesson(
+  (await getCollection('visuals')).map((entry) => entry.data),
+  lesson.curriculumId ?? lesson.id,
+);
+const credits = creditsFor(shownVisuals);
+---
+
+<Layout title={`print cards · ${title}`} description={`printable cards for ${lesson.about}.`} variant="study" noindex promo={false}>
+  <article data-print-cards class="mx-auto max-w-page pb-section pt-8 sm:pt-12">
+    <header>
+      <p class="text-sm text-ink-soft">{lesson.context} · printable cards</p>
+      <h1 class="mt-3 text-2xl">{title}</h1>
+      {notice && <p class="mt-3 text-sm text-ink-soft">{notice}</p>}
+      <div data-print-hidden class="mt-4 space-y-3">
+        <p class="text-sm text-ink-soft">use your browser's print command to print the fronts and backs side by side.</p>
+        <a href={`${lesson.href}/cards`} class="inline-flex min-h-(--tap-min) items-center underline underline-offset-4">back to cards</a>
+      </div>
+    </header>
+
+    <ol data-print-card-list aria-label="printable cards" class="mt-8 grid list-none gap-4 p-0">
+      {cards.map((card, index) => (
+        <li data-print-card class="grid min-w-0 break-inside-avoid gap-4 rounded-md border border-line p-4 sm:grid-cols-2" aria-label={`card ${index + 1}`}>
+          <section data-card-side="front" class="min-w-0">
+            <h2 class="text-sm font-semibold">front {index + 1}</h2>
+            <p class="mt-2 wrap-anywhere">{card.front}</p>
+          </section>
+          <section data-card-side="back" class="min-w-0">
+            <h2 class="text-sm font-semibold">back {index + 1}</h2>
+            <p class="mt-2 wrap-anywhere">{card.back}</p>
+          </section>
+        </li>
+      ))}
+    </ol>
+
+    {credits.length > 0 && (
+      <section data-print-card-credits class="mt-section" aria-label="picture credits">
+        <h2 class="text-lg font-semibold">picture credits</h2>
+        <ul class="mt-3 space-y-3">
+          {credits.map((book) => (
+            <li class="wrap-anywhere">
+              {book.credit}{' '}
+              <a href={book.licenseUrl} rel="license noopener noreferrer" class="underline underline-offset-4">{book.licenseUrl}</a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
+  </article>
+</Layout>
