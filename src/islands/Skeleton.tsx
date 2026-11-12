@@ -8,14 +8,19 @@ export type SkeletonKind = 'lines' | 'card' | 'ring';
 interface Props {
   kind?: SkeletonKind;
   lines?: number;
+  /** Keep a finished placeholder out of both the visible and accessible trees. */
+  loading?: boolean;
 }
 
-export default function Skeleton({ kind = 'lines', lines = 3 }: Props) {
+export default function Skeleton({ kind = 'lines', lines = 3, loading = true }: Props) {
+  // A completed request must not leave an old "loading" live region behind.
+  if (!loading) return null;
+
   // Bound the size of a group even if a future caller passes unexpected input.
   const lineCount = Number.isFinite(lines) ? Math.max(1, Math.min(6, Math.trunc(lines))) : 3;
 
   return (
-    <div role="status" data-skeleton-kind={kind} className="w-full">
+    <div role="status" aria-live="polite" data-skeleton-kind={kind} className="w-full">
       <span className="sr-only">loading</span>
       {kind === 'lines' && (
         <div aria-hidden="true" className="flex w-full flex-col gap-3">
