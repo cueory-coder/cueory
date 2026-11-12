@@ -3,7 +3,8 @@ import { attachResumeLifecycle, clearResume, readResume, saveResume, type Resume
 import { browserStorage } from '../scripts/storage';
 import ResumePrompt from './ResumePrompt';
 import {
-  answerCurrent, blankOptions, boundTyped, currentIndex, isCheckKey, nextItem, normalizeAnswer, parseItems, sentenceParts, showHint,
+  answerCurrent, blankOptions, boundTyped, currentIndex, encodeFillInAttempt, isCheckKey, nextItem,
+  normalizeAnswer, parseItems, parseSavedFillInAttempt, sentenceParts, showHint,
   MAX_TYPED, startFillIn, summary, type FillInItem, type FillInState,
 } from './fillin';
 
@@ -39,7 +40,7 @@ function appendAttempt(history: readonly string[], entry: string, previousWasClo
   return [...kept, entry];
 }
 
-/** Only typed submissions and whether the student used a hint are saved. */
+/** Save only submitted text, a small input-kind marker, and whether a hint was used. */
 function fillInDraft(items: readonly FillInItem[], state: FillInState, attempts: Attempts, moves: number, page: string): ResumeDraft | null {
   if (!items.length) return null;
   const index = currentIndex(state) ?? items.length - 1;
@@ -49,6 +50,7 @@ function fillInDraft(items: readonly FillInItem[], state: FillInState, attempts:
     totalItems: items.length,
     answers: {
       ...Object.fromEntries(Object.entries(attempts).map(([key, entries]) => [key, [...entries]])),
+      format: 'v2',
       // A hint taken before any answer on the open item: kept so a reload can't drop the repeat round it costs.
       ...(openHint(state) ? { [HINT_KEY]: itemKey(index) } : {}),
     },
@@ -72,9 +74,13 @@ function restoreFillIn(items: readonly FillInItem[], snapshot: ResumeSnapshot, p
   if (!Number.isSafeInteger(moves) || moves > 2000) return null;
 
   const attempts: Attempts = {};
+  const format = snapshot.answers.format;
+  if (format !== undefined && format !== 'v2') return null;
+  const oldSnapshot = format === undefined;
   let count = 0;
   let pendingHint: string | undefined;
   for (const [key, submitted] of Object.entries(snapshot.answers)) {
+    if (key === 'format') continue;
     if (key === HINT_KEY) {
       if (typeof submitted !== 'string' || !/^item-(0|[1-9]\d*)$/.test(submitted)) return null;
       pendingHint = submitted;
@@ -84,9 +90,9 @@ function restoreFillIn(items: readonly FillInItem[], snapshot: ResumeSnapshot, p
     if (!match || Number(match[1]) >= items.length || !Array.isArray(submitted)) return null;
     const entries: string[] = [];
     for (const raw of submitted) {
-      if (typeof raw !== 'string' || !/^[nh]:/.test(raw) ||
-          normalizeAnswer(raw.slice(2)) === '' || boundTyped(raw.slice(2)) !== raw.slice(2)) return null;
-      entries.push(raw);
+      const parsed = parseSavedFillInAttempt(raw, oldSnapshot);
+      if (!parsed) return null;
+      entries.push(parsed.stored);
       if (++count > 1000) return null;
     }
     if (!entries.length) return null;
@@ -105,12 +111,13 @@ function restoreFillIn(items: readonly FillInItem[], snapshot: ResumeSnapshot, p
     const entries = attempts[key] ?? [];
     let offset = used.get(key) ?? 0;
     while (offset < entries.length && state.result !== 'right' && state.result !== 'wrong') {
-      const attempt = entries[offset++]!;
-      if (attempt.startsWith('h:')) state = showHint(state);
-      const checked = answerCurrent(state, items, attempt.slice(2));
+      const attempt = parseSavedFillInAttempt(entries[offset++]!);
+      if (!attempt) return null;
+      if (attempt.hinted) state = showHint(state);
+      const checked = answerCurrent(state, items, attempt.text, attempt.kind);
       if (checked === state) return null;
       state = checked;
-      typed = attempt.slice(2);
+      typed = attempt.text;
     }
     used.set(key, offset);
     if (advancesLeft === 0) break;
@@ -211,12 +218,13 @@ function Session({ items: suppliedItems, page = FILL_IN_PAGE }: Props) {
     // Check exactly the text that will be saved, so a resumed replay reaches the same verdict.
     const submitted = boundTyped(typed);
     if (index === undefined || !parts || !canSubmit || answered) return;
-    const next = answerCurrent(state, items, submitted);
+    const kind = inputMode === 'dropdown' ? 'choice' : 'typed';
+    const next = answerCurrent(state, items, submitted, kind);
     if (next === state) return;
     const key = itemKey(index);
     attempts.current = {
       ...attempts.current,
-      [key]: appendAttempt(attempts.current[key] ?? [], `${state.hinted ? 'h' : 'n'}:${submitted}`, openClose.current === key),
+      [key]: appendAttempt(attempts.current[key] ?? [], encodeFillInAttempt(submitted, state.hinted, kind), openClose.current === key),
     };
     openClose.current = next.result === 'close' ? key : null;
     if (submitted !== typed) setTyped(submitted);

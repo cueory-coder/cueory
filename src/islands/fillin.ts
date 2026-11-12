@@ -16,6 +16,7 @@ export interface SentenceParts {
 }
 
 export type AnswerResult = 'right' | 'close' | 'wrong';
+export type FillInInputKind = 'typed' | 'choice' | 'legacy';
 
 export interface FillInState {
   /** Item indexes in this round. */
@@ -84,8 +85,13 @@ export function boundTyped(value: string): string {
   return Array.from(value.replace(UNSAVEABLE, '')).slice(0, MAX_TYPED).join('');
 }
 
-/** Case, repeated whitespace and punctuation at the end do not change an answer. */
+/** Ignore sentence-ending punctuation, but preserve meaningful notation such as %, /, ° and -. */
 export function normalizeAnswer(value: string): string {
+  return value.normalize('NFC').trim().toLowerCase().replace(/\s+/gu, ' ').replace(/[.,!?;:]+$/gu, '').trim();
+}
+
+/** Old saved attempts removed all trailing punctuation. Keep their original replay behavior. */
+function legacyNormalizeAnswer(value: string): string {
   return value.normalize('NFC').trim().toLowerCase().replace(/\s+/gu, ' ').replace(/\p{P}+$/gu, '').trim();
 }
 
@@ -122,12 +128,52 @@ export function isCheckKey(press: { key: string; isComposing: boolean; keyCode: 
   return press.key === 'Enter' && !press.isComposing && press.keyCode !== 229;
 }
 
-export function checkAnswer(typed: string, answer: string): AnswerResult {
-  const given = normalizeAnswer(typed);
-  const expected = normalizeAnswer(answer);
+/** Dropdown choices are right or wrong, never "close". Only typed spelling slips can be close. */
+export function checkAnswer(typed: string, answer: string, kind: FillInInputKind = 'typed'): AnswerResult {
+  if (kind === 'choice') return typed.trim() === answer.trim() ? 'right' : 'wrong';
+  const normalize = kind === 'legacy' ? legacyNormalizeAnswer : normalizeAnswer;
+  const given = normalize(typed);
+  const expected = normalize(answer);
   if (given === expected) return 'right';
+  // Symbols and signs carry meaning: adding/removing them isn't a one-letter typo.
+  if (kind === 'typed') {
+    const symbols = (text: string) => text.match(/[^\p{L}\p{N}\s]/gu)?.join('') ?? '';
+    if (symbols(given) !== symbols(expected)) return 'wrong';
+  }
   const letters = expected.match(/\p{L}/gu)?.length ?? 0;
   return letters >= 5 && editDistance(given, expected) === 1 ? 'close' : 'wrong';
+}
+
+export interface SavedFillInAttempt {
+  text: string;
+  kind: FillInInputKind;
+  hinted: boolean;
+  /** Tag to persist if this attempt came from an older saved session. */
+  stored: string;
+}
+
+/** One-letter tags plus ':' preserve the existing 500-character saved-answer limit. */
+export function encodeFillInAttempt(text: string, hinted: boolean, kind: 'typed' | 'choice'): string {
+  const prefix = kind === 'choice' ? (hinted ? 'd:' : 'c:') : (hinted ? 'h:' : 'n:');
+  return prefix + text;
+}
+
+/**
+ * Older snapshots have no format marker and use n:/h: tags for unknown input kinds.
+ * In newer snapshots, n/h mean typed, c/d dropdown, and l/m preserved legacy.
+ */
+export function parseSavedFillInAttempt(raw: unknown, oldSnapshot = false): SavedFillInAttempt | null {
+  if (typeof raw !== 'string' || raw.length < 3 || raw[1] !== ':') return null;
+  const code = raw[0];
+  if (oldSnapshot ? code !== 'n' && code !== 'h' : !'nhcdlm'.includes(code)) return null;
+  const text = raw.slice(2);
+  const kind: FillInInputKind = oldSnapshot || code === 'l' || code === 'm' ? 'legacy'
+    : code === 'c' || code === 'd' ? 'choice' : 'typed';
+  const normalize = kind === 'legacy' ? legacyNormalizeAnswer : normalizeAnswer;
+  if (!normalize(text) || boundTyped(text) !== text) return null;
+  const hinted = code === 'h' || code === 'd' || code === 'm';
+  const stored = oldSnapshot ? (hinted ? 'm:' : 'l:') + text : raw;
+  return { text, kind, hinted, stored };
 }
 
 export function startFillIn(items: readonly FillInItem[]): FillInState {
@@ -152,12 +198,14 @@ export function showHint(state: FillInState): FillInState {
 }
 
 /** Check the current answer. A close answer stays open for another try. */
-export function answerCurrent(state: FillInState, items: readonly FillInItem[], typed: string): FillInState {
+export function answerCurrent(
+  state: FillInState, items: readonly FillInItem[], typed: string, kind: FillInInputKind = 'typed',
+): FillInState {
   const index = currentIndex(state);
   if (index === undefined || state.result === 'right' || state.result === 'wrong') return state;
   const item = items[index];
   if (!item) return state;
-  const result = checkAnswer(typed, sentenceParts(item.sentence).answer);
+  const result = checkAnswer(typed, sentenceParts(item.sentence).answer, kind);
   if (result === 'close') return { ...state, result };
   const needsAnotherRound = result === 'wrong' || state.hinted;
   return {

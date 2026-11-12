@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  answerCurrent, blankOptions, boundTyped, checkAnswer, currentIndex, editDistance, isCheckKey, nextItem, normalizeAnswer, parseItems,
+  answerCurrent, blankOptions, boundTyped, checkAnswer, currentIndex, editDistance, encodeFillInAttempt,
+  isCheckKey, nextItem, normalizeAnswer, parseItems, parseSavedFillInAttempt,
   MAX_TYPED, sentenceParts, showHint, startFillIn, summary, type FillInItem,
 } from '../../src/islands/fillin';
 import { MAX_ANSWER_TEXT, parseResume } from '../../src/scripts/resume';
@@ -180,5 +181,68 @@ describe('blank options construction', () => {
     expect(opts).toHaveLength(4);
     expect(opts).toContain('honey');
     expect(new Set(opts).size).toBe(4);
+  });
+});
+
+
+describe('S6 exact dropdown grading and notation', () => {
+  it('grades dropdown spelling near misses wrong while typed near misses stay close', () => {
+    expect(checkAnswer('money', 'honey', 'choice')).toBe('wrong');
+    expect(checkAnswer('money', 'honey', 'typed')).toBe('close');
+    expect(answerCurrent(startFillIn(items), items, 'money', 'choice')).toMatchObject({
+      result: 'wrong', learning: [0],
+    });
+    expect(answerCurrent(startFillIn(items), items, 'money', 'typed')).toMatchObject({
+      result: 'close', learning: [],
+    });
+  });
+
+  it('preserves percentage signs and similar notation', () => {
+    expect(normalizeAnswer('50%')).not.toBe(normalizeAnswer('50'));
+    for (const kind of ['typed', 'choice'] as const) {
+      expect(checkAnswer('50', '50%', kind)).toBe('wrong');
+      expect(checkAnswer('50%', '50', kind)).toBe('wrong');
+      expect(checkAnswer('honey%', 'honey', kind)).toBe('wrong');
+    }
+    expect(checkAnswer('Honey!?', 'honey', 'typed')).toBe('right');
+  });
+
+  it('keeps a percent-marked answer and an unmarked option distinct', () => {
+    const opts = blankOptions('50%', ['50', '50°', '50%']);
+    expect(opts).toHaveLength(4);
+    expect(opts).toContain('50%');
+    expect(opts).toContain('50');
+    expect(opts).toContain('50°');
+  });
+
+  it('records input kind and hints without saving any key', () => {
+    expect(encodeFillInAttempt('money', false, 'choice')).toBe('c:money');
+    expect(encodeFillInAttempt('honey', true, 'choice')).toBe('d:honey');
+    expect(encodeFillInAttempt('hoeny', false, 'typed')).toBe('n:hoeny');
+    expect(parseSavedFillInAttempt('d:honey')).toEqual({
+      text: 'honey', kind: 'choice', hinted: true, stored: 'd:honey',
+    });
+    expect(parseSavedFillInAttempt('m:honey')).toEqual({
+      text: 'honey', kind: 'legacy', hinted: true, stored: 'm:honey',
+    });
+    for (const invalid of ['', 'x:honey', 'n:', 'c:\u0001', 'c:honey\u0001']) {
+      expect(parseSavedFillInAttempt(invalid)).toBeNull();
+    }
+  });
+
+  it('replays saved legacy attempts with their original verdict even after upgrading', () => {
+    const legacy = parseSavedFillInAttempt('n:50', true);
+    expect(legacy).toEqual({ text: '50', kind: 'legacy', hinted: false, stored: 'l:50' });
+    expect(checkAnswer(legacy!.text, '50%', legacy!.kind)).toBe('right');
+    const upgraded = parseSavedFillInAttempt(legacy!.stored);
+    expect(upgraded).toEqual(legacy);
+    expect(checkAnswer(upgraded!.text, '50%', upgraded!.kind)).toBe('right');
+    const now = 1_800_000_000_000;
+    const base = {
+      version: 1, tool: 'fill-in', page: '/learn/study-skills/fill-in', step: 'advance-0',
+      itemIndex: 0, itemId: 'item-0', totalItems: 1, timer: null, phase: 'working', savedAt: now,
+    };
+    expect(parseResume(JSON.stringify({ ...base, answers: { 'item-0': ['n:50'] } }), now)).not.toBeNull();
+    expect(parseResume(JSON.stringify({ ...base, answers: { format: 'v2', 'item-0': ['l:50'] } }), now)).not.toBeNull();
   });
 });
