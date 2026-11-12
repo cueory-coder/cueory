@@ -9,6 +9,7 @@ async function tabToLessonLink(page: Page, target: Locator) {
   // Begin at a known earlier keyboard stop. Do not focus the target programmatically.
   const start = page.getByTestId('mode-grid').locator('[data-mode-tile]').last()
     .getByRole('button', { name: /^more about / });
+  await expect(start).toBeVisible();
   await start.focus();
   await expect(start).toBeFocused();
   for (let step = 0; step < 80; step++) {
@@ -63,13 +64,14 @@ for (const lesson of catalog.lessons) {
     await expect(backLink).toHaveAttribute('href', back.href);
     await expect(backLink).toHaveText(back.label);
     expect((await page.request.get(back.href)).status()).toBe(200);
-    // If a neighboring lesson exists, its named link must be keyboard-operable.
-    const neighbor = next ?? previous;
-    if (neighbor) {
-      const link = next ? nextLink : prevLink;
+    // Activate both directions, not just Next on a middle lesson.
+    // Return to the lesson after each navigation so each link gets a real keyboard check.
+    for (const [neighbor, link] of [[previous, prevLink], [next, nextLink]] as const) {
+      if (!neighbor) continue;
       await tabToLessonLink(page, link);
       await page.keyboard.press('Enter');
       await expect(page).toHaveURL((url) => url.pathname === neighbor.href || url.pathname === neighbor.href + '.html');
+      await page.goto(lesson.href);
     }
   });
 }
