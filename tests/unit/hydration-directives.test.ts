@@ -15,7 +15,7 @@ type EagerKind = 'load' | 'only';
 type EagerIsland = { file: string; component: string; kind: EagerKind; id: string };
 type AllowedIsland = { count: number; reason: string };
 
-// Each item describes an actual eager island on staging (2026-11-11).
+// Each item describes an actual eager island on reviewed staging b6435591.
 // Keep the reason on one line and update this inventory when an island changes.
 // Keys are paths + component names + directive, not fragile line numbers.
 const ALLOWED: Record<string, AllowedIsland> = {
@@ -54,6 +54,7 @@ const ALLOWED: Record<string, AllowedIsland> = {
   'src/pages/preview/anatomy-lab.astro::AnatomyLab::only': { count: 1, reason: 'The 3D viewer requires browser graphics after explicit interaction.' },
   'src/pages/preview/body-viewer.astro::BodyViewer::only': { count: 1, reason: 'The browser-only visualizer renders its 3D scene after interaction.' },
   'src/pages/preview/share.astro::ShareSheet::only': { count: 2, reason: 'Two sample share sheets depend on browser APIs and user choice.' },
+  'src/pages/preview/states.astro::ErrorBoundaryDemo::only': { count: 1, reason: 'The opt-in preview uses browser state to simulate a render failure after a deliberate button press.' },
   'src/pages/progress.astro::GuestImportOffer::only': { count: 1, reason: 'The guest import offer depends on browser and account progress state.' },
   'src/pages/progress.astro::ProgressPanel::only': { count: 1, reason: 'The progress panel reads local saved progress and account state.' },
   'src/pages/start.astro::Onboarding::only': { count: 1, reason: 'Optional setup answers are read from and saved to browser storage.' },
