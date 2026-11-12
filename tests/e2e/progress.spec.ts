@@ -320,6 +320,44 @@ test('a stale forget confirmation requires review again when valid saved work ch
   expect(await page.evaluate(() => localStorage.getItem('cueory-progress'))).toBeNull();
 });
 
+test('a stale forget confirmation preserves a newly saved study-resume snapshot', async ({ page }) => {
+  const initial = JSON.stringify({ version: 1, onboarding: { done: true },
+    decks: { 'study-skills-01': { know: ['ss01-c01'] } } });
+  await page.addInitScript((raw) => localStorage.setItem('cueory-progress', raw), initial);
+  await page.goto('/progress');
+  await page.getByRole('button', { name: 'forget my progress on this device' }).click();
+  await expect(page.getByRole('button', { name: 'yes, forget it' })).toBeFocused();
+
+  // Another study island can save an updated resume in the same document. Progress piles do not change.
+  const resume = JSON.stringify({
+    version: 1, tool: 'cards', page: '/learn/study-skills/cards',
+    itemIndex: 0, totalItems: 3, answers: {}, timer: null,
+    phase: 'working', savedAt: Date.now(),
+  });
+  await page.evaluate((raw) => localStorage.setItem('cueory-resume', raw), resume);
+  await page.getByRole('button', { name: 'yes, forget it' }).click();
+
+  await expect(page.getByText(
+    'your saved study place changed or could not be checked. review it before choosing to forget it.',
+  )).toBeVisible();
+  await expect(page.getByRole('button', { name: 'forget my progress on this device' })).toBeFocused();
+  await expect(page.getByRole('button', { name: 'yes, forget it' })).toHaveCount(0);
+  expect(await page.evaluate(() => ({
+    progress: localStorage.getItem('cueory-progress'),
+    resume: localStorage.getItem('cueory-resume'),
+  }))).toEqual({ progress: initial, resume });
+
+  // After the student makes a fresh decision, the existing confirmed reset still works.
+  await page.getByRole('button', { name: 'forget my progress on this device' }).click();
+  await expect(page.getByRole('button', { name: 'yes, forget it' })).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('done. your progress is no longer saved on this device.')).toBeFocused();
+  expect(await page.evaluate(() => ({
+    progress: localStorage.getItem('cueory-progress'),
+    resume: localStorage.getItem('cueory-resume'),
+  }))).toEqual({ progress: null, resume: null });
+});
+
 test('bad saved data remains untouched and the retry state is keyboard-operable', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('cueory-progress', '{not json'));
   await page.goto('/progress');

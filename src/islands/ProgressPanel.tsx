@@ -12,6 +12,7 @@ import {
   withOnboarding,
 } from '../scripts/progress';
 import { browserStorage } from '../scripts/storage';
+import { RESUME_STORAGE_KEY } from '../scripts/resume';
 import { connectExamPlans, isConnectFailure, loadExamPlan, loadTickets } from './examplansync';
 import ProgressRing from './ProgressRing';
 import { examCountdown, progressView, readDeviceProgress } from './progressview';
@@ -46,6 +47,7 @@ export default function ProgressPanel({ decks }: Props) {
   const [said, setSaid] = useState('');
   const forgetRef = useRef<HTMLButtonElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
+  const resumeAtConfirmation = useRef<string | null>(null);
   const retryRef = useRef<HTMLButtonElement>(null);
   const saidRef = useRef<HTMLParagraphElement>(null);
   const [signedIn, setSignedIn] = useState(false);
@@ -121,6 +123,19 @@ export default function ProgressPanel({ decks }: Props) {
   };
 
   const forget = () => {
+    // The final action also clears cueory-resume, which is not part of the Progress snapshot.
+    // Check its raw bytes BEFORE readDeviceProgress, since readResume may discard invalid data.
+    let resumeUnchanged = false;
+    try {
+      resumeUnchanged = Boolean(storage) && storage?.getItem(RESUME_STORAGE_KEY) === resumeAtConfirmation.current;
+    } catch { /* Browser storage can become blocked between the two clicks. */ }
+    if (!resumeUnchanged) {
+      loads.cancel();
+      setConfirming(false);
+      setSaid('your saved study place changed or could not be checked. review it before choosing to forget it.');
+      requestAnimationFrame(() => forgetRef.current?.focus());
+      return;
+    }
     // The confirmation applies to the data the student actually reviewed. Another feature or
     // tab can update localStorage after it opens, including corrupt or recoverable records.
     // Same-document changes do not dispatch a "storage" event to this page.
@@ -287,6 +302,13 @@ export default function ProgressPanel({ decks }: Props) {
               type="button"
               disabled={empty}
               onClick={() => {
+                try {
+                  if (!storage) throw new Error('storage unavailable');
+                  resumeAtConfirmation.current = storage.getItem(RESUME_STORAGE_KEY);
+                } catch {
+                  setSaid('this browser could not check your saved study place. try again.');
+                  return;
+                }
                 setConfirming(true);
                 setSaid('');
                 requestAnimationFrame(() => confirmRef.current?.focus());
