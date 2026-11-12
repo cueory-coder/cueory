@@ -75,6 +75,7 @@ const initialJsBudget = {
   'preview/email.html': 146752,
   'preview/prose.html': 146752,
   'preview/reminders.html': 148152,
+  'preview/rewards.html': 89731,
   'preview/share.html': 151522,
   'preview/states.html': 146752,
   'preview/survey.html': 90800,
