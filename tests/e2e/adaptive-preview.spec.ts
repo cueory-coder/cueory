@@ -73,6 +73,45 @@ test('answer cannot be checked twice and keyboard focus lands on readable feedba
   await expect(page.getByTestId('adaptive-count')).toContainText('sample question 2 of 5');
 });
 
+
+test('uses real touch taps on every sample choice and button through the final summary', async ({ browser }, testInfo) => {
+  const context = await browser.newContext({
+    baseURL: testInfo.project.use.baseURL,
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    reducedMotion: 'reduce',
+    serviceWorkers: 'block',
+  });
+  try {
+    const touchPage = await context.newPage();
+    await touchPage.goto(route);
+    const seen = new Set<string>();
+    for (let index = 0; index < SAMPLE_ADAPTIVE_QUESTIONS.length; index++) {
+      const id = await touchPage.getByTestId('adaptive-question').getAttribute('data-question-id');
+      expect(id).toBeTruthy();
+      expect(seen.has(id!)).toBe(false);
+      seen.add(id!);
+      const sample = SAMPLE_ADAPTIVE_QUESTIONS.find(item => item.id === id)!;
+      const label = touchPage.locator('fieldset label').filter({
+        hasText: sample.sampleKey === 'a' ? '[sample] choice A' : '[sample] choice B',
+      });
+      await label.tap();
+      await expect(touchPage.getByRole('radio', {
+        name: sample.sampleKey === 'a' ? '[sample] choice A' : '[sample] choice B',
+      })).toBeChecked();
+      await touchPage.getByRole('button', { name: 'check sample answer' }).tap();
+      await expect(touchPage.getByTestId('adaptive-result')).toHaveText('✓ right.');
+      await touchPage.getByRole('button', { name: 'next sample question' }).tap();
+    }
+    await expect(touchPage.getByTestId('adaptive-finished')).toContainText('right on 5 of 5 sample questions.');
+    expect(seen.size).toBe(5);
+    await touchPage.getByRole('button', { name: 'start again' }).tap();
+    await expect(touchPage.getByTestId('adaptive-question')).toBeVisible();
+  } finally {
+    await context.close();
+  }
+});
+
 test('fits phone, tablet and desktop in Light and Evening and passes axe', async ({ page }) => {
   await page.goto(route);
   await expect(page.getByTestId('adaptive-question')).toBeVisible();
@@ -85,17 +124,30 @@ test('fits phone, tablet and desktop in Light and Evening and passes axe', async
     const actualPalettes = new Set<string>();
     for (const colorScheme of ['light', 'dark'] as const) {
       await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+      // Restore the first sample before each palette's Check and Next target assertions.
+      await page.goto(route);
+      await expect(page.getByTestId('adaptive-question')).toBeVisible();
       await page.evaluate(mode => { document.documentElement.dataset.theme = mode; }, colorScheme);
       const pageColor = await page.evaluate(() =>
         getComputedStyle(document.documentElement).getPropertyValue('--color-page').trim());
       expect(pageColor.length).toBeGreaterThan(0);
       actualPalettes.add(pageColor);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-      for (const label of await page.locator('fieldset label').all()) {
-        expect(await label.evaluate(node => node.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
+      const check = page.getByRole('button', { name: 'check sample answer' });
+      for (const target of [...await page.locator('fieldset label').all(), check]) {
+        const rect = await target.boundingBox();
+        expect(rect?.width ?? 0).toBeGreaterThanOrEqual(44);
+        expect(rect?.height ?? 0).toBeGreaterThanOrEqual(44);
       }
       const axe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
       expect(axe.violations.map(result => result.id + ': ' + result.help)).toEqual([]);
+      await page.getByRole('radio', { name: '[sample] choice A' }).check();
+      await check.click();
+      const next = page.getByRole('button', { name: 'next sample question' });
+      const nextRect = await next.boundingBox();
+      expect(nextRect?.width ?? 0).toBeGreaterThanOrEqual(44);
+      expect(nextRect?.height ?? 0).toBeGreaterThanOrEqual(44);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     }
     expect(actualPalettes.size).toBe(2);
   }
