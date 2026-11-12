@@ -1,0 +1,9 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import GameShareLanding from '../../components/GameShareLanding.astro';
+import { dailyGames } from '../../config/games';
+const game = dailyGames.find((item) => item.id === 'suture')!;
+---
+<Layout title={game.name} description={game.line} socialImage="/share/games-scene.png" promo={false}>
+  <GameShareLanding name={game.name} line={game.line} playHref="/play#word-path-heading" />
+</Layout>
