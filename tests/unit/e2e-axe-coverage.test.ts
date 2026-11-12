@@ -132,7 +132,8 @@ function needsAxe(source: string): boolean {
     if (isAxeConstructor(node)) return true;
     if (ts.isIdentifier(node)) return bindingIsAxe(visibleBinding(node), false, seen);
     if (ts.isParenthesizedExpression(node) || ts.isAwaitExpression(node) ||
-      ts.isAsExpression(node) || ts.isNonNullExpression(node) || ts.isTypeAssertionExpression(node)) {
+      ts.isAsExpression(node) || ts.isNonNullExpression(node) || ts.isTypeAssertionExpression(node) ||
+      ts.isSatisfiesExpression(node)) {
       return isAxeValue(node.expression, seen);
     }
     if (ts.isCallExpression(node)) {
@@ -152,7 +153,8 @@ function needsAxe(source: string): boolean {
 
   // Only reachable code in a runnable test/hook (or a helper it invokes) may
   // prove axe coverage. Skipped cases and unused helper bodies cannot count.
-  const pageFixtureNames = (fn: ts.ArrowFunction | ts.FunctionExpression): Set<string> => {
+  type RunnableCallback = ts.ArrowFunction | ts.FunctionExpression | ts.FunctionDeclaration;
+  const pageFixtureNames = (fn: RunnableCallback): Set<string> => {
     const names = new Set<string>();
     const first = fn.parameters[0];
     if (!first || !ts.isObjectBindingPattern(first.name)) return names;
@@ -174,12 +176,45 @@ function needsAxe(source: string): boolean {
     }
     return undefined;
   };
+  const runnableCallback = (node: ts.Expression): RunnableCallback | undefined => {
+    if (ts.isArrowFunction(node) || ts.isFunctionExpression(node)) return node;
+    if (!ts.isIdentifier(node)) return undefined;
+    const binding = visibleBinding(node);
+    if (binding && ts.isFunctionDeclaration(binding) && binding.body) return binding;
+    if (binding && ts.isVariableDeclaration(binding) && binding.initializer &&
+      ts.isVariableDeclarationList(binding.parent) && (binding.parent.flags & ts.NodeFlags.Const) &&
+      (ts.isArrowFunction(binding.initializer) || ts.isFunctionExpression(binding.initializer))) {
+      return binding.initializer;
+    }
+    return undefined;
+  };
   const staticBoolean = (node: ts.Expression): boolean | undefined => {
     while (ts.isParenthesizedExpression(node) || ts.isAsExpression(node) ||
       ts.isNonNullExpression(node) || ts.isTypeAssertionExpression(node) ||
       ts.isSatisfiesExpression(node)) node = node.expression;
     if (node.kind === ts.SyntaxKind.TrueKeyword) return true;
     if (node.kind === ts.SyntaxKind.FalseKeyword) return false;
+    if (ts.isPrefixUnaryExpression(node) && node.operator === ts.SyntaxKind.ExclamationToken) {
+      const value = staticBoolean(node.operand);
+      return value === undefined ? undefined : !value;
+    }
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken) {
+      const left = staticBoolean(node.left);
+      const right = staticBoolean(node.right);
+      if (left === false || right === false) return false;
+      return left === true ? right : undefined;
+    }
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.BarBarToken) {
+      const left = staticBoolean(node.left);
+      const right = staticBoolean(node.right);
+      if (left === true || right === true) return true;
+      return left === false ? right : undefined;
+    }
+    if (ts.isConditionalExpression(node)) {
+      const condition = staticBoolean(node.condition);
+      return condition === true ? staticBoolean(node.whenTrue) :
+        condition === false ? staticBoolean(node.whenFalse) : undefined;
+    }
     return undefined;
   };
   const isRuntimeAbort = (call: ts.CallExpression): boolean => {
@@ -298,6 +333,25 @@ function needsAxe(source: string): boolean {
       if (value !== true) visitExecutable(node.whenFalse, seen, pageNames);
       return;
     }
+    if (ts.isWhileStatement(node)) {
+      visitExecutable(node.expression, seen, pageNames);
+      if (staticBoolean(node.expression) !== false) visitExecutable(node.statement, seen, pageNames);
+      return;
+    }
+    if (ts.isDoStatement(node)) {
+      visitExecutable(node.statement, seen, pageNames);
+      visitExecutable(node.expression, seen, pageNames);
+      return;
+    }
+    if (ts.isForStatement(node)) {
+      if (node.initializer) visitExecutable(node.initializer, seen, pageNames);
+      if (node.condition) visitExecutable(node.condition, seen, pageNames);
+      if (!node.condition || staticBoolean(node.condition) !== false) {
+        visitExecutable(node.statement, seen, pageNames);
+        if (node.incrementor) visitExecutable(node.incrementor, seen, pageNames);
+      }
+      return;
+    }
     if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer &&
       ts.isVariableDeclarationList(node.parent) && (node.parent.flags & ts.NodeFlags.Const) &&
       pageValue(node.initializer, pageNames)) pageNames.add(node.name.text);
@@ -307,8 +361,9 @@ function needsAxe(source: string): boolean {
       if (method === 'analyze' &&
         (ts.isPropertyAccessExpression(node.expression) || ts.isElementAccessExpression(node.expression)) &&
         isAxeValue(node.expression.expression, new Set())) axeAnalyzed = true;
-      if (ts.isIdentifier(node.expression) && !['expect', 'test', 'describe', 'it'].includes(node.expression.text) &&
-        node.arguments.some((arg) => pageArgument(arg, pageNames))) {
+      const excludedHelper = ts.isIdentifier(node.expression) &&
+        ['expect', 'test', 'describe', 'it'].includes(node.expression.text);
+      if (!excludedHelper && node.arguments.some((arg) => pageArgument(arg, pageNames))) {
         helperWithPage = true;
       }
       const body = helperBody(node);
@@ -356,10 +411,11 @@ function needsAxe(source: string): boolean {
       if (isTestRegistration(node) || isHookRegistration(node)) {
         registered = true;
         for (const argument of node.arguments) {
-          if (ts.isArrowFunction(argument) || ts.isFunctionExpression(argument)) {
-            const names = pageFixtureNames(argument);
+          const callback = runnableCallback(argument);
+          if (callback?.body) {
+            const names = pageFixtureNames(callback);
             if (names.size) pageFixture = true;
-            visitExecutable(argument.body, new Set(), names);
+            visitExecutable(callback.body, new Set(), names);
           }
         }
         return;
@@ -410,6 +466,10 @@ describe('page-navigation browser specs must run axe', () => {
       "test('sample', async ({ page: p }) => { await openPage(p); });",
       "test('sample', async ({ page: p }) => { await openPage({ page: p }); });",
       "test('sample', async ({ page: p }) => { const alias = p; await openPage(alias); });",
+      "async function scenario({ page }) { await page.goto('/sample'); } test('visits', scenario);",
+      "const scenario = async ({ page }) => { await page.goto('/sample'); }; test('visits', scenario);",
+      "test('sample', async ({ page }) => { await navigation.open(page); });",
+      "test('sample', async ({ page }) => { await navigation['open'](page); });",
       "await page.goto('/sample'); // new AxeBuilder({ page }).analyze();",
       "await page.goto('/sample'); const unused = 'new AxeBuilder({ page }).analyze()';",
       "await page.goto('/sample'); const axe = new AxeBuilder({ page });",
@@ -436,6 +496,10 @@ describe('page-navigation browser specs must run axe', () => {
       "test('visits', async ({ page }) => { await page.goto('/sample'); false && await new AxeBuilder({ page }).analyze(); });",
       "test('visits', async ({ page }) => { await page.goto('/sample'); true || await new AxeBuilder({ page }).analyze(); });",
       "test('visits', async ({ page }) => { await page.goto('/sample'); false ? await new AxeBuilder({ page }).analyze() : undefined; });",
+      "test('visits', async ({ page }) => { await page.goto('/sample'); !true && await new AxeBuilder({ page }).analyze(); });",
+      "test('visits', async ({ page }) => { await page.goto('/sample'); (true && false) && await new AxeBuilder({ page }).analyze(); });",
+      "test('visits', async ({ page }) => { await page.goto('/sample'); while (false) { await new AxeBuilder({ page }).analyze(); } });",
+      "test('visits', async ({ page }) => { await page.goto('/sample'); for (; false;) { await new AxeBuilder({ page }).analyze(); } });",
       "test.skip('does not run', async ({ page }) => { await new AxeBuilder({ page }).analyze(); }); test('visits', async ({ page }) => { await page.goto('/sample'); });",
       "test.describe.skip('disabled suite', () => { test('axe', async ({ page }) => { await new AxeBuilder({ page }).analyze(); }); }); test('visits', async ({ page }) => { await page.goto('/sample'); });",
       "test('visits', async ({ page }) => { await page.goto('/sample'); }); const unused = async (page: Page) => new AxeBuilder({ page }).analyze();",
@@ -466,6 +530,9 @@ describe('page-navigation browser specs must run axe', () => {
       { name: 'reachable-and.spec.ts', source: "test('visits', async ({ page }) => { await page.goto('/sample'); true && await new AxeBuilder({ page }).analyze(); });" },
       { name: 'reachable-or.spec.ts', source: "test('visits', async ({ page }) => { await page.goto('/sample'); false || await new AxeBuilder({ page }).analyze(); });" },
       { name: 'reachable-conditional.spec.ts', source: "test('visits', async ({ page }) => { await page.goto('/sample'); true ? await new AxeBuilder({ page }).analyze() : undefined; });" },
+      { name: 'satisfies-builder.spec.ts', source: "test('visits', async ({ page }) => { await page.goto('/sample'); await (new AxeBuilder({ page }) satisfies AxeBuilder).analyze(); });" },
+      { name: 'reachable-while.spec.ts', source: "test('visits', async ({ page }) => { await page.goto('/sample'); while (true) { await new AxeBuilder({ page }).analyze(); break; } });" },
+      { name: 'reachable-do.spec.ts', source: "test('visits', async ({ page }) => { await page.goto('/sample'); do { await new AxeBuilder({ page }).analyze(); } while (false); });" },
       { name: 'axe-hook.spec.ts', source: "test.beforeEach(async ({ page }) => { await new AxeBuilder({ page }).analyze(); }); test('visits', async ({ page }) => { await page.goto('/sample'); });" },
       { name: 'axe-step.spec.ts', source: "test('visits', async ({ page }) => { await page.goto('/sample'); await test.step('audit', async () => new AxeBuilder({ page }).analyze()); });" },
       { name: 'no-nav.spec.ts', source: "test('sample', async ({ page }) => { await expect(page).toHaveTitle('sample'); });" },
@@ -488,4 +555,5 @@ describe('page-navigation browser specs must run axe', () => {
     expect(() => assertCoverage(specs, knownWithoutAxe)).not.toThrow();
   });
 });
+
 
