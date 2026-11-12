@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import QuestionsPlayer from './QuestionsPlayer';
 import { setFlagItem } from './flagitem';
-import { openPublishedQuestions, type PublishedClient, type QuestionsView } from './publishedquestions';
+import { beginPublishedQuestionsRetry, describePublishedQuestions, openPublishedQuestions, type PublishedClient, type QuestionsView } from './publishedquestions';
 import { getSupabase, sessionStateFrom } from './supabaseclient';
 
-const link = 'underline underline-offset-4';
+const link = 'inline-flex min-h-11 items-center rounded-sm underline underline-offset-4';
 const button = 'min-h-11 rounded-pill bg-button px-5 py-2.5 text-on-button hover:bg-button-hover';
 
 /**
@@ -27,6 +27,7 @@ export default function PublishedQuestions() {
     return () => { cancelled = true; };
   }, [attempt]);
 
+  const display = describePublishedQuestions(view);
   const ready = view?.view === 'ready' ? view : undefined;
   // One remote object per load, so the player keeps its session while the student answers.
   const remote = useMemo(() => ready && { signedIn: true, transport: ready.transport, versions: ready.versions }, [ready]);
@@ -37,29 +38,34 @@ export default function PublishedQuestions() {
   }, [versionOf]);
   useEffect(() => () => setFlagItem(undefined), []);
 
-  if (!view) return <p className="text-sm text-ink-soft" role="status">loading the questions…</p>;
-  if (view.view === 'off') return <p data-testid="questions-closed">real questions open soon.</p>;
-  if (view.view === 'signed-out') {
-    const next = encodeURIComponent(view.next);
+  if (display.status === 'loading') {
+    return <p role="status" data-testid="questions-loading" className="text-sm text-ink-soft">{display.message}</p>;
+  }
+  if (display.status === 'off') return <p role="status" data-testid="questions-closed">{display.message}</p>;
+  if (display.status === 'signed-out') {
+    const next = encodeURIComponent(display.next);
     return (
-      <p data-testid="questions-signed-out">
-        <a className={link} href={`/signup?next=${next}`}>create a free account</a> to answer real questions, or{' '}
-        <a className={link} href={`/signin?next=${next}`}>sign in</a>.
+      <p role="status" data-testid="questions-signed-out">
+        <a className={link} href={`/signin?next=${next}`}>sign in</a> to answer real questions, or{' '}
+        <a className={link} href={`/signup?next=${next}`}>create a free account</a>.
       </p>
     );
   }
-  if (view.view === 'not-found') {
+  if (display.status === 'empty') {
     return (
-      <p data-testid="questions-not-found">
-        there are no published questions for this topic yet. <a className={link} href="/learn">back to the course library</a>
+      <p role="status" data-testid="questions-not-found">
+        {display.message} <a className={link} href="/learn">back to the course library</a>
       </p>
     );
   }
-  if (view.view === 'failed' || !ready || !remote) {
+  if (display.status === 'failed' || !ready || !remote) {
     return (
       <div>
-        <p role="alert">these questions could not be loaded. please try again.</p>
-        <button type="button" className={`${button} mt-4`} onClick={() => setAttempt(count => count + 1)}>try again</button>
+        <p role="alert">{display.status === 'failed' ? display.message : "couldn't load questions. please try again."}</p>
+        <button type="button" className={`${button} mt-4`} onClick={() => {
+          setView(current => beginPublishedQuestionsRetry(current));
+          setAttempt(count => count + 1);
+        }}>try again</button>
       </div>
     );
   }

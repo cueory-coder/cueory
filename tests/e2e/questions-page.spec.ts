@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 
 const route = '/learn/study-skills/questions';
 
@@ -69,5 +70,19 @@ test.describe('Task 95: modern sample questions page', () => {
 
     const fits = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
     expect(fits).toBe(true);
+  });
+});
+
+test.describe('W20: the published questions page shell', () => {
+  test('shows a loading fallback before hydration and a reachable way back to the library', async ({ page }) => {
+    const built = readFileSync('dist/learn/questions.html', 'utf8');
+    expect(built).toContain('loading questions…');
+    await page.goto('/learn/questions?concept=sample-concept');
+    await expect(page.getByRole('heading', { level: 1, name: 'questions' })).toBeVisible();
+    await expect(page.getByText('practice with published questions when they are available.')).toBeVisible();
+    const link = page.getByRole('navigation', { name: 'more ways to study' })
+      .getByRole('link', { name: 'back to the course library' });
+    await expect(link).toHaveAttribute('href', '/learn');
+    expect(await link.evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
   });
 });

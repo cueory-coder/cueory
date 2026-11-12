@@ -66,9 +66,10 @@ test.beforeAll(async () => {
 interface Seen { method: string; path: string; query: URLSearchParams; auth: string | null; body: unknown }
 
 /** Answers the fake project's REST and RPC calls the way the website's grants and policies would. */
-async function mockProject(page: Page, options: { checkReply?: unknown } = {}) {
+async function mockProject(page: Page, options: { checkReply?: unknown; empty?: boolean; failConceptReads?: number } = {}) {
+  let failuresLeft = options.failConceptReads ?? 0;
   const seen: Seen[] = [];
-  const rows: Record<string, Record<string, unknown>[]> = { concepts: [concept], items, item_versions: versions, item_choices: choices };
+  const rows: Record<string, Record<string, unknown>[]> = { concepts: [concept], items: options.empty ? [] : items, item_versions: versions, item_choices: choices };
   await page.route(`${PROJECT}/**`, async (route) => {
     const request: Request = route.request();
     const url = new URL(request.url());
@@ -84,6 +85,10 @@ async function mockProject(page: Page, options: { checkReply?: unknown } = {}) {
     }
     const table = /^\/rest\/v1\/(\w+)$/.exec(url.pathname)?.[1];
     if (request.method() === 'GET' && table && table in rows) {
+      if (table === 'concepts' && failuresLeft > 0) {
+        failuresLeft--;
+        return route.fulfill({ status: 503, headers, body: JSON.stringify({ message: 'sample private server detail' }) });
+      }
       const columns = (url.searchParams.get('select') ?? '').split(',');
       // PostgREST filters as supabase-js sends them: column=eq.value and column=in.(a,b).
       const filters = [...url.searchParams].filter(([name]) => !['select', 'order', 'offset', 'limit'].includes(name));
@@ -203,11 +208,14 @@ test.describe('Task 172: real questions with a fake project', () => {
     const seen = await mockProject(page);
     await openFixture(page, { signedIn: false });
     const sentence = page.getByTestId('questions-signed-out');
-    await expect(sentence).toHaveText('create a free account to answer real questions, or sign in.');
+    await expect(sentence).toHaveText('sign in to answer real questions, or create a free account.');
     const next = encodeURIComponent('/__questions-fixture?concept=sample-concept');
     await expect(sentence.getByRole('link', { name: 'create a free account' })).toHaveAttribute('href', `/signup?next=${next}`);
     await expect(sentence.getByRole('link', { name: 'sign in' })).toHaveAttribute('href', `/signin?next=${next}`);
     expect(seen.filter(request => request.path.startsWith('/rest/'))).toEqual([]);
+    const linkHeights = await sentence.getByRole('link').evaluateAll(links =>
+      links.map(link => link.getBoundingClientRect().height));
+    expect(linkHeights.every(height => height >= 44)).toBe(true);
     await expect(page.getByTestId('flag-probe')).toHaveText('none');
   });
 
@@ -216,6 +224,82 @@ test.describe('Task 172: real questions with a fake project', () => {
     await openFixture(page, { signedIn: true, search: '?concept=sample-missing' });
     await expect(page.getByTestId('questions-not-found')).toContainText('there are no published questions for this topic yet.');
     expect(seen.filter(request => request.path.startsWith('/rest/')).map(request => request.path)).toEqual(['/rest/v1/concepts']);
+  });
+});
+
+test.describe('W20: clear question loading, empty, and retry states', () => {
+  test('announces loading until the concept request finishes', async ({ page }) => {
+    await mockProject(page);
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    await page.route(/\/rest\/v1\/concepts(?:\?|$)/, async route => {
+      await gate;
+      await route.fallback();
+    });
+    try {
+      await openFixture(page, { signedIn: true });
+      await expect(page.getByTestId('questions-loading')).toHaveText('loading questions…');
+      await expect(page.getByTestId('questions-loading')).toHaveAttribute('role', 'status');
+    } finally {
+      release();
+    }
+    await expect(page.getByTestId('questions-concept')).toHaveText('sample concept (fixture)');
+    await expect(page.getByTestId('questions-loading')).toHaveCount(0);
+  });
+
+  test('explains when there are no published questions and never renders a player', async ({ page }) => {
+    const seen = await mockProject(page, { empty: true });
+    await openFixture(page, { signedIn: true });
+    const empty = page.getByTestId('questions-not-found');
+    await expect(empty).toContainText('there are no published questions for this topic yet.');
+    await expect(empty).toHaveAttribute('role', 'status');
+    await expect(empty.getByRole('link', { name: 'back to the course library' })).toHaveAttribute('href', '/learn');
+    await expect(page.locator('fieldset')).toHaveCount(0);
+    expect(seen.filter(request => request.method === 'GET').map(request => request.path))
+      .toEqual(['/rest/v1/concepts', '/rest/v1/items']);
+    const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+    expect(results.violations.map(result => result.id + ': ' + result.help)).toEqual([]);
+  });
+
+  test('keeps failure details private; keyboard and pointer retries recover', async ({ page }) => {
+    const seen = await mockProject(page, { failConceptReads: 2 });
+    await openFixture(page, { signedIn: true });
+    await expect(page.getByRole('alert')).toHaveText("couldn't load questions. please try again.");
+    await expect(page.getByText('sample private server detail')).toHaveCount(0);
+    const retry = page.getByRole('button', { name: 'try again', exact: true });
+    await expect(retry).toBeVisible();
+    expect(await retry.evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
+    const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+    expect(results.violations.map(result => result.id + ': ' + result.help)).toEqual([]);
+
+    await page.keyboard.press('Tab');
+    await expect(retry).toBeFocused();
+    await expect(retry).toHaveCSS('outline-style', 'solid');
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('alert')).toHaveText("couldn't load questions. please try again.");
+    await retry.click();
+    await expect(page.getByTestId('questions-concept')).toHaveText('sample concept (fixture)');
+    expect(seen.filter(request => request.method === 'GET' && request.path === '/rest/v1/concepts')).toHaveLength(3);
+  });
+
+  test('fits phone, tablet, and desktop in Light and Evening, with reduced motion and axe', async ({ page }) => {
+    await mockProject(page);
+    await openFixture(page, { signedIn: true });
+    await expect(page.getByText('question 1 of 2')).toBeVisible();
+    for (const viewport of [
+      { width: 390, height: 844 },
+      { width: 820, height: 1180 },
+      { width: 1440, height: 900 },
+    ]) {
+      await page.setViewportSize(viewport);
+      for (const colorScheme of ['light', 'dark'] as const) {
+        await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        await expect(page.getByText('question 1 of 2')).toBeVisible();
+        const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+        expect(results.violations.map(result => result.id + ': ' + result.help)).toEqual([]);
+      }
+    }
   });
 });
 

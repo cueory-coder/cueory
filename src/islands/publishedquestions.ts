@@ -187,6 +187,29 @@ export type QuestionsView =
   | { view: 'failed' }
   | { view: 'ready'; concept: PublishedConcept; questions: Question[]; versions: CheckItem[]; transport: AnswerTransport };
 
+/** Plain, safe words for each state. Never expose a network or database error to the page. */
+export type PublishedQuestionsDisplay =
+  | { status: 'loading' | 'off' | 'empty' | 'failed'; message: string }
+  | { status: 'signed-out'; next: string }
+  | { status: 'ready' };
+
+/** Pure mapping from the loader's result (or an in-flight load) to what the student sees. */
+export function describePublishedQuestions(view: QuestionsView | undefined): PublishedQuestionsDisplay {
+  if (!view) return { status: 'loading', message: 'loading questions…' };
+  switch (view.view) {
+    case 'off': return { status: 'off', message: 'real questions open soon.' };
+    case 'signed-out': return { status: 'signed-out', next: view.next };
+    case 'not-found': return { status: 'empty', message: 'there are no published questions for this topic yet.' };
+    case 'failed': return { status: 'failed', message: "couldn't load questions. please try again." };
+    case 'ready': return { status: 'ready' };
+  }
+}
+
+/** Only a failed load can restart; retry replaces the error with a loading state immediately. */
+export function beginPublishedQuestionsRetry(view: QuestionsView | undefined): QuestionsView | undefined {
+  return view?.view === 'failed' ? undefined : view;
+}
+
 /** Where sign-in and sign-up should come back to: this page with its concept, and nothing else from the address. */
 export function returnPath(pathname: string, slug: string | null): string {
   return isConceptSlug(slug) ? `${pathname}?concept=${slug}` : pathname;

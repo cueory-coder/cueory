@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
-  COLUMNS, MAX_QUESTIONS, PAGE_SIZE, isConceptSlug, loadPublishedQuestions, openPublishedQuestions, returnPath,
-  type PublicTable, type PublishedClient, type Query, type ReadClient, type Reply,
+  COLUMNS, MAX_QUESTIONS, PAGE_SIZE, beginPublishedQuestionsRetry, describePublishedQuestions, isConceptSlug,
+  loadPublishedQuestions, openPublishedQuestions, returnPath,
+  type PublicTable, type PublishedClient, type Query, type QuestionsView, type ReadClient, type Reply,
 } from '../../src/islands/publishedquestions';
 import { remoteChecker } from '../../src/islands/questionsremote';
 import { currentFlagItem, onFlagItem, setFlagItem } from '../../src/islands/flagitem';
@@ -244,6 +245,57 @@ describe('loading published questions', () => {
   it('fails, without throwing, when the client throws', async () => {
     const client: ReadClient = { from: () => { throw new Error('private network detail'); } };
     expect(await loadPublishedQuestions(client, 'sample-concept')).toEqual({ ok: false, reason: 'failed' });
+  });
+});
+
+describe('pure published-question display states', () => {
+  const ready: QuestionsView = {
+    view: 'ready',
+    concept: { id: CONCEPT, slug: 'sample-concept', title: 'sample concept' },
+    questions: [],
+    versions: [],
+    transport: { rpc: vi.fn() },
+  };
+
+  it('has a clear loading state before a request finishes', () => {
+    expect(describePublishedQuestions(undefined)).toEqual({ status: 'loading', message: 'loading questions…' });
+  });
+
+  it('keeps the accounts-off message without asking for questions', () => {
+    expect(describePublishedQuestions({ view: 'off' }))
+      .toEqual({ status: 'off', message: 'real questions open soon.' });
+  });
+
+  it('keeps the safe return path when signed out', () => {
+    expect(describePublishedQuestions({ view: 'signed-out', next: '/learn/questions?concept=sample-concept' }))
+      .toEqual({ status: 'signed-out', next: '/learn/questions?concept=sample-concept' });
+  });
+
+  it('calls an unpublished or missing concept empty, not failed', () => {
+    expect(describePublishedQuestions({ view: 'not-found' }))
+      .toEqual({ status: 'empty', message: 'there are no published questions for this topic yet.' });
+  });
+
+  it('uses a fixed, private-detail-free message when loading fails', () => {
+    const failed = { view: 'failed', message: 'sample private server detail' } as unknown as QuestionsView;
+    expect(describePublishedQuestions(failed))
+      .toEqual({ status: 'failed', message: "couldn't load questions. please try again." });
+    expect(JSON.stringify(describePublishedQuestions(failed))).not.toContain('sample private server detail');
+  });
+
+  it('distinguishes a ready player without copying questions into its status', () => {
+    expect(describePublishedQuestions(ready)).toEqual({ status: 'ready' });
+  });
+
+  it('moves failed → retry/loading → ready, and never resets other states', () => {
+    const failed: QuestionsView = { view: 'failed' };
+    expect(describePublishedQuestions(failed).status).toBe('failed');
+    const retry = beginPublishedQuestionsRetry(failed);
+    expect(retry).toBeUndefined();
+    expect(describePublishedQuestions(retry).status).toBe('loading');
+    expect(describePublishedQuestions(ready).status).toBe('ready');
+    expect(beginPublishedQuestionsRetry(ready)).toBe(ready);
+    expect(beginPublishedQuestionsRetry({ view: 'not-found' })).toEqual({ view: 'not-found' });
   });
 });
 
