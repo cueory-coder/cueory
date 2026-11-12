@@ -1,0 +1,1 @@
+status: T22 (C6): verify about/support/404 link previews reuse the existing 1200×630 study-ivory image; extend built Open Graph/Twitter checks to noindex information pages and browser coverage across both palettes without generating assets or changing page content.
