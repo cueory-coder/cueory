@@ -8,6 +8,39 @@
  * the arrows, the arrow keys, swipes, a tap on a side vial to bring it to the front, and a gentle auto-advance.
  */
 
+/**
+ * The native snap-scrolling links are the accessible baseline. Turn them into a ring only when every
+ * browser feature used by the modal preview is present. This pure check also guards older browsers
+ * without the Web Animations API, matchMedia or IntersectionObserver.
+ */
+export interface CarouselCapabilities {
+  nativeDialog: boolean;
+  dialog: { showModal?: unknown; close?: unknown } | null | undefined;
+  animationTargets: readonly ({ animate?: unknown; getAnimations?: unknown } | null | undefined)[];
+  matchMedia: unknown;
+  motionQuery: { matches?: unknown; addEventListener?: unknown } | null | undefined;
+  intersectionObserver: unknown;
+  replaceChildren: unknown;
+}
+
+export function canEnhanceCarousel(capabilities: CarouselCapabilities): boolean {
+  return (
+    capabilities.nativeDialog &&
+    typeof capabilities.dialog?.showModal === 'function' &&
+    typeof capabilities.dialog?.close === 'function' &&
+    typeof capabilities.matchMedia === 'function' &&
+    typeof capabilities.motionQuery?.matches === 'boolean' &&
+    typeof capabilities.motionQuery?.addEventListener === 'function' &&
+    typeof capabilities.intersectionObserver === 'function' &&
+    typeof capabilities.replaceChildren === 'function' &&
+    // Panel, scrim, bottle, surface, and both word-fade containers all animate.
+    capabilities.animationTargets.length >= 6 &&
+    capabilities.animationTargets.every(
+      (element) => typeof element?.animate === 'function' && typeof element?.getAnimations === 'function',
+    )
+  );
+}
+
 /** Time each vial stays in front before the next one comes in, when nobody is using the carousel. */
 export const AUTO_ADVANCE_MS = 6000;
 
