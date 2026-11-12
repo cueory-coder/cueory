@@ -14,13 +14,15 @@ async function openReview(page: Page): Promise<void> {
   await expect(region(page)).toContainText('4 cards to review today');
 }
 
-async function finish(page: Page, input: 'keyboard' | 'tap'): Promise<void> {
+async function finish(page: Page, input: 'keyboard' | 'tap' | 'click'): Promise<void> {
   for (let i = 0; i < 4; i++) {
     await expect(region(page)).toContainText(`card ${i + 1} of 4`);
     const reveal = region(page).getByRole('button', { name: 'show the answer' });
     if (input === 'keyboard') {
       await reveal.focus();
       await page.keyboard.press('Enter');
+    } else if (input === 'tap') {
+      await reveal.tap();
     } else {
       await reveal.click();
     }
@@ -35,6 +37,8 @@ async function finish(page: Page, input: 'keyboard' | 'tap'): Promise<void> {
     if (input === 'keyboard') {
       await result.focus();
       await page.keyboard.press('Enter');
+    } else if (input === 'tap') {
+      await result.tap();
     } else {
       await result.click();
     }
@@ -63,9 +67,13 @@ test('keyboard completes four sample cards and moves focus to the word summary',
   await expect(region(page).getByRole('button', { name: 'show the answer' })).toHaveCount(0);
 });
 
-test('taps can complete the same session without dragging', async ({ page }) => {
-  await openReview(page);
-  await finish(page, 'tap');
+test.describe('real touch input', () => {
+  test.use({ hasTouch: true });
+
+  test('taps can complete the same session without dragging', async ({ page }) => {
+    await openReview(page);
+    await finish(page, 'tap');
+  });
 });
 
 test('Space reveals and rates a card, and grading actions stay hidden until the answer appears', async ({ page }) => {
@@ -137,7 +145,8 @@ for (const width of [390, 820, 1440]) {
           node.getAnimations({ subtree: true }).filter((animation) => animation.playState === 'running').length)).toBe(0);
       };
       await audit();
-      await finish(page, 'tap');
+      // This matrix checks axe and layouts. Real tapping is exercised by the touch project above.
+      await finish(page, 'click');
       await audit();
     });
   }
