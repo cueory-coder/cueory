@@ -100,6 +100,23 @@ export function resultInWords(state: OrganizerState): string {
     ? `${state.last.right} right, ${state.last.returned.length} back in the tray to try again.`
     : 'place at least one item, then check.';
 }
+
+/** What the check says, and where keyboard focus should land after a real attempt. */
+export interface OrganizerCheckOutcome {
+  next: OrganizerState;
+  message: string;
+  focus: 'feedback' | 'summary' | null;
+}
+export function checkOutcome(state: OrganizerState, set: OrganizerSet): OrganizerCheckOutcome {
+  const next = check(state, set);
+  return {
+    next,
+    message: resultInWords(next),
+    // An unchanged check must not take focus away from the student's current control.
+    focus: next === state ? null : isDone(next) ? 'summary' : 'feedback',
+  };
+}
+
 export function summary(state: OrganizerState): string {
   const count = isDone(state) ? `all ${state.order.length}` : `${state.locked.length} of ${state.order.length}`;
   return `${count} sorted in ${state.tries} ${state.tries === 1 ? 'try' : 'tries'}.`;

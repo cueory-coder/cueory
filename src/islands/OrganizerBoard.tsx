@@ -2,7 +2,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent
 import { attachResumeLifecycle, clearResume, readResume, saveResume, type ResumeDraft, type ResumeSnapshot } from '../scripts/resume';
 import { browserStorage } from '../scripts/storage';
 import ResumePrompt from './ResumePrompt';
-import { canCheck, check, isDone, parseSet, placeItem, resultInWords, startOrganizer, summary, type OrganizerSet } from './organizer';
+import { canCheck, check, checkOutcome, isDone, parseSet, placeItem, startOrganizer, summary, type OrganizerSet } from './organizer';
 
 /** `page` is this page's own address, for the saved place (Task 300: every lesson has its own organizer page). */
 interface Props { set: OrganizerSet; page?: string }
@@ -67,6 +67,8 @@ function Board({ set, page = ORGANIZER_PAGE }: Props) {
   useEffect(() => attachResumeLifecycle(browserStorage(), () => latestDraft.current), []);
   const firstGroup = useRef<HTMLButtonElement>(null);
   const result = useRef<HTMLDivElement>(null);
+  const feedback = useRef<HTMLParagraphElement>(null);
+  const checkFocus = useRef<'feedback' | 'summary' | null>(null);
   const help = useId();
   const done = isDone(state);
 
@@ -77,6 +79,13 @@ function Board({ set, page = ORGANIZER_PAGE }: Props) {
   useLayoutEffect(() => {
     progressFill.current?.style.setProperty('--progress', String(set.items.length ? state.locked.length / set.items.length : 0));
   }, [state.locked.length, set.items.length]);
+  // After checking, focus the result words so keyboard and screen-reader users hear them.
+  // A complete round keeps its existing summary focus.
+  useLayoutEffect(() => {
+    if (checkFocus.current === 'feedback') feedback.current?.focus();
+    if (checkFocus.current === 'summary') result.current?.focus();
+    checkFocus.current = null;
+  }, [state.last, done]);
   useEffect(() => { if (done) result.current?.focus(); }, [done]);
 
   // A newly checked correct item settles in place. Reduced-motion users get an opacity-only fade.
@@ -222,12 +231,13 @@ function Board({ set, page = ORGANIZER_PAGE }: Props) {
   };
 
   const checkAndSave = () => {
-    const next = check(state, set);
-    setState(next);
+    const outcome = checkOutcome(state, set);
+    if (outcome.next !== state) checkFocus.current = outcome.focus;
+    setState(outcome.next);
     setPicked(undefined);
-    setSaid(resultInWords(next));
-    if (next !== state) {
-      const draft = organizerDraft(next, set, page);
+    setSaid(outcome.message);
+    if (outcome.next !== state) {
+      const draft = organizerDraft(outcome.next, set, page);
       latestDraft.current = draft;
       saveResume(browserStorage(), draft);
     }
@@ -259,7 +269,7 @@ function Board({ set, page = ORGANIZER_PAGE }: Props) {
       </div>)}
     </div>
     {!done && <button type="button" className={`${control} press mt-4 disabled:opacity-50`} disabled={!canCheck(state)} onClick={checkAndSave}>check</button>}
-    <p className="mt-3 text-sm text-ink-soft" aria-live="polite" aria-atomic="true" data-testid="organizer-live">{said}</p>
+    <p ref={feedback} tabIndex={-1} className="mt-3 text-sm text-ink-soft" aria-live="polite" aria-atomic="true" data-testid="organizer-live">{said}</p>
     {done && <div ref={result} tabIndex={-1} className="mt-4 rounded-md border border-control p-4" data-testid="organizer-result">
       <p className="font-medium">{summary(state)}</p>
       <button type="button" className={`${control} press mt-3`} onClick={restart}>sort again</button>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canCheck, check, isDone, parseSet, placeItem, resultInWords, startOrganizer, summary, type OrganizerSet } from '../../src/islands/organizer';
+import { canCheck, check, checkOutcome, isDone, parseSet, placeItem, resultInWords, startOrganizer, summary, type OrganizerSet } from '../../src/islands/organizer';
 
 const set: OrganizerSet = {
   id: 'everyday', title: 'Everyday groups',
@@ -109,5 +109,69 @@ describe('organizer play', () => {
     state = check(placeItem(state, '__proto__', 'fruit'), data);
     expect(state.locked).toEqual(['__proto__']);
     expect(placeItem(state, 'toString', 'fruit')).toBe(state);
+  });
+});
+
+describe('organizer check feedback and focus (S17)', () => {
+  it('focuses the final summary when all placed items are right', () => {
+    let state = startOrganizer(set, 7);
+    for (const item of set.items) state = placeItem(state, item.id, item.group);
+    const outcome = checkOutcome(state, set);
+    expect(outcome.focus).toBe('summary');
+    expect(outcome.message).toBe('4 right, 0 back in the tray to try again.');
+    expect(isDone(outcome.next)).toBe(true);
+    expect(outcome.next.tries).toBe(1);
+  });
+
+  it('focuses the feedback words and returns wrong items to the tray without locking them', () => {
+    let state = startOrganizer(set, 5);
+    state = placeItem(placeItem(state, 'apple', 'color'), 'blue', 'color');
+    const outcome = checkOutcome(state, set);
+    expect(outcome.focus).toBe('feedback');
+    expect(outcome.message).toBe('1 right, 1 back in the tray to try again.');
+    expect(outcome.next.positions.apple).toBe('tray');
+    expect(outcome.next.positions.blue).toBe('color');
+    expect(outcome.next.locked).toEqual(['blue']);
+    expect(outcome.next.last).toEqual({ right: 1, returned: ['apple'] });
+    expect(state.positions.apple).toBe('color');
+    expect(isDone(outcome.next)).toBe(false);
+  });
+
+  it('allows a wrong item to be corrected and checked again', () => {
+    let state = startOrganizer(set, 1);
+    const first = checkOutcome(placeItem(state, 'apple', 'color'), set);
+    expect(first.next.positions.apple).toBe('tray');
+    expect(first.focus).toBe('feedback');
+    state = placeItem(first.next, 'apple', 'fruit');
+    const second = checkOutcome(state, set);
+    expect(second.focus).toBe('feedback');
+    expect(second.message).toBe('1 right, 0 back in the tray to try again.');
+    expect(second.next.locked).toContain('apple');
+    expect(second.next.tries).toBe(2);
+    expect(canCheck(second.next)).toBe(false);
+  });
+
+  it('handles a valid set whose group has no assigned items', () => {
+    const withEmptyGroup: OrganizerSet = {
+      ...set,
+      groups: [...set.groups, { id: 'unused', name: '[sample unused group]' }],
+    };
+    const parsed = parseSet(withEmptyGroup);
+    let state = startOrganizer(parsed, 11);
+    for (const item of parsed.items) state = placeItem(state, item.id, item.group);
+    const outcome = checkOutcome(state, parsed);
+    expect(outcome.next.groupIds).toContain('unused');
+    expect(outcome.next.locked).toHaveLength(4);
+    expect(outcome.focus).toBe('summary');
+    expect(isDone(outcome.next)).toBe(true);
+  });
+
+  it('does not steal focus or consume a try without a new placement', () => {
+    const state = startOrganizer(set, 1);
+    const result = checkOutcome(state, set);
+    expect(result.next).toBe(state);
+    expect(result.focus).toBeNull();
+    expect(result.message).toBe('place at least one item, then check.');
+    expect(result.next.tries).toBe(0);
   });
 });

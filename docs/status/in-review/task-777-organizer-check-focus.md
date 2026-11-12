@@ -1,0 +1,1 @@
+STATUS: Spare Task 777, organizer check and retry focus (#78): pure check outcomes identify spoken feedback and focus targets; partial checks focus result words, retries remain available, empty-group and recheck tests added. Browser coverage authored for all six viewport/theme cases.
