@@ -59,7 +59,7 @@ function fillInDraft(items: readonly FillInItem[], state: FillInState, attempts:
 }
 
 /**
- * Replay only the student's typed submissions through the existing rules. Never
+ * Replay only the student's submissions through the exact rules used when saved. Never
  * trust a saved verdict, sentence, answer key, item ID or arbitrary engine state.
  * Multiple attempts on the same item also support close spelling and later rounds.
  */

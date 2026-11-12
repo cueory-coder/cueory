@@ -164,7 +164,7 @@ export function encodeFillInAttempt(text: string, hinted: boolean, kind: 'typed'
  */
 export function parseSavedFillInAttempt(raw: unknown, oldSnapshot = false): SavedFillInAttempt | null {
   if (typeof raw !== 'string' || raw.length < 3 || raw[1] !== ':') return null;
-  const code = raw[0];
+  const code = raw.charAt(0);
   if (oldSnapshot ? code !== 'n' && code !== 'h' : !'nhcdlm'.includes(code)) return null;
   const text = raw.slice(2);
   const kind: FillInInputKind = oldSnapshot || code === 'l' || code === 'm' ? 'legacy'
