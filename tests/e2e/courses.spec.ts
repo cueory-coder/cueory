@@ -1,7 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-import { hasCurriculumLessons } from '../../src/lessons/availability';
-import { contentCatalog } from '../lessonroutes';
 import { courses } from '../../src/config/courses';
 
 test.describe('courses page', () => {
@@ -9,23 +7,17 @@ test.describe('courses page', () => {
     await page.goto('/courses');
     await expect(page.getByRole('heading', { level: 1, name: 'courses' })).toBeVisible();
 
-    // Med-Surg I only opens once a mapped lesson actually exists.
+    // Med-Surg I always links to the library, including its sample and planned units.
     const medSurgConfig = courses.find((course) => course.href === '/learn');
     expect(medSurgConfig?.title).toBe('Med-Surg I');
     const medSurg = page.locator('[data-course-id="' + medSurgConfig!.id + '"]');
     await expect(medSurg.getByRole('heading', { level: 2, name: 'Med-Surg I', exact: true })).toBeVisible();
-    const hasLessons = hasCurriculumLessons(contentCatalog().lessons);
-    if (hasLessons) {
-      const openLink = medSurg.getByRole('link', { name: 'open course' });
-      await expect(openLink).toHaveAttribute('href', '/learn');
-      await openLink.click();
-      await expect(page).toHaveURL(/\/learn\/?$/);
-      await expect(page.getByRole('heading', { level: 1, name: 'med-surg i' })).toBeVisible();
-      await page.goto('/courses');
-    } else {
-      await expect(medSurg.getByText('no lessons yet · coming soon')).toBeVisible();
-      await expect(medSurg.getByRole('link')).toHaveCount(0);
-    }
+    const openLink = medSurg.getByRole('link', { name: 'open course' });
+    await expect(openLink).toHaveAttribute('href', '/learn');
+    await openLink.click();
+    await expect(page).toHaveURL(/\/learn\/?$/);
+    await expect(page.getByRole('heading', { level: 1, name: 'med-surg i' })).toBeVisible();
+    await page.goto('/courses');
 
     // Other courses are coming soon
     await expect(page.getByRole('heading', { level: 2, name: 'Med-Surg II', exact: true })).toBeVisible();
@@ -35,7 +27,7 @@ test.describe('courses page', () => {
     // Small status text uses a foreground with AA contrast in both brand palettes.
     // tests/unit/tokens.test.ts verifies the ink-on-line pairing for Daytime and Evening.
     const badges = page.locator('span.bg-line', { hasText: 'coming soon' });
-    await expect(badges).toHaveCount(hasLessons ? 3 : 4);
+    await expect(badges).toHaveCount(3);
     expect(await badges.evaluateAll((elements) => elements.every((el) => el.classList.contains('text-ink')))).toBe(true);
 
     // Planned courses never present a dead link.
@@ -85,13 +77,6 @@ test.describe('courses without JavaScript', () => {
       const course = page.locator('[data-course-id="' + id + '"]');
       await expect(course.getByText('no lessons yet · coming soon')).toBeVisible();
       await expect(course.getByRole('link')).toHaveCount(0);
-    }
-    const medSurgConfig = courses.find((course) => course.href === '/learn');
-    expect(medSurgConfig?.title).toBe('Med-Surg I');
-    const medSurg = page.locator('[data-course-id="' + medSurgConfig!.id + '"]');
-    if (!hasCurriculumLessons(contentCatalog().lessons)) {
-      await expect(medSurg.getByText('no lessons yet · coming soon')).toBeVisible();
-      await expect(medSurg.getByRole('link')).toHaveCount(0);
     }
   });
 });

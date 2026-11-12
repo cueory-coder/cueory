@@ -1,12 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import { courses } from '../config/courses';
-import { lessonCatalog } from '../lessons/load';
-import { hasCurriculumLessons } from '../lessons/availability';
-
-// The study-skills sample is reachable, but it is not a Med-Surg I curriculum lesson.
-// A course linking to /learn needs at least one mapped lesson, regardless of its configured ID.
-const medSurgHasLessons = hasCurriculumLessons((await lessonCatalog()).lessons);
 ---
 
 <Layout title="courses" description="Nursing courses on cueory.">
@@ -20,8 +14,7 @@ const medSurgHasLessons = hasCurriculumLessons((await lessonCatalog()).lessons);
 
     <div class="grid min-w-0 gap-4 sm:grid-cols-2">
       {courses.map((course) => {
-        const isAvailable = course.status === 'available' && Boolean(course.href)
-          && (course.href !== '/learn' || medSurgHasLessons);
+        const isAvailable = course.status === 'available' && Boolean(course.href);
         return (
           <div data-course-id={course.id} class="flex min-w-0 flex-col justify-between rounded-lg border border-line bg-surface p-5">
             <div class="space-y-2">
