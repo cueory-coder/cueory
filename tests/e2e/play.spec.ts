@@ -728,6 +728,31 @@ test.describe('W02 private stats: stat, sudoku and retired sort', () => {
     await expect(row(page, 'stat')).toContainText('best score 13 out of 15.');
     await expect(row(page, 'stat')).toContainText('longest daily streak 2 days.');
 
+    // Check both palettes at every required size while the new rows and forget buttons exist.
+    for (const viewport of [
+      { width: 390, height: 844 },
+      { width: 820, height: 1180 },
+      { width: 1440, height: 900 },
+    ]) {
+      await page.setViewportSize(viewport);
+      for (const colorScheme of ['light', 'dark'] as const) {
+        await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+        await expect(row(page, 'sudoku')).toContainText('solved 2 puzzles.');
+        await expect(row(page, 'stat')).toContainText('best score 13 out of 15.');
+        await expect(row(page, 'sudoku').getByRole('button', { name: 'forget sudoku' })).toBeVisible();
+        await expect(row(page, 'stat').getByRole('button', { name: 'forget stat' })).toBeVisible();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        const boxes = await panel(page).getByRole('button').evaluateAll((buttons) =>
+          buttons.map((button) => ({ width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height })));
+        for (const box of boxes) {
+          expect(box.width).toBeGreaterThanOrEqual(44);
+          expect(box.height).toBeGreaterThanOrEqual(44);
+        }
+        const violations = (await axe(page)).violations;
+        expect(violations.map((violation) => violation.id + ': ' + violation.help)).toEqual([]);
+      }
+    }
+
     const forgetSudoku = row(page, 'sudoku').getByRole('button', { name: 'forget sudoku' });
     await forgetSudoku.focus();
     await page.keyboard.press('Shift+Tab');
@@ -750,15 +775,7 @@ test.describe('W02 private stats: stat, sudoku and retired sort', () => {
     const retained = JSON.parse((await page.evaluate(() => localStorage.getItem('cueory-game-stats')))!);
     expect(retained.results).toEqual([legacy]);
 
-    for (const width of [390, 820, 1440]) {
-      await page.setViewportSize({ width, height: width === 390 ? 844 : width === 820 ? 1180 : 900 });
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-      const boxes = await panel(page).getByRole('button').evaluateAll((buttons) =>
-        buttons.map((button) => button.getBoundingClientRect()));
-      for (const box of boxes) expect(box.height).toBeGreaterThanOrEqual(44);
-      const violations = (await axe(page)).violations;
-      expect(violations.map((violation) => violation.id + ': ' + violation.help)).toEqual([]);
-    }
+
   });
 
   test('forgetting the last retired sort row keeps focus on a working stats control', async ({ page }) => {
@@ -779,6 +796,36 @@ test.describe('W02 private stats: stat, sudoku and retired sort', () => {
     await page.keyboard.press('Enter');
     await expect(toggle).toHaveAttribute('aria-checked', 'false');
     expect(await page.evaluate(() => localStorage.getItem('cueory-game-stats'))).toBeNull();
+  });
+
+  test.describe('real touch input for private stats', () => {
+    // Desktop projects normally lack touch support; enable it in this isolated test context.
+    test.use({ hasTouch: true });
+
+    test('tapping the switch and forget button changes only on-device private data', async ({ page }) => {
+      await page.goto('/play');
+      const toggle = panel(page).getByRole('switch', { name: 'keep my stats' });
+      await expect(toggle).toHaveAttribute('aria-checked', 'false');
+      await toggle.tap();
+      await expect(toggle).toHaveAttribute('aria-checked', 'true');
+
+      await page.evaluate(() => {
+        window.dispatchEvent(new CustomEvent('cueory:sudoku-solved', {
+          detail: { game: 'sudoku', day: '2026-11-01', solved: true, errors: 1, seconds: 95, level: 'easy' },
+        }));
+      });
+      await expect(row(page, 'sudoku')).toContainText('solved 1 puzzle.');
+      expect(JSON.parse((await page.evaluate(() => localStorage.getItem('cueory-game-stats')))!).results)
+        .toEqual([{ game: 'sudoku', day: '2026-11-01', solved: true, tries: 1, level: 'easy', seconds: 95 }]);
+
+      await row(page, 'sudoku').getByRole('button', { name: 'forget sudoku' }).tap();
+      await expect(row(page, 'sudoku')).toContainText('not played yet.');
+      expect(JSON.parse((await page.evaluate(() => localStorage.getItem('cueory-game-stats')))!).results).toEqual([]);
+
+      await toggle.tap();
+      await expect(toggle).toHaveAttribute('aria-checked', 'false');
+      expect(await page.evaluate(() => localStorage.getItem('cueory-game-stats'))).toBeNull();
+    });
   });
 
   test('sudoku completion is kept on this device only after opt-in, independently by level', async ({ page }) => {
