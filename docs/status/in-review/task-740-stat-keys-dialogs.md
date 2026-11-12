@@ -1,0 +1,1 @@
+STATUS: W03-2 (#34), stat shortcuts: pure key intent ignores editable fields, visible dialogs, site search and expanded menus, with keyboard/unit/axe coverage. Stacked on !25 until its source merges into staging.
