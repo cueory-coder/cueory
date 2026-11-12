@@ -1,0 +1,1 @@
+status: Task 773 (W19-3) documents live break timer settings and phases, saved end time, blocked-storage fallback, accessibility and short/long idea selection while keeping future public sharing clearly marked as a proposal.
