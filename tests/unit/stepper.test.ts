@@ -64,10 +64,10 @@ describe('sentence stepper', () => {
     const first = start(3);
     const second = next(first);
     expect(stepAnnouncement(first, second, 'next', samples))
-      .toBe('sentence 2 of 3: [sample sentence two]');
+      .toBe('now showing 2 of 3: [sample sentence two]');
     const final = next(second);
     expect(stepAnnouncement(second, final, 'next', samples))
-      .toBe('sentence 3 of 3: [sample sentence three]');
+      .toBe('now showing 3 of 3: [sample sentence three]');
   });
 
   it('announces showing all without reading the entire lesson aloud', () => {
@@ -79,7 +79,7 @@ describe('sentence stepper', () => {
   it('announces the target when going back', () => {
     const second = next(start(3));
     expect(stepAnnouncement(second, back(second), 'back', samples))
-      .toBe('back to sentence 1 of 3.');
+      .toBe('back to 1 of 3.');
   });
 
   it('never announces a movement that did not happen', () => {
@@ -92,12 +92,27 @@ describe('sentence stepper', () => {
     expect(stepAnnouncement(empty, showAll(empty), 'show-all', [])).toBeNull();
   });
 
+  it('keeps announcements distinct from the visible sentence counter used by older browser locators', () => {
+    const first = start(3);
+    const second = next(first);
+    const final = next(second);
+    for (const spoken of [
+      stepAnnouncement(first, second, 'next', samples),
+      stepAnnouncement(second, final, 'next', samples),
+      stepAnnouncement(final, back(final), 'back', samples),
+      stepAnnouncement(first, showAll(first), 'show-all', samples),
+      stepAnnouncement(first, second, 'next', []),
+    ]) {
+      expect(spoken).not.toMatch(/sentence \\d+ of/u);
+    }
+  });
+
   it('does not invent words when a sentence is missing or blank', () => {
     const first = start(2);
     const second = next(first);
     expect(stepAnnouncement(first, second, 'next', []))
-      .toBe('sentence 2 of 2 is now shown.');
+      .toBe('now showing 2 of 2.');
     expect(stepAnnouncement(first, second, 'next', [{ text: '[sample]' }, { text: '   ' }]))
-      .toBe('sentence 2 of 2 is now shown.');
+      .toBe('now showing 2 of 2.');
   });
 });

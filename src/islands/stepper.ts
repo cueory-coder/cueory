@@ -48,9 +48,9 @@ export function stepAnnouncement(
 ): string | null {
   if (current.shown === previous.shown) return null;
   if (action === 'show-all') return `all ${current.total} sentences are now shown.`;
-  if (action === 'back') return `back to sentence ${current.shown} of ${current.total}.`;
+  if (action === 'back') return `back to ${current.shown} of ${current.total}.`;
   const words = sentences[current.shown - 1]?.text?.trim();
   return words
-    ? `sentence ${current.shown} of ${current.total}: ${words}`
-    : `sentence ${current.shown} of ${current.total} is now shown.`;
+    ? `now showing ${current.shown} of ${current.total}: ${words}`
+    : `now showing ${current.shown} of ${current.total}.`;
 }

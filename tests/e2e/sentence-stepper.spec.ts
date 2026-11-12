@@ -24,7 +24,9 @@ test('keyboard next announces only the new sentence and keeps focus on the butto
   await expect(sentences(page)).toHaveCount(2);
   await expect(nextButton(page)).toBeFocused();
   const second = await sentences(page).last().innerText();
-  await expect(notice(page)).toHaveText(`sentence 2 of 3: ${second}`);
+  await expect(notice(page)).toHaveText(`now showing 2 of 3: ${second}`);
+  // Older route tests use a substring text locator: the counter must be the only match.
+  await expect(page.getByText('sentence 2 of')).toHaveCount(1);
   await expect(reader(page)).toContainText('sentence 2 of 3');
   await expect(reader(page).getByTestId('stepper-sentences')).toHaveAttribute('aria-live', 'off');
 
@@ -33,10 +35,10 @@ test('keyboard next announces only the new sentence and keeps focus on the butto
   await expect(nextButton(page)).toHaveAttribute('aria-disabled', 'true');
   await expect(nextButton(page)).toBeFocused();
   const third = await sentences(page).last().innerText();
-  await expect(notice(page)).toHaveText(`sentence 3 of 3: ${third}`);
+  await expect(notice(page)).toHaveText(`now showing 3 of 3: ${third}`);
   await page.keyboard.press('Enter');
   await expect(sentences(page)).toHaveCount(3);
-  await expect(notice(page)).toHaveText(`sentence 3 of 3: ${third}`);
+  await expect(notice(page)).toHaveText(`now showing 3 of 3: ${third}`);
 });
 
 test('show all works by keyboard and tap without moving focus', async ({ page }) => {
@@ -52,7 +54,7 @@ test('show all works by keyboard and tap without moving focus', async ({ page })
   await backButton(page).click();
   await expect(backButton(page)).toBeFocused();
   await expect(sentences(page)).toHaveCount(2);
-  await expect(notice(page)).toHaveText('back to sentence 2 of 3.');
+  await expect(notice(page)).toHaveText('back to 2 of 3.');
   await showAllButton(page).click();
   await expect(showAllButton(page)).toBeFocused();
   await expect(sentences(page)).toHaveCount(3);
