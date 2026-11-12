@@ -1,0 +1,1 @@
+STATUS: Task 743, reading-parts preview (#37): the noindex preview displays callout variants, prose headings and lists, approved content label and labeled placeholder samples; adds accessibility, focus and viewport/theme checks without weakening existing assertions.

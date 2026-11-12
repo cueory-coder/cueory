@@ -52,3 +52,56 @@ for (const theme of ['light', 'dark'] as const) {
     expect(report.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
   });
 }
+
+test('reading preview displays each component with only labeled sample content', async ({ page }) => {
+  await page.goto('/preview/prose');
+  const reading = page.locator('article.reading-copy');
+  await expect(reading.locator('[data-callout-kind]')).toHaveCount(3);
+  await expect(reading.locator('[data-callout-kind="note"]')).toContainText('[sample note]');
+  await expect(reading.locator('[data-callout-kind="remember"]')).toContainText('[sample remember item]');
+  await expect(reading.locator('[data-callout-kind="try-it"]')).toContainText('[sample activity]');
+  await expect(reading.locator('strong.key-term')).toHaveText('[sample key term]');
+
+  const contentLabel = reading.getByRole('link', { name: 'disclaimer' });
+  await expect(contentLabel).toBeVisible();
+  await expect(contentLabel).toHaveAttribute('href', '/disclaimer');
+
+  const placeholder = reading.locator('[data-placeholder="CHRISTIAN-TEXT"]');
+  await expect(placeholder).toHaveCount(1);
+  await expect(placeholder).toContainText('Placeholder: [sample placeholder heading]');
+  await expect(placeholder).toContainText('[sample placeholder body]');
+});
+
+for (const viewport of [
+  { name: 'phone', width: 390, height: 844 },
+  { name: 'tablet', width: 820, height: 1180 },
+  { name: 'desktop', width: 1440, height: 900 },
+]) {
+  for (const theme of ['light', 'dark'] as const) {
+    test(`reading parts: ${viewport.name} ${theme} keyboard, tap target and axe`, async ({ page }) => {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
+      await page.goto('/preview/prose');
+
+      await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
+      await expect(page.locator('article.reading-copy')).toBeVisible();
+      await expect(page.locator('article.reading-copy [data-callout-kind]')).toHaveCount(3);
+      await expect(page.locator('article.reading-copy [data-placeholder="CHRISTIAN-TEXT"]')).toHaveCount(1);
+
+      const link = page.locator('article.reading-copy').getByRole('link', { name: 'disclaimer' });
+      await expect(link).toBeVisible();
+      await link.focus();
+      await expect(link).toBeFocused();
+      expect(await link.evaluate((el) => getComputedStyle(el).outlineStyle)).toBe('solid');
+      const bounds = await link.boundingBox();
+      expect(bounds?.height ?? 0).toBeGreaterThanOrEqual(44);
+      expect(bounds?.width ?? 0).toBeGreaterThanOrEqual(44);
+
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+      const report = await new AxeBuilder({ page })
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+      expect(report.violations.map((violation) => `${violation.id}: ${violation.help}`)).toEqual([]);
+    });
+  }
+}

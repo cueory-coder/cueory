@@ -2,49 +2,53 @@
 import Layout from '../../layouts/Layout.astro';
 import Prose from '../../components/Prose.astro';
 import Callout from '../../components/Callout.astro';
+import ContentLabel from '../../components/ContentLabel.astro';
+import PlaceholderBlock from '../../components/PlaceholderBlock.astro';
 ---
 
-<!-- Placeholder-only page for reviewing reading rhythm in both palettes. Never indexed or treated as a lesson. -->
-<Layout title="reading preview" description="A private preview of Cueory's reading layout." noindex promo={false}>
+<!-- Locked, noindex sample-only reading preview. Never treat this content as a real lesson. -->
+<Layout
+  title="reading preview"
+  description="a private preview of cueory reading styles, sample callouts, content labels and placeholders."
+  noindex
+  promo={false}
+>
   <Prose>
     <h1>reading preview</h1>
     <p>
-      lorem ipsum dolor sit amet, <strong class="key-term">consectetur adipiscing</strong> elit.
-      sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. ut enim ad minim veniam,
-      quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+      [sample introductory paragraph] <strong class="key-term">[sample key term]</strong>
+      [sample continuation].
     </p>
-    <p>
-      duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla
-      pariatur. excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt
-      mollit anim id est laborum.
-    </p>
+    <p>[sample second paragraph with longer reading text for checking layout and reflow.]</p>
 
     <h2>paragraph rhythm</h2>
-    <p>
-      lorem ipsum dolor sit amet, consectetur adipiscing elit. integer vitae justo eget magna
-      fermentum iaculis eu non diam. et malesuada fames ac turpis egestas integer eget aliquet.
-    </p>
+    <p>[sample prose paragraph for inspecting reading width and line spacing on every device.]</p>
     <h3>smaller headings</h3>
-    <p>vitae nunc sed velit dignissim sodales ut eu sem integer. neque volutpat ac tincidunt vitae.</p>
+    <p>[sample text beneath a smaller heading.]</p>
     <ul>
-      <li>lorem ipsum dolor sit amet.</li>
-      <li>consectetur adipiscing elit.</li>
-      <li>sed do eiusmod tempor incididunt.</li>
+      <li>[sample unordered item one]</li>
+      <li>[sample unordered item two]</li>
+      <li>[sample unordered item three]</li>
     </ul>
     <ol>
-      <li>ut enim ad minim veniam.</li>
-      <li>quis nostrud exercitation ullamco.</li>
+      <li>[sample ordered item one]</li>
+      <li>[sample ordered item two]</li>
     </ol>
 
     <h2>callout examples</h2>
     <Callout kind="note">
-      <p>lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
+      <p>[sample note]</p>
     </Callout>
     <Callout kind="remember">
-      <p>sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
+      <p>[sample remember item]</p>
     </Callout>
     <Callout kind="try-it">
-      <p>ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.</p>
+      <p>[sample activity]</p>
     </Callout>
+
+    <ContentLabel class="mt-8 [&_a]:inline-flex [&_a]:min-h-11 [&_a]:items-center" />
+    <PlaceholderBlock label="[sample placeholder heading]">
+      <p>[sample placeholder body]</p>
+    </PlaceholderBlock>
   </Prose>
 </Layout>
