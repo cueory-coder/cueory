@@ -23,6 +23,53 @@ function shippedKeys(text: string, javascript = true): string[] {
       ts.isPropertyAssignment(property) && nameOf(property.name) !== undefined && literal(property.initializer));
     return false;
   }
+  function returned(expression: ts.Expression): boolean {
+    let current: ts.Node = expression;
+    while (current.parent && (ts.isParenthesizedExpression(current.parent) ||
+      (ts.isConditionalExpression(current.parent) && current !== current.parent.condition))) current = current.parent;
+    return !!current.parent && ((ts.isReturnStatement(current.parent) && current.parent.expression === current) ||
+      (ts.isArrowFunction(current.parent) && current.parent.body === current));
+  }
+  function parameterReference(expression: ts.Expression, location: ts.Node): boolean {
+    while (ts.isParenthesizedExpression(expression) || ts.isPropertyAccessExpression(expression)) expression = expression.expression;
+    if (!ts.isIdentifier(expression)) return false;
+    const name = expression.text;
+    let owner: ts.Node | undefined = location.parent;
+    while (owner && !ts.isFunctionLike(owner)) owner = owner.parent;
+    return !!owner && ts.isFunctionLike(owner) && owner.parameters.some((parameter) =>
+      ts.isIdentifier(parameter.name) && parameter.name.text === name);
+  }
+  function runtimeOverride(node: ts.ObjectLiteralExpression): boolean {
+    // Only a returned update of a function parameter, never an array record, static spread,
+    // or an object with content/id fields. The learning scorer also nests this under result.
+    const spreads = node.properties.filter(ts.isSpreadAssignment);
+    if (spreads.length !== 1 || !parameterReference(spreads[0]!.expression, node) ||
+      node.properties.length < 2 || node.properties.length > 3 ||
+      !node.properties.every((property) => ts.isSpreadAssignment(property) ||
+        (ts.isPropertyAssignment(property) && ['correct', 'overruled'].includes(nameOf(property.name) ?? '')))) return false;
+    if (returned(node)) return true;
+    const parent = node.parent;
+    return ts.isPropertyAssignment(parent) && nameOf(parent.name) === 'result' &&
+      ts.isObjectLiteralExpression(parent.parent) && returned(parent.parent);
+  }
+  function runtimeValidation(node: ts.ObjectLiteralExpression): boolean {
+    // A runtime checker call may pass a constant success flag alongside the same dynamic
+    // key and rationales it is validating. A standalone object/array is never this envelope.
+    if (node.properties.length !== 3 || !node.properties.every(ts.isPropertyAssignment) ||
+      !ts.isCallExpression(node.parent) || !node.parent.arguments.includes(node)) return false;
+    const fields = new Map(node.properties.filter(ts.isPropertyAssignment).map((property) =>
+      [nameOf(property.name), property.initializer]));
+    if (fields.size !== 3 || !['correct', 'key', 'rationales'].every((name) => fields.has(name))) return false;
+    const key = fields.get('key')!, rationales = fields.get('rationales')!;
+    if (!ts.isPropertyAccessExpression(key) || key.name.text !== 'key' || !ts.isIdentifier(key.expression) ||
+      !ts.isPropertyAccessExpression(rationales) || rationales.name.text !== 'rationales' ||
+      !ts.isIdentifier(rationales.expression) || rationales.expression.text !== key.expression.text) return false;
+    const sourceIdentifier = key.expression.text;
+    let owner: ts.Node | undefined = node.parent;
+    while (owner && !ts.isFunctionLike(owner)) owner = owner.parent;
+    return !!owner && node.parent.arguments.some((argument) => ts.isPropertyAccessExpression(argument) &&
+      argument.name.text === 'key' && ts.isIdentifier(argument.expression) && argument.expression.text === sourceIdentifier);
+  }
   function inspectObject(node: ts.ObjectLiteralExpression) {
     for (const property of node.properties) {
       if (!ts.isPropertyAssignment(property)) continue;
@@ -33,12 +80,9 @@ function shippedKeys(text: string, javascript = true): string[] {
       if (!literal(property.initializer)) continue;
       if (['answerkey', 'rationale', 'rationales'].includes(normalized)) found.add(name!);
       if (normalized === 'correct') {
-        // Runtime sample checking uses dynamic RPC-shaped fields; learning-mode overruling spreads a result.
-        const runtimeResult = node.properties.some((other) => ts.isPropertyAssignment(other) &&
-          ['key', 'rationales'].includes(nameOf(other.name) ?? '') && !literal(other.initializer));
-        if (!runtimeResult && !node.properties.some(ts.isSpreadAssignment)) found.add(name!);
+        if (!runtimeValidation(node) && !runtimeOverride(node)) found.add(name!);
       }
-      if (name === 'key' && ts.isArrayLiteralExpression(property.initializer)) found.add('key');
+      if (normalized === 'key' && ts.isArrayLiteralExpression(property.initializer)) found.add('key');
     }
   }
 
@@ -97,6 +141,13 @@ describe('built answer-key guard (T16)', () => {
     ['a mixed dynamic identifier', 'const item={id:currentId,correct:true};', true],
     ['a key beside a dynamic identifier', 'const item={id:currentId,key:["a"]};', true],
     ['a rationale added to another record', 'const item={...other,rationale:"[sample]"};', true],
+    ['C7 static metadata spread', 'const metadata={id:"sample"};const questions=[{...metadata,correct:true}];', true],
+    ['C7 dynamic sibling key', 'const questions=[{id:"sample",correct:true,key:runtimeKey}];', true],
+    ['normalized uppercase key', 'const item={KEY:["[sample]"]};', true],
+    ['a standalone validation-shaped record', 'function data(n){return [{correct:true,key:n.key,rationales:n.rationales}]};', true],
+    ['a local static spread inside a function', 'function data(){const old={id:"sample"};return {...old,correct:true}}', true],
+    ['a parameter spread in a question array', 'function data(old){return [{...old,correct:true}]}', true],
+    ['an override with content fields', 'function data(old){return {...old,id:"sample",correct:true}}', true],
     ['minified booleans', 'const items=[{correct:!0}];', true],
     ['quoted and computed field names', 'const items=[{"rationale":"[sample]",["correct"]:false}];', true],
     ['an answer-key property', 'const data={answer_key:["a"]};', true],
@@ -114,7 +165,8 @@ describe('built answer-key guard (T16)', () => {
 
   it('allows runtime RPC mapping, calculated scores and privacy copy without a filename allowlist', () => {
     expect(shippedKeys('function result(reply){return {correct:reply.correct,key:reply.key,rationales:reply.rationales}}')).toEqual([]);
-    expect(shippedKeys('function validate(n){return {correct:!0,key:n.key,rationales:n.rationales}}')).toEqual([]);
+    expect(shippedKeys('function validate(n){return check(n.question,n.key,{correct:!0,key:n.key,rationales:n.rationales})}')).toEqual([]);
+    expect(shippedKeys('function overrule(old){return {...old,result:{...old.result,correct:!0,overruled:!0}}}')).toEqual([]);
     expect(shippedKeys('function score(a,b){return {correct:a===b}}')).toEqual([]);
     expect(shippedKeys('function overrule(old){return {...old,correct:!0}}')).toEqual([]);
     expect(shippedKeys('<p>The saved state never holds the answer key or a rationale.</p>', false)).toEqual([]);
