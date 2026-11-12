@@ -130,7 +130,7 @@ async function withSleepingClock(page: Page) {
 
 async function advanceWithoutWake(page: Page, elapsedMs: number) {
   await page.evaluate(ms => {
-    const clock = (window as Window & { __w19BreakClock: { now: number } }).__w19BreakClock;
+    const clock = (window as unknown as { __w19BreakClock: { now: number } }).__w19BreakClock;
     clock.now += ms;
   }, elapsedMs);
 }
@@ -162,6 +162,34 @@ test('timer restores its saved end time after a reload', async ({ page }) => {
     const stored = sessionStorage.getItem('cueory-break-timer')!;
     return (JSON.parse(stored) as { state: { endsAt: number } }).state.endsAt;
   })).toBe(before);
+});
+
+test('an expired saved break persists its new focus deadline across another reload', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-11-01T12:00:00Z') });
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem('cueory-break-timer')) return;
+    const now = Date.now();
+    sessionStorage.setItem('cueory-break-timer', JSON.stringify({
+      version: 1,
+      savedAt: now - 6 * 60_000,
+      state: {
+        settings: { focusMinutes: 25, breakMinutes: 5 },
+        status: 'on break', endsAt: now - 60_000,
+        pausedFrom: null, pausedRemainingMs: 0,
+      },
+    }));
+  });
+  await page.goto('/breaks');
+  const status = page.getByTestId('break-status');
+  await expect(status).toHaveText('studying: 25 minutes left.');
+  const saved = () => page.evaluate(() => JSON.parse(sessionStorage.getItem('cueory-break-timer')!));
+  await expect.poll(async () => (await saved()).state.status).toBe('focusing');
+  const deadline = (await saved()).state.endsAt;
+  await page.clock.fastForward(5 * 60_000);
+  await expect(status).toHaveText('studying: 20 minutes left.');
+  await page.reload();
+  await expect(status).toHaveText('studying: 20 minutes left.');
+  expect((await saved()).state.endsAt).toBe(deadline);
 });
 
 test('sleep cannot stretch the countdown, and keyboard focus moves to a due-break choice', async ({ page }) => {

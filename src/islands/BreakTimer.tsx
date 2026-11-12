@@ -59,6 +59,9 @@ export default function BreakTimer({ settings }: Props) {
       // A saved off timer also accepts new explicit settings.
       const restored = saved ? readBreakState(available, current) : startBreaks(settings);
       const initial = settings && restored.status === 'off' ? startBreaks(settings) : restored;
+      // Persist a restored phase too: an elapsed saved break may now be a new focus period.
+      // Without this, another reload would restore the old break and restart that focus deadline.
+      if (saved && !writeBreakState(available, initial, current)) setStorageUnavailable(true);
       lastSavedState.current = initial;
       setState(initial);
     } catch {
