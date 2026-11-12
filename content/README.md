@@ -76,8 +76,8 @@ its address, `/learn/study-skills`, and its label it and sample questions pages.
   length (capital letters, `.` for a gap) and its `clues`, `across` and `down`, each numbered the usual way. The build
   checks every file with the game's own rules (every word has exactly one clue). Everyday words only, labeled as
   samples on the page (D-70).
-- `games/suture/` — sample puzzles for word path, one JSON file each: a `grid` of capital letters (3 to 11 rows of equal length) and its `words`, each with a lowercase `cue`, its `answer` and the `path` of `[row, column]` cells it runs
-  through, up, down, left or right, never diagonally, with no cell shared. The build checks every file with the game's
+- `games/suture/` — sample puzzles for word path, one JSON file each: a `grid` of capital letters (3 to 11 rows of equal length) and its `words`, each with an uppercase `answer` and the `path` of `[row, column]` cells it runs
+  through, up, down, left or right, never diagonally, with no cell shared. A word's `cue` is optional. The build checks every file with the game's
   own rules. Everyday words only, labeled as samples on the page (D-71).
 - `games/hello-cards/` — `status` (`sample` or `approved`), optional `note`, and `starters` containing `id`, `category`, `depth`, `text`. Each of four categories needs both `small` and `deep` starters.
 - `videos/` — required `lesson`, `title`, `status`, `videoId`, `captionsUrl`, `transcriptUrl`, plus optional self-hosted `thumbnail`. Both URL fields are required even when empty. Only published videos appear.
