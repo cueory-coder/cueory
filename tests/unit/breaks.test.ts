@@ -235,5 +235,6 @@ describe('W19: minute-boundary refresh precision', () => {
     const running = turnOn(startBreaks(settings), at);
     expect(nextRefreshMs(pause(running, at + 12_345), at + 100 * MINUTE)).toBe(0);
     expect(nextRefreshMs(turnOff(running, at), at)).toBe(0);
+    expect(nextRefreshMs(tick(running, at + 20 * MINUTE), at + 20 * MINUTE)).toBe(0);
   });
 });

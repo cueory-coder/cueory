@@ -135,6 +135,7 @@ export function remainingMs(state: BreakState, now: number): number {
 
 /** Delay until the next whole-minute label changes, not merely 60 seconds since the last render. */
 export function nextRefreshMs(state: BreakState, now: number): number {
+  if (state.status !== 'focusing' && state.status !== 'on break') return 0;
   const remaining = remainingMs(state, now);
   if (remaining === 0) return 0;
   return remaining % MINUTE_MS || MINUTE_MS;
