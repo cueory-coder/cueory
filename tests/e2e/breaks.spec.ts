@@ -71,6 +71,43 @@ test('tap choices do not repeat immediately, change storage or submit data', asy
   expect(errors).toEqual([]);
 });
 
+
+test('real touchscreen taps operate the timer and idea picker', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({
+    baseURL,
+    hasTouch: true,
+    viewport: { width: 390, height: 844 },
+    reducedMotion: 'reduce',
+    serviceWorkers: 'block',
+  });
+  try {
+    const page = await context.newPage();
+    await page.goto('/breaks');
+    const timer = page.getByTestId('break-timer');
+    await timer.getByRole('button', { name: 'turn on' }).tap();
+    await expect(timer.getByTestId('break-status')).toContainText('studying:');
+    await timer.getByRole('button', { name: 'pause' }).tap();
+    await expect(timer.getByTestId('break-status')).toContainText('studying paused:');
+    await timer.getByRole('button', { name: 'resume' }).tap();
+    await expect(timer.getByTestId('break-status')).toContainText('studying:');
+    await timer.getByRole('button', { name: 'turn off' }).tap();
+    await expect(timer.getByRole('button', { name: 'turn on' })).toBeVisible();
+
+    await showOne(page).tap();
+    const picked = page.getByTestId('picked-break-idea');
+    const first = await picked.innerText();
+    expect(expectedIdeas).toContain(first);
+    await page.getByRole('button', { name: 'another idea' }).tap();
+    await expect(picked).not.toHaveText(first);
+    await shuffle(page).tap();
+    await expect(page.getByRole('status', { name: 'break idea update' }))
+      .toHaveText('the list is shuffled. all the same ideas are here in a new order.');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  } finally {
+    await context.close();
+  }
+});
+
 for (const width of [320, 390, 820, 1440]) {
   for (const colorScheme of ['light', 'dark'] as const) {
     test(`${width}px ${colorScheme}: readable cards, touch targets and axe after choosing`, async ({ page }) => {
