@@ -132,7 +132,7 @@ for (const lesson of contentCatalog().lessons) {
     const tiles = page.getByTestId('mode-grid').locator('[data-mode-tile]');
     await expect(tiles).toHaveCount(HUB_ORDER.length);
     for (const id of HUB_ORDER) {
-      const tile = tiles.locator('[data-mode-tile="' + id + '"]');
+      const tile = page.getByTestId('mode-grid').locator('[data-mode-tile="' + id + '"]');
       const available = lesson.modes.find((mode) => mode.id === id);
       if (available) {
         await expect(tile).toHaveAttribute('data-mode-status', 'available');
