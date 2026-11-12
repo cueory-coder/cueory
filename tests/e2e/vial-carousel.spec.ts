@@ -217,14 +217,21 @@ test('with a mouse, the front vial lifts to 104% with brighter glass; its neighb
 
 test('touch screens never get the hover lift; reduced motion never lifts either', async ({ page }, testInfo) => {
   test.skip(!testInfo.project.use.hasTouch, 'a touch-screen check');
-  // Instrument timers before the carousel initializes them during navigation.
-  await page.clock.install();
   await showRing(page);
   expect(await page.evaluate(() => matchMedia('(hover: hover) and (pointer: fine)').matches)).toBe(false);
-  await page.locator('#mode-video [data-mode-open]').hover();
-  // Check after the hover transition would have completed on a mouse device.
-  await page.clock.runFor(300);
-  expect(await page.locator('#mode-video').evaluate((card) => getComputedStyle(card).scale)).toBe('none');
+  const button = page.locator('#mode-video [data-mode-open]');
+  await button.hover();
+  // A fake JavaScript clock does not advance CSS transitions. Observe real CSS animations on the
+  // card, its glass and shine, excluding unrelated infinite animations in its illustration descendants.
+  await expect.poll(() => page.locator('#mode-video').evaluate(card =>
+    [card, ...card.querySelectorAll('.vial-shine, .vial-img')]
+      .flatMap(element => element.getAnimations())
+      .filter(animation => animation.playState === 'running' || animation.pending).length)).toBe(0);
+  expect(await page.locator('#mode-video').evaluate(card => getComputedStyle(card).scale)).toBe('none');
+  // A touch user still gets a named, focusable control without relying on hover.
+  await expect(button).toHaveAccessibleName('preview video');
+  await button.focus();
+  await expect(button).toBeFocused();
 });
 
 test('reduced motion: no glide, and the preview opens and closes at once', async ({ page }) => {

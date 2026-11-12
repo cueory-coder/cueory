@@ -124,6 +124,9 @@ const marker = (page: Page) => page.evaluate(key => localStorage.getItem(key), M
 const offer = (page: Page) => page.getByRole('region', { name: 'bring in your progress from this device?' });
 /** Wait until the fake client/session has been read before asserting that an absent offer stays absent. */
 const waitForDecision = async (page: Page, kind: 'client' | 'session' = 'session') => {
+  // GuestImportOffer starts decide() and listen(), each calling getSupabase(): expect two client
+  // checks when accounts are disabled. decide() always calls getSessionState() when the client
+  // exists, even when the saved progress is empty: expect one completed session check.
   await expect.poll(() => page.evaluate((check) =>
     (window as unknown as { fixtureChecks?: { client: number; session: number } }).fixtureChecks?.[check] ?? 0,
   kind)).toBeGreaterThanOrEqual(kind === 'client' ? 2 : 1);

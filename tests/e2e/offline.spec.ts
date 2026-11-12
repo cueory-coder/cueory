@@ -58,8 +58,18 @@ test('the play page is never kept, because today\'s puzzles are inside it', asyn
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   await page.reload();
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-  // Verify the worker controls the reloaded page before inspecting its persistent caches.
-  await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
+  // A controller was already present before reload; that alone cannot prove its cache writes settled.
+  // Explicitly fetch /play again, then use a new cacheable lesson as the worker's observable write barrier.
+  await page.evaluate(async () => {
+    const response = await fetch('/play');
+    if (!response.ok) throw new Error('The refreshed play page must load successfully.');
+    await response.text();
+    const lesson = await fetch('/learn/study-skills/cards');
+    if (!lesson.ok) throw new Error('The cacheable lesson must load successfully.');
+    await lesson.text();
+  });
+  await expect.poll(() => kept(page), { timeout: 15_000 }).toContain('/learn/study-skills/cards');
+  await page.waitForLoadState('networkidle');
   const urls = await kept(page);
   expect(urls.filter((url) => url.startsWith('/play'))).toEqual([]);
 });
