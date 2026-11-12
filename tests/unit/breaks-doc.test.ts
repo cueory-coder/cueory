@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_BREAK_SETTINGS, type BreakSettings, type BreakStatus } from '../../src/islands/breaks';
-import type { BreakLength } from '../../src/islands/breakideas';
+import { parseIdeas, type BreakLength } from '../../src/islands/breakideas';
 
 const guide = readFileSync(resolve(process.cwd(), 'docs/BREAKS.md'), 'utf8');
 
@@ -69,6 +69,18 @@ describe('breaks guide stays true to the code', () => {
     expect(text).toContain('another idea');
     expect(text).toMatch(/different idea when more than one/i);
     expect(text).toMatch(/not saved or sent/i);
+  });
+
+  it('checks that the 20 current labeled sample ideas really have no length classifications', () => {
+    const source = JSON.parse(readFileSync(resolve(process.cwd(), 'content/breaks/ideas.json'), 'utf8')) as {
+      sample: boolean;
+      ideas: Array<{ id: string; text: string; length?: BreakLength }>;
+    };
+    expect(source.sample).toBe(true);
+    const ideas = parseIdeas({ ideas: source.ideas });
+    expect(ideas).toHaveLength(20);
+    expect(ideas.every(idea => !Object.hasOwn(idea, 'length'))).toBe(true);
+    expect(section('Choosing a break idea')).toContain('Today all 20 labeled samples are untagged');
   });
 
   it('distinguishes the existing tools from the unapproved future sharing proposal', () => {
