@@ -1,0 +1,1 @@
+STATUS: Task 752 (#46), printable lesson flashcards: visible catalog decks get a noindex, static front/back sheet with picture source credits, black-on-white two-column print rules and accessible screen/print regressions. Waiting for full Node/Astro/Vitest/Playwright verification in Claude's checkout.
