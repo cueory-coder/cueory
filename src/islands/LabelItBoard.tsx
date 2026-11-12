@@ -5,10 +5,12 @@ import ResumePrompt from './ResumePrompt';
 import {
   coverAll,
   coverWords,
+  hasRoundProgress,
   isCovered,
   isDone,
   isRoundOver,
   mark,
+  markAnnouncement,
   markOf,
   nextRound,
   parseSet,
@@ -152,13 +154,9 @@ function Board({ set }: Props) {
 
   const doMark = (label: Label, value: Mark) => {
     const next = mark(state, label.id, value);
+    if (next === state) return;
     saveState(next);
-    const tally = summary(next);
-    setSaid(
-      isRoundOver(next)
-        ? `${label.text}: ${markWords[value]}. round ${next.roundNumber} done.`
-        : `${label.text}: ${markWords[value]}. ${tally.unmarked} left to mark.`,
-    );
+    setSaid(markAnnouncement(next, label.text, value));
   };
 
   const newRound = (next: LabelItState, words: string) => {
@@ -315,7 +313,11 @@ function Board({ set }: Props) {
             <button
               type="button"
               onClick={() => {
-                setState(revealAll(state));
+                const next = revealAll(state);
+                // The reveal-all control becomes disabled. Give keyboard users the
+                // first unmarked label's actionable control instead of losing focus.
+                focusKnow.current = next.round.find((id) => markOf(next, id) === undefined);
+                setState(next);
                 setSaid('every label uncovered.');
               }}
               disabled={tally.covered === 0}
@@ -331,6 +333,8 @@ function Board({ set }: Props) {
                 if (latestDraft.current) saveState(next);
                 else setState(next);
                 setSaid('every label covered again.');
+                // Cover-all becomes disabled after use. Move focus to its updated status.
+                setFocusRequest((n) => n + 1);
               }}
               disabled={tally.covered === tally.total}
               className={`${secondaryButton} disabled:opacity-50`}
@@ -348,7 +352,7 @@ function Board({ set }: Props) {
             study the {tally.learning} still learning
           </button>
         )}
-        {roundOver && (
+        {(roundOver || hasRoundProgress(state)) && (
           <button
             type="button"
             onClick={restart}

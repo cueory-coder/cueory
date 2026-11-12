@@ -5,10 +5,12 @@ import LabelItBoard, { coverAxis, LabelItFromUrl } from '../../src/islands/Label
 import {
   coverAll,
   coverWords,
+  hasRoundProgress,
   isCovered,
   isDone,
   isRoundOver,
   mark,
+  markAnnouncement,
   markOf,
   nextRound,
   parseSet,
@@ -18,6 +20,7 @@ import {
   start,
   summary,
   type LabelSet,
+  type LabelItState,
 } from '../../src/islands/labelit';
 
 // Everyday labels on a house drawing; the image path doesn't need to exist.
@@ -234,5 +237,79 @@ describe('label ids that match built-in object names', () => {
     expect(next.round).toEqual(['constructor', '__proto__']);
     expect(next.known).toEqual(['toString']);
     expect(isRoundOver(next)).toBe(false);
+  });
+});
+
+describe('complete rounds, repeat rounds and start-over availability', () => {
+  const allMarked = (value: 'know' | 'learning') => {
+    let state = revealAll(start(house()));
+    for (const label of readingOrder(house().labels)) state = mark(state, label.id, value);
+    return state;
+  };
+
+  it('all know-it marks complete the round, with a clear spoken completion message', () => {
+    const state = allMarked('know');
+    expect(isRoundOver(state)).toBe(true);
+    expect(isDone(state)).toBe(true);
+    expect(summary(state)).toMatchObject({ know: 3, learning: 0, unmarked: 0 });
+    expect(markAnnouncement(state, 'door', 'know'))
+      .toBe('door: know it. round 1 done. all 3 labels known.');
+    expect(hasRoundProgress(state)).toBe(true);
+  });
+
+  it('all still-learning marks finish the round but offer another round instead of claiming done', () => {
+    const state = allMarked('learning');
+    expect(isRoundOver(state)).toBe(true);
+    expect(isDone(state)).toBe(false);
+    expect(markAnnouncement(state, 'door', 'learning'))
+      .toBe('door: still learning. round 1 done. 3 still learning.');
+    const again = nextRound(state);
+    expect(again.round).toEqual(['roof', 'window', 'door']);
+    expect(again.known).toEqual([]);
+    expect(again.roundNumber).toBe(2);
+    expect(summary(again)).toMatchObject({ covered: 3, unmarked: 3 });
+    expect(hasRoundProgress(again)).toBe(true);
+  });
+
+  it('uncover-all after one mark preserves the mark; marking the others ends the round', () => {
+    let state = mark(reveal(start(house()), 'roof'), 'roof', 'know');
+    expect(markAnnouncement(state, 'roof', 'know')).toBe('roof: know it. 2 left to mark.');
+    state = revealAll(state);
+    expect(state.revealed).toHaveLength(3);
+    expect(markOf(state, 'roof')).toBe('know');
+    state = mark(mark(state, 'window', 'learning'), 'door', 'know');
+    expect(isRoundOver(state)).toBe(true);
+    expect(isDone(state)).toBe(false);
+    expect(markAnnouncement(state, 'door', 'know'))
+      .toBe('door: know it. round 1 done. 1 still learning.');
+    const again = nextRound(state);
+    expect(again.round).toEqual(['window']);
+    expect(again.known).toEqual(['roof', 'door']);
+    const completed = mark(reveal(again, 'window'), 'window', 'know');
+    expect(markAnnouncement(completed, 'window', 'know'))
+      .toBe('window: know it. round 2 done. all 3 labels known.');
+  });
+
+  it('can start over after revealing or marking part of a round without carrying marks', () => {
+    const fresh = start(house());
+    expect(hasRoundProgress(fresh)).toBe(false);
+    const revealed = reveal(fresh, 'roof');
+    expect(hasRoundProgress(revealed)).toBe(true);
+    const marked = mark(revealed, 'roof', 'learning');
+    expect(hasRoundProgress(marked)).toBe(true);
+    const reset = start(house());
+    expect(reset).toEqual(fresh);
+    expect(summary(reset)).toMatchObject({ covered: 3, know: 0, learning: 0, unmarked: 3 });
+    expect(hasRoundProgress(coverAll(marked))).toBe(false);
+  });
+
+  it('does not treat an empty or exhausted round as completed', () => {
+    const empty: LabelItState = { round: [], revealed: [], marks: {}, known: [], roundNumber: 1 };
+    expect(isRoundOver(empty)).toBe(false);
+    expect(isDone(empty)).toBe(false);
+    const exhausted = nextRound(allMarked('know'));
+    expect(exhausted.round).toEqual([]);
+    expect(isDone(exhausted)).toBe(false);
+    expect(hasRoundProgress(exhausted)).toBe(true);
   });
 });

@@ -1,0 +1,1 @@
+STATUS: Task 734, label-it rounds and accessible status (#75): explicit completion versus retry announcements, empty-round guard, mid-round restart, and predictable focus after reveal-all/cover-all, with unit and browser coverage. Existing sample text only.

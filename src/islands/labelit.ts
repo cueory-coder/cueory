@@ -164,7 +164,8 @@ export function mark(state: LabelItState, id: string, value: Mark): LabelItState
 
 /** True once every label in the round has a mark. */
 export function isRoundOver(state: LabelItState): boolean {
-  return state.round.every((id) => markOf(state, id) !== undefined);
+  // A missing or exhausted round must never count as completed just because [].every() is true.
+  return state.round.length > 0 && state.round.every((id) => markOf(state, id) !== undefined);
 }
 
 /** True when the round is over and nothing is left to learn. */
@@ -212,4 +213,27 @@ export function summary(state: LabelItState): Summary {
     total: state.round.length,
     knownBefore: state.known.length,
   };
+}
+
+/** A reset should be available once a student has interacted with the round. */
+export function hasRoundProgress(state: LabelItState): boolean {
+  return state.roundNumber > 1 || state.known.length > 0 ||
+    state.revealed.length > 0 || Object.keys(state.marks).length > 0;
+}
+
+/**
+ * An accessible announcement after marking. Keep the established in-progress
+ * wording and explain whether the last mark finished the lesson or starts a retry.
+ * No label text is announced until its cover has been removed.
+ */
+export function markAnnouncement(state: LabelItState, labelText: string, value: Mark): string {
+  const words = value === 'know' ? 'know it' : 'still learning';
+  const tally = summary(state);
+  if (isDone(state)) {
+    return `${labelText}: ${words}. round ${state.roundNumber} done. all ${tally.know + tally.knownBefore} labels known.`;
+  }
+  if (isRoundOver(state)) {
+    return `${labelText}: ${words}. round ${state.roundNumber} done. ${tally.learning} still learning.`;
+  }
+  return `${labelText}: ${words}. ${tally.unmarked} left to mark.`;
 }

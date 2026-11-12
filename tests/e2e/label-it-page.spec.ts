@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 const supportedProjects = new Set(['phone', 'desktop']);
@@ -77,3 +78,128 @@ test.describe('label it without JavaScript', () => {
     await expect(lessonLink).toHaveAttribute('href', '/learn/study-skills');
   });
 });
+
+const samplePage = '/learn/study-skills/label-it';
+
+test.describe('complete label-it rounds', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      try { localStorage.setItem('cueory-promo-seen', String(Date.now())); } catch { /* storage may be blocked */ }
+    });
+    await page.goto(samplePage);
+    await expect(page.getByTestId('labelit')).toBeVisible();
+  });
+
+  test('all know-it marks finish, announce completion, and start over cleanly by keyboard', async ({ page }) => {
+    const board = page.getByTestId('labelit');
+    const status = page.getByTestId('labelit-status');
+    const live = page.getByTestId('labelit-live');
+    await board.getByRole('button', { name: 'reveal all' }).focus();
+    await page.keyboard.press('Enter');
+    await expect(board.getByRole('group', { name: 'mark label 1' }).getByRole('button', { name: 'know it' })).toBeFocused();
+    for (let number = 1; number <= 4; number++) {
+      const button = board.getByRole('group', { name: `mark label ${number}` })
+        .getByRole('button', { name: 'know it', exact: true });
+      await button.focus();
+      await page.keyboard.press('Enter');
+    }
+    await expect(status).toHaveText('0 covered · know it: 4 · still learning: 0');
+    await expect(live).toHaveText('door: know it. round 1 done. all 4 labels known.');
+    await expect(board.getByText("that's every label for now.")).toBeVisible();
+    await expect(board.getByRole('button', { name: /study the .* still learning/ })).toHaveCount(0);
+    const restart = board.getByRole('button', { name: 'start over', exact: true });
+    await restart.focus();
+    await page.keyboard.press('Enter');
+    await expect(status).toHaveText('4 covered · know it: 0 · still learning: 0');
+    await expect(live).toHaveText('every label covered. starting over.');
+    await expect(board.getByText("that's every label for now.")).toHaveCount(0);
+    await expect(page.getByTestId('cover-1')).toHaveAccessibleName('label 1, covered');
+  });
+
+  test('all still-learning marks offer another round and finish only after know-it marks', async ({ page }) => {
+    const board = page.getByTestId('labelit');
+    const status = page.getByTestId('labelit-status');
+    const live = page.getByTestId('labelit-live');
+    await board.getByRole('button', { name: 'reveal all' }).click();
+    for (let number = 1; number <= 4; number++) {
+      await board.getByRole('group', { name: `mark label ${number}` })
+        .getByRole('button', { name: 'still learning', exact: true }).click();
+    }
+    await expect(live).toHaveText('door: still learning. round 1 done. 4 still learning.');
+    await expect(board.getByText("that's every label for now.")).toHaveCount(0);
+    await board.getByRole('button', { name: 'study the 4 still learning' }).click();
+    await expect(status).toHaveText('round 2 · 4 covered · know it: 0 · still learning: 0');
+    await expect(live).toHaveText('round 2: 4 covered again.');
+    await expect(page.getByTestId('cover-1')).toHaveAccessibleName('label 1, covered');
+    await board.getByRole('button', { name: 'reveal all' }).click();
+    for (let number = 1; number <= 4; number++) {
+      await board.getByRole('group', { name: `mark label ${number}` })
+        .getByRole('button', { name: 'know it', exact: true }).click();
+    }
+    await expect(status).toHaveText('round 2 · 0 covered · know it: 4 · still learning: 0');
+    await expect(live).toHaveText('door: know it. round 2 done. all 4 labels known.');
+    await expect(board.getByText("that's every label for now.")).toBeVisible();
+  });
+
+  test('reveal-all preserves marks, and start over works mid-round', async ({ page }) => {
+    const board = page.getByTestId('labelit');
+    const status = page.getByTestId('labelit-status');
+    const live = page.getByTestId('labelit-live');
+    await board.getByRole('button', { name: 'uncover label 1' }).click();
+    await board.getByRole('group', { name: 'mark label 1' }).getByRole('button', { name: 'know it' }).click();
+    await board.getByRole('button', { name: 'reveal all' }).click();
+    await expect(status).toHaveText('0 covered · know it: 1 · still learning: 0');
+    await expect(board.getByRole('group', { name: 'mark label 2' }).getByRole('button', { name: 'know it' })).toBeFocused();
+    await expect(board.getByRole('group', { name: 'mark label 1' }).getByRole('button', { name: 'know it' })).toHaveAttribute('aria-pressed', 'true');
+
+    const restart = board.getByRole('button', { name: 'start over', exact: true });
+    await expect(restart).toBeVisible();
+    await restart.click();
+    await expect(status).toHaveText('4 covered · know it: 0 · still learning: 0');
+    await expect(live).toHaveText('every label covered. starting over.');
+    await expect(board.getByRole('group', { name: 'mark label 1' })).toHaveCount(0);
+    await expect(page.getByTestId('cover-1')).toHaveAccessibleName('label 1, covered');
+  });
+
+  test('cover-all clears earlier marks and places focus on the status', async ({ page }) => {
+    const board = page.getByTestId('labelit');
+    await board.getByRole('button', { name: 'uncover label 1' }).click();
+    await board.getByRole('group', { name: 'mark label 1' }).getByRole('button', { name: 'still learning' }).click();
+    await board.getByRole('button', { name: 'cover all' }).click();
+    await expect(page.getByTestId('labelit-status')).toHaveText('4 covered · know it: 0 · still learning: 0');
+    await expect(page.getByTestId('labelit-live')).toHaveText('every label covered again.');
+    await expect(board.locator('[tabindex="-1"]').first()).toBeFocused();
+  });
+});
+
+for (const { width, height } of [
+  { width: 390, height: 844 },
+  { width: 820, height: 1180 },
+  { width: 1440, height: 900 },
+]) {
+  for (const scheme of ['light', 'dark'] as const) {
+    test(`label-it controls are accessible at ${width}px in ${scheme} mode`, async ({ page }) => {
+      await page.addInitScript(() => {
+        try { localStorage.setItem('cueory-promo-seen', String(Date.now())); } catch { /* ignore */ }
+      });
+      await page.setViewportSize({ width, height });
+      await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
+      await page.goto(samplePage);
+      const board = page.getByTestId('labelit');
+      await expect(board).toBeVisible();
+      const cover = page.getByTestId('cover-1');
+      const size = await cover.boundingBox();
+      expect(size!.width).toBeGreaterThanOrEqual(44);
+      expect(size!.height).toBeGreaterThanOrEqual(44);
+      await board.getByRole('button', { name: 'reveal all' }).click();
+      const firstMark = board.getByRole('group', { name: 'mark label 1' }).getByRole('button', { name: 'know it' });
+      await expect(firstMark).toBeFocused();
+      const markSize = await firstMark.boundingBox();
+      expect(markSize!.height).toBeGreaterThanOrEqual(44);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+      expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+      expect(await board.evaluate((el) => el.getAnimations({ subtree: true }).filter((a) => a.playState === 'running').length)).toBe(0);
+    });
+  }
+}
