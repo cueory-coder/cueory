@@ -80,8 +80,8 @@ function astroFiles(root: string): string[] {
 function markupOnly(source: string): string {
   return source
     .replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, '')
-    .replace(/<!--[^]*?-->/g, '')
-    .replace(/\{\/\*[^]*?\*\/\}/g, '');
+    // Comments and inline HTML script/style bodies cannot contain actual Astro islands.
+    .replace(/<!--[^]*?-->|\{\/\*[^]*?\*\/\}|<(script|style)\b(?:[^"'<>]|"[^"]*"|'[^']*')*>[\s\S]*?<\/\1\s*>/g, '');
 }
 
 /** Parse component open tags while ignoring quoted values and {expressions}. */
@@ -220,6 +220,28 @@ describe('eager Astro island hydration', () => {
     f.write('src/pages/fixture.astro', `---\nconst fake = '<Fake client:load />';\n---\n<!-- <Ignored client:only="react" /> -->\n{/* <IgnoredToo client:load /> */}\n<Lazy client:idle /><BelowFold client:visible /><Real title="has > and client:only" client:load />`);
     const found = collectEagerIslands(f.root);
     expect(found.map((island) => island.id)).toEqual(['src/pages/fixture.astro::Real::load']);
+  });
+
+  it('ignores eager-looking tags in inline script and style raw text', () => {
+    const f = fixture();
+    f.write('src/pages/fixture.astro', [
+      '<!-- <script>example</script> -->',
+      '<script type="module" data-sample="x > y">',
+      '  const html = \'<Ghost client:load />\';',
+      '  const comment = "<!--";',
+      '</script>',
+      '<style>',
+      '  .hint::after { content: \'<GhostStyle client:only="react" />\'; }',
+      '</style>',
+      '<Real client:load />',
+      '<BrowserOnly client:only="react" />',
+    ].join('\n'));
+    const found = collectEagerIslands(f.root);
+    expect(found.map(({ id }) => id)).toEqual([
+      'src/pages/fixture.astro::Real::load',
+      'src/pages/fixture.astro::BrowserOnly::only',
+    ]);
+    expect(checkAllowlist(found, {})).toHaveLength(2);
   });
 
   it('reads multiline component tags while skipping {expression} contents', () => {
