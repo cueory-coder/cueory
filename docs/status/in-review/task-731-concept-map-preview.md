@@ -1,0 +1,1 @@
+status: Spare S11 (#72), noindex concept-map preview with eight labeled samples covering all four statuses, unit fixture checks, and browser tests for filters, keyboard, touch, accessibility and screen sizes; ready for Claude review.
