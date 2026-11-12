@@ -1,13 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { sizeOf } from './projects';
 
 const missingPage = '/task-401-page-that-does-not-exist';
-const pageSizes = new Set(['phone', 'desktop']);
 
 test.describe('404 page-specific behavior', () => {
-  test('shows the page shell, searchable destinations, and working quick links', async ({ page }, testInfo) => {
-    test.skip(!pageSizes.has(sizeOf(testInfo)), 'Task 401 runs at phone and desktop sizes only.');
-
+  test('shows the page shell, searchable destinations, and working quick links', async ({ page }) => {
     const response = await page.goto(missingPage);
     expect(response?.status()).toBe(404);
 
@@ -25,7 +21,7 @@ test.describe('404 page-specific behavior', () => {
     await expect(links).toHaveCount(4);
     for (const link of await links.all()) {
       const href = await link.getAttribute('href');
-      expect(href).toMatch(/^\/(?:learn\/study-skills|play|support)?$/);
+      expect(href).toMatch(/^\/(?:learn|play|support)?$/);
       const destination = await page.request.get(href!);
       expect(destination.status(), href!).toBe(200);
     }
@@ -34,9 +30,7 @@ test.describe('404 page-specific behavior', () => {
   test.describe('without JavaScript', () => {
     test.use({ javaScriptEnabled: false });
 
-    test('keeps the recovery links visible', async ({ page }, testInfo) => {
-      test.skip(!pageSizes.has(sizeOf(testInfo)), 'Task 401 runs at phone and desktop sizes only.');
-
+    test('keeps the recovery links visible', async ({ page }) => {
       const response = await page.goto(missingPage);
       expect(response?.status()).toBe(404);
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
