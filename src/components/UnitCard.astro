@@ -16,7 +16,7 @@ const { unit, open = [] } = Astro.props;
 const lessonCount = unit.topics.reduce((count, topic) => count + topic.lessons.length, 0);
 ---
 
-<article data-unit-id={unit.id} class="unit-card lift h-full min-w-0 overflow-hidden rounded-xl border border-line bg-surface">
+<article id={`unit-${unit.id}`} data-unit-id={unit.id} class="unit-card lift h-full min-w-0 overflow-hidden rounded-xl border border-line bg-surface">
   <details class="unit-details">
     <summary class="flex min-h-14 cursor-pointer items-center gap-3 p-4">
       <span class="min-w-0 flex-1">

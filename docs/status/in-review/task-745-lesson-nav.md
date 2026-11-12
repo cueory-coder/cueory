@@ -1,1 +1,1 @@
-STATUS: W05-3 (#39), lesson navigation: neighboring lessons come from the visible catalog within one curriculum unit, with named links and a course-library fallback. Awaiting Claude checks and unit-anchor coordination.
+STATUS: Task 745 (#39), lesson navigation: visible same-unit neighbors and real unit-card back anchors, with unknown/legacy fallback. Integrator added the shared unit ID and repaired the cached-catalog test harness. Combined type check/build and 5,520 unit tests passed. Keep Draft for !57, restack and browser/axe verification.

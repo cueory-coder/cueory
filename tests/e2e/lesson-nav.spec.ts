@@ -5,6 +5,21 @@ import { lessonNeighbors } from '../../src/lessons/neighbors';
 
 const catalog = contentCatalog();
 
+test('course-library unit cards expose unique destinations for lesson back links', async ({ page }) => {
+  await page.goto('/learn');
+  const cards = page.locator('[data-unit-id]');
+  const destinations = await cards.evaluateAll((items) => items.map((element) => ({
+    unit: element.getAttribute('data-unit-id'), id: element.id,
+  })));
+  expect(destinations.length).toBeGreaterThan(0);
+  expect(new Set(destinations.map(({ id }) => id)).size).toBe(destinations.length);
+  for (const { unit, id } of destinations) {
+    expect(id).toBe(`unit-${unit}`);
+    await page.goto(`/learn#${id}`);
+    await expect(page.locator(`[data-unit-id="${unit}"]`)).toBeInViewport();
+  }
+});
+
 for (const lesson of catalog.lessons) {
   test(lesson.href + ': links to only visible lessons in the same unit', async ({ page }) => {
     const response = await page.goto(lesson.href);

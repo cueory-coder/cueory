@@ -11,8 +11,9 @@ type Lesson = { name: string; context: string; curriculumId?: string };
 // Legacy lessons from other courses and curriculum lessons must not inflate the total.
 const expression = /^const olderLessons = (.+);$/m.exec(page)?.[1];
 if (!expression) throw new Error('The generated lesson count declaration was not found.');
+const catalogDeclaration = /^const catalog = .+;$/m.exec(page)?.[0] ?? '';
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
-const countFromPage = new AsyncFunction('lessonCatalog', 'lesson', `return ${expression};`) as (
+const countFromPage = new AsyncFunction('lessonCatalog', 'lesson', `${catalogDeclaration}\nreturn ${expression};`) as (
   lessonCatalog: () => Promise<{ lessons: Lesson[] }>,
   lesson: Lesson,
 ) => Promise<number>;

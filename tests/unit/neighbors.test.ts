@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import {
   buildCatalog, type CatalogInput, type CatalogLesson, type LessonFile,
 } from '../../src/lessons/catalog';
@@ -41,12 +42,24 @@ function find(catalog: ReturnType<typeof visibleCatalog>, id: string): CatalogLe
 }
 
 describe('lessonNeighbors', () => {
+  it('returns fragments that resolve to unique unit cards in the real built library', () => {
+    const html = readFileSync(new URL('../../dist/learn.html', import.meta.url), 'utf8');
+    const ids = [...html.matchAll(/(?:^|\s)id="([^"]+)"/g)].map((match) => match[1]);
+    const catalog = visibleCatalog();
+    for (const lesson of catalog.lessons) {
+      const { back } = lessonNeighbors(catalog, lesson);
+      const hash = new URL(back.href, 'https://cueory.app').hash.slice(1);
+      expect(hash).not.toBe('');
+      expect(ids.filter((id) => id === hash), back.href).toHaveLength(1);
+    }
+  });
+
   it('gives the first lesson only a next lesson in the same unit', () => {
     const catalog = visibleCatalog();
     const result = lessonNeighbors(catalog, find(catalog, ids[0]!));
     expect(result.previous).toBeUndefined();
     expect(result.next).toEqual({ href: '/learn/' + ids[1], name: '[sample ' + ids[1] + ']' });
-    expect(result.back).toEqual({ href: '/learn', label: 'back to units in the course library' });
+    expect(result.back).toEqual({ href: '/learn#unit-U00', label: 'back to units in the course library' });
   });
 
   it('gives a middle lesson the names and addresses of both neighbors', () => {
@@ -68,7 +81,7 @@ describe('lessonNeighbors', () => {
     const result = lessonNeighbors(catalog, find(catalog, single));
     expect(result.previous).toBeUndefined();
     expect(result.next).toBeUndefined();
-    expect(result.back.href).toBe('/learn');
+    expect(result.back.href).toBe('/learn#unit-U01');
   });
 
   it('skips hidden draft/in-review lessons but includes labeled samples', () => {
