@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const contentRoot = new URL('../../content/', import.meta.url);
@@ -49,5 +49,34 @@ describe('public content folder map', () => {
     expect(batches!.cells.join(' ')).toMatch(/not shown/i);
     const legacy = mappedFolders(doc).find((row) => row.path === 'content/games/triage/');
     expect(legacy!.cells.join(' ')).toMatch(/not the current Sudoku/i);
+  });
+});
+
+describe('content map accessibility and clarity', () => {
+  it('uses a clear heading order and a labeled table for screen readers', () => {
+    expect(doc.match(/^# .+$/gm)).toHaveLength(1);
+    expect(doc).toMatch(/^## Folder guide$/m);
+    expect(doc).toMatch(/^## Before adding content$/m);
+    expect(doc).toMatch(/^\| Folder \| What belongs there \| Where students see it \| What may be committed \|$/m);
+  });
+
+  it('uses descriptive link words and keeps local document links valid', () => {
+    const links = [...doc.matchAll(/\[([^\]]+)\]\(([^)]+)\)/g)];
+    expect(links.length).toBeGreaterThan(0);
+    for (const [, label, href] of links) {
+      expect(label!.trim()).not.toMatch(/^(here|click here|link)$/i);
+      expect(href).not.toMatch(/^(javascript:|data:)/i);
+      if (!/^https:\/\//.test(href!)) {
+        const target = new URL(href!, new URL('../../docs/', import.meta.url));
+        expect(existsSync(target), 'missing linked document: ' + href).toBe(true);
+      }
+    }
+  });
+
+  it('states each folder publication boundary in words, not only appearance', () => {
+    for (const row of mappedFolders(doc)) {
+      expect(row.cells[3], row.path + ' needs written publication guidance')
+        .toMatch(/sample|private|public|local|approved|draft|review|nothing|keep/i);
+    }
   });
 });
