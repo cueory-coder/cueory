@@ -1,0 +1,1 @@
+status: Task 713, puzzle feed failure and no-puzzle states (#13): typed daily puzzle selection and load results, accessible retry states, and unit/browser coverage. Live game integration requires changes by separate owners.

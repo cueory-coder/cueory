@@ -71,6 +71,22 @@ import Layout from '../../layouts/Layout.astro';
           description="new items will appear here when they're ready."
           headingLevel={3}
         />
+        <div data-puzzle-feed-state="none-today">
+          <EmptyState
+            title="today's puzzle isn't ready."
+            description="there isn't a puzzle for today yet. try again later."
+            retryLabel="try again"
+            headingLevel={3}
+          />
+        </div>
+        <div data-puzzle-feed-state="failed">
+          <EmptyState
+            title="today's puzzle isn't ready."
+            description="we couldn't load today's puzzle. try again later."
+            retryLabel="try again"
+            headingLevel={3}
+          />
+        </div>
       </div>
     </section>
   </div>

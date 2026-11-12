@@ -124,3 +124,70 @@ export function acceptPuzzle(payload: unknown, today: string): AcceptResult {
     }
   }
 }
+
+/**
+ * A date-indexed feed may have no entry for a game today, or may fail to load.
+ * Keep those outcomes separate from a usable, validated puzzle.
+ *
+ * Only today's real puzzle may reach the browser. This selector is a second
+ * check, not permission to send future content in a feed (D-61).
+ */
+export type PuzzleFeedResult =
+  | (Extract<AcceptResult, { ok: true }> & { status: 'puzzle' })
+  | { status: 'none-today' }
+  | { status: 'failed' };
+
+function isGameId(value: unknown): value is GameId {
+  return typeof value === 'string' && (GAME_IDS as readonly string[]).includes(value);
+}
+
+/**
+ * Selects one validated puzzle for today's game from dated payloads.
+ * [] or no matching date/game means no puzzle was published today.
+ * Malformed feeds, duplicate matches and invalid today's entries fail closed.
+ */
+export function selectTodayPuzzle(feed: unknown, today: string, game: GameId): PuzzleFeedResult {
+  try {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(today) || !isGameId(game) || !Array.isArray(feed)) {
+      return { status: 'failed' };
+    }
+    if (feed.length === 0) return { status: 'none-today' };
+
+    // Reject bad envelopes instead of quietly treating corrupted data as an empty day.
+    if (feed.some((entry: unknown) =>
+      !isRecord(entry)
+      || !isGameId(entry.game)
+      || typeof entry.date !== 'string'
+      || !/^\d{4}-\d{2}-\d{2}$/.test(entry.date)
+    )) {
+      return { status: 'failed' };
+    }
+
+    const matches = feed.filter((entry: unknown): entry is Record<string, unknown> =>
+      isRecord(entry) && entry.game === game && entry.date === today
+    );
+    if (matches.length === 0) return { status: 'none-today' };
+    if (matches.length !== 1) return { status: 'failed' };
+
+    const result = acceptPuzzle(matches[0], today);
+    return result.ok ? { ...result, status: 'puzzle' } : { status: 'failed' };
+  } catch {
+    return { status: 'failed' };
+  }
+}
+
+/**
+ * Accepts an injected loader, so callers can retry without this module owning
+ * network or database code. Never exposes an error's details to the student.
+ */
+export async function loadTodayPuzzle(
+  load: () => Promise<unknown>,
+  today: string,
+  game: GameId,
+): Promise<PuzzleFeedResult> {
+  try {
+    return selectTodayPuzzle(await load(), today, game);
+  } catch {
+    return { status: 'failed' };
+  }
+}

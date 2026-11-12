@@ -11,7 +11,7 @@ test.describe('Task 91: loading and empty states', () => {
     await expect(page.locator('[data-skeleton-kind="lines"]')).toHaveCount(1);
     await expect(page.locator('[data-skeleton-kind="card"]')).toHaveCount(1);
     await expect(page.locator('[data-skeleton-kind="ring"]')).toHaveCount(1);
-    await expect(page.locator('[data-empty-state]')).toHaveCount(4);
+    await expect(page.locator('[data-empty-state]')).toHaveCount(6);
   });
 
   test('one accessible loading message per group, decorative shapes hidden', async ({ page }) => {
@@ -81,4 +81,50 @@ test.describe('Task 91: loading and empty states', () => {
     await page.goto(preview);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
+
+  test('missing and failed puzzles show a readable message and a keyboard retry button', async ({ page }) => {
+    await page.goto(preview);
+    for (const state of ['none-today', 'failed']) {
+      const panel = page.locator('[data-puzzle-feed-state="' + state + '"]');
+      await expect(panel.getByRole('heading', { name: "today's puzzle isn't ready." })).toBeVisible();
+      await expect(panel.getByText(/try again later/)).toBeVisible();
+      const retry = panel.getByRole('button', { name: 'try again' });
+      const box = await retry.boundingBox();
+      expect(box?.height).toBeGreaterThanOrEqual(44);
+      expect(box?.width).toBeGreaterThanOrEqual(44);
+      await retry.focus();
+      await expect(retry).toBeFocused();
+      await page.keyboard.press('Enter');
+      await expect(page).toHaveURL(/\/preview\/states\/?(?:\?.*)?$/);
+      await expect(page.locator('[data-puzzle-feed-state="' + state + '"]')).toBeVisible();
+    }
+  });
+
+  for (const width of [390, 820, 1440]) {
+    for (const palette of ['Light', 'Dark']) {
+      test('puzzle states: axe and no overflow at ' + width + 'px in ' + palette, async ({ page }) => {
+        await page.setViewportSize({ width, height: 900 });
+        await page.goto(preview);
+        const toggle = page.getByRole('contentinfo').locator('[data-footer-toggle]');
+        await toggle.scrollIntoViewIfNeeded();
+        if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+        await page.getByRole('radio', { name: palette }).check();
+
+        for (const state of ['none-today', 'failed']) {
+          const panel = page.locator('[data-puzzle-feed-state="' + state + '"]');
+          await expect(panel).toBeVisible();
+          const retry = panel.getByRole('button', { name: 'try again' });
+          const box = await retry.boundingBox();
+          expect(box?.height).toBeGreaterThanOrEqual(44);
+          expect(box?.width).toBeGreaterThanOrEqual(44);
+        }
+        const results = await new AxeBuilder({ page })
+          .include('[data-state-preview]')
+          .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'])
+          .analyze();
+        expect(results.violations.map((violation) => violation.id + ': ' + violation.help)).toEqual([]);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      });
+    }
+  }
 });
