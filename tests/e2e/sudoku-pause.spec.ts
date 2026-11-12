@@ -22,6 +22,12 @@ for (const [size, width, height] of [['phone', 390, 844], ['tablet', 820, 1180],
       await page.emulateMedia({ colorScheme: scheme });
       await page.goto('/play');
       await expect(cells(page)).toHaveCount(81);
+      // The help text must describe the same privacy behavior as the paused board.
+      const how = game(page).getByRole('button', { name: 'how to play' });
+      await how.click();
+      await expect(game(page).getByRole('region', { name: 'how to play sudoku' }))
+        .toContainText('pause hides your entries and x marks. the original numbers stay visible until you resume.');
+      await how.click();
       await cells(page).nth(empty).click();
       await page.keyboard.press('1');
       await cells(page).nth(marked).click();

@@ -154,7 +154,7 @@ export default function SudokuGame() {
       </div>
       {howOpen && <div className="sudoku-how" role="region" aria-label="how to play sudoku">
         <p className="font-medium">how to play</p>
-        <ol><li>fill each row, column and 3 by 3 box with 1 to 9, with no repeats.</li><li>pick a square, then type or tap a number. arrow keys move between squares.</li><li>use x for your own mark and hints to show possible numbers.</li><li>pause hides the puzzle until you resume.</li></ol>
+        <ol><li>fill each row, column and 3 by 3 box with 1 to 9, with no repeats.</li><li>pick a square, then type or tap a number. arrow keys move between squares.</li><li>use x for your own mark and hints to show possible numbers.</li><li>pause hides your entries and x marks. the original numbers stay visible until you resume.</li></ol>
       </div>}
     </div>
     <div className="sudoku-panel">
