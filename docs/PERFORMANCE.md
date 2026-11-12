@@ -20,7 +20,7 @@ The check reads every `.html` file in `dist/` and counts:
 | CSS | 70 KiB |
 | Combined HTML + JavaScript + CSS | 300 KiB |
 
-Every limit is in the `BUDGETS` table at the top of `scripts/perf-budget.mjs`. The check counts each page’s HTML, locally linked scripts and stylesheets, Astro island scripts (including hydration helpers), inline module script imports, and their statically imported JavaScript and CSS. A shared file is counted once per page, not once per reference. Query strings do not make duplicate files. All sizes use Node's `zlib.gzipSync`.
+Default limits are in `BUDGETS`, and named route exceptions are in `ROUTE_BUDGETS` at the top of `scripts/perf-budget.mjs`. The check counts each page’s HTML, locally linked scripts and stylesheets, Astro island scripts (including hydration helpers), inline module script imports, and their statically imported JavaScript and CSS. A shared file is counted once per page, not once per reference. Query strings do not make duplicate files. All sizes use Node's `zlib.gzipSync`.
 
 The report prints **PASS** or **OVER** for each page and identifies which limit was exceeded. A limit breach, missing local file, invalid build directory, or unsafe file link causes a non-zero exit status. The checker does not change any files.
 
@@ -46,3 +46,5 @@ The default HTML limit remains 40 KiB and CSS remains 70 KiB on **every** route,
 **Calibration requested from Claude in issue #10:** after building the current staging code, run `node scripts/perf-budget.mjs dist --json` and send the complete report. Record the build commit and Node version. Copy measured gzip values into the table above, then set each default or route-specific limit to at least **25% above its measured size** (round up to full KiB), while retaining a distinct performance target. If a measured page exceeds a proposed target, discuss the budget before raising it. Only a verified staging build can turn these provisional limits into reviewed budgets.
 
 `--json` emits `schemaVersion: 1`, gzip byte counts, default and named route budgets, per-page effective limits, `breaches`, and the pass/fail totals. It still exits non-zero if any route breaches its limit. It does not change the build or require a new dependency.
+
+The scanner checks known route names against Astro's `build.format: 'file'`. The unit tests guard against silently losing the route overrides if the output format changes or a named page is deleted. Missing linked JS or CSS is an error, not a passing scan.

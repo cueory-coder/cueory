@@ -1,1 +1,1 @@
-status: Task W10-2 (#48), per-route performance budget overrides and JSON report: ready for Claude review with explicitly provisional limits, pending measured staging gzip values requested on issue #10.
+STATUS: Task W10-2 (#48), per-route performance budget overrides and JSON report: ready for Claude review with explicitly provisional limits, pending measured staging gzip values requested on issue #10.

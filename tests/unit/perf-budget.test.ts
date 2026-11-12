@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -240,5 +240,49 @@ describe('built-site performance budgets', () => {
     expect(() => parsePerformanceArgs([])).toThrow('Usage');
     expect(() => parsePerformanceArgs(['dist', '--pretty'])).toThrow('Usage');
     expect(() => parsePerformanceArgs(['dist', '--json', '--json'])).toThrow('Usage');
+  });
+
+  it('keeps per-route keys aligned with Astro file output and actual page sources', () => {
+    const config = readFileSync(new URL('../../astro.config.mjs', import.meta.url), 'utf8');
+    // A later switch to directory output must trigger a deliberate update to the budget paths.
+    expect(/\bformat:\s*['"]file['"]/.test(config)).toBe(true);
+    for (const [file, limit] of Object.entries(ROUTE_BUDGETS)) {
+      expect(file.endsWith('.html')).toBe(true);
+      expect(file.startsWith('/') || file.includes('..')).toBe(false);
+      expect(existsSync(new URL('../../src/pages/' + file.replace(/\.html$/, '.astro'), import.meta.url))).toBe(true);
+      expect(limit.label.trim().length > 5).toBe(true);
+    }
+  });
+
+  it('does not grant a special budget to unknown or unusually named routes', () => {
+    const f = fixture();
+    const html = '<html>sample fixture</html>';
+    f.file('other/play.html', html);
+    f.file('unicode/été.html', html);
+    const pages = scanPerformanceBudget(f.root);
+    expect(pages.map(page => [page.page, page.limits.label])).toEqual([
+      ['other/play.html', 'Default'], ['unicode/été.html', 'Default'],
+    ]);
+  });
+
+  it('reports a missing local dependency as a failed JSON CLI run', () => {
+    const f = fixture();
+    const script = fileURLToPath(new URL('../../scripts/perf-budget.mjs', import.meta.url));
+    f.file('index.html', '<link rel="stylesheet" href="/_astro/missing.css">');
+    const result = spawnSync(process.execPath, [script, f.root, '--json'], { encoding: 'utf8' });
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe('');
+    expect(result.stderr.includes('Performance budget check failed')).toBe(true);
+  });
+
+  it('keeps HTML limits in force even if a route has a higher JavaScript limit', () => {
+    const f = fixture();
+    f.file('play.html', randomBytes(6_000).toString('base64'));
+    const budgets = { html: 50, js: 1, css: 50, total: 100_000 };
+    const overrides = { 'play.html': { label: 'Daily games', js: 250_000 } };
+    const [page] = scanPerformanceBudget(f.root, budgets, overrides);
+    expect(page!.breaches).toEqual(['html']);
+    expect(page!.limits.js).toBe(250_000);
+    expect(page!.limits.html).toBe(50);
   });
 });
