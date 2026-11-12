@@ -94,3 +94,142 @@
     text-decoration: none;
   }
 }
+
+/* Printable sudoku pack (launch task L3, /print/sudoku-pack). Screen first, then paper. */
+.sudoku-pack {
+  max-inline-size: var(--container-prose);
+}
+
+.sudoku-pack-print {
+  min-block-size: var(--tap-min);
+  padding-inline: calc(var(--spacing) * 5);
+  border: var(--border-share-icon) solid var(--color-ink);
+  border-radius: var(--radius-pill);
+  color: var(--color-ink);
+  background-color: var(--color-page);
+  font-size: var(--text-base);
+}
+
+.sudoku-pack-puzzle,
+.sudoku-pack-key {
+  margin-block-start: var(--spacing-section);
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.sudoku-pack-title {
+  margin-block-end: calc(var(--spacing) * 2);
+  font-size: var(--text-base);
+  color: var(--color-ink);
+}
+
+.sudoku-pack-answers-title {
+  margin-block-start: var(--spacing-section);
+}
+
+.sudoku-pack-grid {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  inline-size: min(100%, var(--container-sudoku-pack));
+  aspect-ratio: 1;
+  border: var(--border-sudoku-box) solid var(--color-ink);
+  color: var(--color-ink);
+}
+
+.sudoku-pack-cell {
+  display: grid;
+  place-items: center;
+  border-inline-end: var(--border-sudoku-cell) solid var(--color-line);
+  border-block-end: var(--border-sudoku-cell) solid var(--color-line);
+  font-size: var(--text-lg);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Thick lines around each 3 × 3 box: after columns 3 and 6, and under rows 3 and 6. */
+.sudoku-pack-cell:nth-child(9n + 3),
+.sudoku-pack-cell:nth-child(9n + 6) {
+  border-inline-end: var(--border-sudoku-box) solid var(--color-ink);
+}
+
+.sudoku-pack-cell:nth-child(n + 19):nth-child(-n + 27),
+.sudoku-pack-cell:nth-child(n + 46):nth-child(-n + 54) {
+  border-block-end: var(--border-sudoku-box) solid var(--color-ink);
+}
+
+.sudoku-pack-cell:nth-child(9n) {
+  border-inline-end: 0;
+}
+
+.sudoku-pack-cell:nth-child(n + 73) {
+  border-block-end: 0;
+}
+
+.sudoku-pack-grid--key .sudoku-pack-cell {
+  font-size: var(--text-sm);
+}
+
+@media print {
+  .sudoku-pack,
+  .sudoku-pack * {
+    color: var(--print-ink) !important;
+    background-color: var(--print-paper) !important;
+  }
+
+  .sudoku-pack {
+    max-inline-size: none;
+    padding: 0 !important;
+  }
+
+  /* Two puzzles per printed page: each takes half a page, then a page break. */
+  .sudoku-pack-page {
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .sudoku-pack-puzzle {
+    display: grid;
+    justify-items: center;
+    align-content: center;
+    min-block-size: var(--print-sudoku-half);
+    margin: 0;
+  }
+
+  .sudoku-pack-grid {
+    inline-size: var(--print-sudoku-board);
+    border-color: var(--print-ink) !important;
+  }
+
+  .sudoku-pack-cell {
+    font-size: var(--print-sudoku-digit);
+    border-color: var(--print-ink) !important;
+  }
+
+  /* Answers start on a fresh page, six small grids per page in two columns. */
+  .sudoku-pack-answers-title {
+    margin-block: 0 var(--print-gap);
+  }
+
+  .sudoku-pack-key-page {
+    display: grid;
+    grid-template-columns: repeat(2, var(--print-sudoku-key));
+    justify-content: space-evenly;
+    gap: var(--print-gap);
+  }
+
+  .sudoku-pack-key-page:not(:last-child) {
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .sudoku-pack-key {
+    margin: 0;
+  }
+
+  .sudoku-pack-grid--key {
+    inline-size: var(--print-sudoku-key);
+  }
+
+  .sudoku-pack-grid--key .sudoku-pack-cell {
+    font-size: var(--print-sudoku-key-digit);
+  }
+}

@@ -184,6 +184,14 @@
   --print-letter: 16pt;         /* a letter in the printed grid, large enough to read at arm's length */
   --print-gap: 0.5cm;           /* space between the grid, the word list and the footer on paper */
   --print-figure: 13cm;         /* an anatomy worksheet's picture on paper: leaves room for the numbered list below */
+  --print-sudoku-board: 10cm;   /* a sudoku in the printed pack (L3): two fit on one letter or A4 page */
+  --print-sudoku-digit: 15pt;   /* a given number in that printed sudoku */
+  --print-sudoku-half: 48vh;    /* the space one pack sudoku takes on paper: just under half the page */
+  --print-sudoku-key: 5.5cm;    /* a small answer grid at the end of the pack: six fit on one page */
+  --print-sudoku-key-digit: 8pt; /* a number in that small answer grid */
+  --container-sudoku-pack: 22rem; /* a sudoku in the pack on screen, before printing */
+  --border-sudoku-cell: 1px;    /* the thin line between squares in the pack */
+  --border-sudoku-box: 2.5px;   /* the thick line around each 3 × 3 box and the whole pack grid */
   --worksheet-blank: 1.75rem;   /* the height of a write-in line on an anatomy worksheet */
 
   /* ---------- Motion (D-41 brand bar: 150–400 ms, soft not bouncy, always off under reduced-motion) ---------- */

@@ -1,0 +1,2 @@
+STATUS: Launch task L3, printable sudoku pack: /print/sudoku-pack (kept out of search) prints 30 puzzles from the daily game's generator (fixed seed, easy/medium/hard taking turns), two per page, then the answers six per page: 20 pages on letter or A4.
+DECISION: D-pending (L3) The pack prints two puzzles per page (half a page each), not one per page as the board note said, so it is 20 sheets instead of 35. Reason: the lead's task asked for half pages; switching to one per page is a one-line change (PUZZLES_PER_PAGE).

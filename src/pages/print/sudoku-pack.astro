@@ -1,0 +1,71 @@
+---
+/**
+ * Printable sudoku pack (launch task L3): 30 puzzles from the daily game's generator (fixed seed, levels taking turns),
+ * two per printed page, then the answers, six per page. Numbers only: no clinical content. Kept out of search.
+ */
+import Layout from '../../layouts/Layout.astro';
+import { ANSWERS_PER_PAGE, PUZZLES_PER_PAGE, buildSudokuPack, gridLabel, gridRows, toPages } from '../../islands/sudokupack';
+
+const pack = buildSudokuPack();
+const puzzlePages = toPages(pack, PUZZLES_PER_PAGE);
+const answerPages = toPages(pack, ANSWERS_PER_PAGE);
+---
+
+<Layout
+  title="printable sudoku pack"
+  description="30 sudoku puzzles to print, two to a page, with the answers at the end."
+  variant="study"
+  noindex
+  promo={false}
+>
+  <div class="sudoku-pack mx-auto px-gutter py-10" data-testid="sudoku-pack">
+    <div class="sudoku-pack-intro" data-print-hidden>
+      <h1 class="text-2xl">printable sudoku pack</h1>
+      <p class="mt-4 text-base text-ink-soft">
+        {pack.length} puzzles, two to a page, with the answers at the end. Levels take turns: easy, medium, hard.
+      </p>
+      <button type="button" class="sudoku-pack-print mt-6" data-sudoku-pack-print>print the pack</button>
+    </div>
+
+    <section aria-labelledby="sudoku-pack-puzzles">
+      <h2 id="sudoku-pack-puzzles" class="sr-only">puzzles</h2>
+      {puzzlePages.map((page) => (
+        <div class="sudoku-pack-page" data-sudoku-page>
+          {page.map((puzzle) => (
+            <article class="sudoku-pack-puzzle" data-sudoku-puzzle={puzzle.number} aria-labelledby={`sudoku-pack-${puzzle.number}`}>
+              <h3 id={`sudoku-pack-${puzzle.number}`} class="sudoku-pack-title">puzzle {puzzle.number} · {puzzle.level}</h3>
+              <div class="sudoku-pack-grid" role="img" aria-label={gridLabel(`puzzle ${puzzle.number}, ${puzzle.level}`, puzzle.puzzle)}>
+                {gridRows(puzzle.puzzle).map((row) =>
+                  row.map((value) => <span class="sudoku-pack-cell" aria-hidden="true">{value || ''}</span>),
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      ))}
+    </section>
+
+    <section class="sudoku-pack-answers" aria-labelledby="sudoku-pack-answers" data-sudoku-answers>
+      <h2 id="sudoku-pack-answers" class="sudoku-pack-answers-title text-xl">answers</h2>
+      {answerPages.map((page) => (
+        <div class="sudoku-pack-key-page" data-sudoku-answer-page>
+          {page.map((puzzle) => (
+            <figure class="sudoku-pack-key" data-sudoku-answer={puzzle.number}>
+              <figcaption class="sudoku-pack-title">answer {puzzle.number}</figcaption>
+              <div class="sudoku-pack-grid sudoku-pack-grid--key" role="img" aria-label={gridLabel(`answer ${puzzle.number}`, puzzle.solution)}>
+                {gridRows(puzzle.solution).map((row) =>
+                  row.map((value) => <span class="sudoku-pack-cell" aria-hidden="true">{value}</span>),
+                )}
+              </div>
+            </figure>
+          ))}
+        </div>
+      ))}
+    </section>
+  </div>
+</Layout>
+
+<script>
+  // One tap opens the browser's print dialog. Nothing prints on page load.
+  document.querySelector('[data-sudoku-pack-print]')?.addEventListener('click', () => window.print());
+</script>

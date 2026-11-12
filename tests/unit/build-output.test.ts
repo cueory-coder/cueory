@@ -67,6 +67,7 @@ const initialJsBudget = {
   'play.html': 168467,
   'play/hello-cards.html': 91427,
   'play/stat.html': 96284, // Task 640: measured from a local Node 24.22.2 build, not yet from CI
+  'print/sudoku-pack.html': 89840, // L3: measured from a local Node 24 build, not yet from CI
   'preview/admin-flags.html': 92161,
   'preview/anatomy-text.html': 89104,
   'preview/anatomy-lab.html': 89027,
