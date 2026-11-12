@@ -3,6 +3,7 @@ import { browserStorage } from '../scripts/storage';
 import { printGame } from './gameprint';
 import { localDay } from './gameresults';
 import { THEME_ROWS, chooseSiteTheme, currentSiteTheme } from './sitetheme';
+import { sudokuCellClasses } from './sudokuhighlight';
 import { DEFAULT_SUDOKU_SETTINGS, LEVEL_RULES, applySudokuEdit, candidates, conflictIndices, dailySudokuSeed, generateSudoku, getResult, loadSudokuSettings, saveSudokuSettings, sudokuKeyAction, type SudokuLevel, type SudokuSettings } from './sudoku';
 
 const LEVELS: SudokuLevel[] = ['easy', 'medium', 'hard'];
@@ -146,7 +147,6 @@ export default function SudokuGame() {
   // The shared print helper (Task 641): marks the page for sudoku's print rules and clears the mark after printing.
   const printPuzzle = () => printGame('sudoku');
   const elapsed = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
-  const selectedRow = Math.floor(selected / 9); const selectedColumn = selected % 9; const selectedValue = entries[selected];
 
   return <section className="sudoku-game" data-testid="sudoku">
     <div className="sudoku-title-row">
@@ -170,11 +170,8 @@ export default function SudokuGame() {
         {Array.from({ length: 9 }, (_, row) => <div key={row} className="sudoku-row" role="row">
           {entries.slice(row * 9, row * 9 + 9).map((value, column) => {
           const index = row * 9 + column; const given = puzzle.puzzle[index] !== 0;
-          const related = settings.highlightRowColumn && (row === selectedRow || column === selectedColumn);
-          const box = settings.highlightBox && Math.floor(row / 3) === Math.floor(selectedRow / 3) && Math.floor(column / 3) === Math.floor(selectedColumn / 3);
-          const identical = settings.highlightIdentical && Boolean(selectedValue) && value === selectedValue;
           const options = !value && !marks.has(index) && hints ? candidates(entries, index) : [];
-          const classes = ['sudoku-cell', given && 'is-given', !given && value && 'is-entered', selected === index && 'is-selected', selected !== index && related && 'is-related', selected !== index && box && 'is-box-related', identical && 'is-identical', settings.highlightConflicts && conflicts.has(index) && 'is-conflict', (column === 2 || column === 5) && 'sudoku-box-right', (row === 2 || row === 5) && 'sudoku-box-bottom'].filter(Boolean).join(' ');
+          const classes = sudokuCellClasses(index, { selected, entries, givens: puzzle.puzzle, conflicts, paused, settings }).join(' ');
           const spoken = paused ? 'hidden while paused' : marks.has(index) ? 'x mark' : value ? String(value) : options.length ? `empty, candidates ${options.join(', ')}` : 'empty';
           return <button ref={(element) => { if (element) cells.current.set(index, element); else cells.current.delete(index); }} key={index} type="button" role="gridcell" tabIndex={selected === index ? 0 : -1} className={classes} aria-rowindex={row + 1} aria-colindex={column + 1} aria-selected={selected === index} aria-label={`row ${row + 1}, column ${column + 1}, ${spoken}${given ? ', given' : ''}`} data-given={given ? 'true' : 'false'} onClick={() => setSelected(index)}>
             {paused ? <span aria-hidden="true">x</span> : marks.has(index) ? <span className="sudoku-mark" aria-hidden="true">x</span> : value ? <span>{value}</span> : options.length ? <span className="sudoku-candidates" aria-hidden="true">{NUMBERS.map((number) => <i key={number}>{options.includes(number) ? number : ''}</i>)}</span> : null}
