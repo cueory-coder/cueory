@@ -233,4 +233,79 @@ describe('deterministic promo timing (W14)', () => {
   });
 
 
+
+  it('does not interrupt keyboard text entry or editable controls when the timer expires', () => {
+    const readyTimer = { remainingMs: 0, startedAt: null };
+    const entries = [
+      { tagName: 'INPUT', type: 'password' },
+      { tagName: 'INPUT', type: 'number' },
+      { tagName: 'INPUT', type: 'url' },
+      { tagName: 'INPUT', type: 'tel' },
+      { tagName: 'TEXTAREA' },
+      { tagName: 'SELECT' },
+      { tagName: 'DIV', isContentEditable: true },
+    ];
+    for (const entry of entries) {
+      expect(isTextEntry(entry)).toBe(true);
+      expect(promoDecision(Date.now(), null, 30, readyTimer, {
+        ...readyContext,
+        busy: isTextEntry(entry),
+      }).show).toBe(false);
+    }
+    // Once the visitor leaves the text field, the already-expired timer may open the panel.
+    expect(promoDecision(Date.now(), null, 30, readyTimer, readyContext).show).toBe(true);
+  });
+
+  it('holds off while another dialog owns focus, even after a scroll trigger or elapsed timer', () => {
+    const readyTimer = { remainingMs: 0, startedAt: null };
+    for (const scrollFraction of [0, 0.5, 1]) {
+      expect(promoDecision(Date.now(), null, 30, readyTimer, {
+        ...readyContext,
+        scrollFraction,
+        busy: true,
+      }).show).toBe(false);
+    }
+    expect(promoDecision(Date.now(), null, 30, readyTimer, {
+      ...readyContext,
+      busy: false,
+      reducedMotion: true,
+    })).toEqual({ show: true, remainingMs: 0, animate: false });
+  });
+
+  it('clamps bounced or out-of-range scroll positions before deciding whether to open', () => {
+    expect(scrollProgress(-100, 700, 2100)).toBe(0);
+    expect(scrollProgress(0, 700, 2100)).toBe(0);
+    expect(scrollProgress(699, 700, 2100)).toBeLessThan(0.5);
+    expect(scrollProgress(700, 700, 2100)).toBe(0.5);
+    expect(scrollProgress(2200, 700, 2100)).toBe(1);
+    expect(scrollProgress(5, 700, 600)).toBe(0);
+  });
+
+  it('handles repeated visibility toggles without double-counting elapsed time', () => {
+    const start = 2_000;
+    let timer = resumePromoTimer(start, { remainingMs: 5_000, startedAt: null });
+    timer = resumePromoTimer(start + 500, timer);
+    timer = pausePromoTimer(start + 2_000, timer);
+    expect(timer).toEqual({ remainingMs: 3_000, startedAt: null });
+    timer = pausePromoTimer(start + 20_000, timer);
+    expect(timer).toEqual({ remainingMs: 3_000, startedAt: null });
+    timer = resumePromoTimer(start + 20_000, timer);
+    expect(promoTimeRemaining(start + 22_999, timer)).toBe(1);
+    expect(promoTimeRemaining(start + 23_000, timer)).toBe(0);
+  });
+
+  it('fails to save when storage writes are blocked and respects the exact 30-day boundary', () => {
+    const cannotWrite: KeyValueStorage = {
+      getItem: () => null,
+      setItem: () => { throw new Error('write blocked'); },
+      removeItem: () => {},
+    };
+    expect(mayShow(cannotWrite, NOW, 30)).toBe(true);
+    expect(remember(cannotWrite, NOW)).toBe(false);
+    const remembered = memory({ [PROMO_STORAGE_KEY]: String(NOW) });
+    expect(mayShow(remembered, NOW + 30 * DAY - 1, 30)).toBe(false);
+    expect(mayShow(remembered, NOW + 30 * DAY, 30)).toBe(true);
+  });
+
+
 });
