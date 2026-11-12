@@ -159,7 +159,7 @@ test.describe('library without JavaScript', () => {
     await expect(summary).toBeFocused();
     await summary.press('Enter');
     await expect(first.locator('details')).toHaveAttribute('open', '');
-    await expect(first.locator('li')).toHaveText(firstUnit.topics.map((topic) => topic.title));
+    await expect(first.locator('ul').first().locator('li')).toHaveText(firstUnit.topics.map((topic) => topic.title));
 
     if (!unitAvailability(catalog.lessons, firstUnit.id).hasLessons) {
       await expect(first.getByTestId('unit-empty-state')).toHaveText('no lessons yet · coming soon');
