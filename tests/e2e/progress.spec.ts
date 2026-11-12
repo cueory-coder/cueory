@@ -387,7 +387,7 @@ for (const width of [390, 820, 1440]) {
       const cards = section.getByTestId('course-progress-card');
       for (const card of await cards.all()) {
         await expect(card.getByTestId('course-progress-words'))
-          .toHaveText(/^(?:\\d+ of \\d+ lessons? started|no published lessons to track yet\\.)$/);
+          .toHaveText(/^(?:\d+ of \d+ lessons? started|no published lessons to track yet\.)$/);
       }
       await expect(section.getByRole('img')).toHaveCount(0);
       const rings = section.locator('svg');
