@@ -1,0 +1,1 @@
+status: Task 709, lesson print styles: black-on-white reading, no lesson interactions or video covers, visible visual credits and printed outside URLs, break protection for figures/callouts, scoped CSS and regression tests. Browser and full repository checks await Claude's runnable checkout.
