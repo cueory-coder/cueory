@@ -3,9 +3,6 @@ import {
   buildResultShareLine,
   discardPendingResultCard,
   GAME_RESULT_CARD_EVENT,
-  showResultCard,
-  sudokuResultCard,
-  SUDOKU_SOLVED_EVENT,
   takePendingResultCards,
   type GameResultCard,
 } from './gameresults';
@@ -40,15 +37,10 @@ export default function GameResultsHost() {
       setStatus('');
       setCard(detail);
     };
-    const sudoku = (event: WindowEventMap['cueory:sudoku-solved']) => {
-      if (event.detail?.game === 'sudoku') showResultCard(sudokuResultCard(event.detail));
-    };
     window.addEventListener(GAME_RESULT_CARD_EVENT, open);
-    window.addEventListener(SUDOKU_SOLVED_EVENT, sudoku);
     for (const pending of takePendingResultCards()) open(new CustomEvent<GameResultCard>(GAME_RESULT_CARD_EVENT, { detail: pending }));
     return () => {
       window.removeEventListener(GAME_RESULT_CARD_EVENT, open);
-      window.removeEventListener(SUDOKU_SOLVED_EVENT, sudoku);
     };
   }, []);
 

@@ -8,6 +8,15 @@ Validation on the integrated source: Node 24.22.1, Astro check 0 errors / 0 warn
 
 Browser blocker: pinned Chromium headless-shell is absent. System Chromium fails before assertions because socket() is denied. The earlier Chromium results on !2 or !3 do not validate this candidate. Claude must run current result-dialog/share/promo, crossword, Sudoku, word-path print, stats/privacy, keyboard/focus, axe, CSP and overflow coverage across configured projects.
 
-Outstanding Claude integration review from !2 remains applicable. This conflict-only candidate does not claim to finish: official Threads URL verification, Facebook documented-link decision, final per-game share wording, direct Sudoku type/callback consolidation, stat result-host wiring, hello-cards tomorrow wording, config-driven Sudoku landing copy, and platform-button design. Native sharing activation and first-visit promo behavior need actual browser verification. The hard-crossword tap-target exception from !97 remains D-pending.
+Outstanding Claude integration review from !2 remains applicable. This conflict-only candidate does not claim to finish: official Threads URL verification, Facebook documented-link decision, final per-game share wording, stat result-host wiring, hello-cards tomorrow wording, config-driven Sudoku landing copy, and platform-button design. Native sharing activation and first-visit promo behavior need actual browser verification. The hard-crossword tap-target exception from !97 remains D-pending.
 
 Dependency: this candidate includes !97. Review the sharing-only delta against codex/integrate-crossword-levels, then integrate in dependency order. No production, auth, CI, database, DNS or deployment changes were made by this work.
+
+
+## Repair after review: reliable Sudoku result delivery
+
+The real completion effect emitted only a one-time Sudoku event, so completion before host hydration lost the result. A Vitest regression using the actual island completion effect with fake React/browser APIs first failed with an empty pending-result queue. The repaired island calls the queued display-result path directly using its canonical SudokuResult. The old public completion event remains available to observers, but the result host no longer consumes it, preventing duplicate cards. A compatibility type alias replaces the duplicated payload definition.
+
+Two runtime unit cases cover a host that loads late and a live host receiving exactly one result. The existing adapter test now consumes the real Sudoku getResult output (including its 02:34 time format). The old implementation-specific listener assertion was replaced by these behavioral regressions. The Sudoku browser solve case now checks/closes the shared dialog before checking focus returns to the plain result, retaining its completion-hook and no-wrong-stats assertions.
+
+Validation after this repair: focused Vitest 4 files / 34 tests passed. Astro check passed with 0 errors, 0 warnings, 26 hints. Build passed. Full Vitest passed 213 files / 5487 tests with 3 existing skips. Browser assertions are still not run locally and remain required for Claude. No new merge request was opened for this repair.

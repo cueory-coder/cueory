@@ -8,6 +8,7 @@
  */
 import type { KeyValueStorage } from '../scripts/storage';
 import { dayLabel } from './daily';
+import type { SudokuResult } from './sudoku';
 import { parseStats, serialize, type GameId, type GameStats } from './gamestats';
 
 /** The event a game sends on `window` when a round ends. */
@@ -19,15 +20,8 @@ export const GAME_RESULT_CARD_EVENT = 'cueory:game-result-card';
 /** Worker 1's additive Sudoku completion event; the Sudoku island can dispatch it without importing this host. */
 export const SUDOKU_SOLVED_EVENT = 'cueory:sudoku-solved';
 
-export interface SudokuSolvedDetail {
-  game: 'sudoku';
-  day: string;
-  level: string;
-  solved: boolean;
-  seconds: number;
-  time: string;
-  errors: number;
-}
+/** Backward-compatible name for the game's canonical completion payload. */
+export type SudokuSolvedDetail = SudokuResult;
 
 declare global {
   interface WindowEventMap {
@@ -64,7 +58,7 @@ export interface GameResultCard {
 }
 
 /** Maps Worker 1's completion payload into the same display-only result card as every other game. */
-export function sudokuResultCard(detail: SudokuSolvedDetail): GameResultCard {
+export function sudokuResultCard(detail: SudokuResult): GameResultCard {
   const errors = `${detail.errors} ${detail.errors === 1 ? 'error' : 'errors'}`;
   return {
     game: 'sudoku',

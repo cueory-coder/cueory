@@ -370,6 +370,11 @@ test.describe('daily games: sudoku (Task 625)', () => {
       await cells(page).nth(index).click();
       await page.keyboard.press(String(daily.solution[index]));
     }
+    const resultDialog = page.getByTestId('game-result-dialog');
+    await expect(resultDialog.getByRole('button', { name: 'close results' })).toBeFocused();
+    await expect(resultDialog).toContainText('easy');
+    await expect(resultDialog.getByTestId('result-share-line')).toContainText('sudoku');
+    await resultDialog.getByRole('button', { name: 'close results' }).click();
     const result = page.getByTestId('sudoku-result');
     await expect(result).toBeFocused();
     await expect(result).toContainText('solved.');
