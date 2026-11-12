@@ -1,1 +1,1 @@
-STATUS: Spare Task 727, carousel fallback (#28): capability-gated study mode enhancement keeps keyboard and touch links accessible without native modal or animation APIs, with unit and browser tests; ready for Claude review.
+status: Spare Task 727, carousel fallback (#28): capability-gated study mode enhancement keeps keyboard and touch links accessible without native modal or animation APIs, with unit and browser tests; ready for Claude review.
