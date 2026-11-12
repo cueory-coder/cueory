@@ -12,7 +12,7 @@ type Reference = { tag: string; attribute: 'href' | 'src'; value: string };
 function references(html: string): Reference[] {
   const found: Reference[] = [];
   const lower = html.toLowerCase();
-  const rawText = new Set(['script', 'style', 'textarea', 'title', 'xmp', 'iframe', 'noembed', 'noframes']);
+  const rawText = new Set(['script', 'style', 'textarea', 'title', 'xmp', 'iframe', 'noembed', 'noframes', 'template']);
   let at = 0;
   while (at < html.length) {
     const open = html.indexOf('<', at);
@@ -165,6 +165,17 @@ describe('internal reference checker regression fixtures', () => {
       { tag: 'img', attribute: 'src', value: '/images/café.png' },
       { tag: 'script', attribute: 'src', value: '/assets/app.js' },
     ]);
+  });
+
+  it('skips inert template links but still validates live anchors', () => {
+    const html = '<template><a href="#missing"></a><a href="/missing"></a></template>'
+      + '<a href="#main"></a><main id="main"></main>';
+    const refs = references(html);
+    expect(refs).toEqual([{ tag: 'a', attribute: 'href', value: '#main' }]);
+    const pages = new Map([['index.html', elementIds(html)]]);
+    expect(refs.map(ref => missingFragment(ref.value, 'index.html', pages))).toEqual([null]);
+    expect(missingFragment('#missing', 'index.html', pages))
+      .toBe('missing fragment #missing on index.html');
   });
 
   it('ignores fake attributes in comments, raw text, unrelated attributes and text nodes', () => {
