@@ -40,8 +40,8 @@
   body:has([data-print-cards]),
   body:has([data-print-cards]) main,
   body:has([data-print-cards]) main * {
-    color: black !important;
-    background-color: white !important;
+    color: var(--print-ink) !important;
+    background-color: var(--print-paper) !important;
     background-image: none !important;
     box-shadow: none !important;
     text-shadow: none !important;
@@ -64,7 +64,7 @@
     display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     column-gap: var(--spacing-stack);
-    border-color: black !important;
+    border-color: var(--print-ink) !important;
     break-inside: avoid;
     page-break-inside: avoid;
   }

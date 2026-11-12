@@ -87,13 +87,14 @@ describe('W09-2 printable card routes', () => {
     const block = css.slice(start);
     expect(block).toContain('@media print');
     expect(block).toContain('body:has([data-print-cards])');
-    expect(block).toContain('color: black !important');
-    expect(block).toContain('background-color: white !important');
+    expect(block).toContain('color: var(--print-ink) !important');
+    expect(block).toContain('background-color: var(--print-paper) !important');
     expect(block).toContain('grid-template-columns: repeat(2, minmax(0, 1fr))');
     expect(block).toContain('break-inside: avoid');
     expect(block).toContain('page-break-inside: avoid');
     expect(block).toContain('column-gap: var(--spacing-stack)');
     expect(block).toContain('margin-block-start: var(--spacing-stack)');
+    expect(block).not.toMatch(/(?:color|background-color|border-color)\s*:\s*(?:black|white)\b/i);
     expect(block).not.toMatch(/#[\da-f]{3,8}\b|\brgb\s*\(|\bhsl\s*\(/i);
   });
 });
