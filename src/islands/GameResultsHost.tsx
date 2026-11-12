@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { site } from '../config/site';
 import NextPuzzleCountdown from './NextPuzzleCountdown';
+import ResultSignup from './ResultSignup';
 import {
   buildResultShareLine,
   discardPendingResultCard,
@@ -71,7 +72,7 @@ export default function GameResultsHost() {
         return;
       }
       if (event.key !== 'Tab') return;
-      const focusable = [...(dialog.current?.querySelectorAll<HTMLElement>('button:not([disabled]), a[href]') ?? [])];
+      const focusable = [...(dialog.current?.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], input:not([disabled]):not([type="hidden"])') ?? [])];
       if (!focusable.length) return;
       const first = focusable[0]!;
       const last = focusable.at(-1)!;
@@ -237,6 +238,7 @@ export default function GameResultsHost() {
             support our mission<span className="sr-only"> (opens in a new tab)</span>
           </a>
         )}
+        <ResultSignup />
       </div>
     </div>
   );

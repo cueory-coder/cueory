@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-import { site } from '../../src/config/site';
+import { newsletter, site } from '../../src/config/site';
 
 for (const path of ['/play', '/play/stat', '/play/hello-cards']) {
  for (const colorScheme of ['light', 'dark'] as const) {
@@ -30,6 +30,12 @@ for (const path of ['/play', '/play/stat', '/play/hello-cards']) {
       await expect(support).toHaveAttribute('target', '_blank');
       await expect(support).toHaveAttribute('rel', 'noopener noreferrer');
       await page.keyboard.press('Shift+Tab');
+      if (newsletter.formAction.startsWith('https://')) {
+        await expect(dialog.getByRole('link', { name: 'privacy page' })).toBeFocused();
+        await page.keyboard.press('Tab');
+        await expect(close).toBeFocused();
+        await support.focus();
+      }
       await expect(support).toBeFocused();
       const target = await support.boundingBox();
       expect(target).not.toBeNull();
@@ -40,6 +46,13 @@ for (const path of ['/play', '/play/stat', '/play/hello-cards']) {
         return style.outlineStyle !== 'none' && parseFloat(style.outlineWidth) > 0;
       })).toBe(true);
       await page.keyboard.press('Tab');
+      if (newsletter.formAction.startsWith('https://')) {
+        await expect(dialog.getByRole('textbox', { name: 'email address' })).toBeFocused();
+        await page.keyboard.press('Shift+Tab');
+        await expect(support).toBeFocused();
+        await dialog.getByRole('link', { name: 'privacy page' }).focus();
+        await page.keyboard.press('Tab');
+      }
       await expect(close).toBeFocused();
       const axe = await new AxeBuilder({ page }).include('[data-result-dialog]')
         .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
@@ -47,7 +60,7 @@ for (const path of ['/play', '/play/stat', '/play/hello-cards']) {
       expect(tipRequests).toEqual([]);
       // Fulfill locally: activation is tested without contacting the tip provider.
       await page.context().route(`${new URL(site.tipPageUrl).origin}/**`, (route) => route.fulfill({ status: 200, body: '[sample support page]' }));
-      await page.keyboard.press('Shift+Tab');
+      await support.focus();
       await expect(support).toBeFocused();
       const opened = page.waitForEvent('popup');
       await page.keyboard.press('Enter');
