@@ -28,6 +28,81 @@ async function visibleKeyboardFocus(target: Locator) {
   })).toBe(true);
 }
 
+test('keyboard-only back and forward preserve both unsaved answers, and skip only the date', async ({ page }) => {
+  await page.goto('/start');
+  await page.getByRole('radio', { name: 'both', exact: true }).check();
+  await toExam(page);
+  const examHeading = page.getByRole('heading', { name: 'when is your exam?' });
+  await expect(examHeading).toBeFocused();
+  const date = page.getByLabel('when is your exam?');
+  await date.fill('2027-05-12');
+
+  const back = page.getByRole('button', { name: 'back', exact: true });
+  await tabTo(page, back);
+  await visibleKeyboardFocus(back);
+  await page.keyboard.press('Enter');
+  await expect(page.locator('form legend')).toBeFocused();
+  await expect(page.getByRole('radio', { name: 'both', exact: true })).toBeChecked();
+  expect(await savedAnswers(page)).toBeNull();
+
+  const forward = page.getByRole('button', { name: 'continue', exact: true });
+  await tabTo(page, forward);
+  await visibleKeyboardFocus(forward);
+  await page.keyboard.press('Enter');
+  await expect(examHeading).toBeFocused();
+  await expect(date).toHaveValue('2027-05-12');
+
+  const skip = page.getByRole('button', { name: 'skip', exact: true });
+  await tabTo(page, skip);
+  await visibleKeyboardFocus(skip);
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('saved on this device.', { exact: true })).toBeVisible();
+  expect(await savedAnswers(page)).toEqual({ course: 'both', examDate: null, done: true });
+});
+
+for (const size of [
+  { label: 'phone', width: 390, height: 844 },
+  { label: 'tablet', width: 820, height: 1180 },
+  { label: 'desktop', width: 1440, height: 900 },
+] as const) {
+  for (const colorScheme of ['light', 'dark'] as const) {
+    test(`onboarding keyboard skips and passes axe at ${size.label} in ${colorScheme}`, async ({ page }) => {
+      test.slow();
+      await page.setViewportSize({ width: size.width, height: size.height });
+      await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+      await page.goto('/start');
+      await expect(page.getByTestId('setup-step')).toHaveText('question 1 of 2');
+      const scan = async () => {
+        const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+        expect(result.violations.map(violation => violation.id + ': ' + violation.help)).toEqual([]);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      };
+      await scan();
+      const skip = page.getByRole('button', { name: 'skip', exact: true });
+      await tabTo(page, skip);
+      await visibleKeyboardFocus(skip);
+      await page.keyboard.press('Enter');
+      await expect(page.getByTestId('setup-step')).toHaveText('question 2 of 2');
+      await expect(page.getByRole('heading', { name: 'when is your exam?' })).toBeFocused();
+
+      const back = page.getByRole('button', { name: 'back', exact: true });
+      await tabTo(page, back);
+      await page.keyboard.press('Enter');
+      await expect(page.locator('form legend')).toBeFocused();
+      await expect(page.getByRole('radio', { name: 'not sure yet' })).toBeChecked();
+
+      await tabTo(page, page.getByRole('button', { name: 'continue', exact: true }));
+      await page.keyboard.press('Enter');
+      await expect(page.getByRole('heading', { name: 'when is your exam?' })).toBeFocused();
+      await tabTo(page, page.getByRole('button', { name: 'skip', exact: true }));
+      await page.keyboard.press('Enter');
+      await expect(page.getByText('saved on this device.', { exact: true })).toBeVisible();
+      expect(await savedAnswers(page)).toEqual({ course: null, examDate: null, done: true });
+      await scan();
+    });
+  }
+}
+
 test('two optional questions appear on separate screens, with no new stored fields', async ({ page }) => {
   await page.goto('/start');
   await expect(page.getByRole('heading', { name: 'get started', exact: true })).toBeVisible();
