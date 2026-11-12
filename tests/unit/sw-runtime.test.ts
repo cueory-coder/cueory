@@ -28,7 +28,7 @@ async function runWorker(initialCaches: string[] = []) {
   const deleted: string[] = [];
   const timers: { ms: number; fire(): void }[] = [];
   let announceTimer: () => void = () => undefined;
-  const timerReady = new Promise<void>((resolve) => { announceTimer = resolve; });
+  const armTimer = () => new Promise<void>((resolve) => { announceTimer = resolve; });
   let skips = 0;
   let claims = 0;
   let failOpen = false;
@@ -68,6 +68,7 @@ async function runWorker(initialCaches: string[] = []) {
   vi.stubGlobal('setTimeout', (fire: () => void, ms: number) => {
     timers.push({ fire, ms });
     announceTimer();
+    announceTimer = () => undefined;
     return 0;
   });
 
@@ -95,7 +96,7 @@ async function runWorker(initialCaches: string[] = []) {
   }
 
   return {
-    dispatch, stores, fetches, cacheWrites, deleted, timers, timerReady,
+    dispatch, stores, fetches, cacheWrites, deleted, timers, armTimer,
     get skips() { return skips; },
     get claims() { return claims; },
     setNetwork(next: Network) { network = next; },
@@ -173,14 +174,16 @@ describe('sw.ts runtime fetch and lifecycle behavior', () => {
 
     let release: (response: Response) => void = () => { throw new Error('network request did not start'); };
     worker.setNetwork(() => new Promise<Response>((resolve) => { release = resolve; }));
+    const priorTimers = worker.timers.length;
+    const timerReady = worker.armTimer();
     const event = worker.dispatch('fetch', page);
     expect(event.intercepted).toBe(true);
 
     // Wait for the worker to register the timeout, without sleeping.
-    await worker.timerReady;
-    expect(worker.timers.length).toBe(1);
-    expect(worker.timers[0]?.ms).toBe(NETWORK_WAIT_MS);
-    worker.timers[0]!.fire();
+    await timerReady;
+    expect(worker.timers.length).toBe(priorTimers + 1);
+    expect(worker.timers[priorTimers]?.ms).toBe(NETWORK_WAIT_MS);
+    worker.timers[priorTimers]!.fire();
 
     // The browser receives the saved page while the network promise is still pending.
     expect(await event.response?.then((response) => response.text())).toBe('network');
