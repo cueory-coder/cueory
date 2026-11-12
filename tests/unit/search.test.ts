@@ -1,5 +1,82 @@
-import { describe, expect, it } from 'vitest';
-import { cleanUrl, excerptParts, keepFocus, MAX_RESULTS, moveFocus, statusText } from '../../src/scripts/search';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  cleanUrl, createSearchLoader, excerptParts, keepFocus, MAX_RESULTS, moveFocus, PAGEFIND_URL, searchModuleUrl, statusText,
+} from '../../src/scripts/search';
+
+describe('site search loading', () => {
+  it('loads only on demand, shares concurrent requests, and keeps a successful result', async () => {
+    const search = { ready: true };
+    let resolve!: (value: typeof search) => void;
+    const initialize = vi.fn(() => new Promise<typeof search>((done) => { resolve = done; }));
+    const load = createSearchLoader(initialize);
+    expect(initialize).not.toHaveBeenCalled();
+
+    const first = load();
+    const concurrent = load();
+    expect(concurrent).toBe(first);
+    await Promise.resolve();
+    expect(initialize).toHaveBeenCalledTimes(1);
+    resolve(search);
+    await expect(first).resolves.toBe(search);
+    await expect(concurrent).resolves.toBe(search);
+    expect(load()).toBe(first);
+    expect(initialize).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets the next search retry after a shared module download fails', async () => {
+    const failure = new TypeError('search module download failed');
+    const search = { ready: true };
+    const initialize = vi.fn<() => Promise<typeof search>>()
+      .mockRejectedValueOnce(failure)
+      .mockResolvedValue(search);
+    const load = createSearchLoader(initialize);
+    const first = load();
+    expect(load()).toBe(first);
+    await expect(first).rejects.toBe(failure);
+    expect(initialize).toHaveBeenCalledTimes(1);
+
+    const retry = load();
+    expect(retry).not.toBe(first);
+    await expect(retry).resolves.toBe(search);
+    expect(load()).toBe(retry);
+    expect(initialize).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not retry a continuing failure until another load is requested', async () => {
+    const initialize = vi.fn<() => Promise<never>>().mockRejectedValue(new Error('offline'));
+    const load = createSearchLoader(initialize);
+    await expect(load()).rejects.toThrow('offline');
+    await Promise.resolve();
+    expect(initialize).toHaveBeenCalledTimes(1);
+    await expect(load()).rejects.toThrow('offline');
+    expect(initialize).toHaveBeenCalledTimes(2);
+  });
+
+  it('also releases a failed initializer that throws before returning a promise', async () => {
+    const initialize = vi.fn<() => Promise<string>>()
+      .mockImplementationOnce(() => { throw new Error('initialization failed'); })
+      .mockResolvedValue('ready');
+    const load = createSearchLoader(initialize);
+    await expect(load()).rejects.toThrow('initialization failed');
+    await expect(load()).resolves.toBe('ready');
+    expect(initialize).toHaveBeenCalledTimes(2);
+  });
+
+  it('numbers each try, so a retry can ask for a fresh module address', async () => {
+    const initialize = vi.fn<(attempt: number) => Promise<string>>()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValue('ready');
+    const load = createSearchLoader(initialize);
+    await expect(load()).rejects.toThrow('offline');
+    await expect(load()).rejects.toThrow('offline');
+    await expect(load()).resolves.toBe('ready');
+    expect(initialize.mock.calls.map(([attempt]) => attempt)).toEqual([0, 1, 2]);
+    expect(searchModuleUrl(0)).toBe(PAGEFIND_URL);
+    expect(searchModuleUrl(1)).toBe(`${PAGEFIND_URL}?retry=1`);
+    expect(searchModuleUrl(2)).toBe(`${PAGEFIND_URL}?retry=2`);
+  });
+});
 
 describe('site search helpers (D-49)', () => {
   it('links results to the addresses visitors type, without .html', () => {

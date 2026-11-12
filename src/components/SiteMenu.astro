@@ -133,7 +133,7 @@ const current = currentHref(
 
 <script>
   import { isCloseKey, wrapFocus } from '../scripts/menu';
-  import { cleanUrl, excerptParts, keepFocus, MAX_RESULTS, moveFocus, PAGEFIND_URL, statusText } from '../scripts/search';
+  import { cleanUrl, createSearchLoader, excerptParts, keepFocus, MAX_RESULTS, moveFocus, searchModuleUrl, statusText } from '../scripts/search';
 
   /** The parts of Pagefind's browser API the panel uses (https://pagefind.app/docs/api/). */
   interface PagefindResult {
@@ -154,19 +154,15 @@ const current = currentHref(
     const list = root.querySelector<HTMLUListElement>('[data-search-results]');
     if (!input || !status || !list) return;
 
-    let pagefind: Promise<Pagefind> | undefined;
-    const load = () => {
-      pagefind ??= (async () => {
-        // A plain URL, so the bundler leaves it alone: the index is built after the site, by `pagefind --site dist`.
-        const url: string = PAGEFIND_URL;
-        const module = (await import(/* @vite-ignore */ url)) as Pagefind;
-        // Search on the page itself rather than in a worker, so the content security policy needs no `blob:`.
-        await module.options({ noWorker: true });
-        await module.init();
-        return module;
-      })();
-      return pagefind;
-    };
+    const load = createSearchLoader(async (attempt) => {
+      // A plain URL, so the bundler leaves it alone: the index is built after the site, by `pagefind --site dist`.
+      const url: string = searchModuleUrl(attempt);
+      const module = (await import(/* @vite-ignore */ url)) as Pagefind;
+      // Search on the page itself rather than in a worker, so the content security policy needs no `blob:`.
+      await module.options({ noWorker: true });
+      await module.init();
+      return module;
+    });
 
     const links = () => [...list.querySelectorAll<HTMLAnchorElement>('a')];
     let latest = 0;
