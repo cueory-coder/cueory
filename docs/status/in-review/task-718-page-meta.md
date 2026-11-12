@@ -1,0 +1,1 @@
+STATUS: W18 (#18): metadata and sitemap checks. Noindex and unresolved routes fail closed. Lesson/card discovery stays recursive and fill-in/organizer discovery matches Astro's flat collection globs. Exact legacy-copy exceptions remain documented on issue #18.

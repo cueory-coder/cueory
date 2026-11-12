@@ -1,10 +1,16 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { indexablePages } from '../../src/config/routes';
-import { GET, sitemapXml } from '../../src/pages/sitemap.xml';
+import { GET, pageSourcePath, routeDeclaresNoindex, sitemapPages, sitemapXml, sourceDeclaresNoindex } from '../../src/pages/sitemap.xml';
 
 // Keep this response test independent of Astro's live content collection.
 vi.mock('../../src/lessons/load', () => ({ lessonCatalog: async () => ({ lessons: [], problems: [] }) }));
+
+vi.mock('node:fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs')>();
+  return { ...actual, readdirSync: vi.fn(actual.readdirSync) };
+});
 
 const noindexPages = [
   '/auth/callback', '/reset-password', '/signin', '/signup', '/start', '/subscribed',
@@ -21,6 +27,111 @@ describe('sitemap', () => {
     for (const page of noindexPages) expect(listed).not.toContain(`https://cueory.app${page}`);
   });
 
+  it('rejects noindex routes even when someone mistakenly supplies them to the sitemap', () => {
+    const xml = sitemapXml(['/', '/signin', '/privacy', '/preview/states']);
+    expect([...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]))
+      .toEqual(['https://cueory.app/']);
+    expect(routeDeclaresNoindex('/signin')).toBe(true);
+    expect(routeDeclaresNoindex('/preview/states')).toBe(true);
+    expect(routeDeclaresNoindex('/')).toBe(false);
+  });
+
+  it('finds the source for static and generated lesson routes', () => {
+    expect(pageSourcePath('/learn/study-skills/label-it')?.replaceAll('\\', '/'))
+      .toMatch(/src\/pages\/learn\/study-skills\/label-it\.astro$/);
+    expect(pageSourcePath('/learn/study-skills/cards')?.replaceAll('\\', '/'))
+      .toMatch(/src\/pages\/learn\/\[lesson\]\/cards\.astro$/);
+  });
+
+  it.each(['fill-in', 'organizer'])('ignores nested folders excluded by the %s collection loader', async (collection) => {
+    const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+    const flatRoot = resolve('content', collection);
+    const ignored = resolve(flatRoot, 'ignored-nested');
+    const nestedDirectory = {
+      name: 'ignored-nested', isDirectory: () => true, isFile: () => false,
+    } as unknown as ReturnType<typeof readdirSync>[number];
+    vi.mocked(readdirSync).mockImplementation((...args: Parameters<typeof readdirSync>) => {
+      const directory = String(args[0]);
+      if (directory === ignored) throw new Error('This folder is outside the collection glob.');
+      const entries = Reflect.apply(actual.readdirSync, undefined, args) as ReturnType<typeof readdirSync>;
+      return directory === flatRoot ? [...entries, nestedDirectory] : entries;
+    });
+    try {
+      expect(pageSourcePath('/learn/study-skills/cards')?.replaceAll('\\', '/'))
+        .toMatch(/src\/pages\/learn\/\[lesson\]\/cards\.astro$/);
+      expect(sitemapXml(['/learn/study-skills/cards']))
+        .toContain('<loc>https://cueory.app/learn/study-skills/cards</loc>');
+    } finally {
+      vi.mocked(readdirSync).mockImplementation(actual.readdirSync);
+    }
+  });
+
+  it('distinguishes boolean noindex={false} from truthy string values', () => {
+    expect(sourceDeclaresNoindex('<Layout title="public" noindex={false} />')).toBe(false);
+    expect(sourceDeclaresNoindex('<Layout title="private" noindex="false" />')).toBe(true);
+    expect(sourceDeclaresNoindex("<Layout title='private' noindex='false' />")).toBe(true);
+    expect(sourceDeclaresNoindex('<Layout title="private" noindex={true} />')).toBe(true);
+  });
+
+  it('rejects unbuilt dynamic lesson slugs and modes even when the template exists', () => {
+    expect(pageSourcePath('/learn/study-skills')?.replaceAll('\\', '/'))
+      .toMatch(/src\/pages\/learn\/\[lesson\]\/index\.astro$/);
+    for (const route of [
+      '/learn/not-a-real-lesson',
+      '/learn/not-a-real-lesson/cards',
+      '/learn/study-skills/not-a-real-mode',
+    ]) {
+      expect(pageSourcePath(route), route).toBeUndefined();
+      expect(routeDeclaresNoindex(route), route).toBe(true);
+    }
+    const xml = sitemapXml(['/learn/not-a-real-lesson', '/learn/study-skills/cards', '/learn/study-skills/not-a-real-mode']);
+    expect([...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]))
+      .toEqual(['https://cueory.app/learn/study-skills/cards']);
+  });
+
+  it('detects only Layout noindex, including a conditional value', () => {
+    expect(sourceDeclaresNoindex('<!-- <Layout noindex /> --><Layout title="public" />')).toBe(false);
+    expect(sourceDeclaresNoindex('<Layout title="private" noindex />')).toBe(true);
+    expect(sourceDeclaresNoindex('<Layout title="private" noindex={page.noindex} />')).toBe(true);
+    expect(sourceDeclaresNoindex('<Layout title="public" noindex={false} />')).toBe(false);
+    expect(sourceDeclaresNoindex('<Layout title="public" description="noindex is a word" />')).toBe(false);
+  });
+
+  it('ignores > inside attribute values and recognizes a tight noindex/> attribute', () => {
+    expect(sourceDeclaresNoindex('<Layout description={a > b ? "yes" : "no"} noindex />')).toBe(true);
+    expect(sourceDeclaresNoindex('<Layout description="a > b" noindex/>')).toBe(true);
+    expect(sourceDeclaresNoindex('<Layout description={"text with >"} noindex/>')).toBe(true);
+    expect(sourceDeclaresNoindex('<Layout title="public" noindex={false}/>')).toBe(false);
+    expect(sourceDeclaresNoindex('<Layout description="some noindex words" />')).toBe(false);
+    expect(sourceDeclaresNoindex('<Layout description={"some noindex words"} />')).toBe(false);
+    expect(sourceDeclaresNoindex('{/* <Layout noindex /> */}<Layout title="public" />')).toBe(false);
+    expect(sourceDeclaresNoindex('<Layout title="public" description={a > b} />')).toBe(false);
+    expect(sourceDeclaresNoindex('<Layout description={{ text: "noindex" }} title="public" />')).toBe(false);
+    expect(sourceDeclaresNoindex('<Layout description={a > b} noindex={page.hidden}/>')).toBe(true);
+    expect(sourceDeclaresNoindex('<Layout {...Astro.props} title="hidden" />')).toBe(true);
+    expect(sourceDeclaresNoindex('<Layout title="hidden" noindex={false} {...meta}/>')).toBe(true);
+    expect(sourceDeclaresNoindex('<Layout {...meta} noindex={false}/>')).toBe(true);
+    expect(sourceDeclaresNoindex('<Layout title="public" noindex={false} />')).toBe(false);
+    expect(sourceDeclaresNoindex('<Layout title="public" description="{...meta}"/>')).toBe(false);
+    expect(sourceDeclaresNoindex('<!-- <Layout noindex /> -->')).toBe(true); // No real Layout is fail closed.
+  });
+
+  it('fails closed when a page source is missing or outside the site', () => {
+    expect(pageSourcePath('/this-page-does-not-exist')).toBeUndefined();
+    expect(routeDeclaresNoindex('/this-page-does-not-exist')).toBe(true);
+    expect(routeDeclaresNoindex('/invalid_%')).toBe(true);
+    expect(routeDeclaresNoindex('https://unrelated.example/play')).toBe(true);
+    const xml = sitemapXml(['/', '/this-page-does-not-exist', 'https://unrelated.example/play']);
+    expect([...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]))
+      .toEqual(['https://cueory.app/']);
+  });
+
+  it('excludes noindex pages from sitemapPages as well as sitemapXml', async () => {
+    const pages = await sitemapPages();
+    expect(pages).toEqual(indexablePages);
+    expect(pages.every((page) => !routeDeclaresNoindex(page))).toBe(true);
+  });
+
   it('returns a public sitemap with the documented browser and edge cache limits', async () => {
     const response = await GET({} as Parameters<typeof GET>[0]);
     expect(response.headers.get('Content-Type')).toBe('application/xml; charset=utf-8');
@@ -34,6 +145,6 @@ describe('sitemap', () => {
   });
 
   it('escapes XML values in the generated loc', () => {
-    expect(sitemapXml(['/search?term=a&b'])).toContain('term=a&amp;b');
+    expect(sitemapXml(['/?term=a&b'])).toContain('term=a&amp;b');
   });
 });
