@@ -1,1 +1,1 @@
-status: W15-2 (#58, !50): Added a full built-route desktop console/pageerror/first-party-request/CSP sweep with narrowly documented expected-404 exceptions and a detector-failure fixture. Browser execution requires Claude/CI.
+status: Task 764, console-clean browser test (#50): added a full built-route desktop console, pageerror, first-party request, and CSP sweep with narrowly documented 404 allowances and a detector-failure fixture.
