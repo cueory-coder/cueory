@@ -152,10 +152,16 @@ function needsAxe(source: string): boolean {
 
   // Only reachable code in a runnable test/hook (or a helper it invokes) may
   // prove axe coverage. Skipped cases and unused helper bodies cannot count.
-  const isPageFixture = (fn: ts.ArrowFunction | ts.FunctionExpression): boolean => {
+  const pageFixtureNames = (fn: ts.ArrowFunction | ts.FunctionExpression): Set<string> => {
+    const names = new Set<string>();
     const first = fn.parameters[0];
-    return !!first && ts.isObjectBindingPattern(first.name) &&
-      first.name.elements.some((item) => ts.isIdentifier(item.name) && item.name.text === 'page');
+    if (!first || !ts.isObjectBindingPattern(first.name)) return names;
+    for (const item of first.name.elements) {
+      const property = item.propertyName ?? item.name;
+      if ((ts.isIdentifier(property) || ts.isStringLiteral(property)) && property.text === 'page' &&
+        ts.isIdentifier(item.name)) names.add(item.name.text);
+    }
+    return names;
   };
   const helperBody = (call: ts.CallExpression): ts.ConciseBody | undefined => {
     if (!ts.isIdentifier(call.expression)) return undefined;
@@ -170,7 +176,8 @@ function needsAxe(source: string): boolean {
   };
   const staticBoolean = (node: ts.Expression): boolean | undefined => {
     while (ts.isParenthesizedExpression(node) || ts.isAsExpression(node) ||
-      ts.isNonNullExpression(node) || ts.isTypeAssertionExpression(node)) node = node.expression;
+      ts.isNonNullExpression(node) || ts.isTypeAssertionExpression(node) ||
+      ts.isSatisfiesExpression(node)) node = node.expression;
     if (node.kind === ts.SyntaxKind.TrueKeyword) return true;
     if (node.kind === ts.SyntaxKind.FalseKeyword) return false;
     return undefined;
@@ -187,7 +194,8 @@ function needsAxe(source: string): boolean {
   function expressionAlwaysAbrupt(expression: ts.Expression, seen: ReadonlySet<ts.Node>): boolean {
     while (ts.isParenthesizedExpression(expression) || ts.isAwaitExpression(expression) ||
       ts.isAsExpression(expression) || ts.isNonNullExpression(expression) ||
-      ts.isTypeAssertionExpression(expression) || ts.isVoidExpression(expression)) {
+      ts.isTypeAssertionExpression(expression) || ts.isSatisfiesExpression(expression) ||
+      ts.isVoidExpression(expression)) {
       expression = expression.expression;
     }
     if (!ts.isCallExpression(expression)) return false;
@@ -243,21 +251,56 @@ function needsAxe(source: string): boolean {
     }
     return false;
   }
-  const visitExecutable = (node: ts.Node, seen: ReadonlySet<ts.Node>): void => {
+  const pageValue = (node: ts.Expression, pageNames: ReadonlySet<string>): boolean => {
+    while (ts.isParenthesizedExpression(node) || ts.isAsExpression(node) ||
+      ts.isNonNullExpression(node) || ts.isTypeAssertionExpression(node) ||
+      ts.isSatisfiesExpression(node)) node = node.expression;
+    return ts.isIdentifier(node) && pageNames.has(node.text);
+  };
+  const pageArgument = (node: ts.Expression, pageNames: ReadonlySet<string>): boolean => {
+    if (pageValue(node, pageNames)) return true;
+    while (ts.isParenthesizedExpression(node) || ts.isAsExpression(node) ||
+      ts.isNonNullExpression(node) || ts.isTypeAssertionExpression(node) ||
+      ts.isSatisfiesExpression(node)) node = node.expression;
+    return ts.isObjectLiteralExpression(node) && node.properties.some((property) =>
+      ts.isShorthandPropertyAssignment(property) && pageNames.has(property.name.text) ||
+      ts.isPropertyAssignment(property) && pageValue(property.initializer, pageNames));
+  };
+  const visitExecutable = (node: ts.Node, seen: ReadonlySet<ts.Node>, pageNames: Set<string>): void => {
     if (ts.isBlock(node)) {
       for (const statement of node.statements) {
-        visitExecutable(statement, seen);
+        visitExecutable(statement, seen, pageNames);
         if (alwaysAbrupt(statement, seen)) break;
       }
       return;
     }
     if (ts.isIfStatement(node)) {
-      visitExecutable(node.expression, seen);
+      visitExecutable(node.expression, seen, pageNames);
       const value = staticBoolean(node.expression);
-      if (value !== false) visitExecutable(node.thenStatement, seen);
-      if (value !== true && node.elseStatement) visitExecutable(node.elseStatement, seen);
+      if (value !== false) visitExecutable(node.thenStatement, seen, pageNames);
+      if (value !== true && node.elseStatement) visitExecutable(node.elseStatement, seen, pageNames);
       return;
     }
+    if (ts.isBinaryExpression(node) &&
+      (node.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken ||
+        node.operatorToken.kind === ts.SyntaxKind.BarBarToken)) {
+      visitExecutable(node.left, seen, pageNames);
+      const value = staticBoolean(node.left);
+      const reachesRight = node.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken
+        ? value !== false : value !== true;
+      if (reachesRight) visitExecutable(node.right, seen, pageNames);
+      return;
+    }
+    if (ts.isConditionalExpression(node)) {
+      visitExecutable(node.condition, seen, pageNames);
+      const value = staticBoolean(node.condition);
+      if (value !== false) visitExecutable(node.whenTrue, seen, pageNames);
+      if (value !== true) visitExecutable(node.whenFalse, seen, pageNames);
+      return;
+    }
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer &&
+      ts.isVariableDeclarationList(node.parent) && (node.parent.flags & ts.NodeFlags.Const) &&
+      pageValue(node.initializer, pageNames)) pageNames.add(node.name.text);
     if (ts.isCallExpression(node)) {
       const method = methodName(node.expression);
       if (method === 'goto' || method === 'newPage') navigates = true;
@@ -265,28 +308,26 @@ function needsAxe(source: string): boolean {
         (ts.isPropertyAccessExpression(node.expression) || ts.isElementAccessExpression(node.expression)) &&
         isAxeValue(node.expression.expression, new Set())) axeAnalyzed = true;
       if (ts.isIdentifier(node.expression) && !['expect', 'test', 'describe', 'it'].includes(node.expression.text) &&
-        node.arguments.some((arg) => ts.isIdentifier(arg) && arg.text === 'page' ||
-          ts.isObjectLiteralExpression(arg) && arg.properties.some((prop) =>
-            ts.isShorthandPropertyAssignment(prop) && prop.name.text === 'page'))) {
+        node.arguments.some((arg) => pageArgument(arg, pageNames))) {
         helperWithPage = true;
       }
       const body = helperBody(node);
       if (body && !seen.has(body)) {
         const next = new Set(seen);
         next.add(body);
-        visitExecutable(body, next);
+        visitExecutable(body, next, pageNames);
       }
       // Playwright's test.step invokes its callback inside its surrounding test.
       if (method === 'step' && ts.isPropertyAccessExpression(node.expression) &&
         ts.isIdentifier(node.expression.expression) && node.expression.expression.text === 'test') {
         for (const arg of node.arguments) {
-          if (ts.isArrowFunction(arg) || ts.isFunctionExpression(arg)) visitExecutable(arg.body, seen);
+          if (ts.isArrowFunction(arg) || ts.isFunctionExpression(arg)) visitExecutable(arg.body, seen, pageNames);
         }
       }
     }
     // Function declarations/callbacks are not evidence unless actually invoked.
     if (ts.isFunctionLike(node)) return;
-    ts.forEachChild(node, (child) => visitExecutable(child, seen));
+    ts.forEachChild(node, (child) => visitExecutable(child, seen, pageNames));
   };
   const isTestBase = (node: ts.Expression): boolean =>
     ts.isIdentifier(node) && (node.text === 'test' || node.text === 'it');
@@ -316,8 +357,9 @@ function needsAxe(source: string): boolean {
         registered = true;
         for (const argument of node.arguments) {
           if (ts.isArrowFunction(argument) || ts.isFunctionExpression(argument)) {
-            if (isPageFixture(argument)) pageFixture = true;
-            visitExecutable(argument.body, new Set());
+            const names = pageFixtureNames(argument);
+            if (names.size) pageFixture = true;
+            visitExecutable(argument.body, new Set(), names);
           }
         }
         return;
@@ -336,7 +378,7 @@ function needsAxe(source: string): boolean {
   scanRegistrations(parsed);
   // Keep standalone synthetic snippets usable by the fixture regression tests.
   // Unlike before, their unused function declarations are still not scanned.
-  if (!registered) visitExecutable(parsed, new Set());
+  if (!registered) visitExecutable(parsed, new Set(), new Set(['page']));
   return (navigates || (pageFixture && helperWithPage)) && !axeAnalyzed;
 }
 
@@ -365,6 +407,9 @@ describe('page-navigation browser specs must run axe', () => {
       "await page['goto']('/sample');",
       "test('sample', async ({ page }) => { await openPage(page); });",
       "test('sample', async ({ page }) => { await openPage({ page }); });",
+      "test('sample', async ({ page: p }) => { await openPage(p); });",
+      "test('sample', async ({ page: p }) => { await openPage({ page: p }); });",
+      "test('sample', async ({ page: p }) => { const alias = p; await openPage(alias); });",
       "await page.goto('/sample'); // new AxeBuilder({ page }).analyze();",
       "await page.goto('/sample'); const unused = 'new AxeBuilder({ page }).analyze()';",
       "await page.goto('/sample'); const axe = new AxeBuilder({ page });",
@@ -387,6 +432,10 @@ describe('page-navigation browser specs must run axe', () => {
       "test('visits', async ({ page }) => { await page.goto('/sample'); test['skip'](true, 'not applicable'); await new AxeBuilder({ page }).analyze(); });",
       "test('visits', async ({ page }) => { await page.goto('/sample'); await test.skip(true, 'not applicable'); await new AxeBuilder({ page }).analyze(); });",
       "test('visits', async ({ page }) => { await page.goto('/sample'); void test.fixme(); await new AxeBuilder({ page }).analyze(); });",
+      "test('visits', async ({ page }) => { await page.goto('/sample'); test.skip(true satisfies boolean, 'not applicable'); await new AxeBuilder({ page }).analyze(); });",
+      "test('visits', async ({ page }) => { await page.goto('/sample'); false && await new AxeBuilder({ page }).analyze(); });",
+      "test('visits', async ({ page }) => { await page.goto('/sample'); true || await new AxeBuilder({ page }).analyze(); });",
+      "test('visits', async ({ page }) => { await page.goto('/sample'); false ? await new AxeBuilder({ page }).analyze() : undefined; });",
       "test.skip('does not run', async ({ page }) => { await new AxeBuilder({ page }).analyze(); }); test('visits', async ({ page }) => { await page.goto('/sample'); });",
       "test.describe.skip('disabled suite', () => { test('axe', async ({ page }) => { await new AxeBuilder({ page }).analyze(); }); }); test('visits', async ({ page }) => { await page.goto('/sample'); });",
       "test('visits', async ({ page }) => { await page.goto('/sample'); }); const unused = async (page: Page) => new AxeBuilder({ page }).analyze();",
@@ -414,6 +463,9 @@ describe('page-navigation browser specs must run axe', () => {
       { name: 'awaited-false-skip.spec.ts', source: "test('visits', async ({ page }) => { await page.goto('/sample'); await test.skip(false, 'continue'); await new AxeBuilder({ page }).analyze(); });" },
       { name: 'helper-conditional-skip.spec.ts', source: "function maybe() { test.skip(false, 'continue'); } test('visits', async ({ page }) => { await page.goto('/sample'); maybe(); await new AxeBuilder({ page }).analyze(); });" },
       { name: 'returning-helper.spec.ts', source: "function prepare() { return 1; } test('visits', async ({ page }) => { await page.goto('/sample'); prepare(); await new AxeBuilder({ page }).analyze(); });" },
+      { name: 'reachable-and.spec.ts', source: "test('visits', async ({ page }) => { await page.goto('/sample'); true && await new AxeBuilder({ page }).analyze(); });" },
+      { name: 'reachable-or.spec.ts', source: "test('visits', async ({ page }) => { await page.goto('/sample'); false || await new AxeBuilder({ page }).analyze(); });" },
+      { name: 'reachable-conditional.spec.ts', source: "test('visits', async ({ page }) => { await page.goto('/sample'); true ? await new AxeBuilder({ page }).analyze() : undefined; });" },
       { name: 'axe-hook.spec.ts', source: "test.beforeEach(async ({ page }) => { await new AxeBuilder({ page }).analyze(); }); test('visits', async ({ page }) => { await page.goto('/sample'); });" },
       { name: 'axe-step.spec.ts', source: "test('visits', async ({ page }) => { await page.goto('/sample'); await test.step('audit', async () => new AxeBuilder({ page }).analyze()); });" },
       { name: 'no-nav.spec.ts', source: "test('sample', async ({ page }) => { await expect(page).toHaveTitle('sample'); });" },
@@ -436,3 +488,4 @@ describe('page-navigation browser specs must run axe', () => {
     expect(() => assertCoverage(specs, knownWithoutAxe)).not.toThrow();
   });
 });
+
