@@ -114,6 +114,34 @@ describe('built-site performance budgets', () => {
     expect(page!.breaches).toEqual([]);
   });
 
+  it('excludes resource tags within noscript fallbacks when measuring active scripts', () => {
+    const html = '<noscript><script src="/_astro/missing-script.js"></script>' +
+      '<link rel="stylesheet" href="/_astro/missing.css">' +
+      '<script type="module">import "/_astro/missing-inline.js";</script>' +
+      '<template><script src="/_astro/missing-nested.js"></script></template></noscript>' +
+      '<script src="/_astro/real.js"></script>' +
+      '<script type="module">import "/_astro/real-inline.js";</script>';
+    expect(extractHtmlAssetUrls(html)).toEqual(['/_astro/real.js']);
+    expect(extractInlineModuleAssetUrls(html)).toEqual(['/_astro/real-inline.js']);
+  });
+
+  it('does not require missing noscript-only assets in a built-page scan', () => {
+    const f = fixture();
+    const html = '<noscript><link rel="stylesheet" href="/_astro/missing.css">' +
+      '<script src="/_astro/missing.js"></script></noscript>' +
+      '<script src="/_astro/real.js"></script><link rel="stylesheet" href="/_astro/real.css">';
+    const js = 'export const sample = true;';
+    const css = 'body { color: inherit; }';
+    f.file('index.html', html);
+    f.file('_astro/real.js', js);
+    f.file('_astro/real.css', css);
+    const [page] = scanPerformanceBudget(f.root);
+    expect(page!.html).toBe(gzipSync(html).length);
+    expect(page!.js).toBe(gzipSync(js).length);
+    expect(page!.css).toBe(gzipSync(css).length);
+    expect(page!.breaches).toEqual([]);
+  });
+
   it('ignores fake CSS imports in comments and strings', () => {
     const css = [
       "/* @import './missing-comment.css'; */",
