@@ -40,8 +40,8 @@
   body:has([data-print-cards]),
   body:has([data-print-cards]) main,
   body:has([data-print-cards]) main * {
-    color: black !important;
-    background-color: white !important;
+    color: var(--print-ink) !important;
+    background-color: var(--print-paper) !important;
     background-image: none !important;
     box-shadow: none !important;
     text-shadow: none !important;
@@ -64,7 +64,7 @@
     display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     column-gap: var(--spacing-stack);
-    border-color: black !important;
+    border-color: var(--print-ink) !important;
     break-inside: avoid;
     page-break-inside: avoid;
   }
@@ -85,14 +85,14 @@
   body:has([data-print-fill-in]),
   body:has([data-print-fill-in]) main,
   body:has([data-print-fill-in]) main * {
-    color: black !important;
-    background-color: white !important;
+    color: var(--print-ink) !important;
+    background-color: var(--print-paper) !important;
     background-image: none !important;
     box-shadow: none !important;
     text-shadow: none !important;
   }
 
-  /* Block layout keeps the answer sheet break reliable within the flex site layout. */
+  /* Use ordinary document flow for the paper worksheet. */
   body:has([data-print-fill-in]),
   body:has([data-print-fill-in]) main {
     display: block !important;
@@ -104,20 +104,14 @@
     overflow-wrap: anywhere;
   }
 
-  [data-print-fill-in] [data-worksheet-item],
-  [data-print-fill-in] [data-answer-item] {
+  [data-print-fill-in] [data-worksheet-item] {
     break-inside: avoid;
     page-break-inside: avoid;
   }
 
   [data-print-fill-in] [data-worksheet-blank] {
-    border-color: black !important;
+    border-color: var(--print-ink) !important;
     white-space: nowrap;
   }
 
-  /* An independent sheet for answers, even if the worksheet is only a few lines. */
-  [data-print-fill-in] [data-worksheet-answers] {
-    page-break-before: always !important;
-    break-before: page !important;
-  }
 }

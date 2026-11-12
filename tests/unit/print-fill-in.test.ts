@@ -65,44 +65,50 @@ describe('W09-3 printable fill-in worksheets', () => {
     expect(page).not.toContain('client:only');
   });
 
-  it('renders the worksheet with blanks only and keeps every answer in the later answer key', () => {
+  it('renders blanks without publishing answers in markup or serialized props', () => {
     const sample = parseItems([
       { id: 'item-one', sentence: 'The jar contains [[honey]].' },
       { id: 'item-two', sentence: 'The sky is [[blue]].' },
     ]);
-    const parts = sample.map((item) => sentenceParts(item.sentence));
-    const blanks = parts.map(({ before, after }) => before + '__________' + after);
+    const blanks = sample.map((item) => {
+      const { before, after } = sentenceParts(item.sentence);
+      return before + '__________' + after;
+    });
     expect(blanks).toEqual(['The jar contains __________.', 'The sky is __________.']);
-    expect(blanks.join(' ')).not.toContain('honey');
-    expect(blanks.join(' ')).not.toContain('blue');
-    expect(parts.map(({ answer }) => answer)).toEqual(['honey', 'blue']);
-
-    const worksheetStart = page.indexOf('<ol data-worksheet-items');
-    const answerStart = page.indexOf('<section data-worksheet-answers');
-    expect(worksheetStart).toBeGreaterThan(0);
-    expect(answerStart).toBeGreaterThan(worksheetStart);
-    const worksheetMarkup = page.slice(worksheetStart, answerStart);
-    expect(worksheetMarkup).toContain('{parts.before}');
-    expect(worksheetMarkup).toContain('{parts.after}');
-    expect(worksheetMarkup).toContain('data-worksheet-blank');
-    expect(worksheetMarkup).not.toContain('{parts.answer}');
-    expect(page.slice(answerStart)).toContain('{parts.answer}');
-    expect(page.slice(answerStart)).toContain('data-print-only');
+    expect(page).toContain('return { before, after };');
+    const markup = page.slice(page.indexOf('<Layout'));
+    expect(markup).toContain('{parts.before}');
+    expect(markup).toContain('{parts.after}');
+    expect(markup).toContain('data-worksheet-blank');
+    expect(markup).not.toMatch(/parts\.answer|data-worksheet-answers|data-answer-key|data-answer-item/);
+    expect(markup).not.toContain('set:html');
+    expect(markup).not.toMatch(/client:|JSON\.stringify/);
   });
 
-  it('forces the answers onto their own printed sheet without changing earlier print rules', () => {
+  it('keeps answer keys out of the actual built worksheet HTML', () => {
+    const html = readFileSync(join(process.cwd(), 'dist/learn/study-skills/print-fill-in.html'), 'utf8');
+    expect(html).toContain('data-worksheet-blank');
+    expect(html).not.toMatch(/data-worksheet-answers|data-answer-key|data-answer-item/);
+    const sample = JSON.parse(readFileSync(join(process.cwd(), 'content/fill-in/study-skills-01.json'), 'utf8'));
+    for (const item of parseItems(sample.items)) {
+      const { answer } = sentenceParts(item.sentence);
+      expect(html.toLowerCase()).not.toContain(answer.toLowerCase());
+    }
+  });
+
+  it('prints unbroken prompts with existing paper tokens and no answer-sheet rules', () => {
     const start = css.indexOf('/* W09-3: printable fill-in worksheet;');
     expect(start).toBeGreaterThan(0);
     const block = css.slice(start);
     expect(block).toContain('@media print');
-    expect(block).toContain('[data-print-fill-in] [data-worksheet-answers]');
-    expect(block).toContain('page-break-before: always !important');
-    expect(block).toContain('break-before: page !important');
     expect(block).toContain('display: block !important');
-    expect(block).toContain('background-color: white !important');
-    expect(block).toContain('color: black !important');
+    expect(block).toContain('background-color: var(--print-paper) !important');
+    expect(block).toContain('color: var(--print-ink) !important');
+    expect(block).toContain('border-color: var(--print-ink) !important');
     expect(block).toContain('break-inside: avoid');
+    expect(block).not.toContain('data-worksheet-answers');
     expect(css.slice(0, start)).toContain('/* W09-2: paper flashcard sheets.');
+    expect(block).not.toMatch(/(?:color|background-color|border-color)\s*:\s*(?:black|white)\b/i);
     expect(block).not.toMatch(/#[\da-f]{3,8}\b|\brgb\s*\(|\bhsl\s*\(/i);
   });
 });

@@ -15,7 +15,7 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test('sample worksheet contains blanks, not answers, and the answer key comes last', async ({ page }) => {
+test('sample worksheet never sends an answer key in HTML', async ({ page }) => {
   const response = await page.goto(route);
   expect(response?.status()).toBe(200);
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
@@ -25,27 +25,24 @@ test('sample worksheet contains blanks, not answers, and the answer key comes la
   const prompts = page.locator('[data-worksheet-item]');
   const answers = page.locator('[data-answer-item]');
   await expect(prompts).toHaveCount(4);
-  await expect(answers).toHaveCount(4);
-  await expect(page.locator('[data-worksheet-answers]')).toBeHidden();
+  await expect(answers).toHaveCount(0);
+  await expect(page.locator('[data-worksheet-answers]')).toHaveCount(0);
   await expect(page.locator('[data-worksheet-blank]')).toHaveCount(4);
   const worksheetText = await page.locator('[data-worksheet]').innerText();
   for (const answer of sampleAnswers) expect(worksheetText.toLowerCase()).not.toContain(answer);
-  await expect(answers).toHaveText(sampleAnswers);
+  const html = await response!.text();
+  for (const answer of sampleAnswers) expect(html.toLowerCase()).not.toContain(answer);
   await expect(page.getByRole('link', { name: 'back to fill-in' })).toHaveAttribute('href', '/learn/study-skills/fill-in');
   await expect(page.locator('main button, main iframe')).toHaveCount(0);
 });
 
-test('printing starts the answer key on a new page in black and white', async ({ page }) => {
+test('printing keeps blank prompts in the paper token colors', async ({ page }) => {
   await page.goto(route);
   await page.emulateMedia({ media: 'print', colorScheme: 'dark' });
   for (const selector of ['body > header', 'body > footer', '[data-print-hidden]']) {
     await expect(page.locator(selector)).toBeHidden();
   }
-  const answerSection = page.locator('[data-worksheet-answers]');
-  await expect(answerSection).toBeVisible();
-  await expect(answerSection).toHaveCSS('break-before', /^(page|always)$/);
-  const worksheet = page.locator('[data-worksheet]');
-  expect(await worksheet.evaluate((el) => el.compareDocumentPosition(document.querySelector('[data-worksheet-answers]')) & Node.DOCUMENT_POSITION_FOLLOWING)).toBeTruthy();
+  await expect(page.locator('[data-worksheet-answers]')).toHaveCount(0);
   for (const prompt of await page.locator('[data-worksheet-item]').all()) {
     await expect(prompt).toHaveCSS('break-inside', 'avoid');
   }

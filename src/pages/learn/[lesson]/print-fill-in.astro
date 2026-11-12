@@ -1,5 +1,5 @@
 ---
-/** Print the visible lesson's sample fill-in set and a separate answer page (W09-3, #47). */
+/** Print the visible lesson's fill-in prompts without publishing an answer key (W09-3, #47). */
 import { getEntry } from 'astro:content';
 import Layout from '../../../layouts/Layout.astro';
 import { parseItems, sentenceParts } from '../../../islands/fillin';
@@ -15,7 +15,10 @@ const entry = lesson.fillIn && await getEntry('fill-in', lesson.fillIn.id);
 if (!entry) throw new Error(`The fill-in file for lesson ${lesson.id} is missing.`);
 // Validate the same items as the interactive mode; no copied answer-parsing logic.
 const items = parseItems(entry.data.items);
-const prompts = items.map((item) => ({ id: item.id, ...sentenceParts(item.sentence) }));
+const prompts = items.map((item) => {
+  const { before, after } = sentenceParts(item.sentence);
+  return { before, after };
+});
 ---
 
 <Layout title={`print fill-in · ${lesson.short}`} description={`printable fill-in worksheet for ${lesson.about}.`} variant="study" noindex promo={false}>
@@ -29,7 +32,7 @@ const prompts = items.map((item) => ({ id: item.id, ...sentenceParts(item.senten
         </p>
       )}
       <div data-print-hidden class="mt-4 space-y-3">
-        <p class="text-sm text-ink-soft">print the worksheet, then use the answer key on the following sheet.</p>
+        <p class="text-sm text-ink-soft">print the worksheet and complete the blanks. answers are not included.</p>
         <a href={`${lesson.href}/fill-in`} class="inline-flex min-h-(--tap-min) items-center underline underline-offset-4">back to fill-in</a>
       </div>
     </header>
@@ -45,12 +48,5 @@ const prompts = items.map((item) => ({ id: item.id, ...sentenceParts(item.senten
       </ol>
     </section>
 
-    <!-- This entire section begins on a NEW paper page. Answers never appear in the worksheet list. -->
-    <section data-worksheet-answers data-print-only aria-labelledby="worksheet-answers-heading" class="mt-section">
-      <h2 id="worksheet-answers-heading" class="text-lg font-semibold">answer key</h2>
-      <ol data-answer-key class="mt-6 list-decimal space-y-stack pl-6">
-        {prompts.map((parts) => <li data-answer-item>{parts.answer}</li>)}
-      </ol>
-    </section>
   </article>
 </Layout>
