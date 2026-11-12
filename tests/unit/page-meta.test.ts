@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { site } from '../../src/config/site';
 
 const PAGES_ROOT = resolve('src/pages');
 const DIST_ROOT = resolve('dist');
@@ -71,7 +72,26 @@ const COPY_EXCEPTIONS: Readonly<Record<string, { title?: string; description?: s
   '/about': { description: 'About cueory and our mission.' }, // Existing about-page placeholder is below 50 chars.
   '/coming-soon': { description: 'Planned courses and features for cueory.' }, // Existing teaser is below 50 chars.
   '/courses': { description: 'Nursing courses on cueory.' }, // Existing course intro is below 50 chars.
+  // Private/noindex routes: their current text is pinned, not silently exempted from all checks.
+  '/account': { description: 'Your cueory account settings.' },
+  '/admin/flags': { description: "cueory's private report inbox." },
+  '/disclaimer': { description: 'Cueory is a study aid, not medical advice.' },
+  '/learn/video-sample': { description: 'A sample of the lesson video player.' },
+  '/preview/anatomy-lab': { description: 'Preview of the anatomy lab.' },
+  '/preview/anatomy-text': { description: 'Text-only anatomy structure names.' },
+  '/preview/prose': { description: "A private preview of Cueory's reading layout." },
+  '/preview/reminders': { description: 'A non-sending preview of review reminder choices.' },
+  '/preview/share': { description: 'A private preview of the share sheet component.' },
+  '/preview/survey': { description: 'UI preview of the semester finals survey prompt.' },
+  '/reset-password': { description: 'Choose a new password for your cueory account.' },
+  '/signin': { description: 'Sign in to your cueory account.' },
+  '/signup': { description: 'Create your free cueory account.' },
+  '/terms': { description: 'The terms for using Cueory.' },
 };
+
+// These routes intentionally inherit Layout's site-wide fallback. The two private routes
+// are noindex. Pin the only allowed description duplication to this exact set and text.
+const SHARED_DEFAULT_ROUTES = new Set(['/', '/auth/callback', '/subscribed']);
 
 /** These three use Layout's documented site.description fallback. */
 const DEFAULT_DESCRIPTION_PAGES = new Set([
@@ -98,7 +118,7 @@ describe('W18: page metadata', () => {
     expect(problems).toEqual([]);
   });
 
-  it('renders one title and description, with useful unique copy for indexable pages', () => {
+  it('renders one title and description, with useful unique copy for every page', () => {
     const problems: string[] = [];
     const titleOwners = new Map<string, string>();
     const descriptionOwners = new Map<string, string>();
@@ -110,7 +130,7 @@ describe('W18: page metadata', () => {
       const meta = pageMeta(readFileSync(file, 'utf8'));
       if (meta.titles.length !== 1 || !meta.titles[0]) problems.push(`${route}: expected one nonempty title`);
       if (meta.descriptions.length !== 1 || !meta.descriptions[0]) problems.push(`${route}: expected one nonempty description`);
-      if (meta.noindex || meta.titles.length !== 1 || meta.descriptions.length !== 1) continue;
+      if (meta.titles.length !== 1 || meta.descriptions.length !== 1) continue;
 
       const title = meta.titles[0];
       const description = meta.descriptions[0];
@@ -125,8 +145,10 @@ describe('W18: page metadata', () => {
       if (earlierTitle) problems.push(`${route}: duplicate title with ${earlierTitle}`);
       else titleOwners.set(key(title), route);
       const earlierDescription = descriptionOwners.get(key(description));
-      if (earlierDescription) problems.push(`${route}: duplicate description with ${earlierDescription}`);
-      else descriptionOwners.set(key(description), route);
+      const sharedFallback = description === site.description && earlierDescription !== undefined
+        && SHARED_DEFAULT_ROUTES.has(route) && SHARED_DEFAULT_ROUTES.has(earlierDescription);
+      if (earlierDescription && !sharedFallback) problems.push(`${route}: duplicate description with ${earlierDescription}`);
+      else if (!earlierDescription) descriptionOwners.set(key(description), route);
     }
     expect(problems).toEqual([]);
   });
