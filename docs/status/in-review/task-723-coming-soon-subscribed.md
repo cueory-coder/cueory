@@ -1,1 +1,1 @@
-status: Spare Task 723, coming-soon and subscribed (#23): both pages use marketing panels, accurate next steps, built-route links, noindex, unit tests and responsive accessibility browser tests; ready for Claude review.
+STATUS: Spare Task 723, coming-soon and subscribed (#23): both pages use marketing panels, accurate next steps, built-route links, noindex, unit tests and responsive accessibility browser tests; ready for Claude review.

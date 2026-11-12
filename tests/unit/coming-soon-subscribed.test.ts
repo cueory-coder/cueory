@@ -11,7 +11,7 @@ describe('coming-soon and subscribed page shells', () => {
   for (const [name, source] of Object.entries(pages)) {
     it(`${name} has one heading, marketing styling and appropriate search exclusion`, () => {
       expect([...source.matchAll(/<h1\b/g)]).toHaveLength(1);
-      expect(source).toMatch(/<Layout\b[\s\S]*?\bnoindex\b[\s\S]*?>/);
+      expect(source).toMatch(/<Layout\b[^>]*\bnoindex\b/);
       expect(source).toContain('class="veil');
       expect(source).toContain('class="display');
       expect(source).not.toMatch(/<script\b|<style\b|\sstyle=/i);
