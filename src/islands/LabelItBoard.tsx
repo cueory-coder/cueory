@@ -54,7 +54,7 @@ function labelDraft(state: LabelItState, set: LabelSet): ResumeDraft {
 
 /** Refuse stale or altered saves. Never restore label text or anything that was merely uncovered. */
 function restoreLabels(snapshot: ResumeSnapshot, set: LabelSet): LabelItState | null {
-  if (snapshot.tool !== 'label-it' || snapshot.page !== LABEL_PAGE || snapshot.module !== set.id ||
+  if (!ownsLabelResume(snapshot, LABEL_PAGE) || snapshot.module !== set.id ||
       snapshot.totalItems !== set.labels.length || snapshot.timer !== null) return null;
   const match = /^round-([1-9]\d*)$/.exec(snapshot.step ?? '');
   const roundNumber = match ? Number(match[1]) : 0;
@@ -116,7 +116,7 @@ function Board({ set }: Props) {
   const ordered = readingOrder(set.labels);
   const numberOf = new Map(ordered.map((l, i) => [l.id, i + 1]));
   const [state, setState] = useState<LabelItState>(() => start(set));
-  const [resumePending, setResumePending] = useState(() => readResume(browserStorage())?.page === LABEL_PAGE);
+  const [resumePending, setResumePending] = useState(() => ownsLabelResume(readResume(browserStorage()), LABEL_PAGE));
   const latestDraft = useRef<ResumeDraft | null>(null);
   useEffect(() => attachResumeLifecycle(browserStorage(), () => latestDraft.current), []);
   const [said, setSaid] = useState('');

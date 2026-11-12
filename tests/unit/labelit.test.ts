@@ -249,6 +249,7 @@ describe('restart saved-session ownership', () => {
     ['current diagram', own],
     ['stale diagram', { ...own, module: 'old-sample' }],
     ['missing diagram id', { tool: 'label-it', page }],
+    ['own page with URL fragment', { ...own, page: page + '#sample' }],
   ])('can clear this page save with %s', (_name, snapshot) => {
     expect(ownsLabelResume(snapshot, page)).toBe(true);
   });
@@ -257,6 +258,7 @@ describe('restart saved-session ownership', () => {
     ['no save', null],
     ['another tool', { ...own, tool: 'cards' }],
     ['another page', { ...own, page: '/learn/study-skills/cards' }],
+    ['foreign tool even with fragment', { ...own, tool: 'cards', page: page + '#sample' }],
   ])('keeps %s untouched', (_name, snapshot) => {
     expect(ownsLabelResume(snapshot, page)).toBe(false);
   });

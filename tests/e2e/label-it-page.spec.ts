@@ -171,6 +171,49 @@ test.describe('complete label-it rounds', () => {
     await expect(board.locator('[tabindex="-1"]').first()).toBeFocused();
   });
 
+  test('a same-page save with a URL fragment resumes and clears cleanly', async ({ page }) => {
+    const board = page.getByTestId('labelit');
+    await board.getByRole('button', { name: 'uncover label 1', exact: true }).click();
+    await board.getByRole('group', { name: 'mark label 1', exact: true })
+      .getByRole('button', { name: 'know it', exact: true }).click();
+    const snapshot = await page.evaluate(() => JSON.parse(localStorage.getItem('cueory-resume') ?? 'null'));
+    expect(snapshot).toMatchObject({ tool: 'label-it', page: samplePage, itemIndex: 1 });
+    snapshot.page = samplePage + '#sample';
+    // Seed the next document after the current page's pagehide flush.
+    await page.addInitScript(value => localStorage.setItem('cueory-resume', JSON.stringify(value)), snapshot);
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'pick up where you left off?' })).toBeVisible();
+    expect(await page.getByTestId('labelit-session').evaluate(node => (node as HTMLElement).inert)).toBe(true);
+    await page.getByRole('button', { name: 'continue question 2', exact: true }).click();
+    await expect(page.getByTestId('cover-1')).toHaveAccessibleName('label 1: roof');
+    expect((await page.evaluate(() => JSON.parse(localStorage.getItem('cueory-resume') ?? 'null'))).page)
+      .toBe(samplePage);
+    await board.getByRole('button', { name: 'start over', exact: true }).click();
+    expect(await page.evaluate(() => localStorage.getItem('cueory-resume'))).toBeNull();
+    await page.evaluate(() => dispatchEvent(new Event('pagehide')));
+    expect(await page.evaluate(() => localStorage.getItem('cueory-resume'))).toBeNull();
+  });
+
+  test('a stale same-page fragment save clears after a failed resume', async ({ page }) => {
+    const board = page.getByTestId('labelit');
+    await board.getByRole('button', { name: 'uncover label 1', exact: true }).click();
+    await board.getByRole('group', { name: 'mark label 1', exact: true })
+      .getByRole('button', { name: 'know it', exact: true }).click();
+    const snapshot = await page.evaluate(() => JSON.parse(localStorage.getItem('cueory-resume') ?? 'null'));
+    expect(snapshot).not.toBeNull();
+    snapshot.page = samplePage + '#sample';
+    snapshot.module = 'old-sample';
+    await page.addInitScript(value => localStorage.setItem('cueory-resume', JSON.stringify(value)), snapshot);
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'pick up where you left off?' })).toBeVisible();
+    expect(await page.getByTestId('labelit-session').evaluate(node => (node as HTMLElement).inert)).toBe(true);
+    await page.getByRole('button', { name: 'continue question 2', exact: true }).click();
+    await expect(page.getByTestId('cover-1')).toHaveAccessibleName('label 1, covered');
+    expect(await page.evaluate(() => localStorage.getItem('cueory-resume'))).toBeNull();
+    await page.evaluate(() => dispatchEvent(new Event('pagehide')));
+    expect(await page.evaluate(() => localStorage.getItem('cueory-resume'))).toBeNull();
+  });
+
   test('failed resume clears a stale diagram save and lifecycle cannot put it back', async ({ page }) => {
     const board = page.getByTestId('labelit');
     await board.getByRole('button', { name: 'uncover label 1', exact: true }).click();

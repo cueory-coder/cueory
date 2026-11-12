@@ -226,7 +226,8 @@ export function ownsLabelResume(
   snapshot: { tool: string; page: string; module?: string } | null,
   page: string,
 ): boolean {
-  return snapshot?.tool === 'label-it' && snapshot.page === page;
+  return snapshot?.tool === 'label-it' &&
+    snapshot.page.split('#', 1)[0] === page.split('#', 1)[0];
 }
 
 /**
