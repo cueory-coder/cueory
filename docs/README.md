@@ -1,6 +1,6 @@
 # Cueory documentation
 
-Use this page to find the right guide. The main [project README](../README.md) explains what Cueory does.
+Use this page to find the right guide. The main [project README](../README.md) explains what Cueory does. If you're helping build the site, read [Contributing](../CONTRIBUTING.md) for the branch, status-note and local-test steps.
 
 Each link has a one-line summary and says whether Christian needs to read it. Guides for builders are mostly for people working on the site.
 
