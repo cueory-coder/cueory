@@ -96,7 +96,7 @@ describe('W18-2: site-search scope', () => {
 
   });
 
-  it.skipIf(!existsSync(join(DIST, 'index.html')))('excludes every noindex, preview, account, admin and auth page from the built Pagefind index', () => {
+  it('excludes every noindex, preview, account, admin and auth page from the built Pagefind index', () => {
     expect(existsSync(join(DIST, 'index.html')), 'run npm run build before this test').toBe(true);
     const files = builtPages();
     expect(files.length).toBeGreaterThan(0);
