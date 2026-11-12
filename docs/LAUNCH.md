@@ -29,7 +29,7 @@ How to read it:
 
 | # | Gate | What "done" means | Proof |
 | --- | --- | --- | --- |
-| 6 | **14-day puzzle runway** | The live site shows a game on `/play` only when it has at least 14 days of real puzzles. Samples don't count. Other games say "coming soon". | Task L4 on issue #26 (built on !73) with its unit tests. **Unknown:** not merged when this was written. |
+| 6 | **14-day puzzle runway** | Before release, every game shown on `/play` has at least 14 days of real puzzles. Samples don't count. A short game is manually withheld, or the launch stops. There is no automatic runway gate today. | Run `node scripts/check-puzzle-runway.mjs` after !73 and !112 are integrated, then inspect the release diff to prove every short game is withheld. **Unknown:** both MRs are unmerged and the check is not wired into CI or the build. |
 | 7 | **Drafts pruned** | No draft anatomy models, sample hello cards or stat sample on the live site. | **Unknown, and a known risk.** W16's note on #26 found that the draft and pruning checks (`src/islands/anatomylab.ts`, `src/visuals/prunedrafts.ts`) only treat a branch named `main` as live, while Cloudflare's production branch is reported as `legacy/main`. Fix or release through `main` first. Then the anatomy production audit (`scripts/anatomy-production-audit.mjs`) should report 0 draft model files shipped. |
 | 8 | **Legal-copy gate runs on the real release** | The live build stops if legal text is a placeholder. | `scripts/check-legal-release.mjs` runs before every build (`prebuild`). It only blocks a Cloudflare build when the branch is `main` (same branch problem as gate 7). |
 | 9 | **Noindex and sitemap** | Preview, admin and unfinished pages tell search engines to stay away; `/sitemap.xml` lists only public pages. | Browser test `tests/e2e/indexing.spec.ts`. The sitemap comes from `src/pages/sitemap.xml.ts`. For each built page, `node scripts/launch-check.mjs` (after `npm run build`) shows whether it is noindex and counts leftover "coming soon", "sample" and placeholder words ([LAUNCH-CHECK.md](LAUNCH-CHECK.md)). |
@@ -66,8 +66,8 @@ Only you merge into `main`.
    live site keeps its old version. Send Claude the error text.
 8. Open https://cueory.app in a private window.
    You should see the home page with the padlock.
-9. Go to `/play`.
-   You should see only the games with a 14-day runway. The others say "coming soon".
+9. Go to `/play` and compare it with the latest runway-check output.
+   You should see only games with at least 14 days. If a short game is visible, stop: current code does not hide it automatically.
 10. Play one puzzle of each live game to the end.
 11. Open `/terms`, `/disclaimer` and `/privacy`.
     You should see your final text and no "paste your … here" box.
@@ -89,7 +89,8 @@ version, and choose **Rollback**. It takes effect at once (GO-LIVE section 3). T
 
 Every day (Claude, about 5 minutes):
 - Check each live game still has at least 14 days of puzzles ahead. If one runs low, tell you in time to send the next
-  reviewed batch. A game that drops below 14 days goes back to "coming soon" on the next build (gate 6).
+  reviewed batch. Until an automatic gate is implemented and verified, stop the next release or manually withhold that game;
+  a build does not move it to "coming soon" by itself (gate 6).
 - Read any flags or messages and tell you about anything about a puzzle's facts. Claude never fixes clinical facts
   itself.
 - Look at the live site on phone and desktop sizes for anything broken.
