@@ -201,7 +201,7 @@ export default function GameResultsHost() {
         </nav>
 
         <p role="status" className="mt-3 min-h-6 text-sm text-ink-soft break-all">{status}</p>
-        <p className="mt-4 text-sm text-ink-soft">{card.game === 'hello-cards' ? 'a new card of the day comes out tomorrow.' : `a new ${card.name} comes out tomorrow.`}</p>
+        <p className="mt-4 text-sm text-ink-soft">{card.nextMessage ?? (card.game === 'hello-cards' ? 'a new card of the day comes out tomorrow.' : `a new ${card.name} comes out tomorrow.`)}</p>
       </div>
     </div>
   );

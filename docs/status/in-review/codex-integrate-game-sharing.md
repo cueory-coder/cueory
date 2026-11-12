@@ -8,7 +8,7 @@ Validation on the integrated source: Node 24.22.1, Astro check 0 errors / 0 warn
 
 Browser blocker: pinned Chromium headless-shell is absent. System Chromium fails before assertions because socket() is denied. The earlier Chromium results on !2 or !3 do not validate this candidate. Claude must run current result-dialog/share/promo, crossword, Sudoku, word-path print, stats/privacy, keyboard/focus, axe, CSP and overflow coverage across configured projects.
 
-Outstanding Claude integration review from !2 remains applicable. This conflict-only candidate does not claim to finish: official Threads URL verification, Facebook documented-link decision, final per-game share wording, stat result-host wiring, hello-cards tomorrow wording, config-driven Sudoku landing copy, and platform-button design. Native sharing activation and first-visit promo behavior need actual browser verification. The hard-crossword tap-target exception from !97 remains D-pending.
+Outstanding Claude integration review from !2 remains applicable. This conflict-only candidate does not claim to finish: official Threads URL verification, Facebook documented-link decision, final per-game share wording, hello-cards tomorrow wording, config-driven Sudoku landing copy, and platform-button design. Native sharing activation and first-visit promo behavior need actual browser verification. The hard-crossword tap-target exception from !97 remains D-pending.
 
 Dependency: this candidate includes !97. Review the sharing-only delta against codex/integrate-crossword-levels, then integrate in dependency order. No production, auth, CI, database, DNS or deployment changes were made by this work.
 
@@ -33,7 +33,7 @@ Validation on the repaired source: Astro check 0 errors / 0 warnings / 26 hints,
 
 Completed two explicit items from Claude's integration review. The Sudoku landing title, description, heading and introductory copy now read the Sudoku entry in src/config/games.ts, matching the other landing pages. Hello-cards results now say "a new card of the day comes out tomorrow." The other games keep their existing message.
 
-Validation: Astro check 0 errors / 0 warnings / 26 hints, build passed, full Vitest 214 files / 5491 tests passed with 3 existing skips. A readback of the built Sudoku HTML confirmed its title, description, heading and landing copy match the current shared configuration. No new browser result or full npm run verify pass is claimed. The remaining platform/share-format/stat/design and hard-grid/browser holds still apply. No new PR was opened.
+Validation: Astro check 0 errors / 0 warnings / 26 hints, build passed, full Vitest 214 files / 5491 tests passed with 3 existing skips. A readback of the built Sudoku HTML confirmed its title, description, heading and landing copy match the current shared configuration. No new browser result or full npm run verify pass is claimed. The remaining platform/share-format/design and hard-grid/browser holds still apply. No new PR was opened.
 
 ## Integration repair: preserve newly merged staging
 
@@ -41,4 +41,13 @@ Staging advanced through the canonical crossword integration, Sudoku hardening, 
 
 The final combined source passed Astro check with 0 errors / 0 warnings / 26 hints, build, and full Vitest: 222 files, 5611 tests passed, 3 existing skips. Whitespace and conflict-marker checks passed. Node 24.22.1, unchanged lockfile. This is a normal additive source-branch commit, with no history rewrite and no new PR. The final GitLab merge will record target ancestry.
 
-The initial !97 dependency is superseded by the canonical crossword already merged on staging. Review this final net diff against current staging rather than reapplying the old crossword candidate. Existing hard-grid decision history is preserved without asserting a new exception approval. Actual browser/axe/print/native-share checks and the remaining platform/share-format/stat/design review are still required before this draft can merge.
+The initial !97 dependency is superseded by the canonical crossword already merged on staging. Review this final net diff against current staging rather than reapplying the old crossword candidate. Existing hard-grid decision history is preserved without asserting a new exception approval. Actual browser/axe/print/native-share checks and the remaining platform/share-format/design review are still required before this draft can merge.
+
+
+## Integration follow-through: Stat result delivery
+
+Reproduced the missing shared Stat result with a failing behavioral Vitest test using the actual island effects. A pure adapter now builds display-only score, average-time, question-count and practice-round fields from StatRoundResult. The island queues a result only in the done phase and once per round. Stat remains outside private game stats, and questions, keys and individual answers never enter the display payload. The existing score/share format is preserved. A game-specific footer says reviewed daily sets will come later instead of promising a new unpublished set tomorrow.
+
+The shared host mounts only when Stat is shown, outside the filtered article. Existing browser flows now close the shared result and advance one paused-clock frame before testing focus on the underlying result. Added a two-round regression for reopening only after a newly graded round, without reopening after Copy. These browser assertions are authored, not executed locally.
+
+Validation: five behavioral delivery cases passed, including ready/playing/grading/failed suppression, late-host delivery, repeat-effect deduplication, practice rounds and no private-stats record. Focused Vitest 4 files / 48 tests passed. Astro check 0 errors / 0 warnings / 26 hints, build passed, full Vitest 223 files / 5616 tests passed / 3 existing skips. Existing route budgets passed unchanged. Node 24.22.1, unchanged lockfile. Actual browser verification remains for Claude. No new PR.

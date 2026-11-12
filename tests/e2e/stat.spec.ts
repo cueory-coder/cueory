@@ -38,6 +38,15 @@ async function finish(page: Page, from: number, pick: (index: number) => string 
     await next(page).click();
   }
   await expect(page.getByTestId('stat-result')).toBeVisible();
+  const dialog = page.getByTestId('game-result-dialog');
+  const close = dialog.getByRole('button', { name: 'close results' });
+  await expect(close).toBeFocused();
+  await expect(dialog.getByTestId('result-share-line')).toHaveText(/^stat · .+ · \d{1,2}\/15 · cueory\.app$/);
+  await expect(dialog).toContainText('reviewed daily sets will come later.');
+  await close.click();
+  // The test clock is paused. Advance one frame for the host's focus-return callback.
+  await page.clock.runFor(20);
+  await expect(page.getByTestId('stat-result')).toBeFocused();
 }
 
 test('the games page links to stat, which says its questions are samples and stays out of search', async ({ page }) => {
@@ -208,3 +217,16 @@ for (const scheme of ['light', 'dark'] as const) {
     await big(['stat-copy', 'stat-again']);
   });
 }
+
+
+test('shared results return once for each graded round without reopening after copy', async ({ page }) => {
+  await start(page);
+  await finish(page, 0, (index) => key[index]!);
+  await page.getByTestId('stat-copy').click();
+  await page.clock.runFor(1_000);
+  await expect(page.getByTestId('game-result-dialog')).toHaveCount(0);
+  await page.getByTestId('stat-again').click();
+  await finish(page, 0, (index) => key[index]!);
+  await page.clock.runFor(1_000);
+  await expect(page.getByTestId('game-result-dialog')).toHaveCount(0);
+});

@@ -7,6 +7,7 @@
  */
 import Layout from '../../layouts/Layout.astro';
 import StatGame from '../../islands/StatGame';
+import GameResultsHost from '../../islands/GameResultsHost';
 import { statGame } from '../../config/games';
 import { draftsAllowed } from '../../islands/anatomylab';
 import { parseStatSample } from '../../islands/stat';
@@ -45,4 +46,5 @@ const { questions, sampleKey } = shown ? parsed : { questions: [], sampleKey: {}
       back to daily games
     </a>
   </article>
+  {shown && <GameResultsHost client:only="react" />}
 </Layout>

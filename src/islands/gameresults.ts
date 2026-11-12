@@ -9,6 +9,8 @@
 import type { KeyValueStorage } from '../scripts/storage';
 import { dayLabel } from './daily';
 import type { SudokuResult } from './sudoku';
+import type { StatRoundResult } from './stat';
+import { statGame } from '../config/games';
 import { parseStats, serialize, type GameId, type GameStats } from './gamestats';
 
 /** The event a game sends on `window` when a round ends. */
@@ -36,7 +38,7 @@ function resultDayLabel(day: string): string {
   return Number.isNaN(date.getTime()) ? day : dayLabel(date);
 }
 
-export type ResultGame = GameId | 'hello-cards' | 'sudoku';
+export type ResultGame = GameId | 'hello-cards' | 'sudoku' | 'stat';
 
 export interface ResultStat {
   label: string;
@@ -51,6 +53,8 @@ export interface GameResultCard {
   level?: string;
   result: string;
   summary: string;
+  /** Optional game-specific follow-up, without promising unpublished daily content. */
+  nextMessage?: string;
   stats: readonly ResultStat[];
   path: string;
   /** Optional official game wordmark asset. Omit it when the approved file is unavailable. */
@@ -74,6 +78,22 @@ export function sudokuResultCard(detail: SudokuResult): GameResultCard {
       { label: 'errors', value: String(detail.errors) },
     ],
     path: '/play/sudoku',
+  };
+}
+
+/** Display-only Stat result. Questions, keys and private stats are never included. */
+export function statResultCard(detail: StatRoundResult): GameResultCard {
+  return {
+    game: 'stat', name: statGame.name, date: resultDayLabel(detail.day),
+    result: `${detail.score}/${detail.total}`,
+    summary: detail.practice ? 'practice round complete.' : 'round complete.',
+    nextMessage: 'reviewed daily sets will come later.',
+    stats: [
+      { label: 'questions', value: String(detail.total) },
+      { label: 'average answer time', value: `${detail.averageSeconds} s` },
+      { label: 'round', value: detail.practice ? 'practice' : 'today' },
+    ],
+    path: '/play/stat',
   };
 }
 
