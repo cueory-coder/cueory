@@ -39,16 +39,22 @@ test('pillo completion adds the unobtrusive original-art mark inside the result 
 
 test('crossword completion adds the mark to its finished card, not the clues', async ({ page }) => {
   await page.goto('/play');
-  const fill = async (direction: 'across' | 'down', index: number, word: string) => {
-    await page.getByRole('list', { name: direction + ' clues' }).getByRole('button').nth(index).click();
-    await page.keyboard.type(word);
-  };
-  await fill('across', 0, 'star');
-  await fill('across', 1, 'apple');
-  await fill('down', 0, 'sofa');
-  await fill('down', 1, 'rail');
+  // The crossword has no clue buttons any more: each square is a button named by its row and column (Task 627).
+  // Same easy November sample as play.spec.ts.
+  const board = page.getByTestId('cueword');
+  const sample = ['.ABC.', 'DEFGH', 'IJKLM', 'NOPQR', '.STU.'];
+  for (const [row, letters] of sample.entries()) {
+    for (const [column, letter] of [...letters].entries()) {
+      if (letter === '.') continue;
+      await board.getByRole('button', { name: new RegExp('^row ' + (row + 1) + ', column ' + (column + 1) + ',') }).click();
+      await page.keyboard.type(letter);
+    }
+  }
   await expect(page.getByTestId('cueword-result').getByTestId('result-brand-mark')).toHaveText('cueory.app/play');
-  await expect(page.getByRole('list', { name: 'across clues' }).getByTestId('result-brand-mark')).toHaveCount(0);
+  // The clues (the clue bar and the printed clue lists) never carry the mark.
+  await expect(board.getByTestId('cueword-clue').getByTestId('result-brand-mark')).toHaveCount(0);
+  await expect(board.locator('.crossword-print-clues')).toHaveCount(1);
+  await expect(board.locator('.crossword-print-clues').getByTestId('result-brand-mark')).toHaveCount(0);
 });
 
 test('progress is a share-worthy summary, with a mark that remains decorative', async ({ page }) => {

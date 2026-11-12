@@ -105,7 +105,9 @@ const icons: Record<StudyFeatureIcon, string> = {
             />
             <ModeVial mode={mode} summaryId={`mode-${mode.id}-summary`} />
             {mode.link ? (
-              <a href={mode.link.href} class="mode-card-link inline-flex min-h-11 items-center justify-center px-3">
+              // The ring hides these links (its preview has "start …"). The hide sits in the utilities layer as a
+              // variant, because global.css's components-layer rule loses to the utility `inline-flex` here.
+              <a href={mode.link.href} class="mode-card-link inline-flex min-h-11 items-center justify-center px-3 [[data-ring]_&]:hidden">
                 {mode.link.label}
               </a>
             ) : (
