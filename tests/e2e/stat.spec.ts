@@ -441,6 +441,8 @@ test('the timer exposes remaining seconds in its accessible name without noisy l
   await expect(timer).toHaveAttribute('aria-label', '1 second left');
   await expect(seconds(page)).toHaveText('1 second left');
   await expect(said(page)).toHaveText('5 seconds left.');
+  // The timer value changes every second, but live announcements remain limited to 10 and 5.
+  await expect(page.getByTestId('stat-said')).toHaveCount(1);
 });
 
 test('with reduced motion the ring does not animate and the seconds still show as text', async ({ page }) => {
