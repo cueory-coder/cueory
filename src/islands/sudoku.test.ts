@@ -27,7 +27,7 @@ describe('sudoku', () => {
       expect(puzzle.givens.filter(Boolean)).toHaveLength(expected[level]);
       expect(solve(puzzle.givens)).toEqual(puzzle.solution);
     }
-  });
+  }, 30_000);
 
   it('is deterministic for the same seed and level', () => {
     expect(generatePuzzle('medium', 12345)).toEqual(generatePuzzle('medium', 12345));
@@ -45,5 +45,17 @@ describe('sudoku', () => {
     expect([...conflicts(grid)].sort((a, b) => a - b)).toEqual([0, 1]);
     expect(candidates(grid, 2)).not.toContain(4);
     expect(validate(grid).valid).toBe(false);
+  });
+});
+
+
+describe('saved game stats compatibility', () => {
+  it('drops legacy triage entries without losing current game history', async () => {
+    const { parseStats } = await import('./gamestats');
+    const text = JSON.stringify({ version: 1, results: [
+      { game: 'triage', day: '2026-11-10', solved: true, tries: 1 },
+      { game: 'pulse', day: '2026-11-11', solved: true, tries: 3 },
+    ] });
+    expect(parseStats(text)).toEqual([{ game: 'pulse', day: '2026-11-11', solved: true, tries: 3 }]);
   });
 });

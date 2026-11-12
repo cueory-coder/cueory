@@ -87,6 +87,7 @@ export function parseStats(text: unknown): GameStats {
     const seen = new Set<string>();
     const parsed: GameResult[] = [];
     for (const result of results) {
+      if (result && typeof result === 'object' && !Array.isArray(result) && (result as Record<string, unknown>).game === 'triage') continue;
       const valid = readResult(result);
       if (!valid) return [];
       const key = `${valid.game}:${valid.day}`;
