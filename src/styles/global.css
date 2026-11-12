@@ -2120,3 +2120,30 @@ html:has(dialog.mode-preview[open]) {
     .sudoku-print-footer { display: block; margin-block-start: calc(var(--spacing) * 5); text-align: center; font-size: var(--text-sm); }
   }
 }
+
+/*
+  Anatomy lab worksheet (src/islands/AnatomyLab.tsx). On screen the write-in lines are tall enough to write on once
+  printed. Printing marks the page data-print-game="anatomy-worksheet" (src/islands/gameprint.ts): then only the
+  worksheet is printed, black on white in Daytime and Evening alike, with its credit lines and without its buttons.
+*/
+@layer components {
+  .anatomy-worksheet-blank { min-block-size: var(--worksheet-blank); }
+
+  @media print {
+    :root[data-print-game="anatomy-worksheet"] main *:not(:has(.anatomy-worksheet)):not(.anatomy-worksheet):not(.anatomy-worksheet *) {
+      display: none !important;
+    }
+    :root[data-print-game="anatomy-worksheet"] main { padding-block: 0 !important; }
+    :root[data-print-game="anatomy-worksheet"] .anatomy-worksheet {
+      border: 0;
+      padding: 0;
+      background: var(--print-paper);
+      color: var(--print-ink);
+    }
+    :root[data-print-game="anatomy-worksheet"] .anatomy-worksheet * { color: var(--print-ink) !important; border-color: var(--print-ink) !important; }
+    :root[data-print-game="anatomy-worksheet"] .anatomy-worksheet > * + * { margin-block-start: var(--print-gap); }
+    :root[data-print-game="anatomy-worksheet"] .anatomy-worksheet img { inline-size: var(--print-figure); max-inline-size: 100%; break-inside: avoid; }
+    :root[data-print-game="anatomy-worksheet"] .anatomy-worksheet li { break-inside: avoid; }
+    :root[data-print-game="anatomy-worksheet"] .anatomy-worksheet-tools { display: none !important; }
+  }
+}
