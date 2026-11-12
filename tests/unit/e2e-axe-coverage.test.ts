@@ -133,7 +133,7 @@ describe('page-navigation browser specs must run axe', () => {
       { name: 'string.spec.ts', source: "const example = 'new AxeBuilder({ page })'; await page.goto('/sample');" },
     ], {})).toThrow(/comment\.spec\.ts.*string\.spec\.ts/);
     expect(() => assertCoverage([
-      { name: 'example-only.spec.ts', source: "// await page.goto('/sample');\nconst example = 'popup.goto(\\"/sample\\")';" },
+      { name: 'example-only.spec.ts', source: "// await page.goto('/sample');\nconst example = 'popup.goto(/sample)';" },
     ], {})).not.toThrow();
   });
 
