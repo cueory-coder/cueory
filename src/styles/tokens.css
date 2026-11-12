@@ -471,6 +471,7 @@
   --sudoku-width-reserve: 9.375rem;
   --sudoku-line: 1px;
   --sudoku-box-line: 3px;
+  --sudoku-board-frame: calc(var(--sudoku-box-line) * 2 + 1px); /* outer box lines + 1px so rounding never overflows */
   --sudoku-candidate-size: 0.625rem;
   --sudoku-entered-line: 2px;
   --color-sudoku-given: var(--color-surface);
