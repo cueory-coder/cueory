@@ -139,6 +139,45 @@ test('answers by tap and keyboard, shows symbols plus words, and finishes with t
   await expect(board.getByText('right on 1 of 1.')).toBeVisible();
 });
 
+
+test('answers by real touch taps on labels and actions, with feedback and final summary', async ({ browser }, testInfo) => {
+  // Explicitly enable touch even in desktop Playwright projects so .tap() exercises touch input.
+  const context = await browser.newContext({
+    baseURL: testInfo.project.use.baseURL,
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    serviceWorkers: 'block',
+    reducedMotion: 'reduce',
+  });
+  try {
+    const touchPage = await context.newPage();
+    await fulfillSamples(touchPage);
+    await touchPage.goto(route);
+    const board = touchPage.getByTestId('sample-questions-ready');
+    await expect(board.getByText('question 1 of 2')).toBeVisible();
+
+    await board.locator('fieldset label').filter({ hasText: '[sample choice A]' }).tap();
+    await expect(board.getByLabel('[sample choice A]')).toBeChecked();
+    await board.getByRole('button', { name: 'check', exact: true }).tap();
+    await expect(board.getByText('right.', { exact: true }).first()).toBeVisible();
+    await expect(board.getByText("you picked this, and it's right")).toBeVisible();
+    await board.getByRole('button', { name: 'next question' }).tap();
+
+    await expect(board.getByText('select all that apply')).toBeVisible();
+    await board.locator('fieldset label').filter({ hasText: '[sample choice A]' }).tap();
+    await board.locator('fieldset label').filter({ hasText: '[sample choice C]' }).tap();
+    await expect(board.getByLabel('[sample choice A]')).toBeChecked();
+    await expect(board.getByLabel('[sample choice C]')).toBeChecked();
+    await board.getByRole('button', { name: 'check', exact: true }).tap();
+    await expect(board.getByText('right.', { exact: true }).first()).toBeVisible();
+    await board.getByRole('button', { name: 'next question' }).tap();
+
+    await expect(board.getByText('right on 2 of 2.')).toBeVisible();
+  } finally {
+    await context.close();
+  }
+});
+
 test('is accessible and fits 390, 820 and 1440 in Light and Evening with reduced motion', async ({ page }) => {
   await fulfillSamples(page);
   await page.goto(route);
@@ -152,17 +191,33 @@ test('is accessible and fits 390, 820 and 1440 in Light and Evening with reduced
     const pageColors = new Set<string>();
     for (const colorScheme of ['light', 'dark'] as const) {
       await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+      // Reset to the first question for every width and palette, including the Next-button checks.
+      await page.goto(route);
+      await expect(page.getByTestId('sample-questions-ready')).toBeVisible();
       await page.evaluate(mode => { document.documentElement.dataset.theme = mode; }, colorScheme);
       const color = await page.evaluate(() =>
         getComputedStyle(document.documentElement).getPropertyValue('--color-page').trim());
       expect(color.length).toBeGreaterThan(0);
       pageColors.add(color);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-      for (const item of await page.locator('fieldset label').all()) {
-        expect(await item.evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
+      const check = page.getByRole('button', { name: 'check', exact: true });
+      // Both dimensions matter. A tall but narrow target fails the 44 x 44 px rule.
+      for (const target of [...await page.locator('fieldset label').all(), check]) {
+        const bounds = await target.boundingBox();
+        expect(bounds?.width ?? 0).toBeGreaterThanOrEqual(44);
+        expect(bounds?.height ?? 0).toBeGreaterThanOrEqual(44);
       }
       const axe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
       expect(axe.violations.map(result => result.id + ': ' + result.help)).toEqual([]);
+
+      await page.getByLabel('[sample choice A]').check();
+      await check.click();
+      const nextButton = page.getByRole('button', { name: 'next question' });
+      await expect(nextButton).toBeVisible();
+      const nextBounds = await nextButton.boundingBox();
+      expect(nextBounds?.width ?? 0).toBeGreaterThanOrEqual(44);
+      expect(nextBounds?.height ?? 0).toBeGreaterThanOrEqual(44);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     }
     expect(pageColors.size).toBe(2);
   }
