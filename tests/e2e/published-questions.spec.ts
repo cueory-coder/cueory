@@ -263,6 +263,15 @@ test.describe('W20: clear question loading, empty, and retry states', () => {
 
   test('keeps failure details private; keyboard and pointer retries recover', async ({ page }) => {
     const seen = await mockProject(page, { failConceptReads: 2 });
+    // Hold the first retry open so keyboard focus can be verified while loading.
+    let conceptReads = 0;
+    let releaseRetry!: () => void;
+    const gate = new Promise<void>(resolve => { releaseRetry = resolve; });
+    await page.route(/\/rest\/v1\/concepts(?:\?|$)/, async route => {
+      conceptReads++;
+      if (conceptReads === 2) await gate;
+      await route.fallback();
+    });
     await openFixture(page, { signedIn: true });
     await expect(page.getByRole('alert')).toHaveText("couldn't load questions. please try again.");
     await expect(page.getByText('sample private server detail')).toHaveCount(0);
@@ -276,9 +285,21 @@ test.describe('W20: clear question loading, empty, and retry states', () => {
     await expect(retry).toBeFocused();
     await expect(retry).toHaveCSS('outline-style', 'solid');
     await page.keyboard.press('Enter');
+    try {
+      await expect(page.getByTestId('questions-retry-loading')).toHaveText('loading questions…');
+      await expect(retry).toHaveAttribute('aria-disabled', 'true');
+      await expect(retry).toBeFocused();
+      await expect(page.getByRole('alert')).toHaveCount(0);
+    } finally {
+      releaseRetry();
+    }
     await expect(page.getByRole('alert')).toHaveText("couldn't load questions. please try again.");
+    await expect(retry).toHaveAttribute('aria-disabled', 'false');
+    await expect(retry).toBeFocused();
     await retry.click();
-    await expect(page.getByTestId('questions-concept')).toHaveText('sample concept (fixture)');
+    const conceptResult = page.getByTestId('questions-concept');
+    await expect(conceptResult).toHaveText('sample concept (fixture)');
+    await expect(conceptResult).toBeFocused();
     expect(seen.filter(request => request.method === 'GET' && request.path === '/rest/v1/concepts')).toHaveLength(3);
   });
 
