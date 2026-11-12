@@ -169,6 +169,17 @@ function recoveredCopy(storage: KeyValueStorage, raw: string | null): Progress {
   return merged;
 }
 
+/** Only repair supported-format records. Future/unknown versions must remain unreadable. */
+function recoverableRecordVersion(raw: string | null): boolean {
+  if (raw === null) return false;
+  try {
+    const value: unknown = JSON.parse(raw);
+    return record(value) && value.version === PROGRESS_VERSION;
+  } catch {
+    return false;
+  }
+}
+
 /** Check the stored record before any legacy migration or other storage writes. */
 export function readDeviceProgress(storage: KeyValueStorage | undefined): DeviceProgressSnapshot {
   const unreadable = { progress: emptyProgress(), state: 'unreadable' as const };
@@ -180,10 +191,10 @@ export function readDeviceProgress(storage: KeyValueStorage | undefined): Device
     if (!readableLegacyStars(storage)) return unreadable;
     const merged = recoveredCopy(storage, raw);
     if (!readableRecord(raw)) {
-      // The canonical parser may still recover valid piles from a partly damaged record.
-      // Display those fields read-only, preserving the original bytes and legacy star keys.
-      const recovered = parseProgress(raw);
-      return isEmptyProgress(recovered)
+      // Even when the damaged primary holds no usable cards, valid old stars may be
+      // recoverable. Base the safe display on the complete in-memory merged copy,
+      // never on the damaged primary alone; do not interpret future versions.
+      return !recoverableRecordVersion(raw) || isEmptyProgress(merged)
         ? unreadable
         : { progress: merged, state: 'ready', recovered: true };
     }

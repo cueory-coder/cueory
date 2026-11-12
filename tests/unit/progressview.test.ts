@@ -198,6 +198,29 @@ describe('readDeviceProgress guards storage before migration', () => {
     expect(existing.values.get(legacyStarsKey('one'))).toBe(legacy);
   });
 
+  it('recovers legacy-only starred cards when a supported primary is damaged and empty', () => {
+    const raw = JSON.stringify({ version: 1, onboarding: null, decks: {} });
+    const legacy = '["b"]';
+    const oldRetired = '["x"]';
+    const existing = store({
+      [PROGRESS_STORAGE_KEY]: raw,
+      [legacyStarsKey('one')]: legacy,
+      [legacyStarsKey('retired')]: oldRetired,
+    });
+    const before = [...existing.values.entries()];
+    const result = readDeviceProgress(existing.storage);
+    expect(result).toEqual({
+      progress: withStars(withStars(emptyProgress(), 'one', ['b']), 'retired', ['x']),
+      state: 'ready',
+      recovered: true,
+    });
+    const exported = JSON.parse(exportProgress(result.progress, '2026-11-12'));
+    expect(exported.decks.one.starred).toEqual(['b']);
+    expect(exported.decks.retired.starred).toEqual(['x']);
+    expect(existing.mutations).toEqual([]);
+    expect([...existing.values.entries()]).toEqual(before);
+  });
+
   it('does not claim recovery when damaged fields contain no safely parsed progress', () => {
     const existing = store({ [PROGRESS_STORAGE_KEY]: JSON.stringify({ version: 1, onboarding: null, decks: {} }) });
     expect(readDeviceProgress(existing.storage)).toEqual({ progress: emptyProgress(), state: 'unreadable' });

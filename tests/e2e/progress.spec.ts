@@ -445,6 +445,33 @@ test('damaged onboarding exposes safe card progress and download without rewriti
   expect(await currentSaved()).toEqual(original);
 });
 
+test('damaged empty primary still offers a read-only backup of valid legacy-only stars', async ({ page }) => {
+  const raw = JSON.stringify({ version: 1, onboarding: null, decks: {} });
+  const legacy = '["ss01-c02"]';
+  const retired = '["x"]';
+  await page.addInitScript(({ raw, legacy, retired }) => {
+    localStorage.setItem('cueory-progress', raw);
+    localStorage.setItem('cueory-stars-study-skills-01', legacy);
+    localStorage.setItem('cueory-stars-retired', retired);
+  }, { raw, legacy, retired });
+  await page.goto('/progress');
+  await expect(page.getByRole('heading', { name: 'some saved progress was recovered' })).toBeVisible();
+  await expect(page.getByText('0 know it · 0 still learning · 1 star').first()).toBeVisible();
+
+  const downloading = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'download my progress' }).click();
+  const file = await downloading;
+  expect(file.suggestedFilename()).toMatch(/^cueory-recovered-progress-\d{4}-\d{2}-\d{2}\.json$/);
+  const backup = JSON.parse(readFileSync((await file.path())!, 'utf8'));
+  expect(backup.decks['study-skills-01'].starred).toEqual(['ss01-c02']);
+  expect(backup.decks.retired.starred).toEqual(['x']);
+  expect(await page.evaluate(() => ({
+    primary: localStorage.getItem('cueory-progress'),
+    current: localStorage.getItem('cueory-stars-study-skills-01'),
+    retired: localStorage.getItem('cueory-stars-retired'),
+  }))).toEqual({ primary: raw, current: legacy, retired });
+});
+
 test('bad onboarding keeps original saved bytes and old stars while exporting valid cards', async ({ page }) => {
   const raw = JSON.stringify({
     version: 1, onboarding: { course: 7, done: 'yes' },
