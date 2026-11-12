@@ -14,55 +14,131 @@ export function closesInfoTip(key: string, open: boolean): boolean {
   return open && (key === 'Escape' || key === 'Esc');
 }
 
-const panelOf = (button: HTMLElement, root: Document) => {
+export type InfoTipAction =
+  | { type: 'toggle'; id: string }
+  | { type: 'outside'; insideOpenPanel: boolean }
+  | { type: 'escape' };
+
+/** Which tip may be open after one user action. A second open replaces the first. */
+export function nextOpenInfoTip(current: string | null, action: InfoTipAction): string | null {
+  if (action.type === 'toggle') return current === action.id ? null : action.id;
+  if (action.type === 'outside') return action.insideOpenPanel ? current : null;
+  return null;
+}
+
+/** Only announce genuinely new, visible text while its tip is open. */
+export function changedInfoTipText(previous: string, next: string, open: boolean): string | null {
+  const clean = (value: string) => value.replace(/\s+/g, ' ').trim();
+  const latest = clean(next);
+  return open && latest && latest !== clean(previous) ? latest : null;
+}
+
+const panelOf = (button: HTMLElement, root: Document): HTMLElement | null => {
   const id = button.getAttribute('aria-controls');
   return id ? root.getElementById(id) : null;
 };
 
-/** Opens or closes one ⓘ. */
-export function setInfoTip(button: HTMLElement, open: boolean, root: Document = document): void {
-  const panel = panelOf(button, root);
-  button.setAttribute('aria-expanded', String(open));
-  if (panel) panel.hidden = !open;
+function openButton(root: Document): HTMLElement | null {
+  return root.querySelector<HTMLElement>('[data-infotip][aria-expanded="true"]');
 }
 
-/** Gives an ⓘ a new label and closes it (used where one panel shows different words in turn). */
+interface ObservedInfoTip {
+  lastText: string;
+  live: HTMLElement | null;
+}
+const observations = new WeakMap<HTMLElement, ObservedInfoTip>();
+const watchedPanels = new WeakSet<HTMLElement>();
+
+function visibleTipText(panel: HTMLElement): string {
+  // innerText respects nested hidden feature rows in the mode preview.
+  return panel.innerText.replace(/\s+/g, ' ').trim();
+}
+
+function renderInfoTip(button: HTMLElement, open: boolean, root: Document): void {
+  const panel = panelOf(button, root);
+  if (!panel) {
+    button.setAttribute('aria-expanded', 'false');
+    return;
+  }
+  button.setAttribute('aria-expanded', String(open));
+  panel.hidden = !open;
+  const observed = observations.get(panel);
+  if (observed) {
+    observed.lastText = open ? visibleTipText(panel) : '';
+    if (observed.live) observed.live.textContent = '';
+  }
+}
+
+/** Opens or closes one ⓘ. Direct callers cannot leave two panels expanded. */
+export function setInfoTip(button: HTMLElement, open: boolean, root: Document = document): void {
+  if (open) {
+    for (const other of root.querySelectorAll<HTMLElement>('[data-infotip][aria-expanded="true"]')) {
+      if (other !== button) renderInfoTip(other, false, root);
+    }
+  }
+  renderInfoTip(button, open, root);
+}
+
+/** Gives an ⓘ a new label and closes it, preserving the carousel's prior behavior. */
 export function relabelInfoTip(button: HTMLElement, label: string, root: Document = document): void {
   button.setAttribute('aria-label', infoTipName(label));
   setInfoTip(button, false, root);
 }
 
+/** Observe text changes only within the matching panel. The live region is outside it. */
+function watchInfoTip(button: HTMLElement, root: Document): void {
+  const panel = panelOf(button, root);
+  if (!panel || watchedPanels.has(panel) || typeof MutationObserver === 'undefined') return;
+  watchedPanels.add(panel);
+  const next = panel.nextElementSibling;
+  const live = next?.matches('[data-infotip-live]') ? next as HTMLElement : null;
+  const observed: ObservedInfoTip = { lastText: '', live };
+  observations.set(panel, observed);
+  new MutationObserver(() => {
+    if (button.getAttribute('aria-expanded') !== 'true') return;
+    const updated = visibleTipText(panel);
+    const message = changedInfoTipText(observed.lastText, updated, true);
+    observed.lastText = updated;
+    if (message && observed.live) observed.live.textContent = message;
+  }).observe(panel, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['hidden'] });
+}
+
 const bound = new WeakSet<Document>();
 
 export function bindInfoTips(root: Document): void {
+  // Repeated calls can reveal newly inserted tips without adding listeners again.
+  for (const button of root.querySelectorAll<HTMLElement>('[data-infotip]')) {
+    watchInfoTip(button, root);
+    button.classList.remove('invisible');
+  }
   if (bound.has(root)) return;
   bound.add(root);
-  // Until now the buttons kept their space but stayed invisible: without this script they couldn't open.
-  for (const button of root.querySelectorAll<HTMLElement>('[data-infotip]')) button.classList.remove('invisible');
 
   root.addEventListener('click', (event) => {
-    const button = (event.target as Element | null)?.closest?.<HTMLElement>('[data-infotip]');
-    if (!button) return;
-    setInfoTip(button, button.getAttribute('aria-expanded') !== 'true', root);
+    const target = event.target instanceof Element ? event.target : null;
+    const button = target?.closest<HTMLElement>('[data-infotip]');
+    const active = openButton(root);
+    const currentId = active?.getAttribute('aria-controls') ?? null;
+    if (button && root.contains(button)) {
+      const id = button.getAttribute('aria-controls');
+      if (id) setInfoTip(button, nextOpenInfoTip(currentId, { type: 'toggle', id }) === id, root);
+      return;
+    }
+    const inPanel = !!active && target?.closest('[data-infotip-panel]') === panelOf(active, root);
+    if (active && nextOpenInfoTip(currentId, { type: 'outside', insideOpenPanel: inPanel }) === null) {
+      setInfoTip(active, false, root);
+    }
   });
 
-  // Escape on the button or inside its open panel closes that panel only, and goes no further, so a preview or
-  // menu around it stays open. Focus goes back to the button.
-  root.addEventListener(
-    'keydown',
-    (event) => {
-      const target = event.target as Element | null;
-      if (!target?.closest) return;
-      const panel = target.closest<HTMLElement>('[data-infotip-panel]');
-      const button = panel
-        ? root.querySelector<HTMLElement>(`[data-infotip][aria-controls="${panel.id}"]`)
-        : target.closest<HTMLElement>('[data-infotip]');
-      if (!button || !closesInfoTip(event.key, button.getAttribute('aria-expanded') === 'true')) return;
-      event.preventDefault();
-      event.stopPropagation();
-      setInfoTip(button, false, root);
-      button.focus();
-    },
-    true,
-  );
+  // Closing an open tip consumes Escape before an enclosing preview dialog sees it.
+  root.addEventListener('keydown', (event) => {
+    const active = openButton(root);
+    if (!active || !closesInfoTip(event.key, true)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (nextOpenInfoTip(active.getAttribute('aria-controls'), { type: 'escape' }) === null) {
+      setInfoTip(active, false, root);
+      active.focus();
+    }
+  }, true);
 }

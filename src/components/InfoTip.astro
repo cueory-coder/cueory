@@ -47,6 +47,13 @@ const { id, label, text } = Astro.props;
 >
   {text}<slot />
 </div>
+<span
+  data-infotip-live={id}
+  role="status"
+  aria-live="polite"
+  aria-atomic="true"
+  class="sr-only"
+></span>
 
 <script>
   import { bindInfoTips } from '../scripts/infotip';

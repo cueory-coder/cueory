@@ -98,3 +98,74 @@ test.describe('without JavaScript', () => {
     await expect(page.locator('[data-infotip]')).toHaveCSS('visibility', 'hidden');
   });
 });
+
+test('tapping outside closes the active tip without stealing focus', async ({ page }) => {
+  await page.goto('/learn/study-skills');
+  const cards = page.getByRole('button', { name: 'more about cards' });
+  const panel = page.locator('#mode-tile-cards-info');
+  await cards.click();
+  await expect(panel).toBeVisible();
+  await panel.click();
+  await expect(panel).toBeVisible();
+  await page.getByRole('heading', { level: 1 }).click();
+  await expect(panel).toBeHidden();
+  await expect(cards).toHaveAttribute('aria-expanded', 'false');
+});
+
+test('one tip closes when another opens, and Escape also works from outside the panel', async ({ page }) => {
+  await page.goto('/learn/study-skills');
+  const cards = page.getByRole('button', { name: 'more about cards' });
+  const learn = page.getByRole('button', { name: 'more about learn' });
+  await cards.click();
+  await learn.click();
+  await expect(cards).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('#mode-tile-cards-info')).toBeHidden();
+  await expect(learn).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.locator('#mode-tile-learn-info')).toBeVisible();
+  await page.locator('main a').first().focus();
+  await page.keyboard.press('Escape');
+  await expect(learn).toHaveAttribute('aria-expanded', 'false');
+  await expect(learn).toBeFocused();
+});
+
+test('new words in an open tip are politely announced, but closing clears the announcement', async ({ page }) => {
+  await page.goto('/learn/study-skills');
+  const button = page.getByRole('button', { name: 'more about cards' });
+  const panel = page.locator('#mode-tile-cards-info');
+  const live = page.locator('[data-infotip-live="mode-tile-cards-info"]');
+  await expect(live).toHaveAttribute('role', 'status');
+  await expect(live).toHaveAttribute('aria-live', 'polite');
+  await expect(live).toHaveAttribute('aria-atomic', 'true');
+  await button.click();
+  await expect(panel).toBeVisible();
+  await expect(live).toBeEmpty();
+  await panel.evaluate((element) => { element.textContent = '[sample updated tip]'; });
+  await expect(live).toHaveText('[sample updated tip]');
+  await panel.evaluate((element) => { element.textContent = '[sample second update]'; });
+  await expect(live).toHaveText('[sample second update]');
+  await button.click();
+  await expect(live).toBeEmpty();
+});
+
+for (const width of [390, 820, 1440]) {
+  for (const theme of ['Light', 'Dark']) {
+    test('tip interactions pass axe and have no overflow at ' + width + 'px in ' + theme, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto('/learn/study-skills');
+      const toggle = page.getByRole('contentinfo').locator('[data-footer-toggle]');
+      await toggle.scrollIntoViewIfNeeded();
+      if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+      await page.getByRole('radio', { name: theme }).check();
+      const info = page.getByRole('button', { name: 'more about cards' });
+      const box = await info.boundingBox();
+      expect(box?.height).toBeGreaterThanOrEqual(44);
+      expect(box?.width).toBeGreaterThanOrEqual(44);
+      await info.focus();
+      await page.keyboard.press('Enter');
+      await expect(page.locator('#mode-tile-cards-info')).toBeVisible();
+      const report = await new AxeBuilder({ page }).withTags(axeTags).analyze();
+      expect(report.violations.map((v) => v.id + ': ' + v.help)).toEqual([]);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    });
+  }
+}
