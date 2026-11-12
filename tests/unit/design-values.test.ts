@@ -68,6 +68,12 @@ const exceptions: Exception[] = [
   {
     kind: 'size',
     path: 'styles/global.css',
+    matches: text => /^@container sudoku-panel \(min-width: (?:16|32|48)rem\) \{$/.test(text.trim()),
+    reason: 'the Sudoku number pad switches between 5 and 10 columns where 44 px buttons fit; container conditions cannot read tokens',
+  },
+  {
+    kind: 'size',
+    path: 'styles/global.css',
     matches: text =>
       /@media .*\b(?:40|48|64)rem\b/.test(text) ||
       /text-decoration-thickness: [12]px/.test(text) ||
@@ -123,6 +129,13 @@ describe('design values', () => {
     expect(exceptionFor(finding('  @media (width >= 40rem) {'))?.reason).toBeTruthy();
     expect(exceptionFor(finding('  @media (width < 41rem) {'))).toBeUndefined();
     expect(exceptionFor(finding('  padding: 40rem;'))).toBeUndefined();
+  });
+
+  it('allows only the documented Sudoku panel container breakpoints', () => {
+    const finding = (text: string): Finding => ({ kind: 'size', path: 'styles/global.css', line: 1, text });
+    for (const size of ['16', '32', '48']) expect(exceptionFor(finding(`  @container sudoku-panel (min-width: ${size}rem) {`))?.reason).toBeTruthy();
+    expect(exceptionFor(finding('  @container sudoku-panel (min-width: 20rem) {'))).toBeUndefined();
+    expect(exceptionFor(finding('  @container other (min-width: 32rem) {'))).toBeUndefined();
   });
 
   it('limits the anatomy phone breakpoint exception to its exact viewport condition', () => {

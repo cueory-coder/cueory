@@ -57,7 +57,10 @@ test.describe('Task 209: main-content tap targets', () => {
           // Task 97 explicitly permits 24 px square letter targets on the fixed 11×11 Suture board.
           // This is limited to that grid. All other interactive controls still require 44 px.
           const sutureLetterCell = el.matches('button[data-cell]') && !!el.closest('[data-testid="suture"]');
-          const minimum = sutureLetterCell ? 24 : 44;
+          // D-pending (claude/sudoku-layout): sudoku squares shrink so the whole 9 × 9 board fits a phone, never under
+          // 24 px (WCAG 2.2). Limited to the grid's squares; sudoku's number pad and other controls still need 44 px.
+          const sudokuSquare = el.matches('button[role="gridcell"]') && !!el.closest('[data-testid="sudoku"] .sudoku-board');
+          const minimum = sutureLetterCell || sudokuSquare ? 24 : 44;
           if (rect.width >= minimum && rect.height >= minimum) return [];
           return [{
             tag: el.tagName.toLowerCase(),

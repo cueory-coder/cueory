@@ -276,7 +276,8 @@ test.describe('daily games: sudoku (Task 625)', () => {
     await expect(dialog.getByRole('checkbox', { name: 'play sound on solve' })).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(close).toBeFocused();
-    await expect(dialog.getByRole('radio')).toHaveCount(0);
+    // Theme rows drive the site's own switch (no second theme system); gameboard settings persist on their own.
+    await expect(dialog.getByRole('radio')).toHaveCount(3);
     await dialog.getByRole('checkbox', { name: 'start in auto candidate mode' }).check();
     await page.keyboard.press('Escape');
     await expect(trigger).toBeFocused();
@@ -292,11 +293,22 @@ test.describe('daily games: sudoku (Task 625)', () => {
     await expect(game(page).locator('.sudoku-candidates')).toHaveCount(0);
   });
 
-  test('keeps 44 px Sudoku cells on a phone, and print isolates only givens plus cueory.app', async ({ page }) => {
+  test('fits the whole Sudoku board on a phone with 44 px number buttons, and print isolates only givens plus cueory.app', async ({ page }) => {
+    // D-pending (claude/sudoku-layout): on a 390 px phone the squares shrink to fit (about 32 px, never under the
+    // 24 px WCAG 2.2 target minimum) instead of keeping 44 px squares that cut the board off. Number buttons stay 44 px.
     await page.setViewportSize({ width: 390, height: 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-    const boxes = await cells(page).evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect()));
+    const panel = (await game(page).locator('.sudoku-panel').boundingBox())!;
+    const boxes = await cells(page).evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().toJSON()));
     for (const box of boxes) {
+      expect(box.width).toBeGreaterThanOrEqual(24);
+      expect(box.height).toBeGreaterThanOrEqual(24);
+      expect(box.left).toBeGreaterThanOrEqual(panel.x - 0.5);
+      expect(box.right).toBeLessThanOrEqual(panel.x + panel.width + 0.5);
+    }
+    const pad = await game(page).locator('.sudoku-number-row button').evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().toJSON()));
+    expect(pad).toHaveLength(10);
+    for (const box of pad) {
       expect(box.width).toBeGreaterThanOrEqual(44);
       expect(box.height).toBeGreaterThanOrEqual(44);
     }

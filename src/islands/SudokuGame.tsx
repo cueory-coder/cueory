@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { browserStorage } from '../scripts/storage';
 import { printGame } from './gameprint';
 import { localDay } from './gameresults';
+import { THEME_ROWS, chooseSiteTheme, currentSiteTheme } from './sitetheme';
 import { DEFAULT_SUDOKU_SETTINGS, LEVEL_RULES, applySudokuEdit, candidates, conflictIndices, dailySudokuSeed, generateSudoku, getResult, loadSudokuSettings, saveSudokuSettings, sudokuKeyAction, type SudokuLevel, type SudokuSettings } from './sudoku';
 
 const LEVELS: SudokuLevel[] = ['easy', 'medium', 'hard'];
@@ -39,8 +40,10 @@ export default function SudokuGame() {
   const [settings, setSettings] = useState<SudokuSettings>(() => loadSudokuSettings(browserStorage()));
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [howOpen, setHowOpen] = useState(false);
+  const [theme, setTheme] = useState(() => currentSiteTheme(browserStorage()));
   const [said, setSaid] = useState('');
   const dialog = useRef<HTMLDivElement>(null);
+  const overlay = useRef<HTMLDialogElement>(null);
   const settingsButton = useRef<HTMLButtonElement>(null);
   const solvedResult = useRef<HTMLDivElement>(null);
   const cells = useRef(new Map<number, HTMLButtonElement>());
@@ -75,6 +78,10 @@ export default function SudokuGame() {
   useEffect(() => {
     if (!settingsOpen) return;
     const previous = document.activeElement as HTMLElement | null;
+    // A modal <dialog> sits in the browser's top layer, so it is always placed against the screen, never against a
+    // page panel further up (that is what pushed the old overlay off the bottom of a desktop screen).
+    if (overlay.current && !overlay.current.open) overlay.current.showModal?.();
+    setTheme(currentSiteTheme(browserStorage()));
     const controls = () => [...(dialog.current?.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled])') ?? [])];
     controls()[0]?.focus();
     const onKey = (event: KeyboardEvent) => {
@@ -155,7 +162,7 @@ export default function SudokuGame() {
     <div className="sudoku-panel">
       <div className="sudoku-toolbar">
         <div className="sudoku-time">{settings.showTimer && <span>time: <strong>{elapsed}</strong></span>}{settings.showTimer && ' '}<button type="button" className="sudoku-small-button" aria-label={paused ? 'resume puzzle' : 'pause puzzle'} onClick={() => setPaused((value) => !value)}><span aria-hidden="true">{paused ? '▶' : 'Ⅱ'}</span></button></div>
-        <div className="segmented" aria-label="difficulty">{LEVELS.map((choice) => <button key={choice} type="button" className="segmented-option" aria-pressed={level === choice} onClick={() => setLevel(choice)}>{choice}</button>)}</div>
+        <div className="segmented" aria-label="difficulty">{LEVELS.map((choice) => <button key={choice} type="button" className="segmented-option" aria-pressed={level === choice} onClick={() => setLevel(choice)}>{level === choice && <span className="segmented-check" aria-hidden="true">✓</span>}{choice}</button>)}</div>
         <span className="sudoku-errors">{settings.showErrors ? <>error: <strong>{errors}</strong></> : null}</span>
       </div>
       <div className="sudoku-board-scroll">
@@ -178,20 +185,21 @@ export default function SudokuGame() {
       </div>
       <div className="sudoku-pad-wrap">
         <button type="button" className="sudoku-setting-button sudoku-hints" role="checkbox" aria-checked={hints} onClick={() => setHints((value) => !value)}><span aria-hidden="true">{hints ? '☑' : '☐'}</span> hints</button>
-        <div className="sudoku-number-row grid-cols-5 sm:grid-cols-10" aria-label="numbers">{NUMBERS.map((number) => <button key={number} type="button" onClick={() => enter(number)} disabled={paused || solved}>{number}</button>)}<button type="button" onClick={mark} aria-label="add or remove x mark" disabled={paused || solved}>x</button></div>
+        <div className="sudoku-number-row" aria-label="numbers">{NUMBERS.map((number) => <button key={number} type="button" onClick={() => enter(number)} disabled={paused || solved}>{number}</button>)}<button type="button" onClick={mark} aria-label="add or remove x mark" disabled={paused || solved}>x</button></div>
         <button ref={settingsButton} type="button" className="sudoku-setting-button sudoku-settings-trigger" aria-haspopup="dialog" onClick={() => setSettingsOpen(true)}><span aria-hidden="true">⚙</span> settings</button>
       </div>
     </div>
     {solved && <div ref={solvedResult} className="sudoku-solved" tabIndex={-1} role="status" data-testid="sudoku-result"><p className="text-lg font-medium">solved.</p><p>{elapsed} · {errors} {errors === 1 ? 'error' : 'errors'}</p><p className="text-sm text-ink-soft">a new sudoku comes out tomorrow.</p></div>}
-    {settingsOpen && <div className="sudoku-overlay" onPointerDown={(event) => event.target === event.currentTarget && setSettingsOpen(false)}>
-      <div ref={dialog} className="sudoku-settings" role="dialog" aria-modal="true" aria-labelledby="sudoku-settings-title">
+    {settingsOpen && <dialog ref={overlay} className="sudoku-overlay" aria-labelledby="sudoku-settings-title" onCancel={(event) => { event.preventDefault(); setSettingsOpen(false); }} onPointerDown={(event) => event.target === event.currentTarget && setSettingsOpen(false)}>
+      <div ref={dialog} className="sudoku-settings">
         <div className="sudoku-settings-heading"><h3 id="sudoku-settings-title">settings</h3><button type="button" className="sudoku-icon-button" aria-label="close settings" onClick={() => setSettingsOpen(false)}>×</button></div>
+        <fieldset><legend>theme</legend>{THEME_ROWS.map((row) => <label key={row.value} className="sudoku-option sudoku-theme-option"><span>{row.label}<small>{row.detail}</small></span><input type="radio" name="sudoku-theme" value={row.value} checked={theme === row.value} onChange={() => { setTheme(row.value); chooseSiteTheme(document, browserStorage(), row.value); }} /></label>)}</fieldset>
         <fieldset><legend>gameboard settings</legend>{(Object.keys(DEFAULT_SUDOKU_SETTINGS) as Array<keyof SudokuSettings>).map((key) => {
           const labels: Record<keyof SudokuSettings, string> = { checkGuesses: 'check guesses when entered', autoCandidates: 'start in auto candidate mode', showErrors: 'show error counter', showTimer: 'show timer', highlightConflicts: 'highlight conflicts', highlightRowColumn: 'highlight row and column', highlightBox: 'highlight box', highlightIdentical: 'highlight identical numbers', playSound: 'play sound on solve' };
-          return <label key={key} className="sudoku-option"><span>{labels[key]}</span><input type="checkbox" checked={settings[key]} onChange={() => updateSetting(key)} /></label>;
+          return <label key={key} className="sudoku-option sudoku-check-option"><input type="checkbox" checked={settings[key]} onChange={() => updateSetting(key)} /><span>{labels[key]}</span></label>;
         })}</fieldset>
       </div>
-    </div>}
+    </dialog>}
     <p className="sr-only" aria-live="polite" aria-atomic="true" data-testid="sudoku-live">{said}</p>
     <p className="sudoku-print-footer">cueory.app</p>
   </section>;
