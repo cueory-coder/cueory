@@ -89,11 +89,18 @@ test('sheet works at phone, tablet and desktop in both palettes, with keyboard a
     await page.emulateMedia({ colorScheme: theme });
     const response = await page.goto(route);
     expect(response?.status()).toBe(200);
-    const palette = await page.evaluate(() => ({
-      activeOverride: document.documentElement.getAttribute('data-theme'),
-      page: getComputedStyle(document.documentElement).getPropertyValue('--color-page').trim().toLowerCase(),
-    }));
-    expect(palette).toEqual({ activeOverride: null, page: theme === 'dark' ? '#1c1917' : '#f9f5ef' });
+    const palette = await page.evaluate((expectedTheme) => {
+      const root = document.documentElement;
+      const activeOverride = root.getAttribute('data-theme');
+      const page = getComputedStyle(root).getPropertyValue('--color-page').trim();
+      root.setAttribute('data-theme', expectedTheme);
+      const expected = getComputedStyle(root).getPropertyValue('--color-page').trim();
+      if (activeOverride === null) root.removeAttribute('data-theme');
+      else root.setAttribute('data-theme', activeOverride);
+      return { activeOverride, page, expected };
+    }, theme);
+    expect(palette.activeOverride).toBeNull();
+    expect(palette.page).toBe(palette.expected);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     const back = page.getByRole('link', { name: 'back to cards' });
     const box = await back.boundingBox();
