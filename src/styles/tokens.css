@@ -55,6 +55,10 @@
   --color-model: #8b6f5b;          /* Mocha    — a structure */
   --color-model-alt: #d3b7a1;      /* Taupe    — every other structure */
   --color-model-selected: #3e2c23; /* Espresso — the selected structure */
+  --color-board-tint: color-mix(in srgb, #d3b7a1 50%, #8b6f5b); /* Taupe + Mocha — sudoku row, column and box of the selected square */
+  --color-board-given: color-mix(in srgb, #eadccf 50%, #f9f5ef); /* Linen + Ivory — sudoku given numbers, far lighter than the tint */
+  --color-board-match: #6b5243;    /* Bronze   — sudoku squares holding the selected number */
+  --color-on-board-match: #f9f5ef; /* Ivory    — numbers on those squares */
 
   /* ---------- Fonts ---------- */
   --font-body: "Lato", system-ui, -apple-system, "Segoe UI", sans-serif; /* headings, body, UI, buttons */
@@ -352,6 +356,10 @@
     --color-model: #cbb8a4;          /* Sand */
     --color-model-alt: #6b5243;      /* Bronze */
     --color-model-selected: #f9f5ef; /* Ivory */
+    --color-board-tint: color-mix(in srgb, #6b5243 30%, #8b6f5b); /* Bronze + Mocha */
+    --color-board-given: color-mix(in srgb, #3a2d24 50%, #1c1917); /* Walnut + Charcoal */
+    --color-board-match: #cbb8a4;    /* Sand */
+    --color-on-board-match: #1c1917; /* Charcoal */
     --shadow-tint: 28 25 23;      /* Charcoal */
     --silk-fold-rgb: 58 45 36;    /* Walnut */
     --silk-fold-alpha: 0.7;
@@ -421,6 +429,10 @@
   --color-model: #cbb8a4;          /* Sand */
   --color-model-alt: #6b5243;      /* Bronze */
   --color-model-selected: #f9f5ef; /* Ivory */
+  --color-board-tint: color-mix(in srgb, #6b5243 30%, #8b6f5b); /* Bronze + Mocha */
+  --color-board-given: color-mix(in srgb, #3a2d24 50%, #1c1917); /* Walnut + Charcoal */
+  --color-board-match: #cbb8a4;    /* Sand */
+  --color-on-board-match: #1c1917; /* Charcoal */
   --shadow-tint: 28 25 23;      /* Charcoal */
   --silk-fold-rgb: 58 45 36;    /* Walnut */
   --silk-fold-alpha: 0.7;
@@ -474,10 +486,15 @@
   --sudoku-board-frame: calc(var(--sudoku-box-line) * 2 + 1px); /* outer box lines + 1px so rounding never overflows */
   --sudoku-candidate-size: 0.625rem;
   --sudoku-entered-line: 2px;
-  --color-sudoku-given: var(--color-surface);
-  --color-sudoku-related: color-mix(in srgb, var(--color-soft) 40%, var(--color-page));
-  --color-sudoku-box-related: color-mix(in srgb, var(--color-surface) 70%, var(--color-page));
-  --color-sudoku-identical: var(--color-soft);
-  --color-sudoku-entered: var(--color-ink-soft);
-  --color-sudoku-conflict: var(--color-highlight);
+  --sudoku-selected-line: 3px;                       /* the selected square's outline */
+  /* Highlights (Christian, 2026-11-12): the row, column and box tint is clearly darker than the given-number shading;
+     squares with the selected number are the strongest fill plus bold; numbers keep 4.5:1 on every fill. */
+  --color-sudoku-given: var(--color-board-given);
+  --color-sudoku-related: var(--color-board-tint);
+  --color-sudoku-box-related: var(--color-board-tint);
+  --color-sudoku-identical: var(--color-board-match);
+  --color-on-sudoku-identical: var(--color-on-board-match);
+  --color-sudoku-selected: var(--color-ink);
+  --color-sudoku-entered: var(--color-ink);
+  --color-sudoku-conflict: currentColor;
 }

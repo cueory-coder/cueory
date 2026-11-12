@@ -2052,11 +2052,12 @@ html:has(dialog.mode-preview[open]) {
   .sudoku-cell.is-entered::after { position: absolute; inset-inline: calc(var(--spacing) * 2); inset-block-end: calc(var(--spacing) * 1.5); block-size: var(--sudoku-entered-line); border-radius: var(--radius-pill); background: currentColor; content: ""; }
   .sudoku-cell.is-related { background: var(--color-sudoku-related); }
   .sudoku-cell.is-box-related { background: var(--color-sudoku-box-related); }
-  .sudoku-cell.is-identical { background: var(--color-sudoku-identical); box-shadow: inset 0 0 0 var(--sudoku-line) var(--color-control); }
+  .sudoku-cell.is-identical { background: var(--color-sudoku-identical); color: var(--color-on-sudoku-identical); font-weight: 700; }
   .sudoku-cell.is-conflict::before { position: absolute; inset: calc(var(--spacing) * 1); border: var(--sudoku-line) dashed var(--color-sudoku-conflict); border-radius: var(--radius-sm); content: ""; }
-  .sudoku-cell.is-selected { z-index: 1; outline: var(--focus-width) solid var(--color-focus); outline-offset: calc(-1 * var(--focus-width)); }
+  /* The selected square is the focal point: plain fill inside a strong outline, after every tint so it always wins. */
+  .sudoku-cell.is-selected { z-index: 1; background: var(--color-page); color: var(--color-ink); outline: var(--sudoku-selected-line) solid var(--color-sudoku-selected); outline-offset: calc(-1 * var(--sudoku-selected-line)); }
   /* Keyboard focus on the selected square doubles its ring, so focus on the grid is visible apart from selection (Task 210). */
-  .sudoku-cell.is-selected:focus-visible { outline-width: calc(var(--focus-width) * 2); outline-offset: calc(-2 * var(--focus-width)); }
+  .sudoku-cell.is-selected:focus-visible { outline-width: calc(var(--sudoku-selected-line) + var(--focus-width)); outline-offset: calc(-1 * (var(--sudoku-selected-line) + var(--focus-width))); }
   .sudoku-candidates { display: grid; inline-size: 100%; block-size: 100%; grid-template-columns: repeat(3, 1fr); font-size: var(--sudoku-candidate-size); line-height: 1; }
   .sudoku-candidates i { display: flex; align-items: center; justify-content: center; font-style: normal; }
   .sudoku-mark { color: var(--color-ink-soft); }
