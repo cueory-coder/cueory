@@ -878,3 +878,69 @@ test.describe('W02-3 confirm before forgetting all private game stats', () => {
     }
   });
 });
+
+test.describe('W02-3 stale confirmation safety in multiple tabs', () => {
+  const record = { game: 'pulse', day: '2026-11-01', solved: true, tries: 1 };
+  const panel = (page: Page) => page.getByTestId('game-stats');
+  const toggle = (page: Page) => panel(page).getByRole('switch', { name: 'keep my stats' });
+
+  test.beforeEach(async ({ page }) => {
+    await page.clock.setFixedTime(new Date('2026-11-01T15:00:00'));
+    await page.addInitScript((results) => {
+      localStorage.setItem('cueory-game-stats', JSON.stringify({ version: 1, results }));
+    }, [record]);
+    await page.goto('/play');
+    await expect(toggle(page)).toHaveAttribute('aria-checked', 'true');
+  });
+
+  test('closing stats from another tab dismisses an open confirmation and restores focus', async ({ page, context }) => {
+    await panel(page).getByRole('button', { name: 'forget all my stats' }).click();
+    await expect(panel(page).getByRole('button', { name: 'cancel' })).toBeFocused();
+    const other = await context.newPage();
+    await other.clock.setFixedTime(new Date('2026-11-01T15:00:00'));
+    await other.goto('/play');
+    await expect(toggle(other)).toHaveAttribute('aria-checked', 'true');
+    await toggle(other).click();
+
+    await expect(toggle(page)).toHaveAttribute('aria-checked', 'false');
+    await expect(toggle(page)).toBeFocused();
+    await expect(page.getByTestId('forget-all-confirmation')).toHaveCount(0);
+    await expect(page.getByTestId('stats-live')).toHaveText(
+      'stats changed in another tab. review them before forgetting anything.',
+    );
+    expect(await page.evaluate(() => localStorage.getItem('cueory-game-stats'))).toBeNull();
+    await other.close();
+  });
+
+  test('another tab clearing saved results dismisses stale confirmation without opting out', async ({ page, context }) => {
+    await panel(page).getByRole('button', { name: 'forget all my stats' }).click();
+    await expect(panel(page).getByRole('button', { name: 'cancel' })).toBeFocused();
+    const other = await context.newPage();
+    await other.clock.setFixedTime(new Date('2026-11-01T15:00:00'));
+    await other.goto('/play');
+    await other.getByRole('button', { name: 'forget all my stats' }).click();
+    await other.getByRole('button', { name: 'yes, forget all' }).click();
+
+    await expect(toggle(page)).toHaveAttribute('aria-checked', 'true');
+    await expect(toggle(page)).toBeFocused();
+    await expect(page.getByTestId('forget-all-confirmation')).toHaveCount(0);
+    await expect(panel(page).getByRole('button', { name: 'forget all my stats' })).toHaveCount(0);
+    await expect(page.getByTestId('stats-live')).toHaveText(
+      'stats changed in another tab. review them before forgetting anything.',
+    );
+    expect(JSON.parse((await page.evaluate(() => localStorage.getItem('cueory-game-stats')))!))
+      .toEqual({ version: 1, results: [] });
+    await other.close();
+  });
+
+  test('back-forward cache restoration dismisses a stale confirmation', async ({ page }) => {
+    await panel(page).getByRole('button', { name: 'forget all my stats' }).click();
+    await expect(panel(page).getByRole('button', { name: 'cancel' })).toBeFocused();
+    await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })));
+    await expect(page.getByTestId('forget-all-confirmation')).toHaveCount(0);
+    await expect(toggle(page)).toBeFocused();
+    await expect(page.getByTestId('stats-live')).toHaveText(
+      'your saved stats may have changed. review them before continuing.',
+    );
+  });
+});

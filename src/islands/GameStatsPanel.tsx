@@ -42,6 +42,9 @@ export default function GameStatsPanel({ games: order, showStat = false }: Props
   const [said, setSaid] = useState('');
   const [blocked, setBlocked] = useState(false);
   const [confirmingAll, setConfirmingAll] = useState(false);
+  /** Latest confirmation state for the storage/pageshow listeners installed once. */
+  const confirmingAllRef = useRef(confirmingAll);
+  confirmingAllRef.current = confirmingAll;
   /** What this tab shows, for the listeners, which are set up once. */
   const shown = useRef(saved);
   shown.current = saved;
@@ -113,11 +116,25 @@ export default function GameStatsPanel({ games: order, showStat = false }: Props
     };
     // Another tab changed the stats, or this page came back from the back/forward cache. ./gameresults has already
     // dropped any waiting rounds; this shows what storage holds now.
+    const dismissStaleConfirmation = (message: string) => {
+      // Another tab may have cleared or replaced the results we were about to delete.
+      // Close the stale confirmation and send keyboard focus to a control that still exists.
+      if (!confirmingAllRef.current) return;
+      focusNext.current = 'switch';
+      setConfirmingAll(false);
+      setSaid(message);
+    };
     const onStorage = (event: StorageEvent) => {
-      if (event.key === null || event.key === STATS_STORAGE_KEY) setSaved(latest());
+      if (event.key === null || event.key === STATS_STORAGE_KEY) {
+        dismissStaleConfirmation('stats changed in another tab. review them before forgetting anything.');
+        setSaved(latest());
+      }
     };
     const onPageShow = (event: PageTransitionEvent) => {
-      if (event.persisted) setSaved(latest());
+      if (event.persisted) {
+        dismissStaleConfirmation('your saved stats may have changed. review them before continuing.');
+        setSaved(latest());
+      }
     };
     // Rounds finished before this panel loaded are kept now, then each one as it ends.
     keepWaiting();
