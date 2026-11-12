@@ -40,6 +40,10 @@ function paths(expr: ts.Expression, vars: Map<string, ts.Expression>): string[] 
         const shape = e.arguments[0];
         if (!shape || !ts.isObjectLiteralExpression(shape)) throw new Error('Invalid z.object: ' + path);
         for (const p of shape.properties) {
+          if (ts.isShorthandPropertyAssignment(p)) {
+            walk(p.name, path ? path + '.' + p.name.text : p.name.text, false, true, stack);
+            continue;
+          }
           if (!ts.isPropertyAssignment(p)) throw new Error('Unsupported Zod object field');
           walk(p.initializer, path ? path + '.' + name(p.name) : name(p.name), false, true, stack);
         }
