@@ -1,4 +1,4 @@
-STATUS: Task 630 (!8), resume lifecycle clear guard: preserve cleared or replaced study checkpoints during background and page-exit saves. Draft pending browser verification. Target: staging.
+STATUS: Task 630 (!8), resume lifecycle clear guard: preserve cleared or replaced study checkpoints during background and page-exit saves. Browser checks passed on current staging (Claude, 2026-11-11); the Label It page-exit test was updated to match. Target: staging.
 
 ## Completed work
 
@@ -23,7 +23,7 @@ Validation used Node 24.22.1. It meets the package engine range but is one patch
 
 Playwright's pinned Chromium headless-shell executable is missing. A diagnostic launch of the installed Chromium also failed because the environment forbids its local process socket. Automatic approval review rejected an escalated launch. No browser assertion or axe pass is claimed, and the unchanged restriction was not retried.
 
-Keep !8 in Draft until the browser scenarios and required browser/accessibility checks run in a supported environment. Include immediate navigation after a flashcard answer because CardDeck saves through a passive effect. No GitLab head pipeline was present when this status was reviewed, so no CI pass is claimed.
+Update (Claude, 2026-11-11): the browser checks have now run in Chromium on current staging and pass; see the MR description. Earlier note kept for history: keep !8 in Draft until the browser scenarios and required browser/accessibility checks run in a supported environment. Include immediate navigation after a flashcard answer because CardDeck saves through a passive effect. No GitLab head pipeline was present when this status was reviewed, so no CI pass is claimed.
 
 ## Behavior limits
 

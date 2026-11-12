@@ -98,15 +98,23 @@ test('reveal all and cover all keep their behavior and covered marks do not retu
   await expect(page.getByTestId('labelit-status')).toHaveText('4 covered · know it: 0 · still learning: 0');
 });
 
-test('lifecycle flushes the latest own marks, without saving newly revealed label text', async ({ page }) => {
+test('lifecycle refreshes the latest own marks, without saving newly revealed label text', async ({ page }) => {
   await open(page);
   await markLabel(page, 1, 'still learning');
   await board(page).getByRole('button', { name: 'uncover label 2', exact: true }).click();
+  const before = await saved(page);
+  // Page exit refreshes this tab's own saved checkpoint (Task 630). Repeat until the clock has moved on.
+  await expect.poll(async () => {
+    await page.evaluate(() => dispatchEvent(new Event('pagehide')));
+    return (await saved(page)).savedAt;
+  }).toBeGreaterThan(before.savedAt);
+  expect((await saved(page)).answers).toEqual({ roof: { mark: 'learning', round: 'current' } });
+  // A save removed elsewhere (another tab's "forget my progress") stays removed on page exit (Task 630).
   await page.evaluate(key => {
     localStorage.removeItem(key);
     dispatchEvent(new Event('pagehide'));
   }, key);
-  expect((await saved(page)).answers).toEqual({ roof: { mark: 'learning', round: 'current' } });
+  expect(await saved(page)).toBeNull();
 });
 
 test('merely visiting or revealing does not overwrite a different study tool save', async ({ page }) => {
