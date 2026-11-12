@@ -95,9 +95,28 @@ for (const viewport of [
 
       const link = page.locator('article.reading-copy').getByRole('link', { name: 'disclaimer' });
       await expect(link).toBeVisible();
-      await link.focus();
+
+      // Start at the skip link and actually Tab through the page to this link.
+      // Programmatic focus on the disclaimer would not test keyboard order or focus-visible.
+      const skip = page.getByRole('link', { name: 'skip to content' });
+      await skip.focus();
+      await expect(skip).toBeFocused();
+      let reachedLink = false;
+      for (let step = 0; step < 30; step++) {
+        await page.keyboard.press('Tab');
+        if (await link.evaluate((el) => document.activeElement === el)) {
+          reachedLink = true;
+          break;
+        }
+      }
+      expect(reachedLink).toBe(true);
       await expect(link).toBeFocused();
-      expect(await link.evaluate((el) => getComputedStyle(el).outlineStyle)).toBe('solid');
+      const focusStyle = await link.evaluate((el) => ({
+        style: getComputedStyle(el).outlineStyle,
+        width: Number.parseFloat(getComputedStyle(el).outlineWidth),
+      }));
+      expect(focusStyle.style).toBe('solid');
+      expect(focusStyle.width).toBeGreaterThanOrEqual(2);
       const bounds = await link.boundingBox();
       expect(bounds?.height ?? 0).toBeGreaterThanOrEqual(44);
       expect(bounds?.width ?? 0).toBeGreaterThanOrEqual(44);
