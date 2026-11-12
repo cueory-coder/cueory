@@ -10,6 +10,7 @@ import {
   BUDGETS,
   budgetBreaches,
   extractHtmlAssetUrls,
+  extractInlineModuleAssetUrls,
   extractImportedAssetUrls,
   formatPerformanceReport,
   resolveLocalAsset,
@@ -39,12 +40,12 @@ describe('built-site performance budgets', () => {
       <link href='/_astro/site.css?v=1' media='all' rel='stylesheet'>
       <link rel="modulepreload" href="/_astro/shared.js">
       <script defer src='/_astro/page.js'></script>
-      <astro-island renderer-url='/_astro/react.js' component-url='/_astro/island.js'></astro-island>
+      <astro-island renderer-url='/_astro/react.js' component-url='/_astro/island.js' before-hydration-url='/_astro/before.js' client-url='/_astro/legacy.js'></astro-island>
       <img src='/models/anatomy/huge.glb'>
       <link rel='icon' href='/icon.svg'>
     `)).toEqual([
       '/_astro/site.css?v=1', '/_astro/shared.js', '/_astro/page.js',
-      '/_astro/island.js', '/_astro/react.js',
+      '/_astro/island.js', '/_astro/react.js', '/_astro/before.js', '/_astro/legacy.js',
     ]);
   });
 
@@ -55,6 +56,34 @@ describe('built-site performance budgets', () => {
       .toEqual(['./base.css', '../color.css']);
   });
 
+  it('follows static imports in inline module scripts but not classic or lazy imports', () => {
+    expect(extractInlineModuleAssetUrls(`
+      <script>import '/_astro/classic.js';</script>
+      <script type='module'>import '/_astro/inline.js'; import { x } from '/_astro/shared.js'; import('/_astro/lazy.js');</script>
+      <script type='module' src='/_astro/external.js'>import '/_astro/ignore.js';</script>
+      <SCRIPT TYPE="MODULE">import '/_astro/inline.js';</SCRIPT>
+    `)).toEqual(['/_astro/inline.js', '/_astro/shared.js']);
+  });
+
+  it('counts Astro hydration and inline module import assets in a built page', () => {
+    const f = fixture();
+    const html = `<astro-island before-hydration-url="/_astro/before.js" client-url="/_astro/client.js"></astro-island>` +
+      `<script type="module">import '/_astro/inline.js'; import('/_astro/lazy.js');</script>`;
+    f.file('index.html', html);
+    const before = 'export const before = true;';
+    const client = 'export const client = true;';
+    const inline = `import './shared.js';`;
+    const shared = `export const shared = '[sample clue]';`;
+    f.file('_astro/before.js', before);
+    f.file('_astro/client.js', client);
+    f.file('_astro/inline.js', inline);
+    f.file('_astro/shared.js', shared);
+    const bytes = (value: string) => gzipSync(value).length;
+    const [page] = scanPerformanceBudget(f.root);
+    expect(page!.html).toBe(bytes(html));
+    expect(page!.js).toBe([before, client, inline, shared].reduce((sum, item) => sum + bytes(item), 0));
+    expect(page!.breaches).toEqual([]);
+  });
   it('adds each page HTML, linked JS/CSS and transitive static imports once', () => {
     const f = fixture();
     const html = `<link rel="stylesheet" href="/_astro/site.css"><script type="module" src="/_astro/app.js"></script><astro-island component-url="/_astro/app.js"></astro-island>`;
