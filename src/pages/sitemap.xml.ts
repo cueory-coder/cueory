@@ -75,14 +75,16 @@ function attributeValueEnd(props: string, start: number): number {
 /** Check an actual Layout attribute, not a comment, another prop's value or an unrelated word. */
 export function sourceDeclaresNoindex(source: string): boolean {
   const props = layoutOpeningProps(source);
-  if (props === undefined) return false;
+  if (props === undefined) return true;
   let i = 0;
   while (i < props.length) {
     while (i < props.length && /[\s/]/.test(props[i])) i++;
+    // A JSX spread can supply noindex. Source inspection cannot establish its value,
+    // even if an explicit false appears elsewhere, so exclude this page from indexing.
+    if (props[i] === '{') return true;
     const attr = /^[^\s=/>{]+/.exec(props.slice(i));
     if (!attr) {
-      // Skip JSX spreads and unsupported characters without interpreting their contents as attributes.
-      i = props[i] === '{' ? attributeValueEnd(props, i) : i + 1;
+      i++;
       continue;
     }
     const name = attr[0];
@@ -98,7 +100,8 @@ export function sourceDeclaresNoindex(source: string): boolean {
     }
     if (name === 'noindex') {
       // Dynamic values are excluded conservatively. Only explicit false permits indexing.
-      return value === undefined || !/^(?:\{\s*false\s*\}|"false"|'false')$/.test(value);
+      if (value === undefined || !/^(?:\{\s*false\s*\}|"false"|'false')$/.test(value)) return true;
+      // Continue scanning: an unknown JSX spread after noindex={false} can override it.
     }
   }
   return false;

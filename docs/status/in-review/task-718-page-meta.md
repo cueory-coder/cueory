@@ -1,1 +1,1 @@
-status: W18 (#18): page metadata and sitemap guard in review. Fixed noindex parsing for quoted > and tight /> props, and excluded unresolved routes. Exact legacy copy exceptions documented on issue #18.
+STATUS: W18 (#18): page metadata and sitemap guard in review. Fixed noindex parsing for quoted > and tight /> props, and excluded unresolved routes. Exact legacy copy exceptions documented on issue #18.
