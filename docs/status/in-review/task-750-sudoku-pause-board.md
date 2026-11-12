@@ -1,0 +1,1 @@
+STATUS: Task 750, Sudoku pause and resume (#53): givens remain visible while paused, student entries and X marks are hidden without loss, and elapsed time stops until resumed. Pure rules and browser tests cover the behavior.
