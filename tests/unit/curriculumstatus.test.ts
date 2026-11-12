@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { existsSync, readFileSync } from 'node:fs';
 import { curriculumStatus } from '../../src/lessons/curriculumstatus';
 import type { MapUnit } from '../../src/islands/lessonmap';
 import type { CatalogLesson } from '../../src/lessons/catalog';
@@ -18,6 +19,19 @@ const units: MapUnit[] = [
   },
 ];
 const published = (curriculumId: string | undefined) => ({ curriculumId }) as Pick<CatalogLesson, 'curriculumId'>;
+
+const builtPage = new URL('../../dist/preview/curriculum.html', import.meta.url);
+// The project's unit suite follows the ordinary build. Preview browser tests
+// build separately with the explicit draft flag.
+describe.skipIf(!existsSync(builtPage))('normal-build curriculum preview boundary', () => {
+  it('shows only a closed notice without curriculum rows or serialized lesson IDs', () => {
+    const html = readFileSync(builtPage, 'utf8');
+    expect(html).toContain('data-testid="curriculum-preview-closed"');
+    expect(html).not.toContain('data-curriculum-lesson-id');
+    expect(html).not.toContain('data-curriculum-unit');
+    expect(html).not.toMatch(/U\d{2}-T\d{2}-L\d{2}/);
+  });
+});
 
 describe('curriculum build status', () => {
   it('marks a catalog lesson as built and counts it at every level', () => {

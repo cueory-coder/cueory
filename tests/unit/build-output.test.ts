@@ -72,6 +72,7 @@ const initialJsBudget = {
   'preview/anatomy-lab.html': 89027,
   'preview/body-viewer.html': 151504,
   'preview/concept-map.html': 91589,
+  'preview/curriculum.html': 89731, // #63: measured normal build after page gate, Node 24.22.1, same scanner
   'preview/email.html': 146752,
   'preview/prose.html': 146752,
   'preview/reminders.html': 148152,

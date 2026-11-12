@@ -10,14 +10,25 @@ import Layout from '../../layouts/Layout.astro';
 import { parseLessonMap } from '../../islands/lessonmap';
 import { lessonCatalog } from '../../lessons/load';
 import { curriculumStatus } from '../../lessons/curriculumstatus';
+import { draftsAllowed } from '../../islands/anatomylab';
 
-const source = parseLessonMap(readFileSync(resolve('docs/curriculum/medsurg-lesson-map.csv'), 'utf8'));
-if (source.problems.length) {
-  throw new Error('the curriculum preview requires a valid lesson map.');
-}
-const preview = curriculumStatus(source.units, (await lessonCatalog()).lessons);
-if (preview.unmappedCatalogIds.length) {
-  throw new Error('the curriculum preview found built lessons missing from the curriculum map.');
+// Reuse the existing build boundary. Production and unknown Workers branches
+// never read or serialize this internal outline. This is not an auth check.
+const showPreview = draftsAllowed({
+  WORKERS_CI: process.env.WORKERS_CI,
+  WORKERS_CI_BRANCH: process.env.WORKERS_CI_BRANCH,
+  CUEORY_ANATOMY_DRAFTS: process.env.CUEORY_ANATOMY_DRAFTS,
+});
+let preview: ReturnType<typeof curriculumStatus> | null = null;
+if (showPreview) {
+  const source = parseLessonMap(readFileSync(resolve('docs/curriculum/medsurg-lesson-map.csv'), 'utf8'));
+  if (source.problems.length) {
+    throw new Error('the curriculum preview requires a valid lesson map.');
+  }
+  preview = curriculumStatus(source.units, (await lessonCatalog()).lessons);
+  if (preview.unmappedCatalogIds.length) {
+    throw new Error('the curriculum preview found built lessons missing from the curriculum map.');
+  }
 }
 ---
 
@@ -28,6 +39,7 @@ if (preview.unmappedCatalogIds.length) {
   noindex
   promo={false}
 >
+  {preview ? (
   <div data-curriculum-preview class="mx-auto max-w-page space-y-7 px-0 pb-section pt-8">
     <header class="space-y-3">
       <p class="text-sm text-ink-soft">internal preview · not linked from the site</p>
@@ -75,4 +87,10 @@ if (preview.unmappedCatalogIds.length) {
       ))}
     </ol>
   </div>
+  ) : (
+    <div data-testid="curriculum-preview-closed" class="mx-auto max-w-prose space-y-4 py-section">
+      <h1 class="text-2xl font-semibold text-ink">curriculum status</h1>
+      <p class="text-ink-soft">this internal preview is unavailable in this build.</p>
+    </div>
+  )}
 </Layout>
