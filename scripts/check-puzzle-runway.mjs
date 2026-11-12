@@ -130,7 +130,7 @@ async function main(args) {
   try {
     runway = await import('../src/content/runway.ts');
   } catch {
-    process.stderr.write('Puzzle runway check could not run: src/content/runway.ts is missing (it arrives with MR !73).\n');
+    process.stderr.write('Puzzle runway check could not run: the runway report module could not be loaded (it requires MR !73).\n');
     return 2;
   }
   try {
