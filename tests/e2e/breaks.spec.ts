@@ -108,10 +108,15 @@ test('real touchscreen taps operate the timer and idea picker', async ({ browser
   }
 });
 
-for (const width of [320, 390, 820, 1440]) {
+for (const { width, height } of [
+  { width: 320, height: 640 },
+  { width: 390, height: 844 },
+  { width: 820, height: 1180 },
+  { width: 1440, height: 900 },
+]) {
   for (const colorScheme of ['light', 'dark'] as const) {
     test(`${width}px ${colorScheme}: readable cards, touch targets and axe after choosing`, async ({ page }) => {
-      await page.setViewportSize({ width, height: 1000 });
+      await page.setViewportSize({ width, height });
       await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
       await page.goto('/breaks');
       await showOne(page).click();
