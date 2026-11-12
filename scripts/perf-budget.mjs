@@ -59,17 +59,20 @@ function tagAttributes(tag) {
 function* htmlElements(html) {
   const tags = /<!--[\s\S]*?(?:-->|$)|<\/?([A-Za-z][\w:-]*)\b(?:[^"'<>]|"[^"]*"|'[^']*')*>/g;
   const rawText = new Set(['script', 'style', 'textarea', 'title', 'xmp', 'iframe', 'noembed', 'noframes']);
-  const inertTemplates = [];
+  // With scripts enabled, <noscript> content and ordinary <template>
+  // subtrees are inert. A declarative shadow-root template may load assets.
+  const inertContainers = [];
   let match;
   while ((match = tags.exec(html))) {
     if (!match[1]) continue;
     const name = match[1].toLowerCase();
     const isClosing = /^<\//.test(match[0]);
-    if (name === 'template') {
-      if (isClosing) inertTemplates.pop();
-      else {
-        const mode = (tagAttributes(match[0]).get('shadowrootmode') ?? '').toLowerCase();
-        inertTemplates.push(mode !== 'open' && mode !== 'closed');
+    if (name === 'template' || name === 'noscript') {
+      if (isClosing) {
+        if (inertContainers.at(-1)?.name === name) inertContainers.pop();
+      } else {
+        const mode = name === 'template' ? (tagAttributes(match[0]).get('shadowrootmode') ?? '').toLowerCase() : '';
+        inertContainers.push({ name, inert: name === 'noscript' || (mode !== 'open' && mode !== 'closed') });
       }
       continue;
     }
@@ -82,7 +85,7 @@ function* htmlElements(html) {
       body = html.slice(tags.lastIndex, end ? end.index : html.length);
       tags.lastIndex = end ? closing.lastIndex : html.length;
     }
-    if (!inertTemplates.includes(true)) yield { name, tag: match[0], body };
+    if (!inertContainers.some((container) => container.inert)) yield { name, tag: match[0], body };
   }
 }
 
