@@ -1,0 +1,43 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { site } from '../config/site';
+import { PATIENT_INFO_WARNING } from '../islands/flag';
+---
+
+<Layout
+  title="message us"
+  description="how to reach cueory with feedback, report a problem on a page, and find out when the message form is available."
+  noindex
+  promo={false}
+>
+  <section class="mx-auto max-w-prose break-words py-section" aria-labelledby="message-heading">
+    <header class="mb-10 space-y-4">
+      <p class="text-sm font-medium tracking-label text-ink-soft">/ message us</p>
+      <h1 id="message-heading" class="display text-title text-ink sm:text-title-lg">tell us what to fix.</h1>
+      <p class="max-w-xl text-base text-ink-soft" data-placeholder="CHRISTIAN-TEXT">[Christian writes this]</p>
+    </header>
+
+    <div class="veil space-y-8 p-6 sm:p-10">
+      <section aria-labelledby="message-form-heading">
+        <p class="text-sm font-medium text-ink-soft">message form</p>
+        <h2 id="message-form-heading" class="mt-2 text-xl text-ink">coming soon</h2>
+        <p class="mt-3 text-ink-soft">the message form isn't open yet. for now, please email us directly.</p>
+        <a
+          href={`mailto:${site.contactEmail}`}
+          class="glass-button mt-6 inline-flex min-h-11 items-center justify-center text-center"
+        >
+          email {site.contactEmail}
+        </a>
+      </section>
+
+      <section class="border-t border-line pt-8" aria-labelledby="message-flag-heading">
+        <h2 id="message-flag-heading" class="text-lg font-semibold text-ink">flag or comment on a page</h2>
+        <p class="mt-3 text-ink-soft">
+          to report a problem with a specific page, use the flag or comment button in that page's footer. choose what
+          needs fixing and leave a comment when the panel opens. without JavaScript, the button opens an email instead.
+        </p>
+        <p class="mt-4 text-sm text-ink-soft">{PATIENT_INFO_WARNING}</p>
+      </section>
+    </div>
+  </section>
+</Layout>
