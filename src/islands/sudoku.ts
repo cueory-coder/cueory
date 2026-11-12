@@ -28,6 +28,7 @@ export interface SudokuSettings {
   highlightBox: boolean;
   highlightSame: boolean;
   autoCandidates: boolean;
+  showCandidates: boolean;
   playSoundOnSolve: boolean;
 }
 
@@ -41,6 +42,7 @@ export const DEFAULT_SUDOKU_SETTINGS: Readonly<SudokuSettings> = Object.freeze({
   highlightBox: true,
   highlightSame: true,
   autoCandidates: false,
+  showCandidates: false,
   playSoundOnSolve: false,
 });
 

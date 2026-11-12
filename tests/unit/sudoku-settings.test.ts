@@ -20,14 +20,16 @@ describe('sudoku settings persistence', () => {
       highlightBox: true,
       highlightSame: true,
       autoCandidates: false,
+      showCandidates: false,
       playSoundOnSolve: false,
     });
   });
 
   it('restores only version-one booleans and falls back safely for corrupt data', () => {
-    expect(parseSudokuSettings(JSON.stringify({ version: 1, settings: { autoCandidates: true, playSoundOnSolve: true, showTimer: false } }))).toEqual({
+    expect(parseSudokuSettings(JSON.stringify({ version: 1, settings: { autoCandidates: true, showCandidates: true, playSoundOnSolve: true, showTimer: false } }))).toEqual({
       ...DEFAULT_SUDOKU_SETTINGS,
       autoCandidates: true,
+      showCandidates: true,
       playSoundOnSolve: true,
       showTimer: false,
     });

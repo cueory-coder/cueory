@@ -62,7 +62,7 @@ export default function SudokuGame() {
   const [grid, setGrid] = useState(puzzle.givens);
   const [selected, setSelected] = useState(0);
   const [paused, setPaused] = useState(false);
-  const [hints, setHints] = useState(initialSettings.autoCandidates);
+  const [hints, setHints] = useState(initialSettings.autoCandidates || initialSettings.showCandidates);
   const [errors, setErrors] = useState(0);
   const [seconds, setSeconds] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -179,6 +179,10 @@ export default function SudokuGame() {
     ['autoCandidates', 'start in auto-candidate mode', settingsState.autoCandidates],
     ['playSoundOnSolve', 'play sound on solve', settingsState.playSoundOnSolve],
   ];
+  const setHintsPreference = (value: boolean) => {
+    setHints(value);
+    setSettingsState((current) => ({ ...current, showCandidates: value }));
+  };
   const setSetting = (keyName: keyof SudokuSettings, value: boolean) => {
     setSettingsState((current) => ({ ...current, [keyName]: value }));
     if (keyName === 'autoCandidates') setHints(value);
@@ -210,7 +214,7 @@ export default function SudokuGame() {
       </div>
       {paused && <p className="mt-3 text-center text-sm text-ink-soft" aria-live="polite">paused. the puzzle is obscured.</p>}
       {!paused && <><p className="mt-3 min-h-6 text-center text-sm text-ink-soft" aria-live="polite">{shownCandidates.length ? 'hints: ' + shownCandidates.join(', ') : 'select a square, then use the number keys or buttons.'}</p><div className="mt-3 flex flex-wrap justify-center gap-2" role="group" aria-label="numbers">{[1,2,3,4,5,6,7,8,9].map((n) => <button type="button" className={button} key={n} onClick={() => enter(n)}>{n}</button>)}<button type="button" className={button} onClick={erase} aria-label="erase square">erase</button></div></>}
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={hints} onChange={(event) => setHints(event.target.checked)} /> hints</label><button ref={settingsTrigger} type="button" className={button} onClick={() => setSettingsOpen(true)} aria-expanded={settingsOpen}>settings</button></div>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={hints} onChange={(event) => setHintsPreference(event.target.checked)} /> hints</label><button ref={settingsTrigger} type="button" className={button} onClick={() => setSettingsOpen(true)} aria-expanded={settingsOpen}>settings</button></div>
       {settingsOpen && <div ref={settingsRef} role="dialog" aria-modal="true" aria-label="settings" tabIndex={-1} onKeyDown={(event) => trap(event, 'settings')} className="mt-4 rounded-md border border-control bg-surface p-4"><div className="flex items-center justify-between"><h3 className="text-lg font-medium">settings</h3><button type="button" className={button} onClick={() => closeDialog('settings')} aria-label="close settings">close</button></div><div className="mt-3 grid gap-2 sm:grid-cols-2">{settings.map(([keyName, text, checked]) => <label key={keyName} className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={checked} onChange={(event) => setSetting(keyName, event.target.checked)} /> {text}</label>)}</div></div>}
       {helpOpen && <div ref={helpRef} role="dialog" aria-modal="true" aria-label="how to play" tabIndex={-1} onKeyDown={(event) => trap(event, 'help')} className="mt-4 rounded-md border border-control bg-surface p-4"><div className="flex items-center justify-between"><h3 className="text-lg font-medium">how to play</h3><button type="button" className={button} onClick={() => closeDialog('help')}>close</button></div><p className="mt-3">Fill every row, column and 3 by 3 box with the numbers 1 through 9. Select a square, then use number buttons or the keyboard. Arrow keys move within the board. Given numbers cannot be changed.</p></div>}
       {solved && <div ref={resultRef} tabIndex={-1} className="mt-6 rounded-md border border-control bg-surface p-4" data-testid="sudoku-result"><p className="text-lg font-medium">solved.</p><p className="mt-1 text-ink-soft">time: {seconds}s. errors: {errors}</p><button type="button" className={button + ' mt-3'} onClick={share}>share result</button>{copied && <p className="mt-2 text-sm text-ink-soft" aria-live="polite">copied.</p>}</div>}
