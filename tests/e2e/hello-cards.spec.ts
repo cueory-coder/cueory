@@ -155,6 +155,14 @@ test('the prompt of the day shows today\'s date, is the same on reload and chang
   await expect(page.getByTestId('hello-daily')).toContainText('sun 8 nov');
 });
 
+test('sharing today\'s card includes the displayed prompt', async ({ page }) => {
+  const prompt = (await page.getByTestId('hello-daily-text').textContent())!.trim();
+  await page.getByRole('button', { name: "share today's card", exact: true }).click();
+  const dialog = page.getByTestId('game-result-dialog');
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByTestId('result-share-line')).toContainText(prompt);
+});
+
 test('a tab left open across local midnight moves on to the new day\'s prompt', async ({ page }) => {
   await page.clock.install({ time: new Date('2026-11-07T23:59:30') });
   await page.goto('/play/hello-cards');
