@@ -1,4 +1,5 @@
 import { readdirSync, readFileSync } from 'node:fs';
+import * as ts from 'typescript';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -58,13 +59,39 @@ type SpecSource = { name: string; source: string };
 
 const e2eDir = fileURLToPath(new URL('../e2e/', import.meta.url));
 
-/** A file is covered only if it actually creates an axe builder, not merely imports one. */
+/**
+ * Parse the spec's source text, rather than matching comments or quoted examples.
+ * Page fixtures are included even when navigation happens inside an imported helper.
+ * Also recognizes popup.goto(), context.newPage(), and bracket-call equivalents.
+ */
 function needsAxe(source: string): boolean {
-  const navigates = /\bpage\s*\.\s*goto\s*\(/.test(source);
-  const executesAxe = /\bnew\s+AxeBuilder\s*\(/.test(source);
-  // No source-scanned E2E spec currently uses an imported shared axe helper.
-  // If one is added, recognize its verified invocation here and add a fixture test.
-  return navigates && !executesAxe;
+  const ast = ts.createSourceFile('browser-spec.ts', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  let usesPage = false;
+  let createsAxe = false;
+
+  const visit = (node: ts.Node): void => {
+    if (ts.isParameter(node) && ts.isObjectBindingPattern(node.name)) {
+      usesPage ||= node.name.elements.some((part) => {
+        const name = part.propertyName ?? part.name;
+        return ts.isIdentifier(name) && name.text === 'page';
+      });
+    }
+    if (ts.isCallExpression(node)) {
+      const call = node.expression;
+      const operation = ts.isPropertyAccessExpression(call) ? call.name.text :
+        ts.isElementAccessExpression(call) && ts.isStringLiteral(call.argumentExpression)
+          ? call.argumentExpression.text : '';
+      if (operation === 'goto' || operation === 'newPage') usesPage = true;
+    }
+    if (ts.isNewExpression(node)) {
+      const name = ts.isIdentifier(node.expression) ? node.expression.text :
+        ts.isPropertyAccessExpression(node.expression) ? node.expression.name.text : '';
+      if (name === 'AxeBuilder') createsAxe = true;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(ast);
+  return usesPage && !createsAxe;
 }
 
 function assertCoverage(specs: readonly SpecSource[], exceptions: Readonly<Record<string, string>>): void {
@@ -90,6 +117,24 @@ describe('page-navigation browser specs must run axe', () => {
     expect(() => assertCoverage([
       { name: 'new-screen.spec.ts', source: "import AxeBuilder from '@axe-core/playwright'; await page.goto('/sample');" },
     ], {})).toThrow(/new-screen\.spec\.ts/);
+  });
+
+  it('detects popup navigation and page fixtures passed through helpers', () => {
+    expect(() => assertCoverage([
+      { name: 'popup.spec.ts', source: "await popup.goto('/sample');" },
+      { name: 'indirect.spec.ts', source: "test('page', async ({ page }) => { await openPage(page); });" },
+      { name: 'new-tab.spec.ts', source: "const tab = await context.newPage(); await openPage(tab);" },
+    ], {})).toThrow(/indirect\.spec\.ts.*new-tab\.spec\.ts.*popup\.spec\.ts/);
+  });
+
+  it('does not treat comments, imports or string literals as a running axe scan', () => {
+    expect(() => assertCoverage([
+      { name: 'comment.spec.ts', source: "// new AxeBuilder({ page });\nawait page.goto('/sample');" },
+      { name: 'string.spec.ts', source: "const example = 'new AxeBuilder({ page })'; await page.goto('/sample');" },
+    ], {})).toThrow(/comment\.spec\.ts.*string\.spec\.ts/);
+    expect(() => assertCoverage([
+      { name: 'example-only.spec.ts', source: "// await page.goto('/sample');\nconst example = 'popup.goto(\\"/sample\\")';" },
+    ], {})).not.toThrow();
   });
 
   it('accepts an executed axe builder and ignores non-navigation tests', () => {
