@@ -43,7 +43,8 @@ export function videoStatusText(state: VideoState): string {
     case 'none': return 'no video yet.';
     case 'loading': return 'loading the video…';
     case 'failed': return "the video couldn't load. try again.";
-    case 'ready': return state.opened ? "video player ready. if it isn't playing, try again." : 'tap to play the video.';
+    // iframe onLoad can fire even when loading fails, so never claim that playback is verified.
+    case 'ready': return state.opened ? "the video window opened. if it doesn't play, try again." : 'tap to play the video.';
   }
 }
 

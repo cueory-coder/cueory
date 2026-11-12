@@ -49,7 +49,7 @@ describe('lesson video state machine', () => {
     expect(ready.phase).toBe('ready');
     expect(ready.opened).toBe(true);
     expect(ready.attempt).toBe(1);
-    expect(videoStatusText(ready)).toContain('player ready');
+    expect(videoStatusText(ready)).toBe("the video window opened. if it doesn't play, try again.");
   });
 
   it('failure restores a real retry path and remounts the iframe', () => {

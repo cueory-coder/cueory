@@ -146,6 +146,23 @@ test('cover and player are at least 200 px tall, even at 320 px wide', async ({ 
   expect(box?.height).toBeGreaterThanOrEqual(200);
 });
 
+test('a failed player navigation never claims that video playback is verified', async ({ page }) => {
+  let requests = 0;
+  // An iframe load event can fire for an HTTP failure. Keep a truthful status
+  // and offer manual retry instead of claiming that playback is ready.
+  await page.route('https://www.youtube-nocookie.com/**', (route) => {
+    requests += 1;
+    return route.fulfill({ status: 503, contentType: 'text/html', body: '<p>player unavailable</p>' });
+  });
+  await page.goto(LESSON_URL);
+  await page.getByRole('button', { name: /play video/i }).click();
+  await expect(page.locator('iframe[src*="youtube-nocookie.com"]')).toBeVisible();
+  await expect(page.getByTestId('lesson-video-status')).toContainText('video window opened');
+  await expect(page.getByTestId('lesson-video-status')).not.toContainText('player ready');
+  await expect(page.getByRole('button', { name: 'video not working? try again' })).toBeVisible();
+  expect(requests).toBe(1);
+});
+
 test('the loaded player offers a keyboard/tap retry without pre-tap requests', async ({ page }) => {
   const requests: string[] = [];
   page.on('request', (request) => {
@@ -160,7 +177,7 @@ test('the loaded player offers a keyboard/tap retry without pre-tap requests', a
   const iframe = page.locator('iframe[src*="youtube-nocookie.com"]');
   await expect(iframe).toBeVisible();
   await expect.poll(() => requests.length).toBeGreaterThanOrEqual(1);
-  await expect(page.getByTestId('lesson-video-status')).toContainText('player ready');
+  await expect(page.getByTestId('lesson-video-status')).toContainText('video window opened');
 
   const retry = page.getByRole('button', { name: 'video not working? try again' });
   await expect(retry).toBeVisible();
@@ -240,11 +257,11 @@ test('stalled player shows failure, moves keyboard focus to retry, and recovers 
   await page.keyboard.press('Enter');
   await expect.poll(() => requests).toBe(2);
   await expect(page.locator('iframe[src*="youtube-nocookie.com"]')).toBeVisible();
-  await expect(page.getByTestId('lesson-video-status')).toContainText('player ready');
+  await expect(page.getByTestId('lesson-video-status')).toContainText('video window opened');
   // A detached iframe may already have canceled its first request. Cleanup is best-effort.
   if (firstRequest) {
     try { await firstRequest.abort('failed'); } catch { /* request canceled with the first iframe */ }
   }
-  await expect(page.getByTestId('lesson-video-status')).toContainText('player ready');
+  await expect(page.getByTestId('lesson-video-status')).toContainText('video window opened');
   expect(requests).toBe(2);
 });
