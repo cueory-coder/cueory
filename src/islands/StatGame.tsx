@@ -20,6 +20,7 @@ import {
   startStat,
   timerAnnouncement,
   verdict,
+  type StatGrader,
   type StatLetter,
   type StatQuestion,
   type StatReviewRow,
@@ -38,8 +39,15 @@ const READ_EVERY_MS = 200;
 
 interface Props {
   questions: readonly StatQuestion[];
-  /** Sample mode only: the labeled sample key from content/games/stat. Real mode will grade through check_answer. */
-  sampleKey: Readonly<Record<string, StatLetter>>;
+  /** Sample mode only: the labeled sample key from content/games/stat. Leave it empty in real mode. */
+  sampleKey?: Readonly<Record<string, StatLetter>>;
+  /**
+   * Real mode (StatToday.tsx): grades through check_answer (stat.ts `remoteStatGrader`). Give it the same object for
+   * the whole visit. Without it the round is graded with `sampleKey`.
+   */
+  grader?: StatGrader;
+  /** Real mode: told which question is on screen (its item id), or undefined between rounds, for the flag button. */
+  onCurrent?: (questionId: string | undefined) => void;
 }
 
 type Phase = 'ready' | 'playing' | 'grading' | 'done' | 'failed';
@@ -82,8 +90,8 @@ function Ring({ left }: { left: number }) {
  * stat: fifteen timed questions, graded only at the end. All rules live in ./stat.ts; this file renders them and runs
  * the clock. Keys: a to d pick, Enter goes on (unless a button has focus, where Enter presses that button).
  */
-export default function StatGame({ questions, sampleKey }: Props) {
-  const grader = useMemo(() => sampleGrader(sampleKey), [sampleKey]);
+export default function StatGame({ questions, sampleKey, grader: realGrader, onCurrent }: Props) {
+  const grader = useMemo(() => realGrader ?? sampleGrader(sampleKey ?? {}), [realGrader, sampleKey]);
   const [phase, setPhase] = useState<Phase>('ready');
   const [state, setState] = useState<StatState>(() => startStat(0));
   const [now, setNow] = useState(0);
@@ -171,6 +179,12 @@ export default function StatGame({ questions, sampleKey }: Props) {
   useEffect(() => {
     if (phase === 'done' || phase === 'failed') resultRef.current?.focus();
   }, [phase]);
+
+  // Real mode: the flag button reports the question on screen.
+  const currentId = phase === 'playing' && state.status === 'playing' ? question?.id : undefined;
+  useEffect(() => {
+    onCurrent?.(currentId);
+  }, [onCurrent, currentId]);
 
   const pick = (letter: StatLetter) => {
     if (phase !== 'playing') return;
@@ -360,7 +374,9 @@ export default function StatGame({ questions, sampleKey }: Props) {
             </ol>
           </section>
           <p className="text-sm text-ink-soft">
-            these are sample questions. a new set of fifteen will come out each day.
+            {realGrader
+              ? 'a new set of fifteen comes out each day.'
+              : 'these are sample questions. a new set of fifteen will come out each day.'}
           </p>
           <ResultBrandMark path="/play" />
         </div>

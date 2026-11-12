@@ -45,7 +45,8 @@ create temporary view website_functions as
     and (has_function_privilege('anon', p.oid, 'execute')
          or has_function_privilege('authenticated', p.oid, 'execute'))
     and p.proname <> all (array['check_answer', 'submit_flag', 'my_flags', 'record_study_events', 'delete_my_account', 'update_display_name', 'my_sessions',
-                            'admin_list_flags', 'admin_mark_flag_handled', 'admin_reopen_flag']::name[]);
+                            'admin_list_flags', 'admin_mark_flag_handled', 'admin_reopen_flag',
+                            'daily_stat_set', 'daily_puzzle']::name[]);
 
 select is_empty(
   $$ select c.relname
