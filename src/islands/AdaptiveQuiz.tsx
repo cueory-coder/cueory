@@ -9,16 +9,20 @@ const button = 'min-h-11 rounded-pill bg-button px-5 py-2.5 text-on-button hover
 /** Pure local demo: UI only; selection, scoring, and progress live in adaptivequiz.ts. */
 export default function AdaptiveQuiz() {
   const [session, setSession] = useState(startAdaptiveQuiz);
+  const [restartCount, setRestartCount] = useState(0);
   const promptRef = useRef<HTMLLegendElement>(null);
   const finishedRef = useRef<HTMLParagraphElement>(null);
+  const resultRef = useRef<HTMLParagraphElement>(null);
   const current = currentAdaptiveSample(session);
   const progress = adaptiveSampleConcepts(session);
 
   useLayoutEffect(() => {
-    if (session.attempts.length === 0) return;
-    if (session.step === 'asking') promptRef.current?.focus();
-    if (session.step === 'finished') finishedRef.current?.focus();
-  }, [session.step, session.current?.id, session.attempts.length]);
+    // Keep focus visible when checking, moving to the next item, finishing, or restarting.
+    // The first page load intentionally does not steal focus from navigation.
+    if (session.step === 'answered') resultRef.current?.focus();
+    else if (session.step === 'finished') finishedRef.current?.focus();
+    else if (session.attempts.length > 0 || restartCount > 0) promptRef.current?.focus();
+  }, [session.step, session.current?.id, session.attempts.length, restartCount]);
 
   return (
     <div data-testid="adaptive-preview" className="mt-6 text-ink">
@@ -51,7 +55,7 @@ export default function AdaptiveQuiz() {
               onClick={() => setSession(checkAdaptiveSample)}>check sample answer</button>
           ) : (
             <div className="mt-5">
-              <p role="status" data-testid="adaptive-result" className="font-medium">
+              <p ref={resultRef} tabIndex={-1} role="status" data-testid="adaptive-result" className="font-medium">
                 {session.lastRight ? '✓ right.' : '✕ not quite.'}
               </p>
               <button type="button" className={button + ' mt-4'}
@@ -67,7 +71,10 @@ export default function AdaptiveQuiz() {
           </p>
           <p className="mt-2 text-sm text-ink-soft">no sample questions left. this is practice, not an exam prediction.</p>
           <button type="button" className={button + ' mt-4'}
-            onClick={() => setSession(startAdaptiveQuiz())}>start again</button>
+            onClick={() => {
+              setSession(startAdaptiveQuiz());
+              setRestartCount(count => count + 1);
+            }}>start again</button>
         </div>
       )}
       {progress.length > 0 && (

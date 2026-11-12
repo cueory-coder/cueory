@@ -30,16 +30,20 @@ test('answers a complete session by keyboard and tap, with explanation, summary 
     await page.getByRole('button', { name: 'check sample answer' }).focus();
     await page.keyboard.press('Enter');
     await expect(page.getByTestId('adaptive-result')).toHaveText('✓ right.');
+    await expect(page.getByTestId('adaptive-result')).toBeFocused();
     const next = page.getByRole('button', { name: 'next sample question' });
     expect(await next.evaluate(node => node.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
     await next.click();
+    if (index < 4) await expect(page.getByTestId('adaptive-question')).toBeFocused();
   }
   const finished = page.getByTestId('adaptive-finished');
   await expect(finished).toContainText('right on 5 of 5 sample questions.');
+  await expect(finished.getByRole('status')).toBeFocused();
   expect(seen.size).toBe(5);
   expect(await page.evaluate(() => Object.keys(localStorage).filter(key => /adaptive/i.test(key)))).toEqual([]);
   await finished.getByRole('button', { name: 'start again' }).click();
   await expect(page.getByTestId('adaptive-question')).toBeVisible();
+  await expect(page.getByTestId('adaptive-question')).toBeFocused();
 });
 test('wrong selection is named in words and changes the next why-line', async ({ page }) => {
   await page.goto(route);
