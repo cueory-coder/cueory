@@ -313,6 +313,37 @@ describe('selectTodayPuzzle — feed outcomes', () => {
     expect(selectTodayPuzzle([sample], TODAY, 'cueword')).toEqual({ status: 'none-today' });
   });
 
+  it('ignores malformed puzzles for identifiable unrelated dates and games', () => {
+    const unrelated = [
+      { game: 'cueword', date: TODAY, puzzle: null },
+      { game: 'pulse', date: '2026-10-31', puzzle: null },
+      { game: 'cueword', puzzle: null },
+      { date: '2026-10-31', puzzle: null },
+      { game: 'not-a-game', date: TODAY, puzzle: null },
+      { game: 'pulse', date: 'not-a-date', puzzle: null },
+    ];
+    const result = selectTodayPuzzle([...unrelated, sample], TODAY, 'pulse');
+    expect(result.status).toBe('puzzle');
+    if (result.status === 'puzzle') expect(result.puzzle).toEqual(sample.puzzle);
+  });
+
+  it('does not access irrelevant puzzle fields when selecting today', () => {
+    const unrelated = Object.defineProperty({ game: 'cueword', date: TODAY }, 'puzzle', {
+      get: () => { throw new Error('do not inspect other games'); },
+    });
+    const result = selectTodayPuzzle([unrelated, sample], TODAY, 'pulse');
+    expect(result.status).toBe('puzzle');
+  });
+
+  it('fails closed for ambiguous entries even if a valid puzzle exists', () => {
+    expect(selectTodayPuzzle([sample, { game: 'pulse', puzzle: null }], TODAY, 'pulse'))
+      .toEqual({ status: 'failed' });
+    expect(selectTodayPuzzle([sample, { date: TODAY, puzzle: null }], TODAY, 'pulse'))
+      .toEqual({ status: 'failed' });
+    expect(selectTodayPuzzle([sample, null], TODAY, 'pulse'))
+      .toEqual({ status: 'failed' });
+  });
+
   it('returns a validated, cleaned puzzle for a normal day', () => {
     const result = selectTodayPuzzle([{ ...sample, puzzle: { ...sample.puzzle, extra: '[sample extra]' } }], TODAY, 'pulse');
     expect(result.status).toBe('puzzle');

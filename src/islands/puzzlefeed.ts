@@ -144,7 +144,7 @@ function isGameId(value: unknown): value is GameId {
 /**
  * Selects one validated puzzle for today's game from dated payloads.
  * [] or no matching date/game means no puzzle was published today.
- * Malformed feeds, duplicate matches and invalid today's entries fail closed.
+ * Unidentifiable entries, duplicate matches and invalid today's entries fail closed.
  */
 export function selectTodayPuzzle(feed: unknown, today: string, game: GameId): PuzzleFeedResult {
   try {
@@ -153,19 +153,18 @@ export function selectTodayPuzzle(feed: unknown, today: string, game: GameId): P
     }
     if (feed.length === 0) return { status: 'none-today' };
 
-    // Reject bad envelopes instead of quietly treating corrupted data as an empty day.
-    if (feed.some((entry: unknown) =>
-      !isRecord(entry)
-      || !isGameId(entry.game)
-      || typeof entry.date !== 'string'
-      || !/^\d{4}-\d{2}-\d{2}$/.test(entry.date)
-    )) {
-      return { status: 'failed' };
+    const matches: Record<string, unknown>[] = [];
+    for (const entry of feed) {
+      if (!isRecord(entry)) return { status: 'failed' };
+      // Ignore an unrelated row when its game or date conclusively differs.
+      // Do not inspect its puzzle, which may be malformed.
+      if (typeof entry.game === 'string' && entry.game !== game) continue;
+      if (typeof entry.date === 'string' && entry.date !== today) continue;
+      // Neither selector ruled it out, so require an exact match.
+      // Ambiguous entries could conceal today's puzzle and must fail closed.
+      if (entry.game !== game || entry.date !== today) return { status: 'failed' };
+      matches.push(entry);
     }
-
-    const matches = feed.filter((entry: unknown): entry is Record<string, unknown> =>
-      isRecord(entry) && entry.game === game && entry.date === today
-    );
     if (matches.length === 0) return { status: 'none-today' };
     if (matches.length !== 1) return { status: 'failed' };
 
