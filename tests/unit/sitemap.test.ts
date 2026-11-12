@@ -60,10 +60,10 @@ describe('sitemap', () => {
 
   it('configures real Cloudflare static-asset cache headers for /sitemap.xml', () => {
     const headers = readFileSync(new URL('../../public/_headers', import.meta.url), 'utf8');
-    expect(headers).toMatch(/^\/sitemap\.xml\r?\n[ \t]+Cache-Control: public, max-age=3600, s-max-age=86400(?:\r?\n|$)/m);
+    expect(headers).toMatch(/^\/sitemap\.xml\r?\n[ \t]+Cache-Control: public, max-age=3600, s-maxage=86400(?:\r?\n|$)/m);
   });
 
   it('escapes XML values in the generated loc', () => {
-    expect(sitemapXml(['/search?term=a&b']).toContain('term=a&amp;b');
+    expect(sitemapXml(['/search?term=a&b'])).toContain('term=a&amp;b');
   });
 });
