@@ -45,4 +45,36 @@ test.describe('supporting our mission (/support)', () => {
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
     expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
   });
+
+  // Every browser project (phone 390, tablet 820, desktop 1440) checks each palette.
+  for (const colorScheme of ['light', 'dark'] as const) {
+    test(`safe external link, reduced motion and axe at ${colorScheme} palette`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+      await page.addInitScript(() => {
+        // The timed promo has its own tests. Do not let it intercept the support-page link.
+        try { localStorage.setItem('cueory-promo-seen', String(Date.now())); } catch { /* storage denied */ }
+      });
+      await page.goto('/support');
+
+      const links = page.locator('main a[href]');
+      await expect(links).toHaveCount(1);
+      const link = links.first();
+      await expect(link).toHaveAttribute('href', site.tipPageUrl);
+      await expect(link).toHaveAttribute('target', '_blank');
+      await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+      const box = await link.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.height).toBeGreaterThanOrEqual(44);
+      expect(box!.width).toBeGreaterThanOrEqual(44);
+
+      await link.focus();
+      await page.keyboard.press('Shift+Tab');
+      await page.keyboard.press('Tab');
+      await expect(link).toBeFocused();
+      await expect(link).toHaveCSS('outline-style', 'solid');
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+      const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+      expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+    });
+  }
 });
