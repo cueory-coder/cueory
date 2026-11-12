@@ -37,7 +37,7 @@ create temporary view anon_reach as
 -- What the website (anon or authenticated) can run in public, also as effective privileges. Only the functions on the
 -- allowed list: check_answer (D-86), submit_flag and my_flags (D-88), record_study_events (Task 140),
 -- delete_my_account (Task 60), update_display_name (Task 59), my_sessions (Task 309),
--- and the admin inbox functions (Task 65). Admin RPC authorization is tested separately.
+-- the admin inbox functions (Task 65), and daily_stat_set and daily_puzzle (content pipeline, docs/CONTENT-PIPELINE.md). Admin RPC authorization is tested separately.
 create temporary view website_functions as
   select 'public.' || p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' as function
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace

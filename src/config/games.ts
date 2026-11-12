@@ -77,5 +77,13 @@ export const statGame = {
   line: 'fifteen hard clinical questions, 20 seconds each. your score shows at the end.',
 } as const;
 
+/**
+ * stat's real questions (content pipeline, docs/CONTENT-PIPELINE.md). Off until Christian approves the database change
+ * (supabase/migrations/20261112090000_daily_stat_sets.sql) and it is applied. While off, /play/stat is exactly as
+ * before: labeled samples where drafts may show, "coming soon" on the live site. When on, every build shows today's
+ * real fifteen to signed-in students (src/islands/StatToday.tsx) and never puts a sample on the page.
+ */
+export const statUsesRealQuestions = false;
+
 /** Keep the hello cards page out of search until Christian says otherwise, even once its wording is approved. */
 export const helloCardsIndexWhenApproved = false;
