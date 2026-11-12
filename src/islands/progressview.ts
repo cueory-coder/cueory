@@ -111,6 +111,27 @@ export function visibleProgressDecks(
   }).sort((a, b) => a.id.localeCompare(b.id));
 }
 
+/**
+ * The permitted lesson list for course summaries. Use the catalog as the source so unpublished titles/ids
+ * never reach the browser, even for lessons without card decks.
+ * The current curriculum map is med-surg I; legacy lessons keep their approved catalog course name.
+ */
+export interface VisibleProgressLesson {
+  id: string;
+  courseId: string;
+  courseName: string;
+  deckId: string | null;
+}
+
+export function visibleProgressLessons(catalog: Pick<Catalog, 'lessons'>): VisibleProgressLesson[] {
+  return catalog.lessons.map((lesson) => ({
+    id: lesson.id,
+    courseId: lesson.curriculumId ? 'med-surg-1' : 'legacy:' + lesson.name,
+    courseName: lesson.curriculumId ? 'med-surg i' : lesson.name,
+    deckId: lesson.cards?.id ?? null,
+  }));
+}
+
 function countDeck(progress: Progress, deck: DeckDefinition): DeckCounts {
   const saved = deckProgress(progress, deck.id);
   const known = deck.cardIds === null ? null : new Set(deck.cardIds);

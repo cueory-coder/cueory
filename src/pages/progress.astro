@@ -1,7 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import { lessonCatalog } from '../lessons/load';
-import { visibleProgressDecks } from '../islands/progressview';
+import { visibleProgressDecks, visibleProgressLessons } from '../islands/progressview';
 import Layout from '../layouts/Layout.astro';
 import ProgressPanel from '../islands/ProgressPanel';
 import GuestImportOffer from '../islands/GuestImportOffer.tsx';
@@ -10,6 +10,8 @@ import BrandMark from '../components/BrandMark.astro';
 // Only a visible lesson with a visible cards companion may enter the browser props.
 const [catalog, cards] = await Promise.all([lessonCatalog(), getCollection('cards')]);
 const decks = visibleProgressDecks(catalog, cards);
+// Course lesson counts include visible lessons even when they have no card deck.
+const progressProps = { decks, lessons: visibleProgressLessons(catalog) };
 ---
 
 <Layout
@@ -28,7 +30,7 @@ const decks = visibleProgressDecks(catalog, cards);
       {/* Sign-in lands here by default; the offer shows only to a signed-in student with progress to bring in. */}
       <GuestImportOffer client:only="react" />
       {/* client:only: progress lives in this browser, so there is nothing to pre-render. */}
-      <ProgressPanel client:only="react" decks={decks} />
+      <ProgressPanel client:only="react" {...progressProps} />
       <noscript>
         <p>this page needs javascript turned on to read what your browser saved.</p>
       </noscript>

@@ -1,7 +1,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { buildCatalog, type CatalogInput } from '../../src/lessons/catalog';
-import { visibleProgressDecks } from '../../src/islands/progressview';
+import { visibleProgressDecks, visibleProgressLessons } from '../../src/islands/progressview';
 import { emptyProgress, withPile } from '../../src/scripts/progress';
 import { progressView } from '../../src/islands/progressview';
 
@@ -83,6 +83,23 @@ describe('progress page props respect canonical catalog visibility', () => {
       'review-owner-deck', 'review-owner-card', '[sample review owner deck]',
     ]) {
       expect(serialized).not.toContain(hidden);
+    }
+  });
+
+  it('builds a safe lesson list for the next course-level progress screen', () => {
+    const lessons = visibleProgressLessons(catalog);
+    expect(lessons).toEqual([
+      { id: 'study-skills-01', courseId: 'legacy:how to study for nursing school', courseName: 'how to study for nursing school', deckId: 'open-deck' },
+      { id: 'u01-t01-l02', courseId: 'med-surg-1', courseName: 'med-surg i', deckId: null },
+      { id: 'u01-t01-l03', courseId: 'med-surg-1', courseName: 'med-surg i', deckId: 'open-unit-deck' },
+    ]);
+    const pageProps = { decks: visibleProgressDecks(catalog, cardSources), lessons };
+    const serialized = JSON.stringify(pageProps);
+    for (const forbidden of [
+      'u01-t01-l01', 'u01-t01-l04', 'hidden-owner-deck', 'review-owner-deck',
+      'draft-deck', 'in-review-deck', '[sample hidden owner deck]', 'owner-card',
+    ]) {
+      expect(serialized).not.toContain(forbidden);
     }
   });
 
