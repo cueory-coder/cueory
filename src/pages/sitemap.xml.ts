@@ -116,11 +116,13 @@ function generatedLessonPaths(): ReadonlySet<string> {
   function contentEntries<T>(collection: string): Entry<T>[] {
     const root = resolve('content', collection);
     if (!existsSync(root)) return [];
+    // Match content.config.ts: lessons/cards recurse, while fill-in/organizer use *.json.
+    const recursive = collection === 'lessons' || collection === 'cards';
     const files: string[] = [];
     const visit = (dir: string): void => {
       for (const entry of readdirSync(dir, { withFileTypes: true })) {
         const file = resolve(dir, entry.name);
-        if (entry.isDirectory()) visit(file);
+        if (entry.isDirectory() && recursive) visit(file);
         else if (entry.isFile() && file.endsWith('.json')) files.push(file);
       }
     };
