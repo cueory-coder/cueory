@@ -130,3 +130,14 @@ export function focusFromSearch(search: string): LabFocus {
 export function initialSystemKey(keys: readonly string[], focus: LabFocus): string {
   return focus.system && keys.includes(focus.system) ? focus.system : (keys[0] ?? '');
 }
+
+/** A lesson's structure belongs to its requested system and that system's completed model load. */
+export function linkedStructureId(
+  focus: LabFocus,
+  systemKey: string,
+  loadedSystemKey: string,
+  found: readonly string[],
+): string | null {
+  if (loadedSystemKey !== systemKey || (focus.system && focus.system !== systemKey)) return null;
+  return focus.structure && found.includes(focus.structure) ? focus.structure : null;
+}

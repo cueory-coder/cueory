@@ -1,0 +1,1 @@
+status: T13 (C4), anatomy lesson links select a structure only in the requested system after that system's model load completes. Per-system unit regressions and Light/Evening browser cases cover mismatched fallback links and matching one-time selection. Verification in progress; not Ready.
