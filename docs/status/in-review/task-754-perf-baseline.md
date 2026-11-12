@@ -1,1 +1,9 @@
-STATUS: Task W10-2 (#48), per-route performance budget overrides and JSON report: ready for Claude review with explicitly provisional limits, pending measured staging gzip values requested on issue #10.
+STATUS: Task W10-2 (#48), per-route performance budget overrides and JSON report: Draft, with measured staging sizes and repaired public JSDoc type contracts. Parent integration, reviewed threshold calibration and final acceptance remain pending.
+
+Real project checking of the four issue-owned files paired with existing !101 found nine TypeScript errors at 66291976 (seven TS2345 default-route-table inference mismatches and two TS7006 callback inference errors). Added BudgetLimits, RouteBudgets, EffectiveBudget and PerformancePage JSDoc contracts and annotated the three public extension points. No runtime statement, test assertion or budget value changed. TypeScript's comment-free runtime emission is byte-identical before/after, and the real staging --json output matches byte-for-byte.
+
+Validation on current staging 1cf45425 plus published !101 source 05f14536 and these issue-owned !54 files: Astro check 654 files / 0 errors / 0 warnings / 28 hints, build passed, full Vitest 233 files / 5777 passed / 3 existing skips. The real scanner suite passes 29 cases. This is paired integration evidence, not standalone source-head or browser approval.
+
+Built the exact 1003-blob staging tree twice with Node 24.22.1 and unchanged dependencies: default local flags and CUEORY_ANATOMY_DRAFTS=1. Each real scanner run passes 47/47 pages. PERFORMANCE.md records both sets of raw gzip bytes because draft-enabled anatomy/game pages are larger than default shells. Limits remain provisional and unchanged pending reviewed calibration after the accepted parent lands. Existing source and parent reviewer gates, browser/axe/full-verify holds remain. No new PR, dependency, CI or deployment change.
+
+Both configurations also fit the canonical global defaults with at least 25% category headroom. The measured builds do not justify raising limits. Thresholds remain unchanged for Claude’s reviewed calibration.

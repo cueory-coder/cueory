@@ -9,6 +9,11 @@ import { dirname, extname, isAbsolute, join, relative, resolve, sep } from 'node
 import { pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
 
+/** @typedef {{ html: number, js: number, css: number, total: number }} BudgetLimits */
+/** @typedef {Record<string, Partial<BudgetLimits> & { label?: string }>} RouteBudgets */
+/** @typedef {BudgetLimits & { label: string }} EffectiveBudget */
+/** @typedef {BudgetLimits & { page: string, limits: EffectiveBudget, breaches: string[] }} PerformancePage */
+
 // The only budget table. Values are gzip-compressed bytes per built HTML page.
 export const BUDGETS = Object.freeze({
   html: 40 * 1024,
@@ -17,7 +22,7 @@ export const BUDGETS = Object.freeze({
   total: 300 * 1024,
 });
 
-// PROVISIONAL, NOT MEASURED. Replace after Claude supplies staging --json data.
+// PROVISIONAL, NOT CALIBRATED. See the recorded staging measurements in PERFORMANCE.md.
 // This is the only per-route override table. All other routes use BUDGETS.
 // Partial entries inherit the default limits. These are safety thresholds,
 // not claims about today's output size or a final performance target.
@@ -31,7 +36,13 @@ export const ROUTE_BUDGETS = Object.freeze({
 
 const KINDS = ['html', 'js', 'css', 'total'];
 
-/** Return the effective limits for a route (unknown routes inherit defaults). */
+/**
+ * Return the effective limits for a route (unknown routes inherit defaults).
+ * @param {string} page
+ * @param {BudgetLimits} defaults
+ * @param {RouteBudgets} overrides
+ * @returns {EffectiveBudget}
+ */
 export function budgetsForRoute(page, defaults = BUDGETS, overrides = ROUTE_BUDGETS) {
   const override = Object.hasOwn(overrides, page) ? overrides[page] : null;
   return {
@@ -362,7 +373,13 @@ function htmlPages(dir, root = dir) {
   return result.sort();
 }
 
-/** Scan a built site. Each page counts shared dependencies once for that page. */
+/**
+ * Scan a built site. Each page counts shared dependencies once for that page.
+ * @param {string} folder
+ * @param {BudgetLimits} budgets
+ * @param {RouteBudgets} routeBudgets
+ * @returns {PerformancePage[]}
+ */
 export function scanPerformanceBudget(folder, budgets = BUDGETS, routeBudgets = ROUTE_BUDGETS) {
   const root = resolve(folder);
   if (!lstatSync(root).isDirectory()) throw new Error(`Not a build folder: ${root}`);
@@ -413,7 +430,13 @@ export function formatPerformanceReport(pages, budgets = BUDGETS) {
   return lines.join('\n');
 }
 
-/** Machine-readable, versioned report with gzip bytes and per-route limits. */
+/**
+ * Machine-readable, versioned report with gzip bytes and per-route limits.
+ * @param {PerformancePage[]} pages
+ * @param {BudgetLimits} budgets
+ * @param {RouteBudgets} routeBudgets
+ * @returns {string}
+ */
 export function formatPerformanceJson(pages, budgets = BUDGETS, routeBudgets = ROUTE_BUDGETS) {
   const failed = pages.filter((page) => page.breaches.length).length;
   return JSON.stringify({
