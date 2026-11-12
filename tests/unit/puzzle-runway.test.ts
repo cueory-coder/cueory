@@ -117,3 +117,34 @@ describe('tracked public folders', () => {
     expect(lines.join('\n')).not.toContain('[sample clue]');
   });
 });
+
+describe('runway edge cases and accessible status text', () => {
+  it('stops at the first missing day rather than promising later valid filenames', () => {
+    const rows = [
+      word('sample-01.json', 'aaaaa'),
+      word('sample-03.json', 'bbbbb'),
+      word('sample-04.json', 'ccccc'),
+    ];
+    const first = analyzePuzzleRunway('pulse', rows, at(1));
+    expect(first.gaps).toEqual(['2026-11-02']);
+    expect(first.daysLeft).toBe(1);
+    expect(first.lastDay).toBe('2026-11-01');
+    expect(analyzePuzzleRunway('pulse', rows, at(2)).daysLeft).toBe(0);
+  });
+
+  it('handles an empty folder and dates before the first sample', () => {
+    expect(analyzePuzzleRunway('pulse', [], at(1))).toMatchObject({
+      firstDay: null, lastDay: null, daysLeft: 0, sampleCount: 0,
+    });
+    expect(analyzePuzzleRunway('pulse', examples(), new Date(2026, 9, 31)).daysLeft).toBe(3);
+  });
+
+  it('describes each game in words without requiring color to read its status', () => {
+    const lines = runwayLines(at(11));
+    for (const line of lines) {
+      expect(line).toMatch(/fresh sample days left|generated each day/);
+      expect(line).toMatch(/issue\(s\)/);
+      expect(line).not.toMatch(/\x1b\[[0-9;]*m/);
+    }
+  });
+});
