@@ -45,6 +45,29 @@ describe('sitemap', () => {
     expect(sourceDeclaresNoindex('<Layout title="public" description="noindex is a word" />')).toBe(false);
   });
 
+  it('ignores > inside attribute values and recognizes a tight noindex/> attribute', () => {
+    expect(sourceDeclaresNoindex('<Layout description={a > b ? "yes" : "no"} noindex />')).toBe(true);
+    expect(sourceDeclaresNoindex('<Layout description="a > b" noindex/>')).toBe(true);
+    expect(sourceDeclaresNoindex('<Layout description={"text with >"} noindex/>')).toBe(true);
+    expect(sourceDeclaresNoindex('<Layout title="public" noindex={false}/>')).toBe(false);
+    expect(sourceDeclaresNoindex('<Layout description="some noindex words" />')).toBe(false);
+    expect(sourceDeclaresNoindex('<Layout description={"some noindex words"} />')).toBe(false);
+    expect(sourceDeclaresNoindex('{/* <Layout noindex /> */}<Layout title="public" />')).toBe(false);
+    expect(sourceDeclaresNoindex('<Layout title="public" description={a > b} />')).toBe(false);
+    expect(sourceDeclaresNoindex('<Layout description={{ text: "noindex" }} title="public" />')).toBe(false);
+    expect(sourceDeclaresNoindex('<Layout description={a > b} noindex={page.hidden}/>')).toBe(true);
+  });
+
+  it('fails closed when a page source is missing or outside the site', () => {
+    expect(pageSourcePath('/this-page-does-not-exist')).toBeUndefined();
+    expect(routeDeclaresNoindex('/this-page-does-not-exist')).toBe(true);
+    expect(routeDeclaresNoindex('/invalid_%')).toBe(true);
+    expect(routeDeclaresNoindex('https://unrelated.example/play')).toBe(true);
+    const xml = sitemapXml(['/', '/this-page-does-not-exist', 'https://unrelated.example/play']);
+    expect([...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]))
+      .toEqual(['https://cueory.app/']);
+  });
+
   it('excludes noindex pages from sitemapPages as well as sitemapXml', async () => {
     const pages = await sitemapPages();
     expect(pages).toEqual(indexablePages);
@@ -64,6 +87,6 @@ describe('sitemap', () => {
   });
 
   it('escapes XML values in the generated loc', () => {
-    expect(sitemapXml(['/search?term=a&b'])).toContain('term=a&amp;b');
+    expect(sitemapXml(['/play?term=a&b'])).toContain('term=a&amp;b');
   });
 });

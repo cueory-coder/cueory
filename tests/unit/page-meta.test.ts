@@ -2,6 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { site } from '../../src/config/site';
+import { layoutOpeningProps } from '../../src/pages/sitemap.xml';
 
 const PAGES_ROOT = resolve('src/pages');
 const DIST_ROOT = resolve('dist');
@@ -107,8 +108,7 @@ describe('W18: page metadata', () => {
     expect(sources.length).toBeGreaterThan(0);
     for (const file of sources) {
       const name = relative(PAGES_ROOT, file).replaceAll('\\', '/');
-      const markup = readFileSync(file, 'utf8').replace(/^---[\s\S]*?---/, '').replace(/<!--[\s\S]*?-->/g, '');
-      const props = markup.match(/<Layout\b([\s\S]*?)>/)?.[1];
+      const props = layoutOpeningProps(readFileSync(file, 'utf8'));
       if (!props) { problems.push(`${name}: missing Layout`); continue; }
       if (!/(?:^|\s)title\s*=/.test(props)) problems.push(`${name}: missing Layout title`);
       if (!/(?:^|\s)description\s*=/.test(props) && !DEFAULT_DESCRIPTION_PAGES.has(name)) {
@@ -116,6 +116,13 @@ describe('W18: page metadata', () => {
       }
     }
     expect(problems).toEqual([]);
+  });
+
+  it('reads Layout props even when another attribute contains a > character', () => {
+    expect(layoutOpeningProps('<Layout description={a > b} title="public" />'))
+      .toContain('title="public"');
+    expect(layoutOpeningProps('<!-- <Layout title="hidden" /> --><Layout description="x > y" title="public" />'))
+      .toContain('title="public"');
   });
 
   it('renders one title and description, with useful unique copy for every page', () => {
