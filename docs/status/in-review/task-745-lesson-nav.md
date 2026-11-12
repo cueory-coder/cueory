@@ -1,0 +1,1 @@
+STATUS: W05-3 (#39), lesson navigation: neighboring lessons come from the visible catalog within one curriculum unit, with named links and a course-library fallback. Awaiting Claude checks and unit-anchor coordination.

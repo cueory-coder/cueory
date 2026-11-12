@@ -1,0 +1,48 @@
+---
+/** Plain, keyboard-accessible navigation at the end of a lesson. */
+import type { LessonNeighbor, LessonNeighbors } from '../lessons/neighbors';
+interface Props {
+  previous?: LessonNeighbor;
+  next?: LessonNeighbor;
+  back: LessonNeighbors['back'];
+}
+const { previous, next, back } = Astro.props;
+---
+
+<nav class="mt-section border-t border-line pt-6" aria-label="lesson navigation" data-testid="lesson-nav">
+  <h2 class="text-lg font-semibold">continue studying</h2>
+  <ul class="mt-4 grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-2">
+    {previous && (
+      <li class="min-w-0">
+        <a
+          href={previous.href}
+          data-lesson-previous
+          aria-label={'previous lesson: ' + previous.name}
+          class="flex min-h-(--tap-min) flex-col justify-center rounded-lg border border-line bg-surface px-4 py-3 text-ink no-underline hover:bg-page"
+        >
+          <span class="text-sm text-ink-soft">previous lesson</span>
+          <span class="mt-1 break-words font-semibold">{previous.name}</span>
+        </a>
+      </li>
+    )}
+    {next && (
+      <li class="min-w-0">
+        <a
+          href={next.href}
+          data-lesson-next
+          aria-label={'next lesson: ' + next.name}
+          class="flex min-h-(--tap-min) flex-col justify-center rounded-lg border border-line bg-surface px-4 py-3 text-ink no-underline hover:bg-page"
+        >
+          <span class="text-sm text-ink-soft">next lesson</span>
+          <span class="mt-1 break-words font-semibold">{next.name}</span>
+        </a>
+      </li>
+    )}
+    <li class="min-w-0 sm:col-span-2">
+      <a href={back.href} data-lesson-back
+        class="inline-flex min-h-(--tap-min) items-center rounded-md px-3 py-2 font-medium underline underline-offset-4">
+        {back.label}
+      </a>
+    </li>
+  </ul>
+</nav>

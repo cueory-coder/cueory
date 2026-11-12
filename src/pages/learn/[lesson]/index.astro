@@ -8,6 +8,7 @@ import { getCollection, getEntry } from 'astro:content';
 import Layout from '../../../layouts/Layout.astro';
 import ContentLabel from '../../../components/ContentLabel.astro';
 import ModeTile from '../../../components/ModeTile.astro';
+import LessonNav from '../../../components/LessonNav.astro';
 import SentenceStepper from '../../../islands/SentenceStepper';
 import LessonVideo from '../../../islands/LessonVideo';
 import LessonVisuals from '../../../components/LessonVisuals.astro';
@@ -16,6 +17,7 @@ import { isShowable } from '../../../videos/schema';
 import { countInWords, pathsFor, statusNotice, type CatalogLesson } from '../../../lessons/catalog';
 import { lessonCatalog } from '../../../lessons/load';
 import { lessonModeTiles } from '../../../lessons/lessonmodes';
+import { lessonNeighbors } from '../../../lessons/neighbors';
 
 export async function getStaticPaths() {
   return pathsFor(await lessonCatalog(), 'hub');
@@ -26,13 +28,15 @@ const entry = await getEntry('lessons', lesson.id);
 if (!entry) throw new Error(`Lesson file content/lessons/${lesson.id}.json is missing.`);
 const { title, summary, sentences, status } = entry.data;
 const lessonNotice = statusNotice(status, 'lesson');
-const olderLessons = (await lessonCatalog()).lessons.filter((candidate) => !candidate.curriculumId && candidate.name === lesson.name).length;
+const catalog = await lessonCatalog();
+const olderLessons = catalog.lessons.filter((candidate) => !candidate.curriculumId && candidate.name === lesson.name).length;
 const context = !lesson.curriculumId && olderLessons > 1 ? `${lesson.context} of ${olderLessons}` : lesson.context;
 const video = (await getCollection('videos')).find((candidate) => candidate.data.lesson === lesson.id);
 
 // Catalog visibility determines which lesson-specific destinations exist.
 const modeTiles = lessonModeTiles(lesson, studyModes);
 const ways = modeTiles.filter(({ href }) => href !== undefined).length;
+const neighbors = lessonNeighbors(catalog, lesson);
 ---
 
 <Layout title={title} description={summary} variant="study">
@@ -107,6 +111,9 @@ const ways = modeTiles.filter(({ href }) => href !== undefined).length;
     </div>
     <div class="mx-auto max-w-prose pt-4">
       <ContentLabel />
+    </div>
+    <div class="mx-auto max-w-prose">
+      <LessonNav previous={neighbors.previous} next={neighbors.next} back={neighbors.back} />
     </div>
   </div>
 </Layout>
