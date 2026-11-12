@@ -1,0 +1,67 @@
+---
+/**
+ * Unlinked, noindex, read-only rewards preview (W02-2). Only bracketed sample
+ * events are evaluated. Draft examples are excluded from the live-site build.
+ */
+import Layout from '../../layouts/Layout.astro';
+import RewardsList from '../../islands/RewardsList';
+import { draftsAllowed } from '../../islands/anatomylab';
+import { buildRewardsPreview, type LabeledSampleEvent } from '../../islands/rewardslist';
+
+const fixedToday = '2026-11-11';
+const samples: readonly LabeledSampleEvent[] = [
+  {
+    label: '[sample finished game, day 1]',
+    event: { type: 'game', finished: true, game: 'pulse', day: '2026-11-09', solved: true, slips: 0, cues: 0 },
+  },
+  {
+    label: '[sample finished game, day 2]',
+    event: { type: 'game', finished: true, game: 'cueword', day: '2026-11-10', solved: true, slips: 0, cues: 1 },
+  },
+  {
+    label: '[sample finished study session, day 2]',
+    event: { type: 'study', finished: true, id: 'sample-study-1', day: '2026-11-10', mode: 'cards' },
+  },
+  {
+    label: '[sample finished game, day 3]',
+    event: { type: 'game', finished: true, game: 'suture', day: '2026-11-11', solved: true, slips: 1, cues: 0 },
+  },
+  {
+    label: '[sample finished study session, day 3]',
+    event: { type: 'study', finished: true, id: 'sample-study-2', day: '2026-11-11', mode: 'review' },
+  },
+];
+
+const showSamples = draftsAllowed({
+  WORKERS_CI: process.env.WORKERS_CI,
+  WORKERS_CI_BRANCH: process.env.WORKERS_CI_BRANCH,
+  CUEORY_ANATOMY_DRAFTS: process.env.CUEORY_ANATOMY_DRAFTS,
+});
+const preview = showSamples ? buildRewardsPreview(samples, fixedToday) : null;
+---
+
+<Layout title="rewards preview" description="A private, sample-only preview of local rewards." variant="study" noindex promo={false}>
+  <article class="mx-auto max-w-prose py-section" data-testid="rewards-preview-page" data-pagefind-ignore>
+    <p class="text-sm font-medium text-ink-soft">preview · not linked from the site</p>
+    <h1 class="mt-3 text-title font-medium text-ink">rewards preview</h1>
+    <p class="mt-4 text-ink-soft">
+      sample rewards only. nothing here is saved, sent, or tied to an account.
+    </p>
+    {preview ? (
+      <>
+        <p class="mt-2 text-sm text-ink-soft">fixed sample day: {preview.today}.</p>
+        <RewardsList preview={preview} />
+      </>
+    ) : (
+      <p class="mt-6 text-ink" data-testid="rewards-unavailable">
+        sample rewards are available only on the locked staging preview.
+      </p>
+    )}
+    <a
+      href="/play"
+      class="mt-10 inline-flex min-h-(--tap-min) items-center rounded-pill border border-control bg-page px-5 py-2.5 text-ink hover:bg-surface focus-visible:bg-surface"
+    >
+      back to daily games
+    </a>
+  </article>
+</Layout>
