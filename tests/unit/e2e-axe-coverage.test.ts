@@ -175,36 +175,48 @@ function needsAxe(source: string): boolean {
     if (node.kind === ts.SyntaxKind.FalseKeyword) return false;
     return undefined;
   };
-  const alwaysAbrupt = (statement: ts.Statement): boolean => {
+  const isRuntimeAbort = (call: ts.CallExpression): boolean => {
+    const callee = call.expression;
+    if (!(ts.isPropertyAccessExpression(callee) || ts.isElementAccessExpression(callee)) ||
+      !ts.isIdentifier(callee.expression) || callee.expression.text !== 'test') return false;
+    const method = methodName(callee);
+    if (method !== 'skip' && method !== 'fixme') return false;
+    const condition = call.arguments[0];
+    return !condition || staticBoolean(condition) === true;
+  };
+  function expressionAlwaysAbrupt(expression: ts.Expression, seen: ReadonlySet<ts.Node>): boolean {
+    if (!ts.isCallExpression(expression)) return false;
+    if (isRuntimeAbort(expression)) return true;
+    const body = helperBody(expression);
+    if (!body || seen.has(body)) return false;
+    const next = new Set(seen);
+    next.add(body);
+    return ts.isBlock(body)
+      ? alwaysAbrupt(body, next)
+      : expressionAlwaysAbrupt(body, next);
+  }
+  function alwaysAbrupt(statement: ts.Statement, seen: ReadonlySet<ts.Node> = new Set()): boolean {
     if (ts.isReturnStatement(statement) || ts.isThrowStatement(statement) ||
       ts.isBreakStatement(statement) || ts.isContinueStatement(statement)) return true;
-    if (ts.isExpressionStatement(statement) && ts.isCallExpression(statement.expression)) {
-      const call = statement.expression;
-      const callee = call.expression;
-      if (ts.isPropertyAccessExpression(callee) && ts.isIdentifier(callee.expression) &&
-        callee.expression.text === 'test' && (callee.name.text === 'skip' || callee.name.text === 'fixme')) {
-        const condition = call.arguments[0];
-        return !condition || staticBoolean(condition) === true;
-      }
-    }
+    if (ts.isExpressionStatement(statement) && expressionAlwaysAbrupt(statement.expression, seen)) return true;
     if (ts.isBlock(statement)) {
-      for (const child of statement.statements) if (alwaysAbrupt(child)) return true;
+      for (const child of statement.statements) if (alwaysAbrupt(child, seen)) return true;
       return false;
     }
     if (ts.isIfStatement(statement)) {
       const value = staticBoolean(statement.expression);
-      if (value === true) return alwaysAbrupt(statement.thenStatement);
-      if (value === false) return !!statement.elseStatement && alwaysAbrupt(statement.elseStatement);
+      if (value === true) return alwaysAbrupt(statement.thenStatement, seen);
+      if (value === false) return !!statement.elseStatement && alwaysAbrupt(statement.elseStatement, seen);
       return !!statement.elseStatement &&
-        alwaysAbrupt(statement.thenStatement) && alwaysAbrupt(statement.elseStatement);
+        alwaysAbrupt(statement.thenStatement, seen) && alwaysAbrupt(statement.elseStatement, seen);
     }
     return false;
-  };
+  }
   const visitExecutable = (node: ts.Node, seen: ReadonlySet<ts.Node>): void => {
     if (ts.isBlock(node)) {
       for (const statement of node.statements) {
         visitExecutable(statement, seen);
-        if (alwaysAbrupt(statement)) break;
+        if (alwaysAbrupt(statement, seen)) break;
       }
       return;
     }
@@ -340,6 +352,8 @@ describe('page-navigation browser specs must run axe', () => {
       "test('visits', async ({ page }) => { await page.goto('/sample'); if (false) await new AxeBuilder({ page }).analyze(); });",
       "test('visits', async ({ page }) => { await page.goto('/sample'); test.skip(true, 'not applicable'); await new AxeBuilder({ page }).analyze(); });",
       "test('visits', async ({ page }) => { await page.goto('/sample'); test.fixme(); await new AxeBuilder({ page }).analyze(); });",
+      "function stop() { test.skip(true, 'not applicable'); } test('visits', async ({ page }) => { await page.goto('/sample'); stop(); await new AxeBuilder({ page }).analyze(); });",
+      "test('visits', async ({ page }) => { await page.goto('/sample'); test['skip'](true, 'not applicable'); await new AxeBuilder({ page }).analyze(); });",
       "test.skip('does not run', async ({ page }) => { await new AxeBuilder({ page }).analyze(); }); test('visits', async ({ page }) => { await page.goto('/sample'); });",
       "test.describe.skip('disabled suite', () => { test('axe', async ({ page }) => { await new AxeBuilder({ page }).analyze(); }); }); test('visits', async ({ page }) => { await page.goto('/sample'); });",
       "test('visits', async ({ page }) => { await page.goto('/sample'); }); const unused = async (page: Page) => new AxeBuilder({ page }).analyze();",
@@ -364,6 +378,7 @@ describe('page-navigation browser specs must run axe', () => {
       { name: 'called-arrow.spec.ts', source: "const scan = async (page: Page) => new AxeBuilder({ page }).analyze(); test('visits', async ({ page }) => { await page.goto('/sample'); await scan(page); });" },
       { name: 'returned-analysis.spec.ts', source: "test('visits', async ({ page }) => { await page.goto('/sample'); return new AxeBuilder({ page }).analyze(); });" },
       { name: 'conditional-skip.spec.ts', source: "test('visits', async ({ page }) => { await page.goto('/sample'); test.skip(false, 'continue'); await new AxeBuilder({ page }).analyze(); });" },
+      { name: 'helper-conditional-skip.spec.ts', source: "function maybe() { test.skip(false, 'continue'); } test('visits', async ({ page }) => { await page.goto('/sample'); maybe(); await new AxeBuilder({ page }).analyze(); });" },
       { name: 'axe-hook.spec.ts', source: "test.beforeEach(async ({ page }) => { await new AxeBuilder({ page }).analyze(); }); test('visits', async ({ page }) => { await page.goto('/sample'); });" },
       { name: 'axe-step.spec.ts', source: "test('visits', async ({ page }) => { await page.goto('/sample'); await test.step('audit', async () => new AxeBuilder({ page }).analyze()); });" },
       { name: 'no-nav.spec.ts', source: "test('sample', async ({ page }) => { await expect(page).toHaveTitle('sample'); });" },
