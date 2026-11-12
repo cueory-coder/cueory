@@ -46,6 +46,7 @@ export default function ProgressPanel({ decks }: Props) {
   const [said, setSaid] = useState('');
   const forgetRef = useRef<HTMLButtonElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
+  const retryRef = useRef<HTMLButtonElement>(null);
   const saidRef = useRef<HTMLParagraphElement>(null);
   const [signedIn, setSignedIn] = useState(false);
   const [syncNote, setSyncNote] = useState('');
@@ -120,6 +121,25 @@ export default function ProgressPanel({ decks }: Props) {
   };
 
   const forget = () => {
+    // The confirmation applies to the data the student actually reviewed. Another feature or
+    // tab can update localStorage after it opens, including corrupt or recoverable records.
+    // Same-document changes do not dispatch a "storage" event to this page.
+    const latest = readDeviceProgress(storage);
+    if (latest.state !== 'ready' || latest.recovered !== snapshot.recovered ||
+      JSON.stringify(latest.progress) !== JSON.stringify(snapshot.progress)) {
+      loads.cancel();
+      setSnapshot(latest);
+      setConfirming(false);
+      setSaid(latest.state === 'unreadable'
+        ? ''
+        : 'your saved progress changed. review it before choosing to forget it.');
+      requestAnimationFrame(() => {
+        if (latest.state === 'unreadable') retryRef.current?.focus();
+        else if (latest.state === 'empty') saidRef.current?.focus();
+        else forgetRef.current?.focus();
+      });
+      return;
+    }
     loads.cancel();
     const ok = forgetProgress(storage, decks.map((deck) => deck.id));
     setConfirming(false);
@@ -154,7 +174,7 @@ export default function ProgressPanel({ decks }: Props) {
             if trying again doesn’t work, check that your browser allows website data. you can clear saved data
             for cueory.app in your browser settings, but that erases progress and other settings on this device.
           </p>
-          <button type="button" onClick={() => setSnapshot(readDeviceProgress(storage))} className={`${primaryButton} mt-4`}>
+          <button ref={retryRef} type="button" onClick={() => setSnapshot(readDeviceProgress(storage))} className={`${primaryButton} mt-4`}>
             try again
           </button>
         </section>

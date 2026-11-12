@@ -269,6 +269,57 @@ test('new students see two accessible routes to begin and a polite state announc
   await expect(page.getByRole('button', { name: 'download my progress' })).toBeDisabled();
 });
 
+test('a stale forget confirmation never deletes newly unreadable progress or old stars', async ({ page }) => {
+  const initial = JSON.stringify({ version: 1, onboarding: { done: true },
+    decks: { 'study-skills-01': { know: ['ss01-c01'] } } });
+  await page.addInitScript((raw) => localStorage.setItem('cueory-progress', raw), initial);
+  await page.goto('/progress');
+  await expect(page.getByRole('button', { name: 'forget my progress on this device' })).toBeEnabled();
+  await page.getByRole('button', { name: 'forget my progress on this device' }).click();
+  await expect(page.getByRole('button', { name: 'yes, forget it' })).toBeFocused();
+
+  // A same-document update is deliberately invisible to the existing storage-event listener.
+  const damaged = '{not json';
+  const legacy = '["ss01-c02"]';
+  await page.evaluate(({ damaged, legacy }) => {
+    localStorage.setItem('cueory-progress', damaged);
+    localStorage.setItem('cueory-stars-study-skills-01', legacy);
+  }, { damaged, legacy });
+  await page.getByRole('button', { name: 'yes, forget it' }).click();
+
+  await expect(page.getByRole('heading', { name: 'we couldn’t read your progress' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'try again' })).toBeFocused();
+  await expect(page.getByRole('button', { name: 'yes, forget it' })).toHaveCount(0);
+  expect(await page.evaluate(() => ({
+    progress: localStorage.getItem('cueory-progress'),
+    stars: localStorage.getItem('cueory-stars-study-skills-01'),
+  }))).toEqual({ progress: damaged, stars: legacy });
+});
+
+test('a stale forget confirmation requires review again when valid saved work changes', async ({ page }) => {
+  const initial = JSON.stringify({ version: 1, onboarding: { done: true },
+    decks: { 'study-skills-01': { know: ['ss01-c01'] } } });
+  const updated = JSON.stringify({ version: 1, onboarding: { done: true },
+    decks: { 'study-skills-01': { know: ['ss01-c01'], learning: ['ss01-c02'] } } });
+  await page.addInitScript((raw) => localStorage.setItem('cueory-progress', raw), initial);
+  await page.goto('/progress');
+  await page.getByRole('button', { name: 'forget my progress on this device' }).click();
+  await expect(page.getByRole('button', { name: 'yes, forget it' })).toBeFocused();
+  await page.evaluate((raw) => localStorage.setItem('cueory-progress', raw), updated);
+  await page.getByRole('button', { name: 'yes, forget it' }).click();
+
+  await expect(page.getByText('your saved progress changed. review it before choosing to forget it.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'forget my progress on this device' })).toBeFocused();
+  expect(await page.evaluate(() => localStorage.getItem('cueory-progress'))).toBe(updated);
+
+  // After seeing the new state, the student can confirm again and intentionally forget it.
+  await page.getByRole('button', { name: 'forget my progress on this device' }).click();
+  await expect(page.getByRole('button', { name: 'yes, forget it' })).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('done. your progress is no longer saved on this device.')).toBeFocused();
+  expect(await page.evaluate(() => localStorage.getItem('cueory-progress'))).toBeNull();
+});
+
 test('bad saved data remains untouched and the retry state is keyboard-operable', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('cueory-progress', '{not json'));
   await page.goto('/progress');
