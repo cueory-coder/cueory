@@ -1,1 +1,1 @@
-status: Task 765, browser spec axe coverage (#67): AST guard flags direct or helper-delegated page navigation and requires an axe analyze call tied to a real AxeBuilder instance, with explained legacy exemptions and positive/negative fixtures.
+status: Task 765, browser spec axe coverage (#67): AST guard detects navigation and binds axe analysis to the nearest immutable lexical declaration or real factory return, with explained exceptions and regression fixtures for shadowing and fake analyzers.

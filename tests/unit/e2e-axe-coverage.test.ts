@@ -79,35 +79,68 @@ function needsAxe(source: string): boolean {
       ts.isIdentifier(node.expression) && node.expression.text === 'AxeBuilder' ||
       ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === 'AxeBuilder'
     );
-  const hasAxeConstructor = (node: ts.Node): boolean => {
-    if (isAxeConstructor(node)) return true;
-    return ts.forEachChild(node, hasAxeConstructor) === true;
-  };
-  const axeBindings = new Set<string>();
-  const collectBindings = (node: ts.Node): void => {
-    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) &&
-      node.initializer && hasAxeConstructor(node.initializer)) {
-      axeBindings.add(node.name.text);
-    }
-    if (ts.isFunctionDeclaration(node) && node.name && node.body && hasAxeConstructor(node.body)) {
-      axeBindings.add(node.name.text);
-    }
-    ts.forEachChild(node, collectBindings);
-  };
-  collectBindings(parsed);
 
-  const refersToAxe = (node: ts.Expression): boolean => {
-    if (isAxeConstructor(node)) return true;
-    if (ts.isIdentifier(node)) return axeBindings.has(node.text);
-    if (ts.isCallExpression(node)) {
-      if (ts.isIdentifier(node.expression)) return axeBindings.has(node.expression.text);
-      if (ts.isPropertyAccessExpression(node.expression) || ts.isElementAccessExpression(node.expression)) {
-        return refersToAxe(node.expression.expression);
+  type Binding = ts.VariableDeclaration | ts.FunctionDeclaration | ts.ParameterDeclaration;
+  // Resolve each use through its own lexical scope. A variable in an unused
+  // helper or a different test cannot make a shadowed analyzer an axe scan.
+  const visibleBinding = (use: ts.Identifier): Binding | undefined => {
+    for (let scope: ts.Node | undefined = use.parent; scope; scope = scope.parent) {
+      if (ts.isBlock(scope) || ts.isSourceFile(scope)) {
+        for (const statement of scope.statements) {
+          if (ts.isVariableStatement(statement)) {
+            for (const decl of statement.declarationList.declarations) {
+              if (ts.isIdentifier(decl.name) && decl.name.text === use.text) return decl;
+            }
+          }
+          if (ts.isFunctionDeclaration(statement) && statement.name?.text === use.text) return statement;
+        }
+      }
+      if (ts.isFunctionLike(scope)) {
+        for (const param of scope.parameters) {
+          if (ts.isIdentifier(param.name) && param.name.text === use.text) return param;
+        }
       }
     }
+    return undefined;
+  };
+  const builderMethods = new Set(['withTags', 'withRules', 'disableRules', 'include', 'exclude', 'options']);
+  // A factory is axe-backed only if its actual returned value is axe-backed,
+  // not merely because its body creates an unused AxeBuilder.
+  const returnsAxe = (body: ts.ConciseBody, seen: ReadonlySet<ts.Node>): boolean => {
+    if (ts.isBlock(body)) {
+      const last = body.statements[body.statements.length - 1];
+      return !!last && ts.isReturnStatement(last) && !!last.expression && isAxeValue(last.expression, seen);
+    }
+    return isAxeValue(body, seen);
+  };
+  const bindingIsAxe = (binding: Binding | undefined, invoked: boolean, seen: ReadonlySet<ts.Node>): boolean => {
+    if (!binding || seen.has(binding)) return false;
+    const next = new Set(seen);
+    next.add(binding);
+    if (ts.isVariableDeclaration(binding) && binding.initializer) {
+      // Mutable aliases can be overwritten with a fake analyzer.
+      if (!ts.isVariableDeclarationList(binding.parent) || !(binding.parent.flags & ts.NodeFlags.Const)) return false;
+      const init = binding.initializer;
+      if (invoked) return (ts.isArrowFunction(init) || ts.isFunctionExpression(init)) && returnsAxe(init.body, next);
+      if (ts.isArrowFunction(init) || ts.isFunctionExpression(init)) return false;
+      return isAxeValue(init, next);
+    }
+    return invoked && ts.isFunctionDeclaration(binding) && !!binding.body && returnsAxe(binding.body, next);
+  };
+  const isAxeValue = (node: ts.Expression, seen: ReadonlySet<ts.Node>): boolean => {
+    if (isAxeConstructor(node)) return true;
+    if (ts.isIdentifier(node)) return bindingIsAxe(visibleBinding(node), false, seen);
     if (ts.isParenthesizedExpression(node) || ts.isAwaitExpression(node) ||
-      ts.isAsExpression(node) || ts.isNonNullExpression(node)) return refersToAxe(node.expression);
-    if (ts.isPropertyAccessExpression(node)) return refersToAxe(node.expression);
+      ts.isAsExpression(node) || ts.isNonNullExpression(node) || ts.isTypeAssertionExpression(node)) {
+      return isAxeValue(node.expression, seen);
+    }
+    if (ts.isCallExpression(node)) {
+      if (ts.isIdentifier(node.expression)) return bindingIsAxe(visibleBinding(node.expression), true, seen);
+      if ((ts.isPropertyAccessExpression(node.expression) || ts.isElementAccessExpression(node.expression)) &&
+        builderMethods.has(methodName(node.expression)!)) {
+        return isAxeValue(node.expression.expression, seen);
+      }
+    }
     return false;
   };
 
@@ -128,7 +161,7 @@ function needsAxe(source: string): boolean {
       if (method === 'goto' || method === 'newPage') navigates = true;
       if (method === 'analyze' &&
         (ts.isPropertyAccessExpression(node.expression) || ts.isElementAccessExpression(node.expression)) &&
-        refersToAxe(node.expression.expression)) axeAnalyzed = true;
+        isAxeValue(node.expression.expression, new Set())) axeAnalyzed = true;
       if (ts.isIdentifier(node.expression) && !['expect', 'test', 'describe', 'it'].includes(node.expression.text) &&
         node.arguments.some((arg) => ts.isIdentifier(arg) && arg.text === 'page' ||
           ts.isObjectLiteralExpression(arg) && arg.properties.some((prop) =>
@@ -172,6 +205,13 @@ describe('page-navigation browser specs must run axe', () => {
       "await page.goto('/sample'); const axe = new AxeBuilder({ page });",
       "await page.goto('/sample'); /* new AxeBuilder({ page }).analyze(); */",
       "await page.goto('/sample'); const unused = new AxeBuilder({ page }); other.analyze();",
+      "async function unused(page: Page) { const audit = new AxeBuilder({ page }); } test('sample', async ({ page }) => { await page.goto('/sample'); const audit = { analyze: async () => {} }; await audit.analyze(); });",
+      "test('one', async ({ page }) => { const audit = new AxeBuilder({ page }); }); test('two', async ({ page }) => { await page.goto('/sample'); const audit = { analyze: async () => {} }; await audit.analyze(); });",
+      "function make(page) { const unused = new AxeBuilder({ page }); return { analyze: async () => {} }; } await page.goto('/sample'); await make(page).analyze();",
+      "await page.goto('/sample'); const make = (page) => { const unused = new AxeBuilder({ page }); return { analyze: async () => {} }; }; await make(page).analyze();",
+      "await page.goto('/sample'); const make = () => new AxeBuilder({ page }); await make.analyze();",
+      "await page.goto('/sample'); const audit = new AxeBuilder({ page }); { const audit = { analyze() {} }; audit.analyze(); }",
+      "await page.goto('/sample'); let audit: any = new AxeBuilder({ page }); audit = { analyze: async () => {} }; await audit.analyze();",
       "const text = `date ${await popup.goto('/sample')}`;",
     ];
     for (const source of examples) {
@@ -186,6 +226,9 @@ describe('page-navigation browser specs must run axe', () => {
       { name: 'other-page.spec.ts', source: "await popup.goto('/sample'); const a = await new AxeBuilder({ page }).withTags(['wcag2a']).analyze();" },
       { name: 'bound-axe.spec.ts', source: "await page.goto('/sample'); const audit = new AxeBuilder({ page }); await audit.analyze();" },
       { name: 'axe-factory.spec.ts', source: "await page.goto('/sample'); const make = (page) => new AxeBuilder({ page }); await make(page).analyze();" },
+      { name: 'returned-factory.spec.ts', source: "await page.goto('/sample'); function make(page) { const audit = new AxeBuilder({ page }); return audit; } await make(page).analyze();" },
+      { name: 'returned-arrow.spec.ts', source: "await page.goto('/sample'); const make = (page) => { const audit = new AxeBuilder({ page }); return audit; }; await make(page).analyze();" },
+      { name: 'alias-chain.spec.ts', source: "await page.goto('/sample'); const one = new AxeBuilder({ page }); const two = one; await two.analyze();" },
       { name: 'no-nav.spec.ts', source: "test('sample', async ({ page }) => { await expect(page).toHaveTitle('sample'); });" },
       { name: 'pure.spec.ts', source: "expect(add(2, 3)).toBe(5);" },
       { name: 'comment.spec.ts', source: "// await page.goto('/sample');\nconst literal = 'page.goto(';" },
@@ -197,7 +240,7 @@ describe('page-navigation browser specs must run axe', () => {
       expect(name.endsWith('.spec.ts'), name).toBe(true);
       expect(reason.trim().length, name + ': exception needs a specific reason').toBeGreaterThan(30);
     }
-    // W15-2 has its own ready MR. Its route/error suite may not be on staging yet.
+    // W15-2 merged. Its console-error suite deliberately relies on the page-level axe sweep.
     const specs = currentSpecs();
     const byName = new Map(specs.map(({ name, source }) => [name, source]));
     const stale = Object.keys(knownWithoutAxe).filter((name) =>
