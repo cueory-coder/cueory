@@ -59,10 +59,21 @@ function tagAttributes(tag) {
 function* htmlElements(html) {
   const tags = /<!--[\s\S]*?(?:-->|$)|<\/?([A-Za-z][\w:-]*)\b(?:[^"'<>]|"[^"]*"|'[^']*')*>/g;
   const rawText = new Set(['script', 'style', 'textarea', 'title', 'xmp', 'iframe', 'noembed', 'noframes']);
+  const inertTemplates = [];
   let match;
   while ((match = tags.exec(html))) {
-    if (!match[1] || /^<\//.test(match[0])) continue;
+    if (!match[1]) continue;
     const name = match[1].toLowerCase();
+    const isClosing = /^<\//.test(match[0]);
+    if (name === 'template') {
+      if (isClosing) inertTemplates.pop();
+      else {
+        const mode = (tagAttributes(match[0]).get('shadowrootmode') ?? '').toLowerCase();
+        inertTemplates.push(mode !== 'open' && mode !== 'closed');
+      }
+      continue;
+    }
+    if (isClosing) continue;
     let body = '';
     if (rawText.has(name)) {
       const closing = new RegExp('</\\s*' + name + '\\s*>', 'gi');
@@ -71,7 +82,7 @@ function* htmlElements(html) {
       body = html.slice(tags.lastIndex, end ? end.index : html.length);
       tags.lastIndex = end ? closing.lastIndex : html.length;
     }
-    yield { name, tag: match[0], body };
+    if (!inertTemplates.includes(true)) yield { name, tag: match[0], body };
   }
 }
 

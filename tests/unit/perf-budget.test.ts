@@ -90,6 +90,34 @@ describe('built-site performance budgets', () => {
     expect(page!.breaches).toEqual([]);
   });
 
+  it('ignores dormant nested templates and their inline module imports', () => {
+    const html = '<template><script src="/_astro/missing-outer.js"></script>' +
+      '<template><link rel="stylesheet" href="/_astro/missing-nested.css">' +
+      '<script type="module">const text = "</template>"; import "/_astro/missing-inline.js";</script></template>' +
+      '<script src="/_astro/missing-after-nested.js"></script></template>' +
+      '<script src="/_astro/real.js"></script><script type="module">import "/_astro/real-inline.js";</script>';
+    expect(extractHtmlAssetUrls(html)).toEqual(['/_astro/real.js']);
+    expect(extractInlineModuleAssetUrls(html)).toEqual(['/_astro/real-inline.js']);
+    // Declarative shadow content may load immediately, so keep its asset references in the estimate.
+    expect(extractHtmlAssetUrls('<template shadowrootmode="open"><link rel="stylesheet" href="/_astro/shadow.css"></template>'))
+      .toEqual(['/_astro/shadow.css']);
+  });
+
+  it('counts only live assets beside dormant templates in a built-site fixture', () => {
+    const f = fixture();
+    const html = '<template><script src="/_astro/missing-inert.js"></script>' +
+      '<template><script type="module">import "/_astro/missing-nested.js";</script></template></template>' +
+      '<script src="/_astro/real.js"></script>';
+    const real = 'export const sample = true;';
+    f.file('index.html', html);
+    f.file('_astro/real.js', real);
+    const [page] = scanPerformanceBudget(f.root);
+    expect(page!.html).toBe(gzipSync(html).length);
+    expect(page!.js).toBe(gzipSync(real).length);
+    expect(page!.css).toBe(0);
+    expect(page!.breaches).toEqual([]);
+  });
+
   it('ignores fake CSS imports in comments and strings', () => {
     const css = [
       "/* @import './missing-comment.css'; */",
