@@ -155,11 +155,18 @@ test('the prompt of the day shows today\'s date, is the same on reload and chang
   await expect(page.getByTestId('hello-daily')).toContainText('sun 8 nov');
 });
 
-test('sharing today\'s card includes the displayed prompt', async ({ page }) => {
+test('sharing today\'s card uses the production hello result adapter', async ({ page }) => {
   const prompt = (await page.getByTestId('hello-daily-text').textContent())!.trim();
+  const heading = (await page.getByRole('heading', { name: /prompt of the day/ }).textContent())!.trim();
+  const [, date, deck] = heading.split(' · ');
   await page.getByRole('button', { name: "share today's card", exact: true }).click();
   const dialog = page.getByTestId('game-result-dialog');
   await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('heading', { name: "today's card", exact: true })).toBeVisible();
+  await expect(dialog.getByText('share the prompt, then start a conversation.', { exact: true })).toBeVisible();
+  await expect(dialog.locator('.result-meta')).toContainText(`hello cards · ${date}`);
+  await expect(dialog.getByText('deck', { exact: true })).toBeVisible();
+  await expect(dialog.getByText(deck, { exact: true })).toBeVisible();
   await expect(dialog.getByTestId('result-share-line')).toContainText(prompt);
 });
 
