@@ -148,14 +148,26 @@ function needsAxe(source: string): boolean {
   let pageFixture = false;
   let helperWithPage = false;
   let axeAnalyzed = false;
-  const visit = (node: ts.Node): void => {
-    if ((ts.isArrowFunction(node) || ts.isFunctionExpression(node)) && node.parameters.length) {
-      const first = node.parameters[0]!;
-      if (ts.isObjectBindingPattern(first.name) &&
-        first.name.elements.some((entry) => ts.isIdentifier(entry.name) && entry.name.text === 'page')) {
-        pageFixture = true;
-      }
+
+  // Only reachable code in a runnable test/hook (or a helper it invokes) may
+  // prove axe coverage. Skipped cases and unused helper bodies cannot count.
+  const isPageFixture = (fn: ts.ArrowFunction | ts.FunctionExpression): boolean => {
+    const first = fn.parameters[0];
+    return !!first && ts.isObjectBindingPattern(first.name) &&
+      first.name.elements.some((item) => ts.isIdentifier(item.name) && item.name.text === 'page');
+  };
+  const helperBody = (call: ts.CallExpression): ts.ConciseBody | undefined => {
+    if (!ts.isIdentifier(call.expression)) return undefined;
+    const binding = visibleBinding(call.expression);
+    if (binding && ts.isFunctionDeclaration(binding)) return binding.body;
+    if (binding && ts.isVariableDeclaration(binding) && binding.initializer &&
+      ts.isVariableDeclarationList(binding.parent) && (binding.parent.flags & ts.NodeFlags.Const) &&
+      (ts.isArrowFunction(binding.initializer) || ts.isFunctionExpression(binding.initializer))) {
+      return binding.initializer.body;
     }
+    return undefined;
+  };
+  const visitExecutable = (node: ts.Node, seen: ReadonlySet<ts.Node>): void => {
     if (ts.isCallExpression(node)) {
       const method = methodName(node.expression);
       if (method === 'goto' || method === 'newPage') navigates = true;
@@ -168,10 +180,73 @@ function needsAxe(source: string): boolean {
             ts.isShorthandPropertyAssignment(prop) && prop.name.text === 'page'))) {
         helperWithPage = true;
       }
+      const body = helperBody(node);
+      if (body && !seen.has(body)) {
+        const next = new Set(seen);
+        next.add(body);
+        visitExecutable(body, next);
+      }
+      // Playwright's test.step invokes its callback inside its surrounding test.
+      if (method === 'step' && ts.isPropertyAccessExpression(node.expression) &&
+        ts.isIdentifier(node.expression.expression) && node.expression.expression.text === 'test') {
+        for (const arg of node.arguments) {
+          if (ts.isArrowFunction(arg) || ts.isFunctionExpression(arg)) visitExecutable(arg.body, seen);
+        }
+      }
     }
-    ts.forEachChild(node, visit);
+    // Function declarations/callbacks are not evidence unless actually invoked.
+    if (ts.isFunctionLike(node)) return;
+    ts.forEachChild(node, (child) => visitExecutable(child, seen));
   };
-  visit(parsed);
+  const isTestBase = (node: ts.Expression): boolean =>
+    ts.isIdentifier(node) && (node.text === 'test' || node.text === 'it');
+  const isTestRegistration = (call: ts.CallExpression): boolean => {
+    const callee = call.expression;
+    return isTestBase(callee) || ts.isPropertyAccessExpression(callee) &&
+      (callee.name.text === 'only' || callee.name.text === 'fail') && isTestBase(callee.expression);
+  };
+  const isHookRegistration = (call: ts.CallExpression): boolean => {
+    const callee = call.expression;
+    return ts.isIdentifier(callee) && ['beforeEach', 'beforeAll', 'afterEach', 'afterAll'].includes(callee.text) ||
+      ts.isPropertyAccessExpression(callee) &&
+      ['beforeEach', 'beforeAll', 'afterEach', 'afterAll'].includes(callee.name.text) && isTestBase(callee.expression);
+  };
+  const isDisabledSuite = (call: ts.CallExpression): boolean => {
+    const callee = call.expression;
+    return ts.isPropertyAccessExpression(callee) &&
+      (callee.name.text === 'skip' || callee.name.text === 'fixme') &&
+      ts.isPropertyAccessExpression(callee.expression) &&
+      callee.expression.name.text === 'describe' && isTestBase(callee.expression.expression);
+  };
+  let registered = false;
+  const scanRegistrations = (node: ts.Node): void => {
+    if (ts.isCallExpression(node)) {
+      if (isDisabledSuite(node)) return;
+      if (isTestRegistration(node) || isHookRegistration(node)) {
+        registered = true;
+        for (const argument of node.arguments) {
+          if (ts.isArrowFunction(argument) || ts.isFunctionExpression(argument)) {
+            if (isPageFixture(argument)) pageFixture = true;
+            visitExecutable(argument.body, new Set());
+          }
+        }
+        return;
+      }
+      const callee = node.expression;
+      // Skip/fixme bodies are deliberately not executed. The registration is
+      // still present, so don't fall back to a file-global source traversal.
+      if (ts.isPropertyAccessExpression(callee) &&
+        (callee.name.text === 'skip' || callee.name.text === 'fixme') && isTestBase(callee.expression)) {
+        registered = true;
+        return;
+      }
+    }
+    ts.forEachChild(node, scanRegistrations);
+  };
+  scanRegistrations(parsed);
+  // Keep standalone synthetic snippets usable by the fixture regression tests.
+  // Unlike before, their unused function declarations are still not scanned.
+  if (!registered) visitExecutable(parsed, new Set());
   return (navigates || (pageFixture && helperWithPage)) && !axeAnalyzed;
 }
 
@@ -212,6 +287,10 @@ describe('page-navigation browser specs must run axe', () => {
       "await page.goto('/sample'); const make = () => new AxeBuilder({ page }); await make.analyze();",
       "await page.goto('/sample'); const audit = new AxeBuilder({ page }); { const audit = { analyze() {} }; audit.analyze(); }",
       "await page.goto('/sample'); let audit: any = new AxeBuilder({ page }); audit = { analyze: async () => {} }; await audit.analyze();",
+      "function neverCalled(page: Page) { return new AxeBuilder({ page }).analyze(); } test('visits', async ({ page }) => { await page.goto('/sample'); });",
+      "test.skip('does not run', async ({ page }) => { await new AxeBuilder({ page }).analyze(); }); test('visits', async ({ page }) => { await page.goto('/sample'); });",
+      "test.describe.skip('disabled suite', () => { test('axe', async ({ page }) => { await new AxeBuilder({ page }).analyze(); }); }); test('visits', async ({ page }) => { await page.goto('/sample'); });",
+      "test('visits', async ({ page }) => { await page.goto('/sample'); }); const unused = async (page: Page) => new AxeBuilder({ page }).analyze();",
       "const text = `date ${await popup.goto('/sample')}`;",
     ];
     for (const source of examples) {
@@ -229,6 +308,10 @@ describe('page-navigation browser specs must run axe', () => {
       { name: 'returned-factory.spec.ts', source: "await page.goto('/sample'); function make(page) { const audit = new AxeBuilder({ page }); return audit; } await make(page).analyze();" },
       { name: 'returned-arrow.spec.ts', source: "await page.goto('/sample'); const make = (page) => { const audit = new AxeBuilder({ page }); return audit; }; await make(page).analyze();" },
       { name: 'alias-chain.spec.ts', source: "await page.goto('/sample'); const one = new AxeBuilder({ page }); const two = one; await two.analyze();" },
+      { name: 'called-helper.spec.ts', source: "function scan(page: Page) { return new AxeBuilder({ page }).analyze(); } test('visits', async ({ page }) => { await page.goto('/sample'); await scan(page); });" },
+      { name: 'called-arrow.spec.ts', source: "const scan = async (page: Page) => new AxeBuilder({ page }).analyze(); test('visits', async ({ page }) => { await page.goto('/sample'); await scan(page); });" },
+      { name: 'axe-hook.spec.ts', source: "test.beforeEach(async ({ page }) => { await new AxeBuilder({ page }).analyze(); }); test('visits', async ({ page }) => { await page.goto('/sample'); });" },
+      { name: 'axe-step.spec.ts', source: "test('visits', async ({ page }) => { await page.goto('/sample'); await test.step('audit', async () => new AxeBuilder({ page }).analyze()); });" },
       { name: 'no-nav.spec.ts', source: "test('sample', async ({ page }) => { await expect(page).toHaveTitle('sample'); });" },
       { name: 'pure.spec.ts', source: "expect(add(2, 3)).toBe(5);" },
       { name: 'comment.spec.ts', source: "// await page.goto('/sample');\nconst literal = 'page.goto(';" },
