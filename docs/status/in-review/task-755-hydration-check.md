@@ -1,1 +1,1 @@
-status: Task W10-3 (#49), hydration-directive inventory and regression tests: every current eager island has a documented rationale; suggested lazy-loading candidates routed to issue #10 for owner review.
+STATUS: Task W10-3 (#49), hydration-directive inventory and regression tests: every current eager island has a documented rationale; suggested lazy-loading candidates routed to issue #10 for owner review.

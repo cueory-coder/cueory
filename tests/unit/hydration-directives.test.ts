@@ -212,4 +212,46 @@ describe('eager Astro island hydration', () => {
       'src/pages/deep/fixture.astro::Real::only',
     ]);
   });
+
+  it('keeps a readable no-JavaScript fallback on core interactive study pages', () => {
+    const routes = [
+      'src/pages/learn/[lesson]/cards.astro',
+      'src/pages/learn/[lesson]/fill-in.astro',
+      'src/pages/learn/[lesson]/matching.astro',
+      'src/pages/learn/[lesson]/organizer.astro',
+      'src/pages/learn/questions.astro',
+      'src/pages/play.astro',
+      'src/pages/play/hello-cards.astro',
+      'src/pages/play/stat.astro',
+      'src/pages/progress.astro',
+      'src/pages/start.astro',
+    ];
+    for (const route of routes) {
+      const source = readFileSync(join(projectRoot, route), 'utf8');
+      const fallbacks = [...source.matchAll(/<noscript(?:\s[^>]*)?>([\s\S]*?)<\/noscript>/g)];
+      expect(fallbacks.length > 0).toBe(true);
+      // Students without JavaScript must get words, not only empty shapes.
+      const words = fallbacks.map(match => match[1]!.replace(/<[^>]+>/g, ' ').trim()).join(' ');
+      expect(words.length > 14).toBe(true);
+    }
+  });
+
+  it('keeps no-JavaScript guidance with eager account forms', () => {
+    const routes = [
+      'src/pages/account.astro', 'src/pages/reset-password.astro',
+      'src/pages/signin.astro', 'src/pages/signup.astro',
+    ];
+    for (const route of routes) {
+      const source = readFileSync(join(projectRoot, route), 'utf8');
+      expect(/<noscript>\s*<p>[^<]*javascript/i.test(source)).toBe(true);
+    }
+  });
+
+  it('detects an unexplained eager directive in a nested component folder', () => {
+    const f = fixture();
+    f.write('src/components/nested/Example.astro', '<SampleWidget client:only="react" />');
+    expect(checkAllowlist(collectEagerIslands(f.root), {})).toEqual([
+      'src/components/nested/Example.astro::SampleWidget::only: found 1, explained 0',
+    ]);
+  });
 });
