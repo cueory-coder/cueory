@@ -165,7 +165,7 @@ describe('bad sample fixture detection', () => {
 describe('tracked public folders', () => {
   it('reads all active sample collections without a gap, duplicate, repeated puzzle or invalid file', () => {
     const reports = puzzleRunways(at(1));
-    expect(reports.map((row) => row.game)).toEqual(['pulse', 'cueword', 'sudoku', 'suture', 'triage']);
+    expect(reports.map((row) => row.game)).toEqual(['pulse', 'cueword-easy', 'cueword-mid', 'cueword-hard', 'sudoku', 'suture', 'triage']);
     for (const report of reports) {
       if (report.source === 'generated') continue;
       expect(report.sampleCount, report.game + ' is empty').toBeGreaterThan(0);
@@ -179,6 +179,45 @@ describe('tracked public folders', () => {
     }
   });
 
+  it('counts each selectable crossword difficulty, not six unused legacy puzzles', () => {
+    const all = readGameSampleFiles('cueword');
+    const selected = (level: 'easy' | 'mid' | 'hard') => all.filter((file) =>
+      (file.data as { level?: string } | null)?.level === level);
+    const reports = puzzleRunways(at(1));
+    const levelReports = reports.filter((report) => report.game.startsWith('cueword-'));
+    expect(levelReports.map((report) => report.game)).toEqual(['cueword-easy', 'cueword-mid', 'cueword-hard']);
+    expect(levelReports.map((report) => report.sampleCount)).toEqual(
+      (['easy', 'mid', 'hard'] as const).map((level) => selected(level).length));
+    expect(levelReports.map((report) => report.daysLeft)).toEqual(levelReports.map((report) => report.sampleCount));
+    expect(levelReports.reduce((sum, report) => sum + report.sampleCount, 0)).toBe(
+      all.filter((file) => (file.data as { level?: string } | null)?.level !== undefined).length);
+    for (const report of levelReports) {
+      expect(report.sampleCount).toBeGreaterThan(0);
+      expect(report.gaps).toEqual([]);
+      expect(report.invalidFiles).toEqual([]);
+    }
+    // The independent pools restart after their own lengths, not after all file names.
+    const after = puzzleRunways(at(Math.max(...levelReports.map((report) => report.sampleCount)) + 1));
+    expect(after.filter((report) => report.game.startsWith('cueword-')).map((report) => report.daysLeft))
+      .toEqual([0, 0, 0]);
+  });
+
+  it('uses pool positions rather than global numeric filenames after filtering by level', () => {
+    const sample = readGameSampleFiles('cueword').find((file) =>
+      (file.data as { level?: string } | null)?.level === 'easy')!;
+    const data = sample.data as { level: string; grid: string[]; clues: unknown; status: string };
+    const alternate = { ...data, grid: data.grid.map((row) => row.replace(/[A-Z]/g, (letter) => letter === 'Z' ? 'Y' : 'Z')) };
+    const one = { name: 'sample-07.json', data };
+    const two = { name: 'sample-10.json', data: alternate };
+    const report = analyzePuzzleRunway('cueword', [one, two], at(1), 'position');
+    expect(report).toMatchObject({ sampleCount: 2, daysLeft: 2 });
+    expect(report.gaps).toEqual([]);
+    expect(report.outOfOrder).toEqual([]);
+    expect(report.repeats).toEqual([]);
+    const repeated = analyzePuzzleRunway('cueword', [one, { name: two.name, data }], at(1), 'position');
+    expect(repeated.repeats).toEqual([{ firstDay: '2026-11-01', repeatedDay: '2026-11-02' }]);
+    expect(repeated.daysLeft).toBe(1);
+  });
   it('distinguishes generated Sudoku from legacy sort files and non-daily games', () => {
     const report = puzzleRunways(at(1));
     const sudoku = report.find((row) => row.game === 'sudoku')!;
@@ -192,7 +231,7 @@ describe('tracked public folders', () => {
 
   it('shows a concise, safe report that contains no puzzle text', () => {
     const lines = runwayLines(at(11));
-    expect(lines).toHaveLength(5);
+    expect(lines).toHaveLength(7);
     expect(lines.find((line) => line.startsWith('sudoku '))).toContain('generated each day');
     // Adding more samples must extend the runway without breaking this test.
     const pastLastSample = at(readGameSampleFiles('pulse').length + 2);

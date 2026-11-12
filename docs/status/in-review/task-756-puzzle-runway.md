@@ -1,1 +1,1 @@
-STATUS: W11-2 (#50), daily-puzzle runway: sample rotation and gap/duplicate/repeat tests; updated parser parity for 5/7/15-square crossword levels. Draft until Claude includes the required docs/README.md index line and runs current-head tests.
+STATUS: W11-2 (#50), daily-puzzle runway: matches per-level crossword rotations, parser rules for 5/7/15-square grids, and gap/duplicate/repeat tests. Draft until Claude adds docs/README.md index line and verifies this head against current staging.

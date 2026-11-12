@@ -15,7 +15,7 @@ const START_UTC = Date.UTC(2026, 10, 1);
 const DAY_MS = 86_400_000;
 
 export type SampleFolder = 'pulse' | 'cueword' | 'suture' | 'triage';
-export type RunwayGame = SampleFolder | 'sudoku';
+export type RunwayGame = SampleFolder | 'cueword-easy' | 'cueword-mid' | 'cueword-hard' | 'sudoku';
 export type RunwaySource = 'rotating-samples' | 'generated' | 'legacy-samples';
 
 export interface SampleFile {
@@ -42,6 +42,7 @@ export interface PuzzleRunway {
   lastDay: string | null;
   /** Number of valid, non-repeated sample days remaining, including today. */
   daysLeft: number | null;
+  /** For each active crossword level this counts that level's sorted pool only. */
   sampleCount: number;
   gaps: string[];
   duplicates: DuplicateDay[];
@@ -196,8 +197,11 @@ function playableIdentity(game: SampleFolder, data: unknown): string | null {
     ? JSON.stringify(['triage', groups.sort((a, b) => a![0].localeCompare(b![0])), data.oddOne]) : null;
 }
 
-/** Pure audit for a file list, convenient for small unit-test fixtures. */
-export function analyzePuzzleRunway(game: SampleFolder, input: readonly SampleFile[], asOf: Date): PuzzleRunway {
+/** Pure audit for one rotating file list. Position mode is for filtered difficulty pools. */
+export function analyzePuzzleRunway(
+  game: SampleFolder, input: readonly SampleFile[], asOf: Date,
+  slotMode: 'numbered' | 'position' = 'numbered',
+): PuzzleRunway {
   const today = runwayDayNumber(asOf) + 1;
   // Astro /play sorts the collection IDs lexicographically before rotating.
   const files = [...input].sort((a, b) => a.name.localeCompare(b.name));
@@ -213,19 +217,24 @@ export function analyzePuzzleRunway(game: SampleFolder, input: readonly SampleFi
 
   for (const [position, file] of files.entries()) {
     const match = /^sample-(\d+)\.json$/.exec(file.name);
-    const slot = match ? Number(match[1]) : NaN;
-    if (!match || !Number.isSafeInteger(slot) || slot < 1 || slot > 10_000) {
+    // Level selectors rotate their own sorted pool. Global filename numbers
+    // are not per-level calendar slots, so count positions in that pool.
+    const slot = slotMode === 'position' ? position + 1 : match ? Number(match[1]) : NaN;
+    const validName = slotMode === 'position'
+      ? /^sample-(?:\d{2}|(?:easy|mid|hard)-\d{2})\.json$/.test(file.name)
+      : match !== null;
+    if (!validName || !Number.isSafeInteger(slot) || slot < 1 || slot > 10_000) {
       invalidFiles.add(file.name);
       unsafePositions.add(position);
       continue;
     }
     // Keep a malformed but numeric name in the day map too, so duplicate days
     // such as sample-01.json + sample-1.json cannot hide behind a naming error.
-    if (!/^sample-\d{2,}\.json$/.test(file.name)) {
+    if (slotMode === 'numbered' && !/^sample-\d{2,}\.json$/.test(file.name)) {
       invalidFiles.add(file.name);
       unsafePositions.add(position);
     }
-    if (slot !== position + 1) {
+    if (slotMode === 'numbered' && slot !== position + 1) {
       outOfOrder.push(file.name);
       unsafePositions.add(position);
     }
@@ -298,9 +307,19 @@ export function readGameSampleFiles(game: SampleFolder): SampleFile[] {
 export function puzzleRunways(asOf: Date = new Date()): PuzzleRunway[] {
   runwayDayNumber(asOf);
   const report = (game: SampleFolder) => analyzePuzzleRunway(game, readGameSampleFiles(game), asOf);
+  // CuewordToday filters by difficulty *before* rotating. Unleveled legacy
+  // crosswords are not offered by the current game and must not extend the runway.
+  const crossword = readGameSampleFiles('cueword');
+  const crosswordLevel = (level: 'easy' | 'mid' | 'hard'): PuzzleRunway => ({
+    ...analyzePuzzleRunway('cueword', crossword.filter((item) =>
+      isRecord(item.data) && item.data.level === level), asOf, 'position'),
+    game: `cueword-${level}`,
+  });
   return [
     report('pulse'),
-    report('cueword'),
+    crosswordLevel('easy'),
+    crosswordLevel('mid'),
+    crosswordLevel('hard'),
     { game: 'sudoku', source: 'generated', firstDay: null, lastDay: null, daysLeft: null,
       sampleCount: 0, gaps: [], duplicates: [], repeats: [], invalidFiles: [], outOfOrder: [] },
     report('suture'),
