@@ -1,9 +1,10 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { relative, resolve } from 'node:path';
 import type { APIRoute } from 'astro';
 import { site } from '../config/site';
 import { indexablePages } from '../config/routes';
-import { generatedRoutes } from '../lessons/catalog';
+import { buildCatalog, contentEntryId, generatedRoutes, type CompanionFile, type LessonFile } from '../lessons/catalog';
+import { parseLessonMap } from '../islands/lessonmap';
 
 function escapeXml(value: string): string {
   return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&apos;');
@@ -100,11 +101,51 @@ export function sourceDeclaresNoindex(source: string): boolean {
     }
     if (name === 'noindex') {
       // Dynamic values are excluded conservatively. Only explicit false permits indexing.
-      if (value === undefined || !/^(?:\{\s*false\s*\}|"false"|'false')$/.test(value)) return true;
+      if (value !== '{false}') return true;
       // Continue scanning: an unknown JSX spread after noindex={false} can override it.
     }
   }
   return false;
+}
+
+/** Use the same catalog builder as getStaticPaths to validate dynamic lesson URLs.
+ * A [lesson] template existing on disk does not mean an arbitrary slug is built.
+ */
+function generatedLessonPaths(): ReadonlySet<string> {
+  type Entry<T> = { id: string; data: T };
+  function contentEntries<T>(collection: string): Entry<T>[] {
+    const root = resolve('content', collection);
+    if (!existsSync(root)) return [];
+    const files: string[] = [];
+    const visit = (dir: string): void => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const file = resolve(dir, entry.name);
+        if (entry.isDirectory()) visit(file);
+        else if (entry.isFile() && file.endsWith('.json')) files.push(file);
+      }
+    };
+    visit(root);
+    return files.map((file) => ({
+      id: contentEntryId(relative(root, file)),
+      data: JSON.parse(readFileSync(file, 'utf8')) as T,
+    }));
+  }
+  // If the content cannot be validated, fail closed. The Astro loader rejects
+  // malformed source content independently when building the lesson pages.
+  try {
+    const map = parseLessonMap(readFileSync(resolve('docs/curriculum/medsurg-lesson-map.csv'), 'utf8'));
+    if (map.problems.length) return new Set();
+    const catalog = buildCatalog({
+      lessons: contentEntries<LessonFile['data']>('lessons'),
+      cards: contentEntries<CompanionFile['data']>('cards'),
+      fillIn: contentEntries<CompanionFile['data']>('fill-in'),
+      organizer: contentEntries<CompanionFile['data']>('organizer'),
+      units: map.units,
+    });
+    return catalog.problems.length ? new Set() : new Set(generatedRoutes(catalog));
+  } catch {
+    return new Set();
+  }
 }
 
 /** Resolve an indexable route to the page that renders it, including generated lesson pages. */
@@ -117,7 +158,7 @@ export function pageSourcePath(route: string): string | undefined {
   if (!parts.every((part) => /^[a-z0-9-]+$/.test(part))) return undefined;
   const slug = parts.join('/');
   const candidates = parts.length ? [`${slug}.astro`, `${slug}/index.astro`] : ['index.astro'];
-  if (parts[0] === 'learn' && parts.length >= 2) {
+  if (parts[0] === 'learn' && parts.length >= 2 && generatedLessonPaths().has(url.pathname)) {
     const mode = parts.slice(2).join('/') || 'index';
     candidates.push(`learn/[lesson]/${mode}.astro`);
   }

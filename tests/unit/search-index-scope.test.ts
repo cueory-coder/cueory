@@ -62,6 +62,8 @@ describe('W18-2: site-search scope', () => {
       '/preview/states', '/account', '/account/two-factor', '/admin/flags',
       '/auth/callback', '/signin', '/signup', '/privacy', '/terms',
       '/play/stat', '/play/hello-cards', '/does-not-exist',
+      '/learn/not-a-real-lesson', '/learn/not-a-real-lesson/cards',
+      '/learn/study-skills/not-a-real-mode',
       'https://other.example/learn',
     ]) expect(isSearchableRoute(privateRoute), privateRoute).toBe(false);
     expect(searchRoute('/learn/study-skills/index.html#unit')).toBe('/learn/study-skills');
