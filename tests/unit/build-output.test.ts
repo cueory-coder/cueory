@@ -67,6 +67,7 @@ const initialJsBudget = {
   'play.html': 168467,
   'play/hello-cards.html': 91427,
   'play/stat.html': 96284, // Task 640: measured from a local Node 24.22.2 build, not yet from CI
+  'preview/adaptive.html': 89731, // #69: plain-build measurement on merge 74152a4a, Node 24.22.1, same scanner
   'preview/admin-flags.html': 92161,
   'preview/anatomy-text.html': 89104,
   'preview/anatomy-lab.html': 89027,
