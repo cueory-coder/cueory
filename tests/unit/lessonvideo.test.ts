@@ -1,10 +1,19 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import LessonVideo from '../../src/islands/LessonVideo';
 import { initialVideoState, nextVideoState, observedVideoEvent, videoStatusText } from '../../src/islands/lessonvideo';
 
 const ID = 'sampleVid01';
+
+it('the built draft-video lesson shows a static empty notice without a player island or unpublished props', () => {
+  const html = readFileSync(new URL('../../dist/learn/study-skills.html', import.meta.url), 'utf8');
+  const section = html.match(/<section\b[^>]*aria-label="lesson video"[^>]*>([\s\S]*?)<\/section>/)?.[1];
+  expect(section).toBeDefined();
+  expect(section).toContain('no video yet.');
+  expect(section).not.toMatch(/<iframe\b|<astro-island\b|<button\b|youtube-nocookie\.com/i);
+});
 
 describe('lesson video state machine', () => {
   it('shows a static empty state for missing and malformed IDs', () => {

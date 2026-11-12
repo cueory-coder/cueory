@@ -1,1 +1,1 @@
-STATUS: Task 746, lesson-video cover states (W06-2 #40): pure none/ready/loading/failed transitions with unit tests, guarded synchronous tap-to-play and retry, timeout fallback, accessibility and privacy browser tests. In review.
+STATUS: Task 746, lesson-video cover states (W06-2 #40): static empty notice integrated into the shared lesson template without unpublished props; playable videos retain guarded tap-to-play/retry; Draft pending browser/axe checks.

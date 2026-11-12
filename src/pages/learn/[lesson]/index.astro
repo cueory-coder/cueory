@@ -98,21 +98,25 @@ const ways = availableModes.length;
       </div>
     </section>
 
-    {video && isShowable(video.data.status) && (
-      <section class="mx-auto mt-section max-w-prose" aria-label="lesson video">
-        <LessonVideo
-          client:only="react"
-          videoId={video.data.videoId}
-          title={video.data.title}
-          thumbnail={video.data.thumbnail}
-          captionsUrl={video.data.captionsUrl || undefined}
-          transcriptUrl={video.data.transcriptUrl || undefined}
-        />
-        <noscript>
-          <p class="mt-3 text-sm text-ink-soft">the lesson video needs javascript. the written lesson above remains available.</p>
-        </noscript>
-      </section>
-    )}
+    <section class="mx-auto mt-section max-w-prose" aria-label="lesson video">
+      {video && isShowable(video.data.status) ? (
+        <>
+          <LessonVideo
+            client:only="react"
+            videoId={video.data.videoId}
+            title={video.data.title}
+            thumbnail={video.data.thumbnail}
+            captionsUrl={video.data.captionsUrl || undefined}
+            transcriptUrl={video.data.transcriptUrl || undefined}
+          />
+          <noscript>
+            <p class="mt-3 text-sm text-ink-soft">the lesson video needs javascript. the written lesson above remains available.</p>
+          </noscript>
+        </>
+      ) : (
+        <p class="rounded-lg border border-line bg-surface p-5 text-sm text-ink">no video yet.</p>
+      )}
+    </section>
 
     <div class="mx-auto max-w-prose">
       <LessonVisuals lessonId={lesson.curriculumId ?? lesson.id} />
