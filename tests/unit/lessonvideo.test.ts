@@ -113,6 +113,14 @@ describe('lesson video component markup before a tap', () => {
     expect(html).not.toContain('Play video:');
   });
 
+  it('shows truthful play wording when a published video has no optional thumbnail', () => {
+    const html = renderToStaticMarkup(createElement(LessonVideo, { videoId: ID, title: '[sample video]' }));
+    expect(html).toContain('aria-label="Play video: [sample video]"');
+    expect(html).toContain('Tap to play this video');
+    expect(html).not.toContain('real video coming soon');
+    expect(html).not.toContain('<iframe');
+  });
+
   it('renders a real play control and privacy explanation, not a preloaded iframe', () => {
     const html = renderToStaticMarkup(createElement(LessonVideo, { videoId: ID, title: '[sample video]' }));
     expect(html).toContain('aria-label="Play video: [sample video]"');

@@ -115,7 +115,7 @@ export default function LessonVideo({ videoId, title, thumbnail, captionsUrl, tr
                 className="text-sm text-ink-soft"
                 fontFamily="inherit"
               >
-                Placeholder — real video coming soon
+                Tap to play this video
               </text>
             </svg>
           )}
