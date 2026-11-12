@@ -39,6 +39,7 @@ const knownWithoutAxe: Readonly<Record<string, string>> = {
   "offline.spec.ts": "Service-worker caching and simulated offline failures; global axe runs online in a separate suite.",
   "phone-overflow.spec.ts": "320px/390px geometric overflow sweep; a11y-sweep.spec.ts runs axe at supported sizes.",
   "print-lessons.spec.ts": "Print-media layout and no-JavaScript fallback, not an interactive page-state axe audit.",
+  "print-home-reveal.spec.ts": "Print-media reveal/opacity regression with reduced-motion disabled; the normal homepage receives separate page-level axe coverage in home-modern.spec.ts and a11y-sweep.spec.ts.",
   "privacy-page.spec.ts": "Legal copy and destination assertions; the privacy route is in the global axe sweep.",
   "reduced-motion.spec.ts": "Animation suppression in motion-reduced mode; the global axe sweep covers the page DOM.",
   "reflow-640.spec.ts": "640px clipping and reflow checks; global axe inspects semantic markup separately.",
