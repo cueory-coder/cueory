@@ -833,10 +833,11 @@ test.describe('W02-3 confirm before forgetting all private game stats', () => {
     await panel(page).getByRole('button', { name: 'forget all my stats' }).click();
     await expect(group.getByRole('button', { name: 'cancel' })).toBeFocused();
 
-    // The game's normal result event arrives while the old destructive confirmation is open.
+    // Sudoku's completion adapter queues a distinct level before announcing the saved result.
     await page.evaluate(() => {
-      const result = { game: 'cueword', day: '2026-11-01', solved: true, tries: 2 };
-      window.dispatchEvent(new CustomEvent('cueory:game-result', { detail: result }));
+      window.dispatchEvent(new CustomEvent('cueory:sudoku-solved', {
+        detail: { game: 'sudoku', day: '2026-11-01', level: 'hard', solved: true, seconds: 91, errors: 2 },
+      }));
     });
     await expect(group).toHaveCount(0);
     await expect(panel(page).getByRole('switch', { name: 'keep my stats' })).toBeFocused();
@@ -844,7 +845,7 @@ test.describe('W02-3 confirm before forgetting all private game stats', () => {
       'your saved stats changed. review them before forgetting anything.',
     );
     const after = JSON.parse((await page.evaluate(() => localStorage.getItem('cueory-game-stats')))!);
-    expect(after.results).toEqual([...rows, { game: 'cueword', day: '2026-11-01', solved: true, tries: 2 }]);
+    expect(after.results).toEqual([...rows, { game: 'sudoku', day: '2026-11-01', solved: true, tries: 2, level: 'hard', seconds: 91 }]);
     await expect(group.getByRole('button', { name: 'yes, forget all' })).toHaveCount(0);
     // After reviewing the updated record, a fresh confirmation is still required.
     await panel(page).getByRole('button', { name: 'forget all my stats' }).click();
