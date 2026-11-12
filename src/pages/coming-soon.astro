@@ -5,35 +5,58 @@ import { courses, roadmap } from '../config/courses';
 const plannedCourses = courses.filter((c) => c.status === 'coming-soon');
 ---
 
-<Layout title="coming soon" description="Planned courses and features for cueory.">
-  <div class="mx-auto max-w-3xl space-y-10 py-8">
-    <div class="space-y-2">
-      <h1 class="text-2xl text-ink">coming soon</h1>
-      <p class="text-sm text-ink-soft">what we are currently building for future releases.</p>
+<Layout
+  title="coming soon"
+  description="explore planned cueory courses and study features, and find an available lesson to start today."
+  noindex
+>
+  <div class="mx-auto w-full max-w-page py-section">
+    <header class="mx-auto max-w-prose space-y-4 text-center">
+      <h1 class="display text-title text-ink sm:text-title-lg">coming soon</h1>
+      <p class="text-ink-soft">what we are currently building for future releases.</p>
+    </header>
+
+    <div class="mt-10 space-y-6">
+      <section class="veil min-w-0 p-6 sm:p-10" aria-labelledby="planned-courses-heading">
+        <h2 id="planned-courses-heading" class="display text-2xl text-ink sm:text-title">
+          planned courses
+        </h2>
+        <ul class="mt-6 grid gap-4 sm:grid-cols-2">
+          {
+            plannedCourses.map((course) => (
+              <li class="min-w-0 rounded-lg border border-line bg-surface p-5">
+                <h3 class="text-lg font-semibold text-ink">{course.title}</h3>
+                <p class="mt-2 text-ink-soft">{course.description}</p>
+              </li>
+            ))
+          }
+        </ul>
+      </section>
+
+      <section class="veil min-w-0 p-6 sm:p-10" aria-labelledby="roadmap-features-heading">
+        <h2 id="roadmap-features-heading" class="display text-2xl text-ink sm:text-title">
+          study features
+        </h2>
+        <ul class="mt-6 grid gap-4 sm:grid-cols-2">
+          {
+            roadmap.map((item) => (
+              <li class="min-w-0 rounded-lg border border-line bg-surface p-5">
+                <h3 class="text-lg font-semibold text-ink">{item.title}</h3>
+                <p class="mt-2 text-ink-soft">{item.description}</p>
+              </li>
+            ))
+          }
+        </ul>
+      </section>
     </div>
 
-    <section class="space-y-4" aria-labelledby="planned-courses-heading">
-      <h2 id="planned-courses-heading" class="text-xl text-ink">planned courses</h2>
-      <div class="grid gap-4 sm:grid-cols-2">
-        {plannedCourses.map((course) => (
-          <div class="rounded-lg border border-line bg-surface p-5">
-            <h3 class="text-lg text-ink">{course.title}</h3>
-            <p class="mt-2 text-sm text-ink-soft">{course.description}</p>
-          </div>
-        ))}
-      </div>
-    </section>
-
-    <section class="space-y-4" aria-labelledby="roadmap-features-heading">
-      <h2 id="roadmap-features-heading" class="text-xl text-ink">study features</h2>
-      <div class="grid gap-4 sm:grid-cols-2">
-        {roadmap.map((item) => (
-          <div class="rounded-lg border border-line bg-surface p-5">
-            <h3 class="text-lg text-ink">{item.title}</h3>
-            <p class="mt-2 text-sm text-ink-soft">{item.description}</p>
-          </div>
-        ))}
-      </div>
-    </section>
+    <div class="mt-10 text-center">
+      <a
+        href="/learn/study-skills"
+        class="glass-button inline-flex min-h-11 items-center justify-center"
+      >
+        explore available lessons
+      </a>
+    </div>
   </div>
 </Layout>

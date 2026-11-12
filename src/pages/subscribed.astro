@@ -1,14 +1,39 @@
 ---
 /** Where Kit sends people after they sign up (set as the form's redirect in Kit). */
 import Layout from '../layouts/Layout.astro';
-import Prose from '../components/Prose.astro';
 ---
 
-<Layout title="check your inbox" noindex promo={false}>
-  <Prose>
-    <h1>almost done: check your inbox</h1>
-    <p>we've sent you an email. click the button in it to confirm your signup.</p>
-    <p>if it's not there in a few minutes, check your spam or promotions folder.</p>
-    <p><a href="/">back to the home page</a></p>
-  </Prose>
+<Layout
+  title="check your inbox"
+  description="learn how to check for a cueory launch-updates confirmation email and what to do while you wait."
+  noindex
+  promo={false}
+>
+  <section class="mx-auto w-full max-w-prose py-section" aria-labelledby="subscribed-heading">
+    <div class="veil p-6 sm:p-10">
+      <h1 id="subscribed-heading" class="display text-title text-ink sm:text-title-lg">
+        almost done: check your inbox
+      </h1>
+      <p class="mt-5 text-ink">
+        if you signed up for launch updates, look for a confirmation email and follow its instructions.
+      </p>
+      <p class="mt-3 text-ink">
+        if it hasn't arrived, check your spam or promotions folder.
+      </p>
+      <div class="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <a
+          href="/learn/study-skills"
+          class="glass-button inline-flex min-h-11 items-center justify-center text-center"
+        >
+          explore available lessons
+        </a>
+        <a
+          href="/"
+          class="inline-flex min-h-11 items-center justify-center rounded-pill border border-control px-5 py-3 text-center text-ink no-underline hover:bg-surface"
+        >
+          back to home
+        </a>
+      </div>
+    </div>
+  </section>
 </Layout>
