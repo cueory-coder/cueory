@@ -1,1 +1,8 @@
 STATUS: Task W10-3 (#49), hydration-directive inventory and regression tests: every current eager island has a documented rationale; suggested lazy-loading candidates routed to issue #10 for owner review.
+
+
+Guard repair after real Vitest review: native HTML opening tags are now consumed before looking for component directives, so quoted or expression-string examples inside native attributes cannot become fake eager islands. The parser still counts only the original uppercase component-name form. One regression covering double-quoted, single-quoted and expression-string attributes failed before repair (three phantom islands) and now passes. All 38 allow-list entries, expected counts and reasons remain byte-identical. The original ten tests remain and the real hydration suite now passes 11 tests. No application directive or runtime code changed.
+
+Paired validation: exact staging 1cf45425 with published !101 source 05f14536 and !54 source 29e590ee, preserving current parent scanner, type contracts, tests and measurements. Added only this child's hydration test, status and documentation section. Astro check 655 files / 0 errors / 0 warnings / 28 hints, build passed, full Vitest 234 files / 5788 passed / 3 existing skips, real performance JSON 47/47 pages within unchanged limits. Node 24.22.1, unchanged dependencies. These are local paired checks, not a standalone child source-head or browser/full-verify pass.
+
+Keep Draft until parent !24/!101 and !54 integrate through normal review, then restack this child while retaining accepted scanner/type/measurement updates. The inherited child copies of parent files are stale and must not replace accepted versions. Final browser and reviewer gates remain. No new PR, force push, approval or merge.

@@ -84,11 +84,11 @@ function markupOnly(source: string): string {
     .replace(/<!--[^]*?-->|\{\/\*[^]*?\*\/\}|<(script|style)\b(?:[^"'<>]|"[^"]*"|'[^']*')*>[\s\S]*?<\/\1\s*>/g, '');
 }
 
-/** Parse component open tags while ignoring quoted values and {expressions}. */
+/** Skip complete native tags too, so their attribute examples cannot become component tags. */
 function eagerComponents(source: string): Array<{ component: string; kind: EagerKind }> {
   const html = markupOnly(source);
   const results: Array<{ component: string; kind: EagerKind }> = [];
-  const open = /<([A-Z][\w.]*)\b/g;
+  const open = /<([A-Za-z][\w.:-]*)\b/g;
   let match: RegExpExecArray | null;
   while ((match = open.exec(html))) {
     let quote = '';
@@ -118,8 +118,10 @@ function eagerComponents(source: string): Array<{ component: string; kind: Eager
       }
     }
     if (end === -1) throw new Error(`Unclosed component tag: ${match[1]}`);
-    for (const directive of attrs.matchAll(/(?:^|\s)client:(load|only)(?=[\s=/>]|$)/g)) {
-      results.push({ component: match[1]!, kind: directive[1] as EagerKind });
+    if (/^[A-Z][\w.]*$/.test(match[1]!)) {
+      for (const directive of attrs.matchAll(/(?:^|\s)client:(load|only)(?=[\s=/>]|$)/g)) {
+        results.push({ component: match[1]!, kind: directive[1] as EagerKind });
+      }
     }
     open.lastIndex = end + 1;
   }
@@ -242,6 +244,21 @@ describe('eager Astro island hydration', () => {
       'src/pages/fixture.astro::BrowserOnly::only',
     ]);
     expect(checkAllowlist(found, {})).toHaveLength(2);
+  });
+
+  it('ignores eager-looking component examples in native-element attributes', () => {
+    const f = fixture();
+    f.write('src/pages/fixture.astro', [
+      '<main>',
+      '  <div data-example="<Ghost client:load />"></div>',
+      `  <span title='<Phantom client:only="react" />'>sample examples</span>`,
+      `  <section data-example={'<ExpressionExample client:load />'}></section>`,
+      '  <Real client:load />',
+      '</main>',
+    ].join('\n'));
+    expect(collectEagerIslands(f.root).map(({ id }) => id)).toEqual([
+      'src/pages/fixture.astro::Real::load',
+    ]);
   });
 
   it('reads multiline component tags while skipping {expression} contents', () => {
