@@ -20,6 +20,7 @@ import {
   secondsLeft,
   startStat,
   statShareLine,
+  statTimerMessage,
   timerAnnouncement,
   verdict,
   type StatAnswer,
@@ -133,10 +134,103 @@ describe('stat clock', () => {
     }
     expect(heard).toEqual(['10 seconds left.', '5 seconds left.']);
     // A skipped reading (a slow device) still says it once; staying at 10 says nothing again.
-    expect(timerAnnouncement(12, 8)).toBe('10 seconds left.');
+    expect(timerAnnouncement(12, 8)).toBe('8 seconds left.');
+    expect(timerAnnouncement(20, 3)).toBe('3 seconds left.');
+    expect(timerAnnouncement(20, 1)).toBe('1 second left.');
     expect(timerAnnouncement(10, 10)).toBeNull();
     expect(timerAnnouncement(1, 0)).toBeNull();
+    expect(timerAnnouncement(Number.NaN, 5)).toBeNull();
   });
+  it('uses pure question-start words and handles a timeout transition', () => {
+    expect(statTimerMessage({ kind: 'question', index: 0, left: STAT_SECONDS })).toBe('question 1 of 15. 20 seconds.');
+    expect(statTimerMessage({ kind: 'question', index: 14, left: STAT_SECONDS, previousTimedOut: true }))
+      .toBe('time ran out. question 15 of 15. 20 seconds.');
+    expect(statTimerMessage({ kind: 'question', index: -1, left: STAT_SECONDS })).toBeNull();
+    expect(statTimerMessage({ kind: 'question', index: STAT_QUESTIONS, left: STAT_SECONDS })).toBeNull();
+    const expired = advanceTime(startStat(T0), questions, T0 + STAT_SECONDS * S);
+    expect(statTimerMessage({
+      kind: 'question', index: expired.index, left: secondsLeft(expired, T0 + STAT_SECONDS * S),
+      previousTimedOut: expired.answers.at(-1)?.timedOut,
+    })).toBe('time ran out. question 2 of 15. 20 seconds.');
+  });
+
+  it('announces actual remaining time when a suspended tab skips into a later question', () => {
+    const wake31s = T0 + 31_000;
+    const resumed = advanceTime(startStat(T0), questions, wake31s);
+    expect(resumed.index).toBe(1);
+    const left = secondsLeft(resumed, wake31s);
+    expect(left).toBe(9);
+    expect(statTimerMessage({
+      kind: 'question', index: resumed.index, left, previousTimedOut: resumed.answers.at(-1)?.timedOut,
+    })).toBe('time ran out. question 2 of 15. 9 seconds.');
+    // After the question announcement, the next tick must not emit a misleading 10-second checkpoint.
+    expect(statTimerMessage({ kind: 'tick', before: left, left: 8 })).toBeNull();
+    expect(statTimerMessage({ kind: 'tick', before: 6, left: 5 })).toBe('5 seconds left.');
+
+    const wake59s = T0 + 59_000;
+    const nearlyExpired = advanceTime(startStat(T0), questions, wake59s);
+    expect(nearlyExpired.index).toBe(2);
+    expect(statTimerMessage({
+      kind: 'question', index: nearlyExpired.index, left: secondsLeft(nearlyExpired, wake59s),
+      previousTimedOut: nearlyExpired.answers.at(-1)?.timedOut,
+    })).toBe('time ran out. question 3 of 15. 1 second.');
+    expect(statTimerMessage({ kind: 'question', index: 0, left: 0 })).toBeNull();
+    expect(statTimerMessage({ kind: 'question', index: 0, left: STAT_SECONDS + 1 })).toBeNull();
+  });
+
+  it('uses fake time for the halfway and final-five announcements, never every second', () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(T0);
+      const playing = startStat(Date.now());
+      let previous = STAT_SECONDS;
+      const at = (elapsedMs: number) => {
+        vi.setSystemTime(T0 + elapsedMs);
+        const left = secondsLeft(playing, Date.now());
+        const line = statTimerMessage({ kind: 'tick', before: previous, left });
+        previous = left;
+        return line;
+      };
+      expect(at(9_000)).toBeNull();
+      expect(at(10_000)).toBe('10 seconds left.');
+      expect(at(10_500)).toBeNull();
+      expect(at(11_000)).toBeNull();
+      expect(at(15_000)).toBe('5 seconds left.');
+      expect(at(16_000)).toBeNull();
+      expect(at(20_000)).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('ignores invalid or stale countdown readings instead of announcing misleading numbers', () => {
+    for (const [before, left] of [
+      [20, 20], [20, 0], [20, -1], [20, 20.5], [20, Number.NaN],
+      [20, Number.POSITIVE_INFINITY], [20.5, 5], [21, 5], [-1, 0], [5, 8],
+    ]) {
+      expect(timerAnnouncement(before, left)).toBeNull();
+    }
+    expect(timerAnnouncement(20, 9)).toBe('9 seconds left.');
+    expect(timerAnnouncement(10, 4)).toBe('4 seconds left.');
+    expect(timerAnnouncement(5, 4)).toBeNull();
+  });
+
+  it('does not announce repeatedly within the last five seconds', () => {
+    expect(statTimerMessage({ kind: 'tick', before: 6, left: 5 })).toBe('5 seconds left.');
+    for (const [before, left] of [[5, 4], [4, 3], [3, 2], [2, 1], [1, 0]]) {
+      expect(statTimerMessage({ kind: 'tick', before, left })).toBeNull();
+    }
+  });
+
+  it('reports true seconds left after a hidden-tab time jump', () => {
+    const started = startStat(T0);
+    const left = secondsLeft(started, T0 + 16_000);
+    expect(left).toBe(4);
+    expect(statTimerMessage({ kind: 'tick', before: STAT_SECONDS, left })).toBe('4 seconds left.');
+    expect(statTimerMessage({ kind: 'tick', before: 4, left: 3 })).toBeNull();
+    expect(statTimerMessage({ kind: 'tick', before: 3, left: 3 })).toBeNull();
+  });
+
 });
 
 describe('stat answers', () => {

@@ -135,12 +135,27 @@ export function ringFraction(left: number): number {
 }
 
 /**
- * What to read out to screen readers as the clock passes 10 and 5 seconds: once each, when `left` first reaches the
- * mark. `before` is the last value read on this same question (20 when it has just started). Null means say nothing.
+ * Announce at 10 and 5 seconds, not every second. If the page wakes up late, say the actual seconds left
+ * rather than a missed threshold (for example 4 seconds, not 10). At zero, the next question speaks.
  */
 export function timerAnnouncement(before: number, left: number): string | null {
-  const mark = ANNOUNCE_AT.find((at) => before > at && left <= at && left > 0);
-  return mark === undefined ? null : `${mark} seconds left.`;
+  // Real readings are whole seconds between zero and the question limit. Ignore malformed readings.
+  if (!Number.isInteger(before) || !Number.isInteger(left) ||
+      before > STAT_SECONDS || before < 0 || left <= 0 || left > STAT_SECONDS || left >= before) return null;
+  const crossed = ANNOUNCE_AT.some((mark) => before > mark && left <= mark);
+  return crossed ? `${left} ${left === 1 ? 'second' : 'seconds'} left.` : null;
+}
+
+/** A new question and a countdown tick share a single polite live region; all timing words are decided here. */
+export type StatTimerMessage =
+  | { kind: 'question'; index: number; left: number; previousTimedOut?: boolean }
+  | { kind: 'tick'; before: number; left: number };
+
+export function statTimerMessage(message: StatTimerMessage): string | null {
+  if (message.kind === 'tick') return timerAnnouncement(message.before, message.left);
+  if (!Number.isInteger(message.index) || message.index < 0 || message.index >= STAT_QUESTIONS ||
+      !Number.isInteger(message.left) || message.left <= 0 || message.left > STAT_SECONDS) return null;
+  return `${message.previousTimedOut ? 'time ran out. ' : ''}question ${message.index + 1} of ${STAT_QUESTIONS}. ${message.left} ${message.left === 1 ? 'second' : 'seconds'}.`;
 }
 
 // ---------- Grading (only at the end) ----------

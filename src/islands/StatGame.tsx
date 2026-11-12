@@ -17,7 +17,7 @@ import {
   scoreOf,
   secondsLeft,
   startStat,
-  timerAnnouncement,
+  statTimerMessage,
   verdict,
   type StatLetter,
   type StatQuestion,
@@ -48,7 +48,7 @@ type Phase = 'ready' | 'playing' | 'grading' | 'done' | 'failed';
 function Ring({ left }: { left: number }) {
   const low = left <= LOW_SECONDS;
   return (
-    <div role="timer" aria-label="seconds left" className="relative size-16 shrink-0" data-testid="stat-timer">
+    <div role="timer" aria-label={`${left} seconds left`} className="relative size-16 shrink-0" data-testid="stat-timer">
       <svg viewBox="0 0 64 64" className="size-16" aria-hidden="true" focusable="false">
         <circle cx="32" cy="32" r={RADIUS} fill="none" stroke="currentColor" strokeWidth="6" className="text-line" />
         <circle
@@ -108,7 +108,7 @@ export default function StatGame({ questions, sampleKey }: Props) {
     setCopied('');
     setRounds((count) => count + 1);
     setPhase('playing');
-    setSaid(`question 1 of ${STAT_QUESTIONS}. ${STAT_SECONDS} seconds.`);
+    setSaid(statTimerMessage({ kind: 'question', index: 0, left: STAT_SECONDS }) ?? '');
   }, []);
 
   // Start: focus goes to the question so it is read out.
@@ -137,11 +137,12 @@ export default function StatGame({ questions, sampleKey }: Props) {
     if (phase !== 'playing' || state.status !== 'playing') return;
     if (heard.current.index !== state.index) {
       const timedOut = state.answers.at(-1)?.timedOut;
-      heard.current = { index: state.index, left: STAT_SECONDS };
-      setSaid(`${timedOut ? 'time ran out. ' : ''}question ${state.index + 1} of ${STAT_QUESTIONS}. ${STAT_SECONDS} seconds.`);
+      // A sleeping tab may skip to a question already in progress. Announce its real time left.
+      heard.current = { index: state.index, left };
+      setSaid(statTimerMessage({ kind: 'question', index: state.index, left, previousTimedOut: timedOut }) ?? '');
       return;
     }
-    const line = timerAnnouncement(heard.current.left, left);
+    const line = statTimerMessage({ kind: 'tick', before: heard.current.left, left });
     heard.current = { index: state.index, left };
     if (line) setSaid(line);
   }, [phase, state.index, state.status, left]);

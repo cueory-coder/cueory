@@ -393,6 +393,51 @@ test('it sends nothing off the site and saves nothing', async ({ page }) => {
   expect(await page.evaluate(() => Object.keys(localStorage).filter((name) => /stat/i.test(name)))).toEqual([]);
 });
 
+test('returning to a timed round after tab sleep announces the real seconds left', async ({ page }) => {
+  await start(page);
+  // Simulate a suspended tab without running every 200 ms interval.
+  await page.clock.fastForward(31_000);
+  await expect(progress(page)).toHaveText('question 2 of 15');
+  await expect(seconds(page)).toHaveText('9 seconds left');
+  await expect(said(page)).toHaveText('time ran out. question 2 of 15. 9 seconds.');
+
+  await page.clock.runFor(1_000);
+  await expect(seconds(page)).toHaveText('8 seconds left');
+  await expect(said(page)).toHaveText('time ran out. question 2 of 15. 9 seconds.');
+
+  await page.clock.runFor(3_000);
+  await expect(seconds(page)).toHaveText('5 seconds left');
+  await expect(said(page)).toHaveText('5 seconds left.');
+});
+
+test('the timer exposes remaining seconds in its accessible name without noisy live updates', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await start(page);
+  const timer = page.getByTestId('stat-timer');
+  await expect(timer).toHaveAttribute('role', 'timer');
+  await expect(timer).toHaveAttribute('aria-label', '20 seconds left');
+  await expect(page.getByTestId('stat-said')).toHaveCount(1);
+  await expect(said(page)).toHaveAttribute('aria-live', 'polite');
+  await expect(said(page)).toHaveText('question 1 of 15. 20 seconds.');
+
+  await page.clock.runFor(9_000);
+  await expect(timer).toHaveAttribute('aria-label', '11 seconds left');
+  await expect(said(page)).toHaveText('question 1 of 15. 20 seconds.');
+
+  await page.clock.runFor(1_000);
+  await expect(timer).toHaveAttribute('aria-label', '10 seconds left');
+  await expect(said(page)).toHaveText('10 seconds left.');
+
+  await page.clock.runFor(5_000);
+  await expect(timer).toHaveAttribute('aria-label', '5 seconds left');
+  await expect(said(page)).toHaveText('5 seconds left.');
+  await expect(seconds(page)).toHaveAttribute('data-low', 'true');
+
+  await page.clock.runFor(1_000);
+  await expect(timer).toHaveAttribute('aria-label', '4 seconds left');
+  await expect(said(page)).toHaveText('5 seconds left.');
+});
+
 test('with reduced motion the ring does not animate and the seconds still show as text', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await start(page);
@@ -401,6 +446,43 @@ test('with reduced motion the ring does not animate and the seconds still show a
   await expect(seconds(page)).toBeVisible();
   await expect(seconds(page)).toHaveText('20 seconds left');
 });
+
+for (const size of [
+  { label: 'phone', width: 390, height: 844 },
+  { label: 'tablet', width: 820, height: 1180 },
+  { label: 'desktop', width: 1440, height: 900 },
+] as const) {
+  for (const scheme of ['light', 'dark'] as const) {
+    test(`timer speaks useful times at ${size.label} in ${scheme}, with no reduced-motion animation`, async ({ page }) => {
+      await page.setViewportSize({ width: size.width, height: size.height });
+      await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
+
+      // Scan before starting. A long accessibility scan must not consume a timed question.
+      await page.clock.resume();
+      const scan = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+      expect(scan.violations).toEqual([]);
+      await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 100);
+
+      await start(page);
+      await expect(said(page)).toHaveAttribute('aria-live', 'polite');
+      await expect(said(page)).toHaveText('question 1 of 15. 20 seconds.');
+      await expect(seconds(page)).toHaveText('20 seconds left');
+      const duration = await page.getByTestId('stat-ring').evaluate(
+        (ring) => parseFloat(getComputedStyle(ring).transitionDuration),
+      );
+      expect(duration).toBeLessThan(0.001);
+
+      await page.clock.runFor(10_000);
+      await expect(said(page)).toHaveText('10 seconds left.');
+      await page.clock.runFor(5_000);
+      await expect(said(page)).toHaveText('5 seconds left.');
+      await page.clock.runFor(1_000);
+      await expect(seconds(page)).toHaveText('4 seconds left');
+      await expect(said(page)).toHaveText('5 seconds left.');
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    });
+  }
+}
 
 for (const scheme of ['light', 'dark'] as const) {
   test(`passes axe, fits the screen and has 44px targets in ${scheme}, playing and on the results`, async ({ page }) => {
