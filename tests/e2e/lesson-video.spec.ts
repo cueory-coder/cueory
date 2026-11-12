@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 // LessonVideo island (D-82): lazy YouTube Nocookie embed. Nothing loads from YouTube before tap.
@@ -119,3 +120,57 @@ test('cover and player are at least 200 px tall, even at 320 px wide', async ({ 
   const box = await iframe.boundingBox();
   expect(box?.height).toBeGreaterThanOrEqual(200);
 });
+
+test('the loaded player offers a keyboard/tap retry without pre-tap requests', async ({ page }) => {
+  const requests: string[] = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).hostname === 'www.youtube-nocookie.com') requests.push(request.url());
+  });
+  await page.goto(LESSON_URL);
+  await page.waitForLoadState('networkidle');
+  expect(requests).toHaveLength(0);
+  await expect(page.getByRole('status')).toHaveText('tap to play the video.');
+
+  await page.getByRole('button', { name: /play video/i }).click();
+  const iframe = page.locator('iframe[src*="youtube-nocookie.com"]');
+  await expect(iframe).toBeVisible();
+  await expect.poll(() => requests.length).toBeGreaterThanOrEqual(1);
+  await expect(page.getByRole('status')).toContainText('player ready');
+
+  const retry = page.getByRole('button', { name: 'video not working? try again' });
+  await expect(retry).toBeVisible();
+  const box = await retry.boundingBox();
+  expect(box?.width).toBeGreaterThanOrEqual(44);
+  expect(box?.height).toBeGreaterThanOrEqual(44);
+  await retry.focus();
+  await page.keyboard.press('Enter');
+  await expect(iframe).toBeVisible();
+  await expect(iframe).toBeFocused();
+  await expect.poll(() => requests.length).toBeGreaterThanOrEqual(2);
+});
+
+for (const colorScheme of ['light', 'dark'] as const) {
+  test('video cover accessibility at ' + colorScheme + ' palette', async ({ page }) => {
+    await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+    let youtubeRequests = 0;
+    page.on('request', (request) => {
+      if (new URL(request.url()).hostname === 'www.youtube-nocookie.com') youtubeRequests += 1;
+    });
+    await page.goto(LESSON_URL);
+    await page.waitForLoadState('networkidle');
+    expect(youtubeRequests).toBe(0);
+    const cover = page.getByRole('button', { name: /play video/i });
+    await expect(cover).toBeVisible();
+    await expect(page.getByRole('status')).toHaveText('tap to play the video.');
+    const bounds = await cover.boundingBox();
+    expect(bounds?.width).toBeGreaterThanOrEqual(44);
+    expect(bounds?.height).toBeGreaterThanOrEqual(44);
+    await cover.focus();
+    await expect(cover).toHaveCSS('outline-style', 'solid');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+    const results = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'])
+      .analyze();
+    expect(results.violations).toEqual([]);
+  });
+}

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
+import { initialVideoState, nextVideoState, videoStatusText, type VideoEvent } from './lessonvideo';
 
 interface Props {
   videoId: string;
@@ -11,45 +12,88 @@ interface Props {
 }
 
 /**
- * Lazy YouTube Nocookie embed (D-82). Nothing loads from YouTube before the student taps the cover.
- * One tap creates the player with autoplay on and the cover goes away.
- * Rendered only in the browser (client:only).
+ * Lazy YouTube Nocookie embed (D-82). No external request occurs before a student taps.
+ * The tap mounts an autoplay iframe synchronously, preserving Safari's user gesture.
  */
 export default function LessonVideo({ videoId, title, thumbnail, captionsUrl, transcriptUrl }: Props) {
-  const [playing, setPlaying] = useState(false);
+  const [saved, setSaved] = useState(() => initialVideoState(videoId));
   const frameRef = useRef<HTMLIFrameElement>(null);
+  const retryRef = useRef<HTMLButtonElement>(null);
 
-  // The play button unmounts on tap, so focus would fall to the page body. Move it to the player.
+  // Guard against an ID change: the old open player must never auto-load a new ID before another tap.
+  const view = saved.videoId === videoId ? saved : initialVideoState(videoId);
+  const frameVisible = view.opened && (view.phase === 'loading' || view.phase === 'ready');
+
   useEffect(() => {
-    if (playing) frameRef.current?.focus();
-  }, [playing]);
+    if (saved.videoId !== videoId) setSaved(initialVideoState(videoId));
+  }, [saved.videoId, videoId]);
 
-  // The single-tap start rule (D-40): keep this handler synchronous. No await, timer or fetch before the iframe
-  // is created, because Safari/iOS can drop the "user tapped" permission that autoplay needs.
-  // TO CHECK ON A REAL iPhone before launch: one tap must start the video with sound controls working.
-  function play() {
-    flushSync(() => setPlaying(true));
+  // The tapped cover unmounts. Keep the keyboard in the player, then on the retry button if loading fails.
+  useEffect(() => {
+    if (frameVisible) frameRef.current?.focus();
+  }, [frameVisible, view.attempt]);
+  useEffect(() => {
+    if (view.phase === 'failed') retryRef.current?.focus();
+  }, [view.phase]);
+
+  // Some browsers do not fire iframe error events for cross-origin failures. A stalled load has a retry state.
+  useEffect(() => {
+    if (view.phase !== 'loading') return;
+    const attempt = view.attempt;
+    const timeout = window.setTimeout(() => {
+      setSaved((current) => current.videoId === videoId && current.attempt === attempt
+        ? nextVideoState(current, 'failed') : current);
+    }, 20_000);
+    return () => window.clearTimeout(timeout);
+  }, [view.phase, view.attempt, videoId]);
+
+  // Keep this handler synchronous. No await/timer/network work before the iframe mounts (D-40).
+  function start(event: 'play' | 'retry') {
+    flushSync(() => {
+      setSaved((current) => nextVideoState(
+        current.videoId === videoId ? current : initialVideoState(videoId), event,
+      ));
+    });
+  }
+
+  function onFrame(event: Extract<VideoEvent, 'loaded' | 'failed'>, attempt: number) {
+    setSaved((current) => current.videoId === videoId && current.attempt === attempt
+      ? nextVideoState(current, event) : current);
   }
 
   return (
     <div className="space-y-3">
-      {playing ? (
+      {view.phase === 'none' ? (
+        <p className="rounded-lg border border-line bg-surface p-5 text-sm text-ink">no video yet.</p>
+      ) : frameVisible ? (
         <div className="relative aspect-video min-h-50 w-full overflow-hidden rounded-lg bg-player">
           <iframe
+            key={view.attempt}
             ref={frameRef}
             className="absolute inset-0 size-full"
-            src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}?autoplay=1`}
+            src={'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(videoId) + '?autoplay=1'}
             title={title}
             allow="autoplay; encrypted-media; picture-in-picture"
             allowFullScreen
+            onLoad={() => onFrame('loaded', view.attempt)}
+            onError={() => onFrame('failed', view.attempt)}
           />
         </div>
+      ) : view.phase === 'failed' ? (
+        <button
+          ref={retryRef}
+          type="button"
+          onClick={() => start('retry')}
+          className="min-h-11 min-w-11 rounded-pill bg-button px-5 py-3 text-on-button hover:bg-button-hover"
+        >
+          try again
+        </button>
       ) : (
         <button
           type="button"
-          onClick={play}
+          onClick={() => start('play')}
           className="group relative aspect-video min-h-50 w-full overflow-hidden rounded-lg bg-ink-soft/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-button"
-          aria-label={`Play video: ${title}`}
+          aria-label={'Play video: ' + title}
         >
           {thumbnail ? (
             <img src={thumbnail} alt="" loading="lazy" decoding="async" className="size-full object-cover" />
@@ -92,10 +136,23 @@ export default function LessonVideo({ videoId, title, thumbnail, captionsUrl, tr
         </button>
       )}
 
-      {/* Shown before the tap, so the student knows what a tap does. */}
-      <p className="text-sm text-ink-soft">
-        Tapping play loads YouTube and its cookies. <a href="/privacy">See the privacy page.</a>
-      </p>
+      {view.phase !== 'none' && (
+        <>
+          <p role="status" aria-live="polite" className="text-sm text-ink-soft">{videoStatusText(view)}</p>
+          {frameVisible && (
+            <button
+              type="button"
+              onClick={() => start('retry')}
+              className="min-h-11 min-w-11 rounded-pill border border-control px-5 py-2.5 text-sm text-ink hover:bg-surface"
+            >
+              video not working? try again
+            </button>
+          )}
+          <p className="text-sm text-ink-soft">
+            Tapping play loads YouTube and its cookies. <a href="/privacy">See the privacy page.</a>
+          </p>
+        </>
+      )}
       {(captionsUrl || transcriptUrl) && (
         <ul className="flex gap-4 text-sm">
           {captionsUrl && <li><a href={captionsUrl}>Captions</a></li>}
