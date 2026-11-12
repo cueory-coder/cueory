@@ -87,7 +87,9 @@ async function mockProject(page: Page, options: { checkReply?: unknown; empty?: 
     if (request.method() === 'GET' && table && table in rows) {
       if (table === 'concepts' && failuresLeft > 0) {
         failuresLeft--;
-        return route.fulfill({ status: 503, headers, body: JSON.stringify({ message: 'sample private server detail' }) });
+        // 503/520 are automatically retried by Supabase's PostgREST client. Use a non-retryable
+        // failure so this test exercises our error UI rather than the client's transient retry policy.
+        return route.fulfill({ status: 500, headers, body: JSON.stringify({ message: 'sample private server detail' }) });
       }
       const columns = (url.searchParams.get('select') ?? '').split(',');
       // PostgREST filters as supabase-js sends them: column=eq.value and column=in.(a,b).
@@ -277,7 +279,9 @@ test.describe('W20: clear question loading, empty, and retry states', () => {
     await expect(page.getByText('sample private server detail')).toHaveCount(0);
     const retry = page.getByRole('button', { name: 'try again', exact: true });
     await expect(retry).toBeVisible();
-    expect(await retry.evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
+    const retryRect = await retry.boundingBox();
+    expect(retryRect?.width ?? 0).toBeGreaterThanOrEqual(44);
+    expect(retryRect?.height ?? 0).toBeGreaterThanOrEqual(44);
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
     expect(results.violations.map(result => result.id + ': ' + result.help)).toEqual([]);
 
@@ -318,9 +322,15 @@ test.describe('W20: clear question loading, empty, and retry states', () => {
     await expect(empty).toBeFocused();
     const back = empty.getByRole('link', { name: 'back to the course library' });
     await expect(back).toHaveAttribute('href', '/learn');
-    expect(await back.evaluate(node => node.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
+    const backRect = await back.boundingBox();
+    expect(backRect?.width ?? 0).toBeGreaterThanOrEqual(44);
+    expect(backRect?.height ?? 0).toBeGreaterThanOrEqual(44);
     await back.focus();
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Tab');
+    await expect(back).toBeFocused();
     await expect(back).toHaveCSS('outline-style', 'solid');
+    await expect.poll(() => seen.filter(request => request.path === '/rest/v1/concepts').length).toBe(2);
     expect(seen.filter(request => request.path === '/rest/v1/concepts')).toHaveLength(2);
     await expect(page.locator('fieldset')).toHaveCount(0);
   });
