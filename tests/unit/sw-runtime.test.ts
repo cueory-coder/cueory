@@ -1,6 +1,7 @@
 /** W07: exercise the real service-worker event handlers, not only their pure routing helpers. */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cacheName } from '../../src/scripts/offlineplan';
+import { NETWORK_WAIT_MS } from '../../src/scripts/swlogic';
 
 const ORIGIN = 'https://cueory.app';
 const CURRENT = cacheName('__BUILD_VERSION__');
@@ -25,7 +26,9 @@ async function runWorker(initialCaches: string[] = []) {
   const fetches: string[] = [];
   const cacheWrites: string[] = [];
   const deleted: string[] = [];
-  const timers: number[] = [];
+  const timers: { ms: number; fire(): void }[] = [];
+  let announceTimer: () => void = () => undefined;
+  const timerReady = new Promise<void>((resolve) => { announceTimer = resolve; });
   let skips = 0;
   let claims = 0;
   let failOpen = false;
@@ -61,8 +64,12 @@ async function runWorker(initialCaches: string[] = []) {
     fetches.push(request.url);
     return network(request);
   });
-  // No real timer is needed: for a cached page these tests let the network settle first.
-  vi.stubGlobal('setTimeout', (_callback: () => void, delay: number) => { timers.push(delay); return 0; });
+  // Capture rather than sleep: a test can trigger the real slow-network fallback deterministically.
+  vi.stubGlobal('setTimeout', (fire: () => void, ms: number) => {
+    timers.push({ fire, ms });
+    announceTimer();
+    return 0;
+  });
 
   await import('../../src/scripts/sw');
 
@@ -78,6 +85,7 @@ async function runWorker(initialCaches: string[] = []) {
     }
     return {
       intercepted: answer !== undefined,
+      response: answer,
       settle: async () => {
         const response = answer ? await answer : undefined;
         await Promise.all(lifetime);
@@ -87,7 +95,7 @@ async function runWorker(initialCaches: string[] = []) {
   }
 
   return {
-    dispatch, stores, fetches, cacheWrites, deleted, timers,
+    dispatch, stores, fetches, cacheWrites, deleted, timers, timerReady,
     get skips() { return skips; },
     get claims() { return claims; },
     setNetwork(next: Network) { network = next; },
@@ -156,6 +164,34 @@ describe('sw.ts runtime fetch and lifecycle behavior', () => {
     worker.setNetwork(async () => { throw new TypeError('offline'); });
     expect(await (await worker.dispatch('fetch', page).settle())?.text()).toBe('network');
     expect(worker.fetches).toEqual([page.url, page.url]);
+  });
+
+  it('serves a saved copy after the network timeout, then caches the late response', async () => {
+    const worker = await runWorker();
+    const page = request('/learn/study-skills');
+    await worker.dispatch('fetch', page).settle();
+
+    let release: (response: Response) => void = () => { throw new Error('network request did not start'); };
+    worker.setNetwork(() => new Promise<Response>((resolve) => { release = resolve; }));
+    const event = worker.dispatch('fetch', page);
+    expect(event.intercepted).toBe(true);
+
+    // Wait for the worker to register the timeout, without sleeping.
+    await worker.timerReady;
+    expect(worker.timers.length).toBe(1);
+    expect(worker.timers[0]?.ms).toBe(NETWORK_WAIT_MS);
+    worker.timers[0]!.fire();
+
+    // The browser receives the saved page while the network promise is still pending.
+    expect(await event.response?.then((response) => response.text())).toBe('network');
+    expect(worker.cacheWrites).toEqual([page.url]);
+
+    // The worker keeps the late success in the background for the next visit.
+    release(basic('late network'));
+    await event.settle();
+    expect(worker.cacheWrites).toEqual([page.url, page.url]);
+    worker.setNetwork(async () => { throw new TypeError('offline'); });
+    expect(await (await worker.dispatch('fetch', page).settle())?.text()).toBe('late network');
   });
 
   it('uses cached hashed assets without another network request', async () => {
