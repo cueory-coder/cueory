@@ -13,7 +13,7 @@ for (const name of ['width', 'height', 'logo-width', 'logo-top', 'label-y', 'res
   'challenge-size', 'site-size', 'dark-logo']) tokens[`--share-story-${name}`] = '1';
 Object.assign(tokens, {
   '--share-story-result-size': '132',
-  '--share-story-result-min-size': '60',
+  '--share-story-result-min-size': '56',
   '--share-story-result-max-width': '880',
   '--share-story-result-line-height': '1.15',
   '--share-story-result-max-lines': '3',

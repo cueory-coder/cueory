@@ -7,7 +7,7 @@ const options = {
   maxWidth: 880,
   maxLines: 3,
   startSize: 132,
-  minSize: 60,
+  minSize: 56,
   lineHeightRatio: 1.15,
   measure,
 };
