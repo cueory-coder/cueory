@@ -40,6 +40,31 @@ test('a draft video does not appear on its lesson page', async ({ page }) => {
   await expect(page.locator('iframe')).toHaveCount(0);
 });
 
+// Test the actual rendered lesson, not only a manually supplied island prop.
+// The video file is draft: its data must stay hidden, while the empty state stays visible.
+for (const colorScheme of ['light', 'dark'] as const) {
+  test('a lesson without a published video shows a safe notice in ' + colorScheme, async ({ page }) => {
+    await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+    let youtubeRequests = 0;
+    page.on('request', (request) => {
+      if (new URL(request.url()).hostname === 'www.youtube-nocookie.com') youtubeRequests += 1;
+    });
+    const response = await page.goto('/learn/study-skills');
+    expect(response?.status()).toBe(200);
+    const videoSection = page.locator('section[aria-label="lesson video"]');
+    await expect(videoSection).toBeVisible();
+    await expect(videoSection.getByText('no video yet.', { exact: true })).toBeVisible();
+    await expect(videoSection.getByRole('button', { name: /play video/i })).toHaveCount(0);
+    await expect(videoSection.locator('iframe')).toHaveCount(0);
+    expect(youtubeRequests).toBe(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+    const accessibility = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'])
+      .analyze();
+    expect(accessibility.violations).toEqual([]);
+  });
+}
+
 test('tapping play shows only the YouTube Nocookie player and the privacy note', async ({ page }) => {
   await page.goto(LESSON_URL);
   const cover = page.getByRole('button', { name: /play video/i });
