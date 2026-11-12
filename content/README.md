@@ -72,10 +72,11 @@ its address, `/learn/study-skills`, and its label it and sample questions pages.
 - `visuals/` — one JSON file per teaching picture in the visuals kit ([docs/VISUALS.md](../docs/VISUALS.md)): its
   labels, what the drawing shows, and for each one the exact words of the cited open book with the page address. The
   build checks every file. Only a visual marked `"status": "approved"` can appear as a teaching picture on a page.
-- `games/cueword/` — sample puzzles for the small crossword, one JSON file each: a `grid` of 3 to 7 rows of equal
-  length (capital letters, `.` for a gap) and its `clues`, `across` and `down`, each numbered the usual way. The build
-  checks every file with the game's own rules (every word has exactly one clue). Everyday words only, labeled as
-  samples on the page (D-70).
+- `games/cueword/` — sample puzzles for the small crossword, one JSON file each: a `grid` of 3 to 15 equal-length
+  rows, each containing 3 to 15 uppercase letters or dots (`.` for a gap), and its `clues`, `across` and `down`.
+  Optional `level` is `easy`, `mid` or `hard`, requiring a matching 5 by 5, 7 by 7 or 15 by 15 square grid respectively.
+  The build checks every file with the game's own rules (every word has exactly one clue). Everyday words only,
+  labeled as samples on the page (D-70). See the [content format guide](../docs/CONTENT-FORMAT.md) for the full reference.
 - `games/suture/` — sample puzzles for word path, one JSON file each: a `grid` of capital letters (3 to 11 rows of equal length) and its `words`, each with an uppercase `answer` and the `path` of `[row, column]` cells it runs
   through, up, down, left or right, never diagonally, with no cell shared. A word's `cue` is optional. The build checks every file with the game's
   own rules. Everyday words only, labeled as samples on the page (D-71).
