@@ -101,6 +101,25 @@ const DEFAULT_DESCRIPTION_PAGES = new Set([
   'subscribed.astro', // Private newsletter confirmation, noindex.
 ]);
 
+/** Preserve keyboard access to the primary content on every page, even if it is noindex. */
+function skipNavigationProblems(html: string): string[] {
+  const markup = html.replace(/<!--[\s\S]*?-->/g, '');
+  const skip = /<a\b[^>]*\shref\s*=\s*(["'])#main\1[^>]*>[\s\S]*?<\/a\s*>/i.exec(markup);
+  const main = /<main\b[^>]*>/i.exec(markup);
+  const problems: string[] = [];
+  if (!skip || !/skip to content/i.test(skip[0])) problems.push('missing accessible skip to content link');
+  else {
+    const classes = attribute(skip[0], 'class') ?? '';
+    if (!/(?:^|\s)sr-only(?:\s|$)/.test(classes)
+      || !/(?:^|\s)focus:not-sr-only(?:\s|$)/.test(classes)) {
+      problems.push('skip link must become visible when focused');
+    }
+  }
+  if (!main || attribute(main[0], 'id') !== 'main') problems.push('main landmark needs id=main');
+  if (skip && main && skip.index > main.index) problems.push('skip link must precede the main landmark');
+  return problems;
+}
+
 describe('W18: page metadata', () => {
   it('declares Layout, a title and an explicit description on each page (except documented fallbacks)', () => {
     const problems: string[] = [];
@@ -158,6 +177,30 @@ describe('W18: page metadata', () => {
       else if (!earlierDescription) descriptionOwners.set(key(description), route);
     }
     expect(problems).toEqual([]);
+  });
+
+  it('keeps keyboard skip navigation available even on private and noindex pages', () => {
+    const failures: string[] = [];
+    const pages = filesEndingIn(DIST_ROOT, '.html');
+    expect(pages.length).toBeGreaterThan(0);
+    for (const page of pages) {
+      const problems = skipNavigationProblems(readFileSync(page, 'utf8'));
+      failures.push(...problems.map((problem) => relative(DIST_ROOT, page) + ': ' + problem));
+    }
+    expect(failures).toEqual([]);
+  });
+
+  it('rejects missing and inaccessible skip links in synthetic markup', () => {
+    const good = '<a href="#main" class="sr-only focus:not-sr-only">skip to content</a><main id="main"></main>';
+    expect(skipNavigationProblems(good)).toEqual([]);
+    expect(skipNavigationProblems('<!-- ' + good + ' --><main id="main"></main>'))
+      .toContain('missing accessible skip to content link');
+    expect(skipNavigationProblems('<a href="#main" class="sr-only">skip to content</a><main id="main"></main>'))
+      .toContain('skip link must become visible when focused');
+    expect(skipNavigationProblems('<a href="#missing" class="sr-only focus:not-sr-only">skip to content</a><main id="main"></main>'))
+      .toContain('missing accessible skip to content link');
+    expect(skipNavigationProblems('<main id="main"></main>' + good))
+      .toContain('skip link must precede the main landmark');
   });
 
   it('detects missing, duplicate and noindex metadata in representative rendered markup', () => {
