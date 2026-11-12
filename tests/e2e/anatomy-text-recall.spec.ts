@@ -65,7 +65,11 @@ for (const colorScheme of ['light', 'dark'] as const) {
     expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze()).violations).toEqual([]);
   });
 
-  test(`text recall survives unavailable WebGL and supports choices and system reset (${colorScheme})`, async ({ page }) => {
+  test(`text recall survives unavailable WebGL and supports choices and system reset (${colorScheme})`, async ({ page }, info) => {
+    const activate = async (target: Locator) => {
+      if (info.project.use.hasTouch) await target.tap();
+      else await target.click();
+    };
     await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
     await page.addInitScript(() => {
       const original = HTMLCanvasElement.prototype.getContext;
@@ -75,13 +79,13 @@ for (const colorScheme of ['light', 'dark'] as const) {
       } as typeof original;
     });
     await page.goto('/preview/anatomy-lab?fixture');
-    await page.getByRole('button', { name: 'open the anatomy lab', exact: true }).click();
+    await activate(page.getByRole('button', { name: 'open the anatomy lab', exact: true }));
     await expect(page.getByRole('heading', { name: 'the 3D anatomy lab could not open.' })).toBeVisible();
     const region = page.getByRole('region', { name: 'source ID practice', exact: true });
     const start = region.getByRole('button', { name: 'start text name it', exact: true });
-    await start.click();
+    await activate(start);
     const id = (await region.locator('[data-text-recall-id]').textContent())!;
-    await region.getByRole('button', { name: names[id]!, exact: true }).click();
+    await activate(region.getByRole('button', { name: names[id]!, exact: true }));
     await expect(region.locator('[data-text-feedback="right"]')).toContainText(names[id]!);
     const picker = region.getByLabel('body system for text practice');
     const other = await picker.locator('option').evaluateAll((options) => (options as HTMLOptionElement[]).find((option) => option.value !== 'fixture')!.value);
@@ -89,8 +93,8 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await expect(start).toBeVisible();
     await expect(region.locator('[data-text-recall-id]')).toHaveCount(0);
     await picker.selectOption('fixture');
-    await start.click();
-    await region.getByRole('button', { name: 'show the name', exact: true }).click();
+    await activate(start);
+    await activate(region.getByRole('button', { name: 'show the name', exact: true }));
     await expect(region.locator('[data-text-feedback="shown"]')).toContainText('the name is: fixture');
     expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze()).violations).toEqual([]);
   });
