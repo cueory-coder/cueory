@@ -238,18 +238,18 @@ export async function createStoryFile(input: StoryImageInput): Promise<File | nu
     const context = canvas.getContext('2d');
     if (!context) return null;
 
-    await document.fonts.ready;
+    await withTimeout(document.fonts.ready, STORY_ASSET_TIMEOUT_MS);
     context.fillStyle = page;
     context.fillRect(0, 0, width, height);
 
     // Match the logo ink to the active page palette: Espresso on Ivory, Ivory on Charcoal.
     const logoPath = number('--share-story-dark-logo') === 1 ? '/brand/v1/logo-full-dark-960.png' : '/brand/v1/logo-full-light-960.png';
-    const logo = await image(logoPath);
+    const logo = await withTimeout(image(logoPath), STORY_ASSET_TIMEOUT_MS);
     const logoHeight = (logo.height * logoWidth) / logo.width;
     context.drawImage(logo, (width - logoWidth) / 2, number('--share-story-logo-top'), logoWidth, logoHeight);
 
     if (input.wordmarkPath) {
-      const wordmark = await image(input.wordmarkPath);
+      const wordmark = await withTimeout(image(input.wordmarkPath), STORY_ASSET_TIMEOUT_MS);
       const wordmarkWidth = logoWidth;
       const wordmarkHeight = (wordmark.height * wordmarkWidth) / wordmark.width;
       context.drawImage(wordmark, (width - wordmarkWidth) / 2, number('--share-story-logo-top') + logoHeight * 2, wordmarkWidth, wordmarkHeight);

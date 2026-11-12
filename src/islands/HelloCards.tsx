@@ -117,6 +117,7 @@ export default function HelloCards({ starters }: { starters: readonly HelloStart
               date: dayLabel(today),
               result: "today's card",
               shareResult: daily.text,
+              shareResult: daily.text,
               summary: 'share the prompt, then start a conversation.',
               stats: [{ label: 'deck', value: HELLO_DEPTH_LABELS[depth] }],
               path: '/play/hello-cards',

@@ -220,4 +220,26 @@ describe('result-host native share activation', () => {
     expect(native).not.toHaveBeenCalled();
     expect(copy).not.toHaveBeenCalled();
   });
+
+  it('shares the hello cards prompt in the share line and the story image', async () => {
+    const native = vi.fn(async (_data: ShareData) => undefined);
+    mount(native);
+    hooks.image.mockResolvedValue(null);
+    const prompt = '[sample prompt]';
+    vi.stubGlobal('navigator', { share: native, canShare: () => true, clipboard: { writeText: vi.fn(async () => undefined) } });
+    showResultCard(helloResultCard({ prompt, date: 'nov 12', deck: 'small talk' }));
+    click('share');
+    expect(hooks.image).toHaveBeenCalledWith({ name: 'hello cards', date: 'nov 12', result: prompt });
+    await Promise.resolve(); await Promise.resolve();
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('hello cards · nov 12 · [sample prompt] · cueory.app');
+  });
+
+  it('draws the story image from the detailed share result when a game has one', () => {
+    mount(async () => undefined);
+    hooks.image.mockReturnValue(new Promise(() => undefined));
+    showResultCard({ ...card, game: 'sudoku', name: 'sudoku', result: 'solved', shareResult: '[sample level] · 4:10 · 0 mistakes' });
+    click('share');
+    expect(hooks.image).toHaveBeenCalledTimes(1);
+    expect(hooks.image.mock.calls[0]).toEqual([{ name: 'sudoku', date: 'nov 11', result: '[sample level] · 4:10 · 0 mistakes' }]);
+  });
 });

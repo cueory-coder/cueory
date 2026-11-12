@@ -134,7 +134,8 @@ export default function GameResultsHost() {
     const file = await createStoryFile({
       name: card.name,
       date: card.date,
-      result: card.result,
+      // The image carries the same detailed outcome as the share line (for example the hello cards prompt).
+      result: card.shareResult ?? card.result,
       ...(card.wordmarkPath ? { wordmarkPath: card.wordmarkPath } : {}),
     });
     if (request !== preparation.current || activeCard.current !== card) return;
@@ -143,6 +144,13 @@ export default function GameResultsHost() {
     setPrepared({ card, file });
     setStatus('image ready. tap share image to open your share options.');
   }
+
+  // While the dialog is open, the page behind it is inert: no focus, taps or screen-reader browsing.
+  const open = card !== null;
+  useEffect(() => {
+    if (!open || !dialog.current) return;
+    return inertOutside(dialog.current, document.body);
+  }, [open]);
 
   if (!card) return null;
   const line = buildResultShareLine(card);
