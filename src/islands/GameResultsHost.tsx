@@ -95,10 +95,9 @@ export default function GameResultsHost() {
   }
 
   async function share(card: GameResultCard, line: string) {
-    const base = { title: `${card.name} result · cueory`, text: line, url: absoluteUrl(card.path) };
-    // Text copy does not need a story image. Avoid waiting for fonts or logo loading when this browser cannot share files.
+    // Browsers without image-file sharing copy immediately; no canvas, font or logo work delays that fallback.
     if (!canShareFiles(navigator)) {
-      await shareFileOrCopy(navigator, base, null, copy);
+      await copy(line);
       return;
     }
     const file = await createStoryFile({
@@ -107,7 +106,12 @@ export default function GameResultsHost() {
       result: card.result,
       ...(card.wordmarkPath ? { wordmarkPath: card.wordmarkPath } : {}),
     });
-    await shareFileOrCopy(navigator, base, file, copy);
+    await shareFileOrCopy(
+      navigator,
+      { title: `${card.name} result · cueory`, text: line, url: absoluteUrl(card.path) },
+      file,
+      copy,
+    );
   }
 
   if (!card) return null;
@@ -115,9 +119,8 @@ export default function GameResultsHost() {
   const url = absoluteUrl(card.path);
 
   return (
-    <dialog
-      open
-      className="result-dialog-overlay fixed inset-0 z-50 flex items-center justify-center border-0 bg-transparent p-4"
+    <div
+      className="result-dialog-overlay fixed inset-0 z-50 flex items-center justify-center p-4"
       onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}
       data-testid="game-result-overlay"
     >
@@ -129,6 +132,7 @@ export default function GameResultsHost() {
         aria-describedby="game-result-summary"
         className="max-h-full w-full max-w-lg overflow-y-auto rounded-xl border border-line bg-page p-6 text-ink shadow-card sm:p-8"
         data-testid="game-result-dialog"
+        data-result-dialog
       >
         <div className="flex items-start justify-between gap-4">
           <p className="result-meta text-sm font-bold text-ink-soft">
@@ -179,6 +183,6 @@ export default function GameResultsHost() {
         <p role="status" className="mt-3 min-h-6 text-sm text-ink-soft break-all">{status}</p>
         <p className="mt-4 text-sm text-ink-soft">a new {card.name} comes out tomorrow.</p>
       </div>
-    </dialog>
+    </div>
   );
 }

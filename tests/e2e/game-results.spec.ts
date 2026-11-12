@@ -77,3 +77,18 @@ test('copy fallback and every platform link stay plain and tracker-free', async 
     expect([...url.searchParams.keys()].some((key) => key.startsWith('utm_'))).toBe(false);
   }
 });
+
+
+test('share copies immediately without requesting a story image when native file sharing is unavailable', async ({ page }) => {
+  let storyLogoRequests = 0;
+  await page.route('**/brand/v1/logo-full-*.png', async () => {
+    storyLogoRequests++;
+    await new Promise(() => {});
+  });
+  const dialog = await openResult(page);
+  await dialog.getByRole('button', { name: 'share', exact: true }).click();
+  await expect(dialog.getByRole('status')).toHaveText('result copied.');
+  expect(await page.evaluate(() => (window as unknown as { copied: string }).copied))
+    .toBe('pillo · nov 11, 2026 · 4 / 6 · cueory.app');
+  expect(storyLogoRequests).toBe(0);
+});

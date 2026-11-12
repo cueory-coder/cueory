@@ -152,7 +152,7 @@ describe('native share', () => {
   it.each([
     ['missing capability', { share: vi.fn() }],
     ['false capability', { share: vi.fn(), canShare: () => false }],
-    ['throwing capability', { share: vi.fn(), canShare: () => { throw new Error('no'); } }],
+    ['throwing capability', { share: vi.fn(), canShare: (): boolean => { throw new Error('no'); } }],
   ] as const)('copies the exact line when file sharing has %s', async (_case, target) => {
     const copy = vi.fn(async () => undefined);
     await expect(shareFileOrCopy(target, base, png(), copy)).resolves.toBe('copied');
