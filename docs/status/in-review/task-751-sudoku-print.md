@@ -1,0 +1,1 @@
+STATUS: Task 751, Sudoku givens-only print sheet (#69): a separate plain black-on-white printable Sudoku grid includes published givens, level and date while omitting student entries, hints and solution; word-path print behavior is unchanged.

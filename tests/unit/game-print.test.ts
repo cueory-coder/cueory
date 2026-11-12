@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { printGame, type PrintTarget } from '../../src/islands/gameprint';
+import { buildSudokuSheet, printGame, type PrintTarget } from '../../src/islands/gameprint';
+import { generateSudoku, LEVEL_RULES, type SudokuLevel } from '../../src/islands/sudoku';
 import { parsePuzzle, printableWords } from '../../src/islands/suture';
 
 /** A stand-in window: records print calls and lets the test fire "afterprint". */
@@ -63,5 +64,41 @@ describe('printableWords (Task 641)', () => {
   it('skips empty entries and is empty for no words', () => {
     expect(printableWords({ words: [] })).toEqual([]);
     expect(printableWords({ words: [{ answer: ' ', path: [] }] })).toEqual([]);
+  });
+});
+
+describe('buildSudokuSheet (W08-3)', () => {
+  it.each(['easy', 'medium', 'hard'] as const)('prints %s with only its givens, level and date', (level) => {
+    const generated = generateSudoku('print-source', level);
+    const prior = [...generated.puzzle];
+    const sheet = buildSudokuSheet(generated.puzzle, level, '2026-11-01');
+    expect(sheet.level).toBe(level);
+    expect(sheet.day).toBe('2026-11-01');
+    expect(sheet.rows).toHaveLength(9);
+    expect(sheet.rows.every((row) => row.length === 9)).toBe(true);
+    expect(sheet.rows.flat()).toEqual(generated.puzzle.map((digit) => digit ? String(digit) : ''));
+    expect(sheet.rows.flat().filter(Boolean)).toHaveLength(LEVEL_RULES[level].givens);
+    expect(generated.puzzle).toEqual(prior);
+  });
+
+  it('does not print a student's entry or the hidden solution', () => {
+    const generated = generateSudoku('print-private', 'easy');
+    const entries = [...generated.puzzle];
+    const firstOpen = entries.findIndex((value) => value === 0);
+    entries[firstOpen] = generated.solution[firstOpen]!;
+    expect(entries[firstOpen]).not.toBe(0);
+    const sheet = buildSudokuSheet(generated.puzzle, 'easy', '2026-11-01');
+    expect(sheet.rows[Math.floor(firstOpen / 9)]![firstOpen % 9]).toBe('');
+    expect(sheet.rows.flat().filter(Boolean)).toHaveLength(40);
+  });
+
+  it('refuses malformed grids, invalid levels and invalid day format', () => {
+    const valid = generateSudoku('print-validation', 'medium').puzzle;
+    expect(() => buildSudokuSheet([], 'medium', '2026-11-01')).toThrow();
+    expect(() => buildSudokuSheet(valid.slice(1), 'medium', '2026-11-01')).toThrow();
+    const invalid = [...valid]; invalid[0] = 10;
+    expect(() => buildSudokuSheet(invalid, 'medium', '2026-11-01')).toThrow();
+    expect(() => buildSudokuSheet(valid, 'other' as SudokuLevel, '2026-11-01')).toThrow();
+    expect(() => buildSudokuSheet(valid, 'medium', 'not-a-day')).toThrow();
   });
 });

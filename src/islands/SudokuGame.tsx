@@ -1,6 +1,7 @@
+import '../styles/sudokuprint.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { browserStorage } from '../scripts/storage';
-import { printGame } from './gameprint';
+import { buildSudokuSheet, printGame } from './gameprint';
 import { localDay } from './gameresults';
 import { DEFAULT_SUDOKU_SETTINGS, LEVEL_RULES, advanceSudokuSeconds, applySudokuEdit, candidates, conflictIndices, dailySudokuSeed, generateSudoku, getResult, loadSudokuSettings, saveSudokuSettings, sudokuCellPresentation, sudokuKeyAction, type SudokuLevel, type SudokuSettings } from './sudoku';
 
@@ -29,6 +30,7 @@ export default function SudokuGame() {
   const day = useMemo(() => localDay(today), [today]);
   const [level, setLevel] = useState<SudokuLevel>('easy');
   const puzzle = useMemo(() => generateSudoku(dailySudokuSeed(day, level), level), [day, level]);
+  const printSheet = useMemo(() => buildSudokuSheet(puzzle.puzzle, level, day), [puzzle, level, day]);
   const [entries, setEntries] = useState<number[]>(() => [...puzzle.puzzle]);
   const [marks, setMarks] = useState<Set<number>>(() => new Set());
   const [selected, setSelected] = useState(() => firstOpen(puzzle.puzzle));
@@ -141,7 +143,7 @@ export default function SudokuGame() {
     if (key === 'autoCandidates') setHints(next.autoCandidates);
     return next;
   });
-  // The shared print helper (Task 641): marks the page for sudoku's print rules and clears the mark after printing.
+  // The existing print helper marks the page; the dedicated sheet contains published givens only.
   const printPuzzle = () => printGame('sudoku');
   const elapsed = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
   const selectedRow = Math.floor(selected / 9); const selectedColumn = selected % 9; const selectedValue = paused ? 0 : entries[selected];
@@ -200,6 +202,16 @@ export default function SudokuGame() {
       </div>
     </div>}
     <p className="sr-only" aria-live="polite" aria-atomic="true" data-testid="sudoku-live">{said}</p>
+    <section className="sudoku-print-sheet" data-testid="sudoku-print-sheet" aria-label="blank sudoku sheet">
+      <h3>sudoku</h3>
+      <p className="sudoku-print-meta">{printSheet.level} · {printSheet.day}</p>
+      <table className="sudoku-print-grid" aria-label={'sudoku ' + printSheet.level + ' for ' + printSheet.day}>
+        <tbody>{printSheet.rows.map((row, rowIndex) =>
+          <tr key={rowIndex}>{row.map((digit, columnIndex) =>
+            <td key={columnIndex}>{digit}</td>)}</tr>)}</tbody>
+      </table>
+      <p className="sudoku-print-credit">cueory.app</p>
+    </section>
     <p className="sudoku-print-footer">cueory.app</p>
   </section>;
 }

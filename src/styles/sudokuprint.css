@@ -1,0 +1,75 @@
+/* The standalone Sudoku sheet does not display during interactive play. */
+.sudoku-print-sheet {
+  display: none;
+}
+
+@media print {
+  /* Printing via the Sudoku button: plain white paper, black ink, no marketing texture. */
+  :root[data-print-game="sudoku"],
+  :root[data-print-game="sudoku"] body,
+  :root[data-print-game="sudoku"] .sudoku-print-sheet {
+    background: var(--print-paper) !important;
+    color: var(--print-ink) !important;
+  }
+
+  /* Never print the interactive grid, filled entries, candidate hints or controls. */
+  :root[data-print-game="sudoku"] .sudoku-game > :not(.sudoku-print-sheet) {
+    display: none !important;
+  }
+
+  :root[data-print-game="sudoku"] .sudoku-print-sheet {
+    display: block !important;
+    inline-size: min(100%, var(--print-board));
+    margin-inline: auto;
+    border: none;
+    box-shadow: none;
+    break-inside: avoid;
+  }
+
+  :root[data-print-game="sudoku"] .sudoku-print-sheet h3,
+  :root[data-print-game="sudoku"] .sudoku-print-meta,
+  :root[data-print-game="sudoku"] .sudoku-print-credit {
+    color: var(--print-ink) !important;
+    text-align: center;
+  }
+
+  :root[data-print-game="sudoku"] .sudoku-print-sheet h3 {
+    font-size: var(--text-xl);
+  }
+
+  :root[data-print-game="sudoku"] .sudoku-print-meta {
+    margin-block-end: var(--print-gap);
+    font-size: var(--text-base);
+  }
+
+  :root[data-print-game="sudoku"] .sudoku-print-grid {
+    inline-size: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    border: var(--sudoku-box-line) solid var(--print-ink);
+    break-inside: avoid;
+  }
+
+  :root[data-print-game="sudoku"] .sudoku-print-grid td {
+    block-size: calc(var(--print-board) / 9);
+    border: var(--sudoku-line) solid var(--print-ink);
+    background: var(--print-paper) !important;
+    color: var(--print-ink) !important;
+    font-size: var(--print-letter);
+    text-align: center;
+    vertical-align: middle;
+  }
+
+  :root[data-print-game="sudoku"] .sudoku-print-grid td:nth-child(3n) {
+    border-inline-end: var(--sudoku-box-line) solid var(--print-ink);
+  }
+
+  :root[data-print-game="sudoku"] .sudoku-print-grid tr:nth-child(3n) td {
+    border-block-end: var(--sudoku-box-line) solid var(--print-ink);
+  }
+
+  :root[data-print-game="sudoku"] .sudoku-print-credit {
+    margin-block-start: var(--print-gap);
+    font-size: var(--text-sm);
+  }
+}
