@@ -66,6 +66,10 @@ const initialJsBudget = {
   'play.html': 168467,
   'play/hello-cards.html': 91427,
   'play/stat.html': 96284, // Task 640: measured from a local Node 24.22.2 build, not yet from CI
+  'play/crossword.html': 89662,
+  'play/pillo.html': 89662,
+  'play/sudoku.html': 89662,
+  'play/word-path.html': 89662,
   'preview/admin-flags.html': 92161,
   'preview/anatomy-text.html': 89104,
   'preview/anatomy-lab.html': 89027,
@@ -276,8 +280,10 @@ describe.skipIf(!existsSync(dist))('built site', () => {
       expect(html, `${page}: canonical`).toContain(`rel="canonical" href="https://cueory.app/`);
       expect(meta(html, 'og:title'), `${page}: og:title`).toBe(title);
       expect(meta(html, 'og:description'), `${page}: og:description`).toBe(description);
-      expect(meta(html, 'og:image'), `${page}: og:image`).toBe('https://cueory.app/share/study-ivory.png');
-      expect(existsSync(join(dist, 'share/study-ivory.png')), `${page}: og:image file`).toBe(true);
+      const gameOgImage = ['pillo', 'crossword', 'word-path', 'sudoku', 'hello-cards'].find((game) => page.endsWith(`/play/${game}.html`));
+      const expectedOgImage = gameOgImage ? `https://cueory.app/share/${gameOgImage}-og.png` : page.endsWith('/play.html') ? 'https://cueory.app/share/games-scene.png' : 'https://cueory.app/share/study-ivory.png';
+      expect(meta(html, 'og:image'), `${page}: og:image`).toBe(expectedOgImage);
+      expect(existsSync(join(dist, gameOgImage ? `share/${gameOgImage}-og.png` : page.endsWith('/play.html') ? 'share/games-scene.png' : 'share/study-ivory.png')), `${page}: og:image file`).toBe(true);
     }
   });
 

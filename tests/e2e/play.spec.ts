@@ -8,14 +8,16 @@ import { dailySudokuSeed, generateSudoku } from '../../src/islands/sudoku';
  */
 // The once-only promo panel (D-59) slides down after 5 seconds and takes keyboard focus, which would interrupt these
 // tests part-way, so every page here starts as if it had already been shown (as in pages.spec.ts).
-test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => {
-    try {
-      localStorage.setItem('cueory-promo-seen', String(Date.now()));
-    } catch {
-      // Storage is blocked: the panel never shows then anyway.
-    }
-  });
+test.beforeEach(async ({ page }, testInfo) => {
+  if (testInfo.title !== 'a first visit keeps result focus while the promo waits') {
+    await page.addInitScript(() => {
+      try {
+        localStorage.setItem('cueory-promo-seen', String(Date.now()));
+      } catch {
+        // Storage is blocked: the panel never shows then anyway.
+      }
+    });
+  }
 });
 
 /*
@@ -122,6 +124,10 @@ test.describe('daily games: pillo (Task 114)', () => {
     for (const letter of 'grace') await pulse.getByRole('button', { name: letter, exact: true }).click();
     await expect(field(page)).toHaveValue('grace');
     await pulse.getByRole('button', { name: 'enter', exact: true }).click();
+    const resultDialog = page.getByTestId('game-result-dialog');
+    await expect(resultDialog.getByRole('button', { name: 'close results' })).toBeFocused();
+    await expect(resultDialog.getByTestId('result-share-line')).toHaveText('pillo · sun 1 nov · 1 / 6 · cueory.app');
+    await resultDialog.getByRole('button', { name: 'close results' }).click();
     const result = page.getByTestId('pulse-result');
     await expect(result).toBeFocused();
     await expect(result).toContainText('solved.');
@@ -132,6 +138,38 @@ test.describe('daily games: pillo (Task 114)', () => {
     await expect(page.getByRole('listitem', { name: /^guess 1: grace\./ }).locator('.pillo-mark')).toHaveText(
       Array(5).fill('●'),
     );
+  });
+
+  test('a first visit keeps result focus while the promo waits', async ({ page }) => {
+    await page.goto('/play');
+    await field(page).fill('grace');
+    await page.keyboard.press('Enter');
+    const resultDialog = page.getByTestId('game-result-dialog');
+    const close = resultDialog.getByRole('button', { name: 'close results' });
+    await expect(close).toBeFocused();
+    await page.waitForTimeout(5600);
+    await expect(resultDialog).toBeVisible();
+    await expect(close).toBeFocused();
+  });
+
+  test('share copies immediately when file sharing is unavailable', async ({ page }) => {
+    const logoRequests: string[] = [];
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'share', { configurable: true, value: async () => {} });
+      Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => false });
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText: async (text: string) => { (window as unknown as { copied: string[] }).copied = [text]; } },
+      });
+    });
+    page.on('request', (request) => { if (/logo-full-/.test(request.url())) logoRequests.push(request.url()); });
+    await page.goto('/play');
+    await field(page).fill('grace');
+    await page.keyboard.press('Enter');
+    const resultDialog = page.getByTestId('game-result-dialog');
+    await resultDialog.getByRole('button', { name: 'share' }).click();
+    await expect(resultDialog.getByRole('status')).toHaveText('result copied.');
+    expect(logoRequests).toEqual([]);
   });
 
   test('after six guesses the game ends and shows the word', async ({ page }) => {
@@ -422,6 +460,11 @@ test.describe('daily games: crossword levels (Task 627)', () => {
         await page.keyboard.type(letter);
       }
     }
+    const resultDialog = page.getByTestId('game-result-dialog');
+    await expect(resultDialog.getByRole('button', { name: 'close results' })).toBeFocused();
+    await expect(resultDialog.getByTestId('result-share-line')).toHaveText('crossword · sun 1 nov · solved · cueory.app');
+    await expect(resultDialog).toContainText('easy');
+    await resultDialog.getByRole('button', { name: 'close results' }).click();
     const result = board(page).getByTestId('cueword-result');
     await expect(result).toBeFocused();
     await expect(result).toContainText('solved.');
@@ -495,6 +538,9 @@ test.describe('daily games: private stats (D-76)', () => {
     await field(page).fill('grace');
     await field(page).press('Enter');
     await expect(page.getByTestId('pulse-result')).toContainText('solved.');
+    const resultDialog = page.getByTestId('game-result-dialog');
+    await expect(resultDialog.getByRole('button', { name: 'close results' })).toBeFocused();
+    await resultDialog.getByRole('button', { name: 'close results' }).click();
   };
 
   test.beforeEach(async ({ page }) => {

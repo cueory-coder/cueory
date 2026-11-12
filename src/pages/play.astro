@@ -11,6 +11,7 @@ import SudokuGame from '../islands/SudokuGame';
 import CuewordToday from '../islands/CuewordToday';
 import SutureToday from '../islands/SutureToday';
 import GameStatsPanel from '../islands/GameStatsPanel';
+import GameResultsHost from '../islands/GameResultsHost';
 import PilloTitle from '../components/PilloTitle.astro';
 import { parsePuzzle } from '../islands/cueword';
 import { parsePuzzle as parseWordPath } from '../islands/suture';
@@ -53,7 +54,7 @@ const wordPath = dailyGames.find((game) => game.id === 'suture')!;
 const later = dailyGames.filter((game) => !game.ready);
 ---
 
-<Layout title="daily games" description="four short puzzles every day: a word to guess, sudoku, a small crossword and a word path. sample puzzles for now.">
+<Layout title="daily games" description="four short puzzles every day: a word to guess, sudoku, a small crossword and a word path. sample puzzles for now." socialImage="/share/games-scene.png">
   <article class="veil mx-auto mt-6 max-w-prose p-6 sm:mt-10 sm:p-10" data-play-games>
     <h1 class="display text-title sm:text-title-lg">daily games</h1>
     <p class="mt-3 text-ink-soft">
@@ -138,4 +139,5 @@ const later = dailyGames.filter((game) => !game.ready);
       )
     }
   </article>
+  <GameResultsHost client:only="react" />
 </Layout>

@@ -251,6 +251,35 @@ test.describe('once-only promo panel (D-59)', () => {
     await wait(page, 10_000);
     await expect(promoPanel(page)).toBeHidden();
   });
+
+  test('waits while a finished-game result dialog owns focus', async ({ page }) => {
+    await page.goto('/play');
+    await page.waitForLoadState('networkidle');
+    await page.evaluate(() => {
+      window.dispatchEvent(new CustomEvent('cueory:game-result-card', {
+        detail: {
+          game: 'pulse',
+          name: 'pillo',
+          date: 'nov 11, 2026',
+          result: '4 / 6',
+          summary: 'sample result.',
+          stats: [{ label: 'time', value: '1:24' }],
+          path: '/play/pillo',
+        },
+      }));
+    });
+    const result = page.getByTestId('game-result-dialog');
+    await expect(result.getByRole('button', { name: 'close results' })).toBeFocused();
+
+    await wait(page, 6_000);
+    await expect(promoPanel(page)).toBeHidden();
+
+    await result.getByRole('button', { name: 'close results' }).click();
+    await wait(page, 600);
+    await expect(promoPanel(page)).toBeVisible();
+    await expect(promoPanel(page).getByRole('button', { name: 'close' })).toBeFocused();
+  });
+
 });
 
 test.describe('promo panel without JavaScript', () => {

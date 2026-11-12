@@ -74,11 +74,22 @@ export default function PulseGame({ puzzles }: Props) {
     result.current?.focus();
     if (reported.current) return;
     reported.current = true;
+    const tries = GUESSES - guessesLeft(state);
+    const solved = state.status === 'solved';
     reportRound({
       game: 'pulse',
       day: localDay(today),
-      solved: state.status === 'solved',
-      tries: GUESSES - guessesLeft(state),
+      solved,
+      tries,
+      card: {
+        game: 'pulse',
+        name: 'pillo',
+        date: dayLabel(today),
+        result: solved ? `${tries} / ${GUESSES}` : 'not solved',
+        summary: solved ? 'you found today\'s word.' : 'today\'s word is ready for another try tomorrow.',
+        stats: [{ label: 'guesses', value: `${tries}` }],
+        path: '/play/pillo',
+      },
     });
   }, [state.status]);
 

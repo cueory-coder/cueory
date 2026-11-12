@@ -31,16 +31,18 @@ interface Props {
   flagItem?: { itemId: string; itemVersionId: string };
   /** Hide the flag-or-comment button (D-pending, Task 64): set true during sharpening rounds and timed reviews. */
   hideFlag?: boolean;
+  /** Absolute or site-relative Open Graph image for this page. */
+  socialImage?: string;
 }
 
-const { title, description = site.description, variant = 'default', noindex = false, promo = true, flagItem, hideFlag = false } = Astro.props;
+const { title, description = site.description, variant = 'default', noindex = false, promo = true, flagItem, hideFlag = false, socialImage: socialImagePath = '/share/study-ivory.png' } = Astro.props;
 // Browser-tab titles use the lowercase brand voice: "privacy · cueory" (D-47).
 const fullTitle = title === site.name || title === site.wordmarkName ? site.wordmarkName : `${title} · ${site.wordmarkName}`;
 // Astro's static file build may expose /index.html or /privacy.html as the pathname.
 // Canonical URLs must match the public extensionless routes served by Workers.
 const canonicalPath = (Astro.url.pathname.replace(/\/index\.html$/, '') || '/').replace(/\.html$/, '');
 const canonical = new URL(canonicalPath, site.url).href;
-const socialImage = new URL('/share/study-ivory.png', site.url).href;
+const socialImage = new URL(socialImagePath, site.url).href;
 const isStudy = variant === 'study';
 const isHome = variant === 'home';
 const showPromo = promoSettings.show && promo && !isStudy;

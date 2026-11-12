@@ -1,0 +1,10 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import GameShareLanding from '../../components/GameShareLanding.astro';
+import { dailyGames } from '../../config/games';
+import { GAME_OG_IMAGES } from '../../islands/share';
+const game = dailyGames.find((item) => item.id === 'pulse')!;
+---
+<Layout title={game.name} description={game.line} socialImage={GAME_OG_IMAGES['pulse']} promo={false}>
+  <GameShareLanding name={game.name} line={game.line} playHref="/play#pulse-heading" />
+</Layout>

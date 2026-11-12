@@ -42,6 +42,14 @@ const C = {
 const MOTTO = 'by nursing students, for nursing students.';
 
 /** Tool groups: every game shares one set of cards, study skills has its own. */
+const OG_GAMES = [
+  { id: 'pillo', scene: C.wine },
+  { id: 'crossword', scene: C.studyGreen },
+  { id: 'word-path', scene: C.ivory },
+  { id: 'sudoku', scene: C.ivory },
+  { id: 'hello-cards', scene: C.wine },
+];
+
 const GROUPS = [
   { id: 'games', scene: C.wine, name: 'daily games', glyph: 'G' },
   { id: 'study', scene: C.studyGreen, name: 'study skills', glyph: 'S' },
@@ -121,6 +129,90 @@ function html(group, style) {
   return `<!doctype html><html><head><meta charset="utf-8"><style>${FONTS}${BASE}${css}</style></head><body>${body}</body></html>`;
 }
 
+/** Text-free game identity art. These motifs need no font and use only the approved BRAND.md palette. */
+function ogMotif(gameId) {
+  switch (gameId) {
+    case 'pillo':
+      return `<svg viewBox="0 0 1200 630" aria-hidden="true">
+        <rect x="250" y="75" width="700" height="480" rx="56" fill="${C.sand}"/>
+        <rect x="278" y="103" width="644" height="424" rx="42" fill="${C.ivory}"/>
+        ${[0, 1].flatMap((row) => [0, 1, 2, 3].map((col) => {
+          const x = 317 + col * 158;
+          const y = 158 + row * 190;
+          const left = col % 2 ? C.bronze : C.wine;
+          const right = col % 2 ? C.wine : C.bronze;
+          return `<circle cx="${x + 48}" cy="${y + 62}" r="62" fill="${C.taupe}"/>
+            <path d="M${x + 23} ${y + 39}h25v46h-25a23 23 0 0 1 0-46Z" fill="${left}"/>
+            <path d="M${x + 48} ${y + 39}h25a23 23 0 0 1 0 46h-25Z" fill="${right}"/>`;
+        })).join('')}
+      </svg>`;
+    case 'crossword': {
+      const blocks = new Set(['0,0','0,1','0,7','0,8','1,0','1,4','1,8','2,2','2,6','3,3','3,5','4,1','4,4','4,7','5,3','5,5','6,2','6,6','7,0','7,4','7,8','8,0','8,1','8,7','8,8']);
+      const cells = Array.from({ length: 81 }, (_, index) => {
+        const row = Math.floor(index / 9);
+        const col = index % 9;
+        const dark = blocks.has(`${row},${col}`);
+        const dot = !dark && (row + col) % 5 === 0
+          ? `<circle cx="${384 + col * 54}" cy="${99 + row * 54}" r="8" fill="${C.bronze}"/>`
+          : '';
+        return `<rect x="${359 + col * 54}" y="${74 + row * 54}" width="50" height="50" fill="${dark ? C.espresso : C.ivory}"/>${dot}`;
+      }).join('');
+      return `<svg viewBox="0 0 1200 630" aria-hidden="true">
+        <rect x="323" y="38" width="554" height="554" rx="28" fill="${C.sand}"/>${cells}
+      </svg>`;
+    }
+    case 'word-path': {
+      const points = [[190,445],[315,300],[460,390],[595,205],[735,330],[875,175],[1015,300]];
+      return `<svg viewBox="0 0 1200 630" aria-hidden="true">
+        <circle cx="160" cy="120" r="42" fill="${C.taupe}"/>
+        <circle cx="1040" cy="500" r="54" fill="${C.sand}"/>
+        <polyline points="${points.map((point) => point.join(',')).join(' ')}" fill="none" stroke="${C.bronze}" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+        ${points.map(([x, y], index) => `<circle cx="${x}" cy="${y}" r="58" fill="${index % 2 ? C.studyGreen : C.wine}"/>
+          <circle cx="${x}" cy="${y}" r="34" fill="${C.ivory}"/>
+          <circle cx="${x}" cy="${y}" r="13" fill="${index % 2 ? C.bronze : C.sand}"/>`).join('')}
+      </svg>`;
+    }
+    case 'sudoku': {
+      const lines = Array.from({ length: 10 }, (_, index) => {
+        const at = 330 + index * 60;
+        const width = index % 3 === 0 ? 10 : 3;
+        return `<line x1="${at}" y1="45" x2="${at}" y2="585" stroke="${C.espresso}" stroke-width="${width}"/>
+          <line x1="330" y1="${45 + index * 60}" x2="870" y2="${45 + index * 60}" stroke="${C.espresso}" stroke-width="${width}"/>`;
+      }).join('');
+      const marks = [[0,1],[0,5],[1,3],[1,8],[2,0],[2,6],[3,2],[3,7],[4,4],[5,1],[5,6],[6,2],[6,8],[7,0],[7,5],[8,3],[8,7]];
+      return `<svg viewBox="0 0 1200 630" aria-hidden="true">
+        <rect x="302" y="17" width="596" height="596" rx="24" fill="${C.sand}"/>
+        <rect x="330" y="45" width="540" height="540" fill="${C.ivory}"/>${lines}
+        ${marks.map(([row, col], index) => `<circle cx="${360 + col * 60}" cy="${75 + row * 60}" r="15" fill="${index % 3 === 0 ? C.wine : C.bronze}"/>`).join('')}
+      </svg>`;
+    }
+    case 'hello-cards':
+      return `<svg viewBox="0 0 1200 630" aria-hidden="true">
+        <rect x="210" y="110" width="500" height="360" rx="34" fill="${C.sand}"/>
+        <rect x="210" y="110" width="500" height="22" fill="${C.bronze}"/>
+        <circle cx="305" cy="215" r="34" fill="${C.wine}"/>
+        <rect x="370" y="190" width="240" height="18" rx="9" fill="${C.taupe}"/>
+        <rect x="370" y="254" width="220" height="18" rx="9" fill="${C.taupe}"/>
+        <rect x="370" y="318" width="200" height="18" rx="9" fill="${C.bronze}"/>
+        <rect x="490" y="160" width="500" height="360" rx="34" fill="${C.ivory}"/>
+        <rect x="490" y="160" width="500" height="22" fill="${C.studyGreen}"/>
+        <circle cx="585" cy="265" r="34" fill="${C.studyGreen}"/>
+        <rect x="650" y="240" width="240" height="18" rx="9" fill="${C.sand}"/>
+        <rect x="650" y="304" width="220" height="18" rx="9" fill="${C.sand}"/>
+        <rect x="650" y="368" width="200" height="18" rx="9" fill="${C.bronze}"/>
+        <circle cx="935" cy="465" r="22" fill="${C.bronze}"/>
+      </svg>`;
+  }
+  throw new Error(`unknown game preview: ${gameId}`);
+}
+
+function ogHtml(game) {
+  return `<!doctype html><html><head><meta charset="utf-8"><style>${BASE}
+    body { background: ${game.scene}; }
+    svg { display: block; width: 1200px; height: 630px; }
+  </style></head><body>${ogMotif(game.id)}</body></html>`;
+}
+
 /**
  * The official logo file at LOGO_WIDTH, the way scripts/build-brand-v1.mjs scales it: resizing changes only the
  * transparency (how much ink covers each pixel), and every pixel is put back to the file's exact ink color.
@@ -164,6 +256,13 @@ async function main() {
           .toFile(outPath);
         console.log(`wrote ${outPath}`);
       }
+    }
+    for (const game of OG_GAMES) {
+      await page.setContent(ogHtml(game));
+      const background = await page.screenshot({ type: 'png' });
+      const outPath = `${OUT_DIR}/${game.id}-og.png`;
+      await sharp(background).png({ compressionLevel: 9 }).toFile(outPath);
+      console.log(`wrote ${outPath}`);
     }
   } finally {
     await browser.close();

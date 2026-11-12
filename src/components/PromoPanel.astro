@@ -96,9 +96,10 @@ import { accountHref, promo, site } from '../config/site';
     /** Something else has the visitor's attention: the panel waits instead of interrupting it. */
     const busy = () =>
       document.hidden ||
-      document.querySelector('dialog[open]') !== null ||
+      document.querySelector('dialog[open], [role="dialog"][aria-modal="true"]') !== null ||
       closingDialogs.size > 0 ||
       document.querySelector('#account-menu:not([hidden])') !== null ||
+      document.querySelector('[data-result-dialog]') !== null ||
       isTextEntry(document.activeElement as HTMLElement | null);
 
     /** Closes the panel. Focus goes back where it was, unless a link took the visitor somewhere else. */

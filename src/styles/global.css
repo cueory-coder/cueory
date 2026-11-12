@@ -2178,3 +2178,17 @@ html:has(dialog.mode-preview[open]) {
   .crossword-print-clues ol { margin-block-start: calc(var(--spacing) * 2); }
   .crossword-result { display: none; }
 }
+
+/* Shared finished-game results: the overlay and small-caps metadata use the same named palette and motion tokens. */
+@layer components {
+  .result-dialog-overlay {
+    background-color: rgb(var(--shadow-tint) / var(--scrim-alpha));
+    -webkit-backdrop-filter: blur(var(--blur-scrim));
+    backdrop-filter: blur(var(--blur-scrim));
+  }
+
+  .result-meta {
+    font-variant-caps: all-small-caps;
+    letter-spacing: var(--tracking-label);
+  }
+}

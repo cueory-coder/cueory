@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { localDay, reportRound } from './gameresults';
 import ResultBrandMark from './ResultBrandMark';
+import { dayLabel } from './daily';
 import {
   currentWord, emptyState, erase, getResult, isSolved, move, nextWord, numbering, parsePuzzle,
   previousWord, selectOrToggleCell, type, words, type CuewordPuzzle, type CuewordState, type Direction,
@@ -49,8 +50,19 @@ function Board({ puzzle, name }: Props) {
   useEffect(() => {
     if (!solved || reported.current) return;
     reported.current = true;
-    reportRound({ game: 'cueword', day: localDay(today), solved: true, tries: 0 });
-  }, [solved, today]);
+    reportRound({
+      game: 'cueword', day: localDay(today), solved: true, tries: 0,
+      card: {
+        game: 'cueword', name, date: dayLabel(today), level: gameResult.level,
+        result: 'solved', summary: "you completed today's crossword.",
+        stats: [
+          { label: 'level', value: gameResult.level },
+          { label: 'time', value: elapsedText(gameResult.seconds) },
+        ],
+        path: '/play/crossword',
+      },
+    });
+  }, [solved, today, name, gameResult.level, gameResult.seconds]);
 
   const update = (next: CuewordState, focus = true) => {
     if (!solved && isSolved(next)) setElapsed(Math.floor((Date.now() - started.current) / 1000));
