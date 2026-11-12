@@ -4,7 +4,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { emptyProgress, legacyStarsKey, migrateLegacyStars, PROGRESS_STORAGE_KEY, withOnboarding, withPile, withStars } from '../../src/scripts/progress';
 import type { KeyValueStorage } from '../../src/scripts/storage';
 import ProgressRing from '../../src/islands/ProgressRing';
-import { examCountdown, progressScreenState, progressView } from '../../src/islands/progressview';
+import { examCountdown, progressScreenState, progressView, readDeviceProgress } from '../../src/islands/progressview';
+import { RESUME_STORAGE_KEY, RESUME_VERSION } from '../../src/scripts/resume';
 
 const decks = [
   { id: 'one', title: 'first deck', cardIds: ['a', 'b', 'c'] },
@@ -130,5 +131,87 @@ describe('explicit progress-page states', () => {
     expect(values.has(legacyStarsKey('one'))).toBe(false);
     expect(values.has(legacyStarsKey('retired'))).toBe(false);
     expect(state('{"version":1}', emptyProgress())).toBe('empty');
+  });
+});
+
+describe('readDeviceProgress guards storage before migration', () => {
+  function store(initial: Record<string, string> = {}) {
+    const values = new Map(Object.entries(initial));
+    const mutations: string[] = [];
+    const storage: KeyValueStorage = {
+      getItem: key => values.get(key) ?? null,
+      setItem: (key, value) => { mutations.push('set:' + key); values.set(key, value); },
+      removeItem: key => { mutations.push('remove:' + key); values.delete(key); },
+      get length() { return values.size; },
+      key: index => [...values.keys()][index] ?? null,
+    };
+    return { values, mutations, storage };
+  }
+
+  it('returns unreadable when storage does not exist', () => {
+    expect(readDeviceProgress(undefined)).toEqual({ progress: emptyProgress(), state: 'unreadable' });
+  });
+
+  it('returns unreadable when getItem throws without writing anything', () => {
+    let mutations = 0;
+    const storage: KeyValueStorage = {
+      getItem: () => { throw new Error('blocked'); },
+      setItem: () => { mutations++; },
+      removeItem: () => { mutations++; },
+    };
+    expect(readDeviceProgress(storage)).toEqual({ progress: emptyProgress(), state: 'unreadable' });
+    expect(mutations).toBe(0);
+  });
+
+  it('does not overwrite an invalid primary record when old star keys are present', () => {
+    const raw = '{not json';
+    const oldStars = '["b"]';
+    const existing = store({
+      [PROGRESS_STORAGE_KEY]: raw,
+      [legacyStarsKey('one')]: oldStars,
+    });
+    const before = [...existing.values.entries()];
+    expect(readDeviceProgress(existing.storage)).toEqual({ progress: emptyProgress(), state: 'unreadable' });
+    expect(existing.mutations).toEqual([]);
+    expect([...existing.values.entries()]).toEqual(before);
+    expect(existing.values.get(PROGRESS_STORAGE_KEY)).toBe(raw);
+    expect(existing.values.get(legacyStarsKey('one'))).toBe(oldStars);
+  });
+
+  it('migrates old stars only when the primary record is readable', () => {
+    const existing = store({
+      [PROGRESS_STORAGE_KEY]: JSON.stringify({ version: 1, onboarding: { done: true }, decks: { one: { know: ['a'] } } }),
+      [legacyStarsKey('one')]: '["b"]',
+    });
+    const result = readDeviceProgress(existing.storage);
+    expect(result.state).toBe('ready');
+    expect(result.progress.decks.one).toEqual({ know: ['a'], learning: [], starred: ['b'] });
+    expect(existing.values.has(legacyStarsKey('one'))).toBe(false);
+    expect(existing.mutations).toContain('remove:' + legacyStarsKey('one'));
+  });
+
+  it('counts a valid resume without an onboarding or card record as ready', () => {
+    const existing = store({
+      [RESUME_STORAGE_KEY]: JSON.stringify({
+        version: RESUME_VERSION,
+        tool: 'learn',
+        page: '/learn/study-skills',
+        itemIndex: 0,
+        totalItems: 1,
+        answers: {},
+        timer: null,
+        phase: 'working',
+        savedAt: Date.now(),
+      }),
+    });
+    const result = readDeviceProgress(existing.storage);
+    expect(result.state).toBe('ready');
+    expect(result.progress).toEqual(emptyProgress());
+    expect(existing.mutations).toEqual([]);
+  });
+
+  it('returns empty when the browser has neither progress nor a resume', () => {
+    const existing = store();
+    expect(readDeviceProgress(existing.storage)).toEqual({ progress: emptyProgress(), state: 'empty' });
   });
 });
