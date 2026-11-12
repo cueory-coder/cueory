@@ -51,3 +51,9 @@ Reproduced the missing shared Stat result with a failing behavioral Vitest test 
 The shared host mounts only when Stat is shown, outside the filtered article. Existing browser flows now close the shared result and advance one paused-clock frame before testing focus on the underlying result. Added a two-round regression for reopening only after a newly graded round, without reopening after Copy. These browser assertions are authored, not executed locally.
 
 Validation: five behavioral delivery cases passed, including ready/playing/grading/failed suppression, late-host delivery, repeat-effect deduplication, practice rounds and no private-stats record. Focused Vitest 4 files / 48 tests passed. Astro check 0 errors / 0 warnings / 26 hints, build passed, full Vitest 223 files / 5616 tests passed / 3 existing skips. Existing route budgets passed unchanged. Node 24.22.1, unchanged lockfile. Actual browser verification remains for Claude. No new PR.
+
+## Repair: focus after result replacement
+
+The result host now remembers the original page control throughout replacement results in the same open dialog. A replacement no longer overwrites that control with a button inside the dialog being closed. A new opening after Close still records its own return target. The regression executing the real host event/click handlers failed before the fix. Added two behavioral unit cases and a keyboard browser regression. Actual browser verification and the existing merge-conflict/product review holds remain required. No new PR.
+
+Validation after carrying forward the concurrent Stat integration: Astro check 635 files / 0 errors / 0 warnings / 26 hints, build passed, full Vitest 223 files / 5618 tests passed / 3 existing skips. All six host-sharing/focus behavioral unit cases pass. Browser discovery finds 24 result-dialog cases across configured Chromium projects. Node 24.22.1, unchanged lockfile. No browser/full verify pass is claimed.

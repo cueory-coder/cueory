@@ -57,6 +57,21 @@ test('finished-game result announces the exact card and traps focus', async ({ p
   await expect(returnTo).toBeFocused();
 });
 
+test('replacing an open result preserves its original keyboard return target', async ({ page }) => {
+  const returnTo = page.getByTestId('pulse').getByRole('button', { name: 'a', exact: true });
+  await returnTo.focus();
+  const dialog = await openResult(page);
+  await expect(dialog.getByRole('button', { name: 'close results' })).toBeFocused();
+  await page.evaluate((detail) => {
+    window.dispatchEvent(new CustomEvent('cueory:game-result-card', { detail: { ...detail, result: '1 / 6' } }));
+  }, card);
+  await expect(dialog.getByRole('heading', { level: 2 })).toHaveText('1 / 6');
+  await expect(dialog.getByRole('button', { name: 'close results' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(returnTo).toBeFocused();
+});
+
 test('first-visit promo waits while the result dialog owns focus', async ({ page }) => {
   await page.evaluate(() => localStorage.removeItem('cueory-promo-seen'));
   await page.reload();

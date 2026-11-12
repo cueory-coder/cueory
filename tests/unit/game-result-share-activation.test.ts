@@ -79,6 +79,35 @@ afterEach(() => {
 });
 
 describe('result-host native share activation', () => {
+  it('restores the original page control after an open result is replaced', () => {
+    mount(undefined);
+    click('close results');
+    const opener = Object.assign(new HTMLElement(), { focus: vi.fn() });
+    const dialogControl = Object.assign(new HTMLElement(), { focus: vi.fn() });
+    Reflect.set(document, 'activeElement', opener);
+    showResultCard(card);
+    Reflect.set(document, 'activeElement', dialogControl);
+    showResultCard({ ...card, result: '1 / 6' });
+    click('close results');
+    expect(opener.focus).toHaveBeenCalledTimes(1);
+    expect(dialogControl.focus).not.toHaveBeenCalled();
+  });
+
+  it('captures a new page control when the dialog opens again after closing', () => {
+    mount(undefined);
+    click('close results');
+    const first = Object.assign(new HTMLElement(), { focus: vi.fn() });
+    const second = Object.assign(new HTMLElement(), { focus: vi.fn() });
+    Reflect.set(document, 'activeElement', first);
+    showResultCard(card);
+    click('close results');
+    Reflect.set(document, 'activeElement', second);
+    showResultCard(card);
+    click('close results');
+    expect(first.focus).toHaveBeenCalledTimes(1);
+    expect(second.focus).toHaveBeenCalledTimes(1);
+  });
+
   it('prepares once, then calls native share only from a fresh second click', async () => {
     let active = true;
     const native = vi.fn(async (_data: ShareData) => { if (!active) throw new DOMException('expired activation', 'NotAllowedError'); });

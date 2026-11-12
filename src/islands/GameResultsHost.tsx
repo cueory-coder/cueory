@@ -37,11 +37,14 @@ export default function GameResultsHost() {
       const detail = (event as CustomEvent<GameResultCard>).detail;
       if (!detail) return;
       discardPendingResultCard(detail);
+      // Replacing an open result keeps the page control that originally opened the dialog.
+      if (!activeCard.current) {
+        returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      }
       activeCard.current = detail;
       preparation.current++;
       setPrepared(null);
       setPreparing(false);
-      returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       setStatus('');
       setCard(detail);
     };
