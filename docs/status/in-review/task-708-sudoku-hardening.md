@@ -1,0 +1,1 @@
+status: W08 (#8), Sudoku hardening: strict saved-settings fallback, blocked-storage tolerance, shared keyboard/tap editing logic, generator uniqueness and performance coverage across many seeds, and unusual-day regression tests.

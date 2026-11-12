@@ -19,6 +19,110 @@ export const LEVEL_RULES: Readonly<Record<SudokuLevel, { givens: number; techniq
   hard: { givens: 26, technique: 'candidate elimination and search' },
 };
 
+/** All saved Sudoku preferences must have this exact set of boolean keys. */
+export interface SudokuSettings {
+  checkGuesses: boolean;
+  autoCandidates: boolean;
+  showErrors: boolean;
+  showTimer: boolean;
+  highlightConflicts: boolean;
+  highlightRowColumn: boolean;
+  highlightBox: boolean;
+  highlightIdentical: boolean;
+  playSound: boolean;
+}
+
+export const SUDOKU_SETTINGS_KEY = 'cueory-sudoku-settings';
+export const DEFAULT_SUDOKU_SETTINGS: Readonly<SudokuSettings> = Object.freeze({
+  checkGuesses: true,
+  autoCandidates: false,
+  showErrors: true,
+  showTimer: true,
+  highlightConflicts: true,
+  highlightRowColumn: true,
+  highlightBox: true,
+  highlightIdentical: true,
+  playSound: true,
+});
+
+export interface SudokuSettingsStorage {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+}
+
+export function parseSudokuSettings(saved: string | null): SudokuSettings {
+  if (!saved) return { ...DEFAULT_SUDOKU_SETTINGS };
+  try {
+    const parsed: unknown = JSON.parse(saved);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return { ...DEFAULT_SUDOKU_SETTINGS };
+    const record = parsed as Record<string, unknown>;
+    const keys = Object.keys(DEFAULT_SUDOKU_SETTINGS) as Array<keyof SudokuSettings>;
+    // An incomplete, obsolete or malformed record resets completely instead of mixing old and new preferences.
+    if (Object.keys(record).length !== keys.length || keys.some((key) => typeof record[key] !== 'boolean')) {
+      return { ...DEFAULT_SUDOKU_SETTINGS };
+    }
+    return Object.fromEntries(keys.map((key) => [key, record[key]])) as unknown as SudokuSettings;
+  } catch {
+    return { ...DEFAULT_SUDOKU_SETTINGS };
+  }
+}
+
+export function loadSudokuSettings(storage: Pick<SudokuSettingsStorage, 'getItem'> | undefined): SudokuSettings {
+  try {
+    return parseSudokuSettings(storage?.getItem(SUDOKU_SETTINGS_KEY) ?? null);
+  } catch {
+    return { ...DEFAULT_SUDOKU_SETTINGS };
+  }
+}
+
+export function saveSudokuSettings(storage: Pick<SudokuSettingsStorage, 'setItem'> | undefined, settings: SudokuSettings): void {
+  try {
+    storage?.setItem(SUDOKU_SETTINGS_KEY, JSON.stringify(settings));
+  } catch {
+    // Persistence is optional. A blocked storage API must never stop play.
+  }
+}
+
+export type SudokuEdit = { kind: 'enter'; value: number } | { kind: 'mark' };
+export type SudokuKeyAction = SudokuEdit | { kind: 'select'; index: number };
+
+/** Arrow keys stop at the board edges, rather than wrapping to another row or column. */
+export function sudokuKeyAction(key: string, selected: number): SudokuKeyAction | undefined {
+  if (!Number.isInteger(selected) || selected < 0 || selected >= 81) return;
+  const row = Math.floor(selected / 9);
+  const column = selected % 9;
+  if (key === 'ArrowUp') return { kind: 'select', index: row > 0 ? selected - 9 : selected };
+  if (key === 'ArrowDown') return { kind: 'select', index: row < 8 ? selected + 9 : selected };
+  if (key === 'ArrowLeft') return { kind: 'select', index: column > 0 ? selected - 1 : selected };
+  if (key === 'ArrowRight') return { kind: 'select', index: column < 8 ? selected + 1 : selected };
+  if (/^[1-9]$/.test(key)) return { kind: 'enter', value: Number(key) };
+  if (key === 'x' || key === 'X' || key === 'Backspace' || key === 'Delete') return { kind: 'mark' };
+}
+
+/** Keyboard and on-screen pad use the same pure editing rules. Given squares cannot be changed. */
+export function applySudokuEdit(
+  entries: SudokuGrid,
+  givens: SudokuGrid,
+  marks: ReadonlySet<number>,
+  index: number,
+  action: SudokuEdit,
+): { entries: number[]; marks: Set<number>; markRemoved: boolean | null } | undefined {
+  if (entries.length !== 81 || givens.length !== 81 || !Number.isInteger(index) || index < 0 || index >= 81 || givens[index]) return;
+  const nextEntries = [...entries];
+  const nextMarks = new Set(marks);
+  if (action.kind === 'enter') {
+    if (!Number.isInteger(action.value) || action.value < 1 || action.value > 9) return;
+    nextEntries[index] = action.value;
+    nextMarks.delete(index);
+    return { entries: nextEntries, marks: nextMarks, markRemoved: null };
+  }
+  const markRemoved = nextMarks.has(index);
+  nextEntries[index] = 0;
+  if (markRemoved) nextMarks.delete(index);
+  else nextMarks.add(index);
+  return { entries: nextEntries, marks: nextMarks, markRemoved };
+}
+
 const SIZE = 9;
 const CELLS = SIZE * SIZE;
 const DIGITS = [1, 2, 3, 4, 5, 6, 7, 8, 9] as const;
