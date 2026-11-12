@@ -89,3 +89,23 @@ for (const { width, height } of [
     });
   }
 }
+
+test('preview rows contain only curriculum IDs and plain-language build status', async ({ page }) => {
+  await page.goto(route);
+  const actualRows = await page.locator('[data-curriculum-lesson-id]').allTextContents();
+  const expectedRows = expected.units.flatMap((unit) =>
+    unit.topics.flatMap((topic) =>
+      topic.lessons.map((lesson) => lesson.id + ' ' + lesson.status)
+    )
+  );
+  expect(actualRows.map((text) => text.replace(/\s+/g, ' ').trim())).toEqual(expectedRows);
+  // This is a read-only view: no form controls inside its own content.
+  await expect(page.locator('[data-curriculum-preview] button, [data-curriculum-preview] input, [data-curriculum-preview] form')).toHaveCount(0);
+  const first = page.locator('[data-curriculum-unit]').first();
+  await expect(first.getByRole('heading', { level: 2, name: expected.units[0]!.title })).toBeVisible();
+  const firstSummary = first.locator('summary');
+  await firstSummary.focus();
+  await expect(firstSummary).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(first.locator('details')).toHaveAttribute('open', '');
+});

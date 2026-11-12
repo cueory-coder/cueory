@@ -74,4 +74,42 @@ describe('curriculum build status', () => {
       units: [], lessonCount: 0, builtCount: 0, unmappedCatalogIds: [],
     });
   });
+
+  it('counts duplicate catalog records only once for a mapped lesson', () => {
+    const repeated = curriculumStatus(units, [
+      published('U01-T01-L01'), published('U01-T01-L01'),
+    ]);
+    expect(repeated.lessonCount).toBe(2);
+    expect(repeated.builtCount).toBe(1);
+    expect(repeated.units[0]!.builtCount).toBe(1);
+    expect(repeated.unmappedCatalogIds).toEqual([]);
+  });
+
+  it('counts independent units and topics without leaking lesson titles', () => {
+    const multiUnit: MapUnit[] = [
+      ...units,
+      {
+        id: 'U02',
+        title: '[sample second unit]',
+        topics: [{
+          id: 'U02-T01',
+          title: '[sample second topic]',
+          lessons: [{
+            lesson_id: 'U02-T01-L01',
+            title: '[sample hidden lesson title]',
+            row: 4,
+          }],
+        }],
+      },
+    ];
+    const report = curriculumStatus(multiUnit, [
+      published('U02-T01-L01'), published('U01-T01-L02'),
+    ]);
+    expect(report.units.map((unit) => [unit.id, unit.lessonCount, unit.builtCount])).toEqual([
+      ['U01', 2, 1], ['U02', 1, 1],
+    ]);
+    expect(report.lessonCount).toBe(3);
+    expect(report.builtCount).toBe(2);
+    expect(JSON.stringify(report)).not.toContain('[sample hidden lesson title]');
+  });
 });
