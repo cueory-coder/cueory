@@ -1,1 +1,1 @@
-status: Task 765, browser spec axe coverage (#67): AST-based source guard detects navigation and newPage calls, rejects comments or unused axe imports, preserves explained existing exceptions and tests both failing and passing fixtures.
+status: Task 765, browser spec axe coverage (#67): AST guard flags direct or helper-delegated page navigation and requires an axe analyze call tied to a real AxeBuilder instance, with explained legacy exemptions and positive/negative fixtures.

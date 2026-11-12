@@ -60,39 +60,86 @@ type SpecSource = { name: string; source: string };
 const e2eDir = fileURLToPath(new URL('../e2e/', import.meta.url));
 
 /**
- * Inspect executable AST nodes rather than comments or quoted fixture text.
- * A new navigation or browser context must be paired with an axe execution
- * unless this file has an explicit, individually justified exception.
+ * Inspect executable AST nodes, not comments or fixture strings. A test using
+ * the page fixture and delegating to a helper is treated as a page-level spec:
+ * the helper may navigate even when this file contains no visible goto().
  */
 function needsAxe(source: string): boolean {
   const parsed = ts.createSourceFile('browser-spec.ts', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
-  let navigates = false;
-  let createsAxe = false;
-  let analyzes = false;
-
-  const visit = (node: ts.Node): void => {
-    if (ts.isCallExpression(node)) {
-      const callee = node.expression;
-      let method: string | undefined;
-      if (ts.isPropertyAccessExpression(callee)) method = callee.name.text;
-      else if (ts.isElementAccessExpression(callee) && callee.argumentExpression &&
-        (ts.isStringLiteral(callee.argumentExpression) || ts.isNoSubstitutionTemplateLiteral(callee.argumentExpression))) {
-        method = callee.argumentExpression.text;
-      }
-      if (method === 'goto' || method === 'newPage') navigates = true;
-      if (method === 'analyze') analyzes = true;
+  const methodName = (callee: ts.LeftHandSideExpression): string | undefined => {
+    if (ts.isPropertyAccessExpression(callee)) return callee.name.text;
+    if (ts.isElementAccessExpression(callee) && callee.argumentExpression &&
+      (ts.isStringLiteral(callee.argumentExpression) || ts.isNoSubstitutionTemplateLiteral(callee.argumentExpression))) {
+      return callee.argumentExpression.text;
     }
-    if (ts.isNewExpression(node) &&
-      (ts.isIdentifier(node.expression) && node.expression.text === 'AxeBuilder' ||
-        ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === 'AxeBuilder')) {
-      createsAxe = true;
+    return undefined;
+  };
+  const isAxeConstructor = (node: ts.Node): boolean =>
+    ts.isNewExpression(node) && (
+      ts.isIdentifier(node.expression) && node.expression.text === 'AxeBuilder' ||
+      ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === 'AxeBuilder'
+    );
+  const hasAxeConstructor = (node: ts.Node): boolean => {
+    if (isAxeConstructor(node)) return true;
+    return ts.forEachChild(node, hasAxeConstructor) === true;
+  };
+  const axeBindings = new Set<string>();
+  const collectBindings = (node: ts.Node): void => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) &&
+      node.initializer && hasAxeConstructor(node.initializer)) {
+      axeBindings.add(node.name.text);
+    }
+    if (ts.isFunctionDeclaration(node) && node.name && node.body && hasAxeConstructor(node.body)) {
+      axeBindings.add(node.name.text);
+    }
+    ts.forEachChild(node, collectBindings);
+  };
+  collectBindings(parsed);
+
+  const refersToAxe = (node: ts.Expression): boolean => {
+    if (isAxeConstructor(node)) return true;
+    if (ts.isIdentifier(node)) return axeBindings.has(node.text);
+    if (ts.isCallExpression(node)) {
+      if (ts.isIdentifier(node.expression)) return axeBindings.has(node.expression.text);
+      if (ts.isPropertyAccessExpression(node.expression) || ts.isElementAccessExpression(node.expression)) {
+        return refersToAxe(node.expression.expression);
+      }
+    }
+    if (ts.isParenthesizedExpression(node) || ts.isAwaitExpression(node) ||
+      ts.isAsExpression(node) || ts.isNonNullExpression(node)) return refersToAxe(node.expression);
+    if (ts.isPropertyAccessExpression(node)) return refersToAxe(node.expression);
+    return false;
+  };
+
+  let navigates = false;
+  let pageFixture = false;
+  let helperWithPage = false;
+  let axeAnalyzed = false;
+  const visit = (node: ts.Node): void => {
+    if ((ts.isArrowFunction(node) || ts.isFunctionExpression(node)) && node.parameters.length) {
+      const first = node.parameters[0]!;
+      if (ts.isObjectBindingPattern(first.name) &&
+        first.name.elements.some((entry) => ts.isIdentifier(entry.name) && entry.name.text === 'page')) {
+        pageFixture = true;
+      }
+    }
+    if (ts.isCallExpression(node)) {
+      const method = methodName(node.expression);
+      if (method === 'goto' || method === 'newPage') navigates = true;
+      if (method === 'analyze' &&
+        (ts.isPropertyAccessExpression(node.expression) || ts.isElementAccessExpression(node.expression)) &&
+        refersToAxe(node.expression.expression)) axeAnalyzed = true;
+      if (ts.isIdentifier(node.expression) && !['expect', 'test', 'describe', 'it'].includes(node.expression.text) &&
+        node.arguments.some((arg) => ts.isIdentifier(arg) && arg.text === 'page' ||
+          ts.isObjectLiteralExpression(arg) && arg.properties.some((prop) =>
+            ts.isShorthandPropertyAssignment(prop) && prop.name.text === 'page'))) {
+        helperWithPage = true;
+      }
     }
     ts.forEachChild(node, visit);
   };
   visit(parsed);
-  // Importing AxeBuilder, describing it in a comment or constructing it without
-  // an analyze() call cannot satisfy the page-level accessibility requirement.
-  return navigates && !(createsAxe && analyzes);
+  return (navigates || (pageFixture && helperWithPage)) && !axeAnalyzed;
 }
 
 function assertCoverage(specs: readonly SpecSource[], exceptions: Readonly<Record<string, string>>): void {
@@ -111,17 +158,20 @@ function currentSpecs(): SpecSource[] {
 }
 
 describe('page-navigation browser specs must run axe', () => {
-  it('detects navigation even with an alias and ignores commented or string-only axe code', () => {
+  it('rejects direct, popup, and helper-based navigation without an axe scan', () => {
     const examples = [
       "await page.goto('/sample');",
       "await popup.goto('/sample');",
       "await noJsPage.goto('/sample');",
       "await context.newPage();",
       "await page['goto']('/sample');",
+      "test('sample', async ({ page }) => { await openPage(page); });",
+      "test('sample', async ({ page }) => { await openPage({ page }); });",
       "await page.goto('/sample'); // new AxeBuilder({ page }).analyze();",
       "await page.goto('/sample'); const unused = 'new AxeBuilder({ page }).analyze()';",
       "await page.goto('/sample'); const axe = new AxeBuilder({ page });",
       "await page.goto('/sample'); /* new AxeBuilder({ page }).analyze(); */",
+      "await page.goto('/sample'); const unused = new AxeBuilder({ page }); other.analyze();",
       "const text = `date ${await popup.goto('/sample')}`;",
     ];
     for (const source of examples) {
@@ -130,10 +180,13 @@ describe('page-navigation browser specs must run axe', () => {
     }
   });
 
-  it('accepts an executed axe scan and ignores literal or commented navigation', () => {
+  it('accepts actual axe analysis, including a named builder and an axe factory', () => {
     expect(() => assertCoverage([
       { name: 'with-axe.spec.ts', source: "await page.goto('/sample'); await new AxeBuilder({ page }).analyze();" },
       { name: 'other-page.spec.ts', source: "await popup.goto('/sample'); const a = await new AxeBuilder({ page }).withTags(['wcag2a']).analyze();" },
+      { name: 'bound-axe.spec.ts', source: "await page.goto('/sample'); const audit = new AxeBuilder({ page }); await audit.analyze();" },
+      { name: 'axe-factory.spec.ts', source: "await page.goto('/sample'); const make = (page) => new AxeBuilder({ page }); await make(page).analyze();" },
+      { name: 'no-nav.spec.ts', source: "test('sample', async ({ page }) => { await expect(page).toHaveTitle('sample'); });" },
       { name: 'pure.spec.ts', source: "expect(add(2, 3)).toBe(5);" },
       { name: 'comment.spec.ts', source: "// await page.goto('/sample');\nconst literal = 'page.goto(';" },
     ], {})).not.toThrow();
