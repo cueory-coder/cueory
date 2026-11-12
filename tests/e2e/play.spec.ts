@@ -7,14 +7,16 @@ import { expect, test, type Page } from '@playwright/test';
  */
 // The once-only promo panel (D-59) slides down after 5 seconds and takes keyboard focus, which would interrupt these
 // tests part-way, so every page here starts as if it had already been shown (as in pages.spec.ts).
-test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => {
-    try {
-      localStorage.setItem('cueory-promo-seen', String(Date.now()));
-    } catch {
-      // Storage is blocked: the panel never shows then anyway.
-    }
-  });
+test.beforeEach(async ({ page }, testInfo) => {
+  if (testInfo.title !== 'a first visit keeps result focus while the promo waits') {
+    await page.addInitScript(() => {
+      try {
+        localStorage.setItem('cueory-promo-seen', String(Date.now()));
+      } catch {
+        // Storage is blocked: the panel never shows then anyway.
+      }
+    });
+  }
 });
 
 /*
@@ -139,6 +141,38 @@ test.describe('daily games: pillo (Task 114)', () => {
     await expect(page.getByRole('listitem', { name: /^guess 1: grace\./ }).locator('.pillo-mark')).toHaveText(
       Array(5).fill('●'),
     );
+  });
+
+  test('a first visit keeps result focus while the promo waits', async ({ page }) => {
+    await page.goto('/play');
+    await field(page).fill('grace');
+    await page.keyboard.press('Enter');
+    const resultDialog = page.getByTestId('game-result-dialog');
+    const close = resultDialog.getByRole('button', { name: 'close results' });
+    await expect(close).toBeFocused();
+    await page.waitForTimeout(5600);
+    await expect(resultDialog).toBeVisible();
+    await expect(close).toBeFocused();
+  });
+
+  test('share copies immediately when file sharing is unavailable', async ({ page }) => {
+    const logoRequests: string[] = [];
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'share', { configurable: true, value: async () => {} });
+      Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => false });
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText: async (text: string) => { (window as unknown as { copied: string[] }).copied = [text]; } },
+      });
+    });
+    page.on('request', (request) => { if (/logo-full-/.test(request.url())) logoRequests.push(request.url()); });
+    await page.goto('/play');
+    await field(page).fill('grace');
+    await page.keyboard.press('Enter');
+    const resultDialog = page.getByTestId('game-result-dialog');
+    await resultDialog.getByRole('button', { name: 'share' }).click();
+    await expect(resultDialog.getByRole('status')).toHaveText('result copied.');
+    expect(logoRequests).toEqual([]);
   });
 
   test('after six guesses the game ends and shows the word', async ({ page }) => {

@@ -9,7 +9,7 @@ import {
   takePendingResultCards,
   type GameResultCard,
 } from './gameresults';
-import { createStoryFile, platformShareUrl, shareFileOrCopy, type SharePlatform } from './share';
+import { canShareFiles, createStoryFile, platformShareUrl, shareFileOrCopy, type SharePlatform } from './share';
 
 const platforms: readonly { id: SharePlatform; label: string }[] = [
   { id: 'facebook', label: 'facebook' },
@@ -95,18 +95,19 @@ export default function GameResultsHost() {
   }
 
   async function share(card: GameResultCard, line: string) {
+    const base = { title: `${card.name} result · cueory`, text: line, url: absoluteUrl(card.path) };
+    // Text copy does not need a story image. Avoid waiting for fonts or logo loading when this browser cannot share files.
+    if (!canShareFiles(navigator)) {
+      await shareFileOrCopy(navigator, base, null, copy);
+      return;
+    }
     const file = await createStoryFile({
       name: card.name,
       date: card.date,
       result: card.result,
       ...(card.wordmarkPath ? { wordmarkPath: card.wordmarkPath } : {}),
     });
-    await shareFileOrCopy(
-      navigator,
-      { title: `${card.name} result · cueory`, text: line, url: absoluteUrl(card.path) },
-      file,
-      copy,
-    );
+    await shareFileOrCopy(navigator, base, file, copy);
   }
 
   if (!card) return null;
@@ -114,8 +115,9 @@ export default function GameResultsHost() {
   const url = absoluteUrl(card.path);
 
   return (
-    <div
-      className="result-dialog-overlay fixed inset-0 z-50 flex items-center justify-center p-4"
+    <dialog
+      open
+      className="result-dialog-overlay fixed inset-0 z-50 flex items-center justify-center border-0 bg-transparent p-4"
       onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}
       data-testid="game-result-overlay"
     >
@@ -177,6 +179,6 @@ export default function GameResultsHost() {
         <p role="status" className="mt-3 min-h-6 text-sm text-ink-soft break-all">{status}</p>
         <p className="mt-4 text-sm text-ink-soft">a new {card.name} comes out tomorrow.</p>
       </div>
-    </div>
+    </dialog>
   );
 }
