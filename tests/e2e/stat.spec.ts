@@ -353,6 +353,11 @@ test('review rows name timeouts with and without a pick, show times and rational
   await page.clock.runFor(20_100);
   await expect(progress(page)).toHaveText('question 3 of 15');
   await finish(page, 2, () => null);
+  // The finished-game dialog is modal (the page behind it is inert), so close it before using the review rows.
+  const resultDialog = page.getByTestId('game-result-dialog');
+  await resultDialog.getByRole('button', { name: 'close results' }).click();
+  await page.clock.runFor(100);
+  await expect(resultDialog).toHaveCount(0);
 
   const rows = page.getByTestId('stat-review-row');
   await expect(rows).toHaveCount(15);

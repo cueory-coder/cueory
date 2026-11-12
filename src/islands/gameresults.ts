@@ -100,6 +100,48 @@ export function statResultCard(detail: StatRoundResult): GameResultCard {
   };
 }
 
+/** Hello cards shares the prompt of the day itself; the dialog heading stays short. */
+export function helloResultCard(detail: { prompt: string; date: string; deck: string }): GameResultCard {
+  return {
+    game: 'hello-cards',
+    name: 'hello cards',
+    date: detail.date,
+    result: "today's card",
+    shareResult: detail.prompt,
+    summary: 'share the prompt, then start a conversation.',
+    stats: [{ label: 'deck', value: detail.deck }],
+    path: '/play/hello-cards',
+  };
+}
+
+interface InertNode {
+  inert: boolean;
+  parentElement: InertNode | null;
+  readonly children: ArrayLike<unknown>;
+}
+
+/**
+ * Makes everything outside the open dialog unreachable (no focus, clicks or screen-reader browsing) by setting
+ * `inert` on each sibling branch from the dialog up to the body. Returns a function that restores exactly the
+ * branches it changed, so anything that was already inert stays inert.
+ */
+export function inertOutside(dialog: InertNode, body: InertNode): () => void {
+  const changed: InertNode[] = [];
+  for (let node: InertNode | null = dialog; node && node !== body; node = node.parentElement) {
+    const parent: InertNode | null = node.parentElement;
+    if (!parent) break;
+    const siblings: InertNode[] = Array.from(parent.children) as InertNode[];
+    for (const sibling of siblings) {
+      if (sibling === node || sibling.inert) continue;
+      sibling.inert = true;
+      changed.push(sibling);
+    }
+  }
+  return () => {
+    for (const node of changed) node.inert = false;
+  };
+}
+
 /** The exact, plain one-line share format approved for finished games. */
 export function buildResultShareLine(card: Pick<GameResultCard, 'name' | 'date' | 'result' | 'shareResult'>): string {
   const clean = (value: string) => value.replace(/\s+/g, ' ').trim();

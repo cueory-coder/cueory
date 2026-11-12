@@ -57,6 +57,23 @@ test('finished-game result announces the exact card and traps focus', async ({ p
   await expect(returnTo).toBeFocused();
 });
 
+test('the page behind an open result cannot be reached, and comes back on close', async ({ page }) => {
+  const behind = page.getByTestId('pulse').getByRole('button', { name: 'a', exact: true });
+  await behind.focus();
+  const dialog = await openResult(page);
+  await expect(dialog.getByRole('button', { name: 'close results' })).toBeFocused();
+  await expect(behind).toHaveJSProperty('inert', false);
+  expect(await behind.evaluate((element) => element.closest('[inert]') !== null)).toBe(true);
+  expect(await dialog.evaluate((element) => element.closest('[inert]') === null)).toBe(true);
+  await behind.evaluate((element) => (element as HTMLElement).focus());
+  await expect(behind).not.toBeFocused();
+  await expect(dialog.getByRole('button', { name: 'close results' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  expect(await behind.evaluate((element) => element.closest('[inert]') === null)).toBe(true);
+  await expect(behind).toBeFocused();
+});
+
 test('replacing an open result preserves its original keyboard return target', async ({ page }) => {
   const returnTo = page.getByTestId('pulse').getByRole('button', { name: 'a', exact: true });
   await returnTo.focus();

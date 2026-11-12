@@ -3,6 +3,7 @@ import {
   buildResultShareLine,
   discardPendingResultCard,
   GAME_RESULT_CARD_EVENT,
+  inertOutside,
   takePendingResultCards,
   type GameResultCard,
 } from './gameresults';

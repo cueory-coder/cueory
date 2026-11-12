@@ -186,6 +186,20 @@ export interface StoryImageInput {
   wordmarkPath?: string;
 }
 
+/** Longest wait for fonts or a logo before the story image gives up and the copy fallback runs. */
+export const STORY_ASSET_TIMEOUT_MS = 4000;
+
+/** Settles with the promise, or rejects once `ms` passes, so a stalled asset can never hang the share flow. */
+export function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('timed out')), ms);
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (error: unknown) => { clearTimeout(timer); reject(error instanceof Error ? error : new Error(String(error))); },
+    );
+  });
+}
+
 function image(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const asset = new Image();

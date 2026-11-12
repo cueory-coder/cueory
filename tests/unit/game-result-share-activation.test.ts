@@ -31,7 +31,7 @@ vi.mock('../../src/islands/share', async (original) => ({
 }));
 
 import GameResultsHost from '../../src/islands/GameResultsHost';
-import { showResultCard, takePendingResultCards, type GameResultCard } from '../../src/islands/gameresults';
+import { helloResultCard, showResultCard, takePendingResultCards, type GameResultCard } from '../../src/islands/gameresults';
 
 const cleanups: (() => void)[] = [];
 const card: GameResultCard = {
