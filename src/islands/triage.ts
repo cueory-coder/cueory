@@ -8,7 +8,7 @@
  * said in words and shown by a symbol, never by color alone. Visitors see the game's name from src/config/games.ts
  * ("sort" for now, D-66); "triage" stays only inside the code.
  */
-import { gameName } from '../config/games';
+import { retiredGameNames } from '../config/games';
 
 /** Wrong places allowed before the round ends. */
 export const SLIPS = 3;
@@ -79,7 +79,7 @@ export function termsLeft(state: TriageState): string[] {
 
 /** What "share" copies: plain words, no squares and no grid. "cueory sort, sun 1 nov: sorted with 1 slip." */
 export function triageShareText(state: TriageState, day: string): string {
-  const name = gameName('triage');
+  const name = retiredGameNames.triage;
   if (state.status !== 'sorted') return `cueory ${name}, ${day}: not sorted this time.`;
   const slips = state.slips === 0 ? 'no slips' : state.slips === 1 ? '1 slip' : `${state.slips} slips`;
   return `cueory ${name}, ${day}: sorted with ${slips}.`;

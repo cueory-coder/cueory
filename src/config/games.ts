@@ -34,8 +34,8 @@ export const dailyGames: readonly DailyGame[] = [
   },
   {
     id: 'triage',
-    name: 'sort',
-    line: 'sort ten terms into three groups. one fits none of them. three slips end the round.',
+    name: 'sudoku',
+    line: 'fill every row, column and box with the numbers one through nine. choose a level and solve today\'s puzzle.',
     ready: true,
   },
   {
@@ -50,6 +50,9 @@ export const dailyGames: readonly DailyGame[] = [
 export function gameName(id: DailyGame['id']): string {
   return dailyGames.find((game) => game.id === id)!.name;
 }
+
+/** Names retained only for unmounted legacy game logic and its regression tests. */
+export const retiredGameNames = { triage: 'sort' } as const;
 
 /** Names and words the games must never use (CLAUDE.md). */
 export const forbiddenGameWords = ['wordle', 'connections', 'strands', 'nyt', 'new york times'] as const;

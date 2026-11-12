@@ -450,3 +450,22 @@
   --shadow-card: 0 1px 3px rgb(var(--shadow-tint) / 0.18), 0 4px 12px rgb(var(--shadow-tint) / 0.28);
   --shadow-card-hover: 0 2px 8px rgb(var(--shadow-tint) / 0.28), 0 12px 28px rgb(var(--shadow-tint) / 0.40);
 }
+
+
+@theme static {
+  /* ---------- Sudoku (Task 625) ---------- */
+  --sudoku-cell-min: 2.75rem;
+  --sudoku-cell-max: 5.25rem;
+  --sudoku-height-reserve: 28.75rem;
+  --sudoku-width-reserve: 9.375rem;
+  --sudoku-line: 1px;
+  --sudoku-box-line: 3px;
+  --sudoku-candidate-size: 0.625rem;
+  --sudoku-entered-line: 2px;
+  --color-sudoku-given: var(--color-surface);
+  --color-sudoku-related: color-mix(in srgb, var(--color-soft) 40%, var(--color-page));
+  --color-sudoku-box-related: color-mix(in srgb, var(--color-surface) 70%, var(--color-page));
+  --color-sudoku-identical: var(--color-soft);
+  --color-sudoku-entered: var(--color-ink-soft);
+  --color-sudoku-conflict: var(--color-highlight);
+}

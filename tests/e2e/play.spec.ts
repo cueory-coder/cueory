@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import { dailySudokuSeed, generateSudoku } from '../../src/islands/sudoku';
 
 /**
  * Daily games (D-61): pillo (Task 114; its id is still pulse) on /play. The page's clock is set to 1 November 2026, the
@@ -29,10 +30,6 @@ const axe = async (page: Page) => {
 };
 const field = (page: Page) => page.getByLabel('your guess', { exact: true });
 const live = (page: Page) => page.getByTestId('pulse-live');
-const term = (page: Page, name: string) =>
-  page.getByRole('list', { name: 'terms to sort' }).getByRole('button', { name, exact: true });
-const place = (page: Page, name: string) =>
-  page.getByRole('group', { name: 'groups' }).getByRole('button', { name: new RegExp(`^${name},`) });
 
 test.describe('daily games: pillo (Task 114)', () => {
   test.beforeEach(async ({ page }) => {
@@ -53,7 +50,7 @@ test.describe('daily games: pillo (Task 114)', () => {
     // Six rows of five pockets, the first one ringed for the first letter.
     await expect(page.getByTestId('pulse').locator('.pillo-pack .pillo-pocket')).toHaveCount(30);
     await expect(page.getByTestId('pulse').locator('.pillo-next')).toHaveCount(1);
-    for (const name of ['crossword', 'sort', 'word path']) await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
+    for (const name of ['crossword', 'sudoku', 'word path']) await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
     const results = await axe(page);
     expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -205,142 +202,143 @@ test.describe('daily games on a narrow phone', () => {
     }
   });
 
-  test('at 320 px triage fits too: every term and group is on screen, each at least 44 px tall', async ({ page }) => {
-    await page.setViewportSize({ width: 320, height: 700 });
-    await page.clock.setFixedTime(new Date('2026-11-03T15:00:00'));
-    await page.goto('/play');
-    // 3 November: the third sample, with the longest group name ("musical instruments").
-    await page.getByRole('list', { name: 'terms to sort' }).getByRole('button').first().click();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-    const boxes = await page.locator('.triage-term, .triage-place-button').evaluateAll((els) =>
-      els.map((el) => el.getBoundingClientRect()),
-    );
-    expect(boxes).toHaveLength(14);
-    for (const box of boxes) {
-      expect(box.left).toBeGreaterThanOrEqual(0);
-      expect(box.right).toBeLessThanOrEqual(320);
-      expect(box.height).toBeGreaterThanOrEqual(44);
-    }
-  });
 });
 
-test.describe('daily games: triage (D-63)', () => {
-  // 1 November: the first sample. fruits: apple, pear, mango; weather: rain, fog, hail; furniture: chair, sofa, desk;
-  // and violin fits none of them.
-  const answer: Record<string, string[]> = {
-    fruits: ['apple', 'pear', 'mango'],
-    weather: ['rain', 'fog', 'hail'],
-    furniture: ['chair', 'sofa', 'desk'],
-    'none of these': ['violin'],
-  };
-  const triageLive = (page: Page) => page.getByTestId('triage-live');
+test.describe('daily games: sudoku (Task 625)', () => {
+  const day = '2026-11-01';
+  const daily = generateSudoku(dailySudokuSeed(day, 'easy'), 'easy');
+  const open = daily.puzzle.flatMap((value, index) => value === 0 ? [index] : []);
+  const game = (page: Page) => page.getByTestId('sudoku');
+  const grid = (page: Page) => game(page).getByRole('grid', { name: 'sudoku grid' });
+  const cells = (page: Page) => grid(page).getByRole('gridcell');
 
   test.beforeEach(async ({ page }) => {
     await page.clock.setFixedTime(new Date('2026-11-01T15:00:00'));
     await page.goto('/play');
-    await expect(page.getByTestId('triage')).toBeVisible();
+    await expect(game(page)).toBeVisible();
   });
 
-  test('pick a term, then its group: a right place shows it there with ✓, and axe passes', async ({ page }) => {
-    await expect(page.getByRole('heading', { level: 2, name: 'sort' })).toBeVisible();
-    await expect(page.getByTestId('triage-sample-note')).toHaveText("today's terms are a sample.");
-    await expect(page.getByTestId('triage-status')).toHaveText('10 terms to sort · 3 slips left');
-    await term(page, 'mango').click();
-    await expect(term(page, 'mango')).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.getByTestId('triage-picked')).toHaveText('picked: mango. now pick its group.');
-    await expect(place(page, 'fruits')).toHaveAccessibleName('fruits, 0 of 3, put mango here');
+  test('shows one daily easy puzzle with the approved givens, controls and accessible page', async ({ page }) => {
+    await expect(page.getByRole('heading', { level: 2, name: 'sudoku' })).toHaveCount(1);
+    await expect(cells(page)).toHaveCount(81);
+    await expect(grid(page).getByRole('row')).toHaveCount(9);
+    for (const row of await grid(page).getByRole('row').all()) await expect(row.getByRole('gridcell')).toHaveCount(9);
+    await expect(grid(page).locator('[data-given="true"]')).toHaveCount(40);
+    await expect(game(page).getByRole('button', { name: 'easy' })).toHaveAttribute('aria-pressed', 'true');
+    const controls = game(page).locator('.sudoku-icon-button, .sudoku-small-button, .sudoku-number-row button');
+    const boxes = await controls.evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect()));
+    for (const box of boxes) expect(box.height).toBeGreaterThanOrEqual(44);
     const results = await axe(page);
-    expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
-    await place(page, 'fruits').click();
-    await expect(triageLive(page)).toHaveText('mango goes in fruits. 9 terms left.');
-    await expect(page.getByRole('list', { name: 'in fruits' })).toHaveText('✓ mango');
-    await expect(term(page, 'mango')).toHaveCount(0);
-    await expect(page.getByTestId('triage-status')).toHaveText('9 terms to sort · 3 slips left');
-    await expect(place(page, 'fruits')).toHaveAccessibleName('fruits, 1 of 3');
+    expect(results.violations.map((violation) => violation.id + ': ' + violation.help)).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 
-  test('tapping a picked term again puts it back, and a group with nothing picked asks for a term', async ({ page }) => {
-    await place(page, 'weather').click();
-    await expect(triageLive(page)).toHaveText('pick a term first.');
-    await term(page, 'fog').click();
-    await term(page, 'fog').click();
-    await expect(term(page, 'fog')).toHaveAttribute('aria-pressed', 'false');
-    await expect(triageLive(page)).toHaveText('fog put back.');
-    await expect(page.getByTestId('triage-status')).toHaveText('10 terms to sort · 3 slips left');
+  test('supports pointer and keyboard entry, roving arrows and all three levels', async ({ page }) => {
+    const first = open[0]!;
+    const firstCell = cells(page).nth(first);
+    await firstCell.click();
+    const column = Number(await firstCell.getAttribute('aria-colindex'));
+    await page.keyboard.press(column === 9 ? 'ArrowLeft' : 'ArrowRight');
+    await expect(grid(page).locator('[aria-selected="true"]')).toBeFocused();
+
+    await firstCell.click();
+    const wrong = daily.solution[first] === 1 ? 2 : 1;
+    await page.keyboard.press(String(wrong));
+    await expect(game(page).locator('.sudoku-errors')).toContainText('error: 1');
+    await expect(page.getByTestId('sudoku-live')).toContainText('is not right');
+
+    const second = open[1]!;
+    await cells(page).nth(second).click();
+    await game(page).getByRole('button', { name: String(daily.solution[second]), exact: true }).click();
+    await expect(cells(page).nth(second)).toContainText(String(daily.solution[second]));
+
+    await game(page).getByRole('button', { name: 'medium' }).click();
+    await expect(grid(page).locator('[data-given="true"]')).toHaveCount(32);
+    await game(page).getByRole('button', { name: 'hard' }).click();
+    await expect(grid(page).locator('[data-given="true"]')).toHaveCount(26);
   });
 
-  test('a wrong group is a slip, said in words; the third ends the round and shows where each term goes', async ({
-    page,
-  }) => {
-    await term(page, 'violin').click();
-    await place(page, 'fruits').click();
-    await expect(triageLive(page)).toHaveText("slip: violin isn't in fruits. 2 slips left.");
-    await expect(page.getByTestId('triage-status')).toHaveText('10 terms to sort · 2 slips left');
-    // The term stays picked, so it can go somewhere else.
-    await expect(term(page, 'violin')).toHaveAttribute('aria-pressed', 'true');
-    await place(page, 'weather').click();
-    await expect(triageLive(page)).toHaveText("slip: violin isn't in weather. 1 slip left.");
-    await place(page, 'furniture').click();
-    const result = page.getByTestId('triage-result');
-    await expect(result).toBeFocused();
-    await expect(result).toContainText('out of slips.');
-    await expect(page.getByTestId('triage-answer').getByRole('listitem')).toHaveText([
-      'fruits: apple, pear, mango.',
-      'weather: rain, fog, hail.',
-      'furniture: chair, sofa, desk.',
-      'none of these: violin.',
-    ]);
-    await expect(result).toContainText('cueory sort, sun 1 nov: not sorted this time.');
-    await expect(page.getByRole('list', { name: 'terms to sort' })).toHaveCount(0);
-    await expect(page.getByTestId('triage-status')).toHaveCount(0);
-    await expect(place(page, 'fruits')).toBeDisabled();
-  });
+  test('pause hides all 81 squares and gameboard settings persist separately from the site theme', async ({ page }) => {
+    const pause = game(page).getByRole('button', { name: 'pause puzzle' });
+    await pause.click();
+    const before = await game(page).locator('.sudoku-time').innerText();
+    await expect(cells(page).filter({ hasText: /^x$/ })).toHaveCount(81);
+    await expect(cells(page).first()).toHaveAttribute('aria-label', /hidden while paused/);
+    await expect(game(page).locator('.sudoku-time')).toHaveText(before);
+    await game(page).getByRole('button', { name: 'resume puzzle' }).click();
 
-  test('the odd one out fits none of the groups, and putting a group term there is a slip', async ({ page }) => {
-    await term(page, 'pear').click();
-    await place(page, 'none of these').click();
-    await expect(triageLive(page)).toHaveText('slip: pear belongs in one of the groups. 2 slips left.');
-    await term(page, 'violin').click();
-    await place(page, 'none of these').click();
-    await expect(triageLive(page)).toHaveText('violin fits none of the groups. 9 terms left.');
-    await expect(page.getByRole('list', { name: 'in none of these' })).toHaveText('✓ violin');
-  });
-
-  test('the keyboard alone sorts the whole round, and the result shares as plain words', async ({ page }) => {
-    const groups = Object.keys(answer);
-    for (const [group, terms] of Object.entries(answer)) {
-      for (const name of terms) {
-        await term(page, name).focus();
-        await page.keyboard.press('Enter');
-        // Enter on a term moves focus to the first group; Tab goes on to the others.
-        await expect(place(page, 'fruits')).toBeFocused();
-        for (let i = 0; i < groups.indexOf(group); i++) await page.keyboard.press('Tab');
-        await expect(place(page, group)).toBeFocused();
-        await page.keyboard.press('Enter');
-      }
-    }
-    const result = page.getByTestId('triage-result');
-    await expect(result).toBeFocused();
-    await expect(result).toContainText('sorted.');
-    await expect(result).toContainText('cueory sort, sun 1 nov: sorted with no slips.');
-    await result.getByRole('button', { name: 'copy my result' }).click();
-    await expect(result).toContainText('cueory sort, sun 1 nov: sorted with no slips.');
-    await expect(result.getByText('a new puzzle comes tomorrow.')).toBeVisible();
-    // Each group lists its terms in the order they were dealt, each with ✓.
-    for (const [group, terms] of Object.entries(answer)) {
-      const shown = await page.getByRole('list', { name: `in ${group}` }).getByRole('listitem').allInnerTexts();
-      expect(shown.sort()).toEqual(terms.map((name) => `✓ ${name}`).sort());
-    }
-  });
-
-  test('after a right place by keyboard, focus goes back to the terms still to sort', async ({ page }) => {
-    await term(page, 'rain').focus();
-    await page.keyboard.press('Enter');
+    const trigger = game(page).getByRole('button', { name: /settings/i });
+    await trigger.click();
+    const dialog = game(page).getByRole('dialog', { name: 'settings' });
+    const close = dialog.getByRole('button', { name: 'close settings' });
+    await expect(close).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(dialog.getByRole('checkbox', { name: 'play sound on solve' })).toBeFocused();
     await page.keyboard.press('Tab');
-    await expect(place(page, 'weather')).toBeFocused();
-    await page.keyboard.press('Enter');
-    await expect(page.getByRole('list', { name: 'terms to sort' }).getByRole('button').first()).toBeFocused();
+    await expect(close).toBeFocused();
+    await expect(dialog.getByRole('radio')).toHaveCount(0);
+    await dialog.getByRole('checkbox', { name: 'start in auto candidate mode' }).check();
+    await page.keyboard.press('Escape');
+    await expect(trigger).toBeFocused();
+
+    await page.reload();
+    await game(page).getByRole('button', { name: /settings/i }).click();
+    await expect(game(page).getByRole('dialog', { name: 'settings' }).getByRole('checkbox', { name: 'start in auto candidate mode' })).toBeChecked();
+    await page.keyboard.press('Escape');
+    const hints = game(page).getByRole('checkbox', { name: /hints/i });
+    await expect(hints).toHaveAttribute('aria-checked', 'true');
+    await hints.click();
+    await expect(hints).toHaveAttribute('aria-checked', 'false');
+    await expect(game(page).locator('.sudoku-candidates')).toHaveCount(0);
+  });
+
+  test('keeps 44 px Sudoku cells on a phone, and print isolates only givens plus cueory.app', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    const boxes = await cells(page).evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect()));
+    for (const box of boxes) {
+      expect(box.width).toBeGreaterThanOrEqual(44);
+      expect(box.height).toBeGreaterThanOrEqual(44);
+    }
+
+    const editable = grid(page).locator('[data-given="false"]').first();
+    await editable.click();
+    await page.keyboard.press('1');
+    await page.evaluate(() => { window.print = () => {}; });
+    await game(page).getByRole('button', { name: 'print this puzzle' }).click();
+    await expect(page.locator('html')).toHaveAttribute('data-print-game', 'sudoku');
+    await page.emulateMedia({ media: 'print' });
+    await expect(page.getByTestId('pulse')).toBeHidden();
+    await expect(game(page).locator('.sudoku-title-row')).toBeHidden();
+    await expect(editable.locator('> *')).toBeHidden();
+    await expect(grid(page).locator('[data-given="true"]').first()).toBeVisible();
+    await expect(game(page).locator('.sudoku-print-footer')).toHaveText('cueory.app');
+    await expect(game(page).locator('.sudoku-print-footer')).toBeVisible();
+
+    await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
+    await expect(page.locator('html')).not.toHaveAttribute('data-print-game', /.+/);
+  });
+
+  test('solves the puzzle, focuses the result and emits the Worker 2 result hook', async ({ page }) => {
+    await page.evaluate(() => {
+      window.addEventListener('cueory:sudoku-solved', ((event: CustomEvent) => {
+        document.documentElement.dataset.sudokuResult = JSON.stringify(event.detail);
+      }) as EventListener, { once: true });
+      window.addEventListener('cueory:game-result', ((event: CustomEvent) => {
+        if (event.detail?.game === 'triage') document.documentElement.dataset.sudokuMisreported = 'true';
+      }) as EventListener);
+    });
+    for (const index of open) {
+      await cells(page).nth(index).click();
+      await page.keyboard.press(String(daily.solution[index]));
+    }
+    const result = page.getByTestId('sudoku-result');
+    await expect(result).toBeFocused();
+    await expect(result).toContainText('solved.');
+    await expect(result).toContainText('0 errors');
+    const detail = JSON.parse((await page.locator('html').getAttribute('data-sudoku-result'))!);
+    expect(detail).toMatchObject({ game: 'sudoku', day, level: 'easy', solved: true, errors: 0 });
+    await expect(page.locator('html')).not.toHaveAttribute('data-sudoku-misreported', 'true');
   });
 });
 
@@ -689,16 +687,15 @@ test.describe('daily games: private stats (D-76)', () => {
 test.describe('daily games without JavaScript', () => {
   test.use({ javaScriptEnabled: false });
 
-  test('pillo and triage say they need JavaScript', async ({ page }) => {
+  test('pillo and sudoku say they need JavaScript', async ({ page }) => {
     await page.goto('/play');
     // Playwright's text matching skips <noscript>, so this uses CSS.
     await expect(page.locator('noscript p')).toHaveText([
       'pillo needs JavaScript.',
-      'sort needs JavaScript.',
+      'sudoku needs JavaScript.',
       'crossword needs JavaScript.',
       'word path needs JavaScript.',
     ]);
     await expect(page.getByTestId('sample-note')).toBeVisible();
-    await expect(page.getByTestId('triage-sample-note')).toBeVisible();
   });
 });

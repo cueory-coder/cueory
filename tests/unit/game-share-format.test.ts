@@ -56,7 +56,8 @@ describe('all /play game shares use plain one-line words (Task 229)', () => {
         expect(line).toMatch(/^[\x20-\x7e]+$/);
         expect(line).toBe(line.trim());
         expect(line).toBe(line.toLowerCase());
-        expect(line.startsWith(`cueory ${game.name}, ${day}: `)).toBe(true);
+        const expectedName = game.id === 'triage' ? 'sort' : game.name;
+        expect(line.startsWith(`cueory ${expectedName}, ${day}: `)).toBe(true);
         expect(line.slice(line.indexOf(': ') + 2)).toMatch(/[a-z]{2,}/);
         expect(line).not.toContain('tones');
         expect(line).not.toContain('crane');

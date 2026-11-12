@@ -20,7 +20,7 @@ export interface RoundResult {
   /** The day of the puzzle that was played, in the visitor's own time zone, written YYYY-MM-DD. */
   day: string;
   solved: boolean;
-  /** Guesses for pillo, slips for sort, cues for the crossword and loose stitches for word path. */
+  /** Guesses for pillo, slips for the retired sort record, cues for the crossword and loose stitches for word path. */
   tries: number;
 }
 

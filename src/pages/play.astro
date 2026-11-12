@@ -7,7 +7,7 @@
 import { getCollection } from 'astro:content';
 import Layout from '../layouts/Layout.astro';
 import PulseGame from '../islands/PulseGame';
-import TriageGame from '../islands/TriageGame';
+import SudokuGame from '../islands/SudokuGame';
 import CuewordToday from '../islands/CuewordToday';
 import SutureToday from '../islands/SutureToday';
 import GameStatsPanel from '../islands/GameStatsPanel';
@@ -21,9 +21,6 @@ import { draftsAllowed } from '../islands/anatomylab';
 const samples = (await getCollection('pulse'))
   .sort((a, b) => a.id.localeCompare(b.id))
   .map(({ data }) => ({ word: data.word, cue: data.cue }));
-const triageSamples = (await getCollection('triage'))
-  .sort((a, b) => a.id.localeCompare(b.id))
-  .map(({ data }) => ({ groups: data.groups, oddOne: data.oddOne }));
 // Each crossword sample goes through the game's own rules here, so a broken one stops the build with a plain message.
 const crosswordSamples = (await getCollection('cueword'))
   .sort((a, b) => a.id.localeCompare(b.id))
@@ -50,13 +47,13 @@ const showHello = helloCardsPage(helloEntries.map(({ data }) => data), helloEnv,
 // stat (Task 640) runs on labeled samples, so its link shows only where its page does (src/pages/play/stat.astro).
 const showStat = draftsAllowed(helloEnv);
 const pulse = dailyGames.find((game) => game.id === 'pulse')!;
-const triage = dailyGames.find((game) => game.id === 'triage')!;
+const sudokuGame = dailyGames.find((game) => game.id === 'triage')!;
 const crossword = dailyGames.find((game) => game.id === 'cueword')!;
 const wordPath = dailyGames.find((game) => game.id === 'suture')!;
 const later = dailyGames.filter((game) => !game.ready);
 ---
 
-<Layout title="daily games" description="four short puzzles every day: a word to guess, terms to sort, a small crossword and a word path. sample puzzles for now.">
+<Layout title="daily games" description="four short puzzles every day: a word to guess, sudoku, a small crossword and a word path. sample puzzles for now.">
   <article class="veil mx-auto mt-6 max-w-prose p-6 sm:mt-10 sm:p-10">
     <h1 class="display text-title sm:text-title-lg">daily games</h1>
     <p class="mt-3 text-ink-soft">
@@ -76,14 +73,13 @@ const later = dailyGames.filter((game) => !game.ready);
       </div>
     </section>
 
-    <section class="mt-16" aria-labelledby="triage-heading">
-      <h2 id="triage-heading" class="text-2xl font-medium">{triage.name}</h2>
-      <p class="mt-2 text-ink-soft">{triage.line}</p>
-      <p class="mt-1 text-sm text-ink-soft" data-testid="triage-sample-note">today's terms are a sample.</p>
-      <div class="mt-6">
-        <TriageGame client:only="react" puzzles={triageSamples} />
+    <section id="triage-heading" class="sudoku-section mt-16" aria-labelledby="sudoku-heading" data-testid="sudoku-section">
+      <h2 id="sudoku-heading" class="display text-center text-title sm:text-title-lg">{sudokuGame.name}</h2>
+      <p class="mt-2 text-center text-ink-soft">{sudokuGame.line}</p>
+      <div class="sudoku-mount mt-6">
+        <SudokuGame client:only="react" />
         <noscript>
-          <p>{triage.name} needs JavaScript.</p>
+          <p>{sudokuGame.name} needs JavaScript.</p>
         </noscript>
       </div>
     </section>
@@ -112,7 +108,7 @@ const later = dailyGames.filter((game) => !game.ready);
 
     {/* Private stats (D-76): off until the student turns them on, kept only in this browser. Without JavaScript there are
     no games to count, so nothing shows. */}
-    <GameStatsPanel client:only="react" games={[pulse, triage, crossword, wordPath].map((game) => game.id)} />
+    <GameStatsPanel client:only="react" games={[pulse, sudokuGame, crossword, wordPath].map((game) => game.id)} />
 
     {(showHello || showStat) && <section class="mt-16" aria-labelledby="more-games-heading">
       <h2 id="more-games-heading" class="text-2xl font-medium">more games</h2>
