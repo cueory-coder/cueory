@@ -92,12 +92,15 @@ test('the visitor day changes at local midnight, even without a page reload', as
   });
   try {
     const page = await context.newPage();
-    await page.clock.install({ time: new Date('2026-11-11T23:59:59-05:00') });
+    // Start well before midnight, then freeze the clock before making assertions.
+    // This prevents a slow page load from advancing to the next day first.
+    await page.clock.install({ time: new Date('2026-11-11T23:59:00-05:00') });
     const response = await page.goto('/');
     expect(response?.status()).toBe(200);
+    await page.clock.pauseAt(new Date('2026-11-11T23:59:58-05:00'));
     const day = page.getByTestId('daily-games-day');
     await expect(day).toContainText("today's set: wed 11 nov.");
-    await page.clock.runFor(2_000);
+    await page.clock.runFor(3_000);
     await expect(day).toContainText("today's set: thu 12 nov.");
     await expect(day).toContainText('new puzzles arrive at midnight on your device.');
   } finally {
