@@ -97,7 +97,7 @@ test('real touchscreen taps operate the timer and idea picker', async ({ browser
     const picked = page.getByTestId('picked-break-idea');
     const first = await picked.innerText();
     expect(expectedIdeas).toContain(first);
-    await page.getByRole('button', { name: 'another idea' }).tap();
+    await showOne(page).tap();
     await expect(picked).not.toHaveText(first);
     await shuffle(page).tap();
     await expect(page.getByRole('status', { name: 'break idea update' }))
