@@ -1,0 +1,1 @@
+STATUS: Task 753 (#47), printable fill-in worksheets: each visible sample set gets blank-only prompts and an answer key starting on a separate printed page. Reuses the canonical fill-in parser and adds route-visibility, page-break, print-media and accessibility tests. Full Astro/Vitest/Playwright checks need Claude's checkout.

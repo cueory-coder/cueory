@@ -1,0 +1,56 @@
+---
+/** Print the visible lesson's sample fill-in set and a separate answer page (W09-3, #47). */
+import { getEntry } from 'astro:content';
+import Layout from '../../../layouts/Layout.astro';
+import { parseItems, sentenceParts } from '../../../islands/fillin';
+import { pathsFor, type CatalogLesson } from '../../../lessons/catalog';
+import { lessonCatalog } from '../../../lessons/load';
+
+export async function getStaticPaths() {
+  return pathsFor(await lessonCatalog(), 'fill-in');
+}
+
+const { lesson } = Astro.props as { lesson: CatalogLesson };
+const entry = lesson.fillIn && await getEntry('fill-in', lesson.fillIn.id);
+if (!entry) throw new Error(`The fill-in file for lesson ${lesson.id} is missing.`);
+// Validate the same items as the interactive mode; no copied answer-parsing logic.
+const items = parseItems(entry.data.items);
+const prompts = items.map((item) => ({ id: item.id, ...sentenceParts(item.sentence) }));
+---
+
+<Layout title={`print fill-in · ${lesson.short}`} description={`printable fill-in worksheet for ${lesson.about}.`} variant="study" noindex promo={false}>
+  <article data-print-fill-in class="mx-auto max-w-page pb-section pt-8 sm:pt-12">
+    <header>
+      <p class="text-sm text-ink-soft">{lesson.context} · printable worksheet</p>
+      <h1 class="mt-3 text-2xl">fill-in worksheet</h1>
+      {lesson.fillIn!.labeled && (
+        <p data-fill-in-sample-note class="mt-3 text-sm text-ink-soft">
+          this is a sample with everyday sentences. the lesson's own sentences come later.
+        </p>
+      )}
+      <div data-print-hidden class="mt-4 space-y-3">
+        <p class="text-sm text-ink-soft">print the worksheet, then use the answer key on the following sheet.</p>
+        <a href={`${lesson.href}/fill-in`} class="inline-flex min-h-(--tap-min) items-center underline underline-offset-4">back to fill-in</a>
+      </div>
+    </header>
+
+    <section data-worksheet aria-labelledby="worksheet-heading" class="mt-section">
+      <h2 id="worksheet-heading" class="text-lg font-semibold">complete the blanks</h2>
+      <ol data-worksheet-items class="mt-6 list-decimal space-y-stack pl-6">
+        {prompts.map((parts, index) => (
+          <li data-worksheet-item class="break-inside-avoid wrap-anywhere">
+            <span>{parts.before}</span><span data-worksheet-blank class="inline-block min-w-24 border-b border-line text-center"><span class="sr-only">blank for item {index + 1}</span><span aria-hidden="true">__________</span></span><span>{parts.after}</span>
+          </li>
+        ))}
+      </ol>
+    </section>
+
+    <!-- This entire section begins on a NEW paper page. Answers never appear in the worksheet list. -->
+    <section data-worksheet-answers data-print-only aria-labelledby="worksheet-answers-heading" class="mt-section">
+      <h2 id="worksheet-answers-heading" class="text-lg font-semibold">answer key</h2>
+      <ol data-answer-key class="mt-6 list-decimal space-y-stack pl-6">
+        {prompts.map((parts) => <li data-answer-item>{parts.answer}</li>)}
+      </ol>
+    </section>
+  </article>
+</Layout>

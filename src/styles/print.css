@@ -79,3 +79,45 @@
     page-break-inside: avoid;
   }
 }
+
+/* W09-3: printable fill-in worksheet; leave the flashcard and lesson print rules intact. */
+@media print {
+  body:has([data-print-fill-in]),
+  body:has([data-print-fill-in]) main,
+  body:has([data-print-fill-in]) main * {
+    color: black !important;
+    background-color: white !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* Block layout keeps the answer sheet break reliable within the flex site layout. */
+  body:has([data-print-fill-in]),
+  body:has([data-print-fill-in]) main {
+    display: block !important;
+  }
+
+  [data-print-fill-in] {
+    max-inline-size: none !important;
+    padding: 0 !important;
+    overflow-wrap: anywhere;
+  }
+
+  [data-print-fill-in] [data-worksheet-item],
+  [data-print-fill-in] [data-answer-item] {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  [data-print-fill-in] [data-worksheet-blank] {
+    border-color: black !important;
+    white-space: nowrap;
+  }
+
+  /* An independent sheet for answers, even if the worksheet is only a few lines. */
+  [data-print-fill-in] [data-worksheet-answers] {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+}
