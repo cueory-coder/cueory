@@ -79,6 +79,33 @@ afterEach(() => {
 });
 
 describe('result-host native share activation', () => {
+  it.each([false, true])('does not update a replacement result after an old clipboard request settles (reject=%s)', async (reject) => {
+    mount(undefined);
+    let settle!: () => void;
+    const pending = new Promise<void>((resolve, fail) => { settle = () => reject ? fail(new Error('clipboard blocked')) : resolve(); });
+    vi.stubGlobal('navigator', { clipboard: { writeText: () => pending } });
+    click('copy');
+    showResultCard({ ...card, result: '1 / 6' });
+    settle();
+    await Promise.resolve(); await Promise.resolve();
+    expect(hooks.states[1]).toBe('');
+  });
+
+  it('does not copy an old result after closing while native sharing is pending', async () => {
+    let fail!: (error: Error) => void;
+    const native = vi.fn(() => new Promise<void>((_resolve, reject) => { fail = reject; }));
+    const copy = mount(native);
+    hooks.image.mockResolvedValue(new File(['[sample image]'], 'result.png', { type: 'image/png' }));
+    click('share');
+    await Promise.resolve(); await Promise.resolve();
+    click('share image');
+    expect(native).toHaveBeenCalledTimes(1);
+    click('close results');
+    fail(new Error('native share failed'));
+    await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+    expect(copy).not.toHaveBeenCalled();
+  });
+
   it('restores the original page control after an open result is replaced', () => {
     mount(undefined);
     click('close results');

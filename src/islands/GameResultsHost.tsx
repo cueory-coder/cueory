@@ -92,13 +92,15 @@ export default function GameResultsHost() {
     requestAnimationFrame(() => returnFocus.current?.focus());
   }
 
-  async function copy(text: string) {
+  async function copy(text: string, request = preparation.current) {
+    if (!activeCard.current || request !== preparation.current) return false;
     try {
       await navigator.clipboard.writeText(text);
+      if (request !== preparation.current) return false;
       setStatus('result copied.');
       return true;
     } catch {
-      setStatus(`copy this result: ${text}`);
+      if (request === preparation.current) setStatus(`copy this result: ${text}`);
       return false;
     }
   }
@@ -111,12 +113,13 @@ export default function GameResultsHost() {
       return;
     }
     if (prepared?.card === card) {
+      const request = preparation.current;
       // No image-generation await precedes this call: the new click supplies fresh user activation.
       await shareFileOrCopy(
         navigator,
         { title: `${card.name} result · cueory`, text: line, url: absoluteUrl(card.path) },
         prepared.file,
-        copy,
+        (text) => copy(text, request),
       );
       return;
     }
