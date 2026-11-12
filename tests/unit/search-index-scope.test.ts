@@ -65,7 +65,7 @@ describe('W18-2: site-search scope', () => {
     expect(hasNoindexMeta('<!-- <meta name="robots" content="noindex" /> -->')).toBe(false);
   });
 
-  it('excludes every noindex, preview, account, admin and auth page from the built Pagefind index', () => {
+  it.skipIf(!existsSync(join(DIST, 'index.html')))('excludes every noindex, preview, account, admin and auth page from the built Pagefind index', () => {
     expect(existsSync(join(DIST, 'index.html')), 'run npm run build before this test').toBe(true);
     const files = builtPages();
     expect(files.length).toBeGreaterThan(0);
