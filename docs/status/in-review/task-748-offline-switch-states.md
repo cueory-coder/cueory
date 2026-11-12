@@ -1,2 +1,2 @@
-status: W07-2 (#42), offline switch: verify real CacheStorage persistence before announcing readiness, even when service-worker cache.put fails asynchronously; maintain pure state decisions, private-route exclusions and quiet bootstrap.
+status: W07-2 (#42), offline switch: verify CacheStorage persistence before reporting ready and ignore obsolete controller checks. Rejected or delayed writes and superseded storage estimates have regression coverage. Private routes stay excluded and bootstrap stays quiet.
 decision: D-pending (W07-2) A later task may show the text-only offline status in the footer, but only after Christian approves the sitewide design change. The browser bootstrap remains silent.

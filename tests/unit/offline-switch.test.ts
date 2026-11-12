@@ -176,6 +176,39 @@ describe('validating saved responses (W07-2 review)', () => {
 });
 
 describe('confirming actual saved copies', () => {
+  it('discards an obsolete failure estimate after a new controller has saved the visit', async () => {
+    const x = setup({ controlled: true });
+    let releaseOldEstimate: (value: { usage: number; quota: number }) => void = () => undefined;
+    const oldEstimate = new Promise<{ usage: number; quota: number }>((resolve) => { releaseOldEstimate = resolve; });
+    let announceOldEstimate: () => void = () => undefined;
+    const estimating = new Promise<void>((resolve) => { announceOldEstimate = resolve; });
+    let announceReady: () => void = () => undefined;
+    const replacementReady = new Promise<void>((resolve) => { announceReady = resolve; });
+    let estimates = 0;
+    x.env.storageEstimate = () => {
+      if (++estimates === 1) {
+        announceOldEstimate();
+        return oldEstimate;
+      }
+      return Promise.resolve({ usage: 1, quota: 100 });
+    };
+    x.env.onState = (state) => {
+      x.statuses.push(state);
+      if (state === 'ready') announceReady();
+    };
+
+    const started = startOffline(x.env);
+    await estimating;
+    x.changeController();
+    await replacementReady;
+    expect(x.statuses).toEqual(['saving', 'ready']);
+    releaseOldEstimate({ usage: 1, quota: 100 });
+    await started;
+
+    expect(x.saved.size).toBe(2);
+    expect(x.statuses).toEqual(['saving', 'ready']);
+  });
+
   it('requires all planned URLs in one Cueory cache and ignores stale and foreign caches', async () => {
     const x = setup();
     expect(await offlineCopiesPresent(x.env.cacheStorage, [PAGE])).toBe(false);

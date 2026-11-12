@@ -243,7 +243,11 @@ export async function startOffline(env: OfflineEnvironment): Promise<void> {
     try {
       const urls = firstVisitUrls(env.pageUrl, env.resources(), env.origin);
       const verified = await waitForSavedCopies(env, urls);
-      if (!changed) report(verified ? 'ready' : offlineFailureState(undefined, await safeEstimate(env)));
+      if (!changed) {
+        const state = verified ? 'ready' : offlineFailureState(undefined, await safeEstimate(env));
+        // A controller update may finish saving while the previous estimate is still pending.
+        if (!changed) report(state);
+      }
     } catch {
       if (!changed) report('unavailable');
     }
