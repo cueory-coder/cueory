@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import { hasCurriculumLessons } from '../../src/lessons/availability';
 import { contentCatalog } from '../lessonroutes';
+import { courses } from '../../src/config/courses';
 
 test.describe('courses page', () => {
   test('lists available and coming-soon courses', async ({ page }) => {
@@ -9,7 +10,9 @@ test.describe('courses page', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'courses' })).toBeVisible();
 
     // Med-Surg I only opens once a mapped lesson actually exists.
-    const medSurg = page.locator('[data-course-id="med-surg-1"]');
+    const medSurgConfig = courses.find((course) => course.href === '/learn');
+    expect(medSurgConfig?.title).toBe('Med-Surg I');
+    const medSurg = page.locator('[data-course-id="' + medSurgConfig!.id + '"]');
     await expect(medSurg.getByRole('heading', { level: 2, name: 'Med-Surg I', exact: true })).toBeVisible();
     const hasLessons = hasCurriculumLessons(contentCatalog().lessons);
     if (hasLessons) {
@@ -83,7 +86,9 @@ test.describe('courses without JavaScript', () => {
       await expect(course.getByText('no lessons yet · coming soon')).toBeVisible();
       await expect(course.getByRole('link')).toHaveCount(0);
     }
-    const medSurg = page.locator('[data-course-id="med-surg-1"]');
+    const medSurgConfig = courses.find((course) => course.href === '/learn');
+    expect(medSurgConfig?.title).toBe('Med-Surg I');
+    const medSurg = page.locator('[data-course-id="' + medSurgConfig!.id + '"]');
     if (!hasCurriculumLessons(contentCatalog().lessons)) {
       await expect(medSurg.getByText('no lessons yet · coming soon')).toBeVisible();
       await expect(medSurg.getByRole('link')).toHaveCount(0);
