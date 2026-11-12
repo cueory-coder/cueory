@@ -286,6 +286,29 @@ test('bad saved data remains untouched and the retry state is keyboard-operable'
   expect(await page.evaluate(() => localStorage.getItem('cueory-progress'))).toBe('{not json');
 });
 
+test('bad saved progress never consumes old stars after keyboard retry', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('cueory-progress', '{not json');
+    localStorage.setItem('cueory-stars-study-skills-01', '["ss01-c01"]');
+  });
+  await page.goto('/progress');
+  await expect(page.getByRole('heading', { name: 'we couldn’t read your progress' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'forget my progress on this device' })).toHaveCount(0);
+  const saved = () => page.evaluate(() => ({
+    progress: localStorage.getItem('cueory-progress'),
+    stars: localStorage.getItem('cueory-stars-study-skills-01'),
+  }));
+  const before = await saved();
+  await page.getByRole('button', { name: 'try again' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { name: 'we couldn’t read your progress' })).toBeVisible();
+  expect(await saved()).toEqual(before);
+  expect(before).toEqual({
+    progress: '{not json',
+    stars: '["ss01-c01"]',
+  });
+});
+
 test('retry recovers when previously unreadable data becomes readable', async ({ page }) => {
   await page.addInitScript(() => {
     if (sessionStorage.getItem('seeded-corruption')) return;
@@ -348,9 +371,17 @@ for (const width of [390, 820, 1440]) {
       await page.evaluate(() => localStorage.setItem('cueory-progress', 'not-json'));
       await page.reload();
       await expect(page.getByRole('heading', { name: 'we couldn’t read your progress' })).toBeVisible();
-      const retry = await page.getByRole('button', { name: 'try again' }).boundingBox();
+      const retryButton = page.getByRole('button', { name: 'try again' });
+      const retry = await retryButton.boundingBox();
       expect(retry?.width).toBeGreaterThanOrEqual(44);
       expect(retry?.height).toBeGreaterThanOrEqual(44);
+      await retryButton.focus();
+      expect(await retryButton.evaluate(element => {
+        const style = getComputedStyle(element);
+        return element.matches(':focus-visible') && style.outlineStyle !== 'none' &&
+          parseFloat(style.outlineWidth) >= 1;
+      })).toBe(true);
+      await expect(page.getByTestId('progress-state')).toHaveAttribute('aria-live', 'polite');
       await noSideScroll(page);
       await axe(page);
     });

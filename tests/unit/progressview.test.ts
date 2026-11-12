@@ -210,6 +210,22 @@ describe('readDeviceProgress guards storage before migration', () => {
     expect(existing.mutations).toEqual([]);
   });
 
+  it('preserves unsupported-version progress and legacy stars without writes', () => {
+    const raw = JSON.stringify({ version: 99, decks: { one: { know: ['a'] } } });
+    const starKey = legacyStarsKey('one');
+    const existing = store({
+      [PROGRESS_STORAGE_KEY]: raw,
+      [starKey]: '["b"]',
+    });
+    const original = [...existing.values.entries()];
+    expect(readDeviceProgress(existing.storage)).toEqual({
+      progress: emptyProgress(),
+      state: 'unreadable',
+    });
+    expect(existing.mutations).toEqual([]);
+    expect([...existing.values.entries()]).toEqual(original);
+  });
+
   it('returns empty when the browser has neither progress nor a resume', () => {
     const existing = store();
     expect(readDeviceProgress(existing.storage)).toEqual({ progress: emptyProgress(), state: 'empty' });
