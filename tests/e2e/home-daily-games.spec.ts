@@ -33,7 +33,7 @@ for (const width of widths) {
         const section = page.locator('#daily-games');
         const summary = section.getByTestId('daily-games-summary');
         const link = section.getByTestId('games-link');
-        await section.scrollIntoViewIfNed();
+        await section.scrollIntoViewIfNeeded();
         await expect(summary).toBeVisible();
         await expect(link).toBeVisible();
         await expect(link).toHaveAttribute('href', '/play');
@@ -73,6 +73,7 @@ for (const width of widths) {
         await expect(page).toHaveURL(/\/play\/?$/);
       } finally {
         await context.close();
-      });
+      }
+    });
   }
 }
