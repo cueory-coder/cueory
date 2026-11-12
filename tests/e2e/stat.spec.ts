@@ -149,8 +149,12 @@ test('visible role-based overlays block letters and Enter, even if focus stays o
     menu.setAttribute('aria-label', 'sample options');
     menu.setAttribute('data-testid', 'sample-visible-menu');
     menu.textContent = 'sample option';
-    document.body.append(menu);
+    // Only an on-screen overlay should block a background game shortcut.
+    const article = document.querySelector('article');
+    if (!article) throw new Error('stat article is missing');
+    article.prepend(menu);
   });
+  await expect(page.getByTestId('sample-visible-menu')).toBeInViewport();
   await page.getByTestId('stat-stem').focus();
   await page.keyboard.press('c');
   await expect(choice(page, 'c')).toHaveAttribute('aria-pressed', 'false');
@@ -164,8 +168,11 @@ test('visible role-based overlays block letters and Enter, even if focus stays o
     dialog.setAttribute('aria-label', 'sample dialog');
     dialog.setAttribute('data-testid', 'sample-role-dialog');
     dialog.textContent = 'sample dialog';
-    document.body.append(dialog);
+    const article = document.querySelector('article');
+    if (!article) throw new Error('stat article is missing');
+    article.prepend(dialog);
   });
+  await expect(page.getByTestId('sample-role-dialog')).toBeInViewport();
   await page.keyboard.press('d');
   await expect(choice(page, 'd')).toHaveAttribute('aria-pressed', 'false');
   await page.getByTestId('sample-role-dialog').evaluate((dialog) => dialog.remove());
