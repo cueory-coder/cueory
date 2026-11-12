@@ -791,8 +791,10 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
     await listen(page);
     const next = section(page).getByRole('button', { name: 'next study mode' });
     for (let i = 0; i < 4; i++) await next.click({ force: true });
+    // The final announcement is debounced: fire it on the virtual clock first.
+    await page.clock.runFor(800);
     await expect(section(page).locator('[data-modes-live]')).toHaveText('matching, 5 of 11');
-    // Advance past any second debounced announcement without a real sleep.
+    // And confirm no second announcement arrives after another full rest period.
     await page.clock.runFor(800);
     expect(await heard(page)).toEqual(['matching, 5 of 11']);
   });
@@ -802,9 +804,9 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
     browserName,
   }, testInfo) => {
     test.skip(!testInfo.project.use.hasTouch, 'a touch-screen gesture');
-    await page.clock.install();
     await page.goto('/');
     await section(page).scrollIntoViewIfNeeded();
+    await page.clock.install();
     const centre = async () => {
       const box = (await page.getByRole('group', { name: 'study mode cards' }).boundingBox())!;
       return { x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height / 2) };
@@ -955,6 +957,7 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
     await section(page).scrollIntoViewIfNeeded();
     // The mouse over the section's words, not its cards: that doesn't pause it.
     await page.mouse.move(0, 0);
+    await page.clock.runFor(6000);
     await expect.poll(() => middleCard(page), { timeout: 9000 }).toBe('cards');
 
     // Resting on the cards pauses it; moving off lets it go on.
@@ -962,6 +965,7 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
     await page.clock.runFor(7000);
     expect(await middleCard(page)).toBe('cards');
     await page.mouse.move(0, 0);
+    await page.clock.runFor(6000);
     await expect.poll(() => middleCard(page), { timeout: 9000 }).toBe('learn');
 
     await section(page).getByRole('button', { name: 'next study mode' }).click();
@@ -1191,8 +1195,8 @@ test.describe('study-mode preview (D-51)', () => {
 
   test('a swipe down closes it on touch screens, a short one does not', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.use.hasTouch, 'a touch-screen gesture');
-    await page.clock.install();
     await openPreview(page, 'video');
+    await page.clock.install();
     // Playwright builds the touch points in each engine's own way (WebKit has no Touch constructor, so it uses
     // document.createTouch there), so the same swipe runs in Chromium and Safari's engine.
     const panel = page.locator('[data-mode-preview-panel]');

@@ -117,8 +117,13 @@ async function open(page: Page, island: 'start' | 'progress', device: object | n
 }
 const calls = (page: Page) => page.evaluate(() => (window as unknown as { planCalls: string[] }).planCalls);
 const deviceAnswers = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem('cueory-progress') ?? 'null')?.onboarding);
-const waitForPlanList = (page: Page) => expect.poll(() => page.evaluate(() =>
-  (window as unknown as { planListSettled: number }).planListSettled), { timeout: 5000 }).toBeGreaterThanOrEqual(1);
+const waitForPlanList = async (page: Page) => {
+  await expect.poll(() => page.evaluate(() =>
+    (window as unknown as { planListSettled: number }).planListSettled), { timeout: 5000 }).toBeGreaterThanOrEqual(1);
+  // The list promise settled; let its React consumers process the value before checking for stale writes.
+  await page.evaluate(() => new Promise<void>(resolve =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+};
 const toExam = async (page: Page) => {
   await page.getByRole('button', { name: 'continue', exact: true }).click();
   await expect(page.getByTestId('setup-step')).toHaveText('question 2 of 2');
