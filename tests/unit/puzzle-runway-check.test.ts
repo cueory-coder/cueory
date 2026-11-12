@@ -1,3 +1,6 @@
+import { mkdtempSync, mkdirSync, copyFileSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -98,5 +101,26 @@ describe('puzzle runway launch check (L4)', () => {
     const run = spawnSync(process.execPath, [script, '--days', 'ten'], { encoding: 'utf8' });
     expect(run.status).toBe(2);
     expect(run.stderr).toContain('Puzzle runway check could not run: --days must be a whole number');
+  });
+});
+
+
+describe('runway report failure at the real CLI boundary', () => {
+  it('returns one sanitized line and exit 2 when report generation throws', () => {
+    const temporary = mkdtempSync(join(tmpdir(), 'cueory-runway-failure-'));
+    try {
+      mkdirSync(join(temporary, 'scripts'));
+      mkdirSync(join(temporary, 'src', 'content'), { recursive: true });
+      const script = join(temporary, 'scripts', 'check-puzzle-runway.mjs');
+      copyFileSync(fileURLToPath(new URL('../../scripts/check-puzzle-runway.mjs', import.meta.url)), script);
+      writeFileSync(join(temporary, 'src', 'content', 'runway.ts'),
+        'export function puzzleRunways() { throw new Error("diagnostic-sentinel"); }');
+      const run = spawnSync(process.execPath, [script], { encoding: 'utf8' });
+      expect(run.status).toBe(2);
+      expect(run.stdout).toBe('');
+      expect(run.stderr).toBe('Puzzle runway check could not run: runway report failed.\n');
+    } finally {
+      rmSync(temporary, { recursive: true, force: true });
+    }
   });
 });
