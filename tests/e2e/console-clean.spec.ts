@@ -126,6 +126,32 @@ test('the detector records a failing local asset, a script exception and a CSP r
     finding.message.includes('img-src'))).toBe(true);
 });
 
+test('expected 404 allowances cannot hide a script failure, other route, or wrong HTTP status', () => {
+  const host = 'https://cueory-preview.example.test';
+  const expected: ConsoleFinding = {
+    kind: 'console',
+    url: host + CONSOLE_MISSING_ROUTE,
+    message: 'Failed to load resource: the server responded with a status of 404 (Not Found)',
+  };
+  expect(allowedConsoleFinding(CONSOLE_MISSING_ROUTE, expected)).toBe(true);
+  expect(allowedConsoleFinding(CONSOLE_MISSING_ROUTE, {
+    ...expected, message: 'uncaught app error: sample data not found (404)',
+  })).toBe(false);
+  expect(allowedConsoleFinding('/', expected)).toBe(false);
+  expect(allowedConsoleFinding(CONSOLE_MISSING_ROUTE, {
+    ...expected, url: host + '/account',
+  })).toBe(false);
+  expect(allowedConsoleFinding(CONSOLE_MISSING_ROUTE, {
+    ...expected, url: 'not a valid URL',
+  })).toBe(false);
+  expect(allowedConsoleFinding(CONSOLE_MISSING_ROUTE, {
+    ...expected, kind: 'http', message: 'HTTP 500 GET',
+  })).toBe(false);
+  expect(firstParty(host + '/_astro/main.js', host)).toBe(true);
+  expect(firstParty('https://outside.example.test/script.js', host)).toBe(false);
+  expect(firstParty('invalid url', host)).toBe(false);
+});
+
 test('every recorded exception identifies its exact cause and owner', () => {
   for (const allowance of consoleAllowances) {
     expect(allowance.route).toBeTruthy();

@@ -23,7 +23,7 @@ type Allowance = {
 
 export const consoleAllowances: readonly Allowance[] = [
   { route: CONSOLE_MISSING_ROUTE, kind: 'http', resourcePath: CONSOLE_MISSING_ROUTE, diagnostic: /^HTTP 404 GET$/, owner: 'W15', reason: 'The intentionally absent document exercises the real 404 response.' },
-  { route: CONSOLE_MISSING_ROUTE, kind: 'console', resourcePath: CONSOLE_MISSING_ROUTE, diagnostic: /(?:404|not found)/i, owner: 'W15', reason: 'Some engines log the expected missing-document response to the console.' },
+  { route: CONSOLE_MISSING_ROUTE, kind: 'console', resourcePath: CONSOLE_MISSING_ROUTE, diagnostic: /^Failed to load resource: the server responded with a status of 404(?:\s*\([^)]*\))?\.?$/i, owner: 'W15', reason: 'Some engines report the expected missing-document HTTP 404 as a resource-load console error.' },
 ];
 
 export function allowedConsoleFinding(route: string, finding: ConsoleFinding): boolean {
