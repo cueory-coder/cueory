@@ -28,6 +28,7 @@ Each link has a one-line summary and says whether Christian needs to read it. Gu
 - [Accessibility](ACCESSIBILITY.md) — See keyboard, screen-reader, and accessibility test coverage. **Christian:** Read when reviewing accessibility.
 - [Offline behavior](OFFLINE.md) — Learn what the service worker stores for offline use. **Christian:** Usually not needed.
 - [Testing](TESTING.md) — Find commands for type checks, builds, unit tests, and browser tests. **Christian:** Usually not needed.
+- [Performance budget](PERFORMANCE.md) — See the per-page size limits and how to run the size check after a build. **Christian:** Usually not needed.
 - [Launch report](LAUNCH-CHECK.md) — Learn how builders check built pages for placeholders and launch gaps. **Christian:** Read if checking the launch report.
 
 ## Plans and history
