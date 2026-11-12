@@ -128,12 +128,16 @@ async function withSleepingClock(page: Page) {
   });
 }
 
-async function wakeAfter(page: Page, elapsedMs: number) {
+async function advanceWithoutWake(page: Page, elapsedMs: number) {
   await page.evaluate(ms => {
     const clock = (window as Window & { __w19BreakClock: { now: number } }).__w19BreakClock;
     clock.now += ms;
-    window.dispatchEvent(new Event('focus'));
   }, elapsedMs);
+}
+
+async function wakeAfter(page: Page, elapsedMs: number) {
+  await advanceWithoutWake(page, elapsedMs);
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
 }
 
 test('timer restores its saved end time after a reload', async ({ page }) => {
@@ -219,4 +223,51 @@ test('timer works with session storage blocked and explains what is not saved', 
   await timer.getByRole('button', { name: 'pause' }).click();
   await wakeAfter(page, 15 * 60_000);
   await expect(timer.getByTestId('break-status')).toHaveText('studying paused: 15 minutes left.');
+});
+
+test('a stale break cannot pause the new focus period when a phone wakes on tap', async ({ page }) => {
+  await withSleepingClock(page);
+  await page.goto('/breaks');
+  const timer = page.getByTestId('break-timer');
+  await timer.getByRole('button', { name: 'turn on' }).click();
+  await wakeAfter(page, 25 * 60_000);
+  await expect(timer.getByTestId('break-status')).toHaveText('time for a short break.');
+  await timer.getByRole('button', { name: 'start break' }).click();
+  await expect(timer.getByTestId('break-status')).toHaveText('on a break: 5 minutes left.');
+  await advanceWithoutWake(page, 5 * 60_000);
+  // The stale view still offers pause. It must reconcile the elapsed break first.
+  await timer.getByRole('button', { name: 'pause' }).click();
+  await expect(timer.getByTestId('break-status')).toHaveText('studying: 25 minutes left.');
+  await expect(timer.getByRole('button', { name: 'resume' })).toHaveCount(0);
+});
+
+test('a readable but unwritable session store does not stop the timer', async ({ page }) => {
+  await page.addInitScript(() => {
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key, value) {
+      if (this === sessionStorage && key === 'cueory-break-timer') {
+        throw new DOMException('blocked', 'QuotaExceededError');
+      }
+      return original.call(this, key, value);
+    };
+  });
+  await page.goto('/breaks');
+  const timer = page.getByTestId('break-timer');
+  await timer.getByRole('button', { name: 'turn on' }).click();
+  await expect(timer.getByTestId('break-storage-warning')).toContainText("progress won't be saved");
+  await timer.getByRole('button', { name: 'pause' }).click();
+  await expect(timer.getByTestId('break-status')).toContainText('studying paused:');
+});
+
+test('minute boundary updates promptly after a pause at partial minutes', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-11-01T12:00:00Z') });
+  await page.goto('/breaks');
+  const timer = page.getByTestId('break-timer');
+  await timer.getByRole('button', { name: 'turn on' }).click();
+  await page.clock.fastForward(30_000);
+  await timer.getByRole('button', { name: 'pause' }).click();
+  await timer.getByRole('button', { name: 'resume' }).click();
+  await expect(timer.getByTestId('break-status')).toHaveText('studying: 25 minutes left.');
+  await page.clock.fastForward(30_001);
+  await expect(timer.getByTestId('break-status')).toHaveText('studying: 24 minutes left.');
 });

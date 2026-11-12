@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { BREAK_STORAGE_KEY, readBreakState, writeBreakState } from '../scripts/breakstore';
 import {
   pause,
+  nextRefreshMs,
   remainingMs,
   resume,
   skipBreak,
@@ -51,11 +52,14 @@ export default function BreakTimer({ settings }: Props) {
     try {
       const available = window.sessionStorage;
       // Access itself, as well as getItem, can throw when storage is blocked.
-      available.getItem(BREAK_STORAGE_KEY);
+      const saved = available.getItem(BREAK_STORAGE_KEY);
       storage.current = available;
-      const restored = readBreakState(available, current);
-      lastSavedState.current = restored;
-      setState(restored);
+      // Preserve the caller's settings when no timer has been saved in this tab.
+      // A saved off timer also accepts new explicit settings.
+      const restored = saved ? readBreakState(available, current) : startBreaks(settings);
+      const initial = settings && restored.status === 'off' ? startBreaks(settings) : restored;
+      lastSavedState.current = initial;
+      setState(initial);
     } catch {
       setStorageUnavailable(true);
     }
@@ -97,7 +101,8 @@ export default function BreakTimer({ settings }: Props) {
 
   useEffect(() => {
     if (!ready || (state.status !== 'focusing' && state.status !== 'on break')) return;
-    const wait = Math.min(MINUTE_MS, remainingMs(state, Date.now()));
+    // Refresh at the next displayed minute boundary, even after a partial-minute pause/resume.
+    const wait = nextRefreshMs(state, Date.now());
     const timer = window.setTimeout(refresh, wait);
     return () => window.clearTimeout(timer);
   }, [ready, now, state.endsAt, state.status, refresh]);
@@ -134,7 +139,9 @@ export default function BreakTimer({ settings }: Props) {
       && document.activeElement === pauseResumeControl.current
     ) focusAfterMove.current = 'break-choice';
     setNow(current);
-    setState(value => change(tick(value, current), current));
+    // Pause must settle an expired phase without pausing the brand-new focus period.
+    // Other commands reconcile stale deadlines before executing their requested action.
+    setState(value => change === pause ? pause(value, current) : change(tick(value, current), current));
   };
 
   return (

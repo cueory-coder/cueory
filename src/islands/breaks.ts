@@ -133,6 +133,13 @@ export function remainingMs(state: BreakState, now: number): number {
   return 0;
 }
 
+/** Delay until the next whole-minute label changes, not merely 60 seconds since the last render. */
+export function nextRefreshMs(state: BreakState, now: number): number {
+  const remaining = remainingMs(state, now);
+  if (remaining === 0) return 0;
+  return remaining % MINUTE_MS || MINUTE_MS;
+}
+
 function minutesLeft(state: BreakState, now: number): string {
   const minutes = Math.ceil(remainingMs(state, now) / MINUTE_MS);
   return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'} left`;

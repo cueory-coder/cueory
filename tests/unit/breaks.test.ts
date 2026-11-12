@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readBreakState, writeBreakState } from '../../src/scripts/breakstore';
 import {
   DEFAULT_BREAK_SETTINGS,
+  nextRefreshMs,
   parseSettings,
   pause,
   remainingMs,
@@ -217,5 +218,22 @@ describe('W19: deadlines survive stopped callbacks and blocked storage', () => {
     vi.setSystemTime(start + 10 * MINUTE);
     expect(remainingMs(focusing, Date.now())).toBe(15 * MINUTE);
     expect(pause(focusing, Date.now()).status).toBe('paused');
+  });
+});
+
+describe('W19: minute-boundary refresh precision', () => {
+  it('refreshes when the rounded minute label changes after partial-minute resume', () => {
+    const active = turnOn(startBreaks(settings), at);
+    expect(nextRefreshMs(active, at)).toBe(MINUTE);
+    expect(nextRefreshMs(active, at + 30_000)).toBe(30_000);
+    expect(nextRefreshMs(active, at + 3 * MINUTE + 1)).toBe(MINUTE - 1);
+    expect(nextRefreshMs(active, at + 20 * MINUTE - 1)).toBe(1);
+    expect(nextRefreshMs(active, at + 20 * MINUTE)).toBe(0);
+  });
+
+  it('does not schedule a refresh for a paused or inactive timer', () => {
+    const running = turnOn(startBreaks(settings), at);
+    expect(nextRefreshMs(pause(running, at + 12_345), at + 100 * MINUTE)).toBe(0);
+    expect(nextRefreshMs(turnOff(running, at), at)).toBe(0);
   });
 });
