@@ -158,7 +158,10 @@ test('the prompt of the day shows today\'s date, is the same on reload and chang
 test('sharing today\'s card uses the production hello result adapter', async ({ page }) => {
   const prompt = (await page.getByTestId('hello-daily-text').textContent())!.trim();
   const heading = (await page.getByRole('heading', { name: /prompt of the day/ }).textContent())!.trim();
-  const [, date, deck] = heading.split(' · ');
+  const parts = heading.split(' · ');
+  expect(parts).toHaveLength(3);
+  const date = parts[1]!;
+  const deck = parts[2]!;
   await page.getByRole('button', { name: "share today's card", exact: true }).click();
   const dialog = page.getByTestId('game-result-dialog');
   await expect(dialog).toBeVisible();
