@@ -22,27 +22,21 @@ describe('onboarding step navigation', () => {
     expect(move).toEqual({ kind: 'question', step: 1 });
   });
 
-  it('skip clears only the current field and follows the same step order', () => {
-    const original = Object.freeze({ course: 'both', examDate: '2027-05-12' });
-    for (const step of [0, 1] as const satisfies readonly OnboardingStep[]) {
-      const plan = skipOnboardingStep(step);
-      const after = { ...original, [plan.clear]: '' };
-      expect(Object.keys(after).sort()).toEqual(['course', 'examDate']);
-      expect(after[plan.clear]).toBe('');
-      expect(after[step === 0 ? 'examDate' : 'course']).toBe(original[step === 0 ? 'examDate' : 'course']);
-      expect(plan.move).toEqual(nextOnboardingStep(step));
-    }
-    expect(original).toEqual({ course: 'both', examDate: '2027-05-12' });
+  it('skip identifies exactly the current field and its next step', () => {
     expect(skipOnboardingStep(0)).toEqual({ clear: 'course', move: { kind: 'question', step: 1 } });
     expect(skipOnboardingStep(1)).toEqual({ clear: 'examDate', move: { kind: 'finish' } });
   });
 
-  it('back and forward do not change the answers themselves', () => {
-    const answers = Object.freeze({ course: 'fundamentals', examDate: '2027-05-12' });
-    const next = nextOnboardingStep(0);
-    expect(next).toEqual({ kind: 'question', step: 1 });
-    expect(previousOnboardingStep(1)).toBe(0);
-    expect(nextOnboardingStep(0)).toEqual(next);
-    expect(answers).toEqual({ course: 'fundamentals', examDate: '2027-05-12' });
+  it('returns deterministic moves through repeated back-forward cycles', () => {
+    let step: OnboardingStep = 0;
+    for (let cycle = 0; cycle < 5; cycle++) {
+      const forward = nextOnboardingStep(step);
+      expect(forward).toEqual({ kind: 'question', step: 1 });
+      if (forward.kind !== 'question') throw new Error('the first question must advance to the second.');
+      const previous = previousOnboardingStep(forward.step);
+      expect(previous).toBe(0);
+      step = previous ?? 0;
+    }
+    expect(nextOnboardingStep(1)).toEqual({ kind: 'finish' });
   });
 });
