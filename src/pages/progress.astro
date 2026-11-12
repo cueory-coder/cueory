@@ -1,13 +1,15 @@
 ---
 import { getCollection } from 'astro:content';
+import { lessonCatalog } from '../lessons/load';
+import { visibleProgressDecks } from '../islands/progressview';
 import Layout from '../layouts/Layout.astro';
 import ProgressPanel from '../islands/ProgressPanel';
 import GuestImportOffer from '../islands/GuestImportOffer.tsx';
 import BrandMark from '../components/BrandMark.astro';
 
-const decks = (await getCollection('cards'))
-  .map((deck) => ({ id: deck.id, title: deck.data.title, cardIds: deck.data.cards.map((card) => card.id) }))
-  .sort((a, b) => a.id.localeCompare(b.id));
+// Only a visible lesson with a visible cards companion may enter the browser props.
+const [catalog, cards] = await Promise.all([lessonCatalog(), getCollection('cards')]);
+const decks = visibleProgressDecks(catalog, cards);
 ---
 
 <Layout
