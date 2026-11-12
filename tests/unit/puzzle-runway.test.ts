@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { parsePuzzle as parseCrossword } from '../../src/islands/cueword';
+import { parsePuzzle as parseWordPath } from '../../src/islands/suture';
 import { dayNumber, puzzleForDay } from '../../src/islands/pulse';
 import { analyzePuzzleRunway, puzzleRunways, readGameSampleFiles, runwayDayNumber, runwayLines, type SampleFile } from '../../src/content/runway';
 
@@ -68,6 +70,52 @@ describe('bad sample fixture detection', () => {
     const report = analyzePuzzleRunway('pulse', [unlabeled, wrong, oddlyNamed], at(1));
     expect(report.invalidFiles).toEqual(expect.arrayContaining(['sample-01.json', 'sample-02.json', 'other.json']));
     expect(report.daysLeft).toBe(0);
+  });
+
+  it('rejects malformed crossword samples before counting a playable day', () => {
+    const filename = 'sample-01.json';
+    const malformed = [
+      { status: 'sample', grid: ['A'] },
+      { status: 'sample', grid: ['CAT', 'ARE', 'TEN'], clues: { across: [], down: [] } },
+    ];
+    for (const data of malformed) {
+      expect(() => parseCrossword({ id: 'sample-01', sample: true, grid: data.grid, clues: data.clues })).toThrow();
+      const report = analyzePuzzleRunway('cueword', [{ name: filename, data }], at(1));
+      expect(report.invalidFiles).toContain(filename);
+      expect(report.daysLeft).toBe(0);
+    }
+  });
+
+  it('rejects malformed word paths before counting a playable day', () => {
+    const filename = 'sample-01.json';
+    const malformed = [
+      { status: 'sample', grid: ['ABC'], words: [{ answer: 'ABC' }] },
+      { status: 'sample', grid: ['CAT', 'DOG', 'SUN'], words: [
+        { answer: 'CAT', path: [[0, 0], [0, 1]] },
+        { answer: 'DOG', path: [[1, 0], [1, 1], [1, 2]] },
+        { answer: 'SUN', path: [[2, 0], [2, 1], [2, 2]] },
+      ] },
+    ];
+    for (const data of malformed) {
+      expect(() => parseWordPath({ id: 'sample-01', sample: true, grid: data.grid, words: data.words })).toThrow();
+      const report = analyzePuzzleRunway('suture', [{ name: filename, data }], at(1));
+      expect(report.invalidFiles).toContain(filename);
+      expect(report.daysLeft).toBe(0);
+    }
+  });
+
+  it('agrees with the actual game parsers on all tracked crossword and word-path samples', () => {
+    for (const game of ['cueword', 'suture'] as const) {
+      const samples = readGameSampleFiles(game);
+      expect(samples.length).toBeGreaterThan(0);
+      for (const sample of samples) {
+        const data = sample.data as Record<string, unknown>;
+        const puzzle = { id: sample.name.slice(0, -5), sample: true, ...data };
+        if (game === 'cueword') expect(() => parseCrossword(puzzle)).not.toThrow();
+        else expect(() => parseWordPath(puzzle)).not.toThrow();
+        expect(analyzePuzzleRunway(game, [sample], at(1)).invalidFiles, sample.name).toEqual([]);
+      }
+    }
   });
 
   it('detects filename ordering that would change the game rotation', () => {
