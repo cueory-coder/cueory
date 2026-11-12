@@ -75,6 +75,230 @@ test('keyboard: a to d pick and change the answer, Enter goes on, nothing is gra
   await expect(progress(page)).toHaveText('question 2 of 15');
 });
 
+test('other open dialogs and an expanded account menu never pick a background answer', async ({ page }) => {
+  await start(page);
+  await page.getByRole('button', { name: 'open account menu' }).click();
+  await expect(page.getByTestId('account-menu')).toBeVisible();
+  await page.keyboard.press('a');
+  await expect(choice(page, 'a')).toHaveAttribute('aria-pressed', 'false');
+  await page.getByRole('button', { name: 'close account menu' }).click();
+
+  await page.evaluate(() => {
+    const dialog = document.createElement('dialog');
+    dialog.setAttribute('data-testid', 'other-stat-dialog');
+    dialog.setAttribute('aria-label', 'sample dialog');
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.textContent = 'close sample dialog';
+    dialog.append(close);
+    document.body.append(dialog);
+    dialog.showModal();
+    close.focus();
+  });
+  await expect(page.getByTestId('other-stat-dialog')).toHaveJSProperty('open', true);
+  await page.keyboard.press('b');
+  // Even if focus escapes a modal, an open dialog must block a window-level shortcut.
+  await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c', bubbles: true })));
+  await expect(choice(page, 'b')).toHaveAttribute('aria-pressed', 'false');
+  await expect(choice(page, 'c')).toHaveAttribute('aria-pressed', 'false');
+  await page.evaluate(() => {
+    const dialog = document.querySelector<HTMLDialogElement>('[data-testid="other-stat-dialog"]');
+    dialog?.close();
+    dialog?.remove();
+  });
+  await page.getByTestId('stat-stem').focus();
+  await page.keyboard.press('d');
+  await expect(choice(page, 'd')).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('unrelated expanded controls and hidden overlays cannot disable stat shortcuts', async ({ page }) => {
+  await start(page);
+  await page.evaluate(() => {
+    const toggle = document.createElement('button');
+    toggle.textContent = 'sample accordion';
+    toggle.setAttribute('data-testid', 'sample-accordion');
+    toggle.setAttribute('aria-controls', 'sample-accordion-details');
+    toggle.setAttribute('aria-expanded', 'true');
+    document.body.append(toggle);
+
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('data-testid', 'sample-hidden-dialog');
+    dialog.hidden = true;
+    document.body.append(dialog);
+
+    const menu = document.createElement('div');
+    menu.setAttribute('role', 'menu');
+    menu.setAttribute('aria-hidden', 'true');
+    menu.setAttribute('data-testid', 'sample-hidden-menu');
+    document.body.append(menu);
+  });
+  await page.getByTestId('stat-stem').focus();
+  await page.keyboard.press('a');
+  await expect(choice(page, 'a')).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('b');
+  await expect(choice(page, 'b')).toHaveAttribute('aria-pressed', 'true');
+  await expect(choice(page, 'a')).toHaveAttribute('aria-pressed', 'false');
+});
+
+test('CSS-hidden, transparent, and off-screen overlays do not disable Stat shortcuts', async ({ page }) => {
+  await start(page);
+  const cases = [
+    { mode: 'visibility', letter: 'a' },
+    { mode: 'ancestor-opacity', letter: 'b' },
+    { mode: 'offscreen', letter: 'c' },
+  ] as const;
+
+  for (const { mode, letter } of cases) {
+    await test.step(mode, async () => {
+      const fixture = await page.evaluate((hiddenBy) => {
+        const host = document.createElement('div');
+        host.id = 'stat-css-overlay-fixture';
+        if (hiddenBy === 'ancestor-opacity') host.style.opacity = '0';
+
+        const dialog = document.createElement('div');
+        dialog.setAttribute('role', 'dialog');
+        dialog.textContent = '[sample inactive dialog]';
+        dialog.style.position = 'fixed';
+        dialog.style.left = '0px';
+        dialog.style.top = '100px';
+        dialog.style.width = '100px';
+        dialog.style.height = '48px';
+        dialog.style.pointerEvents = 'none';
+        if (hiddenBy === 'visibility') dialog.style.visibility = 'hidden';
+        if (hiddenBy === 'offscreen') dialog.style.transform = 'translateX(-200vw)';
+        host.append(dialog);
+        document.body.append(host);
+
+        const rect = dialog.getBoundingClientRect();
+        return {
+          width: rect.width,
+          visibility: getComputedStyle(dialog).visibility,
+          ancestorOpacity: getComputedStyle(host).opacity,
+          offscreenRight: rect.right,
+        };
+      }, mode);
+
+      // Ensure the fixture really tests the relevant visibility condition.
+      expect(fixture.width).toBeGreaterThan(0);
+      if (mode === 'visibility') expect(fixture.visibility).toBe('hidden');
+      if (mode === 'ancestor-opacity') expect(fixture.ancestorOpacity).toBe('0');
+      if (mode === 'offscreen') expect(fixture.offscreenRight).toBeLessThan(0);
+
+      await page.getByTestId('stat-stem').focus();
+      await page.keyboard.press(letter);
+      await expect(choice(page, letter)).toHaveAttribute('aria-pressed', 'true');
+      await page.evaluate(() => document.querySelector('#stat-css-overlay-fixture')?.remove());
+    });
+  }
+});
+
+test('visible role-based overlays block letters and Enter, even if focus stays on the game', async ({ page }) => {
+  await start(page);
+  await page.evaluate(() => {
+    const menu = document.createElement('div');
+    menu.setAttribute('role', 'menu');
+    menu.setAttribute('aria-label', 'sample options');
+    menu.setAttribute('data-testid', 'sample-visible-menu');
+    menu.textContent = 'sample option';
+    // Only an on-screen overlay should block a background game shortcut.
+    const article = document.querySelector('article');
+    if (!article) throw new Error('stat article is missing');
+    article.prepend(menu);
+  });
+  await expect(page.getByTestId('sample-visible-menu')).toBeInViewport();
+  await page.getByTestId('stat-stem').focus();
+  await page.keyboard.press('c');
+  await expect(choice(page, 'c')).toHaveAttribute('aria-pressed', 'false');
+  await page.keyboard.press('Enter');
+  await expect(progress(page)).toHaveText('question 1 of 15');
+  await page.getByTestId('sample-visible-menu').evaluate((menu) => menu.remove());
+
+  await page.evaluate(() => {
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-label', 'sample dialog');
+    dialog.setAttribute('data-testid', 'sample-role-dialog');
+    dialog.textContent = 'sample dialog';
+    const article = document.querySelector('article');
+    if (!article) throw new Error('stat article is missing');
+    article.prepend(dialog);
+  });
+  await expect(page.getByTestId('sample-role-dialog')).toBeInViewport();
+  await page.keyboard.press('d');
+  await expect(choice(page, 'd')).toHaveAttribute('aria-pressed', 'false');
+  await page.getByTestId('sample-role-dialog').evaluate((dialog) => dialog.remove());
+
+  await page.keyboard.press('c');
+  await expect(choice(page, 'c')).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('typing into an editable region never selects a game answer', async ({ page }) => {
+  await start(page);
+  await page.evaluate(() => {
+    const field = document.createElement('div');
+    field.contentEditable = 'true';
+    field.setAttribute('data-testid', 'sample-editable');
+    field.setAttribute('aria-label', 'sample notes');
+    field.textContent = 'sample';
+    document.body.append(field);
+  });
+  await page.getByTestId('sample-editable').focus();
+  await page.keyboard.press('d');
+  await expect(choice(page, 'd')).toHaveAttribute('aria-pressed', 'false');
+  await page.getByTestId('sample-editable').evaluate((field) => field.remove());
+  await page.getByTestId('stat-stem').focus();
+  await page.keyboard.press('d');
+  await expect(choice(page, 'd')).toHaveAttribute('aria-pressed', 'true');
+});
+
+for (const size of [
+  { label: 'phone', width: 390, height: 844 },
+  { label: 'tablet', width: 820, height: 1180 },
+  { label: 'desktop', width: 1440, height: 900 },
+] as const) {
+  for (const scheme of ['light', 'dark'] as const) {
+    test(`site menu and search block stat keys at ${size.label} in ${scheme}`, async ({ page }) => {
+      await page.setViewportSize({ width: size.width, height: size.height });
+      await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
+      await start(page);
+
+      const open = page.getByRole('button', { name: 'open site menu' });
+      await expect(open).toBeVisible();
+      await open.click();
+      const dialog = page.getByTestId('site-menu');
+      await expect(dialog).toHaveJSProperty('open', true);
+      await page.keyboard.press('a');
+      await expect(choice(page, 'a')).toHaveAttribute('aria-pressed', 'false');
+
+      const resultLink = dialog.getByRole('navigation', { name: 'site' }).getByRole('link').first();
+      await resultLink.focus();
+      await page.keyboard.press('d');
+      await expect(choice(page, 'd')).toHaveAttribute('aria-pressed', 'false');
+
+      const search = dialog.getByRole('searchbox', { name: 'search the site' });
+      await search.focus();
+      await page.keyboard.press('b');
+      await expect(search).toHaveValue('b');
+      await expect(choice(page, 'b')).toHaveAttribute('aria-pressed', 'false');
+      await page.getByRole('button', { name: 'close site menu' }).click();
+      await expect(dialog).toHaveJSProperty('open', false);
+      // The menu's own close handler resets its toggle; wait for it before typing a shortcut again.
+      await expect(open).toHaveAttribute('aria-expanded', 'false');
+
+      await page.getByTestId('stat-stem').focus();
+      await page.keyboard.press('a');
+      await expect(choice(page, 'a')).toHaveAttribute('aria-pressed', 'true');
+
+      // The existing stat test checks playing/result accessibility. Repeat axe at each requested width/theme.
+      await page.clock.resume();
+      const checked = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+      expect(checked.violations).toEqual([]);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    });
+  }
+}
+
 test('the clock runs out and moves on, the timer is read out at 10 and 5 seconds, and the results show at the end', async ({ page }) => {
   await start(page);
   await expect(seconds(page)).toContainText('20');

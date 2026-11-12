@@ -8,7 +8,6 @@ import {
   averageSeconds,
   getResult,
   gradeRound,
-  isStatLetter,
   letterLabel,
   nextQuestion,
   pickAnswer,
@@ -25,6 +24,7 @@ import {
   type StatReviewRow,
   type StatState,
 } from './stat';
+import { statKeyAction } from './statkeys';
 
 const primaryButton =
   'press inline-flex min-h-(--tap-min) min-w-(--tap-min) items-center justify-center rounded-pill bg-button px-6 py-2.5 font-bold text-on-button hover:bg-button-hover';
@@ -185,21 +185,48 @@ export default function StatGame({ questions, sampleKey }: Props) {
     setState((current) => nextQuestion(current, questions, time));
   };
 
-  // Keys: a to d pick; Enter goes on unless a button or link has focus (Enter already presses it).
+  // Give visible dialogs, menus and search their own keyboard handling. Only the pure helper decides a shortcut.
   useEffect(() => {
     if (phase !== 'playing') return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.altKey || event.ctrlKey || event.metaKey || event.repeat) return;
-      const target = event.target as HTMLElement | null;
-      if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
-      const letter = event.key.toLowerCase();
-      if (isStatLetter(letter)) {
-        event.preventDefault();
-        pick(letter);
-      } else if (event.key === 'Enter' && !target?.closest('button, a, summary')) {
-        event.preventDefault();
-        next();
-      }
+      // Synthetic window events can have no Element target. Fall back to actual focus without trusting it alone:
+      // the overlay-open guard also blocks shortcuts when a modal's focus trap fails or focus has escaped.
+      const target = event.target instanceof Element ? event.target : document.activeElement;
+      // Only real overlays or Cueory's two menu toggles may block shortcuts.
+      // An unrelated expanded accordion must not disable stat.
+      const overlays = document.querySelectorAll<HTMLElement>(
+        'dialog[open], [role="dialog"], [role="alertdialog"], [role="menu"], ' +
+        '[data-menu-open][aria-expanded="true"], [data-account-toggle][aria-expanded="true"]',
+      );
+      const overlayOpen = Array.from(overlays).some((overlay) => {
+        if (overlay.closest('[hidden], [inert], [aria-hidden="true"]')) return false;
+        // Some closed overlays remain mounted but invisible or outside the viewport.
+        for (let element: HTMLElement | null = overlay; element; element = element.parentElement) {
+          const style = getComputedStyle(element);
+          if (style.display === 'none' || style.visibility !== 'visible' || Number(style.opacity) <= 0) return false;
+        }
+        const bounds = overlay.getBoundingClientRect();
+        return bounds.width > 0 && bounds.height > 0 &&
+          bounds.top < window.innerHeight && bounds.left < window.innerWidth &&
+          bounds.bottom > 0 && bounds.right > 0;
+      });
+      const action = statKeyAction({
+        key: event.key,
+        hasModifier: event.altKey || event.ctrlKey || event.metaKey,
+        isRepeated: event.repeat,
+        isEditing: Boolean(target?.closest(
+          'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="combobox"]',
+        )),
+        focusInsideOverlay: Boolean(target?.closest(
+          'dialog, [role="dialog"], [role="alertdialog"], [role="menu"], [data-site-search], [data-account], [data-menu-open]',
+        )),
+        overlayOpen,
+        onActionControl: Boolean(target?.closest('button, a, summary, [role="button"], [role="link"]')),
+      });
+      if (!action) return;
+      event.preventDefault();
+      if (action.kind === 'pick') pick(action.letter);
+      else next();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
