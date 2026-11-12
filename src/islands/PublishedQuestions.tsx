@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import QuestionsPlayer from './QuestionsPlayer';
 import { setFlagItem } from './flagitem';
-import { openPublishedQuestions, type PublishedClient, type QuestionsView } from './publishedquestions';
+import { beginPublishedQuestionsRetry, describePublishedQuestions, openPublishedQuestions, type PublishedClient, type QuestionsView } from './publishedquestions';
 import { getSupabase, sessionStateFrom } from './supabaseclient';
 
-const link = 'underline underline-offset-4';
+const link = 'inline-flex min-h-11 items-center rounded-sm underline underline-offset-4';
 const button = 'min-h-11 rounded-pill bg-button px-5 py-2.5 text-on-button hover:bg-button-hover';
 
 /**
@@ -15,18 +15,30 @@ const button = 'min-h-11 rounded-pill bg-button px-5 py-2.5 text-on-button hover
 export default function PublishedQuestions() {
   const [view, setView] = useState<QuestionsView | undefined>(undefined);
   const [attempt, setAttempt] = useState(0);
+  const [retrying, setRetrying] = useState(false);
+  const settledRef = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
     let cancelled = false;
-    setView(undefined);
     void openPublishedQuestions(
       window.location,
       () => getSupabase() as unknown as Promise<PublishedClient | null>,
       sessionStateFrom,
-    ).then(next => { if (!cancelled) setView(next); }, () => { if (!cancelled) setView({ view: 'failed' }); });
+    ).then(next => {
+      if (!cancelled) {
+        setView(next);
+        setRetrying(false);
+      }
+    }, () => {
+      if (!cancelled) {
+        setView({ view: 'failed' });
+        setRetrying(false);
+      }
+    });
     return () => { cancelled = true; };
   }, [attempt]);
 
+  const display = describePublishedQuestions(retrying ? beginPublishedQuestionsRetry(view) : view);
   const ready = view?.view === 'ready' ? view : undefined;
   // One remote object per load, so the player keeps its session while the student answers.
   const remote = useMemo(() => ready && { signedIn: true, transport: ready.transport, versions: ready.versions }, [ready]);
@@ -37,35 +49,52 @@ export default function PublishedQuestions() {
   }, [versionOf]);
   useEffect(() => () => setFlagItem(undefined), []);
 
-  if (!view) return <p className="text-sm text-ink-soft" role="status">loading the questions…</p>;
-  if (view.view === 'off') return <p data-testid="questions-closed">real questions open soon.</p>;
-  if (view.view === 'signed-out') {
-    const next = encodeURIComponent(view.next);
+  // The retry button stays focused while loading. Once it disappears after a successful retry,
+  // focus the new result so keyboard and screen-reader users do not land on <body>.
+  useLayoutEffect(() => {
+    if (attempt > 0 && !retrying && view && view.view !== 'failed') {
+      settledRef.current?.focus();
+    }
+  }, [attempt, retrying, view]);
+
+  if (display.status === 'loading' && !retrying) {
+    return <p role="status" data-testid="questions-loading" className="text-sm text-ink-soft">{display.message}</p>;
+  }
+  if (display.status === 'off') return <p ref={settledRef} tabIndex={-1} role="status" data-testid="questions-closed">{display.message}</p>;
+  if (display.status === 'signed-out') {
+    const next = encodeURIComponent(display.next);
     return (
-      <p data-testid="questions-signed-out">
-        <a className={link} href={`/signup?next=${next}`}>create a free account</a> to answer real questions, or{' '}
-        <a className={link} href={`/signin?next=${next}`}>sign in</a>.
+      <p ref={settledRef} tabIndex={-1} role="status" data-testid="questions-signed-out">
+        <a className={link} href={`/signin?next=${next}`}>sign in</a> to answer real questions, or{' '}
+        <a className={link} href={`/signup?next=${next}`}>create a free account</a>.
       </p>
     );
   }
-  if (view.view === 'not-found') {
+  if (display.status === 'empty') {
     return (
-      <p data-testid="questions-not-found">
-        there are no published questions for this topic yet. <a className={link} href="/learn">back to the course library</a>
+      <p ref={settledRef} tabIndex={-1} role="status" data-testid="questions-not-found">
+        {display.message} <a className={link} href="/learn">back to the course library</a>
       </p>
     );
   }
-  if (view.view === 'failed' || !ready || !remote) {
+  if (view?.view === 'failed' || !ready || !remote) {
+    const retryLoading = retrying && view?.view === 'failed';
     return (
       <div>
-        <p role="alert">these questions could not be loaded. please try again.</p>
-        <button type="button" className={`${button} mt-4`} onClick={() => setAttempt(count => count + 1)}>try again</button>
+        {retryLoading
+          ? <p role="status" data-testid="questions-retry-loading">{display.status === 'loading' ? display.message : 'loading questions…'}</p>
+          : <p role="alert">{display.status === 'failed' ? display.message : "couldn't load questions. please try again."}</p>}
+        <button type="button" aria-disabled={retryLoading} className={`${button} mt-4`} onClick={() => {
+          if (retryLoading) return;
+          setRetrying(true);
+          setAttempt(count => count + 1);
+        }}>try again</button>
       </div>
     );
   }
   return (
     <div>
-      <p className="mb-6 text-sm font-medium text-ink-soft" data-testid="questions-concept">{ready.concept.title}</p>
+      <p ref={settledRef} tabIndex={-1} className="mb-6 text-sm font-medium text-ink-soft" data-testid="questions-concept">{ready.concept.title}</p>
       <QuestionsPlayer questions={ready.questions} remote={remote} onCurrent={onCurrent} />
     </div>
   );

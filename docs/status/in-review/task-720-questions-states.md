@@ -1,0 +1,1 @@
+STATUS: Task 720 (W20, #20): explicit published-question loading, signed-out, empty, failed/retry, ready and accounts-off states; pure state tests and accessible browser coverage. Ready for Claude review.

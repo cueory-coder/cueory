@@ -17,7 +17,7 @@ import PublishedQuestions from '../../islands/PublishedQuestions.tsx';
   <div class="mx-auto w-full max-w-prose py-section">
     <header class="space-y-3">
       <h1 class="text-2xl">questions</h1>
-      <p class="text-ink-soft">pick your answer and check it. then you see why each choice is right or not.</p>
+      <p class="text-ink-soft">practice with published questions when they are available.</p>
     </header>
 
     <section
@@ -26,7 +26,9 @@ import PublishedQuestions from '../../islands/PublishedQuestions.tsx';
       data-testid="question-surface"
     >
       <div data-testid="questions">
-        <PublishedQuestions client:only="react" />
+        <PublishedQuestions client:only="react">
+          <p slot="fallback" class="text-sm text-ink-soft" role="status">loading questions…</p>
+        </PublishedQuestions>
         <noscript>
           <p>questions need JavaScript. you can still browse the <a href="/learn">course library</a>.</p>
         </noscript>
