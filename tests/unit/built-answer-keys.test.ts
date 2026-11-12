@@ -24,22 +24,24 @@ function shippedKeys(text: string, javascript = true): string[] {
     return false;
   }
   function inspectObject(node: ts.ObjectLiteralExpression) {
-    // Inspect each literal field even when an id or other sibling is calculated.
-    // Runtime sample checking passes a constant success flag alongside dynamic RPC-shaped fields;
-    // learning-mode overruling updates an existing runtime result with a spread.
-    const runtimeResult = node.properties.some((property) => ts.isPropertyAssignment(property) &&
-      ['key', 'rationales'].includes(nameOf(property.name) ?? '') && !literal(property.initializer));
-    const overridesResult = node.properties.some(ts.isSpreadAssignment);
     for (const property of node.properties) {
       if (!ts.isPropertyAssignment(property)) continue;
       const name = nameOf(property.name);
       const normalized = name?.replace(/[-_]/g, '').toLowerCase();
+      if (!normalized || !['answerkey', 'correct', 'rationale', 'rationales', 'key'].includes(normalized)) continue;
+      // Test only candidate fields: walking every unrelated literal subtree repeatedly is quadratic.
       if (!literal(property.initializer)) continue;
-      if (normalized && ['answerkey', 'rationale', 'rationales'].includes(normalized)) found.add(name!);
-      if (normalized === 'correct' && !runtimeResult && !overridesResult) found.add(name!);
+      if (['answerkey', 'rationale', 'rationales'].includes(normalized)) found.add(name!);
+      if (normalized === 'correct') {
+        // Runtime sample checking uses dynamic RPC-shaped fields; learning-mode overruling spreads a result.
+        const runtimeResult = node.properties.some((other) => ts.isPropertyAssignment(other) &&
+          ['key', 'rationales'].includes(nameOf(other.name) ?? '') && !literal(other.initializer));
+        if (!runtimeResult && !node.properties.some(ts.isSpreadAssignment)) found.add(name!);
+      }
       if (name === 'key' && ts.isArrayLiteralExpression(property.initializer)) found.add('key');
     }
   }
+
   function inspectJson(value: string, depth: number) {
     if (depth > 8 || seenJson.has(value) || !/^[\s]*[\[{]/.test(value)) return;
     seenJson.add(value);
@@ -118,13 +120,16 @@ describe('built answer-key guard (T16)', () => {
     expect(shippedKeys('<p>The saved state never holds the answer key or a rationale.</p>', false)).toEqual([]);
   });
 
-  it('ships no static answer-key payload in any built HTML or JavaScript asset', () => {
-    const dist = join(process.cwd(), 'dist');
-    const files = assets(dist); // Missing dist is a failure: run npm run build first.
+  const dist = join(process.cwd(), 'dist');
+  const files = assets(dist); // Missing dist is a failure: run npm run build first.
+  it('finds built HTML and JavaScript to inspect', () => {
     expect(files.some((file) => file.endsWith('.html'))).toBe(true);
     expect(files.some((file) => file.endsWith('.js'))).toBe(true);
-    const leaks = files.flatMap((file) => shippedKeys(readFileSync(file, 'utf8'), extname(file) === '.js')
-      .map((field) => `${relative(dist, file)}: ${field}`));
+  });
+
+  // One case per asset keeps failures attributable without raising or disabling time limits.
+  it.each(files.map((file) => [relative(dist, file), file]))('ships no static answer-key payload in %s', (_name, file) => {
+    const leaks = shippedKeys(readFileSync(file!, 'utf8'), extname(file!) === '.js');
     // Only paths and field names are reported; leaked answer values never enter test logs.
     expect(leaks).toEqual([]);
   });
