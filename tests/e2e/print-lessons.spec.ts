@@ -179,6 +179,6 @@ test.describe('Task 709: lesson-only printing', () => {
     expect(externalUrl).toContain('https://example.org/sample-license');
     const localUrl = await page.locator('[data-visual-credits] a[href="/disclaimer"]').evaluate((link) =>
       getComputedStyle(link, '::after').content);
-    expect(localUrl).not.toContain('/disclaimer');
+    expect(['none', 'normal']).toContain(localUrl);
   });
 });

@@ -39,7 +39,10 @@ describe('W09 lesson print styles', () => {
     expect(lessonCss).toContain('section[aria-label="lesson video"]');
     expect(lessonCss).toContain(':is(button, [role="button"], [role="tab"], input, select, textarea)');
     expect(lessonCss).toContain('display: none !important;');
-    expect(lessonCss).not.toMatch(/\[data-testid="print-lesson-reader"\][^{}]*\{\s*display:\s*none/);
+    const hiddenBlocks = [...lessonCss.matchAll(/([^{}]+)\{\s*display:\s*none\s*!important;/g)];
+    expect(hiddenBlocks).toHaveLength(1);
+    expect(hiddenBlocks[0]![1]).not.toContain('[data-print-only]');
+    expect(css).toMatch(/@media print\s*\{[\s\S]*?\[data-print-only\]\s*\{\s*display:\s*block\s*!important;/);
   });
 
   it('preserves credits and prevents clipping or page breaks inside visual blocks', () => {
@@ -56,6 +59,8 @@ describe('W09 lesson print styles', () => {
     expect(lessonCss).toContain('a[href^="https://"]');
     expect(lessonCss).toContain('a[href^="http://"]');
     expect(lessonCss).toContain(':not([href^="https://cueory.app/"])');
+    expect(lessonCss).toContain(':not([href^="http://cueory.app/"])');
+    expect(lessonCss).toContain(':not([href^="http://www.cueory.app/"])');
     expect(lessonCss).toContain('content: " (" attr(href) ")";');
   });
 });

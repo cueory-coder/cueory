@@ -50,7 +50,7 @@
 
   /* Outside URLs remain usable on paper. Internal cueory links stay concise. */
   body:has(main [data-testid="study-reader"]) main a[href^="https://"]:not([href^="https://cueory.app/"]):not([href^="https://www.cueory.app/"])::after,
-  body:has(main [data-testid="study-reader"]) main a[href^="http://"]::after {
+  body:has(main [data-testid="study-reader"]) main a[href^="http://"]:not([href^="http://cueory.app/"]):not([href^="http://www.cueory.app/"])::after {
     content: " (" attr(href) ")";
     overflow-wrap: anywhere;
   }
