@@ -85,11 +85,14 @@ export default function GameResultsHost() {
 
   function close() {
     activeCard.current = null;
-    preparation.current++;
+    const request = ++preparation.current;
+    const target = returnFocus.current;
     setPrepared(null);
     setPreparing(false);
     setCard(null);
-    requestAnimationFrame(() => returnFocus.current?.focus());
+    requestAnimationFrame(() => {
+      if (request === preparation.current && !activeCard.current) target?.focus();
+    });
   }
 
   async function copy(text: string, request = preparation.current) {

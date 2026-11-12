@@ -79,6 +79,37 @@ afterEach(() => {
 });
 
 describe('result-host native share activation', () => {
+  it('does not return page focus from an old close frame after another result opens', () => {
+    mount(undefined);
+    click('close results');
+    const opener = Object.assign(new HTMLElement(), { focus: vi.fn() });
+    Reflect.set(document, 'activeElement', opener);
+    showResultCard(card);
+    const frames: (() => void)[] = [];
+    vi.stubGlobal('requestAnimationFrame', (callback: () => void) => { frames.push(callback); return frames.length; });
+    click('close results');
+    showResultCard({ ...card, result: '1 / 6' });
+    frames.shift()!();
+    expect(opener.focus).not.toHaveBeenCalled();
+    click('close results');
+    frames.shift()!();
+    expect(opener.focus).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not restore page focus after the result host unmounts', () => {
+    mount(undefined);
+    click('close results');
+    const opener = Object.assign(new HTMLElement(), { focus: vi.fn() });
+    Reflect.set(document, 'activeElement', opener);
+    showResultCard(card);
+    const frames: (() => void)[] = [];
+    vi.stubGlobal('requestAnimationFrame', (callback: () => void) => { frames.push(callback); return frames.length; });
+    click('close results');
+    for (const cleanup of cleanups.splice(0).reverse()) cleanup();
+    frames.shift()!();
+    expect(opener.focus).not.toHaveBeenCalled();
+  });
+
   it.each([false, true])('does not update a replacement result after an old clipboard request settles (reject=%s)', async (reject) => {
     mount(undefined);
     let settle!: () => void;

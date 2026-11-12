@@ -72,6 +72,37 @@ test('replacing an open result preserves its original keyboard return target', a
   await expect(returnTo).toBeFocused();
 });
 
+test('a delayed close frame cannot move focus out of a newly opened result', async ({ page }) => {
+  const returnTo = page.getByTestId('pulse').getByRole('button', { name: 'a', exact: true });
+  await returnTo.focus();
+  const dialog = await openResult(page);
+  await expect(dialog.getByRole('button', { name: 'close results' })).toBeFocused();
+  await page.evaluate(() => {
+    const original = window.requestAnimationFrame;
+    const state = window as unknown as { oldCloseFrame?: FrameRequestCallback };
+    window.requestAnimationFrame = (callback) => { state.oldCloseFrame = callback; return 0; };
+    try {
+      (document.querySelector('[data-testid="game-result-dialog"] button[aria-label="close results"]') as HTMLButtonElement).click();
+    } finally { window.requestAnimationFrame = original; }
+  });
+  await expect(dialog).toHaveCount(0);
+  await returnTo.focus();
+  await page.evaluate((detail) => {
+    window.dispatchEvent(new CustomEvent('cueory:game-result-card', { detail: { ...detail, result: '1 / 6' } }));
+  }, card);
+  const close = dialog.getByRole('button', { name: 'close results' });
+  await expect(close).toBeFocused();
+  await page.evaluate(() => {
+    const state = window as unknown as { oldCloseFrame?: FrameRequestCallback };
+    if (!state.oldCloseFrame) throw new Error('close did not schedule focus restoration');
+    state.oldCloseFrame(performance.now());
+    delete state.oldCloseFrame;
+  });
+  await expect(close).toBeFocused();
+  await close.click();
+  await expect(returnTo).toBeFocused();
+});
+
 test('first-visit promo waits while the result dialog owns focus', async ({ page }) => {
   await page.evaluate(() => localStorage.removeItem('cueory-promo-seen'));
   await page.reload();

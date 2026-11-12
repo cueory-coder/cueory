@@ -76,3 +76,20 @@ Keep Draft until Claude completes actual browser review, Facebook/product decisi
 Clipboard work now carries the existing result-generation counter. A delayed success or failure cannot change a replacement result's status. If native sharing fails after Close or result replacement, its fallback no longer starts an old-result clipboard write. Already-started clipboard operations are not cancellable. Three behavioral regressions using the host's actual event/click handlers failed before the fix and pass afterward. The original six activation, preparation and focus regressions remain. Actual browser verification and the mergeability/product holds remain required. No new PR.
 
 Validation on this source-branch repair: Astro check 639 files / 0 errors / 0 warnings / 26 hints, build passed, full Vitest 225 files / 5640 tests passed / 3 existing skips. All nine host-sharing/focus/clipboard cases pass using controlled React/browser stand-ins. No actual browser/OS clipboard/native-share or full verify pass is claimed. Node 24.22.1, unchanged lockfile. This does not certify integration with newer staging.
+
+
+## Repair: stale close-frame focus
+
+Close now captures the page target and the existing generation before scheduling return focus. The frame restores focus only while that generation is current and no result is active. A new result or host unmount invalidates the old frame. Two behavioral cases executing the real host handlers with queued animation frames failed before repair and pass after it. The reopen case also verifies normal restoration after closing the newer result. The existing nine native-share/focus/clipboard cases remain passing. Added a browser regression that holds the old close frame until a new dialog has focus. It is authored/discovered, not browser-executed.
+
+Source verification on 99ae0e7b plus this narrow repair: Astro check 639 files / 0 errors / 0 warnings / 26 hints, build passed, full Vitest 225 files / 5642 passed / 3 existing skips. Browser discovery finds 28 game-result cases across four Chromium projects. Node 24.22.1, unchanged lockfile/budgets. No actual browser/axe/native-share/full-verify pass is claimed.
+
+Integration review separately reconstructed source 99ae0e7b (980 matching source blobs) and staging 4aaff77a (987 matching blobs). The resolved local candidate plus this repair passed check 655 files / 0 errors / 0 warnings / 28 hints, build, and full Vitest 232 files / 5773 passed / 3 existing skips. These combined checks do not clear GitLab ancestry or review gates.
+
+Reproduced the historical merge using pinned source/target trees and the reported 02aea9d8 common-ancestor snapshot. Four conflict files require these resolutions:
+- docs/CONTENT-FORMAT.md: retain the source's existing optional crossword level and 3–15 schema limits/index entry.
+- src/islands/CuewordGame.tsx: retain the shared result card payload, detailed share text and completion-effect dependencies.
+- src/islands/SudokuGame.tsx: retain both queued-result and staged theme/highlight imports, then take the staged theme rows and checkbox/settings markup.
+- tests/e2e/play.spec.ts: retain the crossword dialog/share assertions and close action before testing the underlying result.
+
+The resolved index is byte-for-byte identical to the previously tested combined candidate before this narrow focus repair. Claude must record a normal merge commit to resolve ancestry. This publication changes only the host close callback, two unit cases, one authored browser case and this status history. It does not repeatedly copy staging into the source or rewrite branch history. Keep Draft for actual browser coverage, Facebook/hard-grid decisions and final integration review. No new PR or merge.
