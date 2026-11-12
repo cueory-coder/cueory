@@ -53,7 +53,25 @@ function Board({ puzzle, name }: Props) {
   useEffect(() => {
     if (!done || reported.current) return;
     reported.current = true;
-    reportRound({ game: 'suture', day: localDay(today), solved: true, tries: state.misses });
+    reportRound({
+      game: 'suture',
+      day: localDay(today),
+      solved: true,
+      tries: state.misses,
+      card: {
+        game: 'suture',
+        name,
+        date: dayLabel(today),
+        result: `${state.found.length} / ${state.totalWords}`,
+        shareResult: `${state.found.length} of ${state.totalWords} words`,
+        summary: 'you found every word in today\'s path.',
+        stats: [
+          { label: 'words found', value: `${state.found.length}` },
+          { label: 'wrong picks', value: `${state.misses}` },
+        ],
+        path: '/play/word-path',
+      },
+    });
   }, [done]);
 
   const choose = (cell: Cell) => {

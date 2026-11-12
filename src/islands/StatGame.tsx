@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ResultBrandMark from './ResultBrandMark';
+import { showResultCard, statResultCard } from './gameresults';
 import {
   LOW_SECONDS,
   STAT_QUESTIONS,
@@ -95,6 +96,7 @@ export default function StatGame({ questions, sampleKey }: Props) {
   const stemRef = useRef<HTMLHeadingElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
   const heard = useRef({ index: -1, left: STAT_SECONDS });
+  const reportedRound = useRef<number | null>(null);
 
   const left = phase === 'playing' ? secondsLeft(state, now) : STAT_SECONDS;
   const question = questions[state.index];
@@ -232,11 +234,13 @@ export default function StatGame({ questions, sampleKey }: Props) {
     return () => window.removeEventListener('keydown', onKey);
   });
 
-  // TASK-626 HOOK: `result` is this game's finished round in the shared shape (StatRoundResult from ./stat, built on
-  // gameresults.ts RoundResult: game, day, solved, tries, plus score, total, averageSeconds, share, practice). When the
-  // shared results/share card lands, render it here with `result` instead of (or under) the copy button below. It is
-  // null until the round has been graded. Not sent to the stats panel yet: 'stat' isn't one of its GameIds.
+  // Only a fully graded round can create a display result. It never enters private game stats.
   const result = getResult(rows, state.answers, today, rounds > 1);
+  useEffect(() => {
+    if (phase !== 'done' || !result || reportedRound.current === rounds) return;
+    reportedRound.current = rounds;
+    showResultCard(statResultCard(result));
+  }, [phase, rows, state.answers, rounds, today]);
 
   const copy = async () => {
     if (!result) return;

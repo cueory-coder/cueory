@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { browserStorage } from '../scripts/storage';
 import { printGame } from './gameprint';
-import { localDay } from './gameresults';
+import { localDay, showResultCard, sudokuResultCard } from './gameresults';
 import { THEME_ROWS, chooseSiteTheme, currentSiteTheme } from './sitetheme';
 import { sudokuCellClasses } from './sudokuhighlight';
 import { DEFAULT_SUDOKU_SETTINGS, LEVEL_RULES, applySudokuEdit, candidates, conflictIndices, dailySudokuSeed, generateSudoku, getResult, loadSudokuSettings, saveSudokuSettings, sudokuKeyAction, type SudokuLevel, type SudokuSettings } from './sudoku';
@@ -70,6 +70,9 @@ export default function SudokuGame() {
     solvedResult.current?.focus();
     if (settings.playSound) playSolvedTone();
     const result = getResult({ day, level, seconds, errors, solved: true });
+    // Queue the display result even if the separate host island has not hydrated yet.
+    showResultCard(sudokuResultCard(result));
+    // Keep the existing public completion event for other observers. The host no longer consumes it.
     window.dispatchEvent(new CustomEvent('cueory:sudoku-solved', { detail: result }));
     setSaid(`solved in ${result.time} with ${errors} ${errors === 1 ? 'error' : 'errors'}.`);
   }, [solved, day, level, seconds, errors, settings.playSound]);

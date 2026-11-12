@@ -65,6 +65,20 @@
   /* Marketing headings and the italic accent line only (brand spec section 4; D-41). Self-hosted in public/fonts. */
   --font-display: "Bodoni Moda", "Bodoni 72", Didot, Georgia, serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  /* Finished-game story image canvas (Task 626). Unitless pixels because CanvasRenderingContext2D requires pixels. */
+  --share-story-width: 1080;
+  --share-story-height: 1920;
+  --share-story-logo-width: 480;
+  --share-story-logo-top: 120;
+  --share-story-label-y: 690;
+  --share-story-result-y: 960;
+  --share-story-challenge-y: 1240;
+  --share-story-site-y: 1680;
+  --share-story-label-size: 34;
+  --share-story-result-size: 132;
+  --share-story-challenge-size: 52;
+  --share-story-site-size: 42;
+  --share-story-dark-logo: 0;  /* Daytime uses the Espresso artwork; Evening overrides this to Ivory. */
   /* The logo is Christian's PNG artwork (Wordmark.astro, public/brand/v1/), never typed in a font (D-55). */
 
   /* ---------- Type scale (mobile first; large and readable) ----------

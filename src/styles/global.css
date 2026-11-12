@@ -1605,6 +1605,19 @@ html:has(dialog.menu-panel[open]) {
   While the preview is open the page behind stays put. Where scrollbars take up room, that room is kept so nothing
   shifts, and tinted like the darkened page.
 */
+@layer components {
+  .result-dialog-overlay {
+    background-color: rgb(var(--shadow-tint) / var(--scrim-alpha));
+    -webkit-backdrop-filter: blur(var(--blur-scrim));
+    backdrop-filter: blur(var(--blur-scrim));
+  }
+
+  .result-meta {
+    font-variant-caps: all-small-caps;
+    letter-spacing: var(--tracking-label);
+  }
+}
+
 html:has(dialog.mode-preview[open]) {
   overflow: hidden;
   scrollbar-gutter: stable;
