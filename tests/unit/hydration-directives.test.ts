@@ -188,7 +188,7 @@ describe('eager Astro island hydration', () => {
       '<SampleWidget client:load />',
       '<OnlyWidget client:only="react"></OnlyWidget>',
       '<NotEager client:loading></NotEager>',
-    ].join('\\n'));
+    ].join('\n'));
     const found = collectEagerIslands(f.root);
     expect(found.map(({ id }) => id)).toEqual([
       'src/pages/fixture.astro::SignIn::load',
