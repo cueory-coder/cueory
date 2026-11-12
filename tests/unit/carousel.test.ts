@@ -47,6 +47,7 @@ const workingCarousel: CarouselCapabilities = {
     getAnimations: mockCapability,
   })),
   matchMedia: mockCapability,
+  motionQuery: { matches: false, addEventListener: mockCapability },
   intersectionObserver: mockCapability,
   replaceChildren: mockCapability,
 };
@@ -80,6 +81,9 @@ describe('study-mode carousel progressive enhancement', () => {
 
   it('keeps ordinary links if other features required by the ring are missing', () => {
     expect(canEnhanceCarousel({ ...workingCarousel, matchMedia: undefined })).toBe(false);
+    expect(canEnhanceCarousel({ ...workingCarousel, motionQuery: undefined })).toBe(false);
+    expect(canEnhanceCarousel({ ...workingCarousel, motionQuery: { matches: undefined, addEventListener: mockCapability } })).toBe(false);
+    expect(canEnhanceCarousel({ ...workingCarousel, motionQuery: { matches: false, addEventListener: undefined } })).toBe(false);
     expect(canEnhanceCarousel({ ...workingCarousel, intersectionObserver: undefined })).toBe(false);
     expect(canEnhanceCarousel({ ...workingCarousel, replaceChildren: undefined })).toBe(false);
   });

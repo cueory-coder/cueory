@@ -233,6 +233,15 @@ const icons: Record<StudyFeatureIcon, string> = {
 
   const root = document.querySelector<HTMLElement>('[data-modes]');
   const track = root?.querySelector<HTMLElement>('[data-modes-track]');
+  // The ring calls addEventListener on this result. Older browsers may only expose addListener.
+  let motionQuery: MediaQueryList | undefined;
+  try {
+    motionQuery = typeof window.matchMedia === 'function'
+      ? window.matchMedia('(prefers-reduced-motion: reduce)')
+      : undefined;
+  } catch {
+    // Unsupported media queries leave the ordinary study links available.
+  }
   const previewDialog = root?.querySelector<HTMLDialogElement>('[data-mode-preview]');
   const previewBottle = previewDialog?.querySelector<HTMLElement>('[data-mode-preview-vial]');
   const previewParts = [
@@ -250,6 +259,7 @@ const icons: Record<StudyFeatureIcon, string> = {
     dialog: previewDialog,
     animationTargets: previewParts,
     matchMedia: window.matchMedia,
+    motionQuery,
     intersectionObserver: typeof IntersectionObserver === 'function' ? IntersectionObserver : undefined,
     replaceChildren: previewBottle?.replaceChildren,
   })) {
@@ -258,7 +268,7 @@ const icons: Record<StudyFeatureIcon, string> = {
     const live = root.querySelector<HTMLElement>('[data-modes-live]');
     const pauseButton = root.querySelector<HTMLButtonElement>('[data-modes-pause]');
     const dots = [...root.querySelectorAll<HTMLElement>('[data-modes-dot]')];
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const reducedMotion = motionQuery!;
 
     const state = {
       reducedMotion: reducedMotion.matches,

@@ -18,6 +18,7 @@ export interface CarouselCapabilities {
   dialog: { showModal?: unknown; close?: unknown } | null | undefined;
   animationTargets: readonly ({ animate?: unknown; getAnimations?: unknown } | null | undefined)[];
   matchMedia: unknown;
+  motionQuery: { matches?: unknown; addEventListener?: unknown } | null | undefined;
   intersectionObserver: unknown;
   replaceChildren: unknown;
 }
@@ -28,6 +29,8 @@ export function canEnhanceCarousel(capabilities: CarouselCapabilities): boolean 
     typeof capabilities.dialog?.showModal === 'function' &&
     typeof capabilities.dialog?.close === 'function' &&
     typeof capabilities.matchMedia === 'function' &&
+    typeof capabilities.motionQuery?.matches === 'boolean' &&
+    typeof capabilities.motionQuery?.addEventListener === 'function' &&
     typeof capabilities.intersectionObserver === 'function' &&
     typeof capabilities.replaceChildren === 'function' &&
     // Panel, scrim, bottle, surface, and both word-fade containers all animate.
