@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { inertOutside, lockPageScroll } from '../../src/islands/gameresults';
 
 interface FakeNode { name: string; inert: boolean; parentElement: FakeNode | null; children: FakeNode[] }
