@@ -55,12 +55,32 @@ function tagAttributes(tag) {
   return attrs;
 }
 
+/** Visit real start tags, excluding comments and markup-like text inside raw-text elements. */
+function* htmlElements(html) {
+  const tags = /<!--[\s\S]*?(?:-->|$)|<\/?([A-Za-z][\w:-]*)\b(?:[^"'<>]|"[^"]*"|'[^']*')*>/g;
+  const rawText = new Set(['script', 'style', 'textarea', 'title', 'xmp', 'iframe', 'noembed', 'noframes']);
+  let match;
+  while ((match = tags.exec(html))) {
+    if (!match[1] || /^<\//.test(match[0])) continue;
+    const name = match[1].toLowerCase();
+    let body = '';
+    if (rawText.has(name)) {
+      const closing = new RegExp('</\\s*' + name + '\\s*>', 'gi');
+      closing.lastIndex = tags.lastIndex;
+      const end = closing.exec(html);
+      body = html.slice(tags.lastIndex, end ? end.index : html.length);
+      tags.lastIndex = end ? closing.lastIndex : html.length;
+    }
+    yield { name, tag: match[0], body };
+  }
+}
+
 /** Read only direct local JS/CSS references. Imported dependencies are followed separately. */
 export function extractHtmlAssetUrls(html) {
   const urls = new Set();
-  for (const match of html.matchAll(/<\s*(script|link|astro-island)\b[^>]*>/gi)) {
-    const name = match[1].toLowerCase();
-    const attrs = tagAttributes(match[0]);
+  for (const { name, tag } of htmlElements(html)) {
+    if (!['script', 'link', 'astro-island'].includes(name)) continue;
+    const attrs = tagAttributes(tag);
     if (name === 'script' && attrs.has('src')) urls.add(attrs.get('src'));
     if (name === 'astro-island') {
       for (const attr of ['component-url', 'renderer-url', 'before-hydration-url', 'client-url']) {
@@ -273,10 +293,11 @@ export function extractImportedAssetUrls(content, kind) {
 /** Static imports in inline module scripts also trigger initial requests. */
 export function extractInlineModuleAssetUrls(html) {
   const urls = new Set();
-  for (const match of html.matchAll(/<\s*script\b[^>]*>([\s\S]*?)<\/script\s*>/gi)) {
-    const attrs = tagAttributes(match[0].slice(0, match[0].indexOf('>') + 1));
+  for (const { name, tag, body } of htmlElements(html)) {
+    if (name !== 'script') continue;
+    const attrs = tagAttributes(tag);
     if ((attrs.get('type') ?? '').trim().toLowerCase() !== 'module' || attrs.has('src')) continue;
-    for (const url of extractImportedAssetUrls(match[1], 'js')) urls.add(url);
+    for (const url of extractImportedAssetUrls(body, 'js')) urls.add(url);
   }
   return [...urls];
 }

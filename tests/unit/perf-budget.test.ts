@@ -60,6 +60,36 @@ describe('built-site performance budgets', () => {
       .toEqual(['./base.css', '../color.css']);
   });
 
+  it('ignores asset tags in HTML comments, attributes and raw text', () => {
+    const html = [
+      `<!-- <script src="/_astro/missing-comment.js"></script><script type="module">import '/_astro/missing-module.js';</script> -->`,
+      `<div data-example='<script src="/_astro/missing-attribute.js">'></div>`,
+      `<script type="module">const example = '<script src="/_astro/missing-string.js">'; import '/_astro/real.js';</script>`,
+      `<style>body::after { content: '<link rel="stylesheet" href="/_astro/missing-style.css">'; }</style>`,
+      `<textarea><script src="/_astro/missing-textarea.js"></script></textarea>`,
+      `<link rel="stylesheet" href="/_astro/real.css"><script src="/_astro/app.js"></script>`,
+    ].join('\n');
+    expect(extractHtmlAssetUrls(html)).toEqual(['/_astro/real.css', '/_astro/app.js']);
+    expect(extractInlineModuleAssetUrls(html)).toEqual(['/_astro/real.js']);
+  });
+
+  it('scans a real page without following commented or quoted example tags', () => {
+    const f = fixture();
+    const inline = `const example = '<script src="/_astro/missing-string.js">'; import '/_astro/real.js';`;
+    const html = `<!-- <script src="/_astro/missing-comment.js"></script><script type="module">import '/_astro/missing-inline.js';</script> -->` +
+      '<script type="module">' + inline + '</script><link rel="stylesheet" href="/_astro/real.css">';
+    const real = 'export const sample = true;';
+    const css = 'body { color: inherit; }';
+    f.file('index.html', html);
+    f.file('_astro/real.js', real);
+    f.file('_astro/real.css', css);
+    const [page] = scanPerformanceBudget(f.root);
+    expect(page!.html).toBe(gzipSync(html).length);
+    expect(page!.js).toBe(gzipSync(real).length);
+    expect(page!.css).toBe(gzipSync(css).length);
+    expect(page!.breaches).toEqual([]);
+  });
+
   it('ignores fake CSS imports in comments and strings', () => {
     const css = [
       "/* @import './missing-comment.css'; */",
