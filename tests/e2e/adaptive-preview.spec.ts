@@ -112,6 +112,40 @@ test('uses real touch taps on every sample choice and button through the final s
   }
 });
 
+
+test('finished Restart target stays 44 by 44 in every size and palette', async ({ page }) => {
+  await page.goto(route);
+  for (let index = 0; index < SAMPLE_ADAPTIVE_QUESTIONS.length; index++) {
+    await page.getByRole('radio', { name: '[sample] choice A' }).check();
+    await page.getByRole('button', { name: 'check sample answer' }).click();
+    await page.getByRole('button', { name: 'next sample question' }).click();
+  }
+  const finished = page.getByTestId('adaptive-finished');
+  const restart = finished.getByRole('button', { name: 'start again' });
+  await expect(finished).toContainText(/right on \d of 5 sample questions\./);
+  await expect(restart).toBeVisible();
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 820, height: 1180 },
+    { width: 1440, height: 900 },
+  ]) {
+    await page.setViewportSize(viewport);
+    for (const colorScheme of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+      await page.evaluate(mode => { document.documentElement.dataset.theme = mode; }, colorScheme);
+      const rect = await restart.boundingBox();
+      expect(rect?.width ?? 0).toBeGreaterThanOrEqual(44);
+      expect(rect?.height ?? 0).toBeGreaterThanOrEqual(44);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    }
+  }
+  await restart.focus();
+  await expect(restart).toBeFocused();
+  await expect(restart).toHaveCSS('outline-style', 'solid');
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('adaptive-question')).toBeFocused();
+});
+
 test('fits phone, tablet and desktop in Light and Evening and passes axe', async ({ page }) => {
   await page.goto(route);
   await expect(page.getByTestId('adaptive-question')).toBeVisible();
