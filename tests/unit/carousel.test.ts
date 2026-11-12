@@ -5,6 +5,7 @@ import { studyModes } from '../../src/config/modes';
 import {
   AUTO_ADVANCE_MS,
   canAutoAdvance,
+  canEnhanceCarousel,
   clipAround,
   flipFrom,
   glides,
@@ -25,6 +26,7 @@ import {
   vialSummary,
   wrap,
   type MotionState,
+  type CarouselCapabilities,
 } from '../../src/scripts/carousel';
 
 const idle: MotionState = {
@@ -35,6 +37,64 @@ const idle: MotionState = {
   focusInside: false,
   onScreen: true,
 };
+
+const mockCapability = () => undefined;
+const workingCarousel: CarouselCapabilities = {
+  nativeDialog: true,
+  dialog: { showModal: mockCapability, close: mockCapability },
+  animationTargets: Array.from({ length: 6 }, () => ({
+    animate: mockCapability,
+    getAnimations: mockCapability,
+  })),
+  matchMedia: mockCapability,
+  intersectionObserver: mockCapability,
+  replaceChildren: mockCapability,
+};
+
+describe('study-mode carousel progressive enhancement', () => {
+  it('turns on the ring when the native preview and its required APIs are available', () => {
+    expect(canEnhanceCarousel(workingCarousel)).toBe(true);
+  });
+
+  it('keeps ordinary links when the native dialog is missing or cannot open and close', () => {
+    expect(canEnhanceCarousel({ ...workingCarousel, nativeDialog: false })).toBe(false);
+    expect(canEnhanceCarousel({ ...workingCarousel, dialog: null })).toBe(false);
+    expect(canEnhanceCarousel({ ...workingCarousel, dialog: { ...workingCarousel.dialog, showModal: undefined } })).toBe(false);
+    expect(canEnhanceCarousel({ ...workingCarousel, dialog: { ...workingCarousel.dialog, close: undefined } })).toBe(false);
+  });
+
+  it('keeps ordinary links without the Web Animations API on any preview part', () => {
+    const parts = workingCarousel.animationTargets;
+    for (let i = 0; i < parts.length; i++) {
+      const withoutAnimate = [...parts];
+      withoutAnimate[i] = { animate: undefined, getAnimations: mockCapability };
+      expect(canEnhanceCarousel({ ...workingCarousel, animationTargets: withoutAnimate })).toBe(false);
+
+      const withoutInspection = [...parts];
+      withoutInspection[i] = { animate: mockCapability, getAnimations: undefined };
+      expect(canEnhanceCarousel({ ...workingCarousel, animationTargets: withoutInspection })).toBe(false);
+    }
+    expect(canEnhanceCarousel({ ...workingCarousel, animationTargets: parts.slice(0, 5) })).toBe(false);
+    expect(canEnhanceCarousel({ ...workingCarousel, animationTargets: [...parts, null] })).toBe(false);
+  });
+
+  it('keeps ordinary links if other features required by the ring are missing', () => {
+    expect(canEnhanceCarousel({ ...workingCarousel, matchMedia: undefined })).toBe(false);
+    expect(canEnhanceCarousel({ ...workingCarousel, intersectionObserver: undefined })).toBe(false);
+    expect(canEnhanceCarousel({ ...workingCarousel, replaceChildren: undefined })).toBe(false);
+  });
+
+  it('checks capabilities before hiding the plain study links', () => {
+    const source = readFileSync(new URL('../../src/components/ModesCarousel.astro', import.meta.url), 'utf8');
+    expect(source).toContain('if (root && track && canEnhanceCarousel({');
+    expect(source.indexOf('if (root && track && canEnhanceCarousel({')).toBeLessThan(
+      source.indexOf("root.toggleAttribute('data-ring', true)"),
+    );
+    expect(source).toContain('class="mode-card-link inline-flex min-h-11');
+    expect(source).toContain('data-mode-open');
+    expect(source).not.toMatch(/<script\s+is:inline/);
+  });
+});
 
 describe('"ways to study" merry-go-round (D-50, D-60)', () => {
   it("lists the eleven study modes in Christian's order, in the lowercase voice", () => {
