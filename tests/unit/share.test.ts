@@ -149,7 +149,7 @@ describe('native share', () => {
     expect(buildShareData({ share: vi.fn(), canShare: () => true }, base, null)).toEqual(base);
   });
 
-  const fileUnsupportedTargets: readonly [string, ShareTarget][] = [
+  const fileUnsupportedTargets: readonly [string, ShareTarget & Required<Pick<ShareTarget, 'share'>>][] = [
     ['missing capability', { share: vi.fn() }],
     ['false capability', { share: vi.fn(), canShare: (): boolean => false }],
     ['throwing capability', { share: vi.fn(), canShare: (): boolean => { throw new Error('no'); } }],
