@@ -99,3 +99,29 @@ for (const theme of ['light', 'dark'] as const) {
     expect(accessibility.violations.map((violation) => violation.id + ': ' + violation.help)).toEqual([]);
   });
 }
+
+test('disabled pay filters stay out of keyboard order and mobile pay data retains labels', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/resources');
+
+  const controls = page.locator('main fieldset select');
+  await expect(controls).toHaveCount(3);
+  for (const control of await controls.all()) {
+    await expect(control).toBeDisabled();
+  }
+
+  const details = page.locator('[data-pay-mobile]');
+  await expect(details).toBeVisible();
+  await expect(details.locator('dt')).toHaveText(['state', 'unit / specialty', 'pay', 'years']);
+  await expect(details.locator('dd')).toHaveText(['[state]', '[unit]', '[pay]', '[years]']);
+  await expect(page.locator('table')).toBeHidden();
+
+  const lastSection = page.getByRole('navigation', { name: 'on this page' }).getByRole('link').last();
+  await page.keyboard.press('Tab');
+  await lastSection.focus();
+  await page.keyboard.press('Tab');
+  await expect(page.locator('main fieldset select:focus')).toHaveCount(0);
+  expect(await page.evaluate(() => document.activeElement?.tagName)).not.toBe('SELECT');
+  expect(await page.evaluate(() =>
+    document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+});
