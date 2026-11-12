@@ -8,15 +8,17 @@ import {
   isEmptyProgress,
   localDay,
   migrateLegacyStars,
+  PROGRESS_STORAGE_KEY,
+  type Progress,
   readProgress,
   saveProgress,
   withOnboarding,
 } from '../scripts/progress';
-import { browserStorage } from '../scripts/storage';
+import { browserStorage, type KeyValueStorage } from '../scripts/storage';
 import { readResume } from '../scripts/resume';
 import { connectExamPlans, isConnectFailure, loadExamPlan, loadTickets } from './examplansync';
 import ProgressRing from './ProgressRing';
-import { examCountdown, progressView } from './progressview';
+import { examCountdown, progressScreenState, progressView, type ProgressScreenState } from './progressview';
 
 interface Deck {
   id: string;
@@ -34,6 +36,26 @@ const secondaryButton = 'min-h-11 rounded-pill border border-control px-5 py-2.5
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
+
+/** Check readability before migrating old stars, so a corrupt record is never silently replaced. */
+function readDeviceProgress(storage: KeyValueStorage | undefined): { progress: Progress; state: ProgressScreenState } {
+  const unreadable = { progress: emptyProgress(), state: 'unreadable' as const };
+  if (!storage) return unreadable;
+  try {
+    const raw = storage.getItem(PROGRESS_STORAGE_KEY);
+    if (progressScreenState({ raw, progress: emptyProgress(), hasResume: false, canReadStorage: true }) === 'unreadable') {
+      return unreadable;
+    }
+    const progress = migrateLegacyStars(storage);
+    return {
+      progress,
+      state: progressScreenState({ raw, progress, hasResume: readResume(storage) !== null, canReadStorage: true }),
+    };
+  } catch {
+    return unreadable;
+  }
+}
+
 /**
  * What this browser keeps for the student (D-69), with "download my progress" and "forget my progress on this device".
  * Nothing here is sent anywhere. Rendered only in the browser (client:only).
@@ -42,7 +64,7 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 export default function ProgressPanel({ decks }: Props) {
   const [storage] = useState(browserStorage);
   // Stars saved before D-69 move into the record first, so this page shows (and forgets) all of it.
-  const [progress, setProgress] = useState(() => migrateLegacyStars(storage));
+  const [snapshot, setSnapshot] = useState(() => readDeviceProgress(storage));
   const [confirming, setConfirming] = useState(false);
   const [said, setSaid] = useState('');
   const forgetRef = useRef<HTMLButtonElement>(null);
@@ -52,8 +74,10 @@ export default function ProgressPanel({ decks }: Props) {
   const [syncNote, setSyncNote] = useState('');
   // "forget my progress" cancels a load still on its way, so the account's answers aren't written back afterwards.
   const [loads] = useState(loadTickets);
+  const canReadProgress = snapshot.state !== 'unreadable';
 
   useEffect(() => {
+    if (!canReadProgress) return;
     const current = loads.start();
     let live = true;
     void (async () => {
@@ -64,20 +88,21 @@ export default function ProgressPanel({ decks }: Props) {
       const loaded = await loadExamPlan(db, () => readProgress(storage).onboarding);
       if (!live || !current()) return;
       if (!loaded.ok) setSyncNote(loaded.message);
-      else if (loaded.onboarding && saveProgress(storage, withOnboarding(readProgress(storage), loaded.onboarding))) {
-        setProgress(migrateLegacyStars(storage));
+      else if (loaded.onboarding && readDeviceProgress(storage).state !== 'unreadable' &&
+        saveProgress(storage, withOnboarding(readProgress(storage), loaded.onboarding))) {
+        setSnapshot(readDeviceProgress(storage));
       }
     })();
     return () => {
       live = false;
       loads.cancel();
     };
-  }, [storage, loads]);
+  }, [storage, loads, canReadProgress]);
 
   // Studying in another tab changes what's saved. Read it again when another tab saves, and when this page comes back
   // into view, so the page, the download and "forget" always match what's actually kept.
   useEffect(() => {
-    const refresh = () => setProgress(migrateLegacyStars(storage));
+    const refresh = () => setSnapshot(readDeviceProgress(storage));
     const onVisible = () => document.visibilityState === 'visible' && refresh();
     window.addEventListener('storage', refresh);
     window.addEventListener('focus', refresh);
@@ -89,15 +114,17 @@ export default function ProgressPanel({ decks }: Props) {
     };
   }, [storage]);
 
+  const { progress, state } = snapshot;
   const { course, examDate, done } = progress.onboarding;
   const view = progressView(progress, decks);
   const countdown = examCountdown(examDate, localDay(new Date()));
 
   const download = () => {
     // Read what's saved right now, not what this page showed when it opened.
-    const current = migrateLegacyStars(storage);
-    setProgress(current);
-    const blob = new Blob([exportProgress(current, localDay(new Date()))], { type: 'application/json' });
+    const current = readDeviceProgress(storage);
+    setSnapshot(current);
+    if (current.state !== 'ready') return;
+    const blob = new Blob([exportProgress(current.progress, localDay(new Date()))], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -113,27 +140,51 @@ export default function ProgressPanel({ decks }: Props) {
     loads.cancel();
     const ok = forgetProgress(storage, decks.map((deck) => deck.id));
     setConfirming(false);
-    if (ok) setProgress(emptyProgress());
+    if (ok) setSnapshot({ progress: emptyProgress(), state: 'empty' });
     setSaid(ok ? 'done. your progress is no longer saved on this device.' : 'this browser didn’t let cueory clear it. try clearing this site’s data in your browser settings.');
     // The forget button is disabled once nothing is left, so focus goes to the message instead.
     requestAnimationFrame(() => (ok ? saidRef : forgetRef).current?.focus());
   };
 
-  if (!storage) {
-    return (
-      <p className="text-lg">
-        this browser isn’t letting cueory save anything (a private window or strict settings), so nothing is kept here.
-      </p>
-    );
-  }
-
   // Download has nothing to export without saved progress, but forget also clears a saved study place (Codex on #221).
   const noProgress = isEmptyProgress(progress);
-  const empty = noProgress && readResume(storage) === null;
+  const empty = state === 'empty';
 
   return (
     <div>
-      <section aria-labelledby="answers-heading" className="rounded-xl border border-line bg-surface p-5">
+      <p role="status" aria-live="polite" aria-atomic="true" data-testid="progress-state" className="sr-only">
+        {state === 'unreadable'
+          ? 'we couldn’t read your saved progress on this device.'
+          : state === 'empty'
+            ? 'no saved progress yet. choose where to start.'
+            : 'your saved progress is ready.'}
+      </p>
+      {state === 'unreadable' && (
+        <section aria-labelledby="progress-unreadable-heading" className="rounded-xl border border-line bg-surface p-5">
+          <h2 id="progress-unreadable-heading" className="text-xl">we couldn’t read your progress</h2>
+          <p className="mt-3 text-ink-soft">
+            your progress stays on this device. we couldn’t read what this browser saved. please try again.
+          </p>
+          <button type="button" onClick={() => setSnapshot(readDeviceProgress(storage))} className={`${primaryButton} mt-4`}>
+            try again
+          </button>
+        </section>
+      )}
+      {state === 'empty' && (
+        <section aria-labelledby="progress-empty-heading" className="mb-6 rounded-xl border border-line bg-surface p-5">
+          <h2 id="progress-empty-heading" className="text-xl">your progress starts here</h2>
+          <p className="mt-3 text-ink-soft">
+            you haven’t saved any progress yet. start with a study-skills lesson or a daily game.
+          </p>
+          <nav aria-label="where to start" className="mt-4 flex flex-wrap gap-3">
+            <a href="/learn/study-skills" className={`${secondaryButton} inline-flex items-center underline`}>study skills</a>
+            <a href="/play" className={`${secondaryButton} inline-flex items-center underline`}>daily games</a>
+          </nav>
+        </section>
+      )}
+      {state !== 'unreadable' && (
+        <>
+          <section aria-labelledby="answers-heading" className="rounded-xl border border-line bg-surface p-5">
         <h2 id="answers-heading" className="text-xl">your setup answers</h2>
         {course || examDate ? (
           <ul className="mt-3 space-y-1">
@@ -252,6 +303,8 @@ export default function ProgressPanel({ decks }: Props) {
         )}
         <p ref={saidRef} tabIndex={-1} className="mt-stack" aria-live="polite">{said}</p>
       </section>
+        </>
+      )}
     </div>
   );
 }
