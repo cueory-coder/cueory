@@ -178,6 +178,15 @@ function needsAxe(source: string): boolean {
   const alwaysAbrupt = (statement: ts.Statement): boolean => {
     if (ts.isReturnStatement(statement) || ts.isThrowStatement(statement) ||
       ts.isBreakStatement(statement) || ts.isContinueStatement(statement)) return true;
+    if (ts.isExpressionStatement(statement) && ts.isCallExpression(statement.expression)) {
+      const call = statement.expression;
+      const callee = call.expression;
+      if (ts.isPropertyAccessExpression(callee) && ts.isIdentifier(callee.expression) &&
+        callee.expression.text === 'test' && (callee.name.text === 'skip' || callee.name.text === 'fixme')) {
+        const condition = call.arguments[0];
+        return !condition || staticBoolean(condition) === true;
+      }
+    }
     if (ts.isBlock(statement)) {
       for (const child of statement.statements) if (alwaysAbrupt(child)) return true;
       return false;
@@ -329,6 +338,8 @@ describe('page-navigation browser specs must run axe', () => {
       "test('visits', async ({ page }) => { await page.goto('/sample'); return; await new AxeBuilder({ page }).analyze(); });",
       "test('visits', async ({ page }) => { await page.goto('/sample'); throw new Error('stop'); await new AxeBuilder({ page }).analyze(); });",
       "test('visits', async ({ page }) => { await page.goto('/sample'); if (false) await new AxeBuilder({ page }).analyze(); });",
+      "test('visits', async ({ page }) => { await page.goto('/sample'); test.skip(true, 'not applicable'); await new AxeBuilder({ page }).analyze(); });",
+      "test('visits', async ({ page }) => { await page.goto('/sample'); test.fixme(); await new AxeBuilder({ page }).analyze(); });",
       "test.skip('does not run', async ({ page }) => { await new AxeBuilder({ page }).analyze(); }); test('visits', async ({ page }) => { await page.goto('/sample'); });",
       "test.describe.skip('disabled suite', () => { test('axe', async ({ page }) => { await new AxeBuilder({ page }).analyze(); }); }); test('visits', async ({ page }) => { await page.goto('/sample'); });",
       "test('visits', async ({ page }) => { await page.goto('/sample'); }); const unused = async (page: Page) => new AxeBuilder({ page }).analyze();",
@@ -352,6 +363,7 @@ describe('page-navigation browser specs must run axe', () => {
       { name: 'called-helper.spec.ts', source: "function scan(page: Page) { return new AxeBuilder({ page }).analyze(); } test('visits', async ({ page }) => { await page.goto('/sample'); await scan(page); });" },
       { name: 'called-arrow.spec.ts', source: "const scan = async (page: Page) => new AxeBuilder({ page }).analyze(); test('visits', async ({ page }) => { await page.goto('/sample'); await scan(page); });" },
       { name: 'returned-analysis.spec.ts', source: "test('visits', async ({ page }) => { await page.goto('/sample'); return new AxeBuilder({ page }).analyze(); });" },
+      { name: 'conditional-skip.spec.ts', source: "test('visits', async ({ page }) => { await page.goto('/sample'); test.skip(false, 'continue'); await new AxeBuilder({ page }).analyze(); });" },
       { name: 'axe-hook.spec.ts', source: "test.beforeEach(async ({ page }) => { await new AxeBuilder({ page }).analyze(); }); test('visits', async ({ page }) => { await page.goto('/sample'); });" },
       { name: 'axe-step.spec.ts', source: "test('visits', async ({ page }) => { await page.goto('/sample'); await test.step('audit', async () => new AxeBuilder({ page }).analyze()); });" },
       { name: 'no-nav.spec.ts', source: "test('sample', async ({ page }) => { await expect(page).toHaveTitle('sample'); });" },
