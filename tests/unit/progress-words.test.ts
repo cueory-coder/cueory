@@ -136,6 +136,25 @@ describe('per-course lesson progress with visible words', () => {
     ]);
   });
 
+  it('a star on a removed card does not mark a lesson started', () => {
+    const progress = withStars(emptyProgress(), 'sample-deck-one', ['removed-card']);
+    const [summary] = courseLessonProgress(progress, progressLessons, progressDecks, progressCourses);
+    expect(summary).toMatchObject({
+      started: 0,
+      total: 3,
+      words: '0 of 3 lessons started',
+    });
+  });
+
+  it('renders zero-total rings without invalid SVG numbers or fake progress arcs', () => {
+    const html = renderToStaticMarkup(createElement(ProgressRing, {
+      know: 0, learning: 0, notStarted: 0,
+    }));
+    expect(html).toContain('aria-hidden="true"');
+    expect(html).not.toMatch(/NaN|Infinity/);
+    expect(html).not.toContain('stroke-dasharray');
+  });
+
   it('keeps the SVG ring decorative and without animation', () => {
     const html = renderToStaticMarkup(createElement(ProgressRing, { know: 1, learning: 0, notStarted: 2 }));
     expect(html).toContain('aria-hidden="true"');

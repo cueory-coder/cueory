@@ -384,6 +384,12 @@ for (const width of [390, 820, 1440]) {
       await page.goto('/progress');
       const section = page.getByRole('region', { name: 'course progress' });
       await expect(section.getByText('0 of 1 lesson started')).toBeVisible();
+      const cards = section.getByTestId('course-progress-card');
+      for (const card of await cards.all()) {
+        await expect(card.getByTestId('course-progress-words'))
+          .toHaveText(/^(?:\\d+ of \\d+ lessons? started|no published lessons to track yet\\.)$/);
+      }
+      await expect(section.getByRole('img')).toHaveCount(0);
       const rings = section.locator('svg');
       await expect(rings).toHaveCount(3);
       for (const ring of await rings.all()) {
@@ -393,6 +399,16 @@ for (const width of [390, 820, 1440]) {
           return parseFloat(style.animationDuration) === 0 && parseFloat(style.transitionDuration) === 0;
         })).toBe(true);
       }
+      const studyLink = page.getByRole('link', { name: 'study now' }).first();
+      const target = await studyLink.boundingBox();
+      expect(target?.width).toBeGreaterThanOrEqual(44);
+      expect(target?.height).toBeGreaterThanOrEqual(44);
+      await studyLink.focus();
+      expect(await studyLink.evaluate(element => {
+        const style = getComputedStyle(element);
+        return element.matches(':focus-visible') &&
+          style.outlineStyle !== 'none' && parseFloat(style.outlineWidth) >= 1;
+      })).toBe(true);
       await noSideScroll(page);
       await axe(page);
     });
