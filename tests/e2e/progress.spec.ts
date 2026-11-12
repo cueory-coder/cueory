@@ -258,3 +258,81 @@ test.describe('without JavaScript', () => {
     expect(await noscriptText(page)).toContain('this page needs javascript turned on');
   });
 });
+
+test('new students see two accessible routes to begin and a polite state announcement', async ({ page }) => {
+  await page.goto('/progress');
+  await expect(page.getByRole('heading', { name: 'your progress starts here' })).toBeVisible();
+  await expect(page.getByTestId('progress-state')).toHaveText('no saved progress yet. choose where to start.');
+  await expect(page.getByTestId('progress-state')).toHaveAttribute('aria-live', 'polite');
+  await expect(page.getByRole('link', { name: 'study skills' })).toHaveAttribute('href', '/learn/study-skills');
+  await expect(page.getByRole('link', { name: 'daily games' })).toHaveAttribute('href', '/play');
+  await expect(page.getByRole('button', { name: 'download my progress' })).toBeDisabled();
+});
+
+test('bad saved data remains untouched and the retry state is keyboard-operable', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('cueory-progress', '{not json'));
+  await page.goto('/progress');
+  await expect(page.getByRole('heading', { name: 'we couldn’t read your progress' })).toBeVisible();
+  await expect(page.getByTestId('progress-state')).toHaveText('we couldn’t read your saved progress on this device.');
+  await expect(page.getByText('{not json')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'download my progress' })).toHaveCount(0);
+  const retry = page.getByRole('button', { name: 'try again' });
+  await retry.focus();
+  await expect(retry).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { name: 'we couldn’t read your progress' })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('cueory-progress'))).toBe('{not json');
+});
+
+test('blocked progress reads show a helpful message without raw browser errors', async ({ page }) => {
+  await page.addInitScript(() => {
+    const original = Storage.prototype.getItem;
+    Storage.prototype.getItem = function (key) {
+      if (key === 'cueory-progress') throw new Error('internal storage error');
+      return original.call(this, key);
+    };
+  });
+  await page.goto('/progress');
+  await expect(page.getByRole('heading', { name: 'we couldn’t read your progress' })).toBeVisible();
+  await expect(page.getByText('internal storage error')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'try again' })).toBeEnabled();
+});
+
+test('mixed old stars and current saved data show together as ready', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('cueory-progress', JSON.stringify({
+      version: 1, onboarding: { done: true }, decks: { 'study-skills-01': { know: ['ss01-c01'] } },
+    }));
+    localStorage.setItem('cueory-stars-study-skills-01', '["ss01-c03"]');
+  });
+  await page.goto('/progress');
+  await expect(page.getByTestId('progress-state')).toHaveText('your saved progress is ready.');
+  await expect(page.getByText('1 know it · 0 still learning · 1 star')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'your progress starts here' })).toHaveCount(0);
+});
+
+for (const width of [390, 820, 1440]) {
+  for (const colorScheme of ['light', 'dark'] as const) {
+    test(`progress states at ${width}px in ${colorScheme}: axe, touch targets and no sideways scroll`, async ({ page }) => {
+      await page.setViewportSize({ width, height: width === 390 ? 844 : width === 820 ? 1180 : 900 });
+      await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+      await page.goto('/progress');
+      await expect(page.getByRole('heading', { name: 'your progress starts here' })).toBeVisible();
+      await noSideScroll(page);
+      for (const name of ['study skills', 'daily games']) {
+        const target = await page.getByRole('link', { name }).boundingBox();
+        expect(target?.width).toBeGreaterThanOrEqual(44);
+        expect(target?.height).toBeGreaterThanOrEqual(44);
+      }
+      await axe(page);
+      await page.evaluate(() => localStorage.setItem('cueory-progress', 'not-json'));
+      await page.reload();
+      await expect(page.getByRole('heading', { name: 'we couldn’t read your progress' })).toBeVisible();
+      const retry = await page.getByRole('button', { name: 'try again' }).boundingBox();
+      expect(retry?.width).toBeGreaterThanOrEqual(44);
+      expect(retry?.height).toBeGreaterThanOrEqual(44);
+      await noSideScroll(page);
+      await axe(page);
+    });
+  }
+}

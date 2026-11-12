@@ -1,5 +1,5 @@
 /** Pure, truthful card counts for the progress dashboard. No module or question completion is recorded. */
-import { deckProgress, isExamDate, type Progress } from '../scripts/progress';
+import { deckProgress, isEmptyProgress, isExamDate, PROGRESS_VERSION, type Progress } from '../scripts/progress';
 
 export interface DeckDefinition {
   id: string;
@@ -24,6 +24,50 @@ export interface ProgressView {
   /** Only active decks have a known denominator. */
   overall: { know: number; learning: number; notStarted: number; total: number };
   hasSavedDecks: boolean;
+}
+
+
+/** Device-only progress states: unreadable saved work must not be mistaken for an empty record. */
+export type ProgressScreenState = 'empty' | 'ready' | 'unreadable';
+
+export interface ProgressStateInput {
+  progress: Progress;
+  /** Captured before legacy-star migration, so invalid records cannot be overwritten. */
+  raw: string | null;
+  hasResume: boolean;
+  canReadStorage: boolean;
+}
+
+const record = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/** Check the stored structure; the storage parser still owns repairing individual values. */
+function readableRecord(raw: string | null): boolean {
+  if (raw === null) return true;
+  let value: unknown;
+  try {
+    value = JSON.parse(raw);
+  } catch {
+    return false;
+  }
+  if (!record(value) || value.version !== PROGRESS_VERSION) return false;
+  if (value.onboarding !== undefined && !record(value.onboarding)) return false;
+  if (value.decks !== undefined) {
+    if (!record(value.decks)) return false;
+    for (const deck of Object.values(value.decks)) {
+      if (!record(deck)) return false;
+      for (const field of ['know', 'learning', 'starred']) {
+        if (deck[field] !== undefined && !Array.isArray(deck[field])) return false;
+      }
+    }
+  }
+  return true;
+}
+
+/** Pure decision for new, ready, resume-only, old-plus-new, or unreadable data. */
+export function progressScreenState({ progress, raw, hasResume, canReadStorage }: ProgressStateInput): ProgressScreenState {
+  if (!canReadStorage || !readableRecord(raw)) return 'unreadable';
+  return isEmptyProgress(progress) && !hasResume ? 'empty' : 'ready';
 }
 
 function countDeck(progress: Progress, deck: DeckDefinition): DeckCounts {
