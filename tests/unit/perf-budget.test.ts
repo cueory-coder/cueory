@@ -1,0 +1,130 @@
+import { afterEach, describe, expect, it } from 'vitest';
+import { spawnSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
+import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { gzipSync } from 'node:zlib';
+import {
+  BUDGETS,
+  budgetBreaches,
+  extractHtmlAssetUrls,
+  extractImportedAssetUrls,
+  formatPerformanceReport,
+  resolveLocalAsset,
+  scanPerformanceBudget,
+} from '../../scripts/perf-budget.mjs';
+
+const roots: string[] = [];
+afterEach(() => {
+  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
+});
+
+function fixture() {
+  const root = mkdtempSync(join(tmpdir(), 'cueory-perf-budget-'));
+  roots.push(root);
+  const file = (name: string, body: string) => {
+    const full = join(root, name);
+    mkdirSync(dirname(full), { recursive: true });
+    writeFileSync(full, body);
+    return full;
+  };
+  return { root, file };
+}
+
+describe('built-site performance budgets', () => {
+  it('reads attributes in any order, quotes, and Astro island entries', () => {
+    expect(extractHtmlAssetUrls(`
+      <link href='/_astro/site.css?v=1' media='all' rel='stylesheet'>
+      <link rel="modulepreload" href="/_astro/shared.js">
+      <script defer src='/_astro/page.js'></script>
+      <astro-island renderer-url='/_astro/react.js' component-url='/_astro/island.js'></astro-island>
+      <img src='/models/anatomy/huge.glb'>
+      <link rel='icon' href='/icon.svg'>
+    `)).toEqual([
+      '/_astro/site.css?v=1', '/_astro/shared.js', '/_astro/page.js',
+      '/_astro/island.js', '/_astro/react.js',
+    ]);
+  });
+
+  it('finds static JS imports and CSS imports but not lazy JS imports', () => {
+    expect(extractImportedAssetUrls(`import{a}from'./shared.js';import './boot.js';export{b}from'./vendor.mjs'; import('./lazy.js')`, 'js'))
+      .toEqual(['./shared.js', './boot.js', './vendor.mjs']);
+    expect(extractImportedAssetUrls('@import url("./base.css"); @import "../color.css" screen;', 'css'))
+      .toEqual(['./base.css', '../color.css']);
+  });
+
+  it('adds each page HTML, linked JS/CSS and transitive static imports once', () => {
+    const f = fixture();
+    const html = `<link rel="stylesheet" href="/_astro/site.css"><script type="module" src="/_astro/app.js"></script><astro-island component-url="/_astro/app.js"></astro-island>`;
+    f.file('index.html', html);
+    f.file('nested/page.html', `<script src="../_astro/app.js?v=2"></script>`);
+    const app = `import './shared.js'; import './shared.js';`;
+    const shared = `export const marker = '[sample clue]';`;
+    const css = `@import url('./base.css');body { color: inherit; }`;
+    const base = 'body { margin: 0; }';
+    f.file('_astro/app.js', app);
+    f.file('_astro/shared.js', shared);
+    f.file('_astro/site.css', css);
+    f.file('_astro/base.css', base);
+    f.file('models/anatomy/large.glb', '0'.repeat(20_000));
+    const bytes = (s: string) => gzipSync(s).length;
+    const result = scanPerformanceBudget(f.root, { html: 1000, js: 1000, css: 1000, total: 3000 });
+    expect(result).toHaveLength(2);
+    expect(result[0]).toMatchObject({
+      page: 'index.html', html: bytes(html), js: bytes(app) + bytes(shared),
+      css: bytes(css) + bytes(base), breaches: [],
+    });
+    expect(result[0]!.total).toBe(result[0]!.html + result[0]!.js + result[0]!.css);
+    expect(result[1]!.css).toBe(0);
+    expect(result[1]!.js).toBe(bytes(app) + bytes(shared));
+  });
+
+  it('checks each kind plus total at the exact boundary', () => {
+    expect(budgetBreaches({ html: 40, js: 60, css: 20, total: 120 },
+      { html: 40, js: 60, css: 20, total: 120 })).toEqual([]);
+    expect(budgetBreaches({ html: 41, js: 61, css: 21, total: 123 },
+      { html: 40, js: 60, css: 20, total: 120 })).toEqual(['html', 'js', 'css', 'total']);
+    expect(Object.values(BUDGETS).every((value) => value > 0)).toBe(true);
+  });
+
+  it('reports over-budget pages clearly', () => {
+    const f = fixture();
+    f.file('index.html', 'A'.repeat(10_000));
+    const pages = scanPerformanceBudget(f.root, { html: 20, js: 20, css: 20, total: 20 });
+    expect(pages[0]!.breaches).toEqual(['html', 'total']);
+    expect(formatPerformanceReport(pages)).toContain('OVER: html, total');
+    expect(formatPerformanceReport(pages)).toContain('1 over budget');
+  });
+
+  it('refuses missing assets and paths outside dist instead of silently undercounting', () => {
+    const f = fixture();
+    const page = f.file('index.html', '<script src="/_astro/missing.js"></script>');
+    expect(() => scanPerformanceBudget(f.root)).toThrow();
+    expect(() => resolveLocalAsset(f.root, page, '../outside.js')).toThrow('escapes build folder');
+    expect(resolveLocalAsset(f.root, page, 'https://example.org/external.js')).toBeNull();
+  });
+
+  it('CLI returns zero when under budget and nonzero on a breach', () => {
+    const f = fixture();
+    const script = fileURLToPath(new URL('../../scripts/perf-budget.mjs', import.meta.url));
+    f.file('index.html', '<html><body>sample fixture</body></html>');
+    const ok = spawnSync(process.execPath, [script, f.root], { encoding: 'utf8' });
+    expect(ok.status).toBe(0);
+    expect(ok.stdout).toContain('1/1 pages within budget');
+
+    f.file('large.html', randomBytes(150_000).toString('base64'));
+    const over = spawnSync(process.execPath, [script, f.root], { encoding: 'utf8' });
+    expect(over.status).toBe(1);
+    expect(over.stdout).toContain('OVER: html');
+  });
+
+  it('rejects symlinks and empty outputs', () => {
+    const f = fixture();
+    expect(() => scanPerformanceBudget(f.root)).toThrow('No HTML pages');
+    f.file('index.html', '<html></html>');
+    symlinkSync(join(f.root, 'index.html'), join(f.root, 'other.html'));
+    expect(() => scanPerformanceBudget(f.root)).toThrow('Symbolic link');
+  });
+});
