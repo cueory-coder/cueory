@@ -828,6 +828,54 @@ test.describe('W02-3 confirm before forgetting all private game stats', () => {
     expect(JSON.parse((await page.evaluate(() => localStorage.getItem('cueory-game-stats')))!).results).toEqual([]);
   });
 
+  test('a newly saved same-tab round closes stale confirmation before it can erase the result', async ({ page }) => {
+    const group = page.getByTestId('forget-all-confirmation');
+    await panel(page).getByRole('button', { name: 'forget all my stats' }).click();
+    await expect(group.getByRole('button', { name: 'cancel' })).toBeFocused();
+
+    // The game's normal result event arrives while the old destructive confirmation is open.
+    await page.evaluate(() => {
+      const result = { game: 'cueword', day: '2026-11-01', solved: true, tries: 2 };
+      window.dispatchEvent(new CustomEvent('cueory:game-result', { detail: result }));
+    });
+    await expect(group).toHaveCount(0);
+    await expect(panel(page).getByRole('switch', { name: 'keep my stats' })).toBeFocused();
+    await expect(page.getByTestId('stats-live')).toHaveText(
+      'your saved stats changed. review them before forgetting anything.',
+    );
+    const after = JSON.parse((await page.evaluate(() => localStorage.getItem('cueory-game-stats')))!);
+    expect(after.results).toEqual([...rows, { game: 'cueword', day: '2026-11-01', solved: true, tries: 2 }]);
+    await expect(group.getByRole('button', { name: 'yes, forget all' })).toHaveCount(0);
+    // After reviewing the updated record, a fresh confirmation is still required.
+    await panel(page).getByRole('button', { name: 'forget all my stats' }).click();
+    await expect(group).toBeVisible();
+    await group.getByRole('button', { name: 'cancel' }).click();
+    expect(JSON.parse((await page.evaluate(() => localStorage.getItem('cueory-game-stats')))!).results).toEqual(after.results);
+  });
+
+  test.describe('real touch confirmation', () => {
+    test.use({ hasTouch: true });
+
+    test('tap to cancel keeps every record, and tap to confirm forgets all with focus restored', async ({ page }) => {
+      const trigger = panel(page).getByRole('button', { name: 'forget all my stats' });
+      const group = page.getByTestId('forget-all-confirmation');
+      await trigger.tap();
+      await expect(group).toBeVisible();
+      await group.getByRole('button', { name: 'cancel' }).tap();
+      await expect(group).toHaveCount(0);
+      await expect(trigger).toBeFocused();
+      expect(JSON.parse((await page.evaluate(() => localStorage.getItem('cueory-game-stats')))!).results).toEqual(rows);
+
+      await trigger.tap();
+      await expect(group).toBeVisible();
+      await group.getByRole('button', { name: 'yes, forget all' }).tap();
+      await expect(group).toHaveCount(0);
+      await expect(panel(page).getByRole('switch', { name: 'keep my stats' })).toBeFocused();
+      await expect(page.getByTestId('stats-live')).toHaveText('all your stats are forgotten. stats stay on.');
+      expect(JSON.parse((await page.evaluate(() => localStorage.getItem('cueory-game-stats')))!).results).toEqual([]);
+    });
+  });
+
   test('forgetting the retired sort row returns focus to a surviving control', async ({ page }) => {
     const sort = panel(page).getByRole('listitem').filter({ has: page.getByRole('heading', { name: 'sort', exact: true }) });
     await sort.getByRole('button', { name: 'forget sort' }).focus();

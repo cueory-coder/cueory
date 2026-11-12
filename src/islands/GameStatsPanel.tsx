@@ -112,7 +112,17 @@ export default function GameStatsPanel({ games: order, showStat = false }: Props
         setSaid(message);
         return;
       }
-      if (keep(stats, message)) forgetHeldRounds();
+      if (keep(stats, message)) {
+        forgetHeldRounds();
+        // A new result changed what the student originally agreed to erase.
+        // Require fresh confirmation, but only if saving the result succeeded.
+        if (confirmingAllRef.current) {
+          confirmingAllRef.current = false;
+          focusNext.current = 'switch';
+          setConfirmingAll(false);
+          setSaid('your saved stats changed. review them before forgetting anything.');
+        }
+      }
     };
     // Another tab changed the stats, or this page came back from the back/forward cache. ./gameresults has already
     // dropped any waiting rounds; this shows what storage holds now.
