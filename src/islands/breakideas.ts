@@ -136,3 +136,25 @@ export function pickIdeaForLength(
 ): BreakIdea | null {
   return pickIdea(ideasForLength(ideas, length), lastId, random);
 }
+
+function matchesLength(idea: BreakIdea, length: BreakLengthChoice): boolean {
+  return length === 'any' || idea.length === undefined || idea.length === length;
+}
+
+/** Shuffle only eligible ideas so the currently visible cards actually change order. */
+export function shuffleIdeasForLength(
+  ideas: readonly BreakIdea[], length: BreakLengthChoice, random: () => number,
+): BreakIdea[] {
+  const eligible = ideas.filter(idea => matchesLength(idea, length));
+  if (eligible.length < 2) return [...ideas];
+  for (let i = eligible.length - 1; i > 0; i--) {
+    const draw = random();
+    if (!Number.isFinite(draw) || draw < 0 || draw >= 1) throw new Error('random must return a number from 0 up to 1.');
+    const j = Math.floor(draw * (i + 1));
+    [eligible[i], eligible[j]] = [eligible[j]!, eligible[i]!];
+  }
+  const before = ideas.filter(idea => matchesLength(idea, length));
+  if (eligible.every((item, i) => item.id === before[i]?.id)) eligible.push(eligible.shift()!);
+  let position = 0;
+  return ideas.map(idea => matchesLength(idea, length) ? eligible[position++]! : idea);
+}

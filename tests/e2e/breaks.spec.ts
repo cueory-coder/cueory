@@ -322,3 +322,17 @@ test('break length and another-idea choices stay local to this visit', async ({ 
   expect(await stored()).toEqual(before);
   expect(posts).toEqual([]);
 });
+
+test('shuffle changes the visible order while a break length is selected', async ({ page }) => {
+  await page.addInitScript(() => { Math.random = () => 0.999999; });
+  await page.goto('/breaks');
+  await lengthButton(page, 'short').click();
+  const active = page.getByRole('list', { name: 'ideas for a short break' }).getByRole('listitem');
+  await expect(active).toHaveCount(expectedIdeas.length);
+  const first = await active.first().innerText();
+  await shuffle(page).click();
+  await expect(active.first()).not.toHaveText(first);
+  expect((await active.allTextContents()).sort()).toEqual([...expectedIdeas].sort());
+  await expect(page.getByRole('status', { name: 'break idea update' }))
+    .toHaveText('the list is shuffled. all the same ideas are here in a new order.');
+});

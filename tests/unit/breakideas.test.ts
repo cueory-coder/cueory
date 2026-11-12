@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
-  checkSharedIdea, ideasForLength, MAX_IDEA_CHARACTERS, parseIdeas, pickIdea, pickIdeaForLength,
+  checkSharedIdea, ideasForLength, MAX_IDEA_CHARACTERS, parseIdeas, pickIdea, pickIdeaForLength, shuffleIdeasForLength,
 } from '../../src/islands/breakideas';
 
 const idea = (id = 'sample-one', text = 'sample wording') => ({ id, text });
@@ -260,5 +260,51 @@ describe('W19-2: length-aware break ideas', () => {
     const picked = pickIdeaForLength(tagged, 'short', null, () => 0)!;
     picked.text = 'changed';
     expect(tagged.every(x => x.text.startsWith('sample'))).toBe(true);
+  });
+});
+
+describe('W19-2: filtered shuffle changes visible cards', () => {
+  const tagged = Object.freeze([
+    Object.freeze({ id: 'sample-short-a', text: '[sample]', length: 'short' as const }),
+    Object.freeze({ id: 'sample-long-a', text: '[sample]', length: 'long' as const }),
+    Object.freeze({ id: 'sample-short-b', text: '[sample]', length: 'short' as const }),
+    Object.freeze({ id: 'sample-long-b', text: '[sample]', length: 'long' as const }),
+  ]);
+  const ids = (ideas: readonly { id: string }[]) => ideas.map(idea => idea.id);
+
+  it('reorders only visible short ideas even when the random draw otherwise keeps the same order', () => {
+    const result = shuffleIdeasForLength(tagged, 'short', () => 0.999999);
+    expect(ids(result)).toEqual(['sample-short-b', 'sample-long-a', 'sample-short-a', 'sample-long-b']);
+    expect(ids(ideasForLength(result, 'short'))).not.toEqual(ids(ideasForLength(tagged, 'short')));
+    expect(ids(tagged)).toEqual(['sample-short-a', 'sample-long-a', 'sample-short-b', 'sample-long-b']);
+  });
+
+  it('reorders only long ideas when the long filter is active', () => {
+    expect(ids(shuffleIdeasForLength(tagged, 'long', () => 0.999999)))
+      .toEqual(['sample-short-a', 'sample-long-b', 'sample-short-b', 'sample-long-a']);
+  });
+
+  it('reorders all ideas when no length filter is selected', () => {
+    expect(ids(shuffleIdeasForLength(tagged, 'any', () => 0.999999)))
+      .toEqual(['sample-long-a', 'sample-short-b', 'sample-long-b', 'sample-short-a']);
+  });
+
+  it('preserves every idea when fewer than two visible ideas are available', () => {
+    const never = vi.fn(() => { throw new Error('should not draw'); });
+    expect(shuffleIdeasForLength(tagged.slice(0, 2), 'short', never)).toEqual(tagged.slice(0, 2));
+    expect(shuffleIdeasForLength([], 'short', never)).toEqual([]);
+    expect(never).not.toHaveBeenCalled();
+  });
+
+  it('accepts untagged ideas in either filter without mutating the input', () => {
+    const withUntagged = [...tagged, { id: 'sample-any', text: '[sample]' }];
+    const result = shuffleIdeasForLength(withUntagged, 'long', () => 0.999999);
+    expect(ids(ideasForLength(result, 'long'))).not.toEqual(ids(ideasForLength(withUntagged, 'long')));
+    expect(ids(result).sort()).toEqual(ids(withUntagged).sort());
+    expect(withUntagged.at(-1)?.id).toBe('sample-any');
+  });
+
+  it.each([NaN, Infinity, -0.1, 1])('rejects an invalid random draw: %s', value => {
+    expect(() => shuffleIdeasForLength(tagged, 'any', () => value)).toThrow(/random must return/);
   });
 });

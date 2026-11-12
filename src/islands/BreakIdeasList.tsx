@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import {
   ideasForLength,
   pickIdeaForLength,
+  shuffleIdeasForLength,
   type BreakIdea,
   type BreakLengthChoice,
 } from './breakideas';
-import { order } from './cards';
 
 /** Sample text only. Choices remain in memory; nothing is saved or sent. */
 export default function BreakIdeasList({ ideas }: { ideas: readonly BreakIdea[] }) {
@@ -28,11 +28,7 @@ export default function BreakIdeasList({ ideas }: { ideas: readonly BreakIdea[] 
   };
 
   const shuffle = () => {
-    const shuffled = order(list.map((_, index) => index), true).map(index => list[index]!);
-    if (shuffled.length > 1 && shuffled.every((idea, index) => idea.id === list[index]!.id)) {
-      shuffled.push(shuffled.shift()!);
-    }
-    setList(shuffled);
+    setList(current => shuffleIdeasForLength(current, length, Math.random));
     setNotice('the list is shuffled. all the same ideas are here in a new order.');
   };
 
