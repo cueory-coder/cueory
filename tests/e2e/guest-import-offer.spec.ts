@@ -59,6 +59,8 @@ test.beforeAll(async () => {
       builder.onResolve({ filter: /\/supabaseclient(?:\.ts)?$/ }, () => ({ path: 'client', namespace: 'fixture' }));
       builder.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({ contents: `
         const params = new URLSearchParams(location.search);
+        // Observable fixture readiness for paths that correctly render no offer.
+        window.fixtureChecks = { client: 0, session: 0 };
         const record = (call) => {
           const calls = JSON.parse(localStorage.getItem('fixture-db-calls') || '[]');
           calls.push(call);
@@ -88,8 +90,12 @@ test.beforeAll(async () => {
             update: (patch) => ({ eq: (column, value) => { record(['update', table, patch, column, value]); return answer(); } }),
           }),
         };
-        export async function getSupabase() { return params.get('client') === 'off' ? null : client; }
+        export async function getSupabase() {
+          window.fixtureChecks.client += 1;
+          return params.get('client') === 'off' ? null : client;
+        }
         export async function getSessionState() {
+          window.fixtureChecks.session += 1;
           const id = signedInAs();
           return params.has('signed-out') || id === 'none' ? { signedIn: false } : { signedIn: true, userId: id, email: 'student@example.test' };
         }
@@ -116,19 +122,27 @@ async function open(page: Page, query: string) {
 const dbCalls = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem('fixture-db-calls') || '[]') as unknown[][]);
 const marker = (page: Page) => page.evaluate(key => localStorage.getItem(key), MARKER);
 const offer = (page: Page) => page.getByRole('region', { name: 'bring in your progress from this device?' });
+/** Wait until the fake client/session has been read before asserting that an absent offer stays absent. */
+const waitForDecision = async (page: Page, kind: 'client' | 'session' = 'session') => {
+  await expect.poll(() => page.evaluate((check) =>
+    (window as unknown as { fixtureChecks?: { client: number; session: number } }).fixtureChecks?.[check] ?? 0,
+  kind)).toBeGreaterThanOrEqual(kind === 'client' ? 2 : 1);
+  // Let the React effect following the resolved fixture promise commit its hidden state.
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+};
 
 test.describe('guest import offer after sign-in', () => {
   test('shows nothing when accounts are off, signed out, or nothing is saved', async ({ page }) => {
     await open(page, 'seed=1&client=off');
     await expect(page.locator('h1')).toBeVisible();
-    await page.waitForTimeout(300);
+    await waitForDecision(page, 'client');
     await expect(page.getByRole('button', { name: 'bring it in' })).toHaveCount(0);
     await open(page, 'signed-out=1');
-    await page.waitForTimeout(300);
+    await waitForDecision(page);
     await expect(page.getByRole('button', { name: 'bring it in' })).toHaveCount(0);
     await page.evaluate(() => localStorage.removeItem('cueory-progress'));
     await open(page, 'x=1');
-    await page.waitForTimeout(300);
+    await waitForDecision(page);
     await expect(page.getByRole('button', { name: 'bring it in' })).toHaveCount(0);
     expect(await dbCalls(page)).toEqual([]);
     expect(await marker(page)).toBeNull();
@@ -155,7 +169,7 @@ test.describe('guest import offer after sign-in', () => {
     expect(await marker(page)).toBe('1');
 
     await open(page, 'x=1');
-    await page.waitForTimeout(300);
+    await waitForDecision(page);
     await expect(page.getByRole('button', { name: 'bring it in' })).toHaveCount(0);
     expect(await dbCalls(page)).toHaveLength(1);
   });
@@ -168,7 +182,7 @@ test.describe('guest import offer after sign-in', () => {
     await expect(page.locator('h1')).toBeFocused();
     expect(await marker(page)).toBe('declined');
     await open(page, 'x=1');
-    await page.waitForTimeout(300);
+    await waitForDecision(page);
     await expect(page.getByRole('button', { name: 'bring it in' })).toHaveCount(0);
     expect(await dbCalls(page)).toEqual([]);
   });
@@ -200,7 +214,7 @@ test.describe('guest import offer after sign-in', () => {
 
     const third = await context.newPage();
     await open(third, 'x=1');
-    await third.waitForTimeout(300);
+    await waitForDecision(third);
     await expect(third.getByRole('button', { name: 'bring it in' })).toHaveCount(0);
   });
 

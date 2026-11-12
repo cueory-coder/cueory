@@ -57,7 +57,9 @@ test('the play page is never kept, because today\'s puzzles are inside it', asyn
   await page.goto('/play');
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   await page.reload();
-  await page.waitForTimeout(500);
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  // Verify the worker controls the reloaded page before inspecting its persistent caches.
+  await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
   const urls = await kept(page);
   expect(urls.filter((url) => url.startsWith('/play'))).toEqual([]);
 });

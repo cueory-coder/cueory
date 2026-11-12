@@ -121,9 +121,11 @@ async function answerBoth(page: Page) {
 }
 
 test('a signed-in student sends one batch of answered events, with only ids, times and no answer data', async ({ page }) => {
+  await page.clock.install();
   const { rpcs } = await fixture(page, 'signed-in');
   await expect(page.getByText('question 1 of 2')).toBeVisible();
-  await page.waitForTimeout(600); // time on screen before the first check
+  // Let the visible-time clock pass 500 ms without depending on a real sleep.
+  await page.clock.runFor(600);
   await answerBoth(page);
   expect(rpcs.map(rpc => rpc.name)).toEqual(['check_answer', 'check_answer']);
   await hideTab(page);
@@ -150,11 +152,13 @@ test('a signed-in student sends one batch of answered events, with only ids, tim
 
   // Nothing is sent twice.
   await hideTab(page);
-  await page.waitForTimeout(300);
+  // Even after the recorder's periodic flush would have run, the batch is still sent only once.
+  await page.clock.runFor(30_500);
   expect(rpcs.filter(rpc => rpc.name === 'record_study_events')).toHaveLength(1);
 });
 
 for (const mode of ['signed-out', 'sample'] as const) test(`${mode} questions send no study events`, async ({ page }) => {
+  await page.clock.install();
   const { rpcs, supabase } = await fixture(page, mode);
   if (mode === 'signed-out') {
     await expect(page.getByText('a free account is needed for real questions.')).toBeVisible();
@@ -162,7 +166,8 @@ for (const mode of ['signed-out', 'sample'] as const) test(`${mode} questions se
     await answerBoth(page);
   }
   await hideTab(page);
-  await page.waitForTimeout(300);
+  // Advance past the regular flush interval to prove no deferred event is sent.
+  await page.clock.runFor(30_500);
   expect(rpcs).toEqual([]);
   expect(supabase).toEqual([]);
 });

@@ -223,7 +223,9 @@ test.describe('/admin/flags wired to the database functions', () => {
     await fixture(page, 'who=student');
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('this page is for the site owner.');
     await expect(page.locator('table, fieldset, a')).toHaveCount(0);
-    await page.waitForTimeout(300);
+    // The refusal and the subsequent two-factor eligibility check must both have settled.
+    await expect.poll(() => page.evaluate(() =>
+      (window as unknown as { completedRpcs: number }).completedRpcs)).toBeGreaterThanOrEqual(2);
     await expect(page).toHaveURL(/__admin-flags-fixture/);
     await expect(page.locator('body')).not.toContainText(/42501|two-factor, can do this/);
   });

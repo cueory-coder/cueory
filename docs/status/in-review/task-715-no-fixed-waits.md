@@ -1,0 +1,1 @@
+status: W15 (#15, !43): Replaced 23 fixed sleeps in seven owned end-to-end specs with observable completion conditions or Playwright clock control, plus a unit guard with only two anatomy-spec exceptions. Browser execution reserved for CI/Claude; no out-of-scope files changed.

@@ -193,7 +193,10 @@ test('with a mouse, the front vial lifts to 104% with brighter glass; its neighb
 }, testInfo) => {
   test.skip(!isDesktopOfEachEngine(testInfo), 'hover needs a mouse');
   await showRing(page);
-  await page.waitForTimeout(800);
+  // Compare the neighbour only after initial ring turns are no longer animating.
+  await expect.poll(() => section(page).locator('[data-mode-card]').evaluateAll(cards =>
+    cards.flatMap(card => card.getAnimations()).filter(animation =>
+      animation.playState === 'running' || animation.pending).length)).toBe(0);
   const look = (id: string) =>
     page.locator(`#mode-${id}`).evaluate((card) => ({
       scale: getComputedStyle(card).scale,
@@ -214,10 +217,12 @@ test('with a mouse, the front vial lifts to 104% with brighter glass; its neighb
 
 test('touch screens never get the hover lift; reduced motion never lifts either', async ({ page }, testInfo) => {
   test.skip(!testInfo.project.use.hasTouch, 'a touch-screen check');
+  await page.clock.install();
   await showRing(page);
   expect(await page.evaluate(() => matchMedia('(hover: hover) and (pointer: fine)').matches)).toBe(false);
   await page.locator('#mode-video [data-mode-open]').hover();
-  await page.waitForTimeout(300);
+  // Check after the hover transition would have completed on a mouse device.
+  await page.clock.runFor(300);
   expect(await page.locator('#mode-video').evaluate((card) => getComputedStyle(card).scale)).toBe('none');
 });
 

@@ -785,13 +785,15 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
   const heard = (page: Page) => page.evaluate(() => (window as unknown as { heard: string[] }).heard);
 
   test('a run of quick presses announces only the card where it comes to rest', async ({ page }) => {
+    await page.clock.install();
     await page.goto('/');
     await section(page).scrollIntoViewIfNeeded();
     await listen(page);
     const next = section(page).getByRole('button', { name: 'next study mode' });
     for (let i = 0; i < 4; i++) await next.click({ force: true });
     await expect(section(page).locator('[data-modes-live]')).toHaveText('matching, 5 of 11');
-    await page.waitForTimeout(600);
+    // Advance past any second debounced announcement without a real sleep.
+    await page.clock.runFor(800);
     expect(await heard(page)).toEqual(['matching, 5 of 11']);
   });
 
@@ -800,6 +802,7 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
     browserName,
   }, testInfo) => {
     test.skip(!testInfo.project.use.hasTouch, 'a touch-screen gesture');
+    await page.clock.install();
     await page.goto('/');
     await section(page).scrollIntoViewIfNeeded();
     const centre = async () => {
@@ -860,7 +863,8 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
       await expect.poll(() => middleCard(page)).toBe('video');
       await swipe(-30);
       await swipe(-30, 160);
-      await page.waitForTimeout(500);
+      // No delayed gesture is allowed to advance after the ring comes to rest.
+      await page.clock.runFor(800);
       expect(await middleCard(page)).toBe('video');
       // A swipe is never a tap: no preview opened on the way.
       await expect(page.locator('#mode-preview')).toBeHidden();
@@ -946,6 +950,7 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
   }, testInfo) => {
     test.skip(!isDesktopOfEachEngine(testInfo), 'a timing test that rests a mouse on the cards: once per engine, at desktop size');
     test.slow();
+    await page.clock.install();
     await page.goto('/');
     await section(page).scrollIntoViewIfNeeded();
     // The mouse over the section's words, not its cards: that doesn't pause it.
@@ -954,7 +959,7 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
 
     // Resting on the cards pauses it; moving off lets it go on.
     await page.getByRole('group', { name: 'study mode cards' }).hover();
-    await page.waitForTimeout(7000);
+    await page.clock.runFor(7000);
     expect(await middleCard(page)).toBe('cards');
     await page.mouse.move(0, 0);
     await expect.poll(() => middleCard(page), { timeout: 9000 }).toBe('learn');
@@ -962,7 +967,7 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
     await section(page).getByRole('button', { name: 'next study mode' }).click();
     await expect.poll(() => middleCard(page)).toBe('fill-in');
     await page.mouse.move(0, 0);
-    await page.waitForTimeout(7000);
+    await page.clock.runFor(7000);
     expect(await middleCard(page)).toBe('fill-in');
   });
 });
@@ -1186,6 +1191,7 @@ test.describe('study-mode preview (D-51)', () => {
 
   test('a swipe down closes it on touch screens, a short one does not', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.use.hasTouch, 'a touch-screen gesture');
+    await page.clock.install();
     await openPreview(page, 'video');
     // Playwright builds the touch points in each engine's own way (WebKit has no Touch constructor, so it uses
     // document.createTouch there), so the same swipe runs in Chromium and Safari's engine.
@@ -1196,7 +1202,7 @@ test.describe('study-mode preview (D-51)', () => {
       await panel.dispatchEvent('touchend', { touches: [], targetTouches: [], changedTouches: [{ ...start, clientY: 300 + distance }] });
     };
     await swipe(40);
-    await page.waitForTimeout(500);
+    await page.clock.runFor(500);
     await expect(dialog(page)).toBeVisible();
     await swipe(120);
     await expect(dialog(page)).toBeHidden();

@@ -33,6 +33,7 @@ test.beforeAll(async () => {
       const fail = params.get('fail');
       window.planRows = rows;
       window.planCalls = [];
+      window.planListSettled = 0;
       const log = (call) => window.planCalls.push(call);
       const reply = (value, wait = 50) => new Promise(resolve => setTimeout(() => resolve(value), wait));
       // '&slow=list' holds the account load back long enough for the student to act first.
@@ -44,7 +45,8 @@ test.beforeAll(async () => {
           return {
             select: (columns) => ({ limit: (n) => {
               log('list ' + columns + ' ' + n);
-              return reply(fail === 'list' ? { data: null, error: refused } : { data: rows.map(r => ({ ...r })), error: null }, listWait);
+              return reply(fail === 'list' ? { data: null, error: refused } : { data: rows.map(r => ({ ...r })), error: null }, listWait)
+                .then(result => { window.planListSettled += 1; return result; });
             } }),
             update: (patch) => ({ eq: (column, value) => ({ select: () => {
               log('update ' + value + ' ' + patch.exam_date);
@@ -115,6 +117,8 @@ async function open(page: Page, island: 'start' | 'progress', device: object | n
 }
 const calls = (page: Page) => page.evaluate(() => (window as unknown as { planCalls: string[] }).planCalls);
 const deviceAnswers = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem('cueory-progress') ?? 'null')?.onboarding);
+const waitForPlanList = (page: Page) => expect.poll(() => page.evaluate(() =>
+  (window as unknown as { planListSettled: number }).planListSettled), { timeout: 5000 }).toBeGreaterThanOrEqual(1);
 const toExam = async (page: Page) => {
   await page.getByRole('button', { name: 'continue', exact: true }).click();
   await expect(page.getByTestId('setup-step')).toHaveText('question 2 of 2');
@@ -192,7 +196,7 @@ test.describe('exam date, signed in', () => {
     await page.getByRole('button', { name: 'yes, forget it' }).click();
     await expect(page.getByText('done. your progress is no longer saved on this device.')).toBeVisible();
     await expect.poll(() => calls(page)).toEqual(['list course,exam_date 10']);
-    await page.waitForTimeout(1800);
+    await waitForPlanList(page);
     expect(await deviceAnswers(page)).toBeUndefined();
     await expect(page.getByText('you haven’t answered them yet.')).toBeVisible();
     await expect(page.getByText('exam:')).toHaveCount(0);
@@ -203,7 +207,7 @@ test.describe('exam date, signed in', () => {
     await page.getByRole('button', { name: 'skip', exact: true }).click();
     await expect(page.getByTestId('setup-step')).toHaveText('question 2 of 2');
     await expect.poll(() => calls(page), { timeout: 5000 }).toEqual(['list course,exam_date 10']);
-    await page.waitForTimeout(1800);
+    await waitForPlanList(page);
     // No course, so there is no course to take an account date from: the date stays blank.
     await expect(page.getByLabel('when is your exam?')).toHaveValue('');
     await page.getByRole('button', { name: 'back' }).click();
@@ -246,7 +250,8 @@ test.describe('exam date, signed in', () => {
     await expect(page.locator(':focus')).toContainText('saved on this device.');
     expect(await deviceAnswers(page)).toEqual({ course: 'fundamentals', examDate: FUNDAMENTALS_DATE, done: true });
     // The account already has that date for fundamentals: nothing to send, and med-surg's date is never copied over.
-    await page.waitForTimeout(300);
+    await waitForPlanList(page);
+    await expect(page.getByRole('link', { name: 'see what’s saved on this device' })).toBeVisible();
     expect(await calls(page)).toEqual(['list course,exam_date 10']);
     expect(await page.evaluate(() => (window as unknown as { planRows: unknown }).planRows)).toEqual([
       { course: 'med-surg-1', exam_date: SERVER_DATE }, { course: 'fundamentals', exam_date: FUNDAMENTALS_DATE },
@@ -260,11 +265,11 @@ test.describe('exam date, signed in', () => {
     await page.getByRole('radio', { name: 'fundamentals', exact: true }).check();
     await toExam(page);
     await expect.poll(() => calls(page), { timeout: 5000 }).toEqual(['list course,exam_date 10']);
-    await page.waitForTimeout(1800);
+    await waitForPlanList(page);
     await expect(page.getByLabel('when is your exam?')).toHaveValue('');
     await page.getByRole('button', { name: 'save my answers' }).click();
     await expect(page.locator(':focus')).toContainText('no exam date.');
-    await page.waitForTimeout(300);
+    await expect(page.getByRole('link', { name: 'see what’s saved on this device' })).toBeVisible();
     expect(await calls(page)).toEqual(['list course,exam_date 10']);
     expect(await deviceAnswers(page)).toEqual({ course: 'fundamentals', examDate: null, done: true });
   });
