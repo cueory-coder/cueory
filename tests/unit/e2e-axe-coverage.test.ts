@@ -9,7 +9,6 @@ import { describe, expect, it } from 'vitest';
 // Remove a line when the owner adds axe to that spec. New files require axe by default.
 const knownWithoutAxe: Readonly<Record<string, string>> = {
   "404-page.spec.ts": "Recovery-link and 404-layout regression; 404.spec.ts and a11y-sweep.spec.ts run axe on the missing-page UI.",
-  "about.spec.ts": "Founder-copy placeholder structure; the built about route is covered by the site-wide axe sweep.",
   "account-corner-keyboard.spec.ts": "Targeted menu keyboard/focus sequence; account.spec.ts and the site-wide sweep provide axe.",
   "account-launch.spec.ts": "Launch-mode switch and account-menu presence; site-wide axe audits the rendered home route.",
   "anatomy-export-switch.spec.ts": "Synthetic PNG export race; anatomy-lab.spec.ts runs axe on the accessible lab UI.",
@@ -46,6 +45,7 @@ const knownWithoutAxe: Readonly<Record<string, string>> = {
   "reduced-motion.spec.ts": "Animation suppression in motion-reduced mode; the global axe sweep covers the page DOM.",
   "reflow-640.spec.ts": "640px clipping and reflow checks; global axe inspects semantic markup separately.",
   "result-brand-mark.spec.ts": "Game result artwork timing/placement; play.spec.ts runs axe on the game UI.",
+  "resume-cleared-progress.spec.ts": "Cross-tab progress deletion and stale-save lifecycle test; progress, fill-in and matching/organizer suites run axe on those interfaces.",
   "sticky-header-overlap.spec.ts": "Cross-route heading and focused-control geometry; global axe audits the corresponding pages.",
   "storage-blocked-pages.spec.ts": "Deliberately disabled browser storage to expose crashes; normal pages have global axe.",
   "study-events.spec.ts": "Isolated RPC telemetry fixture and privacy checks; questions-page.spec.ts runs axe on the question UI.",
