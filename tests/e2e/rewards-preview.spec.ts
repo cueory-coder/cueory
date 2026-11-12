@@ -30,7 +30,15 @@ test.describe('W02-2 rewards preview', () => {
     await page.keyboard.press('Shift+Tab');
     await page.keyboard.press('Tab');
     await expect(back).toBeFocused();
-    expect(await back.evaluate((element) => getComputedStyle(element).outlineStyle)).not.toBe('none');
+    const visibleFocus = await back.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return element.matches(':focus-visible') &&
+        style.outlineStyle !== 'none' &&
+        Number.parseFloat(style.outlineWidth) > 0 &&
+        style.outlineColor !== 'transparent' &&
+        style.outlineColor !== 'rgba(0, 0, 0, 0)';
+    });
+    expect(visibleFocus).toBe(true);
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(/\/play\/?$/);
     await page.goto(previewRoute);
