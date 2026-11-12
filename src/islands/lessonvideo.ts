@@ -46,3 +46,15 @@ export function videoStatusText(state: VideoState): string {
     case 'ready': return state.opened ? "video player ready. if it isn't playing, try again." : 'tap to play the video.';
   }
 }
+
+/**
+ * Accept events only from the current iframe attempt and video.
+ * A stale 20-second timeout must never undo a successful load.
+ */
+export function observedVideoEvent(
+  state: VideoState, videoId: string, attempt: number, event: 'loaded' | 'failed' | 'stalled',
+): VideoState {
+  if (state.videoId !== videoId || state.attempt !== attempt || !state.opened) return state;
+  if (event === 'stalled' && state.phase !== 'loading') return state;
+  return nextVideoState(state, event === 'stalled' ? 'failed' : event);
+}

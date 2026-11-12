@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Route } from '@playwright/test';
 
 // LessonVideo island (D-82): lazy YouTube Nocookie embed. Nothing loads from YouTube before tap.
 
@@ -174,3 +174,49 @@ for (const colorScheme of ['light', 'dark'] as const) {
     expect(results.violations).toEqual([]);
   });
 }
+
+test('stalled player shows failure, moves keyboard focus to retry, and recovers without a second tap', async ({ page }) => {
+  // Override the default local player fixture: keep the FIRST iframe response pending.
+  // The second attempt gets a local HTML response, without contacting YouTube.
+  let requests = 0;
+  let firstRequest: Route | undefined;
+  await page.route('https://www.youtube-nocookie.com/**', (route) => {
+    requests += 1;
+    if (requests === 1) {
+      firstRequest = route;
+      return;
+    }
+    return route.fulfill({ status: 200, contentType: 'text/html', body: '<p>player</p>' });
+  });
+  await page.clock.install();
+  await page.goto(LESSON_URL);
+
+  const cover = page.getByRole('button', { name: /play video/i });
+  await expect(cover).toBeVisible();
+  expect(requests).toBe(0);
+  await cover.click();
+  await expect.poll(() => requests).toBe(1);
+  await expect(page.getByRole('status')).toHaveText('loading the video…');
+
+  // Fast-forward the real component's 20-second timeout, not the Playwright test timeout.
+  await page.clock.fastForward(20_100);
+  const retry = page.getByRole('button', { name: 'try again', exact: true });
+  await expect(page.getByRole('status')).toHaveText("the video couldn't load. try again.");
+  await expect(retry).toBeVisible();
+  await expect(retry).toBeFocused();
+  const box = await retry.boundingBox();
+  expect(box?.width).toBeGreaterThanOrEqual(44);
+  expect(box?.height).toBeGreaterThanOrEqual(44);
+  const violations = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+  expect(violations.violations).toEqual([]);
+
+  // A keyboard retry remounts the autoplay iframe. The stale first response cannot override it.
+  await page.keyboard.press('Enter');
+  await expect.poll(() => requests).toBe(2);
+  await expect(page.locator('iframe[src*="youtube-nocookie.com"]')).toBeVisible();
+  await expect(page.getByRole('status')).toContainText('player ready');
+  await firstRequest?.abort('failed');
+  await expect(page.getByRole('status')).toContainText('player ready');
+  expect(requests).toBe(2);
+});

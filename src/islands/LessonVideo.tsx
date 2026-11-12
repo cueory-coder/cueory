@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { initialVideoState, nextVideoState, videoStatusText, type VideoEvent } from './lessonvideo';
+import { initialVideoState, nextVideoState, observedVideoEvent, videoStatusText, type VideoEvent } from './lessonvideo';
 
 interface Props {
   videoId: string;
@@ -41,8 +41,7 @@ export default function LessonVideo({ videoId, title, thumbnail, captionsUrl, tr
     if (view.phase !== 'loading') return;
     const attempt = view.attempt;
     const timeout = window.setTimeout(() => {
-      setSaved((current) => current.videoId === videoId && current.attempt === attempt
-        ? nextVideoState(current, 'failed') : current);
+      setSaved((current) => observedVideoEvent(current, videoId, attempt, 'stalled'));
     }, 20_000);
     return () => window.clearTimeout(timeout);
   }, [view.phase, view.attempt, videoId]);
@@ -57,8 +56,7 @@ export default function LessonVideo({ videoId, title, thumbnail, captionsUrl, tr
   }
 
   function onFrame(event: Extract<VideoEvent, 'loaded' | 'failed'>, attempt: number) {
-    setSaved((current) => current.videoId === videoId && current.attempt === attempt
-      ? nextVideoState(current, event) : current);
+    setSaved((current) => observedVideoEvent(current, videoId, attempt, event));
   }
 
   return (

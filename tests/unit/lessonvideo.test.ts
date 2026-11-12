@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { initialVideoState, nextVideoState, videoStatusText } from '../../src/islands/lessonvideo';
+import { initialVideoState, nextVideoState, observedVideoEvent, videoStatusText } from '../../src/islands/lessonvideo';
 
 const ID = 'sampleVid01';
 
@@ -59,5 +59,34 @@ describe('lesson video state machine', () => {
     const retried = nextVideoState(playing, 'retry');
     expect(retried.attempt).toBe(2);
     expect(retried.phase).toBe('loading');
+  });
+});
+
+describe('guarding iframe events and stalled loads', () => {
+  it('ignores a late event from an earlier attempt after retry', () => {
+    const first = nextVideoState(initialVideoState(ID), 'play');
+    const retry = nextVideoState(nextVideoState(first, 'failed'), 'retry');
+    expect(observedVideoEvent(retry, ID, first.attempt, 'loaded')).toEqual(retry);
+    expect(observedVideoEvent(retry, ID, first.attempt, 'failed')).toEqual(retry);
+    expect(observedVideoEvent(retry, ID, first.attempt, 'stalled')).toEqual(retry);
+    expect(observedVideoEvent(retry, ID, retry.attempt, 'loaded').phase).toBe('ready');
+  });
+
+  it('never accepts events from another video ID or from a closed cover', () => {
+    const open = nextVideoState(initialVideoState(ID), 'play');
+    const other = 'anotherVid1';
+    expect(other).toHaveLength(11);
+    expect(observedVideoEvent(open, other, open.attempt, 'loaded')).toEqual(open);
+    expect(observedVideoEvent(initialVideoState(ID), ID, 0, 'loaded')).toEqual(initialVideoState(ID));
+  });
+
+  it('stalled loading fails, but the same timeout cannot undo a successful load', () => {
+    const loading = nextVideoState(initialVideoState(ID), 'play');
+    const finished = observedVideoEvent(loading, ID, loading.attempt, 'loaded');
+    expect(observedVideoEvent(finished, ID, loading.attempt, 'stalled')).toEqual(finished);
+    const failed = observedVideoEvent(loading, ID, loading.attempt, 'stalled');
+    expect(failed).toEqual({ ...loading, phase: 'failed', opened: false });
+    expect(videoStatusText(failed)).toBe("the video couldn't load. try again.");
+    expect(observedVideoEvent(failed, ID, loading.attempt, 'loaded')).toEqual(failed);
   });
 });
