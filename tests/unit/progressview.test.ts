@@ -44,7 +44,7 @@ describe('truthful progress dashboard counts', () => {
     const progress = withStars(withPile(emptyProgress(), 'removed', 'x', 'learning'), 'removed', ['y']);
     const view = progressView(progress, decks);
     expect(view.decks[2]).toMatchObject({
-      id: 'removed', title: 'a deck no longer on the site (removed)',
+      id: 'removed', title: 'a deck no longer on the site',
       know: 0, learning: 1, starred: 1, total: null, notStarted: null, retired: true,
     });
     expect(view.overall).toEqual({ know: 0, learning: 0, notStarted: 5, total: 5 });

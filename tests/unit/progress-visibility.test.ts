@@ -1,8 +1,12 @@
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import ProgressPanel from '../../src/islands/ProgressPanel';
+import * as deviceStorage from '../../src/scripts/storage';
 import { buildCatalog, type CatalogInput } from '../../src/lessons/catalog';
 import { visibleProgressDecks, visibleProgressLessons } from '../../src/islands/progressview';
-import { emptyProgress, withPile } from '../../src/scripts/progress';
+import { emptyProgress, PROGRESS_STORAGE_KEY, withPile } from '../../src/scripts/progress';
 import { progressView } from '../../src/islands/progressview';
 
 // No real lessons or answer material: each fixture is labeled sample content.
@@ -109,9 +113,35 @@ describe('progress page props respect canonical catalog visibility', () => {
     const summary = progressView(saved, visible);
     expect(summary.overall).toEqual({ know: 0, learning: 0, notStarted: 3, total: 3 });
     expect(summary.decks.find((deck) => deck.id === 'hidden-owner-deck')).toMatchObject({
+      title: 'a deck no longer on the site',
       retired: true, know: 1, learning: 0, total: null, notStarted: null,
     });
+    expect(summary.decks.map((deck) => deck.title).join(' ')).not.toContain('hidden-owner-deck');
+    expect(summary.decks.map((deck) => deck.title).join(' ')).not.toContain('[sample hidden owner deck]');
     expect(visible.some((deck) => deck.id === 'hidden-owner-deck')).toBe(false);
+  });
+
+  it('renders retired counts without exposing saved hidden-deck IDs or unpublished titles', () => {
+    const saved = withPile(emptyProgress(), 'hidden-owner-deck', 'owner-card', 'know');
+    const values = new Map([[PROGRESS_STORAGE_KEY, JSON.stringify(saved)]]);
+    const mock = vi.spyOn(deviceStorage, 'browserStorage').mockReturnValue({
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => { values.set(key, value); },
+      removeItem: (key) => { values.delete(key); },
+      get length() { return values.size; },
+      key: (index) => [...values.keys()][index] ?? null,
+    });
+    try {
+      const html = renderToStaticMarkup(createElement(ProgressPanel, {
+        decks: visibleProgressDecks(catalog, cardSources),
+      }));
+      expect(html).toContain('a deck no longer on the site');
+      expect(html).toContain('1 know it');
+      expect(html).not.toContain('hidden-owner-deck');
+      expect(html).not.toContain('[sample hidden owner deck]');
+    } finally {
+      mock.mockRestore();
+    }
   });
 
   it('hides an unknown lesson status, even when its card companion is published', () => {

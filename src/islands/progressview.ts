@@ -96,10 +96,15 @@ export function readDeviceProgress(storage: KeyValueStorage | undefined): { prog
  * Data allowed into the progress island's page props. A catalog lesson exists only when its lesson is visible;
  * its cards companion exists only when that companion is also visible. Hidden content is never serialized.
  */
+export interface VisibleDeckDefinition extends DeckDefinition {
+  /** A visible companion always has a known card list, suitable for the page props. */
+  cardIds: string[];
+}
+
 export function visibleProgressDecks(
   catalog: Pick<Catalog, 'lessons'>,
   allCards: readonly { id: string; data: { title: string; cards: readonly { id: string }[] } }[],
-): DeckDefinition[] {
+): VisibleDeckDefinition[] {
   const cardsById = new Map(allCards.map((deck) => [deck.id, deck]));
   return catalog.lessons.flatMap((lesson) => {
     const deck = lesson.cards ? cardsById.get(lesson.cards.id) : undefined;
@@ -159,7 +164,7 @@ export function progressView(progress: Progress, available: readonly DeckDefinit
   // Keep saved retired decks visible, without inventing how many cards they used to contain.
   const retired = Object.keys(progress.decks)
     .filter((id) => !currentIds.has(id))
-    .map((id) => countDeck(progress, { id, title: 'a deck no longer on the site (' + id + ')', cardIds: null }));
+    .map((id) => countDeck(progress, { id, title: 'a deck no longer on the site', cardIds: null }));
   const overall = current.reduce(
     (acc, deck) => ({
       know: acc.know + deck.know,

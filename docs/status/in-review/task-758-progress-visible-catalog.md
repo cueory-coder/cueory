@@ -1,1 +1,1 @@
-STATUS: Task 758 (W12-2) (#52), progress deck props use the canonical visible lesson catalog; hidden or unapproved card data is excluded, while saved retired progress remains readable.
+STATUS: Task 758 (W12-2) (#52), canonical visible deck props have known card lists; retired counts preserve saved data without exposing hidden IDs; Draft pending parent !35 merge, restack and browser checks.
