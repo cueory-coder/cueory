@@ -105,7 +105,7 @@ export function parseRunwayArgs(args, now = new Date()) {
     } else if (flag === '--date') {
       const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
       const date = match ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12) : null;
-      if (!date || date.getMonth() !== Number(match?.[2]) - 1 || date.getDate() !== Number(match?.[3])) {
+      if (!date || date.getFullYear() !== Number(match?.[1]) || date.getMonth() !== Number(match?.[2]) - 1 || date.getDate() !== Number(match?.[3])) {
         throw new RangeError('--date must be a real date written YYYY-MM-DD');
       }
       asOf = date;
@@ -133,11 +133,16 @@ async function main(args) {
     process.stderr.write('Puzzle runway check could not run: src/content/runway.ts is missing (it arrives with MR !73).\n');
     return 2;
   }
-  const short = findShortRunways(runway.puzzleRunways(options.asOf), options.minDays);
-  const output = runwayCheckLines(short, options.minDays).join('\n') + '\n';
-  if (short.length) process.stderr.write(output);
-  else process.stdout.write(output);
-  return short.length ? 1 : 0;
+  try {
+    const short = findShortRunways(runway.puzzleRunways(options.asOf), options.minDays);
+    const output = runwayCheckLines(short, options.minDays).join('\n') + '\n';
+    if (short.length) process.stderr.write(output);
+    else process.stdout.write(output);
+    return short.length ? 1 : 0;
+  } catch {
+    process.stderr.write('Puzzle runway check could not run: runway report failed.\n');
+    return 2;
+  }
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

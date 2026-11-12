@@ -88,7 +88,7 @@ describe('puzzle runway launch check (L4)', () => {
     expect(parsed.minDays).toBe(21);
     expect([parsed.asOf.getFullYear(), parsed.asOf.getMonth(), parsed.asOf.getDate()]).toEqual([2026, 10, 17]);
     for (const args of [['--days'], ['--days', 'ten'], ['--days', '0'], ['--date', '2026-02-30'],
-      ['--date', '11/17/2026'], ['--verbose', 'yes']]) {
+      ['--date', '11/17/2026'], ['--date', '0099-11-17'], ['--verbose', 'yes']]) {
       expect(() => parseRunwayArgs(args, now)).toThrow();
     }
   });
