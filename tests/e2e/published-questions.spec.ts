@@ -290,6 +290,10 @@ test.describe('W20: clear question loading, empty, and retry states', () => {
       await expect(retry).toHaveAttribute('aria-disabled', 'true');
       await expect(retry).toBeFocused();
       await expect(page.getByRole('alert')).toHaveCount(0);
+      // A repeated keyboard activation while busy must not send a second retry.
+      await expect.poll(() => conceptReads).toBe(2);
+      await page.keyboard.press('Enter');
+      expect(conceptReads).toBe(2);
     } finally {
       releaseRetry();
     }
@@ -303,6 +307,32 @@ test.describe('W20: clear question loading, empty, and retry states', () => {
     expect(seen.filter(request => request.method === 'GET' && request.path === '/rest/v1/concepts')).toHaveLength(3);
   });
 
+
+  test('failed load can recover to an empty state and moves focus to the next guidance', async ({ page }) => {
+    const seen = await mockProject(page, { empty: true, failConceptReads: 1 });
+    await openFixture(page, { signedIn: true });
+    await expect(page.getByRole('alert')).toHaveText("couldn't load questions. please try again.");
+    await page.getByRole('button', { name: 'try again' }).click();
+    const empty = page.getByTestId('questions-not-found');
+    await expect(empty).toContainText('there are no published questions for this topic yet.');
+    await expect(empty).toBeFocused();
+    const back = empty.getByRole('link', { name: 'back to the course library' });
+    await expect(back).toHaveAttribute('href', '/learn');
+    expect(await back.evaluate(node => node.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
+    await back.focus();
+    await expect(back).toHaveCSS('outline-style', 'solid');
+    expect(seen.filter(request => request.path === '/rest/v1/concepts')).toHaveLength(2);
+    await expect(page.locator('fieldset')).toHaveCount(0);
+  });
+
+  test('an invalid concept slug is empty without requesting any public question data', async ({ page }) => {
+    const seen = await mockProject(page);
+    await openFixture(page, { signedIn: true, search: '?concept=bad%20slug' });
+    await expect(page.getByTestId('questions-not-found'))
+      .toContainText('there are no published questions for this topic yet.');
+    expect(seen.filter(request => request.path.startsWith('/rest/v1/'))).toEqual([]);
+  });
+
   test('fits phone, tablet, and desktop in Light and Evening, with reduced motion and axe', async ({ page }) => {
     await mockProject(page);
     await openFixture(page, { signedIn: true });
@@ -313,13 +343,21 @@ test.describe('W20: clear question loading, empty, and retry states', () => {
       { width: 1440, height: 900 },
     ]) {
       await page.setViewportSize(viewport);
+      const paletteColors = new Set<string>();
       for (const colorScheme of ['light', 'dark'] as const) {
         await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+        // Test the actual Cueory theme tokens, not only a device preference change.
+        await page.evaluate(mode => { document.documentElement.dataset.theme = mode; }, colorScheme);
+        const pageColor = await page.evaluate(() =>
+          getComputedStyle(document.documentElement).getPropertyValue('--color-page').trim());
+        expect(pageColor.length).toBeGreaterThan(0);
+        paletteColors.add(pageColor);
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
         await expect(page.getByText('question 1 of 2')).toBeVisible();
         const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
         expect(results.violations.map(result => result.id + ': ' + result.help)).toEqual([]);
       }
+      expect(paletteColors.size).toBe(2);
     }
   });
 });
