@@ -89,7 +89,9 @@ describe('lesson reading parts (Task 742)', () => {
   it('keeps all component colors in the shared token palette and uses no external assets', () => {
     for (const name of ['Callout', 'Prose', 'ContentLabel', 'PlaceholderBlock']) {
       const source = readFileSync(new URL(`../../src/components/${name}.astro`, import.meta.url), 'utf8');
-      expect(source).not.toMatch(/#[0-9a-f]{3,8}\b|https?:\/\/|<script\b/i);
+      // An SVG XML namespace is not a remote dependency.
+      const withoutSvgNamespace = source.replaceAll('xmlns="http://www.w3.org/2000/svg"', '');
+      expect(withoutSvgNamespace).not.toMatch(/#[0-9a-f]{3,8}\b|https?:\/\/|<script\b/i);
       expect(source).not.toMatch(/\sstyle="/i);
     }
   });
