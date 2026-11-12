@@ -1,2 +1,2 @@
-status: W02 (#2), separate stat and sudoku private stats with backward-compatible sort history, words-only summaries and forget actions. Draft, pending !2/!3 and the unowned StatGame completion hook.
-decision: D-pending (W02) Keep storage version 1, distinguish legacy triage as retired sort, new sudoku as day+level with seconds, and stat as day with score. Stat streak means longest run of consecutive played days. Requires Christian's confirmation.
+STATUS: Task 702, stats ids (#28): separate stat and sudoku private stats with backward-compatible sort history, words-only summaries and forget actions. Draft, pending !2/!3 and the unowned StatGame completion hook.
+DECISION: D-pending (Task 702) Keep storage version 1, distinguish legacy triage as retired sort, new sudoku as day+level with seconds, and stat as day with score. Stat streak means longest run of consecutive played days. Requires Christian's confirmation.

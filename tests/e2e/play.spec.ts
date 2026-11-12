@@ -730,6 +730,15 @@ test.describe('W02 private stats: stat, sudoku and retired sort', () => {
 
     const forgetSudoku = row(page, 'sudoku').getByRole('button', { name: 'forget sudoku' });
     await forgetSudoku.focus();
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Tab');
+    await expect(forgetSudoku).toBeFocused();
+    expect(await forgetSudoku.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return element.matches(':focus-visible') && style.outlineStyle !== 'none' &&
+        Number.parseFloat(style.outlineWidth) > 0 &&
+        style.outlineColor !== 'transparent' && style.outlineColor !== 'rgba(0, 0, 0, 0)';
+    })).toBe(true);
     await page.keyboard.press('Enter');
     await expect(row(page, 'sudoku')).toContainText('not played yet.');
     await expect(row(page, 'sudoku').getByRole('heading', { name: 'sudoku' })).toBeFocused();
@@ -750,6 +759,26 @@ test.describe('W02 private stats: stat, sudoku and retired sort', () => {
       const violations = (await axe(page)).violations;
       expect(violations.map((violation) => violation.id + ': ' + violation.help)).toEqual([]);
     }
+  });
+
+  test('forgetting the last retired sort row keeps focus on a working stats control', async ({ page }) => {
+    await page.addInitScript((results) => {
+      localStorage.setItem('cueory-game-stats', JSON.stringify({ version: 1, results }));
+    }, [legacy]);
+    await page.goto('/play');
+    const toggle = panel(page).getByRole('switch', { name: 'keep my stats' });
+    await expect(toggle).toHaveAttribute('aria-checked', 'true');
+    const forgetSort = row(page, 'sort').getByRole('button', { name: 'forget sort' });
+    await forgetSort.focus();
+    await page.keyboard.press('Enter');
+    await expect(row(page, 'sort')).toHaveCount(0);
+    await expect(toggle).toBeFocused();
+    await expect(panel(page).getByTestId('stats-live')).toHaveText('sort stats forgotten.');
+    expect(JSON.parse((await page.evaluate(() => localStorage.getItem('cueory-game-stats')))!).results).toEqual([]);
+    // Enter must continue to work after the focused sort button was removed.
+    await page.keyboard.press('Enter');
+    await expect(toggle).toHaveAttribute('aria-checked', 'false');
+    expect(await page.evaluate(() => localStorage.getItem('cueory-game-stats'))).toBeNull();
   });
 
   test('sudoku completion is kept on this device only after opt-in, independently by level', async ({ page }) => {

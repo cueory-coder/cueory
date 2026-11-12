@@ -156,7 +156,9 @@ export default function GameStatsPanel({ games: order, showStat = false }: Props
     const stats = stillOn();
     if (!stats) return;
     forgetHeldRounds(game);
-    focusNext.current = game;
+    // The retired sort row disappears after its last result is forgotten.
+    // Focus a permanent control, not the removed heading or button.
+    focusNext.current = game === 'triage' ? 'switch' : game;
     keep(forget(stats, game), `${name} stats forgotten.`);
   };
 
