@@ -149,6 +149,19 @@ function initialJsGzipBytes(page: string): number {
   return external + inline;
 }
 
+// A build that shows drafts (staging, previews and the browser tests: CUEORY_ANATOMY_DRAFTS=1) puts the anatomy lab
+// itself on its preview page; the live build shows "coming soon" there and loads no lab script, so the budget above
+// stays as it is for the live build. This is the lab page's own limit on a drafts build: 109,328 gzip bytes measured at
+// merge request !102 (local Node 24 build) plus about 5%. Christian's decision 2026-11-11 (D-pending, Task 178).
+const draftsBuildJsLimit: Record<string, number> = {
+  'preview/anatomy-lab.html': 114795,
+};
+
+/** True when a built page carries the anatomy lab island, which only a build that shows drafts renders. */
+function showsDraftLab(page: string): boolean {
+  return existsSync(page) && /component-url="[^"]*AnatomyLab\./.test(readFileSync(page, 'utf8'));
+}
+
 describe('inline JavaScript collection', () => {
   it('handles mixed-case script closing tags and extended closing-tag whitespace', () => {
     expect(inlineScriptBodies('<SCRIPT type="module">const n = 1;</SCRIPT\t\n extra>')).toEqual(['const n = 1;']);
@@ -191,7 +204,8 @@ describe.skipIf(!existsSync(dist))('built site', () => {
     expect(routes.sort()).toEqual(Object.keys(initialJsBudget).sort());
     const overBudget = Object.entries(initialJsBudget).flatMap(([page, budget]) => {
       const actual = initialJsGzipBytes(join(dist, page));
-      const limit = Math.ceil(budget * 1.1);
+      const draftsLimit = draftsBuildJsLimit[page];
+      const limit = draftsLimit !== undefined && showsDraftLab(join(dist, page)) ? draftsLimit : Math.ceil(budget * 1.1);
       return actual > limit ? [`${page}: ${actual} gzip bytes exceeds limit ${limit} (baseline ${budget})`] : [];
     });
     // Only compute and report bundle contributions when the invariant fails. This
