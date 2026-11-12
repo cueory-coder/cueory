@@ -38,7 +38,8 @@ function collectErrors(page: Page, origin: string): ConsoleFinding[] {
   });
   page.on('console', (message) => {
     if (message.type() !== 'error') return;
-    findings.push({ kind: 'console', url: message.location().url || page.url(), message: message.text() });
+    // A missing source URL must remain unknown, not become an expected document 404.
+    findings.push({ kind: 'console', url: message.location().url, message: message.text() });
   });
   page.on('requestfailed', (request) => {
     if (!firstParty(request.url(), origin)) return;
@@ -62,9 +63,9 @@ async function allFindings(page: Page, recorded: ConsoleFinding[]): Promise<Cons
   ];
 }
 
-function descriptions(route: string, findings: ConsoleFinding[]): string[] {
+function descriptions(route: string, findings: ConsoleFinding[], origin: string): string[] {
   return [...new Set(findings
-    .filter((finding) => !allowedConsoleFinding(route, finding))
+    .filter((finding) => !allowedConsoleFinding(route, finding, origin))
     .map((finding) => finding.kind + ' ' + finding.url + ': ' + finding.message))].sort();
 }
 
@@ -87,7 +88,7 @@ for (const route of routes) {
     await page.evaluate(async () => { await document.fonts.ready; });
     await page.waitForLoadState('networkidle', { timeout: 10_000 });
 
-    expect(descriptions(route, await allFindings(page, recorded)),
+    expect(descriptions(route, await allFindings(page, recorded), origin),
       testInfo.project.name + ' ' + route + ': unexpected load failures').toEqual([]);
   });
 }
@@ -133,20 +134,29 @@ test('expected 404 allowances cannot hide a script failure, other route, or wron
     url: host + CONSOLE_MISSING_ROUTE,
     message: 'Failed to load resource: the server responded with a status of 404 (Not Found)',
   };
-  expect(allowedConsoleFinding(CONSOLE_MISSING_ROUTE, expected)).toBe(true);
+  expect(allowedConsoleFinding(CONSOLE_MISSING_ROUTE, expected, host)).toBe(true);
   expect(allowedConsoleFinding(CONSOLE_MISSING_ROUTE, {
     ...expected, message: 'uncaught app error: sample data not found (404)',
-  })).toBe(false);
-  expect(allowedConsoleFinding('/', expected)).toBe(false);
+  }, host)).toBe(false);
+  expect(allowedConsoleFinding('/', expected, host)).toBe(false);
   expect(allowedConsoleFinding(CONSOLE_MISSING_ROUTE, {
     ...expected, url: host + '/account',
-  })).toBe(false);
+  }, host)).toBe(false);
   expect(allowedConsoleFinding(CONSOLE_MISSING_ROUTE, {
     ...expected, url: 'not a valid URL',
-  })).toBe(false);
+  }, host)).toBe(false);
+  expect(allowedConsoleFinding(CONSOLE_MISSING_ROUTE, {
+    ...expected, url: 'https://outside.example.test' + CONSOLE_MISSING_ROUTE,
+  }, host)).toBe(false);
+  expect(allowedConsoleFinding(CONSOLE_MISSING_ROUTE, {
+    ...expected, url: '',
+  }, host)).toBe(false);
+  expect(allowedConsoleFinding(CONSOLE_MISSING_ROUTE, {
+    ...expected, url: host + CONSOLE_MISSING_ROUTE + '?next=1',
+  }, host)).toBe(false);
   expect(allowedConsoleFinding(CONSOLE_MISSING_ROUTE, {
     ...expected, kind: 'http', message: 'HTTP 500 GET',
-  })).toBe(false);
+  }, host)).toBe(false);
   expect(firstParty(host + '/_astro/main.js', host)).toBe(true);
   expect(firstParty('https://outside.example.test/script.js', host)).toBe(false);
   expect(firstParty('invalid url', host)).toBe(false);

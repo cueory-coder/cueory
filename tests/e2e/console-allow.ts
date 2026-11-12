@@ -26,16 +26,19 @@ export const consoleAllowances: readonly Allowance[] = [
   { route: CONSOLE_MISSING_ROUTE, kind: 'console', resourcePath: CONSOLE_MISSING_ROUTE, diagnostic: /^Failed to load resource: the server responded with a status of 404(?:\s*\([^)]*\))?\.?$/i, owner: 'W15', reason: 'Some engines report the expected missing-document HTTP 404 as a resource-load console error.' },
 ];
 
-export function allowedConsoleFinding(route: string, finding: ConsoleFinding): boolean {
-  let resourcePath: string;
+export function allowedConsoleFinding(route: string, finding: ConsoleFinding, origin: string): boolean {
+  let resource: URL;
   try {
-    resourcePath = new URL(finding.url).pathname;
+    resource = new URL(finding.url);
   } catch {
+    // No location means no exception. Never attribute an unknown-origin console
+    // failure to the current page just because that page is the expected 404.
     return false;
   }
+  if (resource.origin !== origin || resource.search || resource.hash) return false;
   return consoleAllowances.some((allowance) =>
     allowance.route === route &&
     allowance.kind === finding.kind &&
-    allowance.resourcePath === resourcePath &&
+    allowance.resourcePath === resource.pathname &&
     allowance.diagnostic.test(finding.message));
 }
