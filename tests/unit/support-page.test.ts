@@ -15,10 +15,12 @@ describe('support page link and copy safeguards', () => {
 
   it('accepts an HTTPS tip URL or the documented empty setting, never an unsafe destination', () => {
     expect(typeof site.tipPageUrl).toBe('string');
-    if (site.tipPageUrl === '') {
+    // Convert the configured literal to a general string so both supported settings are type-checked.
+    const tipUrl: string = String(site.tipPageUrl);
+    if (tipUrl === '') {
       expect(source).toContain('the support link is not available yet.');
     } else {
-      const url = new URL(site.tipPageUrl);
+      const url = new URL(tipUrl);
       expect(url.protocol).toBe('https:');
       expect(url.hostname).not.toBe('');
       expect(url.username).toBe('');
