@@ -27,7 +27,10 @@ test.describe('W02-2 rewards preview', () => {
     expect(box!.width).toBeGreaterThanOrEqual(44);
     expect(box!.height).toBeGreaterThanOrEqual(44);
     await back.focus();
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Tab');
     await expect(back).toBeFocused();
+    expect(await back.evaluate((element) => getComputedStyle(element).outlineStyle)).not.toBe('none');
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(/\/play\/?$/);
     await page.goto(previewRoute);
@@ -66,5 +69,23 @@ test.describe('W02-2 rewards preview without JavaScript', () => {
     await expect(back).toBeVisible();
     await back.click();
     await expect(page).toHaveURL(/\/play\/?$/);
+  });
+});
+
+test.describe('W02-2 accessible presentation edge cases', () => {
+  test('gives headings and lists accessible names and has no animated rewards under reduced motion', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto(previewRoute);
+    await expect(page.getByRole('heading', { level: 2 })).toHaveText([
+      'reward totals', 'sample events', 'earned achievements',
+    ]);
+    await expect(page.getByRole('list', { name: 'sample reward events' }).getByRole('listitem')).toHaveCount(5);
+    await expect(page.getByRole('list', { name: 'sample achievements' }).getByRole('listitem')).not.toHaveCount(0);
+    const animations = await page.getByTestId('rewards-list').evaluate((root) =>
+      [...root.querySelectorAll('*')]
+        .filter((element) => getComputedStyle(element).animationName !== 'none')
+        .map((element) => element.tagName),
+    );
+    expect(animations).toEqual([]);
   });
 });

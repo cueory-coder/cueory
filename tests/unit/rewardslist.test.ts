@@ -85,3 +85,45 @@ describe('rewards preview: local model output in words', () => {
     expect(() => buildRewardsPreview([game('2026-11-00')], TODAY)).toThrow(/calendar day|rejected/);
   });
 });
+
+describe('W02-2 edge cases and safe sample rendering', () => {
+  it('caps study points at fifty each day while counting accepted extra sessions', () => {
+    const sessions = Array.from({ length: 11 }, (_, index) => study(TODAY, `sample-study-${index + 1}`));
+    const preview = buildRewardsPreview(sessions, TODAY);
+    expect(row(preview, 'points')).toBe('50 points earned.');
+    expect(row(preview, 'studies')).toBe('11 sessions finished.');
+    expect(preview.events).toHaveLength(11);
+    expect(preview.events[10]?.text).toBe('0 points earned for this finished study session on 2026-11-11.');
+    expect(preview.achievements.map((item) => item.id)).toEqual(['first-study']);
+  });
+
+  it('preserves the original event order within a day and never mutates inputs', () => {
+    const events = [
+      { ...game(TODAY, 'pulse'), label: '[sample first]' },
+      { ...study(TODAY, 'sample-study-1'), label: '[sample second]' },
+      { ...game(TODAY, 'cueword'), label: '[sample third]' },
+    ];
+    const original = structuredClone(events);
+    const preview = buildRewardsPreview(events, TODAY);
+    expect(preview.events.map((event) => event.label)).toEqual([
+      '[sample first]', '[sample second]', '[sample third]',
+    ]);
+    expect(events).toEqual(original);
+  });
+
+  it('escapes bracketed sample labels when rendered as HTML text', () => {
+    const preview = buildRewardsPreview([{ ...game(TODAY), label: '[sample <strong>label</strong>]' }], TODAY);
+    const html = renderToStaticMarkup(createElement(RewardsList, { preview }));
+    expect(html).toContain('[sample &lt;strong&gt;label&lt;/strong&gt;]');
+    expect(html).not.toContain('<strong>label</strong>');
+    expect(html).not.toContain('<script');
+  });
+
+  it('rejects duplicate study ids and impossible sample dates without generating rewards', () => {
+    expect(() => buildRewardsPreview([
+      study(TODAY, 'sample-study-1'), study(TODAY, 'sample-study-1'),
+    ], TODAY)).toThrow(/rejected/);
+    expect(() => buildRewardsPreview([game('2026-02-30')], TODAY)).toThrow(/rejected/);
+    expect(() => buildRewardsPreview([game('1899-12-31')], TODAY)).toThrow(/rejected/);
+  });
+});
