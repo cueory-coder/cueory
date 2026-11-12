@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { clearResume, readResume, type ResumeSnapshot } from '../scripts/resume';
 import { browserStorage } from '../scripts/storage';
 import {
-  matchingResumePage, resumeDecision, resumePromptText, shouldRecoverResumeFocus,
+  matchingResumePage, resumeDecision, resumePromptText, restoreResumeChoiceFocus,
 } from './resumeprompt';
 
 export interface ResumePromptProps {
@@ -12,40 +12,6 @@ export interface ResumePromptProps {
   onContinue: (snapshot: ResumeSnapshot) => void;
   /** The owning study island clears its active state and starts a fresh round. */
   onStartOver: () => void;
-}
-
-/**
- * If the current button disappears, give focus to a visible control in this study board.
- * The boards that already move focus to a particular item keep that focus unchanged.
- */
-function recoverFocusAfterChoice(owner: HTMLElement | null): void {
-  const main = document.getElementById('main');
-  window.requestAnimationFrame(() => {
-    const active = document.activeElement;
-    const meaningful = active instanceof HTMLElement && active.isConnected &&
-      active !== document.body && active !== document.documentElement;
-    if (!shouldRecoverResumeFocus(meaningful)) return;
-
-    for (const root of [owner, main]) {
-      if (!root?.isConnected) continue;
-      const targets = root.querySelectorAll<HTMLElement>(
-        '[tabindex="-1"], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), button:not(:disabled), a[href]',
-      );
-      for (const target of Array.from(targets)) {
-        if (target.closest('[inert], [aria-hidden="true"]') || target.getClientRects().length === 0 ||
-          window.getComputedStyle(target).visibility === 'hidden') continue;
-        target.focus({ preventScroll: true });
-        if (document.activeElement === target) return;
-      }
-    }
-
-    // Some boards have no available interactive control after a completed result.
-    // The page's main landmark is a safe, non-Tab-stop focus fallback.
-    if (main?.isConnected) {
-      main.tabIndex = -1;
-      main.focus({ preventScroll: true });
-    }
-  });
 }
 
 /**
@@ -72,7 +38,7 @@ export default function ResumePrompt({ page, onContinue, onStartOver }: ResumePr
         if (choice.action !== 'continue') return;
         onContinue(snapshot);
         setSnapshot(null);
-        recoverFocusAfterChoice(owner);
+        window.requestAnimationFrame(() => restoreResumeChoiceFocus(document, owner));
       }}
       onStartOver={() => {
         const owner = document.getElementById('cueory-resume-heading')?.closest('section')?.parentElement ?? null;
@@ -84,7 +50,7 @@ export default function ResumePrompt({ page, onContinue, onStartOver }: ResumePr
         setProblem('');
         setSnapshot(null);
         onStartOver();
-        recoverFocusAfterChoice(owner);
+        window.requestAnimationFrame(() => restoreResumeChoiceFocus(document, owner));
       }}
     />
   );

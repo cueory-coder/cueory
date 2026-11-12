@@ -46,3 +46,36 @@ export function resumeDecision(choice: ResumeChoice, cleared = true): ResumeDeci
 export function shouldRecoverResumeFocus(activeIsMeaningful: boolean): boolean {
   return !activeIsMeaningful;
 }
+
+/**
+ * Restore focus when a chosen resume button is removed by React. A board that
+ * already focused the resumed activity wins, so this helper never steals it.
+ * The DOM search lives here rather than in the rendering island for real unit testing.
+ */
+export function restoreResumeChoiceFocus(doc: Document, owner: HTMLElement | null): boolean {
+  const active = doc.activeElement;
+  const hasBoardFocus = Boolean(active && active.isConnected && active !== doc.body && active !== doc.documentElement);
+  if (!shouldRecoverResumeFocus(hasBoardFocus)) return false;
+
+  const main = doc.getElementById('main');
+  const selector = '[tabindex="-1"], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), button:not(:disabled), a[href]';
+  for (const root of [owner, main]) {
+    if (!root?.isConnected) continue;
+    for (const target of Array.from(root.querySelectorAll<HTMLElement>(selector))) {
+      if (!target.isConnected || target.closest('[inert], [aria-hidden="true"]') ||
+          target.getClientRects().length === 0 ||
+          doc.defaultView?.getComputedStyle(target).visibility === 'hidden') continue;
+      target.focus({ preventScroll: true });
+      if (doc.activeElement === target) return true;
+    }
+  }
+
+  // Completed results can have no usable activity controls. The main landmark
+  // gets programmatic focus without adding a stop to normal keyboard tab order.
+  if (main?.isConnected) {
+    main.tabIndex = -1;
+    main.focus({ preventScroll: true });
+    return doc.activeElement === main;
+  }
+  return false;
+}

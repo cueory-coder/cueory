@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ResumeChoices } from '../../src/islands/ResumePrompt';
-import { matchingResumePage, resumeDecision, resumePromptText, savedDayWords, shouldRecoverResumeFocus } from '../../src/islands/resumeprompt';
+import { matchingResumePage, resumeDecision, resumePromptText, restoreResumeChoiceFocus, savedDayWords, shouldRecoverResumeFocus } from '../../src/islands/resumeprompt';
 import type { ResumeSnapshot, ResumeTool } from '../../src/scripts/resume';
 
 const NOW = new Date(2026, 10, 11, 12, 0, 0).getTime();
@@ -79,6 +79,86 @@ describe('resume choice transitions', () => {
   it('only falls back to moving focus when the owning board did not', () => {
     expect(shouldRecoverResumeFocus(true)).toBe(false);
     expect(shouldRecoverResumeFocus(false)).toBe(true);
+  });
+});
+
+/** DOM-shaped fakes test the actual focus search without adding a DOM dependency to Vitest. */
+function fakeFocusWorld() {
+  type StubNode = {
+    isConnected: boolean;
+    tabIndex: number;
+    closest(selector: string): StubNode | null;
+    getClientRects(): { length: number };
+    querySelectorAll(selector: string): StubNode[];
+    focus(options?: { preventScroll?: boolean }): void;
+  };
+  type StubDocument = {
+    activeElement: StubNode | null;
+    body: StubNode;
+    documentElement: StubNode;
+    defaultView: { getComputedStyle(node: StubNode): { visibility: string } };
+    getElementById(id: string): StubNode | null;
+  };
+  const focusHistory: string[] = [];
+  let doc: StubDocument;
+  const node = (id: string): StubNode => {
+    const result: StubNode = {
+      isConnected: true,
+      tabIndex: 0,
+      closest: () => null,
+      getClientRects: () => ({ length: 1 }),
+      querySelectorAll: () => [],
+      focus: (options) => {
+        focusHistory.push(id + ':' + String(options?.preventScroll));
+        doc.activeElement = result;
+      },
+    };
+    return result;
+  };
+  const body = node('body');
+  const main = node('main');
+  const owner = node('owner');
+  const activity = node('activity');
+  const dismissedButton = node('dismissed-choice');
+  dismissedButton.isConnected = false;
+  owner.querySelectorAll = () => [activity];
+  doc = {
+    activeElement: dismissedButton,
+    body,
+    documentElement: node('html'),
+    defaultView: { getComputedStyle: () => ({ visibility: 'visible' }) },
+    getElementById: (id) => id === 'main' ? main : null,
+  };
+  return { doc, main, owner, body, activity, dismissedButton, focusHistory };
+}
+
+describe('actual focus recovery after choosing a resume action', () => {
+  it.each(['continue', 'start-over'] as const)('moves keyboard focus to the study activity after %s closes', (choice) => {
+    const f = fakeFocusWorld();
+    expect(resumeDecision(choice).close).toBe(true);
+    expect(f.doc.activeElement).toBe(f.dismissedButton);
+    const moved = restoreResumeChoiceFocus(f.doc as unknown as Document, f.owner as unknown as HTMLElement);
+    expect(moved).toBe(true);
+    expect(f.doc.activeElement).toBe(f.activity);
+    expect(f.doc.activeElement).not.toBe(f.body);
+    expect(f.focusHistory).toEqual(['activity:true']);
+  });
+
+  it('does not steal focus that the owning board already moved to a valid control', () => {
+    const f = fakeFocusWorld();
+    f.doc.activeElement = f.activity;
+    expect(restoreResumeChoiceFocus(f.doc as unknown as Document, f.owner as unknown as HTMLElement)).toBe(false);
+    expect(f.doc.activeElement).toBe(f.activity);
+    expect(f.focusHistory).toEqual([]);
+  });
+
+  it('skips hidden or detached choices and falls back to the main landmark', () => {
+    const f = fakeFocusWorld();
+    f.activity.getClientRects = () => ({ length: 0 });
+    expect(restoreResumeChoiceFocus(f.doc as unknown as Document, f.owner as unknown as HTMLElement)).toBe(true);
+    expect(f.doc.activeElement).toBe(f.main);
+    expect(f.main.tabIndex).toBe(-1);
+    expect(f.focusHistory).toEqual(['main:true']);
   });
 });
 
