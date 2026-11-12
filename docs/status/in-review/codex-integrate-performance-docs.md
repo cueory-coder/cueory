@@ -1,0 +1,1 @@
+STATUS: Documentation integration: contributor crossword guides now match the existing optional easy/mid/hard level schema and 3–15 grid bounds, and the docs index lists the merged performance guide while preserving the content-map entry.
