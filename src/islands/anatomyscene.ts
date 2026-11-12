@@ -167,11 +167,17 @@ export interface LabScene {
   /** The quiz uses nearest-hit picking so earlier answers do not bias later taps. */
   pick(clientX: number, clientY: number, preferSelected?: boolean): string | null;
   project(ids: readonly string[]): ProjectedPoint[];
+  /** Where the structures' centers are on screen, in CSS pixels, without changing which labels the scene tracks. */
+  locate(ids: readonly string[]): ProjectedPoint[];
   /** The visible model's box on screen, in CSS pixels, or null when nothing is in front of the camera. */
   extent(): Rect | null;
   orbit(yaw: number, pitch: number): void;
   zoom(factor: number): void;
   resetView(): void;
+  /** Looks at the model's center from `direction` (model frame, any length) at the starting distance. */
+  viewFrom(direction: readonly [number, number, number]): void;
+  /** Turns drag inertia off (reduced motion) or on; follows the device setting while the lab is open. */
+  setReducedMotion(reduced: boolean): void;
   exportPicture(request: ExportRequest): Promise<ExportResult>;
   dispose(): void;
 }
@@ -467,6 +473,22 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
     controls.target.copy(home.target);
     camera.up.copy(UP);
     controls.update();
+    requestRender();
+  }
+
+  function viewFrom(direction: readonly [number, number, number]) {
+    const dir = new THREE.Vector3(direction[0], direction[1], direction[2]);
+    if (dir.lengthSq() < 1e-12) return;
+    const distance = home.position.distanceTo(home.target);
+    controls.target.copy(home.target);
+    camera.position.copy(home.target).add(dir.setLength(distance));
+    camera.up.copy(UP);
+    controls.update();
+    requestRender();
+  }
+
+  function setReducedMotion(reduced: boolean) {
+    controls.enableDamping = !reduced;
     requestRender();
   }
 
@@ -826,12 +848,17 @@ export function createLabScene({ canvas, reducedMotion, colors: initialColors, o
       }
       return projectWith(camera, ids, canvas.clientWidth, canvas.clientHeight);
     },
+    locate(ids) {
+      return projectWith(camera, ids, canvas.clientWidth, canvas.clientHeight, new Map());
+    },
     extent() {
       return extentWith(camera, canvas.clientWidth, canvas.clientHeight);
     },
     orbit,
     zoom,
     resetView,
+    viewFrom,
+    setReducedMotion,
     exportPicture,
     clear() {
       loadId++;

@@ -12,6 +12,7 @@ import Layout from '../../layouts/Layout.astro';
 import AnatomyLab from '../../islands/AnatomyLab.tsx';
 import { labDataForBuild } from '../../islands/anatomylab';
 import fixtureJson from '../../../tests/fixtures/anatomy-fixture.json';
+import { modelBytesFor } from '../../islands/anatomymodelsize';
 
 // One file per body system (the data contract with Task 177): content/visuals/anatomy-<system>.json.
 const files = import.meta.glob('../../../content/visuals/anatomy-*.json', { eager: true, import: 'default' });
@@ -23,6 +24,8 @@ const lab = labDataForBuild(files, fixtureJson, {
 // Pass only individual systems to React. The combined whole-body view is derived after opening,
 // avoiding a duplicate copy of every structure in the initial serialized page.
 const hasSystems = lab.systems.length > 0 || lab.fixture !== null;
+// Each shown system's model size, measured from public/ at build time, so the lab can say how big a download is.
+const modelBytes = modelBytesFor(lab.systems, new URL('../../../public/', import.meta.url));
 ---
 
 <Layout title="preview: anatomy lab" description="Preview of the anatomy lab." variant="study" noindex>
@@ -42,7 +45,7 @@ const hasSystems = lab.systems.length > 0 || lab.fixture !== null;
     {
       hasSystems ? (
         <>
-          <AnatomyLab client:only="react" systems={lab.systems} fixture={lab.fixture} drafts={lab.drafts} />
+          <AnatomyLab client:only="react" systems={lab.systems} fixture={lab.fixture} drafts={lab.drafts} modelBytes={modelBytes} />
           <noscript>
             <p class="rounded-lg border border-line p-4 text-ink">
               the 3D anatomy lab needs javascript. <a href="/preview/anatomy-text" class="underline">read structure names without JavaScript</a>, or <a href="/learn" class="underline">browse lessons</a> instead.

@@ -179,6 +179,8 @@
   --print-board: 16cm;          /* the word path grid's width on paper: fits letter and A4 inside default margins */
   --print-letter: 16pt;         /* a letter in the printed grid, large enough to read at arm's length */
   --print-gap: 0.5cm;           /* space between the grid, the word list and the footer on paper */
+  --print-figure: 13cm;         /* an anatomy worksheet's picture on paper: leaves room for the numbered list below */
+  --worksheet-blank: 1.75rem;   /* the height of a write-in line on an anatomy worksheet */
 
   /* ---------- Motion (D-41 brand bar: 150–400 ms, soft not bouncy, always off under reduced-motion) ---------- */
   --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);     /* gentle UI transitions */
