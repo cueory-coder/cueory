@@ -141,6 +141,58 @@ test('unrelated expanded controls and hidden overlays cannot disable stat shortc
   await expect(choice(page, 'a')).toHaveAttribute('aria-pressed', 'false');
 });
 
+test('CSS-hidden, transparent, and off-screen overlays do not disable Stat shortcuts', async ({ page }) => {
+  await start(page);
+  const cases = [
+    { mode: 'visibility', letter: 'a' },
+    { mode: 'ancestor-opacity', letter: 'b' },
+    { mode: 'offscreen', letter: 'c' },
+  ] as const;
+
+  for (const { mode, letter } of cases) {
+    await test.step(mode, async () => {
+      const fixture = await page.evaluate((hiddenBy) => {
+        const host = document.createElement('div');
+        host.id = 'stat-css-overlay-fixture';
+        if (hiddenBy === 'ancestor-opacity') host.style.opacity = '0';
+
+        const dialog = document.createElement('div');
+        dialog.setAttribute('role', 'dialog');
+        dialog.textContent = '[sample inactive dialog]';
+        dialog.style.position = 'fixed';
+        dialog.style.left = '0px';
+        dialog.style.top = '100px';
+        dialog.style.width = '100px';
+        dialog.style.height = '48px';
+        dialog.style.pointerEvents = 'none';
+        if (hiddenBy === 'visibility') dialog.style.visibility = 'hidden';
+        if (hiddenBy === 'offscreen') dialog.style.transform = 'translateX(-200vw)';
+        host.append(dialog);
+        document.body.append(host);
+
+        const rect = dialog.getBoundingClientRect();
+        return {
+          width: rect.width,
+          visibility: getComputedStyle(dialog).visibility,
+          ancestorOpacity: getComputedStyle(host).opacity,
+          offscreenRight: rect.right,
+        };
+      }, mode);
+
+      // Ensure the fixture really tests the relevant visibility condition.
+      expect(fixture.width).toBeGreaterThan(0);
+      if (mode === 'visibility') expect(fixture.visibility).toBe('hidden');
+      if (mode === 'ancestor-opacity') expect(fixture.ancestorOpacity).toBe('0');
+      if (mode === 'offscreen') expect(fixture.offscreenRight).toBeLessThan(0);
+
+      await page.getByTestId('stat-stem').focus();
+      await page.keyboard.press(letter);
+      await expect(choice(page, letter)).toHaveAttribute('aria-pressed', 'true');
+      await page.evaluate(() => document.querySelector('#stat-css-overlay-fixture')?.remove());
+    });
+  }
+});
+
 test('visible role-based overlays block letters and Enter, even if focus stays on the game', async ({ page }) => {
   await start(page);
   await page.evaluate(() => {
