@@ -38,7 +38,7 @@ export function extractHtmlAssetUrls(html) {
     const attrs = tagAttributes(match[0]);
     if (name === 'script' && attrs.has('src')) urls.add(attrs.get('src'));
     if (name === 'astro-island') {
-      for (const attr of ['component-url', 'renderer-url']) {
+      for (const attr of ['component-url', 'renderer-url', 'before-hydration-url', 'client-url']) {
         if (attrs.has(attr)) urls.add(attrs.get(attr));
       }
     }
@@ -65,6 +65,17 @@ export function extractImportedAssetUrls(content, kind) {
       .map((match) => match[1]);
   }
   return [];
+}
+
+/** Static imports in inline module scripts also trigger initial requests. */
+export function extractInlineModuleAssetUrls(html) {
+  const urls = new Set();
+  for (const match of html.matchAll(/<\s*script\b[^>]*>([\s\S]*?)<\/script\s*>/gi)) {
+    const attrs = tagAttributes(match[0].slice(0, match[0].indexOf('>') + 1));
+    if ((attrs.get('type') ?? '').trim().toLowerCase() !== 'module' || attrs.has('src')) continue;
+    for (const url of extractImportedAssetUrls(match[1], 'js')) urls.add(url);
+  }
+  return [...urls];
 }
 
 /** Ignore remote URLs, refuse escape paths, and limit dependencies to JS/CSS. */
@@ -127,9 +138,9 @@ export function scanPerformanceBudget(folder, budgets = BUDGETS) {
   return pages.map((file) => {
     const sizes = { html: gzipBytes(file), js: 0, css: 0, total: 0 };
     const visited = new Set();
-    const queue = extractHtmlAssetUrls(readableFile(file).toString('utf8'))
-      .map((url) => resolveLocalAsset(root, file, url))
-      .filter(Boolean);
+    const html = readableFile(file).toString('utf8');
+    const urls = [...extractHtmlAssetUrls(html), ...extractInlineModuleAssetUrls(html)];
+    const queue = urls.map((url) => resolveLocalAsset(root, file, url)).filter(Boolean);
     while (queue.length) {
       const asset = queue.shift();
       if (visited.has(asset.path)) continue;

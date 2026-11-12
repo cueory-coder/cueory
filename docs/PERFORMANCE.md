@@ -18,7 +18,7 @@ The check reads every `.html` file in `dist/` and counts:
 | CSS | 70 KiB |
 | Combined HTML + JavaScript + CSS | 300 KiB |
 
-Every limit is in the `BUDGETS` table at the top of `scripts/perf-budget.mjs`. The check counts each page’s HTML, locally linked scripts and stylesheets, Astro island scripts, and their statically imported JavaScript and CSS. A shared file is counted once per page, not once per reference. Query strings do not make duplicate files. All sizes use Node's `zlib.gzipSync`.
+Every limit is in the `BUDGETS` table at the top of `scripts/perf-budget.mjs`. The check counts each page’s HTML, locally linked scripts and stylesheets, Astro island scripts (including hydration helpers), inline module script imports, and their statically imported JavaScript and CSS. A shared file is counted once per page, not once per reference. Query strings do not make duplicate files. All sizes use Node's `zlib.gzipSync`.
 
 The report prints **PASS** or **OVER** for each page and identifies which limit was exceeded. A limit breach, missing local file, invalid build directory, or unsafe file link causes a non-zero exit status. The checker does not change any files.
 
