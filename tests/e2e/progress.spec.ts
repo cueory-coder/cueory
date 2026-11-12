@@ -284,6 +284,23 @@ test('bad saved data remains untouched and the retry state is keyboard-operable'
   expect(await page.evaluate(() => localStorage.getItem('cueory-progress'))).toBe('{not json');
 });
 
+test('retry recovers when previously unreadable data becomes readable', async ({ page }) => {
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem('seeded-corruption')) return;
+    sessionStorage.setItem('seeded-corruption', '1');
+    localStorage.setItem('cueory-progress', '{not json');
+  });
+  await page.goto('/progress');
+  await expect(page.getByRole('heading', { name: 'we couldn’t read your progress' })).toBeVisible();
+  await page.evaluate(() => localStorage.setItem('cueory-progress', JSON.stringify({
+    version: 1, onboarding: { course: 'fundamentals', done: true },
+  })));
+  await page.getByRole('button', { name: 'try again' }).click();
+  await expect(page.getByTestId('progress-state')).toHaveText('your saved progress is ready.');
+  await expect(page.getByText('course: fundamentals')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'download my progress' })).toBeEnabled();
+});
+
 test('blocked progress reads show a helpful message without raw browser errors', async ({ page }) => {
   await page.addInitScript(() => {
     const original = Storage.prototype.getItem;
@@ -314,6 +331,7 @@ test('mixed old stars and current saved data show together as ready', async ({ p
 for (const width of [390, 820, 1440]) {
   for (const colorScheme of ['light', 'dark'] as const) {
     test(`progress states at ${width}px in ${colorScheme}: axe, touch targets and no sideways scroll`, async ({ page }) => {
+      test.slow(); // two full axe scans, one for each visible state
       await page.setViewportSize({ width, height: width === 390 ? 844 : width === 820 ? 1180 : 900 });
       await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
       await page.goto('/progress');
