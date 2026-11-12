@@ -178,7 +178,7 @@ export default function SudokuGame() {
       </div>
       <div className="sudoku-pad-wrap">
         <button type="button" className="sudoku-setting-button sudoku-hints" role="checkbox" aria-checked={hints} onClick={() => setHints((value) => !value)}><span aria-hidden="true">{hints ? '☑' : '☐'}</span> hints</button>
-        <div className="sudoku-number-row" aria-label="numbers">{NUMBERS.map((number) => <button key={number} type="button" onClick={() => enter(number)} disabled={paused || solved}>{number}</button>)}<button type="button" onClick={mark} aria-label="add or remove x mark" disabled={paused || solved}>x</button></div>
+        <div className="sudoku-number-row grid-cols-5 sm:grid-cols-10" aria-label="numbers">{NUMBERS.map((number) => <button key={number} type="button" onClick={() => enter(number)} disabled={paused || solved}>{number}</button>)}<button type="button" onClick={mark} aria-label="add or remove x mark" disabled={paused || solved}>x</button></div>
         <button ref={settingsButton} type="button" className="sudoku-setting-button sudoku-settings-trigger" aria-haspopup="dialog" onClick={() => setSettingsOpen(true)}><span aria-hidden="true">⚙</span> settings</button>
       </div>
     </div>

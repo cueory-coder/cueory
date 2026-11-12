@@ -76,3 +76,42 @@ for (const [size, width, height] of [['phone', 390, 844], ['tablet', 820, 1180],
     });
   }
 }
+
+
+for (const colorScheme of ['light', 'dark'] as const) {
+  test('on a 390px phone all 10 Sudoku pad buttons fit and work without a horizontal swipe: ' + colorScheme,
+    async ({ page }, testInfo) => {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+      await page.goto('/play');
+      await expect(game(page)).toBeVisible();
+      await cells(page).nth(empty).click();
+
+      const pad = game(page).locator('.sudoku-number-row');
+      const padBox = await pad.boundingBox();
+      expect(padBox).not.toBeNull();
+      const dimensions = await pad.evaluate((element) => ({
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+      }));
+      expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth + 1);
+      await expect(pad.getByRole('button')).toHaveCount(10);
+
+      for (const button of await pad.getByRole('button').all()) {
+        const box = await button.boundingBox();
+        expect(box).not.toBeNull();
+        expect(box!.width).toBeGreaterThanOrEqual(44);
+        expect(box!.height).toBeGreaterThanOrEqual(44);
+        // Each target is inside the visible pad, not just reachable after a horizontal swipe.
+        expect(box!.x).toBeGreaterThanOrEqual(padBox!.x - 1);
+        expect(box!.x + box!.width).toBeLessThanOrEqual(padBox!.x + padBox!.width + 1);
+        expect(box!.x).toBeGreaterThanOrEqual(0);
+        expect(box!.x + box!.width).toBeLessThanOrEqual(391);
+        if (testInfo.project.use.hasTouch) await button.tap();
+        else await button.click();
+      }
+
+      await expect(cells(page).nth(empty)).toHaveText('x');
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    });
+}
