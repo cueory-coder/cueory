@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { indexablePages } from '../../src/config/routes';
 
 const source = readFileSync(new URL('../../src/pages/about.astro', import.meta.url), 'utf8');
 const markup = source.slice(source.indexOf('<Layout'));
@@ -40,6 +41,7 @@ describe('about page shell', () => {
 
   it('uses the existing brand UI and does not index unfinished founder copy', () => {
     expect(markup).toMatch(/<Layout\b[\s\S]*?\bnoindex\b[\s\S]*?>/);
+    expect(indexablePages).not.toContain('/about');
     expect(markup.match(/class="[^"]*\bveil\b/g)).toHaveLength(4);
     expect(markup).toContain('class="display');
     expect(markup).toContain('href="/#signup"');
