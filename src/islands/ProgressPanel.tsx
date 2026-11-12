@@ -165,6 +165,10 @@ export default function ProgressPanel({ decks }: Props) {
           <p className="mt-3 text-ink-soft">
             your progress stays on this device. we couldn’t read what this browser saved. please try again.
           </p>
+          <p className="mt-3 text-ink-soft">
+            if trying again doesn’t work, check that your browser allows website data. you can clear saved data
+            for cueory.app in your browser settings, but that erases progress and other settings on this device.
+          </p>
           <button type="button" onClick={() => setSnapshot(readDeviceProgress(storage))} className={`${primaryButton} mt-4`}>
             try again
           </button>

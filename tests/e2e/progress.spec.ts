@@ -274,6 +274,8 @@ test('bad saved data remains untouched and the retry state is keyboard-operable'
   await page.goto('/progress');
   await expect(page.getByRole('heading', { name: 'we couldn’t read your progress' })).toBeVisible();
   await expect(page.getByTestId('progress-state')).toHaveText('we couldn’t read your saved progress on this device.');
+  await expect(page.getByText(/clear saved data for cueory\.app/)).toBeVisible();
+  await expect(page.getByText(/erases progress and other settings/)).toBeVisible();
   await expect(page.getByText('{not json')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'download my progress' })).toHaveCount(0);
   const retry = page.getByRole('button', { name: 'try again' });
