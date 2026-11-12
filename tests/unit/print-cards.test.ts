@@ -57,12 +57,16 @@ describe('W09-2 printable card routes', () => {
     expect(routes).not.toContain('u00-t01-l04');
   });
 
-  it('uses the same catalog filter and card collection as the live card page', () => {
-    expect(page).toContain("return pathsFor(await lessonCatalog(), 'cards');");
-    expect(page).toContain("getEntry('cards', lesson.cards.id)");
-    expect(page).toContain("statusNotice(status, 'cards')");
-    expect(page).toContain('noindex');
-    expect(page).toContain('promo={false}');
+  it('uses the same catalog filter and card source as the interactive cards page', () => {
+    const interactive = readFileSync(join(process.cwd(), 'src/pages/learn/[lesson]/cards.astro'), 'utf8');
+    // Match semantics across both pages without depending on whitespace or quote style.
+    for (const source of [page, interactive]) {
+      expect(source).toMatch(/pathsFor\s*\(\s*await\s+lessonCatalog\s*\(\s*\)\s*,\s*['"]cards['"]\s*\)/);
+      expect(source).toMatch(/getEntry\s*\(\s*['"]cards['"]\s*,\s*lesson\.cards\.id\s*\)/);
+      expect(source).toMatch(/statusNotice\s*\(\s*status\s*,\s*['"]cards['"]\s*\)/);
+    }
+    expect(page).toMatch(/<Layout\b[^>]*\bnoindex\b/);
+    expect(page).toMatch(/<Layout\b[^>]*\bpromo\s*=\s*\{false\}/);
   });
 
   it('keeps card fronts, backs and approved visual credits as static text', () => {

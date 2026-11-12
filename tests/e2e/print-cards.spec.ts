@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-import { sizeOf } from './projects';
+import { runStaticCheckOnce, sizeOf } from './projects';
 
 const route = '/learn/study-skills/print-cards';
 const axeTags = ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'];
@@ -15,7 +15,8 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test('printable cards are static, labeled, accessible and not indexed', async ({ page }) => {
+test('printable cards are static, labeled and not indexed', async ({ page }, testInfo) => {
+  runStaticCheckOnce(testInfo);
   const response = await page.goto(route);
   expect(response?.status()).toBe(200);
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
@@ -29,6 +30,11 @@ test('printable cards are static, labeled, accessible and not indexed', async ({
   await expect(page.getByRole('link', { name: 'back to cards' })).toHaveAttribute('href', '/learn/study-skills/cards');
   await expect(page.locator('main button, main [role="button"], main iframe')).toHaveCount(0);
 
+});
+
+test('the screen card sheet passes accessibility checks in each project', async ({ page }) => {
+  const response = await page.goto(route);
+  expect(response?.status()).toBe(200);
   const axe = await new AxeBuilder({ page }).withTags(axeTags).analyze();
   expect(axe.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
 });
