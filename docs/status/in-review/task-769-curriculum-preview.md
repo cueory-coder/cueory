@@ -1,0 +1,1 @@
+STATUS: Task 769, internal curriculum preview (#63): noindex read-only page showing mapped unit/topic titles and 351 lesson IDs with built/not-built statuses from the public catalog, accessible native disclosures and unit/browser coverage. A measured build-output route budget and preview access controls require Claude follow-up (documented on issue #63).

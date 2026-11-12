@@ -1,0 +1,78 @@
+---
+/**
+ * Internal curriculum preview. The source map contains planning fields, but
+ * only its unit/topic titles and lesson IDs are rendered. No unpublished
+ * lesson text, clinical facts, or review notes enter the page.
+ */
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import Layout from '../../layouts/Layout.astro';
+import { parseLessonMap } from '../../islands/lessonmap';
+import { lessonCatalog } from '../../lessons/load';
+import { curriculumStatus } from '../../lessons/curriculumstatus';
+
+const source = parseLessonMap(readFileSync(resolve('docs/curriculum/medsurg-lesson-map.csv'), 'utf8'));
+if (source.problems.length) {
+  throw new Error('the curriculum preview requires a valid lesson map.');
+}
+const preview = curriculumStatus(source.units, (await lessonCatalog()).lessons);
+if (preview.unmappedCatalogIds.length) {
+  throw new Error('the curriculum preview found built lessons missing from the curriculum map.');
+}
+---
+
+<Layout
+  title="preview: curriculum status"
+  description="Internal preview showing which planned curriculum lesson IDs have built pages."
+  variant="study"
+  noindex
+  promo={false}
+>
+  <div data-curriculum-preview class="mx-auto max-w-page space-y-7 px-0 pb-section pt-8">
+    <header class="space-y-3">
+      <p class="text-sm text-ink-soft">internal preview · not linked from the site</p>
+      <h1 class="text-2xl font-semibold text-ink">curriculum status</h1>
+      <p data-testid="curriculum-totals" class="text-sm text-ink">
+        {preview.units.length} units · {preview.lessonCount} planned lessons · {preview.builtCount} built
+      </p>
+      <p class="max-w-prose text-sm text-ink-soft">
+        only curriculum identifiers and unit and topic titles are shown here. built means that a public lesson page exists, not that its content is final.
+      </p>
+    </header>
+
+    <ol class="space-y-4" aria-label="curriculum units">
+      {preview.units.map((unit) => (
+        <li data-curriculum-unit={unit.id} class="min-w-0">
+          <details class="min-w-0 overflow-hidden rounded-xl border border-line bg-surface">
+            <summary
+              class="flex min-h-(--tap-min) cursor-pointer flex-wrap items-center justify-between gap-3 p-4 text-ink focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+            >
+              <span role="heading" aria-level="2" class="font-semibold">{unit.title}</span>
+              <span class="text-sm text-ink-soft">{unit.builtCount} of {unit.lessonCount} built</span>
+            </summary>
+
+            <div class="space-y-5 border-t border-line p-4">
+              {unit.topics.map((topic) => (
+                <section data-curriculum-topic={topic.id} aria-labelledby={`curriculum-${topic.id}`}>
+                  <h3 id={`curriculum-${topic.id}`} class="text-base font-semibold text-ink">{topic.title}</h3>
+                  <ul class="mt-2 divide-y divide-line">
+                    {topic.lessons.map((lesson) => (
+                      <li
+                        data-curriculum-lesson-id={lesson.id}
+                        data-curriculum-status={lesson.status}
+                        class="flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2 text-sm"
+                      >
+                        <span class="font-mono text-ink">{lesson.id}</span>
+                        <span class="text-ink-soft">{lesson.status}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ))}
+            </div>
+          </details>
+        </li>
+      ))}
+    </ol>
+  </div>
+</Layout>
