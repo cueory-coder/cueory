@@ -8,7 +8,7 @@ const game = (page: Page) => page.getByTestId('sudoku');
 const sheet = (page: Page) => page.getByTestId('sudoku-print-sheet');
 
 test.beforeEach(async ({ page }) => {
-  await page.clock.setFixedTime(new Date('2026-11-01T15:00:00Z'));
+  await page.clock.setFixedTime(new Date('2026-11-01T15:00:00'));
   await page.addInitScript(() => {
     try { localStorage.setItem('cueory-promo-seen', String(Date.now())); } catch { /* optional */ }
     window.print = () => { document.documentElement.dataset.printInvoked = 'true'; };
