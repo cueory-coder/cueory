@@ -92,10 +92,21 @@ test.describe('Task 91: loading and empty states', () => {
       const box = await retry.boundingBox();
       expect(box?.height).toBeGreaterThanOrEqual(44);
       expect(box?.width).toBeGreaterThanOrEqual(44);
+      await page.keyboard.press('Tab');
       await retry.focus();
       await expect(retry).toBeFocused();
-      await page.keyboard.press('Enter');
+      expect(await retry.evaluate((element) => getComputedStyle(element).outlineStyle)).not.toBe('none');
+      await Promise.all([
+        page.waitForEvent('load'),
+        page.keyboard.press('Enter'),
+      ]);
       await expect(page).toHaveURL(/\/preview\/states\/?(?:\?.*)?$/);
+      const reloaded = page.locator('[data-puzzle-feed-state="' + state + '"]');
+      await expect(reloaded).toBeVisible();
+      await Promise.all([
+        page.waitForEvent('load'),
+        reloaded.getByRole('button', { name: 'try again' }).click(),
+      ]);
       await expect(page.locator('[data-puzzle-feed-state="' + state + '"]')).toBeVisible();
     }
   });
