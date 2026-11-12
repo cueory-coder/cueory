@@ -1,6 +1,6 @@
 # Content
 
-Content is data, not code. Edit these files to change what students see; no programming needed.
+Content is data, not code. Edit these files to change what students see. The complete list of fields is in the [content format guide](../docs/CONTENT-FORMAT.md).
 
 ## How to add a lesson in 3 steps
 
@@ -16,7 +16,7 @@ Content is data, not code. Edit these files to change what students see; no prog
    "no problems found". It also lists which lessons become pages, which show as labeled samples and which are drafts
    that won't appear.
 3. **Publish.** When you have approved the text, change `"status"` to `"published"` in each file, run the check once
-   more, and hand the files to Claude to send for review. Only published files go into the repository. The lesson appears on the staging site first, then on the
+   more, and hand the files to Claude to send for review. Only approved published files and deliberately labeled everyday samples or placeholders go into the public repository. Draft and in-review files stay private. The lesson appears on the staging site first, then on the
    live site when you merge the release.
 
 Drop the files in and the site builds the pages on its own; no page or code needs editing.
@@ -33,14 +33,14 @@ Each cards, fill-in and organizer file says which lesson it belongs to in its `l
 "u00-t01-l01"`). The lesson page shows a tile for each study mode that has a file, and the course library (`/learn`)
 lists the lesson and links to it from its unit. The unit and topic names on the page come from the lesson map.
 
-The `status` field decides whether a file appears:
+The `status` field decides whether a file appears. Each format has different allowed values. Lessons and cards accept `placeholder`, `sample`, `draft`, `in_review`, `published`. Organizer, fill-in, label-it, questions and sample games require `sample`. Videos accept `placeholder`, `draft`, `in_review`, `published`. Visuals accept `draft`, `approved`. Hello cards accept `sample`, `approved`:
 
 - `published`: you approved it. It appears normally.
 - `placeholder` or `sample`: it appears with its label ("these cards are placeholders", "this is a sample…") (D-92).
 - `draft` or `in_review`: it never appears. A lesson that doesn't appear takes its cards and sets with it.
 
 Only approved, public text goes in this folder (CLAUDE.md rule 7): lessons and cards (your decision of 2 Nov 2026).
-Questions, answer keys and rationales never do; they go through a batch into the database. Fill-in and organizer
+Real questions, answer keys, and rationales belong in the private database. Only clearly labeled non-clinical samples may appear in the public questions collection. Fill-in and organizer
 files can only be `sample` for now, so real ones aren't possible yet (see the Task 300 note).
 
 The build stops with a plain message if a file name isn't a lesson id in the map, if a file names a lesson that has no
@@ -55,7 +55,7 @@ its address, `/learn/study-skills`, and its label it and sample questions pages.
   the group it belongs to. Checked by the build and again by the page. For now each set is an everyday `sample`, and
   the page says so; no clinical facts.
 - `fill-in/` — one JSON file per lesson's fill-in set: `items`, each with an `id` and a `sentence` that wraps its one
-  missing word in double brackets, like `Bees make [[honey]] from flowers.` Checked by the build. For now each set is an
+  missing word in double brackets, like `[sample] [[word]] [sample].` Optional `distractors` may list other choices. Checked by the build. For now each set is an
   everyday `sample`, and the page says so.
 - `label-it/` — one JSON file per lesson's "label it" set: an `image` (its file on this site, alt text, size and a
   required `credit`) and `labels`, each a box in percentages of the image with the text it covers. Checked by the
@@ -76,10 +76,11 @@ its address, `/learn/study-skills`, and its label it and sample questions pages.
   length (capital letters, `.` for a gap) and its `clues`, `across` and `down`, each numbered the usual way. The build
   checks every file with the game's own rules (every word has exactly one clue). Everyday words only, labeled as
   samples on the page (D-70).
-- `games/suture/` — sample puzzles for word path, one JSON file each: a `grid` of capital letters (3 to 7 rows of equal
-  length) and its `words`, each with a lowercase `cue`, its `answer` and the `path` of `[row, column]` cells it runs
-  through, up, down, left or right, never diagonally, with no cell shared. The build checks every file with the game's
+- `games/suture/` — sample puzzles for word path, one JSON file each: a `grid` of capital letters (3 to 11 rows of equal length) and its `words`, each with an uppercase `answer` and the `path` of `[row, column]` cells it runs
+  through, up, down, left or right, never diagonally, with no cell shared. A word's `cue` is optional. The build checks every file with the game's
   own rules. Everyday words only, labeled as samples on the page (D-71).
+- `games/hello-cards/` — `status` (`sample` or `approved`), optional `note`, and `starters` containing `id`, `category`, `depth`, `text`. Each of four categories needs both `small` and `deep` starters.
+- `videos/` — required `lesson`, `title`, `status`, `videoId`, `captionsUrl`, `transcriptUrl`, plus optional self-hosted `thumbnail`. Both URL fields are required even when empty. Only published videos appear.
 - `batches/` — one folder per review batch (format and checker: [docs/BATCHES.md](../docs/BATCHES.md)). Git ignores
   everything here, so batches stay on your computer.
 
