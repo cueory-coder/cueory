@@ -804,9 +804,10 @@ test.describe('"ways to study" merry-go-round (D-50, D-60)', () => {
     browserName,
   }, testInfo) => {
     test.skip(!testInfo.project.use.hasTouch, 'a touch-screen gesture');
+    // Install before the page creates timers, as required by Playwright's clock API.
+    await page.clock.install();
     await page.goto('/');
     await section(page).scrollIntoViewIfNeeded();
-    await page.clock.install();
     const centre = async () => {
       const box = (await page.getByRole('group', { name: 'study mode cards' }).boundingBox())!;
       return { x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height / 2) };
@@ -1195,8 +1196,9 @@ test.describe('study-mode preview (D-51)', () => {
 
   test('a swipe down closes it on touch screens, a short one does not', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.use.hasTouch, 'a touch-screen gesture');
-    await openPreview(page, 'video');
+    // The preview and carousel schedule timers on load, so the clock must be installed first.
     await page.clock.install();
+    await openPreview(page, 'video');
     // Playwright builds the touch points in each engine's own way (WebKit has no Touch constructor, so it uses
     // document.createTouch there), so the same swipe runs in Chromium and Safari's engine.
     const panel = page.locator('[data-mode-preview-panel]');

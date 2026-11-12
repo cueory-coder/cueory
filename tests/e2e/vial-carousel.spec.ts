@@ -217,8 +217,9 @@ test('with a mouse, the front vial lifts to 104% with brighter glass; its neighb
 
 test('touch screens never get the hover lift; reduced motion never lifts either', async ({ page }, testInfo) => {
   test.skip(!testInfo.project.use.hasTouch, 'a touch-screen check');
-  await showRing(page);
+  // Instrument timers before the carousel initializes them during navigation.
   await page.clock.install();
+  await showRing(page);
   expect(await page.evaluate(() => matchMedia('(hover: hover) and (pointer: fine)').matches)).toBe(false);
   await page.locator('#mode-video [data-mode-open]').hover();
   // Check after the hover transition would have completed on a mouse device.
