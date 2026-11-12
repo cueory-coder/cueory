@@ -118,7 +118,7 @@ function eagerComponents(source: string): Array<{ component: string; kind: Eager
       }
     }
     if (end === -1) throw new Error(`Unclosed component tag: ${match[1]}`);
-    for (const directive of attrs.matchAll(/(?:^|\s)client:(load|only)(?=[\s=/>])/g)) {
+    for (const directive of attrs.matchAll(/(?:^|\s)client:(load|only)(?=[\s=/>]|$)/g)) {
       results.push({ component: match[1]!, kind: directive[1] as EagerKind });
     }
     open.lastIndex = end + 1;
@@ -179,6 +179,23 @@ describe('eager Astro island hydration', () => {
       expect(count).toBeGreaterThan(0);
       expect(reason.trim().length).toBeGreaterThan(15);
     }
+  });
+
+  it('counts a non-self-closing trailing eager directive and rejects similar names', () => {
+    const f = fixture();
+    f.write('src/pages/fixture.astro', [
+      '<SignIn mode="signup" client:load></SignIn>',
+      '<SampleWidget client:load />',
+      '<OnlyWidget client:only="react"></OnlyWidget>',
+      '<NotEager client:loading></NotEager>',
+    ].join('\\n'));
+    const found = collectEagerIslands(f.root);
+    expect(found.map(({ id }) => id)).toEqual([
+      'src/pages/fixture.astro::SignIn::load',
+      'src/pages/fixture.astro::SampleWidget::load',
+      'src/pages/fixture.astro::OnlyWidget::only',
+    ]);
+    expect(checkAllowlist(found, {})).toHaveLength(3);
   });
 
   it('fails on a newly added unexplained eager load', () => {
