@@ -3,7 +3,7 @@ import { join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-const root = fileURLToPath(new URL('../../', import.meta.url));
+const root = resolve(fileURLToPath(new URL('../../', import.meta.url)));
 const guide = readFileSync(join(root, 'docs/ARCHITECTURE.md'), 'utf8');
 
 /** Repository files and folders must be written as inline-code paths. */
