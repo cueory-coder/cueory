@@ -41,13 +41,13 @@ function validated(questions: readonly AdaptiveSampleQuestion[]): AdaptiveSample
         typeof q.prompt !== 'string' || !/^\[sample question\] [1-9]\d*$/.test(q.prompt) ||
         (q.level !== 1 && q.level !== 2 && q.level !== 3) ||
         !Array.isArray(q.choices) || q.choices.length !== 2 ||
-        !q.choices.every(c => c && (c.id === 'a' || c.id === 'b') &&
+        !q.choices.every((c: { id: SampleChoice; text: string }) => c && (c.id === 'a' || c.id === 'b') &&
           typeof c.text === 'string' && c.text.startsWith('[sample]')) ||
-        new Set(q.choices.map(c => c.id)).size !== 2 ||
-        !q.choices.some(c => c.id === q.sampleKey)) throw new Error('only well-formed labeled samples.');
+        new Set(q.choices.map((c: { id: SampleChoice; text: string }) => c.id)).size !== 2 ||
+        !q.choices.some((c: { id: SampleChoice; text: string }) => c.id === q.sampleKey)) throw new Error('only well-formed labeled samples.');
     ids.add(q.id);
     return { id: q.id, concept: q.concept, level: q.level, prompt: q.prompt, sampleKey: q.sampleKey,
-      choices: q.choices.map(c => ({ id: c.id, text: c.text })) };
+      choices: q.choices.map((c: { id: SampleChoice; text: string }) => ({ id: c.id, text: c.text })) };
   });
 }
 export function startAdaptiveQuiz(questions: readonly AdaptiveSampleQuestion[] = SAMPLE_ADAPTIVE_QUESTIONS): AdaptiveQuizSession {
