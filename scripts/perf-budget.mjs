@@ -17,7 +17,32 @@ export const BUDGETS = Object.freeze({
   total: 300 * 1024,
 });
 
+// PROVISIONAL, NOT MEASURED. Replace after Claude supplies staging --json data.
+// This is the only per-route override table. All other routes use BUDGETS.
+// Partial entries inherit the default limits. These are safety thresholds,
+// not claims about today's output size or a final performance target.
+export const ROUTE_BUDGETS = Object.freeze({
+  'play.html': Object.freeze({ label: 'Daily games', js: 240 * 1024, total: 360 * 1024 }),
+  'play/stat.html': Object.freeze({ label: 'Stat game', js: 220 * 1024, total: 340 * 1024 }),
+  'play/hello-cards.html': Object.freeze({ label: 'Hello cards game', js: 220 * 1024, total: 340 * 1024 }),
+  'preview/anatomy-lab.html': Object.freeze({ label: 'Anatomy preview', js: 260 * 1024, total: 380 * 1024 }),
+  'preview/body-viewer.html': Object.freeze({ label: 'Body viewer preview', js: 260 * 1024, total: 380 * 1024 }),
+});
+
 const KINDS = ['html', 'js', 'css', 'total'];
+
+/** Return the effective limits for a route (unknown routes inherit defaults). */
+export function budgetsForRoute(page, defaults = BUDGETS, overrides = ROUTE_BUDGETS) {
+  const override = Object.hasOwn(overrides, page) ? overrides[page] : null;
+  return {
+    label: override?.label ?? 'Default',
+    html: override?.html ?? defaults.html,
+    js: override?.js ?? defaults.js,
+    css: override?.css ?? defaults.css,
+    total: override?.total ?? defaults.total,
+  };
+}
+
 
 /** Parse HTML tag attributes without depending on their order or quote style. */
 function tagAttributes(tag) {
@@ -125,7 +150,7 @@ function htmlPages(dir, root = dir) {
 }
 
 /** Scan a built site. Each page counts shared dependencies once for that page. */
-export function scanPerformanceBudget(folder, budgets = BUDGETS) {
+export function scanPerformanceBudget(folder, budgets = BUDGETS, routeBudgets = ROUTE_BUDGETS) {
   const root = resolve(folder);
   if (!lstatSync(root).isDirectory()) throw new Error(`Not a build folder: ${root}`);
   const pages = htmlPages(root);
@@ -153,11 +178,9 @@ export function scanPerformanceBudget(folder, budgets = BUDGETS) {
       }
     }
     sizes.total = sizes.html + sizes.js + sizes.css;
-    return {
-      page: relative(root, file).split(sep).join('/'),
-      ...sizes,
-      breaches: budgetBreaches(sizes, budgets),
-    };
+    const page = relative(root, file).split(sep).join('/');
+    const limits = budgetsForRoute(page, budgets, routeBudgets);
+    return { page, ...sizes, limits, breaches: budgetBreaches(sizes, limits) };
   });
 }
 
@@ -165,22 +188,46 @@ export function scanPerformanceBudget(folder, budgets = BUDGETS) {
 export function formatPerformanceReport(pages, budgets = BUDGETS) {
   const kib = (bytes) => `${(bytes / 1024).toFixed(1)} KiB`;
   const header = `Budgets (gzip): HTML ${kib(budgets.html)}, JS ${kib(budgets.js)}, CSS ${kib(budgets.css)}, total ${kib(budgets.total)}`;
-  const lines = [header, '', 'Page | HTML | JS | CSS | Total | Result'];
+  const lines = [header, '', 'Page | Budget | HTML | JS | CSS | Total | Result'];
   for (const page of pages) {
-    lines.push(`${page.page} | ${kib(page.html)} | ${kib(page.js)} | ${kib(page.css)} | ${kib(page.total)} | ${page.breaches.length ? `OVER: ${page.breaches.join(', ')}` : 'PASS'}`);
+    const label = page.limits?.label ?? 'Default';
+    const budgetsText = label === 'Default' ? 'Default' :
+      `${label} (HTML ${kib(page.limits.html)}, JS ${kib(page.limits.js)}, CSS ${kib(page.limits.css)}, total ${kib(page.limits.total)})`;
+    lines.push(`${page.page} | ${budgetsText} | ${kib(page.html)} | ${kib(page.js)} | ${kib(page.css)} | ${kib(page.total)} | ${page.breaches.length ? `OVER: ${page.breaches.join(', ')}` : 'PASS'}`);
   }
   const failed = pages.filter((page) => page.breaches.length).length;
   lines.push('', `${pages.length - failed}/${pages.length} pages within budget${failed ? `; ${failed} over budget` : ''}.`);
   return lines.join('\n');
 }
 
+/** Machine-readable, versioned report with gzip bytes and per-route limits. */
+export function formatPerformanceJson(pages, budgets = BUDGETS, routeBudgets = ROUTE_BUDGETS) {
+  const failed = pages.filter((page) => page.breaches.length).length;
+  return JSON.stringify({
+    schemaVersion: 1,
+    unit: 'gzip-bytes',
+    defaultBudgets: budgets,
+    routeBudgets,
+    pages: pages.map((page) => ({ ...page, passed: page.breaches.length === 0 })),
+    summary: { pages: pages.length, passed: pages.length - failed, failed },
+  }, null, 2);
+}
+
+/** The folder can be before or after --json, but all other flags are errors. */
+export function parsePerformanceArgs(args) {
+  const flags = args.filter((arg) => arg === '--json');
+  const folders = args.filter((arg) => arg !== '--json');
+  if (flags.length > 1 || folders.length !== 1 || folders[0].startsWith('--')) {
+    throw new Error('Usage: node scripts/perf-budget.mjs <dist-folder> [--json]');
+  }
+  return { folder: folders[0], json: flags.length === 1 };
+}
+
 if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
   try {
-    if (process.argv.length !== 3) {
-      throw new Error('Usage: node scripts/perf-budget.mjs <dist-folder>');
-    }
-    const pages = scanPerformanceBudget(process.argv[2]);
-    console.log(formatPerformanceReport(pages));
+    const { folder, json } = parsePerformanceArgs(process.argv.slice(2));
+    const pages = scanPerformanceBudget(folder);
+    console.log(json ? formatPerformanceJson(pages) : formatPerformanceReport(pages));
     if (pages.some((page) => page.breaches.length)) process.exitCode = 1;
   } catch (error) {
     console.error(`Performance budget check failed: ${error.message}`);
