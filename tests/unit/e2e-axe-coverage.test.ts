@@ -22,7 +22,6 @@ const knownWithoutAxe: Readonly<Record<string, string>> = {
   "auth-callback-page.spec.ts": "Failure callback recovery and safe URL cleanup; a11y-sweep.spec.ts checks the rendered callback route.",
   "body-line-height.spec.ts": "Cross-route computed Lato line spacing; a11y-sweep.spec.ts covers full markup.",
   "body-viewer.spec.ts": "Lazy 3D model asset loading and controls; page-wide axe is covered by the built-page sweep.",
-  "courses.spec.ts": "Course listing and navigation regression; the global axe sweep covers the page.",
   "csp-sweep.spec.ts": "Security-only CSP test deliberately produces a violation in a fixture; a11y-sweep.spec.ts audits pages.",
   "exam-plan-sync.spec.ts": "Mocked account-plan timing, race and RPC states; start.spec.ts and progress.spec.ts run axe.",
   "fill-in-announcements.spec.ts": "Narrow live-region feedback assertion; fill-in-dropdown.spec.ts runs axe on the fill-in UI.",
