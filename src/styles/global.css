@@ -2018,3 +2018,89 @@ html:has(dialog.mode-preview[open]) {
     opacity: 1;
   }
 }
+
+
+@layer components {
+  .sudoku-board {
+    border: var(--sudoku-box-border) solid var(--color-ink);
+  }
+
+  .sudoku-board .sudoku-row {
+    display: contents;
+  }
+
+  .sudoku-board .sudoku-cell,
+  .sudoku-print-board .sudoku-print-cell {
+    border: var(--sudoku-cell-border) solid var(--color-control);
+  }
+
+  .sudoku-board .sudoku-cell:nth-child(9n + 3),
+  .sudoku-board .sudoku-cell:nth-child(9n + 6),
+  .sudoku-print-board .sudoku-print-cell:nth-child(9n + 3),
+  .sudoku-print-board .sudoku-print-cell:nth-child(9n + 6) {
+    border-inline-end: var(--sudoku-box-border) solid var(--color-ink);
+  }
+
+  .sudoku-board .sudoku-row:nth-child(3) .sudoku-cell,
+  .sudoku-board .sudoku-row:nth-child(6) .sudoku-cell,
+  .sudoku-print-board .sudoku-print-row:nth-child(3) .sudoku-print-cell,
+  .sudoku-print-board .sudoku-print-row:nth-child(6) .sudoku-print-cell {
+    border-block-end: var(--sudoku-box-border) solid var(--color-ink);
+  }
+
+  .sudoku-print-sheet {
+    display: none;
+  }
+
+  @media print {
+    body:has(.sudoku-print-sheet) > * {
+      visibility: hidden;
+    }
+
+    body:has(.sudoku-print-sheet) .sudoku-print-sheet {
+      display: block !important;
+      visibility: visible;
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      color: var(--color-ink);
+      background: var(--color-page);
+    }
+
+    body:has(.sudoku-print-sheet) .sudoku-print-sheet * {
+      visibility: visible;
+    }
+
+    .sudoku-print-board {
+      display: grid;
+      grid-template-columns: repeat(9, 1fr);
+      width: min(100%, 7in);
+      aspect-ratio: 1;
+      margin: 2rem auto 1rem;
+      border: var(--sudoku-print-line) solid var(--color-ink);
+    }
+
+    .sudoku-print-row {
+      display: contents;
+    }
+
+    .sudoku-print-cell {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 0;
+      font-size: 1.35rem;
+    }
+
+    .sudoku-print-given {
+      font-weight: 700;
+    }
+
+    .sudoku-print-footer {
+      margin-top: 1rem;
+      text-align: center;
+      font-size: var(--text-sm);
+      color: var(--color-ink-soft);
+    }
+  }
+}

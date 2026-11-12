@@ -441,3 +441,11 @@
   --shadow-card: 0 1px 3px rgb(var(--shadow-tint) / 0.18), 0 4px 12px rgb(var(--shadow-tint) / 0.28);
   --shadow-card-hover: 0 2px 8px rgb(var(--shadow-tint) / 0.28), 0 12px 28px rgb(var(--shadow-tint) / 0.40);
 }
+
+
+/* Sudoku presentation tokens (Task 628): geometry and print marks stay theme-safe. */
+:root {
+  --sudoku-cell-border: 1px;
+  --sudoku-box-border: 3px;
+  --sudoku-print-line: 2px;
+}

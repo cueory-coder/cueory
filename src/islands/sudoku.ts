@@ -19,6 +19,55 @@ export interface SudokuValidation {
   candidates: Map<number, number[]>;
 }
 
+export interface SudokuSettings {
+  checkOnEntry: boolean;
+  showErrors: boolean;
+  showTimer: boolean;
+  highlightConflicts: boolean;
+  highlightUnits: boolean;
+  highlightBox: boolean;
+  highlightSame: boolean;
+  autoCandidates: boolean;
+  playSoundOnSolve: boolean;
+}
+
+export const SUDOKU_SETTINGS_STORAGE_KEY = 'cueory-sudoku-settings-v1';
+export const DEFAULT_SUDOKU_SETTINGS: Readonly<SudokuSettings> = Object.freeze({
+  checkOnEntry: false,
+  showErrors: true,
+  showTimer: true,
+  highlightConflicts: true,
+  highlightUnits: true,
+  highlightBox: true,
+  highlightSame: true,
+  autoCandidates: false,
+  playSoundOnSolve: false,
+});
+
+export function parseSudokuSettings(raw: string | null | undefined): SudokuSettings {
+  if (!raw) return { ...DEFAULT_SUDOKU_SETTINGS };
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return { ...DEFAULT_SUDOKU_SETTINGS };
+    const record = parsed as Record<string, unknown>;
+    if (record.version !== 1 || !record.settings || typeof record.settings !== 'object') return { ...DEFAULT_SUDOKU_SETTINGS };
+    const saved = record.settings as Record<string, unknown>;
+    return Object.keys(DEFAULT_SUDOKU_SETTINGS).reduce((settings, key) => {
+      const defaultValue = DEFAULT_SUDOKU_SETTINGS[key as keyof SudokuSettings];
+      const value = saved[key];
+      settings[key as keyof SudokuSettings] = typeof value === 'boolean' ? value : defaultValue;
+      return settings;
+    }, {} as SudokuSettings);
+  } catch {
+    return { ...DEFAULT_SUDOKU_SETTINGS };
+  }
+}
+
+export function serializeSudokuSettings(settings: SudokuSettings): string {
+  const safe = parseSudokuSettings(JSON.stringify({ version: 1, settings }));
+  return JSON.stringify({ version: 1, settings: safe });
+}
+
 const SIZE = 9;
 const CELL_COUNT = SIZE * SIZE;
 const DIGITS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
