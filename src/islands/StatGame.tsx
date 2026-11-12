@@ -192,10 +192,24 @@ export default function StatGame({ questions, sampleKey }: Props) {
       // Synthetic window events can have no Element target. Fall back to actual focus without trusting it alone:
       // the overlay-open guard also blocks shortcuts when a modal's focus trap fails or focus has escaped.
       const target = event.target instanceof Element ? event.target : document.activeElement;
+      // Only real overlays or Cueory's two menu toggles may block shortcuts.
+      // An unrelated expanded accordion must not disable stat.
       const overlays = document.querySelectorAll<HTMLElement>(
-        'dialog[open], [role="dialog"], [role="alertdialog"], [role="menu"], [aria-expanded="true"][aria-controls]',
+        'dialog[open], [role="dialog"], [role="alertdialog"], [role="menu"], ' +
+        '[data-menu-open][aria-expanded="true"], [data-account-toggle][aria-expanded="true"]',
       );
-      const overlayOpen = Array.from(overlays).some((overlay) => overlay.getClientRects().length > 0);
+      const overlayOpen = Array.from(overlays).some((overlay) => {
+        if (overlay.closest('[hidden], [inert], [aria-hidden="true"]')) return false;
+        // Some closed overlays remain mounted but invisible or outside the viewport.
+        for (let element: HTMLElement | null = overlay; element; element = element.parentElement) {
+          const style = getComputedStyle(element);
+          if (style.display === 'none' || style.visibility !== 'visible' || Number(style.opacity) <= 0) return false;
+        }
+        const bounds = overlay.getBoundingClientRect();
+        return bounds.width > 0 && bounds.height > 0 &&
+          bounds.top < window.innerHeight && bounds.left < window.innerWidth &&
+          bounds.bottom > 0 && bounds.right > 0;
+      });
       const action = statKeyAction({
         key: event.key,
         hasModifier: event.altKey || event.ctrlKey || event.metaKey,

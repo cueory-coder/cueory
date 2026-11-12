@@ -32,6 +32,17 @@ describe('stat keyboard shortcuts', () => {
     expect(statKeyAction({ ...normal, key: 'Enter', overlayOpen: true })).toBeNull();
   });
 
+  it.each(['a', 'd', 'Enter'] as const)('ignores %s across combined overlay and editing states', (key) => {
+    for (const blocked of [
+      { isEditing: true },
+      { focusInsideOverlay: true },
+      { overlayOpen: true },
+      { isEditing: true, overlayOpen: true },
+    ] as const) {
+      expect(statKeyAction({ ...normal, key, ...blocked })).toBeNull();
+    }
+  });
+
   it('does not capture modified or repeated keys', () => {
     expect(statKeyAction({ ...normal, hasModifier: true })).toBeNull();
     expect(statKeyAction({ ...normal, isRepeated: true })).toBeNull();

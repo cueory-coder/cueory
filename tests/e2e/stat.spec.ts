@@ -111,6 +111,88 @@ test('other open dialogs and an expanded account menu never pick a background an
   await expect(choice(page, 'd')).toHaveAttribute('aria-pressed', 'true');
 });
 
+test('unrelated expanded controls and hidden overlays cannot disable stat shortcuts', async ({ page }) => {
+  await start(page);
+  await page.evaluate(() => {
+    const toggle = document.createElement('button');
+    toggle.textContent = 'sample accordion';
+    toggle.setAttribute('data-testid', 'sample-accordion');
+    toggle.setAttribute('aria-controls', 'sample-accordion-details');
+    toggle.setAttribute('aria-expanded', 'true');
+    document.body.append(toggle);
+
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('data-testid', 'sample-hidden-dialog');
+    dialog.hidden = true;
+    document.body.append(dialog);
+
+    const menu = document.createElement('div');
+    menu.setAttribute('role', 'menu');
+    menu.setAttribute('aria-hidden', 'true');
+    menu.setAttribute('data-testid', 'sample-hidden-menu');
+    document.body.append(menu);
+  });
+  await page.getByTestId('stat-stem').focus();
+  await page.keyboard.press('a');
+  await expect(choice(page, 'a')).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('b');
+  await expect(choice(page, 'b')).toHaveAttribute('aria-pressed', 'true');
+  await expect(choice(page, 'a')).toHaveAttribute('aria-pressed', 'false');
+});
+
+test('visible role-based overlays block letters and Enter, even if focus stays on the game', async ({ page }) => {
+  await start(page);
+  await page.evaluate(() => {
+    const menu = document.createElement('div');
+    menu.setAttribute('role', 'menu');
+    menu.setAttribute('aria-label', 'sample options');
+    menu.setAttribute('data-testid', 'sample-visible-menu');
+    menu.textContent = 'sample option';
+    document.body.append(menu);
+  });
+  await page.getByTestId('stat-stem').focus();
+  await page.keyboard.press('c');
+  await expect(choice(page, 'c')).toHaveAttribute('aria-pressed', 'false');
+  await page.keyboard.press('Enter');
+  await expect(progress(page)).toHaveText('question 1 of 15');
+  await page.getByTestId('sample-visible-menu').evaluate((menu) => menu.remove());
+
+  await page.evaluate(() => {
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-label', 'sample dialog');
+    dialog.setAttribute('data-testid', 'sample-role-dialog');
+    dialog.textContent = 'sample dialog';
+    document.body.append(dialog);
+  });
+  await page.keyboard.press('d');
+  await expect(choice(page, 'd')).toHaveAttribute('aria-pressed', 'false');
+  await page.getByTestId('sample-role-dialog').evaluate((dialog) => dialog.remove());
+
+  await page.keyboard.press('c');
+  await expect(choice(page, 'c')).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('typing into an editable region never selects a game answer', async ({ page }) => {
+  await start(page);
+  await page.evaluate(() => {
+    const field = document.createElement('div');
+    field.contentEditable = 'true';
+    field.setAttribute('data-testid', 'sample-editable');
+    field.setAttribute('aria-label', 'sample notes');
+    field.textContent = 'sample';
+    document.body.append(field);
+  });
+  await page.getByTestId('sample-editable').focus();
+  await page.keyboard.press('d');
+  await expect(choice(page, 'd')).toHaveAttribute('aria-pressed', 'false');
+  await page.getByTestId('sample-editable').evaluate((field) => field.remove());
+  await page.getByTestId('stat-stem').focus();
+  await page.keyboard.press('d');
+  await expect(choice(page, 'd')).toHaveAttribute('aria-pressed', 'true');
+});
+
 for (const size of [
   { label: 'phone', width: 390, height: 844 },
   { label: 'tablet', width: 820, height: 1180 },
