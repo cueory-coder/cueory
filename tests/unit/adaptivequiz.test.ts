@@ -92,6 +92,36 @@ describe('W20-3 adaptive preview', () => {
     expect(initial.attempts).toHaveLength(0);
     expect(checked.attempts).toHaveLength(1);
   });
+
+  it('rejects duplicate ids, invalid levels, ambiguous choices and answer keys', () => {
+    const first = SAMPLE_ADAPTIVE_QUESTIONS[0]!;
+    const invalid: AdaptiveSampleQuestion[][] = [
+      [first, { ...first }],
+      [{ ...first, level: 4 as 1 }],
+      [{ ...first, concept: 'not labeled' }],
+      [{ ...first, choices: [
+        { id: 'a', text: '[sample] one' }, { id: 'a', text: '[sample] duplicate' },
+      ] }],
+      [{ ...first, sampleKey: 'c' as 'a' }],
+    ];
+    for (const bank of invalid) {
+      expect(() => startAdaptiveQuiz(bank)).toThrow();
+    }
+  });
+
+  it('never advances or records a second attempt after a checked result', () => {
+    const initial = startAdaptiveQuiz();
+    const picked = chooseAdaptiveSample(initial, 'b');
+    const checked = checkAdaptiveSample(picked);
+    expect(checkAdaptiveSample(checked)).toBe(checked);
+    expect(checked.attempts).toHaveLength(1);
+    expect(nextAdaptiveSample(picked)).toBe(picked);
+    const advanced = nextAdaptiveSample(checked);
+    expect(advanced.attempts).toHaveLength(1);
+    expect(advanced.step).toBe('asking');
+    expect(chooseAdaptiveSample(checked, 'a')).toBe(checked);
+  });
+
   it('uses the draft gate and noindex on the page', () => {
     const source = readFileSync('src/pages/preview/adaptive.astro', 'utf8');
     expect(source).toContain('draftsAllowed(');

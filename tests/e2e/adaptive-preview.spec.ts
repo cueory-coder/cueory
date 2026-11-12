@@ -56,6 +56,23 @@ test('wrong selection is named in words and changes the next why-line', async ({
   await expect(page.getByTestId('adaptive-why')).toContainText('missed last time');
   await expect(page.getByRole('region', { name: 'sample concept progress' })).toContainText('learning');
 });
+
+test('answer cannot be checked twice and keyboard focus lands on readable feedback', async ({ page }) => {
+  await page.goto(route);
+  const check = page.getByRole('button', { name: 'check sample answer' });
+  await expect(check).toBeDisabled();
+  await page.getByRole('radio', { name: '[sample] choice B' }).check();
+  await check.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('adaptive-result')).toBeFocused();
+  await expect(page.locator('fieldset')).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'check sample answer' })).toHaveCount(0);
+  await expect(page.getByTestId('adaptive-count')).toContainText('sample question 1 of 5');
+  await page.getByRole('button', { name: 'next sample question' }).click();
+  await expect(page.getByTestId('adaptive-question')).toBeFocused();
+  await expect(page.getByTestId('adaptive-count')).toContainText('sample question 2 of 5');
+});
+
 test('fits phone, tablet and desktop in Light and Evening and passes axe', async ({ page }) => {
   await page.goto(route);
   await expect(page.getByTestId('adaptive-question')).toBeVisible();
@@ -65,8 +82,14 @@ test('fits phone, tablet and desktop in Light and Evening and passes axe', async
     { width: 1440, height: 900 },
   ]) {
     await page.setViewportSize(viewport);
+    const actualPalettes = new Set<string>();
     for (const colorScheme of ['light', 'dark'] as const) {
       await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+      await page.evaluate(mode => { document.documentElement.dataset.theme = mode; }, colorScheme);
+      const pageColor = await page.evaluate(() =>
+        getComputedStyle(document.documentElement).getPropertyValue('--color-page').trim());
+      expect(pageColor.length).toBeGreaterThan(0);
+      actualPalettes.add(pageColor);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
       for (const label of await page.locator('fieldset label').all()) {
         expect(await label.evaluate(node => node.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
@@ -74,5 +97,6 @@ test('fits phone, tablet and desktop in Light and Evening and passes axe', async
       const axe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
       expect(axe.violations.map(result => result.id + ': ' + result.help)).toEqual([]);
     }
+    expect(actualPalettes.size).toBe(2);
   }
 });
