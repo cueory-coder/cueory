@@ -1,0 +1,1 @@
+status: T18 (C5), adds the configured support-our-mission link after the shared finished-game result, with a tokenized touch target and explicit new-tab text. Stacked on !109; keep Draft until the parent merges and current-head checks, build, full units and phone/tablet/desktop Light/Evening browser checks pass.

@@ -49,7 +49,7 @@ test('finished-game result announces the exact card and traps focus', async ({ p
   await expect(dialog.getByTestId('result-share-line')).toHaveText('pillo · nov 11, 2026 · 4 / 6 · cueory.app');
   await expect(dialog.locator('dt')).toHaveCount(3);
   await page.keyboard.press('Shift+Tab');
-  await expect(dialog.getByRole('link', { name: /whatsapp/ })).toBeFocused();
+  await expect(dialog.getByRole('link', { name: /support our mission/ })).toBeFocused();
   const axe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
   expect(axe.violations.map((violation) => violation.id + ': ' + violation.help)).toEqual([]);
   await page.keyboard.press('Escape');
