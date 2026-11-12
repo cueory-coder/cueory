@@ -65,7 +65,7 @@ test('answer cannot be checked twice and keyboard focus lands on readable feedba
   await check.focus();
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('adaptive-result')).toBeFocused();
-  await expect(page.locator('fieldset')).toBeDisabled();
+  await expect(page.getByTestId('adaptive-preview').locator('fieldset')).toBeDisabled();
   await expect(page.getByRole('button', { name: 'check sample answer' })).toHaveCount(0);
   await expect(page.getByTestId('adaptive-count')).toContainText('sample question 1 of 5');
   await page.getByRole('button', { name: 'next sample question' }).click();
@@ -92,7 +92,7 @@ test('uses real touch taps on every sample choice and button through the final s
       expect(seen.has(id!)).toBe(false);
       seen.add(id!);
       const sample = SAMPLE_ADAPTIVE_QUESTIONS.find(item => item.id === id)!;
-      const label = touchPage.locator('fieldset label').filter({
+      const label = touchPage.getByTestId('adaptive-preview').locator('fieldset label').filter({
         hasText: sample.sampleKey === 'a' ? '[sample] choice A' : '[sample] choice B',
       });
       await label.tap();
@@ -171,7 +171,7 @@ test('fits phone, tablet and desktop in Light and Evening and passes axe', async
       actualPalettes.add(pageColor);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
       const check = page.getByRole('button', { name: 'check sample answer' });
-      for (const target of [...await page.locator('fieldset label').all(), check]) {
+      for (const target of [...await page.getByTestId('adaptive-preview').locator('fieldset label').all(), check]) {
         const rect = await target.boundingBox();
         expect(rect?.width ?? 0).toBeGreaterThanOrEqual(44);
         expect(rect?.height ?? 0).toBeGreaterThanOrEqual(44);
