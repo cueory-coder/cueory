@@ -21,7 +21,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
         const timer = page.getByTestId('next-puzzle-countdown');
         await expect(timer).toContainText('00:00:03');
         await expect(timer).toHaveAttribute('aria-live', 'off');
-        await expect(timer.locator('time')).toHaveAccessibleName('0 hours, 0 minutes, 3 seconds');
+        await expect(timer).toHaveAccessibleName('next puzzle in 0 hours, 0 minutes, 3 seconds, at midnight in your time zone');
         await page.clock.runFor(2000);
         await expect(timer).toContainText('00:00:01');
         await page.clock.runFor(1000);

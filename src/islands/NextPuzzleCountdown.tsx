@@ -26,8 +26,8 @@ export default function NextPuzzleCountdown() {
   return remaining.seconds === 0 ? (
     <p className="mt-4 text-sm text-ink-soft" data-testid="next-puzzle-ready">the next puzzle day has started. refresh to play.</p>
   ) : (
-    <p role="timer" aria-live="off" className="mt-4 text-sm text-ink-soft" data-testid="next-puzzle-countdown">
-      next puzzle in <time dateTime={`PT${remaining.seconds}S`} aria-label={remaining.spoken}>{remaining.text}</time>
+    <p role="timer" aria-live="off" aria-label={`next puzzle in ${remaining.spoken}, at midnight in your time zone`} className="mt-4 text-sm text-ink-soft" data-testid="next-puzzle-countdown">
+      next puzzle in <time dateTime={`PT${remaining.seconds}S`}>{remaining.text}</time>
       <span className="sr-only">, at midnight in your time zone</span>
     </p>
   );
