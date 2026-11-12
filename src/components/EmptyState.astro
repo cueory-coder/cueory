@@ -10,6 +10,9 @@ interface Props {
   icon?: 'search' | 'book' | 'check';
   actionLabel?: string;
   actionHref?: string;
+  /** Reload the current page (or a supplied URL) to try again. */
+  retryLabel?: string;
+  retryHref?: string;
   headingLevel?: 2 | 3;
 }
 
@@ -19,10 +22,13 @@ const {
   icon,
   actionLabel,
   actionHref,
+  retryLabel,
+  retryHref,
   headingLevel = 2,
 } = Astro.props;
 const Heading = headingLevel === 3 ? 'h3' : 'h2';
 const hasAction = Boolean(actionLabel && actionHref);
+const hasRetry = Boolean(retryLabel);
 ---
 
 <section
@@ -67,5 +73,15 @@ const hasAction = Boolean(actionLabel && actionHref);
     >
       {actionLabel}
     </a>
+  )}
+  {hasRetry && (
+    <form method="get" action={retryHref} class="mt-6">
+      <button
+        type="submit"
+        class="lift press inline-flex min-h-11 min-w-11 items-center justify-center rounded-pill bg-button px-6 py-3 text-sm font-semibold text-on-button"
+      >
+        {retryLabel}
+      </button>
+    </form>
   )}
 </section>

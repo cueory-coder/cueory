@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { acceptPuzzle } from '../../src/islands/puzzlefeed';
+import { acceptPuzzle, loadTodayPuzzle, selectTodayPuzzle } from '../../src/islands/puzzlefeed';
 
 const TODAY = '2026-11-01';
 
@@ -292,5 +292,99 @@ describe('acceptPuzzle — triage duplicate terms', () => {
   it('accepts a triage puzzle with all unique terms', () => {
     const result = acceptPuzzle({ game: 'triage', date: TODAY, puzzle: triagePuzzle }, TODAY);
     expect(result.ok).toBe(true);
+  });
+});
+
+describe('selectTodayPuzzle — feed outcomes', () => {
+  const sample = { game: 'pulse', date: TODAY, puzzle: { word: 'abcde', cue: '[sample clue]' } };
+
+  it('reports none-today for an empty feed', () => {
+    expect(selectTodayPuzzle([], TODAY, 'pulse')).toEqual({ status: 'none-today' });
+  });
+
+  it('reports none-today when today is outside the published dates', () => {
+    expect(selectTodayPuzzle([{ ...sample, date: '2026-10-31' }], TODAY, 'pulse'))
+      .toEqual({ status: 'none-today' });
+    expect(selectTodayPuzzle([{ ...sample, date: '2026-11-02' }], TODAY, 'pulse'))
+      .toEqual({ status: 'none-today' });
+  });
+
+  it('does not select a different game on the same day', () => {
+    expect(selectTodayPuzzle([sample], TODAY, 'cueword')).toEqual({ status: 'none-today' });
+  });
+
+  it('ignores malformed puzzles for identifiable unrelated dates and games', () => {
+    const unrelated = [
+      { game: 'cueword', date: TODAY, puzzle: null },
+      { game: 'pulse', date: '2026-10-31', puzzle: null },
+      { game: 'cueword', puzzle: null },
+      { date: '2026-10-31', puzzle: null },
+      { game: 'not-a-game', date: TODAY, puzzle: null },
+      { game: 'pulse', date: 'not-a-date', puzzle: null },
+    ];
+    const result = selectTodayPuzzle([...unrelated, sample], TODAY, 'pulse');
+    expect(result.status).toBe('puzzle');
+    if (result.status === 'puzzle') expect(result.puzzle).toEqual(sample.puzzle);
+  });
+
+  it('does not access irrelevant puzzle fields when selecting today', () => {
+    const unrelated = Object.defineProperty({ game: 'cueword', date: TODAY }, 'puzzle', {
+      get: () => { throw new Error('do not inspect other games'); },
+    });
+    const result = selectTodayPuzzle([unrelated, sample], TODAY, 'pulse');
+    expect(result.status).toBe('puzzle');
+  });
+
+  it('fails closed for ambiguous entries even if a valid puzzle exists', () => {
+    expect(selectTodayPuzzle([sample, { game: 'pulse', puzzle: null }], TODAY, 'pulse'))
+      .toEqual({ status: 'failed' });
+    expect(selectTodayPuzzle([sample, { date: TODAY, puzzle: null }], TODAY, 'pulse'))
+      .toEqual({ status: 'failed' });
+    expect(selectTodayPuzzle([sample, null], TODAY, 'pulse'))
+      .toEqual({ status: 'failed' });
+  });
+
+  it('returns a validated, cleaned puzzle for a normal day', () => {
+    const result = selectTodayPuzzle([{ ...sample, puzzle: { ...sample.puzzle, extra: '[sample extra]' } }], TODAY, 'pulse');
+    expect(result.status).toBe('puzzle');
+    if (result.status !== 'puzzle') return;
+    expect(result.game).toBe('pulse');
+    expect(result.puzzle).toEqual(sample.puzzle);
+    expect(result).not.toHaveProperty('message');
+  });
+
+  it('reports failed for malformed entries without leaking error details', () => {
+    expect(selectTodayPuzzle([{ ...sample, puzzle: { word: 'x', cue: '[sample clue]' } }], TODAY, 'pulse'))
+      .toEqual({ status: 'failed' });
+    expect(selectTodayPuzzle([null], TODAY, 'pulse')).toEqual({ status: 'failed' });
+    expect(selectTodayPuzzle([{ date: TODAY }], TODAY, 'pulse')).toEqual({ status: 'failed' });
+    const broken = Object.defineProperty({}, 'game', { get: () => { throw new Error('private details'); } });
+    expect(selectTodayPuzzle([broken], TODAY, 'pulse')).toEqual({ status: 'failed' });
+  });
+
+  it('reports failed for invalid feed input and ambiguous duplicate entries', () => {
+    expect(selectTodayPuzzle(undefined, TODAY, 'pulse')).toEqual({ status: 'failed' });
+    expect(selectTodayPuzzle({}, TODAY, 'pulse')).toEqual({ status: 'failed' });
+    expect(selectTodayPuzzle([sample, sample], TODAY, 'pulse')).toEqual({ status: 'failed' });
+    expect(selectTodayPuzzle([sample], 'not-a-date', 'pulse')).toEqual({ status: 'failed' });
+  });
+});
+
+describe('loadTodayPuzzle — load failures', () => {
+  const sample = { game: 'pulse', date: TODAY, puzzle: { word: 'abcde', cue: '[sample clue]' } };
+
+  it('returns failed when a loader rejects or throws synchronously', async () => {
+    await expect(loadTodayPuzzle(async () => { throw new Error('private loader detail'); }, TODAY, 'pulse'))
+      .resolves.toEqual({ status: 'failed' });
+    await expect(loadTodayPuzzle(() => { throw new Error('private loader detail'); }, TODAY, 'pulse'))
+      .resolves.toEqual({ status: 'failed' });
+  });
+
+  it('handles a successfully loaded empty feed and a valid daily puzzle', async () => {
+    await expect(loadTodayPuzzle(async () => [], TODAY, 'pulse'))
+      .resolves.toEqual({ status: 'none-today' });
+    const result = await loadTodayPuzzle(async () => [sample], TODAY, 'pulse');
+    expect(result.status).toBe('puzzle');
+    if (result.status === 'puzzle') expect(result.puzzle).toEqual(sample.puzzle);
   });
 });
