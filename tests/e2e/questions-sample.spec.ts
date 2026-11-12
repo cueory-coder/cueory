@@ -53,7 +53,7 @@ test('empty sample data gives a calm message without any question controls', asy
   await page.goto(route);
   await expect(page.getByTestId('sample-questions-empty')).toHaveText('no sample questions are available yet.');
   await expect(page.getByTestId('sample-questions-empty')).toHaveAttribute('role', 'status');
-  await expect(page.locator('fieldset')).toHaveCount(0);
+  await expect(page.getByTestId('questions').locator('fieldset')).toHaveCount(0);
 });
 
 test('failed JSON gives no raw error, retry works with keyboard, and focus reaches recovered questions', async ({ page }) => {
@@ -100,7 +100,7 @@ test('unlabeled or malformed public sample data fails closed without answer cont
   await expect(page.getByTestId('sample-questions-failed')).toHaveText(
     "couldn't load sample questions. please try again.",
   );
-  await expect(page.locator('fieldset')).toHaveCount(0);
+  await expect(page.getByTestId('questions').locator('fieldset')).toHaveCount(0);
   await expect(page.getByTestId('sample-questions-ready')).toHaveCount(0);
   const axe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
   expect(axe.violations.map(result => result.id + ': ' + result.help)).toEqual([]);
@@ -202,7 +202,7 @@ test('is accessible and fits 390, 820 and 1440 in Light and Evening with reduced
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
       const check = page.getByRole('button', { name: 'check', exact: true });
       // Both dimensions matter. A tall but narrow target fails the 44 x 44 px rule.
-      for (const target of [...await page.locator('fieldset label').all(), check]) {
+      for (const target of [...await page.getByTestId('questions').locator('fieldset label').all(), check]) {
         const bounds = await target.boundingBox();
         expect(bounds?.width ?? 0).toBeGreaterThanOrEqual(44);
         expect(bounds?.height ?? 0).toBeGreaterThanOrEqual(44);
