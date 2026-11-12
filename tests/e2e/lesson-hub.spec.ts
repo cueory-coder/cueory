@@ -1,6 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import { studyModes } from '../../src/config/modes';
+import { contentCatalog } from '../lessonroutes';
+import { HUB_ORDER } from '../../src/lessons/catalog';
 
 const modeOrder = ['cards', 'learn', 'matching', 'organizer', 'fill-in', 'label-it', 'questions'] as const;
 const oldLinkLabels: Record<(typeof modeOrder)[number], string> = {
@@ -121,3 +123,44 @@ test('learn mode navigation uses lowercase interface wording', async ({ page }) 
     'content', 'learn mode for lesson 1 of how to study for nursing school.',
   );
 });
+
+// Check all visible lesson hubs, so newly approved content gets the same no-dead-links coverage.
+for (const lesson of contentCatalog().lessons) {
+  test(lesson.href + ' shows only real lesson-mode links', async ({ page }) => {
+    const response = await page.goto(lesson.href);
+    expect(response?.status()).toBe(200);
+    const tiles = page.getByTestId('mode-grid').locator('[data-mode-tile]');
+    await expect(tiles).toHaveCount(HUB_ORDER.length);
+    for (const id of HUB_ORDER) {
+      const tile = tiles.locator('[data-mode-tile="' + id + '"]');
+      const available = lesson.modes.find((mode) => mode.id === id);
+      if (available) {
+        await expect(tile).toHaveAttribute('data-mode-status', 'available');
+        await expect(tile.getByRole('link')).toHaveAttribute('href', available.href);
+        expect((await page.request.get(available.href)).status(), available.href).toBe(200);
+        await expect(tile.getByText('coming soon')).toHaveCount(0);
+      } else {
+        await expect(tile).toHaveAttribute('data-mode-status', 'coming-soon');
+        await expect(tile.getByRole('link')).toHaveCount(0);
+        await expect(tile.getByText('coming soon', { exact: true })).toBeVisible();
+        await expect(tile.getByRole('heading', { level: 3 })).toBeVisible();
+      }
+    }
+  });
+}
+
+for (const theme of ['light', 'dark'] as const) {
+  test('lesson modes are accessible in ' + theme + ' at phone, tablet and desktop sizes', async ({ page }) => {
+    await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
+    for (const [width, height] of [[390, 844], [820, 1180], [1440, 900]]) {
+      await page.setViewportSize({ width, height });
+      await page.goto('/learn/study-skills');
+      await expect(page.getByTestId('mode-grid').locator('[data-mode-tile]')).toHaveCount(HUB_ORDER.length);
+      expect(await page.evaluate(() =>
+        document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+      const results = await new AxeBuilder({ page })
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+      expect(results.violations.map((v) => v.id + ': ' + v.help), theme + ' ' + width).toEqual([]);
+    }
+  });
+}
