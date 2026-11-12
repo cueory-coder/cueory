@@ -87,6 +87,32 @@ describe('lessonNeighbors', () => {
     expect(result.next).toBeUndefined();
   });
 
+  it('never crosses units even if the visible catalog interleaves them', () => {
+    const catalog = visibleCatalog();
+    const first = find(catalog, ids[0]!);
+    const second = find(catalog, ids[1]!);
+    const otherUnit = find(catalog, single);
+    const interleaved = { lessons: [first, otherUnit, second] };
+    const firstNeighbors = lessonNeighbors(interleaved, first);
+    expect(firstNeighbors.previous).toBeUndefined();
+    expect(firstNeighbors.next).toEqual({ href: second.href, name: second.name });
+    const otherNeighbors = lessonNeighbors(interleaved, otherUnit);
+    expect(otherNeighbors.previous).toBeUndefined();
+    expect(otherNeighbors.next).toBeUndefined();
+  });
+
+  it('fails closed when the visible catalog is empty or the current unit is unknown', () => {
+    const empty = { lessons: [] };
+    const expectedBack = { href: '/learn', label: 'back to units in the course library' };
+    expect(lessonNeighbors(empty, { id: ids[0]!, unitId: 'U00' })).toEqual({
+      previous: undefined, next: undefined, back: expectedBack,
+    });
+    const catalog = visibleCatalog();
+    expect(lessonNeighbors(catalog, { id: ids[0]!, unitId: 'U99' })).toEqual({
+      previous: undefined, next: undefined, back: expectedBack,
+    });
+  });
+
   it('does not invent neighbors for an older lesson outside the curriculum', () => {
     const result = lessonNeighbors(visibleCatalog(), { id: 'study-skills-01', unitId: undefined });
     expect(result).toEqual({

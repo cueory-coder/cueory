@@ -32,6 +32,15 @@ for (const lesson of catalog.lessons) {
     await expect(backLink).toHaveAttribute('href', back.href);
     await expect(backLink).toHaveText(back.label);
     expect((await page.request.get(back.href)).status()).toBe(200);
+    // If a neighboring lesson exists, its named link must be keyboard-operable.
+    const neighbor = next ?? previous;
+    if (neighbor) {
+      const link = next ? nextLink : prevLink;
+      await link.focus();
+      await expect(link).toBeFocused();
+      await page.keyboard.press('Enter');
+      await expect(page).toHaveURL((url) => url.pathname === neighbor.href || url.pathname === neighbor.href + '.html');
+    }
   });
 }
 
@@ -62,6 +71,9 @@ for (const theme of ['light', 'dark'] as const) {
       const scan = await new AxeBuilder({ page })
         .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
       expect(scan.violations.map((v) => v.id + ': ' + v.help), theme + ' ' + width).toEqual([]);
+      await back.focus();
+      await page.keyboard.press('Enter');
+      await expect(page).toHaveURL((url) => url.pathname === '/learn' || url.pathname === '/learn.html');
     }
   });
 }
