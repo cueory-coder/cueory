@@ -45,6 +45,11 @@ describe('bad sample fixture detection', () => {
     const report = analyzePuzzleRunway('pulse', files, at(1));
     expect(report.duplicates).toEqual([{ day: '2026-11-01', files: ['sample-01.json', 'sample-1.json'] }]);
     expect(report.invalidFiles).toContain('sample-1.json');
+    expect(report.daysLeft).toBe(0);
+    const paddedDuplicate = [word('sample-001.json', 'ccccc'), word('sample-01.json', 'ddddd')];
+    const padded = analyzePuzzleRunway('pulse', paddedDuplicate, at(1));
+    expect(padded.duplicates).toHaveLength(1);
+    expect(padded.daysLeft).toBe(0);
   });
 
   it('reports a repeated playable puzzle before the first cycle is complete', () => {

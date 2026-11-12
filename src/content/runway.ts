@@ -149,6 +149,11 @@ export function analyzePuzzleRunway(game: SampleFolder, input: readonly SampleFi
   const duplicates = [...slots].filter(([, names]) => names.length > 1)
     .map(([slot, names]) => ({ day: slotDate(slot), files: names }))
     .sort((a, b) => a.day.localeCompare(b.day));
+  // Duplicated numbered days are unsafe from their first appearance.
+  const duplicateNames = new Set(duplicates.flatMap((entry) => entry.files));
+  for (const [position, file] of files.entries()) {
+    if (duplicateNames.has(file.name)) unsafePositions.add(position);
+  }
   for (let slot = 1; slot <= lastSlot; slot++) {
     if (!slots.has(slot)) gaps.push(slotDate(slot));
   }
