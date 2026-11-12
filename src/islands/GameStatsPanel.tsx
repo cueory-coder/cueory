@@ -13,7 +13,7 @@ import {
   triesInWords,
   type SavedStats,
 } from './gameresults';
-import { forget, recordResult, statInWords, sudokuInWords, summary, summaryInWords, type GameId, type GameStats } from './gamestats';
+import { forget, forgetAllGames, gameSummaryInWords, recordResult, summary, type GameId, type GameStats } from './gamestats';
 
 const button = 'min-h-11 rounded-pill border border-control bg-page px-5 py-2.5 text-ink';
 
@@ -41,19 +41,25 @@ export default function GameStatsPanel({ games: order, showStat = false }: Props
   const [saved, setSaved] = useState(latest);
   const [said, setSaid] = useState('');
   const [blocked, setBlocked] = useState(false);
+  const [confirmingAll, setConfirmingAll] = useState(false);
   /** What this tab shows, for the listeners, which are set up once. */
   const shown = useRef(saved);
   shown.current = saved;
   const toggleButton = useRef<HTMLButtonElement>(null);
+  const forgetAllTrigger = useRef<HTMLButtonElement>(null);
+  const cancelAllButton = useRef<HTMLButtonElement>(null);
   const headings = useRef(new Map<GameId, HTMLHeadingElement>());
-  /** Where focus goes after a "forget" button removes itself, so keyboard users keep their place. */
-  const focusNext = useRef<GameId | 'switch' | undefined>(undefined);
+  /** Restore focus after a destructive action or when the confirmation buttons disappear. */
+  const focusNext = useRef<GameId | 'switch' | 'forget-all-trigger' | 'forget-all-cancel' | undefined>(undefined);
 
   useLayoutEffect(() => {
     const target = focusNext.current;
     if (target === undefined) return;
     focusNext.current = undefined;
-    (target === 'switch' ? toggleButton.current : headings.current.get(target))?.focus();
+    if (target === 'switch') toggleButton.current?.focus();
+    else if (target === 'forget-all-trigger') forgetAllTrigger.current?.focus();
+    else if (target === 'forget-all-cancel') cancelAllButton.current?.focus();
+    else headings.current.get(target)?.focus();
   });
 
   const keep = (stats: GameStats, message: string): boolean => {
@@ -127,6 +133,7 @@ export default function GameStatsPanel({ games: order, showStat = false }: Props
 
   const toggle = () => {
     if (saved.on) {
+      setConfirmingAll(false);
       if (!deleteStats(browserStorage())) {
         setSaid("this browser didn't let us delete your stats. clearing this site's data in your browser removes them.");
         return;
@@ -156,15 +163,35 @@ export default function GameStatsPanel({ games: order, showStat = false }: Props
     const stats = stillOn();
     if (!stats) return;
     forgetHeldRounds(game);
-    focusNext.current = game;
+    // A retired sort row disappears when its last record is forgotten, so there is no heading to focus.
+    focusNext.current = game === 'triage' ? 'switch' : game;
     keep(forget(stats, game), `${name} stats forgotten.`);
   };
 
-  const forgetAll = () => {
-    if (!stillOn()) return;
-    forgetHeldRounds();
-    focusNext.current = 'switch';
-    keep([], 'all your stats are forgotten. stats stay on.');
+  const requestForgetAll = () => {
+    focusNext.current = 'forget-all-cancel';
+    setConfirmingAll(true);
+    setSaid('choose cancel or yes, forget all.');
+  };
+
+  const cancelForgetAll = () => {
+    focusNext.current = 'forget-all-trigger';
+    setConfirmingAll(false);
+    setSaid('nothing was forgotten.');
+  };
+
+  const confirmForgetAll = () => {
+    // Read current storage, not this tab's last snapshot, in case another tab has changed it.
+    const stats = stillOn();
+    if (!stats) {
+      setConfirmingAll(false);
+      return;
+    }
+    // Do not drop held rounds or change the panel if storage refuses to save the cleared record.
+    const savedClear = keep(forgetAllGames(stats), 'all your stats are forgotten. stats stay on.');
+    if (savedClear) forgetHeldRounds();
+    focusNext.current = savedClear ? 'switch' : 'forget-all-trigger';
+    setConfirmingAll(false);
   };
 
   const games: { id: GameId; name: string }[] = order.flatMap((id) =>
@@ -223,11 +250,7 @@ export default function GameStatsPanel({ games: order, showStat = false }: Props
                   >
                     {displayName}
                   </h3>
-                  <p className="mt-1">
-                    {game.id === 'stat' ? statInWords(saved.stats)
-                      : game.id === 'sudoku' ? sudokuInWords(saved.stats)
-                      : result.played === 0 ? 'not played yet.' : summaryInWords(result)}
-                  </p>
+                  <p className="mt-1">{gameSummaryInWords(saved.stats, game.id)}</p>
                   {result.played > 0 && (
                     <>
                       {game.id !== 'stat' && game.id !== 'sudoku' &&
@@ -241,11 +264,32 @@ export default function GameStatsPanel({ games: order, showStat = false }: Props
               );
             })}
           </ul>
-          {saved.stats.length > 0 && (
-            <button type="button" className={`${button} mt-6`} onClick={forgetAll}>
+          {saved.stats.length > 0 && (confirmingAll ? (
+            <div
+              role="group"
+              aria-labelledby="forget-all-question"
+              aria-describedby="forget-all-description"
+              data-testid="forget-all-confirmation"
+              className="mt-6 rounded-lg border border-line bg-page p-5"
+            >
+              <p id="forget-all-question" className="font-medium">forget every game's stats?</p>
+              <p id="forget-all-description" className="mt-2 text-sm text-ink-soft">
+                this removes every saved game result on this device. you can't undo it. stats will stay on.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <button ref={cancelAllButton} type="button" className={button} onClick={cancelForgetAll}>
+                  cancel
+                </button>
+                <button type="button" className={button} onClick={confirmForgetAll}>
+                  yes, forget all
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button ref={forgetAllTrigger} type="button" className={`${button} mt-6`} onClick={requestForgetAll}>
               forget all my stats
             </button>
-          )}
+          ))}
         </>
       )}
 

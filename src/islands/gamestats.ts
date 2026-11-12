@@ -136,6 +136,19 @@ export function sudokuInWords(stats: GameStats): string {
   return parts.join(' ');
 }
 
+/** One spoken paragraph per game, with every fact computed from validated local results. */
+export function gameSummaryInWords(stats: GameStats, game: GameId): string {
+  if (game === 'stat') return statInWords(stats);
+  if (game === 'sudoku') return sudokuInWords(stats);
+  const totals = summary(stats, game);
+  return totals.played === 0 ? 'not played yet.' : summaryInWords(totals);
+}
+
+/** Pure clear-all operation: includes every game id, including the retired sort history. */
+export function forgetAllGames(stats: GameStats): GameStats {
+  return forget(stats);
+}
+
 /** Only known progress fields are serialized; caller metadata never follows them. */
 export function serialize(stats: GameStats): string {
   const results: GameResult[] = [];

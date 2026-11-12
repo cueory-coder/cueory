@@ -1,0 +1,1 @@
+status: W02-3 (#33), stacked on !28: pure one-paragraph summaries for all game IDs and pure forget-all, explicit cancel/confirm buttons, polite announcements, keyboard focus restoration, blocked-storage safety and regression tests. Draft until !28, !2 and !3 integrate and Claude verifies the exact head.

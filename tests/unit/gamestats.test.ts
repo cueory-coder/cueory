@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { saveStats } from '../../src/islands/gameresults';
 import {
-  forget, fromSudokuCompletion, parseStats, recordResult, serialize, statInWords, sudokuInWords, summary, summaryInWords,
+  forget, forgetAllGames, fromSudokuCompletion, gameSummaryInWords, parseStats, recordResult, serialize, statInWords, sudokuInWords, summary, summaryInWords,
   type LegacyGameId, type GameResult, type GameStats,
 } from '../../src/islands/gamestats';
 
@@ -206,5 +207,55 @@ describe('separate sudoku, stat and retired sort stats', () => {
     expect(forget(stats, 'stat')).toEqual([sort, easy, medium]);
     expect(forget(stats, 'triage')).toEqual([easy, medium, stat1]);
     expect(forget(stats)).toEqual([]);
+  });
+});
+
+describe('W02-3 one-line summaries and safe forget-all', () => {
+  const sort = result('triage', '2026-11-01', true, 2);
+  const pulse = result('pulse', '2026-11-01', true, 1);
+  const stat = { game: 'stat', day: '2026-11-01', solved: true, tries: 3, score: 12 } as const;
+  const sudoku = { game: 'sudoku', day: '2026-11-01', solved: true, tries: 0, level: 'easy', seconds: 65 } as const;
+
+  it('gives each game one summary in plain words without mixing retired sort with sudoku', () => {
+    const stats: GameStats = [sort, pulse, stat, sudoku];
+    expect(gameSummaryInWords(stats, 'triage')).toBe('played 1 day, solved 1.');
+    expect(gameSummaryInWords(stats, 'pulse')).toBe('played 1 day, solved 1.');
+    expect(gameSummaryInWords(stats, 'stat')).toBe('played 1 day. best score 12 out of 15. longest daily streak 1 day.');
+    expect(gameSummaryInWords(stats, 'sudoku')).toContain('easy: best time 1 minute 5 seconds.');
+    expect(gameSummaryInWords([sort], 'sudoku')).toBe('not played yet.');
+    expect(gameSummaryInWords([], 'stat')).toBe('not played yet.');
+    expect(gameSummaryInWords([], 'pulse')).toBe('not played yet.');
+  });
+
+  it('forget-all clears every game, including old sort results, without mutating history', () => {
+    const stats = Object.freeze([Object.freeze(sort), Object.freeze(pulse), Object.freeze(stat), Object.freeze(sudoku)]);
+    const clear = forgetAllGames(stats);
+    expect(clear).toEqual([]);
+    expect(clear).not.toBe(stats);
+    expect(stats).toHaveLength(4);
+    expect(stats[0]).toEqual(sort);
+    expect(parseStats(serialize(clear))).toEqual([]);
+  });
+
+  it('works on an already empty history, without throwing or manufacturing results', () => {
+    const empty = Object.freeze([]) as GameStats;
+    expect(forgetAllGames(empty)).toEqual([]);
+    expect(gameSummaryInWords(empty, 'triage')).toBe('not played yet.');
+    expect(gameSummaryInWords(empty, 'sudoku')).toBe('not played yet.');
+  });
+
+  it('blocked browser writes leave the original saved history intact', () => {
+    const original = [sort, stat, sudoku];
+    const oldRecord = serialize(original);
+    let persisted = oldRecord;
+    const blocked = {
+      getItem: (_key: string) => persisted,
+      setItem: (_key: string, _value: string) => { throw new Error('site data blocked'); },
+      removeItem: (_key: string) => { throw new Error('site data blocked'); },
+    };
+    expect(saveStats(blocked, forgetAllGames(original))).toBe(false);
+    expect(persisted).toBe(oldRecord);
+    expect(parseStats(persisted)).toEqual(original);
+    expect(original).toHaveLength(3);
   });
 });

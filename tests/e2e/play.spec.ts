@@ -659,6 +659,8 @@ test.describe('daily games: private stats (D-76)', () => {
     await solvePulse(other);
     await expect(pulseStats(other)).toContainText('played 1 day, solved 1.');
     await other.getByRole('button', { name: 'forget all my stats' }).click();
+    await expect(other.getByTestId('forget-all-confirmation')).toBeVisible();
+    await other.getByRole('button', { name: 'yes, forget all' }).click();
     await expect(pulseStats(other)).toContainText('not played yet.');
     await other.close();
 
@@ -775,5 +777,104 @@ test.describe('W02 private stats: stat, sudoku and retired sort', () => {
         { game: 'sudoku', day: '2026-11-01', solved: true, tries: 0, level: 'hard', seconds: 175 },
       ],
     });
+  });
+});
+
+test.describe('W02-3 confirm before forgetting all private game stats', () => {
+  const panel = (page: Page) => page.getByTestId('game-stats');
+  const rows = [
+    { game: 'pulse', day: '2026-11-01', solved: true, tries: 1 },
+    { game: 'triage', day: '2026-11-01', solved: true, tries: 2 },
+    { game: 'sudoku', day: '2026-11-01', solved: true, tries: 0, level: 'easy', seconds: 70 },
+    { game: 'stat', day: '2026-11-01', solved: true, tries: 3, score: 12 },
+  ];
+
+  test.beforeEach(async ({ page }) => {
+    await page.clock.setFixedTime(new Date('2026-11-01T15:00:00'));
+    await page.addInitScript((results) => {
+      localStorage.setItem('cueory-game-stats', JSON.stringify({ version: 1, results }));
+    }, rows);
+    await page.goto('/play');
+    await expect(panel(page).getByRole('switch', { name: 'keep my stats' })).toHaveAttribute('aria-checked', 'true');
+  });
+
+  test('opens safe confirmation, cancel keeps every game, then Enter confirms and returns focus', async ({ page }) => {
+    const trigger = panel(page).getByRole('button', { name: 'forget all my stats' });
+    await trigger.focus();
+    await page.keyboard.press('Enter');
+    const group = page.getByTestId('forget-all-confirmation');
+    await expect(group).toBeVisible();
+    const cancel = group.getByRole('button', { name: 'cancel' });
+    const yes = group.getByRole('button', { name: 'yes, forget all' });
+    await expect(cancel).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(yes).toBeFocused();
+
+    await cancel.click();
+    await expect(trigger).toBeFocused();
+    await expect(group).toHaveCount(0);
+    expect(JSON.parse((await page.evaluate(() => localStorage.getItem('cueory-game-stats')))!).results).toEqual(rows);
+    await expect(page.getByTestId('stats-live')).toHaveText('nothing was forgotten.');
+
+    await trigger.focus();
+    await page.keyboard.press('Enter');
+    await expect(cancel).toBeFocused();
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Enter');
+    await expect(group).toHaveCount(0);
+    await expect(panel(page).getByRole('switch', { name: 'keep my stats' })).toBeFocused();
+    await expect(panel(page).getByRole('switch', { name: 'keep my stats' })).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByTestId('stats-live')).toHaveText('all your stats are forgotten. stats stay on.');
+    expect(JSON.parse((await page.evaluate(() => localStorage.getItem('cueory-game-stats')))!).results).toEqual([]);
+  });
+
+  test('forgetting the retired sort row returns focus to a surviving control', async ({ page }) => {
+    const sort = panel(page).getByRole('listitem').filter({ has: page.getByRole('heading', { name: 'sort', exact: true }) });
+    await sort.getByRole('button', { name: 'forget sort' }).focus();
+    await page.keyboard.press('Enter');
+    await expect(sort).toHaveCount(0);
+    await expect(panel(page).getByRole('switch', { name: 'keep my stats' })).toBeFocused();
+    expect(JSON.parse((await page.evaluate(() => localStorage.getItem('cueory-game-stats')))!).results)
+      .toEqual(rows.filter((item) => item.game !== 'triage'));
+  });
+
+  test('blocked storage leaves the original results and reports that nothing was saved', async ({ page }) => {
+    await page.evaluate(() => {
+      Object.defineProperty(Storage.prototype, 'setItem', {
+        configurable: true,
+        value: () => { throw new Error('site data blocked'); },
+      });
+    });
+    await panel(page).getByRole('button', { name: 'forget all my stats' }).click();
+    await page.getByTestId('forget-all-confirmation').getByRole('button', { name: 'yes, forget all' }).click();
+    await expect(page.getByTestId('stats-live')).toHaveText("this browser won't keep stats, so nothing was saved.");
+    await expect(panel(page).getByRole('button', { name: 'forget all my stats' })).toBeFocused();
+    expect(JSON.parse((await page.evaluate(() => localStorage.getItem('cueory-game-stats')))!).results).toEqual(rows);
+  });
+
+  test('confirmation controls fit and remain accessible in both palettes at every width', async ({ page }) => {
+    await panel(page).getByRole('button', { name: 'forget all my stats' }).click();
+    const group = page.getByTestId('forget-all-confirmation');
+    for (const viewport of [
+      { width: 390, height: 844 },
+      { width: 820, height: 1180 },
+      { width: 1440, height: 900 },
+    ]) {
+      await page.setViewportSize(viewport);
+      for (const colorScheme of ['light', 'dark'] as const) {
+        await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+        await expect(group.getByRole('button')).toHaveCount(2);
+        const bounds = await group.getByRole('button').evaluateAll((buttons) =>
+          buttons.map((button) => button.getBoundingClientRect()));
+        for (const box of bounds) {
+          expect(box.height).toBeGreaterThanOrEqual(44);
+          expect(box.width).toBeGreaterThanOrEqual(44);
+          expect(box.left).toBeGreaterThanOrEqual(0);
+          expect(box.right).toBeLessThanOrEqual(viewport.width);
+        }
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        expect((await axe(page)).violations).toEqual([]);
+      }
+    }
   });
 });
