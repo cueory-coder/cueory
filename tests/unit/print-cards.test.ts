@@ -89,6 +89,7 @@ describe('W09-2 printable card routes', () => {
     expect(block).toContain('break-inside: avoid');
     expect(block).toContain('page-break-inside: avoid');
     expect(block).toContain('column-gap: var(--spacing-stack)');
+    expect(block).toContain('margin-block-start: var(--spacing-stack)');
     expect(block).not.toMatch(/#[\da-f]{3,8}\b|\brgb\s*\(|\bhsl\s*\(/i);
   });
 });

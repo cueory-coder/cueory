@@ -56,6 +56,10 @@ test('printed cards keep both faces side by side, without site controls or clipp
     });
     expect(bounds).toEqual({ sameRow: true, sideBySide: true, fitsWidth: true });
   }
+  const rowSpacing = await cards.nth(1).evaluate((element) =>
+    getComputedStyle(element).marginBlockStart);
+  expect(parseFloat(rowSpacing)).toBeGreaterThan(0);
+
   const colors = await page.evaluate(() => ({
     paper: getComputedStyle(document.body).backgroundColor,
     ink: getComputedStyle(document.querySelector<HTMLElement>('main h1')!).color,
@@ -88,8 +92,15 @@ test('sheet works at phone, tablet and desktop in both palettes, with keyboard a
     const back = page.getByRole('link', { name: 'back to cards' });
     const box = await back.boundingBox();
     expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
-    await page.keyboard.press('Tab');
-    await back.focus();
+    let reachedByTab = false;
+    for (let i = 0; i < 16; i++) {
+      await page.keyboard.press('Tab');
+      if (await back.evaluate((element) => element === document.activeElement)) {
+        reachedByTab = true;
+        break;
+      }
+    }
+    expect(reachedByTab, 'back link should be reachable by keyboard').toBe(true);
     await expect(back).toBeFocused();
     const focus = await back.evaluate((el) => getComputedStyle(el).outlineStyle);
     expect(focus).not.toBe('none');

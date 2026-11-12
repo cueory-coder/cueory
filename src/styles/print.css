@@ -69,6 +69,11 @@
     page-break-inside: avoid;
   }
 
+  /* Display:block on the list removes its screen grid gap; restore spacing on paper. */
+  [data-print-cards] [data-print-card] + [data-print-card] {
+    margin-block-start: var(--spacing-stack);
+  }
+
   [data-print-cards] [data-card-side] {
     min-inline-size: 0;
     overflow-wrap: anywhere;
