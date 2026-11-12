@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { emptyProgress, legacyStarsKey, migrateLegacyStars, PROGRESS_STORAGE_KEY, withOnboarding, withPile, withStars } from '../../src/scripts/progress';
 import type { KeyValueStorage } from '../../src/scripts/storage';
 import ProgressRing from '../../src/islands/ProgressRing';
-import { examCountdown, progressScreenState, progressView, readDeviceProgress } from '../../src/islands/progressview';
+import { examCountdown, progressScreenState, progressView, readDeviceProgress, visibleProgressDecks } from '../../src/islands/progressview';
 import { RESUME_STORAGE_KEY, RESUME_VERSION } from '../../src/scripts/resume';
 
 const decks = [
@@ -213,5 +213,22 @@ describe('readDeviceProgress guards storage before migration', () => {
   it('returns empty when the browser has neither progress nor a resume', () => {
     const existing = store();
     expect(readDeviceProgress(existing.storage)).toEqual({ progress: emptyProgress(), state: 'empty' });
+  });
+});
+
+describe('visible catalog is the only source for progress deck props', () => {
+  it('does not count a deck missing from the visible catalog as an active deck', () => {
+    const catalog = { lessons: [{ cards: { id: 'open' } }] } as Parameters<typeof visibleProgressDecks>[0];
+    const props = visibleProgressDecks(catalog, [
+      { id: 'open', data: { title: '[sample visible]', cards: [{ id: 'a' }] } },
+      { id: 'hidden', data: { title: '[sample hidden]', cards: [{ id: 'secret' }] } },
+    ]);
+    expect(props).toEqual([{ id: 'open', title: '[sample visible]', cardIds: ['a'] }]);
+    const saved = withPile(emptyProgress(), 'hidden', 'secret', 'know');
+    const summary = progressView(saved, props);
+    expect(summary.overall).toEqual({ know: 0, learning: 0, notStarted: 1, total: 1 });
+    expect(summary.decks.find((line) => line.id === 'hidden')).toMatchObject({
+      retired: true, total: null, notStarted: null, know: 1,
+    });
   });
 });

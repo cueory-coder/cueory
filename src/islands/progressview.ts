@@ -2,6 +2,7 @@
 import { deckProgress, emptyProgress, isEmptyProgress, isExamDate, migrateLegacyStars, PROGRESS_STORAGE_KEY, PROGRESS_VERSION, type Progress } from '../scripts/progress';
 import { readResume } from '../scripts/resume';
 import type { KeyValueStorage } from '../scripts/storage';
+import type { Catalog } from '../lessons/catalog';
 
 export interface DeckDefinition {
   id: string;
@@ -89,6 +90,25 @@ export function readDeviceProgress(storage: KeyValueStorage | undefined): { prog
   } catch {
     return unreadable;
   }
+}
+
+/**
+ * Data allowed into the progress island's page props. A catalog lesson exists only when its lesson is visible;
+ * its cards companion exists only when that companion is also visible. Hidden content is never serialized.
+ */
+export function visibleProgressDecks(
+  catalog: Pick<Catalog, 'lessons'>,
+  allCards: readonly { id: string; data: { title: string; cards: readonly { id: string }[] } }[],
+): DeckDefinition[] {
+  const cardsById = new Map(allCards.map((deck) => [deck.id, deck]));
+  return catalog.lessons.flatMap((lesson) => {
+    const deck = lesson.cards ? cardsById.get(lesson.cards.id) : undefined;
+    return deck ? [{
+      id: deck.id,
+      title: deck.data.title,
+      cardIds: deck.data.cards.map((card) => card.id),
+    }] : [];
+  }).sort((a, b) => a.id.localeCompare(b.id));
 }
 
 function countDeck(progress: Progress, deck: DeckDefinition): DeckCounts {
