@@ -37,6 +37,29 @@ describe('sitemap', () => {
       .toMatch(/src\/pages\/learn\/\[lesson\]\/cards\.astro$/);
   });
 
+  it('distinguishes boolean noindex={false} from truthy string values', () => {
+    expect(sourceDeclaresNoindex('<Layout title="public" noindex={false} />')).toBe(false);
+    expect(sourceDeclaresNoindex('<Layout title="private" noindex="false" />')).toBe(true);
+    expect(sourceDeclaresNoindex("<Layout title='private' noindex='false' />")).toBe(true);
+    expect(sourceDeclaresNoindex('<Layout title="private" noindex={true} />')).toBe(true);
+  });
+
+  it('rejects unbuilt dynamic lesson slugs and modes even when the template exists', () => {
+    expect(pageSourcePath('/learn/study-skills')?.replaceAll('\\', '/'))
+      .toMatch(/src\/pages\/learn\/\[lesson\]\/index\.astro$/);
+    for (const route of [
+      '/learn/not-a-real-lesson',
+      '/learn/not-a-real-lesson/cards',
+      '/learn/study-skills/not-a-real-mode',
+    ]) {
+      expect(pageSourcePath(route), route).toBeUndefined();
+      expect(routeDeclaresNoindex(route), route).toBe(true);
+    }
+    const xml = sitemapXml(['/learn/not-a-real-lesson', '/learn/study-skills/cards', '/learn/study-skills/not-a-real-mode']);
+    expect([...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]))
+      .toEqual(['https://cueory.app/learn/study-skills/cards']);
+  });
+
   it('detects only Layout noindex, including a conditional value', () => {
     expect(sourceDeclaresNoindex('<!-- <Layout noindex /> --><Layout title="public" />')).toBe(false);
     expect(sourceDeclaresNoindex('<Layout title="private" noindex />')).toBe(true);
