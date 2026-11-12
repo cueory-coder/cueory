@@ -75,6 +75,7 @@ const initialJsBudget = {
   'preview/email.html': 146752,
   'preview/prose.html': 146752,
   'preview/reminders.html': 148152,
+  'preview/review.html': 93047, // #70: normal-build measurement on merge 794e4e05, Node 24.22.1, same scanner
   'preview/share.html': 151522,
   'preview/states.html': 146752,
   'preview/survey.html': 90800,
