@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import { TIMEOUT_KEEPS_PICK } from '../../src/islands/stat';
 import sample from '../../content/games/stat/sample.json' with { type: 'json' };
 
 // stat (Task 640). The page's clock is Playwright's fake clock, so 20 seconds pass in an instant and nothing is flaky.
@@ -99,12 +100,12 @@ test('the clock runs out and moves on, the timer is read out at 10 and 5 seconds
   await expect(page.getByTestId('stat-average')).toHaveText('3 s');
   const rows = page.getByTestId('stat-review-row');
   await expect(rows).toHaveCount(15);
-  await expect(rows.nth(0)).toContainText('not right');
+  await expect(rows.nth(0)).toContainText('out of time');
   await expect(rows.nth(0)).toContainText('no answer (time ran out)');
   await expect(rows.nth(0)).toContainText(`answer: ${key[0]!.toUpperCase()}`);
   await expect(rows.nth(1)).toContainText('right');
-  await expect(rows.nth(1)).not.toContainText('not right');
-  await expect(rows.nth(14)).toContainText('not right');
+  await expect(rows.nth(1)).not.toContainText('wrong');
+  await expect(rows.nth(14)).toContainText('wrong');
 
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => {});
   await page.getByTestId('stat-copy').click();
@@ -113,6 +114,48 @@ test('the clock runs out and moves on, the timer is read out at 10 and 5 seconds
   await page.getByTestId('stat-again').click();
   await expect(progress(page)).toHaveText('question 1 of 15');
   await expect(choice(page, 'a')).toHaveAttribute('aria-pressed', 'false');
+});
+
+test('review rows name timeouts with and without a pick, show times and rationale slots, and work with Tab', async ({ page }) => {
+  await start(page);
+  await choice(page, key[0]!).click();
+  await page.clock.runFor(20_100);
+  await expect(progress(page)).toHaveText('question 2 of 15');
+  await page.clock.runFor(20_100);
+  await expect(progress(page)).toHaveText('question 3 of 15');
+  await finish(page, 2, () => null);
+
+  const rows = page.getByTestId('stat-review-row');
+  await expect(rows).toHaveCount(15);
+  await expect(rows.first().getByRole('heading', { name: 'question 1', level: 4 })).toBeVisible();
+  // The row must not be named only by its heading: screen readers need its result, pick and answer.
+  await expect(rows.first()).not.toHaveAttribute('aria-labelledby', /.+/);
+  await expect(rows.first()).toContainText('out of time');
+  await expect(rows.first()).toContainText('time used: 20 s');
+  // The rule determines the expected result, not the rendered page. Never make an incorrect timeout pass.
+  if (TIMEOUT_KEEPS_PICK) {
+    await expect(rows.first()).toContainText('your answer: ' + key[0]!.toUpperCase());
+    await expect(rows.first()).toContainText('picked answer counted as right');
+    await expect(rows.first()).not.toHaveClass(/border-dashed/);
+  } else {
+    await expect(rows.first()).toContainText('no answer (time ran out)');
+    await expect(rows.first()).toHaveClass(/border-dashed/);
+  }
+  await expect(rows.nth(1)).toHaveClass(/border-dashed/);
+  await expect(rows.nth(1)).toContainText('out of time');
+  await expect(rows.nth(1)).toContainText('no answer (time ran out)');
+  await expect(rows.nth(1)).toContainText('time used: 20 s');
+  await expect(rows.nth(2)).toContainText('no answer (skipped)');
+  await expect(page.getByTestId('stat-review-rationale')).toHaveCount(15);
+  await expect(page.getByTestId('stat-review-rationale').first()).toHaveText('reason: [sample rationale pending review]');
+  await expect(page.getByTestId('stat-tomorrow')).toContainText('play again tomorrow');
+
+  await page.getByTestId('stat-again').focus();
+  await page.keyboard.press('Tab');
+  await expect(rows.first()).toBeFocused();
+  expect(await rows.first().evaluate((el) => el.matches(':focus-visible') && parseFloat(getComputedStyle(el).outlineWidth) > 0)).toBe(true);
+  await page.keyboard.press('Tab');
+  await expect(rows.nth(1)).toBeFocused();
 });
 
 test('it sends nothing off the site and saves nothing', async ({ page }) => {

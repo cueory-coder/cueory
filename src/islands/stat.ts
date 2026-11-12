@@ -155,14 +155,34 @@ export interface StatGrade {
 /** Grades one answer. Called only after the round is over, once per question, in order. */
 export type StatGrader = (question: StatQuestion, picked: StatLetter | null) => Promise<StatGrade>;
 
+export type StatReviewStatus = 'right' | 'wrong' | 'timed-out';
+
 export interface StatReviewRow {
   number: number;
   questionId: string;
   picked: StatLetter | null;
   key: StatLetter | null;
+  /** Whether this pick adds to the score, including a kept pick on timeout. */
   right: boolean;
   seconds: number;
   timedOut: boolean;
+  /** A timed-out row is visibly labeled even when its kept pick scored. */
+  status: StatReviewStatus;
+}
+
+/** Pure review-row builder: keeps the timeout rule separate from grading and presentation. */
+export function buildStatReviewRow(index: number, answer: StatAnswer, grade: StatGrade): StatReviewRow {
+  const right = answer.picked !== null && grade.right === true;
+  return {
+    number: index + 1,
+    questionId: answer.questionId,
+    picked: answer.picked,
+    key: grade.key,
+    right,
+    seconds: answer.seconds,
+    timedOut: answer.timedOut,
+    status: answer.timedOut ? 'timed-out' : right ? 'right' : 'wrong',
+  };
 }
 
 /** Grades the finished round, one question at a time (no burst of requests in real mode). */
@@ -176,16 +196,7 @@ export async function gradeRound(
     const question = questions[index];
     if (!question || question.id !== answer.questionId) throw new Error('the answers do not match the questions.');
     const grade = await grader(question, answer.picked);
-    rows.push({
-      number: index + 1,
-      questionId: question.id,
-      picked: answer.picked,
-      key: grade.key,
-      // An unanswered question is never right, whatever a grader says.
-      right: answer.picked !== null && grade.right === true,
-      seconds: answer.seconds,
-      timedOut: answer.timedOut,
-    });
+    rows.push(buildStatReviewRow(index, answer, grade));
   }
   return rows;
 }
@@ -214,13 +225,26 @@ export function statShareLine(date: Date, score: number): string {
   return `${statGame.name} · ${dayLabel(date)} · ${score}/${STAT_QUESTIONS} · cueory.app`;
 }
 
-/** One review row in words, so right and wrong never rest on color or a symbol alone. */
-export function reviewWords(row: StatReviewRow): { mark: string; result: string; yours: string; answer: string } {
+/** Every review label is plain language, with a symbol as a second signal (never color alone). */
+export function reviewWords(row: StatReviewRow): {
+  mark: string;
+  result: string;
+  yours: string;
+  answer: string;
+  time: string;
+  counted: string | null;
+} {
   return {
-    mark: row.right ? '✓' : '✕',
-    result: row.right ? 'right' : 'not right',
-    yours: row.picked ? `your answer: ${letterLabel(row.picked)}` : 'no answer (time ran out)',
-    answer: row.key ? `answer: ${letterLabel(row.key)}` : 'answer: shown once checked',
+    mark: row.status === 'timed-out' ? '◷' : row.right ? '✓' : '✕',
+    result: row.status === 'timed-out' ? 'out of time' : row.right ? 'right' : 'wrong',
+    yours: row.picked
+      ? 'your answer: ' + letterLabel(row.picked)
+      : row.timedOut ? 'no answer (time ran out)' : 'no answer (skipped)',
+    answer: row.key ? 'answer: ' + letterLabel(row.key) : 'answer: unavailable',
+    time: 'time used: ' + row.seconds + ' s',
+    counted: row.timedOut && row.picked
+      ? (row.right ? 'picked answer counted as right' : 'picked answer counted as wrong')
+      : null,
   };
 }
 

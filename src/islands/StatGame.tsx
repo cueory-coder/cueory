@@ -338,29 +338,44 @@ export default function StatGame({ questions, sampleKey }: Props) {
             <h3 id="stat-review-heading" className="text-lg font-bold">
               your answers
             </h3>
-            <ol className="mt-3 flex flex-col gap-2" data-testid="stat-review">
+            <ol className="mt-3 flex flex-col gap-3" data-testid="stat-review">
               {rows.map((row) => {
                 const words = reviewWords(row);
                 return (
                   <li
                     key={row.questionId}
-                    className={`flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1 rounded-lg bg-page px-3 py-2 ${row.right ? 'border border-line' : 'border-2 border-dashed border-line'}`}
+                    tabIndex={0}
+                    className={
+                      'min-w-0 rounded-lg bg-page p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus ' +
+                      (row.right ? 'border border-line' : 'border-2 border-dashed border-line')
+                    }
                     data-testid="stat-review-row"
                   >
-                    <strong className="w-6 shrink-0">{row.number}</strong>
-                    <span className="w-24 shrink-0 font-bold">
-                      <span aria-hidden="true">{words.mark} </span>
-                      {words.result}
-                    </span>
-                    <span className="min-w-0 flex-1 wrap-anywhere">{words.yours}</span>
-                    <span className="shrink-0 font-bold">{words.answer}</span>
+                    <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                      <h4 id={'stat-review-item-' + row.number} className="font-bold">
+                        question {row.number}
+                      </h4>
+                      <p className="font-bold">
+                        <span aria-hidden="true">{words.mark} </span>
+                        {words.result}
+                      </p>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                      <p className="wrap-anywhere">{words.yours}</p>
+                      <p className="font-bold">{words.answer}</p>
+                      <p className="text-ink-soft">{words.time}</p>
+                    </div>
+                    {words.counted && <p className="mt-2 text-sm text-ink-soft">{words.counted}</p>}
+                    <p className="mt-2 text-sm text-ink-soft" data-testid="stat-review-rationale">
+                      reason: [sample rationale pending review]
+                    </p>
                   </li>
                 );
               })}
             </ol>
           </section>
-          <p className="text-sm text-ink-soft">
-            these are sample questions. a new set of fifteen will come out each day.
+          <p className="text-sm text-ink-soft" data-testid="stat-tomorrow">
+            these are sample questions. play again tomorrow for another practice round. reviewed daily sets will come later.
           </p>
           <ResultBrandMark path="/play" />
         </div>
