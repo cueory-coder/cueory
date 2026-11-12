@@ -72,6 +72,42 @@ describe('bad sample fixture detection', () => {
     expect(report.daysLeft).toBe(0);
   });
 
+  it('rejects samples that cannot pass the public Astro content schemas', () => {
+    // These are structurally playable or acceptable to the game parser,
+    // but Astro rejects them before the game page can render.
+    const longCue = { status: 'sample', word: 'grace', cue: 'x'.repeat(121) };
+    const crossword = readGameSampleFiles('cueword')[0]!.data as {
+      status: string; grid: string[]; clues: {
+        across: { number: number; text: string }[];
+        down: { number: number; text: string }[];
+      };
+    };
+    const longClue = {
+      ...crossword,
+      clues: {
+        ...crossword.clues,
+        across: crossword.clues.across.map((clue, i) =>
+          i === 0 ? { ...clue, text: 'x'.repeat(121) } : clue),
+      },
+    };
+    const wordPath = { ...(readGameSampleFiles('suture')[0]!.data as Record<string, unknown>) };
+    delete wordPath.theme;
+    const triage = readGameSampleFiles('triage')[0]!.data as {
+      status: string; groups: { name: string; terms: string[] }[]; oddOne: string;
+    };
+    const shortTriage = { ...triage, groups: triage.groups.slice(0, 1) };
+    const duplicateTriage = { ...triage, oddOne: triage.groups[0]!.terms[0]! };
+    const invalid: [ 'pulse' | 'cueword' | 'suture' | 'triage', unknown ][] = [
+      ['pulse', longCue], ['cueword', longClue], ['suture', wordPath],
+      ['triage', shortTriage], ['triage', duplicateTriage],
+    ];
+    for (const [game, data] of invalid) {
+      const report = analyzePuzzleRunway(game, [{ name: 'sample-01.json', data }], at(1));
+      expect(report.invalidFiles, game + ' must reject the unbuildable sample').toContain('sample-01.json');
+      expect(report.daysLeft).toBe(0);
+    }
+  });
+
   it('rejects malformed crossword samples before counting a playable day', () => {
     const filename = 'sample-01.json';
     const malformed = [

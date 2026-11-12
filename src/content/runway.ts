@@ -131,7 +131,7 @@ function playableCrossword(data: Record<string, unknown>): boolean {
     return entries.every((entry: unknown) => {
       if (!isRecord(entry) || typeof entry.number !== 'number' || !Number.isInteger(entry.number) ||
         !allowed.has(entry.number) || seen.has(entry.number) ||
-        typeof entry.text !== 'string' || !entry.text.trim() || entry.text.length > 500) return false;
+        typeof entry.text !== 'string' || !entry.text.trim() || entry.text.length > 120) return false;
       seen.add(entry.number);
       return true;
     });
@@ -141,7 +141,9 @@ function playableCrossword(data: Record<string, unknown>): boolean {
 function playableWordPath(data: Record<string, unknown>): boolean {
   const grid = data.grid;
   if (!validGrid(grid, 11, false)) return false;
-  if (data.theme !== undefined && (typeof data.theme !== 'string' || !data.theme.trim() || data.theme.trim().length > 60)) return false;
+  // Astro's suture content collection requires a theme, even though the game parser
+  // tolerates older theme-less objects. The runway counts only buildable samples.
+  if (typeof data.theme !== 'string' || !data.theme.trim() || data.theme.trim().length > 60) return false;
   if (!Array.isArray(data.words) || data.words.length < 3 || data.words.length > 20) return false;
   const occupied = new Set<string>();
   for (const word of data.words) {
@@ -176,7 +178,7 @@ function playableIdentity(game: SampleFolder, data: unknown): string | null {
   if (!isRecord(data) || data.status !== 'sample') return null;
   if (game === 'pulse') {
     return typeof data.word === 'string' && /^[a-z]{5}$/.test(data.word) &&
-      typeof data.cue === 'string' && !!data.cue.trim()
+      typeof data.cue === 'string' && !!data.cue.trim() && data.cue.length <= 120
       ? JSON.stringify(['pulse', data.word]) : null;
   }
   if (game === 'cueword') {
@@ -187,14 +189,22 @@ function playableIdentity(game: SampleFolder, data: unknown): string | null {
     const answers = (data.words as { answer: string }[]).map((word) => word.answer);
     return JSON.stringify(['suture', data.grid, answers.sort()]);
   }
-  if (!Array.isArray(data.groups) || data.groups.length === 0 || typeof data.oddOne !== 'string') return null;
+  // Legacy triage files still pass through Astro's strict collection schema.
+  // An undersized group set or repeated term would fail the site build.
+  const term = /^[a-z][a-z -]{0,23}$/;
+  const name = /^[a-z][a-z -]{0,31}$/;
+  if (!Array.isArray(data.groups) || data.groups.length !== 3 ||
+    typeof data.oddOne !== 'string' || !term.test(data.oddOne)) return null;
   const groups = data.groups.map((group: unknown) => {
-    if (!isRecord(group) || typeof group.name !== 'string' || !Array.isArray(group.terms)
-      || !group.terms.every((term) => typeof term === 'string')) return null;
+    if (!isRecord(group) || typeof group.name !== 'string' || !name.test(group.name) ||
+      !Array.isArray(group.terms) || group.terms.length !== 3 ||
+      !group.terms.every((value: unknown) => typeof value === 'string' && term.test(value))) return null;
     return [group.name, [...group.terms].sort()] as const;
   });
-  return groups.length > 0 && groups.every((group) => group !== null)
-    ? JSON.stringify(['triage', groups.sort((a, b) => a![0].localeCompare(b![0])), data.oddOne]) : null;
+  if (groups.some((group) => group === null)) return null;
+  const allTerms = groups.flatMap((group) => group![1]);
+  if (new Set([...allTerms, data.oddOne]).size !== 10) return null;
+  return JSON.stringify(['triage', groups.sort((a, b) => a![0].localeCompare(b![0])), data.oddOne]);
 }
 
 /** Pure audit for one rotating file list. Position mode is for filtered difficulty pools. */
