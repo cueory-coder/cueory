@@ -58,6 +58,13 @@
 
 /* Keep printed lessons focused on their reading content, not the interactive site chrome. */
 @media print {
+  /* Print every section, including those that have not scrolled into view yet. */
+  [data-reveal] {
+    opacity: 1;
+    translate: none;
+    transition: none;
+  }
+
   body {
     background-color: var(--color-page) !important;
     color: var(--color-ink) !important;
