@@ -11,6 +11,7 @@ import {
 import { createGeneration, createOnDemandLoader, publishAnatomyFile, knownMissingStructureIds, filesForLayer, idsForFiles, initialLayerPlan, firstLayer, layerNeedsReveal, visibilityAfterLayerDownload, lazyPeel, lazyRestore, revealTargetPlan, needsBulkLayerConfirmation, showAllPlan, structureLoadNote, type OnDemandLoader } from './anatomylazy';
 import type { LabColors, LabScene, LoadResult } from './anatomyscene';
 import { createAnatomyOpenGate } from './anatomyopen';
+import AnatomyTextRecall from './AnatomyTextRecall';
 import { STRUCTURE_PAGE_SIZE, visibleStructureGroups } from './anatomy-list-window';
 import { anatomyTriangleNote } from './anatomybudget';
 import {
@@ -188,7 +189,20 @@ function measureLabel(font: string, fontPx: number): (s: string) => number {
  * or from the list, labels with leader lines, a "find it" quiz and picture export for Christian's posts and videos.
  * Nothing from three.js loads before the student taps "open the anatomy lab". Rendered client:only.
  */
-export default function AnatomyLab({ systems: baseSystems, fixture, drafts, modelBytes = {} }: Props) {
+export default function AnatomyLab(props: Props) {
+  const textSystems = useMemo(() => {
+    const wantsFixture = props.fixture && new URLSearchParams(window.location.search).has('fixture');
+    return systemsForView(props.systems, false, wantsFixture ? props.fixture : null);
+  }, [props.systems, props.fixture]);
+  return (
+    <div className="space-y-6">
+      <AnatomyLabView {...props} />
+      <AnatomyTextRecall systems={textSystems} drafts={props.drafts} />
+    </div>
+  );
+}
+
+function AnatomyLabView({ systems: baseSystems, fixture, drafts, modelBytes = {} }: Props) {
   const [phase, setPhase] = useState<Phase>('cover');
   const [textLimit, setTextLimit] = useState(TEXT_FALLBACK_BATCH);
   const systems = useMemo(() => {
