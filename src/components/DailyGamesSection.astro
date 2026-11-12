@@ -4,12 +4,17 @@
  * a way into today's games. Like the other sections below the first screen, it fades in once (D-62). It has its own
  * scene, between the tint of "ways to study" and the launch-updates panel.
  */
+import { dailyGames, statGame } from '../config/games';
+
+// The ready puzzle names come from /play; stat remains a separate preview game.
+const dailyNames = dailyGames.filter((game) => game.ready).map((game) => game.name);
+const dailyList = new Intl.ListFormat('en', { style: 'long', type: 'conjunction' }).format(dailyNames);
 ---
 
 <section id="daily-games" class="scene scene-play scroll-mt-section py-section" aria-labelledby="games-heading">
   <div class="mx-auto max-w-prose px-gutter text-center" data-reveal-section>
     <h2 id="games-heading" class="display text-title sm:text-title-lg">daily games</h2>
-    <p class="mt-4 text-ink-soft">four short puzzles every day: a word to guess, terms to sort, a small crossword and a word path.</p>
+    <p class="mt-4 text-ink-soft" data-testid="daily-games-summary">today's puzzles: {dailyList}. {statGame.name} is in preview.</p>
     <a
       href="/play"
       class="mt-8 inline-block rounded-pill bg-button px-6 py-3 text-on-button no-underline hover:bg-button-hover hover:text-on-button"
