@@ -356,6 +356,52 @@ test('damaged onboarding exposes safe card progress and download without rewriti
   expect(await currentSaved()).toEqual(original);
 });
 
+test('bad onboarding keeps original saved bytes and old stars while exporting valid cards', async ({ page }) => {
+  const raw = JSON.stringify({
+    version: 1, onboarding: { course: 7, done: 'yes' },
+    decks: { 'study-skills-01': { know: ['ss01-c01'] } },
+  });
+  const legacy = '["ss01-c02"]';
+  await page.addInitScript(({ raw, legacy }) => {
+    localStorage.setItem('cueory-progress', raw);
+    localStorage.setItem('cueory-stars-study-skills-01', legacy);
+  }, { raw, legacy });
+  await page.goto('/progress');
+  await expect(page.getByRole('heading', { name: 'some saved progress was recovered' })).toBeVisible();
+  await expect(page.getByText('1 know it · 0 still learning · 1 star')).toBeVisible();
+  const downloading = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'download my progress' }).click();
+  const file = await downloading;
+  const backup = JSON.parse(readFileSync((await file.path())!, 'utf8'));
+  expect(backup.decks['study-skills-01'].know).toEqual(['ss01-c01']);
+  expect(backup.decks['study-skills-01'].starred).toEqual(['ss01-c02']);
+  expect(await page.evaluate(() => ({
+    original: localStorage.getItem('cueory-progress'),
+    stars: localStorage.getItem('cueory-stars-study-skills-01'),
+  }))).toEqual({ original: raw, stars: legacy });
+});
+
+test('malformed legacy stars do not disappear during the progress-page read or keyboard retry', async ({ page }) => {
+  const raw = JSON.stringify({ version: 1, onboarding: { done: true },
+    decks: { 'study-skills-01': { know: ['ss01-c01'] } } });
+  const badStars = '[not json';
+  await page.addInitScript(({ raw, badStars }) => {
+    localStorage.setItem('cueory-progress', raw);
+    localStorage.setItem('cueory-stars-study-skills-01', badStars);
+  }, { raw, badStars });
+  await page.goto('/progress');
+  await expect(page.getByRole('heading', { name: 'we couldn’t read your progress' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'download my progress' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'forget my progress on this device' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'try again' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { name: 'we couldn’t read your progress' })).toBeVisible();
+  expect(await page.evaluate(() => ({
+    original: localStorage.getItem('cueory-progress'),
+    stars: localStorage.getItem('cueory-stars-study-skills-01'),
+  }))).toEqual({ original: raw, stars: badStars });
+});
+
 test('retry recovers when previously unreadable data becomes readable', async ({ page }) => {
   await page.addInitScript(() => {
     if (sessionStorage.getItem('seeded-corruption')) return;

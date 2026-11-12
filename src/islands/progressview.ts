@@ -1,5 +1,5 @@
 /** Pure, truthful card counts for the progress dashboard. No module or question completion is recorded. */
-import { deckProgress, emptyProgress, isEmptyProgress, isExamDate, legacyStarsKey, migrateLegacyStars, PROGRESS_STORAGE_KEY, PROGRESS_VERSION, parseProgress, withStars, type Progress } from '../scripts/progress';
+import { deckProgress, emptyProgress, isCourse, isEmptyProgress, isExamDate, legacyStarsKey, migrateLegacyStars, PROGRESS_STORAGE_KEY, PROGRESS_VERSION, parseProgress, withStars, type Progress } from '../scripts/progress';
 import { readResume } from '../scripts/resume';
 import type { KeyValueStorage } from '../scripts/storage';
 
@@ -43,7 +43,12 @@ export interface ProgressStateInput {
 const record = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
-/** Check the stored structure; the storage parser still owns repairing individual values. */
+/** Check everything the canonical parser might silently discard before migrating old stars. */
+const savedId = (value: unknown): value is string =>
+  typeof value === 'string' && /^[a-z0-9-]{1,64}$/.test(value);
+const onlyKeys = (value: Record<string, unknown>, keys: readonly string[]) =>
+  Object.keys(value).every((key) => keys.includes(key));
+
 function readableRecord(raw: string | null): boolean {
   if (raw === null) return true;
   let value: unknown;
@@ -52,16 +57,25 @@ function readableRecord(raw: string | null): boolean {
   } catch {
     return false;
   }
-  if (!record(value) || value.version !== PROGRESS_VERSION) return false;
-  if (value.onboarding !== undefined && !record(value.onboarding)) return false;
+  if (!record(value) || value.version !== PROGRESS_VERSION ||
+    !onlyKeys(value, ['version', 'onboarding', 'decks'])) return false;
+  if (value.onboarding !== undefined) {
+    if (!record(value.onboarding) ||
+      !onlyKeys(value.onboarding, ['course', 'examDate', 'done'])) return false;
+    const { course, examDate, done } = value.onboarding;
+    if (course !== undefined && course !== null && !isCourse(course)) return false;
+    if (examDate !== undefined && examDate !== null && !isExamDate(examDate)) return false;
+    if (done !== undefined && typeof done !== 'boolean') return false;
+  }
   if (value.decks !== undefined) {
-    if (!record(value.decks)) return false;
-    for (const deck of Object.values(value.decks)) {
-      if (!record(deck)) return false;
+    if (!record(value.decks) || Object.keys(value.decks).length > 500) return false;
+    for (const [deckId, deck] of Object.entries(value.decks)) {
+      if (!savedId(deckId) || !record(deck) ||
+        !onlyKeys(deck, ['know', 'learning', 'starred'])) return false;
       for (const field of ['know', 'learning', 'starred']) {
         const ids = deck[field];
         if (ids === undefined) continue;
-        if (!Array.isArray(ids)) return false;
+        if (!Array.isArray(ids) || ids.length > 2000) return false;
         // Use the canonical sanitizer's ID rules and limits, without writing its result.
         const accepted = new Set(withStars(emptyProgress(), 'validation', ids).decks.validation?.starred ?? []);
         if (ids.some((id) => typeof id !== 'string' || !accepted.has(id))) return false;
@@ -69,6 +83,40 @@ function readableRecord(raw: string | null): boolean {
     }
   }
   return true;
+}
+
+/**
+ * The legacy migration removes every old key, including invalid ones.
+ * Refuse the write path unless every listed key can be read and migrated safely.
+ * An unreadable state keeps both original records and the Forget control hidden.
+ */
+function readableLegacyStars(storage: KeyValueStorage): boolean {
+  try {
+    const length = storage.length;
+    if (typeof length !== 'number' || !Number.isSafeInteger(length) ||
+      length < 0 || typeof storage.key !== 'function') return false;
+    const prefix = legacyStarsKey('');
+    for (let index = 0; index < length; index++) {
+      const key = storage.key(index);
+      if (key === null) return false;
+      if (!key.startsWith(prefix)) continue;
+      const deckId = key.slice(prefix.length);
+      if (!savedId(deckId)) return false;
+      const raw = storage.getItem(key);
+      if (raw === null) return false;
+      let stars: unknown;
+      try {
+        stars = JSON.parse(raw);
+      } catch {
+        return false;
+      }
+      if (!Array.isArray(stars) || stars.length > 2000 ||
+        !stars.every(savedId)) return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Pure decision for new, ready, resume-only, old-plus-new, or unreadable data. */
@@ -110,6 +158,9 @@ export function readDeviceProgress(storage: KeyValueStorage | undefined): Device
   if (!storage) return unreadable;
   try {
     const raw = storage.getItem(PROGRESS_STORAGE_KEY);
+    // A malformed old-star key cannot safely be included in a recovery download.
+    // Do not migrate or offer a partial backup that could be followed by Forget.
+    if (!readableLegacyStars(storage)) return unreadable;
     if (!readableRecord(raw)) {
       // The canonical parser may still recover valid piles from a partly damaged record.
       // Display those fields read-only, preserving the original bytes and legacy star keys.

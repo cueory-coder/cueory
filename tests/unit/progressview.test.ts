@@ -265,6 +265,88 @@ describe('readDeviceProgress guards storage before migration', () => {
     expect(existing.mutations).toEqual([]);
   });
 
+  it.each([
+    { field: 'course', onboarding: { course: 7, done: true } },
+    { field: 'done', onboarding: { course: 'fundamentals', done: 'yes' } },
+    { field: 'examDate', onboarding: { course: 'fundamentals', examDate: '2026-02-30' } },
+  ])('preserves a bad onboarding $field and the valid saved deck during recovery', ({ onboarding }) => {
+    const raw = JSON.stringify({ version: 1, onboarding,
+      decks: { one: { know: ['a'] } } });
+    const oldStars = '["b"]';
+    const existing = store({ [PROGRESS_STORAGE_KEY]: raw, [legacyStarsKey('one')]: oldStars });
+    const before = [...existing.values.entries()];
+    const result = readDeviceProgress(existing.storage);
+    expect(result.state).toBe('ready');
+    expect(result.recovered).toBe(true);
+    expect(result.progress.decks.one).toEqual({ know: ['a'], learning: [], starred: ['b'] });
+    expect(existing.mutations).toEqual([]);
+    expect([...existing.values.entries()]).toEqual(before);
+  });
+
+  it('preserves an invalid saved deck ID and recovers the valid deck without writes', () => {
+    const raw = JSON.stringify({ version: 1,
+      decks: { 'Bad Deck': { know: ['lost-in-old-format'] }, one: { know: ['a'] } } });
+    const oldStars = '["b"]';
+    const existing = store({ [PROGRESS_STORAGE_KEY]: raw, [legacyStarsKey('one')]: oldStars });
+    const before = [...existing.values.entries()];
+    const result = readDeviceProgress(existing.storage);
+    expect(result.state).toBe('ready');
+    expect(result.recovered).toBe(true);
+    expect(result.progress.decks.one).toEqual({ know: ['a'], learning: [], starred: ['b'] });
+    expect(existing.mutations).toEqual([]);
+    expect([...existing.values.entries()]).toEqual(before);
+  });
+
+  it('does not silently discard unknown saved fields while migrating legacy stars', () => {
+    const raw = JSON.stringify({ version: 1,
+      onboarding: { done: true, unsupported: 'original value' },
+      decks: { one: { know: ['a'], unknown: 'original deck value' } } });
+    const existing = store({ [PROGRESS_STORAGE_KEY]: raw, [legacyStarsKey('one')]: '["b"]' });
+    const result = readDeviceProgress(existing.storage);
+    expect(result.state).toBe('ready');
+    expect(result.recovered).toBe(true);
+    expect(result.progress.decks.one.starred).toEqual(['b']);
+    expect(existing.values.get(PROGRESS_STORAGE_KEY)).toBe(raw);
+    expect(existing.mutations).toEqual([]);
+  });
+
+  it.each(['[not json', '"not an array"', '["b", 7]', 'null'])(
+    'leaves a malformed legacy key untouched instead of offering an incomplete backup: %s', (legacy) => {
+      const raw = JSON.stringify({ version: 1, onboarding: { done: true },
+        decks: { one: { know: ['a'] } } });
+      const existing = store({ [PROGRESS_STORAGE_KEY]: raw, [legacyStarsKey('one')]: legacy });
+      const before = [...existing.values.entries()];
+      expect(readDeviceProgress(existing.storage)).toEqual({
+        progress: emptyProgress(), state: 'unreadable',
+      });
+      expect(existing.mutations).toEqual([]);
+      expect([...existing.values.entries()]).toEqual(before);
+    },
+  );
+
+  it('does not offer a destructive reset for a damaged record with malformed old stars', () => {
+    const raw = JSON.stringify({ version: 1, onboarding: null,
+      decks: { one: { know: ['a'] } } });
+    const existing = store({ [PROGRESS_STORAGE_KEY]: raw, [legacyStarsKey('one')]: '[not json' });
+    const before = [...existing.values.entries()];
+    expect(readDeviceProgress(existing.storage)).toEqual({
+      progress: emptyProgress(), state: 'unreadable',
+    });
+    expect(existing.mutations).toEqual([]);
+    expect([...existing.values.entries()]).toEqual(before);
+  });
+
+  it('retains a normal readable state for partial valid and duplicate saved card IDs', () => {
+    const raw = JSON.stringify({ version: 1, onboarding: { done: true },
+      decks: { one: { know: ['a', 'a'], learning: ['a'], starred: ['b', 'b'] } } });
+    const existing = store({ [PROGRESS_STORAGE_KEY]: raw, [legacyStarsKey('one')]: '["c"]' });
+    const result = readDeviceProgress(existing.storage);
+    expect(result.state).toBe('ready');
+    expect(result.recovered).toBeUndefined();
+    expect(result.progress.decks.one).toEqual({ know: [], learning: ['a'], starred: ['b', 'c'] });
+    expect(existing.values.has(legacyStarsKey('one'))).toBe(false);
+  });
+
   it('migrates old stars only when the primary record is readable', () => {
     const existing = store({
       [PROGRESS_STORAGE_KEY]: JSON.stringify({ version: 1, onboarding: { done: true }, decks: { one: { know: ['a'] } } }),
