@@ -87,7 +87,8 @@ test('a resumed free-text typo cannot be checked as a hidden dropdown answer', a
 });
 
 
-test.use({ hasTouch: true });
+test.describe('S6 keyboard and touch coverage', () => {
+  test.use({ hasTouch: true });
 
 for (const [size, width, height] of [['phone', 390, 844], ['tablet', 820, 1180], ['desktop', 1440, 900]] as const) {
   for (const scheme of ['light', 'dark'] as const) {
@@ -120,6 +121,7 @@ for (const [size, width, height] of [['phone', 390, 844], ['tablet', 820, 1180],
     });
   }
 }
+});
 
 test('S6 pre-existing n/h saved submissions resume with the same result', async ({ page }) => {
   await page.goto('/learn/study-skills/fill-in');
