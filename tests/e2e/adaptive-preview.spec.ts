@@ -140,6 +140,9 @@ test('finished Restart target stays 44 by 44 in every size and palette', async (
     }
   }
   await restart.focus();
+  // Keyboard navigation, not programmatic focus alone, must show the focus ring.
+  await page.keyboard.press('Shift+Tab');
+  await page.keyboard.press('Tab');
   await expect(restart).toBeFocused();
   await expect(restart).toHaveCSS('outline-style', 'solid');
   await page.keyboard.press('Enter');
