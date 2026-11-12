@@ -60,89 +60,39 @@ type SpecSource = { name: string; source: string };
 const e2eDir = fileURLToPath(new URL('../e2e/', import.meta.url));
 
 /**
- * Mask comments and strings, keeping only executable JavaScript/TypeScript tokens.
- * A string or commented-out axe constructor cannot satisfy the coverage rule.
- * Code in a template's interpolation is executable and must still be inspected.
+ * Inspect executable AST nodes rather than comments or quoted fixture text.
+ * A new navigation or browser context must be paired with an axe execution
+ * unless this file has an explicit, individually justified exception.
  */
-function codeOnly(source: string): string {
-  const chars = source.split('');
-  type Mode = 'code' | 'line' | 'block' | 'quoted' | 'template';
-  let mode: Mode = 'code';
-  let quote = '';
-  const templateBraces: number[] = [];
-  const blank = (at: number) => {
-    if (chars[at] !== '\n' && chars[at] !== '\r') chars[at] = ' ';
-  };
-  let i = 0;
-  while (i < source.length) {
-    const character = source[i]!;
-    const next = source[i + 1];
-    if (mode === 'line') {
-      if (character === '\n' || character === '\r') mode = 'code';
-      else blank(i);
-      i++;
-      continue;
-    }
-    if (mode === 'block') {
-      if (character === '*' && next === '/') {
-        blank(i); blank(i + 1); i += 2; mode = 'code';
-      } else { blank(i); i++; }
-      continue;
-    }
-    if (mode === 'quoted' || mode === 'template') {
-      if (character === '\\') {
-        blank(i); if (next !== undefined) blank(i + 1);
-        i += next === undefined ? 1 : 2;
-        continue;
-      }
-      if (mode === 'template' && character === '$' && next === '{') {
-        blank(i); blank(i + 1); templateBraces.push(0); mode = 'code'; i += 2;
-        continue;
-      }
-      blank(i);
-      if (mode === 'quoted' && character === quote) mode = 'code';
-      else if (mode === 'template' && character === '`') mode = 'code';
-      i++;
-      continue;
-    }
-    if (character === '/' && next === '/') {
-      blank(i); blank(i + 1); i += 2; mode = 'line';
-      continue;
-    }
-    if (character === '/' && next === '*') {
-      blank(i); blank(i + 1); i += 2; mode = 'block';
-      continue;
-    }
-    if (character === "'" || character === '"') {
-      quote = character; blank(i); mode = 'quoted'; i++;
-      continue;
-    }
-    if (character === '`') {
-      blank(i); mode = 'template'; i++;
-      continue;
-    }
-    if (templateBraces.length > 0) {
-      const last = templateBraces.length - 1;
-      if (character === '{') templateBraces[last] = templateBraces[last]! + 1;
-      if (character === '}') {
-        if (templateBraces[last] === 0) {
-          blank(i); templateBraces.pop(); mode = 'template'; i++;
-          continue;
-        }
-        templateBraces[last] = templateBraces[last]! - 1;
-      }
-    }
-    i++;
-  }
-  return chars.join('');
-}
-
-/** Navigation on any receiver needs an executed axe scan, not merely an import. */
 function needsAxe(source: string): boolean {
-  const code = codeOnly(source);
-  const navigates = /\.\s*goto\s*\(/.test(code);
-  const executesAxe = /\bnew\s+AxeBuilder\s*\(/.test(code) && /\.\s*analyze\s*\(/.test(code);
-  return navigates && !executesAxe;
+  const parsed = ts.createSourceFile('browser-spec.ts', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  let navigates = false;
+  let createsAxe = false;
+  let analyzes = false;
+
+  const visit = (node: ts.Node): void => {
+    if (ts.isCallExpression(node)) {
+      const callee = node.expression;
+      let method: string | undefined;
+      if (ts.isPropertyAccessExpression(callee)) method = callee.name.text;
+      else if (ts.isElementAccessExpression(callee) && callee.argumentExpression &&
+        (ts.isStringLiteral(callee.argumentExpression) || ts.isNoSubstitutionTemplateLiteral(callee.argumentExpression))) {
+        method = callee.argumentExpression.text;
+      }
+      if (method === 'goto' || method === 'newPage') navigates = true;
+      if (method === 'analyze') analyzes = true;
+    }
+    if (ts.isNewExpression(node) &&
+      (ts.isIdentifier(node.expression) && node.expression.text === 'AxeBuilder' ||
+        ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === 'AxeBuilder')) {
+      createsAxe = true;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(parsed);
+  // Importing AxeBuilder, describing it in a comment or constructing it without
+  // an analyze() call cannot satisfy the page-level accessibility requirement.
+  return navigates && !(createsAxe && analyzes);
 }
 
 function assertCoverage(specs: readonly SpecSource[], exceptions: Readonly<Record<string, string>>): void {
@@ -166,6 +116,8 @@ describe('page-navigation browser specs must run axe', () => {
       "await page.goto('/sample');",
       "await popup.goto('/sample');",
       "await noJsPage.goto('/sample');",
+      "await context.newPage();",
+      "await page['goto']('/sample');",
       "await page.goto('/sample'); // new AxeBuilder({ page }).analyze();",
       "await page.goto('/sample'); const unused = 'new AxeBuilder({ page }).analyze()';",
       "await page.goto('/sample'); const axe = new AxeBuilder({ page });",
