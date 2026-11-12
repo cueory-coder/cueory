@@ -132,9 +132,12 @@ test('review rows name timeouts with and without a pick, show times and rational
   const keptPick = rows.first().getByText('your answer: ' + key[0]!.toUpperCase());
   if (await keptPick.count()) {
     await expect(rows.first()).toContainText('picked answer counted as right');
+    await expect(rows.first()).not.toHaveClass(/border-dashed/);
   } else {
     await expect(rows.first()).toContainText('no answer (time ran out)');
+    await expect(rows.first()).toHaveClass(/border-dashed/);
   }
+  await expect(rows.nth(1)).toHaveClass(/border-dashed/);
   await expect(rows.nth(1)).toContainText('out of time');
   await expect(rows.nth(1)).toContainText('no answer (time ran out)');
   await expect(rows.nth(1)).toContainText('time used: 20 s');

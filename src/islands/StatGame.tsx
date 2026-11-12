@@ -348,7 +348,7 @@ export default function StatGame({ questions, sampleKey }: Props) {
                     aria-labelledby={'stat-review-item-' + row.number}
                     className={
                       'min-w-0 rounded-lg bg-page p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus ' +
-                      (row.status === 'right' ? 'border border-line' : 'border-2 border-dashed border-line')
+                      (row.right ? 'border border-line' : 'border-2 border-dashed border-line')
                     }
                     data-testid="stat-review-row"
                   >
