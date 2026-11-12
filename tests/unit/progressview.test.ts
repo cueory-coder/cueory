@@ -178,6 +178,32 @@ describe('readDeviceProgress guards storage before migration', () => {
     expect(existing.values.get(legacyStarsKey('one'))).toBe(oldStars);
   });
 
+  it('recovers valid card piles from damaged onboarding without changing original storage', () => {
+    const raw = JSON.stringify({
+      version: 1,
+      onboarding: null,
+      decks: { one: { know: ['a'], learning: [], starred: [] } },
+    });
+    const legacy = '["b"]';
+    const existing = store({ [PROGRESS_STORAGE_KEY]: raw, [legacyStarsKey('one')]: legacy });
+    const original = [...existing.values.entries()];
+    expect(readDeviceProgress(existing.storage)).toEqual({
+      progress: withPile(emptyProgress(), 'one', 'a', 'know'),
+      state: 'ready',
+      recovered: true,
+    });
+    expect(existing.mutations).toEqual([]);
+    expect([...existing.values.entries()]).toEqual(original);
+    expect(existing.values.get(PROGRESS_STORAGE_KEY)).toBe(raw);
+    expect(existing.values.get(legacyStarsKey('one'))).toBe(legacy);
+  });
+
+  it('does not claim recovery when damaged fields contain no safely parsed progress', () => {
+    const existing = store({ [PROGRESS_STORAGE_KEY]: JSON.stringify({ version: 1, onboarding: null, decks: {} }) });
+    expect(readDeviceProgress(existing.storage)).toEqual({ progress: emptyProgress(), state: 'unreadable' });
+    expect(existing.mutations).toEqual([]);
+  });
+
   it('migrates old stars only when the primary record is readable', () => {
     const existing = store({
       [PROGRESS_STORAGE_KEY]: JSON.stringify({ version: 1, onboarding: { done: true }, decks: { one: { know: ['a'] } } }),

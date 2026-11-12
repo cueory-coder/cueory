@@ -51,10 +51,10 @@ export default function ProgressPanel({ decks }: Props) {
   const [syncNote, setSyncNote] = useState('');
   // "forget my progress" cancels a load still on its way, so the account's answers aren't written back afterwards.
   const [loads] = useState(loadTickets);
-  const canReadProgress = snapshot.state !== 'unreadable';
+  const canSyncProgress = snapshot.state !== 'unreadable' && !snapshot.recovered;
 
   useEffect(() => {
-    if (!canReadProgress) return;
+    if (!canSyncProgress) return;
     const current = loads.start();
     let live = true;
     void (async () => {
@@ -65,16 +65,20 @@ export default function ProgressPanel({ decks }: Props) {
       const loaded = await loadExamPlan(db, () => readProgress(storage).onboarding);
       if (!live || !current()) return;
       if (!loaded.ok) setSyncNote(loaded.message);
-      else if (loaded.onboarding && readDeviceProgress(storage).state !== 'unreadable' &&
-        saveProgress(storage, withOnboarding(readProgress(storage), loaded.onboarding))) {
-        setSnapshot(readDeviceProgress(storage));
+      else if (loaded.onboarding) {
+        // An in-flight account request must never replace partially damaged saved data.
+        const latest = readDeviceProgress(storage);
+        if (latest.state !== 'unreadable' && !latest.recovered &&
+          saveProgress(storage, withOnboarding(latest.progress, loaded.onboarding))) {
+          setSnapshot(readDeviceProgress(storage));
+        }
       }
     })();
     return () => {
       live = false;
       loads.cancel();
     };
-  }, [storage, loads, canReadProgress]);
+  }, [storage, loads, canSyncProgress]);
 
   // Studying in another tab changes what's saved. Read it again when another tab saves, and when this page comes back
   // into view, so the page, the download and "forget" always match what's actually kept.
@@ -105,12 +109,14 @@ export default function ProgressPanel({ decks }: Props) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `cueory-progress-${localDay(new Date())}.json`;
+    link.download = `cueory-${current.recovered ? 'recovered-' : ''}progress-${localDay(new Date())}.json`;
     document.body.append(link);
     link.click();
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    setSaid('your progress file is downloading.');
+    setSaid(current.recovered
+      ? 'your readable progress is downloading. the original saved data stays on this device.'
+      : 'your progress file is downloading.');
   };
 
   const forget = () => {
@@ -134,7 +140,9 @@ export default function ProgressPanel({ decks }: Props) {
           ? 'we couldn’t read your saved progress on this device.'
           : state === 'empty'
             ? 'no saved progress yet. choose where to start.'
-            : 'your saved progress is ready.'}
+            : snapshot.recovered
+              ? 'some saved progress was recovered. the original stays on this device.'
+              : 'your saved progress is ready.'}
       </p>
       {state === 'unreadable' && (
         <section aria-labelledby="progress-unreadable-heading" className="rounded-xl border border-line bg-surface p-5">
@@ -149,6 +157,15 @@ export default function ProgressPanel({ decks }: Props) {
           <button type="button" onClick={() => setSnapshot(readDeviceProgress(storage))} className={`${primaryButton} mt-4`}>
             try again
           </button>
+        </section>
+      )}
+      {snapshot.recovered && (
+        <section aria-labelledby="progress-recovered-heading" className="mb-6 rounded-xl border border-line bg-surface p-5">
+          <h2 id="progress-recovered-heading" className="text-xl">some saved progress was recovered</h2>
+          <p className="mt-3 text-ink-soft">
+            some saved fields could not be read. the readable parts are shown below. your original saved record
+            and any older stars are unchanged on this device. download the readable parts before choosing to forget your progress.
+          </p>
         </section>
       )}
       {state === 'empty' && (

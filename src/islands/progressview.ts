@@ -1,5 +1,5 @@
 /** Pure, truthful card counts for the progress dashboard. No module or question completion is recorded. */
-import { deckProgress, emptyProgress, isEmptyProgress, isExamDate, migrateLegacyStars, PROGRESS_STORAGE_KEY, PROGRESS_VERSION, type Progress } from '../scripts/progress';
+import { deckProgress, emptyProgress, isEmptyProgress, isExamDate, migrateLegacyStars, PROGRESS_STORAGE_KEY, PROGRESS_VERSION, parseProgress, type Progress } from '../scripts/progress';
 import { readResume } from '../scripts/resume';
 import type { KeyValueStorage } from '../scripts/storage';
 
@@ -72,14 +72,26 @@ export function progressScreenState({ progress, raw, hasResume, canReadStorage }
   return isEmptyProgress(progress) && !hasResume ? 'empty' : 'ready';
 }
 
-/** Check readability before migrating old stars, so a corrupt record is never silently replaced. */
-export function readDeviceProgress(storage: KeyValueStorage | undefined): { progress: Progress; state: ProgressScreenState } {
+/** A recovered view never writes over the original malformed record automatically. */
+export interface DeviceProgressSnapshot {
+  progress: Progress;
+  state: ProgressScreenState;
+  recovered?: true;
+}
+
+/** Check the stored record before any legacy migration or other storage writes. */
+export function readDeviceProgress(storage: KeyValueStorage | undefined): DeviceProgressSnapshot {
   const unreadable = { progress: emptyProgress(), state: 'unreadable' as const };
   if (!storage) return unreadable;
   try {
     const raw = storage.getItem(PROGRESS_STORAGE_KEY);
-    if (progressScreenState({ raw, progress: emptyProgress(), hasResume: false, canReadStorage: true }) === 'unreadable') {
-      return unreadable;
+    if (!readableRecord(raw)) {
+      // The canonical parser may still recover valid piles from a partly damaged record.
+      // Display those fields read-only, preserving the original bytes and legacy star keys.
+      const recovered = parseProgress(raw);
+      return isEmptyProgress(recovered)
+        ? unreadable
+        : { progress: recovered, state: 'ready', recovered: true };
     }
     const progress = migrateLegacyStars(storage);
     return {

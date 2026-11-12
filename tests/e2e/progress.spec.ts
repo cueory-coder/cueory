@@ -309,6 +309,48 @@ test('bad saved progress never consumes old stars after keyboard retry', async (
   });
 });
 
+test('damaged onboarding exposes safe card progress and download without rewriting original data', async ({ page }) => {
+  const raw = JSON.stringify({
+    version: 1,
+    onboarding: null,
+    decks: { 'study-skills-01': { know: ['ss01-c01'], learning: [], starred: [] } },
+  });
+  const legacy = '["ss01-c02"]';
+  await page.addInitScript(({ raw, legacy }) => {
+    if (sessionStorage.getItem('recovered-progress-seeded')) return;
+    sessionStorage.setItem('recovered-progress-seeded', '1');
+    localStorage.setItem('cueory-progress', raw);
+    localStorage.setItem('cueory-stars-study-skills-01', legacy);
+  }, { raw, legacy });
+  await page.goto('/progress');
+
+  await expect(page.getByRole('heading', { name: 'some saved progress was recovered' })).toBeVisible();
+  await expect(page.getByTestId('progress-state')).toHaveText(
+    'some saved progress was recovered. the original stays on this device.',
+  );
+  await expect(page.getByText('1 know it · 0 still learning · 0 stars')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'forget my progress on this device' })).toBeEnabled();
+
+  const currentSaved = () => page.evaluate(() => ({
+    progress: localStorage.getItem('cueory-progress'),
+    stars: localStorage.getItem('cueory-stars-study-skills-01'),
+  }));
+  expect(await currentSaved()).toEqual({ progress: raw, stars: legacy });
+
+  const downloading = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'download my progress' }).click();
+  const file = await downloading;
+  expect(file.suggestedFilename()).toMatch(/^cueory-recovered-progress-\d{4}-\d{2}-\d{2}\.json$/);
+  const copy = JSON.parse(readFileSync((await file.path())!, 'utf8'));
+  expect(copy.decks['study-skills-01'].know).toEqual(['ss01-c01']);
+  expect(copy.onboarding).toEqual({ course: null, examDate: null, done: false });
+  expect(await currentSaved()).toEqual({ progress: raw, stars: legacy });
+
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'some saved progress was recovered' })).toBeVisible();
+  expect(await currentSaved()).toEqual({ progress: raw, stars: legacy });
+});
+
 test('retry recovers when previously unreadable data becomes readable', async ({ page }) => {
   await page.addInitScript(() => {
     if (sessionStorage.getItem('seeded-corruption')) return;
