@@ -1,0 +1,1 @@
+status: W15-3 (#59, !67): Added Vitest E2E axe-coverage guard. Every page.goto spec must instantiate AxeBuilder or appear on a specific per-file baseline with reason; included a negative fixture and 44 current staging exceptions plus W15-2's pending console sweep. No E2E specs were edited.
