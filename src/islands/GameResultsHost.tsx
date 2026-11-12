@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { site } from '../config/site';
+import NextPuzzleCountdown from './NextPuzzleCountdown';
 import {
   buildResultShareLine,
   discardPendingResultCard,
@@ -226,7 +227,11 @@ export default function GameResultsHost() {
         </div>
 
         <p role="status" className="mt-3 min-h-6 text-sm text-ink-soft break-all">{status}</p>
-        <p className="mt-4 text-sm text-ink-soft">{card.nextMessage ?? (card.game === 'hello-cards' ? 'a new card of the day comes out tomorrow.' : `a new ${card.name} comes out tomorrow.`)}</p>
+        {card.nextMessage ? (
+          <p className="mt-4 text-sm text-ink-soft">{card.nextMessage}</p>
+        ) : (
+          <NextPuzzleCountdown key={`${card.game}:${card.date}`} />
+        )}
         {site.tipPageUrl && (
           <a href={site.tipPageUrl} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex min-h-(--tap-min) items-center text-sm text-ink-soft underline underline-offset-4">
             support our mission<span className="sr-only"> (opens in a new tab)</span>

@@ -1,0 +1,1 @@
+status: T19 (C5), adds a text-only local-midnight countdown to daily-game results, with wall-clock correction after suspension and a refresh message at the boundary. Preserves Stat's explicit coming-later message. Stacked on !116/!109; keep Draft until parent integration and current-head verification.
