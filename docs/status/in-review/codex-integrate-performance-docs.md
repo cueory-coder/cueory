@@ -1,4 +1,4 @@
-STATUS: Draft atomic integration of !24 at 626a5989 with the performance-guide index entry after merged !99. Preserves the content-map entry. Original branches and review gates remain intact.
+STATUS: Draft integration of canonical !24 through cba80513 with the performance-guide index entry after merged !99, preserving the content-map entry. Also reconciles the newly merged content-format guide with the current crossword schema: optional level and 3–15 grid bounds. Original branches and review gates remain intact.
 
 The ordinary rebase of !98 failed against the merged documentation index. This successor combines !24's four unchanged files with the missing README entry so a single eventual merge can keep the index and file set consistent. Neither half independently passes the exact documentation-index test.
 
