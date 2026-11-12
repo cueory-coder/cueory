@@ -1,0 +1,1 @@
+STATUS: Task 735 (S15) (#76): sample-only noindex unit-level test preview using unchanged leveltest.ts rules, in-memory choices, plain results, keyboard/tap controls and accessibility tests. No storage, network requests or added monthly cost.
