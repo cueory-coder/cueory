@@ -83,6 +83,11 @@ for (const viewport of [
       await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
       await page.goto('/preview/prose');
 
+      // Explicitly choose and verify the palette rather than assuming the device setting won.
+      await page.getByRole('button', { name: 'show footer links', exact: true }).click();
+      await page.getByRole('radio', { name: theme, exact: true }).check();
+      await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+
       await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
       await expect(page.locator('article.reading-copy')).toBeVisible();
       await expect(page.locator('article.reading-copy [data-callout-kind]')).toHaveCount(3);
