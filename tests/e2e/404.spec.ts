@@ -14,7 +14,7 @@ test('a missing address shows a useful branded 404 page', async ({ page }) => {
   const main = page.locator('main');
   const nav = main.getByRole('navigation', { name: 'other places to go' });
   await expect(nav.getByRole('link', { name: 'home' })).toHaveAttribute('href', '/');
-  await expect(nav.getByRole('link', { name: 'learn' })).toHaveAttribute('href', '/learn/study-skills');
+  await expect(nav.getByRole('link', { name: 'learn' })).toHaveAttribute('href', '/learn');
   await expect(nav.getByRole('link', { name: 'play' })).toHaveAttribute('href', '/play');
   await expect(nav.getByRole('link', { name: 'support' })).toHaveAttribute('href', '/support');
   await expect(nav.getByRole('link')).toHaveCount(4);
@@ -65,5 +65,48 @@ test('the missing-page experience passes accessibility and layout checks', async
   for (const link of await links.all()) {
     const box = await link.boundingBox();
     expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+  }
+});
+
+test('404 next steps work by keyboard and touch and pass axe in Light and Evening', async ({ page }, testInfo) => {
+  test.setTimeout(120_000);
+  const width = testInfo.project.use.viewport?.width;
+  expect([390, 820, 1440]).toContain(width);
+
+  for (const colorScheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme });
+    const response = await page.goto(missingPage);
+    expect(response?.status()).toBe(404);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
+    await expect(page.getByRole('searchbox', { name: 'search cueory' })).toBeVisible();
+
+    const links = page.getByRole('navigation', { name: 'other places to go' }).getByRole('link');
+    await expect(links).toHaveCount(4);
+    for (const link of await links.all()) {
+      const bounds = await link.boundingBox();
+      expect(bounds?.width ?? 0).toBeGreaterThanOrEqual(44);
+      expect(bounds?.height ?? 0).toBeGreaterThanOrEqual(44);
+    }
+    const searchBounds = await page.getByRole('searchbox', { name: 'search cueory' }).boundingBox();
+    expect(searchBounds?.height ?? 0).toBeGreaterThanOrEqual(44);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+    const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+    expect(results.violations.map((v) => v.id + ': ' + v.help)).toEqual([]);
+
+    const search = page.getByRole('searchbox', { name: 'search cueory' });
+    await search.focus();
+    await page.keyboard.press('Tab');
+    await expect(links.nth(0)).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(links.nth(1)).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/learn\/?$/);
+
+    await page.goto(missingPage);
+    const playLink = page.getByRole('navigation', { name: 'other places to go' }).getByRole('link', { name: 'play' });
+    if (testInfo.project.use.hasTouch) await playLink.tap();
+    else await playLink.click();
+    await expect(page).toHaveURL(/\/play\/?$/);
   }
 });
