@@ -1,0 +1,1 @@
+STATUS: Task 738, rewards preview (#71): locked-staging rewards preview uses only fixed bracketed sample events with the existing local-only rewards model, static server-rendered word summaries, earned sample achievements and accessibility tests. Awaiting Claude's exact-head verification and an independently measured built-route JavaScript budget entry.
