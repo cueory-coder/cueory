@@ -49,6 +49,9 @@ const knownWithoutAxe: Readonly<Record<string, string>> = {
   "sticky-header-overlap.spec.ts": "Cross-route heading and focused-control geometry; global axe audits the corresponding pages.",
   "storage-blocked-pages.spec.ts": "Deliberately disabled browser storage to expose crashes; normal pages have global axe.",
   "sudoku-highlight.spec.ts": "Focused selected-cell, related-row/column/box color and contrast geometry, with semantic Sudoku and keyboard accessibility covered by sudoku-keyboard-a11y.spec.ts.",
+  "tap-targets.spec.ts": "Cross-route 44px touch-target geometry test; full-page axe runs in the global sweep.",
+  "theme-navigation.spec.ts": "Theme persistence across history and reload; dark-mode.spec.ts runs axe on palette states.",
+  "visible-focus.spec.ts": "Focused keyboard-indicator geometry sweep; global axe handles full semantic checks.",
   "study-events.spec.ts": "Isolated RPC telemetry fixture and privacy checks; questions-page.spec.ts runs axe on the question UI.",
   "console-clean.spec.ts": "W15-2 issue #58 is a deliberate error/network/CSP detector, including failure fixtures; a11y-sweep.spec.ts runs axe.",
 };
