@@ -48,7 +48,7 @@ type Phase = 'ready' | 'playing' | 'grading' | 'done' | 'failed';
 function Ring({ left }: { left: number }) {
   const low = left <= LOW_SECONDS;
   return (
-    <div role="timer" aria-label={`${left} seconds left`} className="relative size-16 shrink-0" data-testid="stat-timer">
+    <div role="timer" aria-label={`${left} ${left === 1 ? 'second' : 'seconds'} left`} className="relative size-16 shrink-0" data-testid="stat-timer">
       <svg viewBox="0 0 64 64" className="size-16" aria-hidden="true" focusable="false">
         <circle cx="32" cy="32" r={RADIUS} fill="none" stroke="currentColor" strokeWidth="6" className="text-line" />
         <circle
@@ -72,7 +72,7 @@ function Ring({ left }: { left: number }) {
         data-low={low || undefined}
       >
         {left}
-        <span className="sr-only"> seconds left</span>
+        <span className="sr-only">{left === 1 ? ' second left' : ' seconds left'}</span>
       </span>
     </div>
   );
