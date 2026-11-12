@@ -136,7 +136,7 @@ export default function LessonVideo({ videoId, title, thumbnail, captionsUrl, tr
 
       {view.phase !== 'none' && (
         <>
-          <p role="status" aria-live="polite" className="text-sm text-ink-soft">{videoStatusText(view)}</p>
+          <p data-testid="lesson-video-status" role="status" aria-live="polite" className="text-sm text-ink-soft">{videoStatusText(view)}</p>
           {frameVisible && (
             <button
               type="button"

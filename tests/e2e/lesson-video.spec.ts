@@ -129,13 +129,13 @@ test('the loaded player offers a keyboard/tap retry without pre-tap requests', a
   await page.goto(LESSON_URL);
   await page.waitForLoadState('networkidle');
   expect(requests).toHaveLength(0);
-  await expect(page.getByRole('status')).toHaveText('tap to play the video.');
+  await expect(page.getByTestId('lesson-video-status')).toHaveText('tap to play the video.');
 
   await page.getByRole('button', { name: /play video/i }).click();
   const iframe = page.locator('iframe[src*="youtube-nocookie.com"]');
   await expect(iframe).toBeVisible();
   await expect.poll(() => requests.length).toBeGreaterThanOrEqual(1);
-  await expect(page.getByRole('status')).toContainText('player ready');
+  await expect(page.getByTestId('lesson-video-status')).toContainText('player ready');
 
   const retry = page.getByRole('button', { name: 'video not working? try again' });
   await expect(retry).toBeVisible();
@@ -161,7 +161,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
     expect(youtubeRequests).toBe(0);
     const cover = page.getByRole('button', { name: /play video/i });
     await expect(cover).toBeVisible();
-    await expect(page.getByRole('status')).toHaveText('tap to play the video.');
+    await expect(page.getByTestId('lesson-video-status')).toHaveText('tap to play the video.');
     const bounds = await cover.boundingBox();
     expect(bounds?.width).toBeGreaterThanOrEqual(44);
     expect(bounds?.height).toBeGreaterThanOrEqual(44);
@@ -196,12 +196,12 @@ test('stalled player shows failure, moves keyboard focus to retry, and recovers 
   expect(requests).toBe(0);
   await cover.click();
   await expect.poll(() => requests).toBe(1);
-  await expect(page.getByRole('status')).toHaveText('loading the video…');
+  await expect(page.getByTestId('lesson-video-status')).toHaveText('loading the video…');
 
   // Fast-forward the real component's 20-second timeout, not the Playwright test timeout.
   await page.clock.fastForward(20_100);
   const retry = page.getByRole('button', { name: 'try again', exact: true });
-  await expect(page.getByRole('status')).toHaveText("the video couldn't load. try again.");
+  await expect(page.getByTestId('lesson-video-status')).toHaveText("the video couldn't load. try again.");
   await expect(retry).toBeVisible();
   await expect(retry).toBeFocused();
   const box = await retry.boundingBox();
@@ -215,8 +215,11 @@ test('stalled player shows failure, moves keyboard focus to retry, and recovers 
   await page.keyboard.press('Enter');
   await expect.poll(() => requests).toBe(2);
   await expect(page.locator('iframe[src*="youtube-nocookie.com"]')).toBeVisible();
-  await expect(page.getByRole('status')).toContainText('player ready');
-  await firstRequest?.abort('failed');
-  await expect(page.getByRole('status')).toContainText('player ready');
+  await expect(page.getByTestId('lesson-video-status')).toContainText('player ready');
+  // A detached iframe may already have canceled its first request. Cleanup is best-effort.
+  if (firstRequest) {
+    try { await firstRequest.abort('failed'); } catch { /* request canceled with the first iframe */ }
+  }
+  await expect(page.getByTestId('lesson-video-status')).toContainText('player ready');
   expect(requests).toBe(2);
 });

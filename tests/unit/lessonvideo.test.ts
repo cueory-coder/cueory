@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import LessonVideo from '../../src/islands/LessonVideo';
 import { initialVideoState, nextVideoState, observedVideoEvent, videoStatusText } from '../../src/islands/lessonvideo';
 
 const ID = 'sampleVid01';
@@ -88,5 +91,24 @@ describe('guarding iframe events and stalled loads', () => {
     expect(failed).toEqual({ ...loading, phase: 'failed', opened: false });
     expect(videoStatusText(failed)).toBe("the video couldn't load. try again.");
     expect(observedVideoEvent(failed, ID, loading.attempt, 'loaded')).toEqual(failed);
+  });
+});
+
+
+describe('lesson video component markup before a tap', () => {
+  it('renders a missing-video notice without a cover, frame or external request address', () => {
+    const html = renderToStaticMarkup(createElement(LessonVideo, { videoId: '', title: '[sample video]' }));
+    expect(html).toContain('no video yet.');
+    expect(html).not.toContain('<iframe');
+    expect(html).not.toContain('youtube-nocookie.com');
+    expect(html).not.toContain('Play video:');
+  });
+
+  it('renders a real play control and privacy explanation, not a preloaded iframe', () => {
+    const html = renderToStaticMarkup(createElement(LessonVideo, { videoId: ID, title: '[sample video]' }));
+    expect(html).toContain('aria-label="Play video: [sample video]"');
+    expect(html).toContain('Tapping play loads YouTube and its cookies.');
+    expect(html).not.toContain('<iframe');
+    expect(html).toContain('tap to play the video.');
   });
 });
