@@ -9,7 +9,8 @@ for (const surface of ['menu', '404'] as const) {
     let requests = 0;
     let releaseFailure!: () => void;
     const firstFailure = new Promise<void>((resolve) => { releaseFailure = resolve; });
-    await page.route('**/pagefind/pagefind.js', async (route) => {
+    // A retry asks for pagefind.js?retry=N, because Chromium never refetches a failed import() of the same address.
+    await page.route(/\/pagefind\/pagefind\.js(?:\?retry=\d+)?$/, async (route) => {
       requests++;
       if (unavailable) {
         // Focus preloads search. Keep that attempt pending until fill also requests it.

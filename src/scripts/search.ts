@@ -11,13 +11,23 @@ export const MAX_RESULTS = 8;
 export const PAGEFIND_URL = '/pagefind/pagefind.js';
 
 /**
+ * The address to import Pagefind from on a given try (0 = first). Chromium remembers a failed `import()` of an
+ * address for the rest of the page's life, so a retry must ask for a fresh address: same file, with a counter.
+ */
+export function searchModuleUrl(attempt: number): string {
+  return attempt > 0 ? `${PAGEFIND_URL}?retry=${attempt}` : PAGEFIND_URL;
+}
+
+/**
  * Load search on demand and share one pending or successful initialization.
  * A failed download must not leave later searches reusing the same rejection.
  * Retry only when another focus or search asks to load, never in a background loop.
+ * `initialize` gets the try number, starting at 0, for searchModuleUrl.
  */
-export function createSearchLoader<T>(initialize: () => Promise<T>): () => Promise<T> {
+export function createSearchLoader<T>(initialize: (attempt: number) => Promise<T>): () => Promise<T> {
   let loaded: Promise<T> | undefined;
-  return () => loaded ??= Promise.resolve().then(initialize).catch((error: unknown) => {
+  let attempts = 0;
+  return () => loaded ??= Promise.resolve(attempts++).then(initialize).catch((error: unknown) => {
     loaded = undefined;
     throw error;
   });

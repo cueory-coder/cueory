@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { cleanUrl, createSearchLoader, excerptParts, keepFocus, MAX_RESULTS, moveFocus, statusText } from '../../src/scripts/search';
+import {
+  cleanUrl, createSearchLoader, excerptParts, keepFocus, MAX_RESULTS, moveFocus, PAGEFIND_URL, searchModuleUrl, statusText,
+} from '../../src/scripts/search';
 
 describe('site search loading', () => {
   it('loads only on demand, shares concurrent requests, and keeps a successful result', async () => {
@@ -58,6 +60,21 @@ describe('site search loading', () => {
     await expect(load()).rejects.toThrow('initialization failed');
     await expect(load()).resolves.toBe('ready');
     expect(initialize).toHaveBeenCalledTimes(2);
+  });
+
+  it('numbers each try, so a retry can ask for a fresh module address', async () => {
+    const initialize = vi.fn<(attempt: number) => Promise<string>>()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValue('ready');
+    const load = createSearchLoader(initialize);
+    await expect(load()).rejects.toThrow('offline');
+    await expect(load()).rejects.toThrow('offline');
+    await expect(load()).resolves.toBe('ready');
+    expect(initialize.mock.calls.map(([attempt]) => attempt)).toEqual([0, 1, 2]);
+    expect(searchModuleUrl(0)).toBe(PAGEFIND_URL);
+    expect(searchModuleUrl(1)).toBe(`${PAGEFIND_URL}?retry=1`);
+    expect(searchModuleUrl(2)).toBe(`${PAGEFIND_URL}?retry=2`);
   });
 });
 
