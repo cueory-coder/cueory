@@ -1,10 +1,16 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { indexablePages } from '../../src/config/routes';
 import { GET, pageSourcePath, routeDeclaresNoindex, sitemapPages, sitemapXml, sourceDeclaresNoindex } from '../../src/pages/sitemap.xml';
 
 // Keep this response test independent of Astro's live content collection.
 vi.mock('../../src/lessons/load', () => ({ lessonCatalog: async () => ({ lessons: [], problems: [] }) }));
+
+vi.mock('node:fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs')>();
+  return { ...actual, readdirSync: vi.fn(actual.readdirSync) };
+});
 
 const noindexPages = [
   '/auth/callback', '/reset-password', '/signin', '/signup', '/start', '/subscribed',
@@ -35,6 +41,29 @@ describe('sitemap', () => {
       .toMatch(/src\/pages\/learn\/study-skills\/label-it\.astro$/);
     expect(pageSourcePath('/learn/study-skills/cards')?.replaceAll('\\', '/'))
       .toMatch(/src\/pages\/learn\/\[lesson\]\/cards\.astro$/);
+  });
+
+  it.each(['fill-in', 'organizer'])('ignores nested folders excluded by the %s collection loader', async (collection) => {
+    const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+    const flatRoot = resolve('content', collection);
+    const ignored = resolve(flatRoot, 'ignored-nested');
+    const nestedDirectory = {
+      name: 'ignored-nested', isDirectory: () => true, isFile: () => false,
+    } as unknown as ReturnType<typeof readdirSync>[number];
+    vi.mocked(readdirSync).mockImplementation((...args: Parameters<typeof readdirSync>) => {
+      const directory = String(args[0]);
+      if (directory === ignored) throw new Error('This folder is outside the collection glob.');
+      const entries = Reflect.apply(actual.readdirSync, undefined, args) as ReturnType<typeof readdirSync>;
+      return directory === flatRoot ? [...entries, nestedDirectory] : entries;
+    });
+    try {
+      expect(pageSourcePath('/learn/study-skills/cards')?.replaceAll('\\', '/'))
+        .toMatch(/src\/pages\/learn\/\[lesson\]\/cards\.astro$/);
+      expect(sitemapXml(['/learn/study-skills/cards']))
+        .toContain('<loc>https://cueory.app/learn/study-skills/cards</loc>');
+    } finally {
+      vi.mocked(readdirSync).mockImplementation(actual.readdirSync);
+    }
   });
 
   it('distinguishes boolean noindex={false} from truthy string values', () => {
