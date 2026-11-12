@@ -137,6 +137,34 @@ describe('stat malformed samples', () => {
   });
 });
 
+describe('stat label boundaries', () => {
+  it('rejects misleading labels and text outside the sample brackets', () => {
+    const invalid = [
+      '[sampled]',
+      '[samples]',
+      '[sampled] outside text [1]',
+      '[sample] extra text',
+      '[sample text] extra',
+      '[sample [nested]]',
+      '[sample][additional]',
+    ];
+    for (const text of invalid) {
+      const badStem = stat();
+      badStem.questions[0]!.stem = text;
+      expect(statSampleSchema.safeParse(badStem).success, 'stem: ' + text).toBe(false);
+      const badChoice = stat();
+      badChoice.questions[0]!.choices[0]!.text = text;
+      expect(statSampleSchema.safeParse(badChoice).success, 'choice: ' + text).toBe(false);
+    }
+  });
+  it('accepts fully bracketed sample-only text', () => {
+    const minimal = stat();
+    minimal.questions[0]!.stem = '[sample]';
+    minimal.questions[0]!.choices[0]!.text = '[sample]';
+    expect(statSampleSchema.safeParse(minimal).success).toBe(true);
+  });
+});
+
 describe('hello-cards malformed samples', () => {
   it('accepts a labeled sample with all category and depth combinations', () => {
     expect(helloCardsSampleSchema.safeParse(helloCards()).success).toBe(true);

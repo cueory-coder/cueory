@@ -38,9 +38,9 @@ export const triageSampleSchema = z.object({
   }
 });
 
-const sampleText = z.string().min(1).max(200).refine(
-  (text) => text.trim().startsWith('[sample') && text.trim().endsWith(']'),
-  { message: 'use bracketed [sample ...] text' },
+const sampleText = z.string().min(1).max(200).regex(
+  /^\[sample(?: [^\[\]\r\n]+)?\]$/,
+  'stat questions and choices must contain only bracketed [sample ...] text',
 );
 const statChoice = (letter: 'a' | 'b' | 'c' | 'd') =>
   z.object({ id: z.literal(letter), text: sampleText }).strict();
