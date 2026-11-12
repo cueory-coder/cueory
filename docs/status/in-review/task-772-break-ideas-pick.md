@@ -1,1 +1,1 @@
-status: Task 772 (W19-2) break ideas offer short/long selection with optional length tags, unclassified samples remain eligible for either length, and another idea avoids immediate repeats whenever possible.
+STATUS: Task 772 (#66), break ideas by length: filters, no-repeat picker and visible shuffle with local-only choices. Integrator repaired TypeScript test inference and verified all five controls are disabled before hydration. Combined check/build and 5,532 unit tests passed. Keep Draft for parent !31, restack and Claude's browser/axe run.

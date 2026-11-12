@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
-  checkSharedIdea, ideasForLength, MAX_IDEA_CHARACTERS, parseIdeas, pickIdea, pickIdeaForLength, shuffleIdeasForLength,
+  checkSharedIdea, ideasForLength, MAX_IDEA_CHARACTERS, parseIdeas, pickIdea, pickIdeaForLength, shuffleIdeasForLength, type BreakIdea,
 } from '../../src/islands/breakideas';
 
 const idea = (id = 'sample-one', text = 'sample wording') => ({ id, text });
@@ -214,7 +214,7 @@ describe('W19-2: length-aware break ideas', () => {
     let previous: string | null = null;
     for (let n = 0; n < 20; n++) {
       const length = n % 2 === 0 ? 'short' : 'long';
-      const next = pickIdeaForLength(tagged, length, previous, random)!;
+      const next: BreakIdea = pickIdeaForLength(tagged, length, previous, random)!;
       expect(ideasForLength(tagged, length).map(x => x.id)).toContain(next.id);
       expect(next.id).not.toBe(previous);
       previous = next.id;

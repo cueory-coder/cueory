@@ -29,7 +29,11 @@ describe('held break-idea sample content', () => {
     const html = renderToStaticMarkup(createElement(BreakIdeasList, { ideas: parseIdeas({ ideas: data.ideas }) }));
     for (const idea of data.ideas) expect(html).toContain(idea.text);
     expect(html.match(/<li\b/g)).toHaveLength(20);
-    expect(html.match(/<button[^>]*\bdisabled=""/g)).toHaveLength(2);
+    const buttons = [...html.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)];
+    expect(buttons.map(([, , label]) => label!.trim())).toEqual([
+      'any break', 'short break', 'long break', 'show me one', 'shuffle the ideas',
+    ]);
+    for (const [, attributes] of buttons) expect(attributes).toMatch(/\bdisabled=""/);
     expect(html).not.toContain('data-testid="picked-break-idea"');
   });
 
