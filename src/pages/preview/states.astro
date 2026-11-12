@@ -2,6 +2,7 @@
 /** Preview-only interface examples, not a lesson or a public course. */
 import EmptyState from '../../components/EmptyState.astro';
 import Skeleton from '../../islands/Skeleton';
+import { ErrorBoundaryDemo } from '../../islands/ErrorBoundary';
 import Layout from '../../layouts/Layout.astro';
 ---
 
@@ -88,6 +89,12 @@ import Layout from '../../layouts/Layout.astro';
           />
         </div>
       </div>
+    </section>
+
+    <section aria-labelledby="error-heading" class="space-y-5" data-error-preview>
+      <h2 id="error-heading" class="text-xl font-semibold text-ink">when an interactive part fails</h2>
+      <p class="text-sm text-ink-soft">choose the sample button to simulate a failed part. the rest of the page stays usable.</p>
+      <ErrorBoundaryDemo client:only="react" />
     </section>
   </div>
 </Layout>

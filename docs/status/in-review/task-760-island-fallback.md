@@ -1,0 +1,1 @@
+STATUS: Task 760, React error boundary fallback (#54): private plain-language recovery panel, reload action, failure preview and unit/browser coverage; real game islands require their owners to add wrappers.
