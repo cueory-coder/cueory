@@ -34,6 +34,19 @@ describe('the ⓘ button', () => {
     expect(nextOpenInfoTip(null, { type: 'escape' })).toBeNull();
   });
 
+  it('keeps another tip closed after repeated outside actions and Escape', () => {
+    const current = nextOpenInfoTip('cards', { type: 'toggle', id: 'learn' });
+    expect(current).toBe('learn');
+    expect(nextOpenInfoTip(current, { type: 'outside', insideOpenPanel: true })).toBe('learn');
+    expect(nextOpenInfoTip(current, { type: 'outside', insideOpenPanel: false })).toBeNull();
+    expect(nextOpenInfoTip(null, { type: 'escape' })).toBeNull();
+  });
+
+  it('does not reannounce whitespace-only edits, even with nonbreaking spaces', () => {
+    expect(changedInfoTipText('[sample words]', ' [sample\u00a0words] ', true)).toBeNull();
+    expect(changedInfoTipText('[sample words]', '\n  ', true)).toBeNull();
+  });
+
   it('announces new visible words only when a tip is open', () => {
     expect(changedInfoTipText('old wording', '[sample new wording]', true)).toBe('[sample new wording]');
     expect(changedInfoTipText('old wording', '[sample new wording]', false)).toBeNull();

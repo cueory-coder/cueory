@@ -147,6 +147,50 @@ test('new words in an open tip are politely announced, but closing clears the an
   await expect(live).toBeEmpty();
 });
 
+test('hidden tip details are announced only after becoming visible', async ({ page }) => {
+  await page.goto('/learn/study-skills');
+  const button = page.getByRole('button', { name: 'more about cards' });
+  const panel = page.locator('#mode-tile-cards-info');
+  const live = page.locator('[data-infotip-live="mode-tile-cards-info"]');
+  await button.click();
+  await expect(live).toBeEmpty();
+
+  await panel.evaluate((element) => {
+    const detail = document.createElement('span');
+    detail.setAttribute('data-sample-detail', '');
+    detail.textContent = '[sample newly visible detail]';
+    detail.hidden = true;
+    element.appendChild(detail);
+  });
+  await expect(live).toBeEmpty();
+  await panel.locator('[data-sample-detail]').evaluate((element) => {
+    (element as HTMLElement).hidden = false;
+  });
+  await expect(live).toContainText('[sample newly visible detail]');
+  await button.click();
+  await expect(live).toBeEmpty();
+});
+
+test('Escape from a focused control inside a tip returns focus to its info button', async ({ page }) => {
+  await page.goto('/learn/study-skills');
+  const button = page.getByRole('button', { name: 'more about cards' });
+  const panel = page.locator('#mode-tile-cards-info');
+  await button.click();
+  await panel.evaluate((element) => {
+    const link = document.createElement('a');
+    link.href = '#main';
+    link.textContent = '[sample related link]';
+    element.appendChild(link);
+  });
+  const sampleLink = panel.getByRole('link', { name: '[sample related link]' });
+  await sampleLink.focus();
+  await expect(sampleLink).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(panel).toBeHidden();
+  await expect(button).toHaveAttribute('aria-expanded', 'false');
+  await expect(button).toBeFocused();
+});
+
 for (const width of [390, 820, 1440]) {
   for (const theme of ['Light', 'Dark']) {
     test('tip interactions pass axe and have no overflow at ' + width + 'px in ' + theme, async ({ page }) => {
