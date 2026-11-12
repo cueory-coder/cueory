@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
-import { curriculumStatus } from '../../src/lessons/curriculumstatus';
+import { curriculumPreviewAllowed, curriculumStatus } from '../../src/lessons/curriculumstatus';
+import { draftsAllowed, type BuildEnv } from '../../src/islands/anatomylab';
 import type { MapUnit } from '../../src/islands/lessonmap';
 import type { CatalogLesson } from '../../src/lessons/catalog';
 
@@ -31,6 +32,31 @@ describe('normal-build curriculum preview boundary', () => {
     expect(html).not.toContain('data-curriculum-lesson-id');
     expect(html).not.toContain('data-curriculum-unit');
     expect(html).not.toMatch(/U\d{2}-T\d{2}-L\d{2}/);
+  });
+});
+
+describe('curriculum production-branch exclusion', () => {
+  const cases: { name: string; env: BuildEnv; show: boolean }[] = [
+    { name: 'live legacy/main Workers build', env: { WORKERS_CI: '1', WORKERS_CI_BRANCH: 'legacy/main' }, show: false },
+    { name: 'full-ref legacy/main Workers build', env: { WORKERS_CI: '1', WORKERS_CI_BRANCH: 'refs/heads/legacy/main' }, show: false },
+    { name: 'live main Workers build', env: { WORKERS_CI: '1', WORKERS_CI_BRANCH: 'main' }, show: false },
+    { name: 'full-ref main Workers build', env: { WORKERS_CI: '1', WORKERS_CI_BRANCH: 'refs/heads/main' }, show: false },
+    { name: 'missing Workers branch', env: { WORKERS_CI: '1' }, show: false },
+    { name: 'blank Workers branch', env: { WORKERS_CI: '1', WORKERS_CI_BRANCH: ' ' }, show: false },
+    { name: 'staging Workers preview', env: { WORKERS_CI: '1', WORKERS_CI_BRANCH: 'staging' }, show: true },
+    { name: 'task-branch Workers preview', env: { WORKERS_CI: '1', WORKERS_CI_BRANCH: 'refs/heads/task-769/curriculum-preview' }, show: true },
+    { name: 'normal local build', env: {}, show: false },
+    { name: 'explicit local draft build', env: { CUEORY_ANATOMY_DRAFTS: '1' }, show: true },
+  ];
+  for (const { name, env, show } of cases) {
+    it(name, () => {
+      expect(curriculumPreviewAllowed(draftsAllowed(env), env)).toBe(show);
+    });
+  }
+  it('rejects both live branch aliases even if the shared gate mistakenly allows them', () => {
+    for (const branch of ['legacy/main', 'refs/heads/legacy/main', 'main', 'refs/heads/main']) {
+      expect(curriculumPreviewAllowed(true, { WORKERS_CI: '1', WORKERS_CI_BRANCH: branch })).toBe(false);
+    }
   });
 });
 

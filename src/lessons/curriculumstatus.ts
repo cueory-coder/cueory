@@ -65,3 +65,22 @@ export function curriculumStatus(
     unmappedCatalogIds: [...builtIds].filter((id) => !mappedIds.has(id)).sort(),
   };
 }
+
+/** Extra safety for the curriculum outline: Cloudflare currently builds live from
+ * legacy/main, while the shared drafts gate recognizes only main as production.
+ * Never render the outline from either production branch or an unknown Workers branch.
+ * This is build-time exclusion, NOT authentication for deployed preview URLs.
+ */
+export function curriculumPreviewAllowed(
+  sharedDraftsAllowed: boolean,
+  env: { readonly WORKERS_CI?: string | undefined; readonly WORKERS_CI_BRANCH?: string | undefined },
+): boolean {
+  if (!sharedDraftsAllowed) return false;
+  if (env.WORKERS_CI !== '1') return true;
+  const rawBranch = env.WORKERS_CI_BRANCH?.trim();
+  if (!rawBranch) return false;
+  const branch = rawBranch.startsWith('refs/heads/')
+    ? rawBranch.slice('refs/heads/'.length)
+    : rawBranch;
+  return branch !== 'main' && branch !== 'legacy/main';
+}

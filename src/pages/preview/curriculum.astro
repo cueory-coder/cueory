@@ -9,16 +9,18 @@ import { resolve } from 'node:path';
 import Layout from '../../layouts/Layout.astro';
 import { parseLessonMap } from '../../islands/lessonmap';
 import { lessonCatalog } from '../../lessons/load';
-import { curriculumStatus } from '../../lessons/curriculumstatus';
+import { curriculumPreviewAllowed, curriculumStatus } from '../../lessons/curriculumstatus';
 import { draftsAllowed } from '../../islands/anatomylab';
 
-// Reuse the existing build boundary. Production and unknown Workers branches
-// never read or serialize this internal outline. This is not an auth check.
-const showPreview = draftsAllowed({
+// The shared gate blocks "main". Cloudflare's configured live branch is
+// "legacy/main", so also exclude that branch before reading any outline data.
+// This is build-time exclusion, not a substitute for Cloudflare Access.
+const buildEnv = {
   WORKERS_CI: process.env.WORKERS_CI,
   WORKERS_CI_BRANCH: process.env.WORKERS_CI_BRANCH,
   CUEORY_ANATOMY_DRAFTS: process.env.CUEORY_ANATOMY_DRAFTS,
-});
+};
+const showPreview = curriculumPreviewAllowed(draftsAllowed(buildEnv), buildEnv);
 let preview: ReturnType<typeof curriculumStatus> | null = null;
 if (showPreview) {
   const source = parseLessonMap(readFileSync(resolve('docs/curriculum/medsurg-lesson-map.csv'), 'utf8'));
