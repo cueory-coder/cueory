@@ -1,0 +1,1 @@
+STATUS: Task 768, learn-library course and unit filter (#62): progressive-enhancement buttons backed by pure URL/visibility rules, polite lesson count, no-JS all-content fallback, and unit/browser coverage. Stacked on !20.

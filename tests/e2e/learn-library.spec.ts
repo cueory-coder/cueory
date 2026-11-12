@@ -4,6 +4,7 @@ import { expect, test } from '@playwright/test';
 import { parseLessonMap } from '../../src/islands/lessonmap';
 import { studyModes } from '../../src/config/modes';
 import { unitAvailability } from '../../src/lessons/availability';
+import { lessonCountLabel } from '../../src/lessons/libraryfilter';
 import { contentCatalog } from '../lessonroutes';
 
 const sourceCsv = readFileSync(new URL('../../docs/curriculum/medsurg-lesson-map.csv', import.meta.url), 'utf8');
@@ -139,6 +140,13 @@ for (const { width, height, columns } of [
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
       const accessibility = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
       expect(accessibility.violations.map((violation) => violation.id + ': ' + violation.help)).toEqual([]);
+
+      // Exercise selected-button contrast, overflow, and accessibility too.
+      await page.locator('[data-library-unit-picker] summary').click();
+      await page.locator('[data-library-choice="unit:' + source.units[0]!.id + '"]').click();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      const filteredAccessibility = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+      expect(filteredAccessibility.violations.map((violation) => violation.id + ': ' + violation.help)).toEqual([]);
     });
   }
 }
@@ -169,4 +177,110 @@ test.describe('library without JavaScript', () => {
     await expect(first.locator('details')).not.toHaveAttribute('open', '');
     await expect(page.locator('[data-open-lesson]')).toHaveCount(catalog.lessons.length);
   });
+});
+
+test('course buttons filter open lessons with keyboard and restore state using browser history', async ({ page }) => {
+  await page.goto('/learn');
+  const controls = page.locator('[data-library-filters]');
+  await expect(controls).toBeVisible();
+  const count = page.getByTestId('library-filter-count');
+  const total = catalog.lessons.length;
+  await expect(count).toHaveText(lessonCountLabel(total, total));
+  const medSurg = controls.locator('[data-library-choice="course:med-surg-i"]');
+  await medSurg.focus();
+  await medSurg.press('Enter');
+  await expect(medSurg).toBeFocused();
+  await expect(medSurg).toHaveAttribute('aria-pressed', 'true');
+  await expect(medSurg.locator('[data-library-selected]')).toBeVisible();
+  await expect(page).toHaveURL(/\?course=med-surg-i$/);
+  const mapped = catalog.lessons.filter((lesson) => Boolean(lesson.unitId)).length;
+  await expect(count).toHaveText(lessonCountLabel(mapped, total));
+  await expect(page.locator('[data-open-lesson]:visible')).toHaveCount(mapped);
+  await expect(page.locator('[data-library-planned-section]')).toBeVisible();
+
+  const studySkills = controls.locator('[data-library-choice="course:study-skills"]');
+  await studySkills.click();
+  await expect(studySkills).toHaveAttribute('aria-pressed', 'true');
+  await expect(page).toHaveURL(/\?course=study-skills$/);
+  await expect(page.locator('[data-library-planned-section]')).toBeHidden();
+  const legacy = catalog.lessons.filter((lesson) => !lesson.unitId).length;
+  await expect(count).toHaveText(lessonCountLabel(legacy, total));
+  await expect(page.locator('[data-open-lesson]:visible')).toHaveCount(legacy);
+  await page.goBack();
+  await expect(medSurg).toHaveAttribute('aria-pressed', 'true');
+  await expect(count).toHaveText(lessonCountLabel(mapped, total));
+});
+
+test('unit buttons and URL query only show one unit, and invalid units show all', async ({ page }) => {
+  const unit = source.units[0]!;
+  const total = catalog.lessons.length;
+  const mapped = catalog.lessons.filter((lesson) => lesson.unitId === unit.id).length;
+  await page.goto('/learn?unit=' + encodeURIComponent(unit.id));
+  const picker = page.locator('[data-library-unit-picker]');
+  await expect(picker).toHaveAttribute('open', '');
+  const selected = page.locator('[data-library-choice="unit:' + unit.id + '"]');
+  await expect(selected).toHaveAttribute('aria-pressed', 'true');
+  await expect(selected.locator('[data-library-selected]')).toBeVisible();
+  await expect(page.locator('[data-library-unit-id]:visible')).toHaveCount(1);
+  await expect(page.locator('[data-open-lesson]:visible')).toHaveCount(mapped);
+  await expect(page.getByTestId('library-filter-count')).toHaveText(lessonCountLabel(mapped, total));
+  if (mapped === 0 && total > 0) {
+    await expect(page.locator('[data-library-no-results]')).toBeVisible();
+  }
+
+  await page.locator('[data-library-choice="all"]').click();
+  await expect(page).toHaveURL(/\/learn\/?$/);
+  await expect(page.locator('[data-library-unit-id]:visible')).toHaveCount(source.units.length);
+  await expect(page.locator('[data-open-lesson]:visible')).toHaveCount(total);
+  await page.goto('/learn?unit=NOT-A-UNIT');
+  await expect(page.locator('[data-library-choice="all"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('[data-library-unit-id]:visible')).toHaveCount(source.units.length);
+  await expect(page.getByTestId('library-filter-count')).toHaveText(lessonCountLabel(total, total));
+});
+
+test.describe('course library without JavaScript', () => {
+  test.use({ javaScriptEnabled: false });
+  test('keeps every lesson and unit visible, even with a unit URL', async ({ page }) => {
+    const firstUnit = source.units[0]!;
+    await page.goto('/learn?unit=' + encodeURIComponent(firstUnit.id));
+    await expect(page.locator('[data-library-filters]')).toBeHidden();
+    await expect(page.locator('[data-library-unit-id]:visible')).toHaveCount(source.units.length);
+    await expect(page.locator('[data-open-lesson]:visible')).toHaveCount(catalog.lessons.length);
+    await expect(page.getByTestId('library-filter-count')).toHaveText(
+      lessonCountLabel(catalog.lessons.length, catalog.lessons.length)
+    );
+  });
+});
+
+test('a keyboard-selected filter keeps visible focus and announces the lesson count politely', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/learn');
+
+  const controls = page.locator('[data-library-filters]');
+  await expect(controls).toBeVisible();
+  const count = page.getByTestId('library-filter-count');
+  await expect(count).toHaveAttribute('role', 'status');
+  await expect(count).toHaveAttribute('aria-live', 'polite');
+  await expect(count).toHaveAttribute('aria-atomic', 'true');
+
+  const filter = controls.locator('[data-library-choice="course:med-surg-i"]');
+  await filter.focus();
+  await page.keyboard.press('Space');
+  await expect(filter).toBeFocused();
+  await expect(filter).toHaveAttribute('aria-pressed', 'true');
+  const appearance = await filter.evaluate((button) => ({
+    outline: getComputedStyle(button).outlineStyle,
+    height: button.getBoundingClientRect().height,
+  }));
+  expect(appearance.outline).not.toBe('none');
+  expect(appearance.height).toBeGreaterThanOrEqual(44);
+  const mapped = catalog.lessons.filter((lesson) => Boolean(lesson.unitId)).length;
+  await expect(count).toHaveText(lessonCountLabel(mapped, catalog.lessons.length));
+
+  await page.goBack();
+  await expect(controls.locator('[data-library-choice="all"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(count).toHaveText(lessonCountLabel(catalog.lessons.length, catalog.lessons.length));
+  await page.goForward();
+  await expect(filter).toHaveAttribute('aria-pressed', 'true');
+  await expect(count).toHaveText(lessonCountLabel(mapped, catalog.lessons.length));
 });
