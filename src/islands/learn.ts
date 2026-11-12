@@ -52,15 +52,36 @@ export const COMES_BACK_AFTER = 2;
 export const MAX_CHOICES = 4;
 
 /**
- * Text as it is compared: accents, case, punctuation and extra spaces don't count, so "Cell membrane." matches
- * "cell membrane".
+ * Compare wording without case, accents, sentence punctuation or extra spaces. Keep symbols and
+ * numeric separators: removing a sign, decimal point or percent mark can change the answer. This is a lexical
+ * comparison, not a calculation of equivalent values.
  */
 export function normalize(text: string): string {
-  return text
-    .normalize('NFKD')
-    .replace(/\p{M}/gu, '')
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+  const folded = text
+    // Canonical decomposition removes accents without flattening exponents such as 10² into 102.
+    .normalize('NFD')
+    // Only remove accents from letters. A combining slash can negate a mathematical symbol, such as ≠.
+    .replace(/(\p{L})\p{M}+/gu, '$1')
+    .normalize('NFC')
+    .toLowerCase();
+  return folded
+    .replace(/[^\p{L}\p{N}\p{M}]+/gu, (separator: string, offset: number) => {
+      // A separator includes surrounding spaces, so "1 / 2" and "1/2" compare the same way.
+      const end = offset + separator.length;
+      const numberBefore = /\p{N}$/u.test(folded.slice(Math.max(0, offset - 2), offset));
+      const numberAfter = /^\p{N}/u.test(folded.slice(end, end + 2));
+      const hasNotEqual = /!\s*=/u.test(separator);
+      const significant = Array.from(separator).filter((symbol) =>
+        // Unit glyphs such as ℃ are symbols too. Do not discard them after preserving their original form.
+        /[\p{S}%‰‱/*]/u.test(symbol)
+        || (symbol === '!' && hasNotEqual)
+        || (symbol === '.' && numberAfter)
+        || (/[,:]/u.test(symbol) && numberBefore && numberAfter)
+        || (/[-–—]/u.test(symbol) && (numberBefore || numberAfter)),
+      ).map((symbol) => /[−–—]/u.test(symbol) ? '-' : symbol);
+      return ` ${significant.join(' ')} `;
+    })
+    .replace(/\s+/gu, ' ')
     .trim();
 }
 
