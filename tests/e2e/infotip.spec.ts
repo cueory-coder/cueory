@@ -118,14 +118,52 @@ test('one tip closes when another opens, and Escape also works from outside the 
   const learn = page.getByRole('button', { name: 'more about learn' });
   await cards.click();
   await learn.click();
+  await expect(learn).toBeFocused();
   await expect(cards).toHaveAttribute('aria-expanded', 'false');
   await expect(page.locator('#mode-tile-cards-info')).toBeHidden();
   await expect(learn).toHaveAttribute('aria-expanded', 'true');
   await expect(page.locator('#mode-tile-learn-info')).toBeVisible();
-  await page.locator('main a').first().focus();
+  const outside = page.locator('main a').first();
+  await outside.focus();
+  await expect(outside).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(learn).toHaveAttribute('aria-expanded', 'false');
-  await expect(learn).toBeFocused();
+  await expect(outside).toBeFocused();
+});
+
+test('Escape reaches an unrelated dialog after a tip is opened by keyboard', async ({ page }) => {
+  await page.goto('/learn/study-skills');
+  const info = page.getByRole('button', { name: 'more about cards' });
+  const panel = page.locator('#mode-tile-cards-info');
+  await info.focus();
+  await page.keyboard.press('Enter');
+  await expect(panel).toBeVisible();
+
+  // Simulate another widget reached by Tab while the tip remains open.
+  await page.evaluate(() => {
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.setAttribute('aria-label', '[sample dialog]');
+    const control = document.createElement('button');
+    control.type = 'button';
+    control.textContent = '[sample dialog control]';
+    dialog.appendChild(control);
+    dialog.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') dialog.setAttribute('data-escape-received', 'true');
+    });
+    document.body.appendChild(dialog);
+    control.focus();
+  });
+
+  const dialog = page.locator('[role="dialog"][aria-label="[sample dialog]"]');
+  const control = dialog.getByRole('button', { name: '[sample dialog control]' });
+  await expect(control).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(panel).toBeHidden();
+  await expect(page.locator('[data-infotip][aria-controls="mode-tile-cards-info"]')).toHaveAttribute('aria-expanded', 'false');
+  await expect(dialog).toHaveAttribute('data-escape-received', 'true');
+  await expect(control).toBeFocused();
 });
 
 test('new words in an open tip are politely announced, but closing clears the announcement', async ({ page }) => {

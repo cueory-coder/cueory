@@ -130,14 +130,19 @@ export function bindInfoTips(root: Document): void {
     }
   });
 
-  // Closing an open tip consumes Escape before an enclosing preview dialog sees it.
+  // Escape only belongs to a tip when focus is on its button or inside its panel.
+  // Elsewhere, close quietly and let another dialog, menu or control handle Escape.
   root.addEventListener('keydown', (event) => {
     const active = openButton(root);
     if (!active || !closesInfoTip(event.key, true)) return;
-    event.preventDefault();
-    event.stopPropagation();
+    const target = event.target instanceof Element ? event.target : null;
+    const panel = panelOf(active, root);
+    const insideTip = !!target && (active.contains(target) || (panel?.contains(target) ?? false));
     if (nextOpenInfoTip(active.getAttribute('aria-controls'), { type: 'escape' }) === null) {
       setInfoTip(active, false, root);
+      if (!insideTip) return;
+      event.preventDefault();
+      event.stopPropagation();
       active.focus();
     }
   }, true);
