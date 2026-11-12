@@ -18,7 +18,7 @@ describe('coming-soon and subscribed page shells', () => {
     });
 
     it(`${name} has a clear lowercase meta description of 50–160 characters`, () => {
-      const description = source.match(/<Layout\\b[^>]*\\bdescription="([^"]+)"/)?.[1] ?? '';
+      const description = source.match(/<Layout\b[^>]*\bdescription="([^"]+)"/)?.[1] ?? '';
       expect(description.length).toBeGreaterThanOrEqual(50);
       expect(description.length).toBeLessThanOrEqual(160);
       expect(description).toBe(description.toLowerCase());
