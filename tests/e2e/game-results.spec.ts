@@ -97,6 +97,42 @@ test('copy fallback and every platform link stay plain and tracker-free', async 
   }
 });
 
+test('native image sharing waits for a fresh click after image preparation', async ({ page }) => {
+  await page.evaluate(() => {
+    const state = window as unknown as { nativeShares: { active: boolean; files: number }[] };
+    state.nativeShares = [];
+    Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => true });
+    Object.defineProperty(navigator, 'share', { configurable: true, value: async (data: ShareData) => {
+      state.nativeShares.push({ active: navigator.userActivation.isActive, files: data.files?.length ?? 0 });
+    } });
+  });
+  const dialog = await openResult(page);
+  let release!: () => void;
+  const imageReady = new Promise<void>((resolve) => { release = resolve; });
+  let requests = 0;
+  await page.route('**/brand/v1/logo-full-*.png', async (route) => {
+    requests++;
+    await imageReady;
+    await route.continue();
+  });
+  try {
+    await dialog.getByRole('button', { name: 'share', exact: true }).click();
+    await expect.poll(() => requests).toBe(1);
+    await expect(dialog.getByRole('button', { name: 'preparing image', exact: true })).toHaveAttribute('aria-disabled', 'true');
+    expect(await page.evaluate(() => (window as unknown as { nativeShares: unknown[] }).nativeShares)).toEqual([]);
+    release();
+    const shareImage = dialog.getByRole('button', { name: 'share image', exact: true });
+    await expect(shareImage).toBeEnabled();
+    expect(await page.evaluate(() => (window as unknown as { nativeShares: unknown[] }).nativeShares)).toEqual([]);
+    await expect(shareImage).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect.poll(() => page.evaluate(() => (window as unknown as { nativeShares: unknown[] }).nativeShares))
+      .toEqual([{ active: true, files: 1 }]);
+  } finally {
+    release();
+  }
+});
+
 
 test('share copies immediately without requesting a story image when native file sharing is unavailable', async ({ page }) => {
   let storyLogoRequests = 0;

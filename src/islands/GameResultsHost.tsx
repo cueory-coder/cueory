@@ -24,6 +24,10 @@ function absoluteUrl(path: string): string {
 export default function GameResultsHost() {
   const [card, setCard] = useState<GameResultCard | null>(null);
   const [status, setStatus] = useState('');
+  const [prepared, setPrepared] = useState<{ card: GameResultCard; file: File } | null>(null);
+  const [preparing, setPreparing] = useState(false);
+  const activeCard = useRef<GameResultCard | null>(null);
+  const preparation = useRef(0);
   const closeButton = useRef<HTMLButtonElement>(null);
   const dialog = useRef<HTMLDivElement>(null);
   const returnFocus = useRef<HTMLElement | null>(null);
@@ -33,6 +37,10 @@ export default function GameResultsHost() {
       const detail = (event as CustomEvent<GameResultCard>).detail;
       if (!detail) return;
       discardPendingResultCard(detail);
+      activeCard.current = detail;
+      preparation.current++;
+      setPrepared(null);
+      setPreparing(false);
       returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       setStatus('');
       setCard(detail);
@@ -40,6 +48,8 @@ export default function GameResultsHost() {
     window.addEventListener(GAME_RESULT_CARD_EVENT, open);
     for (const pending of takePendingResultCards()) open(new CustomEvent<GameResultCard>(GAME_RESULT_CARD_EVENT, { detail: pending }));
     return () => {
+      activeCard.current = null;
+      preparation.current++;
       window.removeEventListener(GAME_RESULT_CARD_EVENT, open);
     };
   }, []);
@@ -71,6 +81,10 @@ export default function GameResultsHost() {
   }, [card]);
 
   function close() {
+    activeCard.current = null;
+    preparation.current++;
+    setPrepared(null);
+    setPreparing(false);
     setCard(null);
     requestAnimationFrame(() => returnFocus.current?.focus());
   }
@@ -87,23 +101,37 @@ export default function GameResultsHost() {
   }
 
   async function share(card: GameResultCard, line: string) {
+    if (activeCard.current !== card) return;
     // Browsers without image-file sharing copy immediately; no canvas, font or logo work delays that fallback.
     if (!canShareFiles(navigator)) {
       await copy(line);
       return;
     }
+    if (prepared?.card === card) {
+      // No image-generation await precedes this call: the new click supplies fresh user activation.
+      await shareFileOrCopy(
+        navigator,
+        { title: `${card.name} result · cueory`, text: line, url: absoluteUrl(card.path) },
+        prepared.file,
+        copy,
+      );
+      return;
+    }
+    if (preparing) return;
+    const request = ++preparation.current;
+    setPreparing(true);
+    setStatus('preparing image.');
     const file = await createStoryFile({
       name: card.name,
       date: card.date,
       result: card.result,
       ...(card.wordmarkPath ? { wordmarkPath: card.wordmarkPath } : {}),
     });
-    await shareFileOrCopy(
-      navigator,
-      { title: `${card.name} result · cueory`, text: line, url: absoluteUrl(card.path) },
-      file,
-      copy,
-    );
+    if (request !== preparation.current || activeCard.current !== card) return;
+    setPreparing(false);
+    if (!file) { await copy(line); return; }
+    setPrepared({ card, file });
+    setStatus('image ready. tap share image to open your share options.');
   }
 
   if (!card) return null;
@@ -160,7 +188,7 @@ export default function GameResultsHost() {
         </p>
 
         <div className="mt-5 flex flex-wrap gap-2">
-          <button type="button" className="min-h-(--tap-min) rounded-pill bg-button px-5 py-2.5 text-on-button" onClick={() => void share(card, line)}>share</button>
+          <button type="button" aria-disabled={preparing || undefined} aria-busy={preparing || undefined} className="min-h-(--tap-min) rounded-pill bg-button px-5 py-2.5 text-on-button aria-disabled:opacity-50" onClick={() => void share(card, line)}>{prepared?.card === card ? 'share image' : preparing ? 'preparing image' : 'share'}</button>
           <button type="button" className="min-h-(--tap-min) rounded-pill border border-control px-5 py-2.5" onClick={() => void copy(line)}>copy</button>
         </div>
 
