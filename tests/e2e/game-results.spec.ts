@@ -99,7 +99,7 @@ test('copy fallback and every platform link stay plain and tracker-free', async 
   const expected = {
     facebook: ['facebook.com', 'u'],
     x: ['x.com', 'url'],
-    threads: ['threads.net', 'text'],
+    threads: ['threads.com', 'url'],
     reddit: ['reddit.com', 'url'],
     whatsapp: ['wa.me', 'text'],
   } as const;

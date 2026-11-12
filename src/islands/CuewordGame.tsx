@@ -56,6 +56,7 @@ function Board({ puzzle, name }: Props) {
       game: 'cueword', day: localDay(today), solved: true, tries: 0,
       card: {
         game: 'cueword', name, date: dayLabel(today), level: gameResult.level,
+        shareResult: `${gameResult.level} · solved in ${elapsedText(gameResult.seconds)}`,
         result: 'solved', summary: "you completed today's crossword.",
         stats: [
           { label: 'level', value: gameResult.level },

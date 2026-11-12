@@ -467,7 +467,7 @@ test.describe('daily games: crossword levels (Task 627)', () => {
     }
     const resultDialog = page.getByTestId('game-result-dialog');
     await expect(resultDialog.getByRole('button', { name: 'close results' })).toBeFocused();
-    await expect(resultDialog.getByTestId('result-share-line')).toHaveText('crossword · sun 1 nov · solved · cueory.app');
+    await expect(resultDialog.getByTestId('result-share-line')).toHaveText(/^crossword · sun 1 nov · easy · solved in \d+:\d{2} · cueory\.app$/);
     await expect(resultDialog).toContainText('easy');
     await resultDialog.getByRole('button', { name: 'close results' }).click();
     const result = board(page).getByTestId('cueword-result');

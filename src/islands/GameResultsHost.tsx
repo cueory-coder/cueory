@@ -193,15 +193,15 @@ export default function GameResultsHost() {
         <div className="mt-5 flex flex-wrap gap-2">
           <button type="button" aria-disabled={preparing || undefined} aria-busy={preparing || undefined} className="min-h-(--tap-min) rounded-pill bg-button px-5 py-2.5 text-on-button aria-disabled:opacity-50" onClick={() => void share(card, line)}>{prepared?.card === card ? 'share image' : preparing ? 'preparing image' : 'share'}</button>
           <button type="button" className="min-h-(--tap-min) rounded-pill border border-control px-5 py-2.5" onClick={() => void copy(line)}>copy</button>
-        </div>
 
-        <nav aria-label="share result on a website" className="mt-4 flex flex-wrap gap-x-4 gap-y-2">
-          {platforms.map((platform) => (
-            <a key={platform.id} href={platformShareUrl(platform.id, line, url)} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-(--tap-min) min-w-(--tap-min) items-center justify-center underline underline-offset-4">
-              {platform.label}<span className="sr-only"> (opens in a new tab)</span>
-            </a>
-          ))}
-        </nav>
+          <nav aria-label="share result on a website" className="flex flex-wrap gap-2">
+            {platforms.map((platform) => (
+              <a key={platform.id} href={platformShareUrl(platform.id, line, url)} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-(--tap-min) min-w-(--tap-min) items-center justify-center rounded-pill border border-control bg-page px-4 py-2">
+                {platform.label}<span className="sr-only"> (opens in a new tab)</span>
+              </a>
+            ))}
+          </nav>
+        </div>
 
         <p role="status" className="mt-3 min-h-6 text-sm text-ink-soft break-all">{status}</p>
         <p className="mt-4 text-sm text-ink-soft">{card.nextMessage ?? (card.game === 'hello-cards' ? 'a new card of the day comes out tomorrow.' : `a new ${card.name} comes out tomorrow.`)}</p>

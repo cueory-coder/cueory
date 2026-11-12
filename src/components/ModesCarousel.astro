@@ -105,7 +105,7 @@ const icons: Record<StudyFeatureIcon, string> = {
             />
             <ModeVial mode={mode} summaryId={`mode-${mode.id}-summary`} />
             {mode.link ? (
-              <a href={mode.link.href} class="mode-card-link">
+              <a href={mode.link.href} class="mode-card-link inline-flex min-h-11 items-center justify-center px-3">
                 {mode.link.label}
               </a>
             ) : (
@@ -216,6 +216,7 @@ const icons: Record<StudyFeatureIcon, string> = {
     REST_MS,
     STEP_MS,
     canAutoAdvance,
+    canEnhanceCarousel,
     clipAround,
     flipFrom,
     glides,
@@ -232,14 +233,42 @@ const icons: Record<StudyFeatureIcon, string> = {
 
   const root = document.querySelector<HTMLElement>('[data-modes]');
   const track = root?.querySelector<HTMLElement>('[data-modes-track]');
+  // The ring calls addEventListener on this result. Older browsers may only expose addListener.
+  let motionQuery: MediaQueryList | undefined;
+  try {
+    motionQuery = typeof window.matchMedia === 'function'
+      ? window.matchMedia('(prefers-reduced-motion: reduce)')
+      : undefined;
+  } catch {
+    // Unsupported media queries leave the ordinary study links available.
+  }
+  const previewDialog = root?.querySelector<HTMLDialogElement>('[data-mode-preview]');
+  const previewBottle = previewDialog?.querySelector<HTMLElement>('[data-mode-preview-vial]');
+  const previewParts = [
+    previewDialog?.querySelector<HTMLElement>('[data-mode-preview-panel]'),
+    previewDialog?.querySelector<HTMLElement>('[data-mode-preview-scrim]'),
+    previewBottle,
+    previewDialog?.querySelector<HTMLElement>('[data-mode-preview-surface]'),
+    ...(previewDialog?.querySelectorAll<HTMLElement>('[data-mode-preview-fade]') ?? []),
+  ];
 
-  if (root && track) {
+  // Keep the native scroll-and-link version unless the entire modal preview can work.
+  // In particular, never hide its links when HTMLDialogElement.showModal is missing.
+  if (root && track && canEnhanceCarousel({
+    nativeDialog: typeof HTMLDialogElement === 'function' && previewDialog instanceof HTMLDialogElement,
+    dialog: previewDialog,
+    animationTargets: previewParts,
+    matchMedia: window.matchMedia,
+    motionQuery,
+    intersectionObserver: typeof IntersectionObserver === 'function' ? IntersectionObserver : undefined,
+    replaceChildren: previewBottle?.replaceChildren,
+  })) {
     const cards = [...track.querySelectorAll<HTMLElement>('[data-mode-card]')];
     const openButtons = cards.map((card) => card.querySelector<HTMLButtonElement>('[data-mode-open]'));
     const live = root.querySelector<HTMLElement>('[data-modes-live]');
     const pauseButton = root.querySelector<HTMLButtonElement>('[data-modes-pause]');
     const dots = [...root.querySelectorAll<HTMLElement>('[data-modes-dot]')];
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const reducedMotion = motionQuery!;
 
     const state = {
       reducedMotion: reducedMotion.matches,

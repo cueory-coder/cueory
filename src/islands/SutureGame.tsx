@@ -63,6 +63,7 @@ function Board({ puzzle, name }: Props) {
         name,
         date: dayLabel(today),
         result: `${state.found.length} / ${state.totalWords}`,
+        shareResult: `${state.found.length} of ${state.totalWords} words`,
         summary: 'you found every word in today\'s path.',
         stats: [
           { label: 'words found', value: `${state.found.length}` },

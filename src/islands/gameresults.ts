@@ -52,6 +52,8 @@ export interface GameResultCard {
   date: string;
   level?: string;
   result: string;
+  /** Optional detailed outcome for sharing, while the card heading stays short. */
+  shareResult?: string;
   summary: string;
   /** Optional game-specific follow-up, without promising unpublished daily content. */
   nextMessage?: string;
@@ -70,6 +72,7 @@ export function sudokuResultCard(detail: SudokuResult): GameResultCard {
     date: resultDayLabel(detail.day),
     level: detail.level,
     result: detail.solved ? 'solved' : 'not solved',
+    shareResult: `${detail.level} · ${detail.solved ? '' : 'not solved · '}${detail.time} · ${errors}`,
     summary: detail.solved
       ? `${detail.level} completed in ${detail.time} with ${errors}.`
       : `${detail.level} ended after ${detail.time} with ${errors}.`,
@@ -98,9 +101,9 @@ export function statResultCard(detail: StatRoundResult): GameResultCard {
 }
 
 /** The exact, plain one-line share format approved for finished games. */
-export function buildResultShareLine(card: Pick<GameResultCard, 'name' | 'date' | 'result'>): string {
+export function buildResultShareLine(card: Pick<GameResultCard, 'name' | 'date' | 'result' | 'shareResult'>): string {
   const clean = (value: string) => value.replace(/\s+/g, ' ').trim();
-  return `${clean(card.name)} · ${clean(card.date)} · ${clean(card.result)} · cueory.app`;
+  return `${clean(card.name)} · ${clean(card.date)} · ${clean(card.shareResult ?? card.result)} · cueory.app`;
 }
 
 /** Opens the shared result dialog without adding anything to private browser stats. */

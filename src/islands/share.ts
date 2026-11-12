@@ -171,7 +171,7 @@ export function platformShareUrl(platform: SharePlatform, text: string, url: str
     case 'x':
       return xIntentUrl(text, url);
     case 'threads':
-      return `https://www.threads.net/intent/post?${new URLSearchParams({ text: combined })}`;
+      return `https://www.threads.com/intent/post?${new URLSearchParams({ text, url })}`;
     case 'reddit':
       return `https://www.reddit.com/submit?${new URLSearchParams({ url, title: text })}`;
     case 'whatsapp':
