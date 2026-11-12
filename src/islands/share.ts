@@ -186,6 +186,53 @@ export interface StoryImageInput {
   wordmarkPath?: string;
 }
 
+export interface StoryTextLayout {
+  lines: string[];
+  fontSize: number;
+  lineHeight: number;
+}
+
+export interface StoryTextFitOptions {
+  maxWidth: number;
+  maxLines: number;
+  startSize: number;
+  minSize: number;
+  lineHeightRatio: number;
+  measure: (text: string, fontSize: number) => number;
+}
+
+/** Fits complete story text without cropping or ellipsizing; null lets the caller use the copy fallback. */
+export function fitStoryText(text: string, options: StoryTextFitOptions): StoryTextLayout | null {
+  const clean = text.replace(/\s+/g, ' ').trim();
+  if (!clean || options.maxWidth <= 0 || !Number.isInteger(options.maxLines) || options.maxLines < 1
+    || options.minSize <= 0 || options.startSize < options.minSize || options.lineHeightRatio <= 0) return null;
+  const words = clean.split(' ');
+  for (let fontSize = options.startSize; fontSize >= options.minSize; fontSize -= 2) {
+    const lines: string[] = [];
+    let line = '';
+    let failed = false;
+    for (const word of words) {
+      if (options.measure(word, fontSize) > options.maxWidth) {
+        failed = true;
+        break;
+      }
+      const next = line ? `${line} ${word}` : word;
+      if (line && options.measure(next, fontSize) > options.maxWidth) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = next;
+      }
+    }
+    if (failed) continue;
+    if (line) lines.push(line);
+    if (lines.length <= options.maxLines) {
+      return { lines, fontSize, lineHeight: fontSize * options.lineHeightRatio };
+    }
+  }
+  return null;
+}
+
 /** Longest total wait for complete story-image preparation before the copy fallback runs. */
 export const STORY_ASSET_TIMEOUT_MS = 4000;
 
@@ -225,10 +272,19 @@ async function renderStoryFile(input: StoryImageInput): Promise<File | null> {
       width, height, logoWidth, number('--share-story-logo-top'), number('--share-story-label-y'),
       number('--share-story-result-y'), number('--share-story-challenge-y'), number('--share-story-site-y'),
       number('--share-story-label-size'), number('--share-story-result-size'),
+      number('--share-story-result-min-size'), number('--share-story-result-max-width'),
+      number('--share-story-result-line-height'), number('--share-story-result-max-lines'),
       number('--share-story-challenge-size'), number('--share-story-site-size'),
       number('--share-story-dark-logo'),
     ];
-    if (!page || !ink || !soft || !bodyFont || !displayFont || values.some((value) => !Number.isFinite(value))) return null;
+    const resultSize = number('--share-story-result-size');
+    const resultMinSize = number('--share-story-result-min-size');
+    const resultMaxWidth = number('--share-story-result-max-width');
+    const resultLineHeight = number('--share-story-result-line-height');
+    const resultMaxLines = number('--share-story-result-max-lines');
+    if (!page || !ink || !soft || !bodyFont || !displayFont || values.some((value) => !Number.isFinite(value))
+      || resultMinSize <= 0 || resultMinSize > resultSize || resultMaxWidth <= 0 || resultLineHeight <= 0
+      || !Number.isInteger(resultMaxLines) || resultMaxLines < 1) return null;
 
     const canvas = document.createElement('canvas');
     canvas.width = width;
@@ -237,6 +293,19 @@ async function renderStoryFile(input: StoryImageInput): Promise<File | null> {
     if (!context) return null;
 
     await document.fonts.ready;
+    const resultLayout = fitStoryText(input.result, {
+      maxWidth: resultMaxWidth,
+      maxLines: resultMaxLines,
+      startSize: resultSize,
+      minSize: resultMinSize,
+      lineHeightRatio: resultLineHeight,
+      measure: (text, fontSize) => {
+        context.font = `500 ${fontSize}px ${displayFont}`;
+        return context.measureText(text).width;
+      },
+    });
+    if (!resultLayout) return null;
+
     context.fillStyle = page;
     context.fillRect(0, 0, width, height);
 
@@ -259,8 +328,12 @@ async function renderStoryFile(input: StoryImageInput): Promise<File | null> {
     context.fillText(`today's ${input.name} · ${input.date}`, width / 2, number('--share-story-label-y'));
 
     context.fillStyle = ink;
-    context.font = `500 ${number('--share-story-result-size')}px ${displayFont}`;
-    context.fillText(input.result, width / 2, number('--share-story-result-y'));
+    context.font = `500 ${resultLayout.fontSize}px ${displayFont}`;
+    const resultY = number('--share-story-result-y');
+    const firstResultY = resultY - ((resultLayout.lines.length - 1) * resultLayout.lineHeight) / 2;
+    resultLayout.lines.forEach((line, index) => {
+      context.fillText(line, width / 2, firstResultY + index * resultLayout.lineHeight);
+    });
 
     context.font = `700 ${number('--share-story-challenge-size')}px ${bodyFont}`;
     context.fillText('can you beat me?', width / 2, number('--share-story-challenge-y'));

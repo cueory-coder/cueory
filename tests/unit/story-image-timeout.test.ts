@@ -9,13 +9,21 @@ const tokens: Record<string, string> = {
   '--font-body': 'body', '--font-display': 'display',
 };
 for (const name of ['width', 'height', 'logo-width', 'logo-top', 'label-y', 'result-y', 'challenge-y', 'site-y',
-  'label-size', 'result-size', 'challenge-size', 'site-size', 'dark-logo']) tokens[`--share-story-${name}`] = '1';
+  'label-size', 'result-size', 'result-min-size', 'result-max-width', 'result-line-height', 'result-max-lines',
+  'challenge-size', 'site-size', 'dark-logo']) tokens[`--share-story-${name}`] = '1';
+Object.assign(tokens, {
+  '--share-story-result-size': '132',
+  '--share-story-result-min-size': '60',
+  '--share-story-result-max-width': '880',
+  '--share-story-result-line-height': '1.15',
+  '--share-story-result-max-lines': '3',
+});
 
 function stubPage(
   fontsReady: Promise<unknown>,
   toBlob: (done: (blob: Blob | null) => void) => void = (done) => done(new Blob(['[sample]'])),
 ) {
-  const context = { fillRect: vi.fn(), drawImage: vi.fn(), fillText: vi.fn() };
+  const context = { fillRect: vi.fn(), drawImage: vi.fn(), fillText: vi.fn(), measureText: (text: string) => ({ width: text.length }) };
   vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: (name: string) => tokens[name] ?? '' }));
   vi.stubGlobal('document', {
     documentElement: {},
