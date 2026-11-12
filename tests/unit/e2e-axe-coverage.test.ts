@@ -196,9 +196,35 @@ function needsAxe(source: string): boolean {
     if (!body || seen.has(body)) return false;
     const next = new Set(seen);
     next.add(body);
-    return ts.isBlock(body)
-      ? alwaysAbrupt(body, next)
-      : expressionAlwaysAbrupt(body, next);
+    return helperBodyAlwaysAborts(body, next);
+  }
+  function helperStatementAlwaysAborts(statement: ts.Statement, seen: ReadonlySet<ts.Node>): boolean {
+    if (ts.isThrowStatement(statement)) return true;
+    if (ts.isReturnStatement(statement)) {
+      return !!statement.expression && expressionAlwaysAbrupt(statement.expression, seen);
+    }
+    if (ts.isExpressionStatement(statement)) return expressionAlwaysAbrupt(statement.expression, seen);
+    if (ts.isBlock(statement)) return helperBodyAlwaysAborts(statement, seen);
+    if (ts.isIfStatement(statement)) {
+      const value = staticBoolean(statement.expression);
+      if (value === true) return helperStatementAlwaysAborts(statement.thenStatement, seen);
+      if (value === false) {
+        return !!statement.elseStatement && helperStatementAlwaysAborts(statement.elseStatement, seen);
+      }
+      return !!statement.elseStatement &&
+        helperStatementAlwaysAborts(statement.thenStatement, seen) &&
+        helperStatementAlwaysAborts(statement.elseStatement, seen);
+    }
+    return false;
+  }
+  function helperBodyAlwaysAborts(body: ts.ConciseBody, seen: ReadonlySet<ts.Node>): boolean {
+    if (!ts.isBlock(body)) return expressionAlwaysAbrupt(body, seen);
+    for (const statement of body.statements) {
+      if (helperStatementAlwaysAborts(statement, seen)) return true;
+      // A normal return/break/continue stops this helper without aborting its caller.
+      if (alwaysAbrupt(statement, seen)) return false;
+    }
+    return false;
   }
   function alwaysAbrupt(statement: ts.Statement, seen: ReadonlySet<ts.Node> = new Set()): boolean {
     if (ts.isReturnStatement(statement) || ts.isThrowStatement(statement) ||
@@ -387,6 +413,7 @@ describe('page-navigation browser specs must run axe', () => {
       { name: 'conditional-skip.spec.ts', source: "test('visits', async ({ page }) => { await page.goto('/sample'); test.skip(false, 'continue'); await new AxeBuilder({ page }).analyze(); });" },
       { name: 'awaited-false-skip.spec.ts', source: "test('visits', async ({ page }) => { await page.goto('/sample'); await test.skip(false, 'continue'); await new AxeBuilder({ page }).analyze(); });" },
       { name: 'helper-conditional-skip.spec.ts', source: "function maybe() { test.skip(false, 'continue'); } test('visits', async ({ page }) => { await page.goto('/sample'); maybe(); await new AxeBuilder({ page }).analyze(); });" },
+      { name: 'returning-helper.spec.ts', source: "function prepare() { return 1; } test('visits', async ({ page }) => { await page.goto('/sample'); prepare(); await new AxeBuilder({ page }).analyze(); });" },
       { name: 'axe-hook.spec.ts', source: "test.beforeEach(async ({ page }) => { await new AxeBuilder({ page }).analyze(); }); test('visits', async ({ page }) => { await page.goto('/sample'); });" },
       { name: 'axe-step.spec.ts', source: "test('visits', async ({ page }) => { await page.goto('/sample'); await test.step('audit', async () => new AxeBuilder({ page }).analyze()); });" },
       { name: 'no-nav.spec.ts', source: "test('sample', async ({ page }) => { await expect(page).toHaveTitle('sample'); });" },
