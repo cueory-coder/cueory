@@ -14,6 +14,18 @@ test.describe('Task 91: loading and empty states', () => {
     await expect(page.locator('[data-empty-state]')).toHaveCount(6);
   });
 
+  test('ordinary preview load does not intentionally throw or log a sample render error', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    page.on('console', (message) => {
+      if (message.type() === 'error') errors.push(message.text());
+    });
+    await page.goto(preview);
+    await expect(page.locator('[data-error-boundary-demo]').getByRole('button', { name: 'show sample error' })).toBeVisible();
+    await expect(page.locator('[data-error-fallback]')).toHaveCount(0);
+    expect(errors).toEqual([]);
+  });
+
   test('one accessible loading message per group, decorative shapes hidden', async ({ page }) => {
     await page.goto(preview);
     const groups = page.locator('[data-state-preview] [data-skeleton-kind]');
@@ -111,6 +123,70 @@ test.describe('Task 91: loading and empty states', () => {
     }
   });
 
+  test('a crashed interactive part shows a private fallback without hiding the rest of the page', async ({ page }) => {
+    await page.goto(preview);
+    const demo = page.locator('[data-error-boundary-demo]');
+    const trigger = demo.getByRole('button', { name: 'show sample error' });
+    const fallback = demo.locator('[data-error-fallback]');
+    await expect(trigger).toBeVisible();
+    await expect(fallback).toHaveCount(0);
+    const triggerSize = await trigger.boundingBox();
+    expect(triggerSize?.height).toBeGreaterThanOrEqual(44);
+    expect(triggerSize?.width).toBeGreaterThanOrEqual(44);
+    await trigger.focus();
+    await expect(trigger).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(fallback).toBeVisible();
+    await expect(fallback.getByRole('heading', { name: "this part didn't load." })).toBeVisible();
+    await expect(fallback).toContainText('reload the page to try again.');
+    await expect(page.locator('body')).not.toContainText('[sample simulated render failure]');
+    await expect(page.getByRole('heading', { level: 1, name: 'loading and empty states' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'browse lessons' })).toBeVisible();
+
+    const reload = fallback.getByRole('button', { name: 'reload page' });
+    const size = await reload.boundingBox();
+    expect(size?.height).toBeGreaterThanOrEqual(44);
+    expect(size?.width).toBeGreaterThanOrEqual(44);
+    await reload.focus();
+    await expect(reload).toBeFocused();
+    await Promise.all([
+      page.waitForEvent('load'),
+      page.keyboard.press('Enter'),
+    ]);
+    await expect(page.locator('[data-error-boundary-demo] [data-error-fallback]')).toHaveCount(0);
+    const triggerAgain = page.locator('[data-error-boundary-demo]').getByRole('button', { name: 'show sample error' });
+    await expect(triggerAgain).toBeVisible();
+    await triggerAgain.click();
+    const secondFallback = page.locator('[data-error-boundary-demo] [data-error-fallback]');
+    await expect(secondFallback).toBeVisible();
+    await Promise.all([
+      page.waitForEvent('load'),
+      secondFallback.getByRole('button', { name: 'reload page' }).click(),
+    ]);
+    await expect(page.locator('[data-error-boundary-demo] [data-error-fallback]')).toHaveCount(0);
+    await expect(page.locator('[data-error-boundary-demo]').getByRole('button', { name: 'show sample error' })).toBeVisible();
+    await page.getByRole('link', { name: 'browse lessons' }).click();
+    await expect(page).toHaveURL(/\/learn\/study-skills\/?$/);
+  });
+
+  test('error fallback has an accessible name and visible keyboard focus without motion', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto(preview);
+    const demo = page.locator('[data-error-boundary-demo]');
+    const trigger = demo.getByRole('button', { name: 'show sample error' });
+    await expect(trigger).toBeVisible();
+    await trigger.click();
+    const fallback = demo.locator('[data-error-fallback]');
+    await expect(fallback).toHaveAttribute('role', 'status');
+    await expect(fallback).toHaveAttribute('aria-label', "this part didn't load.");
+    const reload = fallback.getByRole('button', { name: 'reload page' });
+    await page.keyboard.press('Tab');
+    await reload.focus();
+    await expect(reload).toBeFocused();
+    expect(await reload.evaluate((element) => getComputedStyle(element).outlineStyle)).not.toBe('none');
+    expect(await reload.evaluate((element) => element.getAnimations().filter((animation) => animation.playState === 'running').length)).toBe(0);
+  });
+
   for (const width of [390, 820, 1440]) {
     for (const palette of ['Light', 'Dark']) {
       test('puzzle states: axe and no overflow at ' + width + 'px in ' + palette, async ({ page }) => {
@@ -129,6 +205,18 @@ test.describe('Task 91: loading and empty states', () => {
           expect(box?.height).toBeGreaterThanOrEqual(44);
           expect(box?.width).toBeGreaterThanOrEqual(44);
         }
+        const demo = page.locator('[data-error-boundary-demo]');
+        const trigger = demo.getByRole('button', { name: 'show sample error' });
+        await expect(trigger).toBeVisible();
+        await expect(demo.locator('[data-error-fallback]')).toHaveCount(0);
+        await trigger.click();
+        const crash = demo.locator('[data-error-fallback]');
+        await expect(crash).toBeVisible();
+        const retryButton = crash.getByRole('button', { name: 'reload page' });
+        const retrySize = await retryButton.boundingBox();
+        expect(retrySize?.height).toBeGreaterThanOrEqual(44);
+        expect(retrySize?.width).toBeGreaterThanOrEqual(44);
+
         const results = await new AxeBuilder({ page })
           .include('[data-state-preview]')
           .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'])
