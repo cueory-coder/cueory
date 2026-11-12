@@ -283,6 +283,8 @@ for (const size of [
       await expect(choice(page, 'b')).toHaveAttribute('aria-pressed', 'false');
       await page.getByRole('button', { name: 'close site menu' }).click();
       await expect(dialog).toHaveJSProperty('open', false);
+      // The menu's own close handler resets its toggle; wait for it before typing a shortcut again.
+      await expect(open).toHaveAttribute('aria-expanded', 'false');
 
       await page.getByTestId('stat-stem').focus();
       await page.keyboard.press('a');
