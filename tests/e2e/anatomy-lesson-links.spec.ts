@@ -4,12 +4,14 @@ import { expect, test } from '@playwright/test';
 for (const colorScheme of ['light', 'dark'] as const) {
   test(`unavailable lesson system cannot highlight a fallback structure (${colorScheme})`, async ({ page }) => {
     await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
-    await page.goto('/preview/anatomy-lab?fixture&system=missing-system&structure=FIX001');
-    await page.getByRole('button', { name: 'open the anatomy lab' }).click();
-    const target = page.getByRole('button', { name: 'fixture cube A', exact: true });
-    await expect(target).toBeEnabled({ timeout: 20_000 });
-    await expect(target).toHaveAttribute('aria-pressed', 'false');
-    await expect(page.getByText('selected fixture cube A', { exact: true })).toHaveCount(0);
+    for (const system of ['missing-system', '../x', '']) {
+      await page.goto(`/preview/anatomy-lab?fixture&system=${encodeURIComponent(system)}&structure=FIX001`);
+      await page.getByRole('button', { name: 'open the anatomy lab' }).click();
+      const target = page.getByRole('button', { name: 'fixture cube A', exact: true });
+      await expect(target).toBeEnabled({ timeout: 20_000 });
+      await expect(target).toHaveAttribute('aria-pressed', 'false');
+      await expect(page.getByText('selected fixture cube A', { exact: true })).toHaveCount(0);
+    }
   });
 
   test(`matching lesson system selects its own loaded structure once (${colorScheme})`, async ({ page }) => {

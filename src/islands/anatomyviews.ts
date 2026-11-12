@@ -120,9 +120,12 @@ export function focusFromSearch(search: string): LabFocus {
   const params = new URLSearchParams(search);
   const system = params.get('system');
   const structure = params.get('structure');
+  const validSystem = system && system.length <= 64 && SYSTEM_KEY.test(system) ? system : null;
+  // An explicitly invalid system cannot turn into a structure-only link to the fallback system.
+  const invalidSystem = params.has('system') && validSystem === null;
   return {
-    system: system && system.length <= 64 && SYSTEM_KEY.test(system) ? system : null,
-    structure: structure && STRUCTURE_ID.test(structure) ? structure : null,
+    system: validSystem,
+    structure: !invalidSystem && structure && STRUCTURE_ID.test(structure) ? structure : null,
   };
 }
 
