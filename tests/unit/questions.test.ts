@@ -214,6 +214,24 @@ describe('W20-2 sample load and progress states', () => {
       .toBe('failed');
   });
 
+
+  it('rejects an oversized sample response and invalid choice shapes without rendering', () => {
+    const oversized = Array.from({ length: 101 }, (_, index) => ({
+      ...samples[0]!, id: 'sample-' + index,
+    }));
+    expect(sampleQuestionsFromData(path, { status: 'sample', items: oversized }).status).toBe('failed');
+    const broken = [
+      { ...samples[0]!, choices: [{ id: 'a', text: '[sample]' }] },
+      { ...samples[0]!, choices: [
+        { id: 'a', text: '[sample]' }, { id: 'a', text: '[sample] repeated' },
+      ] },
+      { ...samples[0]!, key: ['z'] },
+    ];
+    for (const item of broken) {
+      expect(sampleQuestionsFromData(path, { status: 'sample', items: [item] }).status).toBe('failed');
+    }
+  });
+
   it('has pure ready, answered and finished progress, preserving the existing summary', async () => {
     let state = startQuestions([single]);
     expect(questionPhase(state)).toBe('ready');

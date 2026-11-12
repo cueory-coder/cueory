@@ -82,12 +82,28 @@ test('failed JSON gives no raw error, retry works with keyboard, and focus reach
     await expect(page.getByTestId('sample-questions-retry-loading')).toHaveText('loading questions…');
     await expect(retry).toHaveAttribute('aria-disabled', 'true');
     await expect(retry).toBeFocused();
+    // A second keyboard activation while loading cannot start another network request.
+    await page.keyboard.press('Enter');
+    expect(calls).toBe(2);
   } finally {
     release();
   }
   await expect(page.getByTestId('sample-questions-ready')).toBeVisible();
   await expect(page.getByText('sample questions ready.')).toBeFocused();
   expect(calls).toBe(2);
+});
+
+
+test('unlabeled or malformed public sample data fails closed without answer controls', async ({ page }) => {
+  await fulfillSamples(page, { status: 'published', items: samples.items });
+  await page.goto(route);
+  await expect(page.getByTestId('sample-questions-failed')).toHaveText(
+    "couldn't load sample questions. please try again.",
+  );
+  await expect(page.locator('fieldset')).toHaveCount(0);
+  await expect(page.getByTestId('sample-questions-ready')).toHaveCount(0);
+  const axe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+  expect(axe.violations.map(result => result.id + ': ' + result.help)).toEqual([]);
 });
 
 test('answers by tap and keyboard, shows symbols plus words, and finishes with the right summary', async ({ page }) => {
@@ -133,8 +149,14 @@ test('is accessible and fits 390, 820 and 1440 in Light and Evening with reduced
     { width: 1440, height: 900 },
   ]) {
     await page.setViewportSize(size);
+    const pageColors = new Set<string>();
     for (const colorScheme of ['light', 'dark'] as const) {
       await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+      await page.evaluate(mode => { document.documentElement.dataset.theme = mode; }, colorScheme);
+      const color = await page.evaluate(() =>
+        getComputedStyle(document.documentElement).getPropertyValue('--color-page').trim());
+      expect(color.length).toBeGreaterThan(0);
+      pageColors.add(color);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
       for (const item of await page.locator('fieldset label').all()) {
         expect(await item.evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
@@ -142,5 +164,6 @@ test('is accessible and fits 390, 820 and 1440 in Light and Evening with reduced
       const axe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
       expect(axe.violations.map(result => result.id + ': ' + result.help)).toEqual([]);
     }
+    expect(pageColors.size).toBe(2);
   }
 });
