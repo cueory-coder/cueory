@@ -20,9 +20,15 @@ function builtRoute(file: string): string {
   return searchRoute(`/${path}`) ?? '/invalid-path';
 }
 
+/** Ignore HTML-like examples in scripts, styles and comments. */
+function visibleMarkup(html: string): string {
+  return html.replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<(script|style|textarea)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '');
+}
+
 /** Check real HTML opening tags, not commented-out or script-string lookalikes. */
 function pagefindMain(html: string): { body: boolean; title: boolean } {
-  const uncommented = html.replace(/<!--[\s\S]*?-->/g, '');
+  const uncommented = visibleMarkup(html);
   const mains = [...uncommented.matchAll(/<main\b[^>]*>/gi)].map((match) => match[0]);
   return {
     body: mains.some((tag) => /\sdata-pagefind-body(?=[\s=/>])/.test(tag)),
@@ -31,13 +37,21 @@ function pagefindMain(html: string): { body: boolean; title: boolean } {
 }
 
 function hasNoindexMeta(html: string): boolean {
-  const uncommented = html.replace(/<!--[\s\S]*?-->/g, '');
+  const uncommented = visibleMarkup(html);
   const metaTags = [...uncommented.matchAll(/<meta\b[^>]*>/gi)].map((match) => match[0]);
   return metaTags.some((tag) => {
     const name = /\bname\s*=\s*(["'])robots\1/i.test(tag);
     const content = /\bcontent\s*=\s*(["'])(.*?)\1/i.exec(tag)?.[2] ?? '';
     return name && /(?:^|[,\s])noindex(?:$|[,\s])/i.test(content);
   });
+}
+
+/** A searchable page must have an identifiable and accessible main landmark. */
+function accessibleSearchMain(html: string): boolean {
+  const mains = [...visibleMarkup(html).matchAll(/<main\b[^>]*>/gi)].map((match) => match[0]);
+  return mains.some((tag) => /\sdata-pagefind-body(?=[\s=/>])/i.test(tag)
+    && /\bid\s*=\s*(["'])main\1/i.test(tag)
+    && !/\baria-hidden\s*=\s*(["'])true\1/i.test(tag));
 }
 
 describe('W18-2: site-search scope', () => {
@@ -52,6 +66,14 @@ describe('W18-2: site-search scope', () => {
     ]) expect(isSearchableRoute(privateRoute), privateRoute).toBe(false);
     expect(searchRoute('/learn/study-skills/index.html#unit')).toBe('/learn/study-skills');
     expect(searchRoute('https://other.example/')).toBeUndefined();
+    expect(searchRoute('/signin.html')).toBe('/signin');
+    expect(searchRoute('/preview/states/index.html')).toBe('/preview/states');
+    expect(isSearchableRoute('/signin.html')).toBe(false);
+    expect(isSearchableRoute('/preview/states/index.html')).toBe(false);
+    expect(isSearchableRoute('/?utm_source=sample')).toBe(true);
+    expect(isSearchableRoute('/%ZZ')).toBe(false);
+    expect(isSearchableRoute('javascript:alert(1)')).toBe(false);
+
   });
 
   it('identifies Pagefind markers and noindex metadata in representative HTML', () => {
@@ -63,6 +85,13 @@ describe('W18-2: site-search scope', () => {
     expect(hasNoindexMeta('<meta content="nofollow, noindex" name="robots" />')).toBe(true);
     expect(hasNoindexMeta('<meta name="description" content="noindex is not a directive" />')).toBe(false);
     expect(hasNoindexMeta('<!-- <meta name="robots" content="noindex" /> -->')).toBe(false);
+    expect(pagefindMain('<script>const x = "<main data-pagefind-body>"</script>')).toEqual({ body: false, title: false });
+    expect(pagefindMain('<style>p::after { content: "<main data-pagefind-body>" }</style>')).toEqual({ body: false, title: false });
+    expect(hasNoindexMeta('<script>const x = "<meta name=\\"robots\\" content=\\"noindex\\">"</script>')).toBe(false);
+    expect(accessibleSearchMain('<main id="main" data-pagefind-body="" data-pagefind-meta="title:home"></main>')).toBe(true);
+    expect(accessibleSearchMain('<main aria-hidden="true" id="main" data-pagefind-body=""></main>')).toBe(false);
+    expect(accessibleSearchMain('<main data-pagefind-body=""></main>')).toBe(false);
+
   });
 
   it.skipIf(!existsSync(join(DIST, 'index.html')))('excludes every noindex, preview, account, admin and auth page from the built Pagefind index', () => {
@@ -80,6 +109,10 @@ describe('W18-2: site-search scope', () => {
       if (indexed.body !== expected) failures.push(`${route}: Pagefind body=${indexed.body}, expected ${expected} (noindex=${noindex})`);
       if (indexed.title !== expected) failures.push(`${route}: Pagefind title metadata=${indexed.title}, expected ${expected}`);
       if (indexed.body) searchable.push(route);
+      if (indexed.body && !accessibleSearchMain(html)) {
+        failures.push(`${route}: searchable main must have id=main and not be aria-hidden`);
+      }
+
     }
     expect(failures).toEqual([]);
 
