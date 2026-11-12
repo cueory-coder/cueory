@@ -1,0 +1,37 @@
+---
+/** Internal, static concept-map preview. No real study data or account access. */
+import Layout from '../../layouts/Layout.astro';
+import ConceptMap from '../../islands/ConceptMap';
+import type { ConceptItem } from '../../islands/conceptmap.ts';
+
+// Labeled interface samples only. These do not represent student progress.
+const sampleItems = [
+  { concept: '[sample concept A]', status: 'got it', description: '[sample description A]' },
+  { concept: '[sample concept B]', status: 'got it', description: '[sample description B]' },
+  { concept: '[sample concept C]', status: 'getting there', description: '[sample description C]' },
+  { concept: '[sample concept D]', status: 'getting there', description: '[sample description D]' },
+  { concept: '[sample concept E]', status: 'learning', description: '[sample description E]' },
+  { concept: '[sample concept F]', status: 'learning', description: '[sample description F]' },
+  { concept: '[sample concept G]', status: 'not started', description: '[sample description G]' },
+  { concept: '[sample concept H]', status: 'not started', description: '[sample description H]' },
+] satisfies ConceptItem[];
+---
+
+<Layout
+  title="concept map preview"
+  description="Internal preview of a concept map with sample statuses and filters."
+  variant="study"
+  noindex
+  promo={false}
+>
+  <div class="mx-auto max-w-prose space-y-8 py-section font-body leading-relaxed" data-testid="concept-map-preview" data-pagefind-ignore>
+    <header>
+      <p class="text-sm text-ink-soft">internal preview · not linked from the site</p>
+      <h1 class="mt-2 text-2xl font-bold">concept map</h1>
+      <p class="mt-3 text-ink-soft">sample interface only. the concepts below are not lessons or saved student progress.</p>
+    </header>
+
+    <ConceptMap items={sampleItems} client:visible />
+    <noscript><p>turn on javascript to use the sample concept filters. nothing is saved or sent.</p></noscript>
+  </div>
+</Layout>
