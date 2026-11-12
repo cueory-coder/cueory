@@ -8,6 +8,10 @@ import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 import {
   BUDGETS,
+  ROUTE_BUDGETS,
+  budgetsForRoute,
+  formatPerformanceJson,
+  parsePerformanceArgs,
   budgetBreaches,
   extractHtmlAssetUrls,
   extractInlineModuleAssetUrls,
@@ -313,5 +317,86 @@ describe('built-site performance budgets', () => {
     f.file('index.html', '<html></html>');
     symlinkSync(join(f.root, 'index.html'), join(f.root, 'other.html'));
     expect(() => scanPerformanceBudget(f.root)).toThrow('Symbolic link');
+  });
+
+  it('uses named per-route budgets while an unknown route inherits the default limits', () => {
+    const fallback = { html: 10, js: 20, css: 30, total: 60 };
+    const override = { 'play.html': { label: 'Daily games', js: 40, total: 80 } };
+    expect(budgetsForRoute('play.html', fallback, override)).toEqual({
+      label: 'Daily games', html: 10, js: 40, css: 30, total: 80,
+    });
+    expect(budgetsForRoute('missing.html', fallback, override)).toEqual({
+      label: 'Default', ...fallback,
+    });
+    expect(budgetsForRoute('toString', fallback, override)).toEqual({
+      label: 'Default', ...fallback,
+    });
+    expect(ROUTE_BUDGETS['preview/anatomy-lab.html']?.label).toBe('Anatomy preview');
+  });
+
+  it('checks each page against its effective limit, including a route-specific breach', () => {
+    const f = fixture();
+    const html = 'A'.repeat(5000);
+    f.file('index.html', html);
+    f.file('play.html', html);
+    f.file('other.html', html);
+    const gz = gzipSync(html).length;
+    const defaults = { html: gz - 1, js: 1, css: 1, total: gz - 1 };
+    const overrides = { 'play.html': { label: 'Daily games', html: gz, total: gz } };
+    const pages = scanPerformanceBudget(f.root, defaults, overrides);
+    expect(pages.map((page) => [page.page, page.breaches])).toEqual([
+      ['index.html', ['html', 'total']],
+      ['other.html', ['html', 'total']],
+      ['play.html', []],
+    ]);
+    expect(pages[2]!.limits.label).toBe('Daily games');
+    expect(formatPerformanceReport(pages, defaults)).toContain('Daily games');
+  });
+
+  it('outputs a valid JSON report with effective route limits, sizes, and summary', () => {
+    const f = fixture();
+    const html = '<html><body>sample fixture</body></html>';
+    f.file('index.html', html);
+    f.file('play.html', html);
+    const defaults = { html: 20, js: 300, css: 100, total: 60 };
+    const overrides = { 'play.html': { label: 'Daily games', html: 100, total: 100 } };
+    const pages = scanPerformanceBudget(f.root, defaults, overrides);
+    const report = JSON.parse(formatPerformanceJson(pages, defaults, overrides));
+    expect(report.schemaVersion).toBe(1);
+    expect(report.unit).toBe('gzip-bytes');
+    expect(report.defaultBudgets).toEqual(defaults);
+    expect(report.routeBudgets).toEqual(overrides);
+    expect(report.pages.map((page: { page: string }) => page.page)).toEqual(['index.html', 'play.html']);
+    expect(report.pages[0].limits.label).toBe('Default');
+    expect(report.pages[1].limits.label).toBe('Daily games');
+    expect(report.pages[0].passed).toBe(false);
+    expect(report.pages[1].passed).toBe(true);
+    expect(report.summary).toEqual({ pages: 2, passed: 1, failed: 1 });
+  });
+
+  it('returns structured JSON and a nonzero exit code when a CLI budget is breached', () => {
+    const f = fixture();
+    const script = fileURLToPath(new URL('../../scripts/perf-budget.mjs', import.meta.url));
+    f.file('index.html', '<html>sample fixture</html>');
+    const ok = spawnSync(process.execPath, [script, f.root, '--json'], { encoding: 'utf8' });
+    expect(ok.status).toBe(0);
+    const parsed = JSON.parse(ok.stdout);
+    expect(parsed.summary).toEqual({ pages: 1, passed: 1, failed: 0 });
+    expect(parsed.pages[0].passed).toBe(true);
+
+    f.file('large.html', randomBytes(160_000).toString('base64'));
+    const over = spawnSync(process.execPath, [script, '--json', f.root], { encoding: 'utf8' });
+    expect(over.status).toBe(1);
+    const result = JSON.parse(over.stdout);
+    expect(result.pages.find((page: { page: string }) => page.page === 'large.html')!.breaches).toContain('html');
+    expect(result.summary.failed).toBe(1);
+  });
+
+  it('rejects unknown flags or missing folder rather than presenting success', () => {
+    expect(parsePerformanceArgs(['dist'])).toEqual({ folder: 'dist', json: false });
+    expect(parsePerformanceArgs(['dist', '--json'])).toEqual({ folder: 'dist', json: true });
+    expect(() => parsePerformanceArgs([])).toThrow('Usage');
+    expect(() => parsePerformanceArgs(['dist', '--pretty'])).toThrow('Usage');
+    expect(() => parsePerformanceArgs(['dist', '--json', '--json'])).toThrow('Usage');
   });
 });
