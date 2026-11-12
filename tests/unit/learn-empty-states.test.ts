@@ -73,4 +73,23 @@ describe('unit availability from the built lesson catalog', () => {
     unitAvailability(lessons, 'U01');
     expect(lessons).toEqual(before);
   });
+  it('treats a misspelled publication status as unavailable', () => {
+    const lessons = catalog([lesson('u01-t01-l01', 'publshed')]);
+    expect(unitAvailability(lessons, 'U01')).toEqual({ hasLessons: false, open: [] });
+    expect(hasCurriculumLessons(lessons)).toBe(false);
+  });
+
+  it('keeps a legacy sample out of a mapped unit even when both are open', () => {
+    const lessons = catalog([
+      lesson('study-skills-01', 'sample'),
+      lesson('u01-t01-l01', 'published'),
+    ]);
+    expect(unitAvailability(lessons, 'U01')).toEqual({
+      hasLessons: true,
+      open: [{ href: '/learn/u01-t01-l01', name: '[sample lesson]' }],
+    });
+    expect(unitAvailability(lessons, '')).toEqual({ hasLessons: false, open: [] });
+    expect(lessons.some((item) => item.href === '/learn/study-skills')).toBe(true);
+  });
+
 });

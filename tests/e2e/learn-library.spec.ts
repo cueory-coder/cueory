@@ -142,3 +142,31 @@ for (const { width, height, columns } of [
     });
   }
 }
+
+test.describe('library without JavaScript', () => {
+  test.use({ javaScriptEnabled: false });
+
+  test('keeps every planned unit available as a keyboard-operated disclosure', async ({ page }) => {
+    const response = await page.goto('/learn');
+    expect(response?.status()).toBe(200);
+    await expect(page.locator('[data-unit-id]')).toHaveCount(source.units.length);
+
+    const firstUnit = source.units[0]!;
+    const first = page.locator('[data-unit-id="' + firstUnit.id + '"]');
+    const summary = first.locator('summary');
+    await expect(first.getByRole('heading', { level: 3, name: firstUnit.title })).toBeVisible();
+    await summary.focus();
+    await expect(summary).toBeFocused();
+    await summary.press('Enter');
+    await expect(first.locator('details')).toHaveAttribute('open', '');
+    await expect(first.locator('li')).toHaveText(firstUnit.topics.map((topic) => topic.title));
+
+    if (!unitAvailability(catalog.lessons, firstUnit.id).hasLessons) {
+      await expect(first.getByTestId('unit-empty-state')).toHaveText('no lessons yet · coming soon');
+      await expect(first.locator('a')).toHaveCount(0);
+    }
+    await summary.press('Space');
+    await expect(first.locator('details')).not.toHaveAttribute('open', '');
+    await expect(page.locator('[data-open-lesson]')).toHaveCount(catalog.lessons.length);
+  });
+});

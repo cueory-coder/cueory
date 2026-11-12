@@ -71,3 +71,22 @@ for (const { width, height } of [
     });
   }
 }
+
+test.describe('courses without JavaScript', () => {
+  test.use({ javaScriptEnabled: false });
+
+  test('keeps planned course status in words without empty links', async ({ page }) => {
+    const response = await page.goto('/courses');
+    expect(response?.status()).toBe(200);
+    for (const id of ['med-surg-2', 'mental-health', 'med-math']) {
+      const course = page.locator('[data-course-id="' + id + '"]');
+      await expect(course.getByText('no lessons yet · coming soon')).toBeVisible();
+      await expect(course.getByRole('link')).toHaveCount(0);
+    }
+    const medSurg = page.locator('[data-course-id="med-surg-1"]');
+    if (!hasCurriculumLessons(contentCatalog().lessons)) {
+      await expect(medSurg.getByText('no lessons yet · coming soon')).toBeVisible();
+      await expect(medSurg.getByRole('link')).toHaveCount(0);
+    }
+  });
+});
