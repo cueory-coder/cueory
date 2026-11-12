@@ -1,0 +1,1 @@
+status: Task 719 (W19) break timer edge cases: deadline-based timer on /breaks, session restoration with blocked-storage fallback, wake-up reconciliation, calm accessible updates and regression tests.

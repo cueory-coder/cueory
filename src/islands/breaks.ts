@@ -77,6 +77,10 @@ export function turnOff(state: BreakState, _now: number): BreakState {
 }
 
 export function pause(state: BreakState, now: number): BreakState {
+  // A phone can wake after the deadline while the old pause button is still visible.
+  // Settle that phase first rather than freezing a finished timer at zero.
+  const settled = tick(state, now);
+  if (settled !== state) return settled;
   if (state.status !== 'focusing' && state.status !== 'on break') return state;
   return {
     ...state,

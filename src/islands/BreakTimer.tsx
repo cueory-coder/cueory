@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { BREAK_STORAGE_KEY, readBreakState, writeBreakState } from '../scripts/breakstore';
 import {
   pause,
   remainingMs,
@@ -13,6 +14,7 @@ import {
   turnOn,
   type BreakSettings,
   type BreakState,
+  type BreakStatus,
 } from './breaks';
 
 interface Props {
@@ -22,46 +24,97 @@ interface Props {
 type Move = (state: BreakState, now: number) => BreakState;
 type FocusTarget = 'pause-resume' | 'break-choice';
 
+const MINUTE_MS = 60_000;
 const control = 'min-h-11 min-w-11 rounded-md border border-control bg-page px-4 py-2 text-ink disabled:opacity-50';
 
-/** Optional and deliberately plain: no storage, sound, automatic opening or motion. */
+/** Optional and deliberately plain: no sound, automatic opening or animated ring. */
 export default function BreakTimer({ settings }: Props) {
   const [state, setState] = useState(() => startBreaks(settings));
   const [now, setNow] = useState(() => Date.now());
+  const [ready, setReady] = useState(false);
+  const [storageUnavailable, setStorageUnavailable] = useState(false);
   const [announcement, setAnnouncement] = useState('');
-  const previousStatus = useRef(state.status);
+  const previousAnnouncement = useRef<{ status: BreakStatus; minutes: number }>({ status: 'off', minutes: 0 });
+  const storage = useRef<Storage | undefined>(undefined);
+  const lastSavedState = useRef<BreakState | null>(null);
   const pauseResumeControl = useRef<HTMLButtonElement>(null);
   const startBreakControl = useRef<HTMLButtonElement>(null);
   const focusAfterMove = useRef<FocusTarget | null>(null);
   const on = state.status !== 'off';
   const canPause = state.status === 'focusing' || state.status === 'on break' || state.status === 'paused';
   const isPaused = state.status === 'paused';
+  const minutes = Math.ceil(remainingMs(state, now) / MINUTE_MS);
 
+  // Hydrate from the tab's saved end time. In restrictive browsers, keep the timer in memory.
   useEffect(() => {
-    if (previousStatus.current === state.status) return;
-    previousStatus.current = state.status;
-    setAnnouncement(statusInWords(state, Date.now()));
-  }, [state.status]);
-
-  useEffect(() => {
-    if (state.status !== 'focusing' && state.status !== 'on break') return;
     const current = Date.now();
-    // Refresh at most once a minute, but use a shorter final wait so a resumed partial minute ends on time.
-    const wait = Math.min(60_000, remainingMs(state, current));
-    const timer = window.setTimeout(() => {
-      const current = Date.now();
-      // If the focused pause control is about to disappear, keep the keyboard user's place at the first choice.
-      if (
-        state.status === 'focusing'
-        && state.endsAt !== null
-        && current >= state.endsAt
-        && document.activeElement === pauseResumeControl.current
-      ) focusAfterMove.current = 'break-choice';
-      setNow(current);
-      setState((value) => tick(value, current));
-    }, wait);
+    try {
+      const available = window.sessionStorage;
+      // Access itself, as well as getItem, can throw when storage is blocked.
+      available.getItem(BREAK_STORAGE_KEY);
+      storage.current = available;
+      const restored = readBreakState(available, current);
+      lastSavedState.current = restored;
+      setState(restored);
+    } catch {
+      setStorageUnavailable(true);
+    }
+    setNow(current);
+    setReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!ready || storageUnavailable || state === lastSavedState.current) return;
+    lastSavedState.current = state;
+    if (!writeBreakState(storage.current, state, Date.now())) setStorageUnavailable(true);
+  }, [ready, state, storageUnavailable]);
+
+  // Only changes of phase and occasional meaningful minute marks are announced.
+  // The visible text stays readable to screen readers without announcing every second.
+  useEffect(() => {
+    if (!ready) return;
+    const previous = previousAnnouncement.current;
+    const running = state.status === 'focusing' || state.status === 'on break';
+    if (
+      state.status !== previous.status
+      || (running && minutes !== previous.minutes && (minutes === 1 || (minutes > 0 && minutes % 5 === 0)))
+    ) setAnnouncement(statusInWords(state, now));
+    previousAnnouncement.current = { status: state.status, minutes };
+  }, [ready, state, minutes, now]);
+
+  const refresh = useCallback(() => {
+    const current = Date.now();
+    // Do not lose keyboard focus when an expired focus period removes the pause control.
+    if (
+      state.status === 'focusing'
+      && state.endsAt !== null
+      && current >= state.endsAt
+      && document.activeElement === pauseResumeControl.current
+    ) focusAfterMove.current = 'break-choice';
+    setNow(current);
+    setState(value => tick(value, current));
+  }, [state.endsAt, state.status]);
+
+  useEffect(() => {
+    if (!ready || (state.status !== 'focusing' && state.status !== 'on break')) return;
+    const wait = Math.min(MINUTE_MS, remainingMs(state, Date.now()));
+    const timer = window.setTimeout(refresh, wait);
     return () => window.clearTimeout(timer);
-  }, [now, state.endsAt, state.status]);
+  }, [ready, now, state.endsAt, state.status, refresh]);
+
+  // Background timers are throttled. Reconcile immediately after a tab/phone wakes up.
+  useEffect(() => {
+    if (!ready) return;
+    const onVisible = () => { if (!document.hidden) refresh(); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', refresh);
+    window.addEventListener('pageshow', refresh);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('pageshow', refresh);
+    };
+  }, [ready, refresh]);
 
   useEffect(() => {
     const target = focusAfterMove.current;
@@ -74,8 +127,14 @@ export default function BreakTimer({ settings }: Props) {
   const move = (change: Move, focus?: FocusTarget) => {
     const current = Date.now();
     focusAfterMove.current = focus ?? null;
+    if (
+      state.status === 'focusing'
+      && state.endsAt !== null
+      && current >= state.endsAt
+      && document.activeElement === pauseResumeControl.current
+    ) focusAfterMove.current = 'break-choice';
     setNow(current);
-    setState((value) => change(value, current));
+    setState(value => change(tick(value, current), current));
   };
 
   return (
@@ -86,6 +145,7 @@ export default function BreakTimer({ settings }: Props) {
           type="button"
           className={control}
           aria-pressed={on}
+          disabled={!ready}
           onClick={() => move(on ? turnOff : turnOn)}
         >
           {on ? 'turn off' : 'turn on'}
@@ -93,7 +153,9 @@ export default function BreakTimer({ settings }: Props) {
       </div>
 
       {on && <>
-        <p className="mt-3 text-sm text-ink-soft" data-testid="break-status">{statusInWords(state, now)}</p>
+        <p role="timer" aria-live="off" className="mt-3 text-sm text-ink-soft" data-testid="break-status">
+          {statusInWords(state, now)}
+        </p>
         <div className="mt-3 flex max-w-full flex-wrap gap-2">
           {canPause &&
             <button
@@ -135,6 +197,9 @@ export default function BreakTimer({ settings }: Props) {
         </div>
       </>}
 
+      {storageUnavailable && <p role="status" className="mt-3 text-sm text-ink-soft" data-testid="break-storage-warning">
+        progress won't be saved because browser storage is unavailable. the timer still works for this visit.
+      </p>}
       <p className="sr-only" aria-live="polite" aria-atomic="true" data-testid="break-live">{announcement}</p>
     </section>
   );

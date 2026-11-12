@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { readBreakState, writeBreakState } from '../../src/scripts/breakstore';
 import {
   DEFAULT_BREAK_SETTINGS,
   parseSettings,
@@ -148,5 +149,73 @@ describe('break timer words and time', () => {
     const states: BreakState[] = [startBreaks(), focusing, dueAt(), startBreak(dueAt(), at), pause(focusing, at)];
     for (const state of states) expect(statusInWords(state, at)).not.toMatch(/streak/i);
     expect(JSON.stringify(states)).not.toMatch(/streak/i);
+  });
+});
+
+describe('W19: deadlines survive stopped callbacks and blocked storage', () => {
+  const start = Date.UTC(2026, 10, 1, 12);
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(start);
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it('uses the saved end time after a long hidden-tab sleep instead of counting callbacks', () => {
+    const focusing = turnOn(startBreaks(settings), Date.now());
+    expect(focusing.endsAt).toBe(start + 20 * MINUTE);
+    vi.setSystemTime(start + 19 * MINUTE + 59_999);
+    expect(remainingMs(focusing, Date.now())).toBe(1);
+    expect(statusInWords(focusing, Date.now())).toBe('studying: 1 minute left.');
+    vi.setSystemTime(start + 21 * MINUTE);
+    expect(remainingMs(focusing, Date.now())).toBe(0);
+    expect(tick(focusing, Date.now()).status).toBe('break due');
+  });
+
+  it('does not pause an already-finished phase while a hidden view is stale', () => {
+    const focus = turnOn(startBreaks(settings), Date.now());
+    vi.setSystemTime(start + 30 * MINUTE);
+    expect(pause(focus, Date.now()).status).toBe('break due');
+    const activeBreak = startBreak(dueAt(start), start);
+    vi.setSystemTime(start + 4 * MINUTE);
+    expect(pause(activeBreak, Date.now())).toMatchObject({
+      status: 'focusing', endsAt: start + 24 * MINUTE,
+    });
+  });
+
+  it('keeps the pause exactly through sleep and resumes with the remaining milliseconds', () => {
+    const focusing = turnOn(startBreaks(settings), Date.now());
+    vi.setSystemTime(start + 6 * MINUTE + 500);
+    const paused = pause(focusing, Date.now());
+    expect(paused.pausedRemainingMs).toBe(14 * MINUTE - 500);
+    vi.setSystemTime(start + 90 * MINUTE);
+    expect(remainingMs(paused, Date.now())).toBe(14 * MINUTE - 500);
+    const resumed = resume(paused, Date.now());
+    expect(resumed.endsAt).toBe(Date.now() + 14 * MINUTE - 500);
+    vi.setSystemTime(resumed.endsAt!);
+    expect(tick(resumed, Date.now()).status).toBe('break due');
+  });
+
+  it('finishes a break at the waking time, not at a delayed timeout count', () => {
+    const due = tick(turnOn(startBreaks(settings), start - 20 * MINUTE), start);
+    const breaking = startBreak(due, start);
+    vi.setSystemTime(start + 50 * MINUTE);
+    const next = tick(breaking, Date.now());
+    expect(next.status).toBe('focusing');
+    expect(next.endsAt).toBe(Date.now() + 20 * MINUTE);
+  });
+
+  it('keeps the timer functional in memory when session storage throws', () => {
+    const blocked = {
+      getItem: (_key: string): string | null => { throw new Error('blocked'); },
+      setItem: (_key: string, _value: string): void => { throw new Error('blocked'); },
+      removeItem: (_key: string): void => { throw new Error('blocked'); },
+    };
+    const off = readBreakState(blocked, Date.now());
+    const focusing = turnOn(off, Date.now());
+    expect(writeBreakState(blocked, focusing, Date.now())).toBe(false);
+    vi.setSystemTime(start + 10 * MINUTE);
+    expect(remainingMs(focusing, Date.now())).toBe(15 * MINUTE);
+    expect(pause(focusing, Date.now()).status).toBe('paused');
   });
 });

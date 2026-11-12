@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import BreakIdeasList from '../islands/BreakIdeasList';
+import BreakTimer from '../islands/BreakTimer';
 import { parseIdeas } from '../islands/breakideas';
 import data from '../../content/breaks/ideas.json';
 
@@ -17,6 +18,7 @@ const ideas = parseIdeas({ ideas: data.ideas });
       <h1 class="mt-2 text-3xl font-bold leading-relaxed">break ideas</h1>
       <p class="mt-4">a few everyday ways to pause between study sessions. pick what suits your space.</p>
     </header>
+    <BreakTimer client:load />
     <BreakIdeasList ideas={ideas} client:load />
     <noscript><p>all the ideas are listed here. turn on javascript to shuffle them or choose one at random.</p></noscript>
     <p class="text-ink-soft">sharing your own idea is coming with free accounts. for now, you can browse these samples.</p>

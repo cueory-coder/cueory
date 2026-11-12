@@ -79,8 +79,16 @@ for (const width of [320, 390, 820, 1440]) {
       await page.goto('/breaks');
       await showOne(page).click();
       await expect(list(page).getByRole('listitem')).toHaveCount(20);
+      const timer = page.getByTestId('break-timer');
+      await timer.getByRole('button', { name: 'turn on' }).click();
+      await expect(timer.getByTestId('break-status')).toHaveText('studying: 25 minutes left.');
+      await expect(timer.locator('svg')).toHaveCount(0); // no motion or ring, including reduced-motion mode
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-      for (const control of [showOne(page), shuffle(page)]) {
+      for (const control of [
+        showOne(page), shuffle(page),
+        timer.getByRole('button', { name: 'turn off' }),
+        timer.getByRole('button', { name: 'pause' }),
+      ]) {
         const box = await control.boundingBox();
         expect(box?.height).toBeGreaterThanOrEqual(44);
         expect(box?.width).toBeGreaterThanOrEqual(44);
@@ -101,6 +109,7 @@ test('all sample ideas remain readable with JavaScript disabled', async ({ brows
     await expect(list(page).getByRole('listitem')).toHaveText(expectedIdeas);
     await expect(showOne(page)).toBeDisabled();
     await expect(shuffle(page)).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'turn on' })).toBeDisabled();
     // Playwright skips NOSCRIPT in text matching; inspect the actual rendered paragraph.
     const instructions = page.locator('noscript p');
     await expect(instructions).toHaveText('all the ideas are listed here. turn on javascript to shuffle them or choose one at random.');
@@ -108,4 +117,106 @@ test('all sample ideas remain readable with JavaScript disabled', async ({ brows
   } finally {
     await context.close();
   }
+});
+
+// W19: app clock is deliberately separate from browser timeouts to mimic a sleeping phone/tab.
+async function withSleepingClock(page: Page) {
+  await page.addInitScript(() => {
+    const clock = { now: Date.UTC(2026, 10, 1, 12) };
+    Object.defineProperty(window, '__w19BreakClock', { value: clock });
+    Date.now = () => clock.now;
+  });
+}
+
+async function wakeAfter(page: Page, elapsedMs: number) {
+  await page.evaluate(ms => {
+    const clock = (window as Window & { __w19BreakClock: { now: number } }).__w19BreakClock;
+    clock.now += ms;
+    window.dispatchEvent(new Event('focus'));
+  }, elapsedMs);
+}
+
+test('timer restores its saved end time after a reload', async ({ page }) => {
+  await page.goto('/breaks');
+  const timer = page.getByTestId('break-timer');
+  await timer.getByRole('button', { name: 'turn on' }).click();
+  await expect(timer.getByTestId('break-status')).toContainText('studying:');
+  await expect.poll(async () => page.evaluate(() => {
+    const stored = sessionStorage.getItem('cueory-break-timer');
+    if (!stored) return null;
+    const record = JSON.parse(stored) as { state?: { endsAt?: number; status?: string } };
+    return record.state?.status === 'focusing' ? record.state.endsAt : null;
+  })).toBeGreaterThan(Date.now());
+  // The exact deadline must not be replaced by a full new focus period on reload.
+  const before = await page.evaluate(() => {
+    const stored = sessionStorage.getItem('cueory-break-timer')!;
+    return (JSON.parse(stored) as { state: { endsAt: number } }).state.endsAt;
+  });
+  await page.reload();
+  await expect(timer.getByTestId('break-status')).toContainText('studying:');
+  await expect.poll(async () => page.evaluate(() => {
+    const stored = sessionStorage.getItem('cueory-break-timer')!;
+    return (JSON.parse(stored) as { state: { endsAt: number } }).state.endsAt;
+  })).toBe(before);
+});
+
+test('sleep cannot stretch the countdown, and keyboard focus moves to a due-break choice', async ({ page }) => {
+  await withSleepingClock(page);
+  await page.goto('/breaks');
+  const timer = page.getByTestId('break-timer');
+  await tabTo(page, timer.getByRole('button', { name: 'turn on' }));
+  await page.keyboard.press('Enter');
+  await expect(timer.getByTestId('break-status')).toHaveText('studying: 25 minutes left.');
+  const live = timer.getByTestId('break-live');
+  await expect(live).toHaveAttribute('aria-live', 'polite');
+  await expect(live).toHaveText('studying: 25 minutes left.');
+  await wakeAfter(page, 60_000);
+  await expect(timer.getByTestId('break-status')).toHaveText('studying: 24 minutes left.');
+  await expect(live).toHaveText('studying: 25 minutes left.'); // no noisy per-second or per-minute announcements
+  await tabTo(page, timer.getByRole('button', { name: 'pause' }));
+  await wakeAfter(page, 24 * 60_000);
+  await expect(timer.getByTestId('break-status')).toHaveText('time for a short break.');
+  await expect(timer.getByRole('button', { name: 'start break' })).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(timer.getByTestId('break-status')).toHaveText('on a break: 5 minutes left.');
+  await wakeAfter(page, 5 * 60_000);
+  await expect(timer.getByTestId('break-status')).toHaveText('studying: 25 minutes left.');
+});
+
+test('paused timer ignores elapsed wall time and resume uses the exact remainder', async ({ page }) => {
+  await withSleepingClock(page);
+  await page.goto('/breaks');
+  const timer = page.getByTestId('break-timer');
+  await timer.getByRole('button', { name: 'turn on' }).click();
+  await wakeAfter(page, 8 * 60_000 + 30_000);
+  await timer.getByRole('button', { name: 'pause' }).click();
+  await expect(timer.getByTestId('break-status')).toHaveText('studying paused: 17 minutes left.');
+  await wakeAfter(page, 60 * 60_000);
+  await expect(timer.getByTestId('break-status')).toHaveText('studying paused: 17 minutes left.');
+  await timer.getByRole('button', { name: 'resume' }).click();
+  await expect(timer.getByTestId('break-status')).toHaveText('studying: 17 minutes left.');
+  await wakeAfter(page, 16 * 60_000 + 29_999);
+  await expect(timer.getByTestId('break-status')).toHaveText('studying: 1 minute left.');
+  await wakeAfter(page, 1);
+  await expect(timer.getByTestId('break-status')).toHaveText('time for a short break.');
+});
+
+test('timer works with session storage blocked and explains what is not saved', async ({ page }) => {
+  await withSleepingClock(page);
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'sessionStorage', {
+      configurable: true,
+      get: () => { throw new DOMException('blocked', 'SecurityError'); },
+    });
+  });
+  await page.goto('/breaks');
+  const timer = page.getByTestId('break-timer');
+  await expect(timer.getByTestId('break-storage-warning')).toContainText("progress won't be saved");
+  await expect(timer.getByTestId('break-storage-warning')).toContainText('timer still works for this visit');
+  await timer.getByRole('button', { name: 'turn on' }).click();
+  await wakeAfter(page, 10 * 60_000);
+  await expect(timer.getByTestId('break-status')).toHaveText('studying: 15 minutes left.');
+  await timer.getByRole('button', { name: 'pause' }).click();
+  await wakeAfter(page, 15 * 60_000);
+  await expect(timer.getByTestId('break-status')).toHaveText('studying paused: 15 minutes left.');
 });
