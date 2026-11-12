@@ -32,7 +32,11 @@ describe('runway calendar and selection contract', () => {
 
 describe('bad sample fixture detection', () => {
   it('reports missing day slots, including a missing first day', () => {
-    expect(analyzePuzzleRunway('pulse', [examples()[0]!, examples()[2]!], at(1)).gaps).toEqual(['2026-11-02']);
+    const gapped = analyzePuzzleRunway('pulse', [examples()[0]!, examples()[2]!], at(1));
+    expect(gapped.gaps).toEqual(['2026-11-02']);
+    expect(gapped).toMatchObject({ daysLeft: 1, firstDay: '2026-11-01', lastDay: '2026-11-01' });
+    expect(analyzePuzzleRunway('pulse', [examples()[0]!, examples()[2]!], at(2)).daysLeft).toBe(0);
+    expect(analyzePuzzleRunway('pulse', [examples()[0]!, examples()[2]!], at(3)).daysLeft).toBe(0);
     expect(analyzePuzzleRunway('pulse', [examples()[1]!], at(1)).gaps).toEqual(['2026-11-01']);
   });
 
@@ -48,6 +52,7 @@ describe('bad sample fixture detection', () => {
     const report = analyzePuzzleRunway('pulse', files, at(1));
     expect(report.repeats).toEqual([{ firstDay: '2026-11-01', repeatedDay: '2026-11-02' }]);
     expect(report.daysLeft).toBe(1);
+    expect(analyzePuzzleRunway('pulse', files, at(2)).daysLeft).toBe(0);
   });
 
   it('detects bad labels, unplayable words and unexpected filenames', () => {
@@ -57,6 +62,7 @@ describe('bad sample fixture detection', () => {
     const oddlyNamed = word('other.json', 'ccccc');
     const report = analyzePuzzleRunway('pulse', [unlabeled, wrong, oddlyNamed], at(1));
     expect(report.invalidFiles).toEqual(expect.arrayContaining(['sample-01.json', 'sample-02.json', 'other.json']));
+    expect(report.daysLeft).toBe(0);
   });
 
   it('detects filename ordering that would change the game rotation', () => {
@@ -99,7 +105,10 @@ describe('tracked public folders', () => {
     const lines = runwayLines(at(11));
     expect(lines).toHaveLength(5);
     expect(lines.find((line) => line.startsWith('sudoku '))).toContain('generated each day');
-    expect(lines.find((line) => line.startsWith('pulse '))).toContain('0 fresh sample days left');
+    // Adding more samples must extend the runway without breaking this test.
+    const pastLastSample = at(readGameSampleFiles('pulse').length + 2);
+    const afterRunway = runwayLines(pastLastSample);
+    expect(afterRunway.find((line) => line.startsWith('pulse '))).toContain('0 fresh sample days left');
     expect(lines.join('\n')).not.toContain('[sample clue]');
   });
 });

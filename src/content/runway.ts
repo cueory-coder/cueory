@@ -107,36 +107,45 @@ export function analyzePuzzleRunway(game: SampleFolder, input: readonly SampleFi
   const repeats: RepeatedPuzzle[] = [];
   const invalidFiles = new Set<string>();
   const outOfOrder: string[] = [];
-  const liveSlots = new Set<number>();
+  // The game selects by position, not by the number embedded in the filename.
+  // Once a position is unsafe, never promise more consecutive fresh days.
+  const unsafePositions = new Set<number>();
 
   for (const [position, file] of files.entries()) {
     const match = /^sample-(\d+)\.json$/.exec(file.name);
     const slot = match ? Number(match[1]) : NaN;
     if (!match || !Number.isSafeInteger(slot) || slot < 1 || slot > 10_000) {
       invalidFiles.add(file.name);
+      unsafePositions.add(position);
       continue;
     }
     // Keep a malformed but numeric name in the day map too, so duplicate days
     // such as sample-01.json + sample-1.json cannot hide behind a naming error.
-    if (!/^sample-\d{2,}\.json$/.test(file.name)) invalidFiles.add(file.name);
-    if (slot !== position + 1) outOfOrder.push(file.name);
+    if (!/^sample-\d{2,}\.json$/.test(file.name)) {
+      invalidFiles.add(file.name);
+      unsafePositions.add(position);
+    }
+    if (slot !== position + 1) {
+      outOfOrder.push(file.name);
+      unsafePositions.add(position);
+    }
     slots.set(slot, [...(slots.get(slot) ?? []), file.name]);
     const identity = playableIdentity(game, file.data);
     if (identity === null) {
       invalidFiles.add(file.name);
+      unsafePositions.add(position);
       continue;
     }
-    const firstSlot = seenPuzzles.get(identity);
-    if (firstSlot !== undefined && firstSlot !== slot) {
-      repeats.push({ firstDay: slotDate(firstSlot), repeatedDay: slotDate(slot) });
-    } else if (firstSlot === undefined) {
-      seenPuzzles.set(identity, slot);
-      liveSlots.add(slot);
+    const firstPosition = seenPuzzles.get(identity);
+    if (firstPosition !== undefined) {
+      repeats.push({ firstDay: slotDate(firstPosition + 1), repeatedDay: slotDate(position + 1) });
+      unsafePositions.add(position);
+    } else {
+      seenPuzzles.set(identity, position);
     }
   }
 
-  const numbered = [...slots.keys()].sort((a, b) => a - b);
-  const lastSlot = numbered.at(-1) ?? 0;
+  const lastSlot = Math.max(0, ...slots.keys());
   const duplicates = [...slots].filter(([, names]) => names.length > 1)
     .map(([slot, names]) => ({ day: slotDate(slot), files: names }))
     .sort((a, b) => a.day.localeCompare(b.day));
@@ -144,12 +153,18 @@ export function analyzePuzzleRunway(game: SampleFolder, input: readonly SampleFi
     if (!slots.has(slot)) gaps.push(slotDate(slot));
   }
 
+  // A broken filename, missing day, bad file, or repeated puzzle makes the
+  // remainder of the initial cycle unsafe to promise, even if later files
+  // are individually valid. Actual play uses sorted list positions and wraps.
+  const uninterruptedDays = unsafePositions.size ? Math.min(...unsafePositions) : files.length;
+  const daysLeft = Math.max(0, uninterruptedDays - Math.max(0, today - 1));
+
   return {
     game,
     source: game === 'triage' ? 'legacy-samples' : 'rotating-samples',
-    firstDay: numbered.length ? slotDate(numbered[0]!) : null,
-    lastDay: lastSlot ? slotDate(lastSlot) : null,
-    daysLeft: [...liveSlots].filter((slot) => slot >= today).length,
+    firstDay: uninterruptedDays ? slotDate(1) : null,
+    lastDay: uninterruptedDays ? slotDate(uninterruptedDays) : null,
+    daysLeft,
     sampleCount: files.length,
     gaps,
     duplicates,

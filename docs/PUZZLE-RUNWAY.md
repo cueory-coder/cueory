@@ -29,6 +29,7 @@ The old `triage` folder has **7** sorting-game samples, with a first window of *
 - The site sorts a game's sample filenames and uses one per day. Once it reaches the end, it goes back to the first file. A repeated sample is **not a fresh daily puzzle**.
 - Sudoku is different. It generates a board from the day and selected difficulty, rather than reading a folder of daily samples. There is no public sample-file cutoff for Sudoku.
 - A **gap** means a numbered sample day is missing. A **duplicate** means two filenames claim one day. A **repeat** means two sample days contain the same playable puzzle. An **out-of-order** file would change which puzzle the game shows on a date.
+- When any of these problems or an invalid file appears, **days left stops at the first affected day**. This conservative number does not promise a fresh puzzle after broken sample order; fix the file before trusting later days.
 - All public sample files must clearly say `"status": "sample"`. This report never prints puzzle answers or clues.
 
 To check the safeguards, run `npm test -- tests/unit/puzzle-runway.test.ts`. It checks the actual folders and deliberate broken test fixtures. If a sample is running out, the report shows **0 days left**. That is information for planning, not a failing test. Gaps, duplicates and repeats **inside the fresh sample window** fail the test.
