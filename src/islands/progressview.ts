@@ -1,5 +1,5 @@
 /** Pure, truthful card counts for the progress dashboard. No module or question completion is recorded. */
-import { deckProgress, emptyProgress, isEmptyProgress, isExamDate, migrateLegacyStars, PROGRESS_STORAGE_KEY, PROGRESS_VERSION, parseProgress, type Progress } from '../scripts/progress';
+import { deckProgress, emptyProgress, isEmptyProgress, isExamDate, legacyStarsKey, migrateLegacyStars, PROGRESS_STORAGE_KEY, PROGRESS_VERSION, parseProgress, withStars, type Progress } from '../scripts/progress';
 import { readResume } from '../scripts/resume';
 import type { KeyValueStorage } from '../scripts/storage';
 
@@ -59,7 +59,12 @@ function readableRecord(raw: string | null): boolean {
     for (const deck of Object.values(value.decks)) {
       if (!record(deck)) return false;
       for (const field of ['know', 'learning', 'starred']) {
-        if (deck[field] !== undefined && !Array.isArray(deck[field])) return false;
+        const ids = deck[field];
+        if (ids === undefined) continue;
+        if (!Array.isArray(ids)) return false;
+        // Use the canonical sanitizer's ID rules and limits, without writing its result.
+        const accepted = new Set(withStars(emptyProgress(), 'validation', ids).decks.validation?.starred ?? []);
+        if (ids.some((id) => typeof id !== 'string' || !accepted.has(id))) return false;
       }
     }
   }
@@ -79,6 +84,26 @@ export interface DeviceProgressSnapshot {
   recovered?: true;
 }
 
+/** Run the canonical legacy merge on a private copy, never on the student's storage. */
+function recoveredCopy(storage: KeyValueStorage, raw: string): Progress {
+  const values = new Map<string, string>([[PROGRESS_STORAGE_KEY, raw]]);
+  const prefix = legacyStarsKey('');
+  const length = storage.length ?? 0;
+  for (let index = 0; index < length; index++) {
+    const key = storage.key?.(index);
+    if (!key?.startsWith(prefix)) continue;
+    const value = storage.getItem(key);
+    if (value !== null) values.set(key, value);
+  }
+  return migrateLegacyStars({
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => { values.set(key, value); },
+    removeItem: (key) => { values.delete(key); },
+    get length() { return values.size; },
+    key: (index) => [...values.keys()][index] ?? null,
+  });
+}
+
 /** Check the stored record before any legacy migration or other storage writes. */
 export function readDeviceProgress(storage: KeyValueStorage | undefined): DeviceProgressSnapshot {
   const unreadable = { progress: emptyProgress(), state: 'unreadable' as const };
@@ -91,7 +116,7 @@ export function readDeviceProgress(storage: KeyValueStorage | undefined): Device
       const recovered = parseProgress(raw);
       return isEmptyProgress(recovered)
         ? unreadable
-        : { progress: recovered, state: 'ready', recovered: true };
+        : { progress: recoveredCopy(storage, raw!), state: 'ready', recovered: true };
     }
     const progress = migrateLegacyStars(storage);
     return {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { emptyProgress, legacyStarsKey, migrateLegacyStars, PROGRESS_STORAGE_KEY, withOnboarding, withPile, withStars } from '../../src/scripts/progress';
+import { emptyProgress, exportProgress, legacyStarsKey, migrateLegacyStars, PROGRESS_STORAGE_KEY, withOnboarding, withPile, withStars } from '../../src/scripts/progress';
 import type { KeyValueStorage } from '../../src/scripts/storage';
 import ProgressRing from '../../src/islands/ProgressRing';
 import { examCountdown, progressScreenState, progressView, readDeviceProgress } from '../../src/islands/progressview';
@@ -188,7 +188,7 @@ describe('readDeviceProgress guards storage before migration', () => {
     const existing = store({ [PROGRESS_STORAGE_KEY]: raw, [legacyStarsKey('one')]: legacy });
     const original = [...existing.values.entries()];
     expect(readDeviceProgress(existing.storage)).toEqual({
-      progress: withPile(emptyProgress(), 'one', 'a', 'know'),
+      progress: withStars(withPile(emptyProgress(), 'one', 'a', 'know'), 'one', ['b']),
       state: 'ready',
       recovered: true,
     });
@@ -201,6 +201,67 @@ describe('readDeviceProgress guards storage before migration', () => {
   it('does not claim recovery when damaged fields contain no safely parsed progress', () => {
     const existing = store({ [PROGRESS_STORAGE_KEY]: JSON.stringify({ version: 1, onboarding: null, decks: {} }) });
     expect(readDeviceProgress(existing.storage)).toEqual({ progress: emptyProgress(), state: 'unreadable' });
+    expect(existing.mutations).toEqual([]);
+  });
+
+  it('includes current and retired legacy stars in a recovered copy without storage mutations', () => {
+    const raw = JSON.stringify({ version: 1, onboarding: null,
+      decks: { one: { know: ['a'], learning: [], starred: ['c'] } } });
+    const existing = store({ [PROGRESS_STORAGE_KEY]: raw,
+      [legacyStarsKey('one')]: '["b","c"]',
+      [legacyStarsKey('retired')]: '["x"]' });
+    const original = [...existing.values.entries()];
+    const snapshot = readDeviceProgress(existing.storage);
+    expect(snapshot.state).toBe('ready');
+    expect(snapshot.recovered).toBe(true);
+    expect(snapshot.progress.decks.one).toEqual({ know: ['a'], learning: [], starred: ['b', 'c'] });
+    expect(snapshot.progress.decks.retired).toEqual({ know: [], learning: [], starred: ['x'] });
+    const downloaded = JSON.parse(exportProgress(snapshot.progress, '2026-11-12'));
+    expect(downloaded.decks.one.starred).toEqual(['b', 'c']);
+    expect(downloaded.decks.retired.starred).toEqual(['x']);
+    expect(existing.mutations).toEqual([]);
+    expect([...existing.values.entries()]).toEqual(original);
+  });
+
+  it.each(['know', 'learning', 'starred'] as const)(
+    'preserves original bytes when %s mixes valid and invalid card IDs', (field) => {
+      const raw = JSON.stringify({ version: 1,
+        decks: { one: { [field]: ['a', 7, 'bad_id', null] } } });
+      const existing = store({ [PROGRESS_STORAGE_KEY]: raw, [legacyStarsKey('one')]: '["b"]' });
+      const original = [...existing.values.entries()];
+      const snapshot = readDeviceProgress(existing.storage);
+      expect(snapshot.state).toBe('ready');
+      expect(snapshot.recovered).toBe(true);
+      expect(snapshot.progress.decks.one[field]).toContain('a');
+      expect(snapshot.progress.decks.one.starred).toContain('b');
+      expect(existing.mutations).toEqual([]);
+      expect([...existing.values.entries()]).toEqual(original);
+    },
+  );
+
+  it('does not offer an incomplete recovered backup when a legacy key cannot be read', () => {
+    const raw = JSON.stringify({ version: 1, onboarding: null, decks: { one: { know: ['a'] } } });
+    const existing = store({ [PROGRESS_STORAGE_KEY]: raw, [legacyStarsKey('one')]: '["b"]' });
+    const original = [...existing.values.entries()];
+    const storage: KeyValueStorage = { ...existing.storage,
+      getItem: key => {
+        if (key === legacyStarsKey('one')) throw new Error('blocked legacy read');
+        return existing.storage.getItem(key);
+      },
+    };
+    expect(readDeviceProgress(storage)).toEqual({ progress: emptyProgress(), state: 'unreadable' });
+    expect(existing.mutations).toEqual([]);
+    expect([...existing.values.entries()]).toEqual(original);
+  });
+
+  it('keeps duplicate valid IDs and overlapping piles on the normal readable path', () => {
+    const raw = JSON.stringify({ version: 1,
+      decks: { one: { know: ['a', 'a'], learning: ['a'], starred: ['b', 'b'] } } });
+    const existing = store({ [PROGRESS_STORAGE_KEY]: raw });
+    const snapshot = readDeviceProgress(existing.storage);
+    expect(snapshot.state).toBe('ready');
+    expect(snapshot.recovered).toBeUndefined();
+    expect(snapshot.progress.decks.one).toEqual({ know: [], learning: ['a'], starred: ['b'] });
     expect(existing.mutations).toEqual([]);
   });
 

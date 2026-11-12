@@ -321,6 +321,7 @@ test('damaged onboarding exposes safe card progress and download without rewriti
     sessionStorage.setItem('recovered-progress-seeded', '1');
     localStorage.setItem('cueory-progress', raw);
     localStorage.setItem('cueory-stars-study-skills-01', legacy);
+    localStorage.setItem('cueory-stars-retired-sample', '["retired-card"]');
   }, { raw, legacy });
   await page.goto('/progress');
 
@@ -328,14 +329,16 @@ test('damaged onboarding exposes safe card progress and download without rewriti
   await expect(page.getByTestId('progress-state')).toHaveText(
     'some saved progress was recovered. the original stays on this device.',
   );
-  await expect(page.getByText('1 know it · 0 still learning · 0 stars')).toBeVisible();
+  await expect(page.getByText('1 know it · 0 still learning · 1 star')).toBeVisible();
   await expect(page.getByRole('button', { name: 'forget my progress on this device' })).toBeEnabled();
 
   const currentSaved = () => page.evaluate(() => ({
     progress: localStorage.getItem('cueory-progress'),
     stars: localStorage.getItem('cueory-stars-study-skills-01'),
+    retiredStars: localStorage.getItem('cueory-stars-retired-sample'),
   }));
-  expect(await currentSaved()).toEqual({ progress: raw, stars: legacy });
+  const original = { progress: raw, stars: legacy, retiredStars: '["retired-card"]' };
+  expect(await currentSaved()).toEqual(original);
 
   const downloading = page.waitForEvent('download');
   await page.getByRole('button', { name: 'download my progress' }).click();
@@ -343,12 +346,14 @@ test('damaged onboarding exposes safe card progress and download without rewriti
   expect(file.suggestedFilename()).toMatch(/^cueory-recovered-progress-\d{4}-\d{2}-\d{2}\.json$/);
   const copy = JSON.parse(readFileSync((await file.path())!, 'utf8'));
   expect(copy.decks['study-skills-01'].know).toEqual(['ss01-c01']);
+  expect(copy.decks['study-skills-01'].starred).toEqual(['ss01-c02']);
+  expect(copy.decks['retired-sample'].starred).toEqual(['retired-card']);
   expect(copy.onboarding).toEqual({ course: null, examDate: null, done: false });
-  expect(await currentSaved()).toEqual({ progress: raw, stars: legacy });
+  expect(await currentSaved()).toEqual(original);
 
   await page.reload();
   await expect(page.getByRole('heading', { name: 'some saved progress was recovered' })).toBeVisible();
-  expect(await currentSaved()).toEqual({ progress: raw, stars: legacy });
+  expect(await currentSaved()).toEqual(original);
 });
 
 test('retry recovers when previously unreadable data becomes readable', async ({ page }) => {
