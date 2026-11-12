@@ -1,2 +1,2 @@
-status: W07-2 (#42), offline-study switch: pure support and save-status decisions, correct cleanup outcomes, and tests for partial and malformed responses, quota limits and private URLs. No new sitewide status UI is enabled.
-decision: D-pending (W07-2) A later task may show the text-only offline status in the footer, but only after Christian approves the sitewide design change. Reason: the status should be accessible without adding an unapproved message to every page.
+status: W07-2 (#42), offline switch: verify real CacheStorage persistence before announcing readiness, even when service-worker cache.put fails asynchronously; maintain pure state decisions, private-route exclusions and quiet bootstrap.
+decision: D-pending (W07-2) A later task may show the text-only offline status in the footer, but only after Christian approves the sitewide design change. The browser bootstrap remains silent.

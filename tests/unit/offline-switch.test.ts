@@ -1,11 +1,14 @@
 /** W07-2: readable offline states, including partial saves, quota errors and failed cleanup. */
 import { describe, expect, it } from 'vitest';
 import {
-  startOffline, firstVisitUrls, offlineStartState, offlineProgressState, offlineStorageFull, offlineFetchSaved,
+  startOffline, firstVisitUrls, offlineStartState, offlineProgressState, offlineStorageFull, offlineFetchSaved, offlineCopiesPresent,
   offlineFailureState, offlineOffState, offlineStateText, renderOfflineState,
   type OfflineState, type OfflineEnvironment, type WorkerContainer,
 } from '../../src/scripts/offline';
 import { cacheName } from '../../src/scripts/offlineplan';
+import { buildServiceWorker } from '../../src/scripts/swbuild';
+import { readFileSync } from 'node:fs';
+import * as vm from 'node:vm';
 
 const ORIGIN = 'https://cueory.app';
 const PAGE = ORIGIN + '/learn/study-skills';
@@ -28,11 +31,18 @@ function setup(options: {
   wait?: (milliseconds: number) => Promise<void>;
   fetchOne?: (url: string) => Promise<unknown>;
   resources?: string[];
+  writeResult?: 'ok' | 'fail' | 'delayed';
+  initiallyStored?: boolean;
 } = {}) {
   const statuses: OfflineState[] = [];
   const order: string[] = [];
   const calls: string[] = [];
-  const names = new Set([cacheName('older'), 'unrelated-cache']);
+  const activeName = cacheName('active');
+  const names = new Set([activeName, 'unrelated-cache']);
+  const saved = new Set<string>(options.initiallyStored ? [PAGE, ORIGIN + '/_astro/app.abc123.js'] : []);
+  const delayed: string[] = [];
+  let releaseWriteWait: () => void = () => undefined;
+  const released = new Promise<void>((resolve) => { releaseWriteWait = resolve; });
   let controller: unknown = options.controlled ? {} : undefined;
   let onChange: (() => void) | undefined;
   const container: WorkerContainer = {
@@ -62,7 +72,13 @@ function setup(options: {
     resources: () => options.resources ?? ['/_astro/app.abc123.js'],
     fetchOne: async (url) => {
       calls.push('fetch:' + url);
-      return options.fetchOne ? options.fetchOne(url) : storableResponse();
+      const answer = await (options.fetchOne ? options.fetchOne(url) : storableResponse());
+      // This fake models an actual cache write separately from a successful response.
+      if (offlineFetchSaved(answer) && options.writeResult !== 'fail') {
+        if (options.writeResult === 'delayed') delayed.push(url);
+        else saved.add(url);
+      }
+      return answer;
     },
     clearCopies: async () => {
       order.push('clear');
@@ -71,10 +87,19 @@ function setup(options: {
     },
     wait: options.wait ?? (async () => undefined),
     storageEstimate: async () => options.estimate,
+    cacheStorage: {
+      keys: async () => [...names],
+      open: async (name) => ({ match: async (url) => name === activeName && saved.has(url) ? storableResponse() : undefined }),
+    },
     onState: (state) => { statuses.push(state); },
   };
   return {
-    env, calls, order, names, statuses,
+    env, calls, order, names, statuses, saved,
+    releaseWrites: () => {
+      for (const url of delayed.splice(0)) saved.add(url);
+      releaseWriteWait();
+    },
+    released,
     changeController: () => { controller = {}; onChange?.(); },
   };
 }
@@ -147,6 +172,50 @@ describe('validating saved responses (W07-2 review)', () => {
     const x = setup({ fetchOne: async () => result });
     await startOffline(x.env);
     expect(x.statuses).toEqual(['saving', 'unavailable']);
+  });
+});
+
+describe('confirming actual saved copies', () => {
+  it('requires all planned URLs in one Cueory cache and ignores stale and foreign caches', async () => {
+    const x = setup();
+    expect(await offlineCopiesPresent(x.env.cacheStorage, [PAGE])).toBe(false);
+    x.saved.add(PAGE);
+    expect(await offlineCopiesPresent(x.env.cacheStorage, [PAGE])).toBe(true);
+    expect(await offlineCopiesPresent(x.env.cacheStorage, [PAGE, ORIGIN + '/_astro/app.abc123.js'])).toBe(false);
+    x.saved.add(ORIGIN + '/_astro/app.abc123.js');
+    expect(await offlineCopiesPresent(x.env.cacheStorage, [PAGE, ORIGIN + '/_astro/app.abc123.js'])).toBe(true);
+    x.names.add(cacheName('stale'));
+    expect(await offlineCopiesPresent(x.env.cacheStorage, [PAGE, ORIGIN + '/_astro/app.abc123.js'])).toBe(false);
+    x.names.delete(cacheName('stale'));
+    expect(await offlineCopiesPresent(x.env.cacheStorage, [])).toBe(false);
+  });
+
+  it('does not report ready after a cache-write rejection when the quota estimate is inconclusive', async () => {
+    const x = setup({ writeResult: 'fail', estimate: { usage: 1, quota: 100 } });
+    await startOffline(x.env);
+    expect(x.statuses).toEqual(['saving', 'unavailable']);
+    expect(x.saved.size).toBe(0);
+  });
+
+  it('waits for deferred cache writes rather than prematurely declaring ready', async () => {
+    const x = setup({ writeResult: 'delayed' });
+    let notifyPolling: () => void = () => undefined;
+    const polling = new Promise<void>((resolve) => { notifyPolling = resolve; });
+    x.env.wait = async () => { notifyPolling(); await x.released; };
+    const started = startOffline(x.env);
+    await polling;
+    expect(x.statuses).toEqual(['saving']);
+    expect(x.saved.size).toBe(0);
+    x.releaseWrites();
+    await started;
+    expect(x.statuses).toEqual(['saving', 'ready']);
+  });
+
+  it('does not say ready for an already controlling worker with no saved copies', async () => {
+    const x = setup({ controlled: true, estimate: { usage: 1, quota: 100 } });
+    await startOffline(x.env);
+    expect(x.statuses).toEqual(['saving', 'unavailable']);
+    expect(x.calls).toEqual(['register:/sw.js:/']);
   });
 });
 
@@ -265,7 +334,7 @@ describe('worker registration, save and cleanup fakes', () => {
   });
 
   it('handles later worker activation and refreshes the saved visit', async () => {
-    const x = setup({ controlled: true });
+    const x = setup({ controlled: true, initiallyStored: true });
     await startOffline(x.env);
     expect(x.statuses).toEqual(['saving', 'ready']);
     x.changeController();
@@ -316,5 +385,110 @@ describe('offline screen-reader status', () => {
       if (oldDocument) Object.defineProperty(globalThis, 'document', oldDocument);
       else Reflect.deleteProperty(globalThis, 'document');
     }
+  });
+});
+
+/** Exercise the actual sw.ts fetch handler and its event.waitUntil(cache.put) behavior. */
+describe('service-worker writes wired to the page-side readiness check', () => {
+  const read = (file: string) => readFileSync('src/scripts/' + file, 'utf8');
+  const bundle = buildServiceWorker(['offlineplan.ts', 'swlogic.ts', 'sw.ts'].map(read), 'w07-2-integration');
+
+  function connectedWorker(writeMode: 'reject' | 'delayed' | 'complete') {
+    const entries = new Map<string, Map<string, Response>>();
+    const listeners = new Map<string, ((event: any) => void)[]>();
+    const pending: Promise<unknown>[] = [];
+    const releases: Array<() => void> = [];
+    let writes = 0;
+    let successes = 0;
+    let controller: unknown;
+    const basic = () => Object.defineProperty(new Response('[sample page]'), 'type', { value: 'basic' });
+    const cacheStorage = {
+      keys: async () => [...entries.keys()],
+      open: async (name: string) => {
+        if (!entries.has(name)) entries.set(name, new Map());
+        const cache = entries.get(name)!;
+        return {
+          match: async (url: string) => cache.get(url)?.clone(),
+          put: (url: string, response: Response) => {
+            writes += 1;
+            if (writeMode === 'reject') return Promise.reject({ name: 'QuotaExceededError' });
+            if (writeMode === 'delayed') return new Promise<void>((resolve) => {
+              releases.push(() => { cache.set(url, response); successes += 1; resolve(); });
+            });
+            cache.set(url, response);
+            successes += 1;
+            return Promise.resolve();
+          },
+        };
+      },
+    };
+    const self = {
+      location: { origin: ORIGIN },
+      clients: { claim: async () => undefined },
+      skipWaiting: async () => undefined,
+      addEventListener: (name: string, listener: (event: any) => void) => {
+        listeners.set(name, [...(listeners.get(name) ?? []), listener]);
+      },
+    };
+    vm.runInNewContext(bundle, { self, caches: cacheStorage, fetch: async () => basic(), URL, Promise, Response, Error, setTimeout });
+    const statuses: OfflineState[] = [];
+    const env: OfflineEnvironment = {
+      serviceWorker: {
+        get controller() { return controller; },
+        ready: Promise.resolve({}),
+        register: async () => { controller = {}; return {}; },
+        addEventListener: () => undefined,
+        getRegistrations: async () => [],
+      },
+      secure: true, enabled: true, origin: ORIGIN, pageUrl: PAGE,
+      resources: () => ['/_astro/app.abc123.js'],
+      fetchOne: async (url) => {
+        const request = new Request(url);
+        let answer: Promise<Response> | undefined;
+        const event = {
+          request,
+          waitUntil: (task: Promise<unknown>) => { pending.push(task); },
+          respondWith: (task: Promise<Response>) => { answer = task; },
+        };
+        for (const fn of listeners.get('fetch') ?? []) fn(event);
+        if (!answer) throw new Error('Worker did not handle public URL');
+        return answer;
+      },
+      cacheStorage, storageEstimate: async () => ({ usage: 1, quota: 100 }),
+      clearCopies: async () => undefined, wait: async () => undefined,
+      onState: (state) => statuses.push(state),
+    };
+    return { env, statuses, entries, pending, releases, get writes() { return writes; }, get successes() { return successes; } };
+  }
+
+  it('refuses false-ready when actual worker cache.put rejects in waitUntil', async () => {
+    const x = connectedWorker('reject');
+    await startOffline(x.env);
+    await Promise.all(x.pending);
+    expect(x.writes).toBe(2);
+    expect(x.successes).toBe(0);
+    expect(x.statuses).toEqual(['saving', 'unavailable']);
+    expect(await offlineCopiesPresent(x.env.cacheStorage, [PAGE])).toBe(false);
+  });
+
+  it('does not announce ready until actual delayed worker writes are visible', async () => {
+    const x = connectedWorker('delayed');
+    let announcePoll: () => void = () => undefined;
+    const pollStarted = new Promise<void>((resolve) => { announcePoll = resolve; });
+    let permitNextCheck: () => void = () => undefined;
+    const resume = new Promise<void>((resolve) => { permitNextCheck = resolve; });
+    x.env.wait = async () => { announcePoll(); await resume; };
+    const running = startOffline(x.env);
+    await pollStarted;
+    expect(x.statuses).toEqual(['saving']);
+    expect(x.successes).toBe(0);
+    expect(x.releases.length).toBe(2);
+    for (const release of x.releases) release();
+    permitNextCheck();
+    await running;
+    await Promise.all(x.pending);
+    expect(x.successes).toBe(2);
+    expect(x.statuses).toEqual(['saving', 'ready']);
+    expect(await offlineCopiesPresent(x.env.cacheStorage, [PAGE, ORIGIN + '/_astro/app.abc123.js'])).toBe(true);
   });
 });

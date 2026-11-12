@@ -26,6 +26,12 @@ export interface StorageEstimateLike {
 /** These are readable outcomes, not a promise that every page is available offline. */
 export type OfflineState = 'off' | 'turning-off' | 'not-supported' | 'saving' | 'ready' | 'storage-full' | 'unavailable';
 
+/** The browser cache API is optional and can be faked in unit tests. */
+export interface OfflineCacheStorage {
+  keys(): Promise<string[]>;
+  open(name: string): Promise<{ match(url: string): Promise<unknown> }>;
+}
+
 export interface OfflineEnvironment {
   serviceWorker?: WorkerContainer;
   secure: boolean;
@@ -40,6 +46,8 @@ export interface OfflineEnvironment {
   wait: (milliseconds: number) => Promise<void>;
   /** Optional browser-provided storage estimate. A missing or blocked estimate is not proof of available space. */
   storageEstimate?: () => Promise<StorageEstimateLike | undefined>;
+  /** Read actual service-worker cache writes instead of trusting successful network responses. */
+  cacheStorage?: OfflineCacheStorage;
   /** Gives a caller or a screen-reader status region every distinct state. */
   onState?: (state: OfflineState) => void;
 }
@@ -48,6 +56,9 @@ export interface OfflineEnvironment {
 const FIRST_VISIT_LIMIT = 60;
 /** How long a first visit waits for the new worker to take control of the page. */
 const CONTROL_WAIT_MS = 3000;
+/** Cache.put happens in waitUntil after fetch resolves. Check briefly without declaring a false success. */
+const COPY_VERIFY_ATTEMPTS = 20;
+const COPY_VERIFY_INTERVAL_MS = 150;
 
 /** Which state to show while the browser's support and switch setting are checked. */
 export function offlineStartState(enabled: boolean, secure: boolean, supported: boolean): OfflineState {
@@ -129,6 +140,40 @@ async function safeEstimate(env: OfflineEnvironment): Promise<StorageEstimateLik
   }
 }
 
+/** Only copies found together in one Cueory cache count as ready. No other application cache is considered. */
+export async function offlineCopiesPresent(store: OfflineCacheStorage | undefined, urls: readonly string[]): Promise<boolean> {
+  if (!store || urls.length === 0) return false;
+  try {
+    const prefix = cacheName('x').slice(0, -1);
+    const owned = (await store.keys()).filter((name) => name.startsWith(prefix));
+    // A second version could hold stale copies. Activation removes old versions before claiming the page.
+    // Fail closed until exactly one active Cueory cache remains.
+    if (owned.length !== 1) return false;
+    const cache = await store.open(owned[0]!);
+    const hits = await Promise.all(urls.map((url) => cache.match(url)));
+    return hits.every(Boolean);
+  } catch {
+    // Blocked storage, a deleted cache or an unreadable entry cannot prove a copy exists.
+  }
+  return false;
+}
+
+/** Wait for the worker's asynchronous event.waitUntil(cache.put) writes to become readable. */
+async function waitForSavedCopies(env: OfflineEnvironment, urls: readonly string[]): Promise<boolean> {
+  if (!env.cacheStorage || urls.length === 0) return false;
+  for (let attempt = 0; attempt < COPY_VERIFY_ATTEMPTS; attempt += 1) {
+    if (await offlineCopiesPresent(env.cacheStorage, urls)) return true;
+    if (attempt + 1 < COPY_VERIFY_ATTEMPTS) {
+      try {
+        await env.wait(COPY_VERIFY_INTERVAL_MS);
+      } catch {
+        return false;
+      }
+    }
+  }
+  return false;
+}
+
 /** Report no duplicate announcements for a single activation. */
 function statusReporter(env: OfflineEnvironment): (state: OfflineState) => void {
   let previous: OfflineState | undefined;
@@ -187,11 +232,21 @@ export async function startOffline(env: OfflineEnvironment): Promise<void> {
   // Later visits are saved by the worker itself. A new deploy deletes the old copies after taking control, so save
   // the current visit again at that point. A working controller does not prove that every lesson is stored offline.
   if (controlled) {
-    report('ready');
+    // A controller alone cannot prove even one page is available offline.
+    // Register the update listener first and discard the old verification if a new worker takes control.
+    let changed = false;
     container.addEventListener('controllerchange', () => {
+      changed = true;
       report('saving');
       void saveThisVisit(env, report).catch(() => report('unavailable'));
     }, { once: true });
+    try {
+      const urls = firstVisitUrls(env.pageUrl, env.resources(), env.origin);
+      const verified = await waitForSavedCopies(env, urls);
+      if (!changed) report(verified ? 'ready' : offlineFailureState(undefined, await safeEstimate(env)));
+    } catch {
+      if (!changed) report('unavailable');
+    }
     return;
   }
 
@@ -266,7 +321,12 @@ async function saveThisVisit(env: OfflineEnvironment, report: (state: OfflineSta
     report('storage-full');
     return;
   }
-  report(offlineProgressState(urls.length, urls.length, failed));
+  if (failed) {
+    report('unavailable');
+    return;
+  }
+  const verified = await waitForSavedCopies(env, urls);
+  report(verified ? 'ready' : offlineFailureState(undefined, await safeEstimate(env)));
 }
 
 /** Readable and screen-reader-announced state without modifying the shared layout or adding inline styles. */
@@ -305,6 +365,7 @@ if (typeof document !== 'undefined' && typeof navigator !== 'undefined') {
       },
       wait: (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
       storageEstimate: () => navigator.storage?.estimate() ?? Promise.resolve(undefined),
+      cacheStorage: typeof caches !== 'undefined' ? caches : undefined,
     }).catch(() => undefined);
   };
   if (document.readyState === 'complete') start();
