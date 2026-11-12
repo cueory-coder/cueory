@@ -1,0 +1,1 @@
+STATUS: Task 775 (W20-3, #69): staging-only noindex adaptive sample preview with five labeled questions and pure explainable session rules, concept-status words, and keyboard, tap and accessibility tests. No answers or progress are saved or sent.
