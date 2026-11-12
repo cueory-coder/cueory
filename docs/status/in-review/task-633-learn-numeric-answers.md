@@ -1,4 +1,4 @@
-status: Task 633, Learn numeric-answer comparison: preserves meaningful notation in typed answers, fill-in recall and multiple-choice options. Type check, production build and all 200 unit-test files passed. MR !11 targets staging and remains Draft because browser verification could not run.
+STATUS: Task 633, Learn numeric-answer comparison: preserves meaningful notation in typed answers, fill-in recall and multiple-choice options. Type check, production build and all 200 unit-test files passed. MR !11 targets staging. Browser checks passed on current staging (Claude, 2026-11-11); ready for review.
 
 ## Problem and change
 
@@ -29,7 +29,7 @@ Browser recovery attempts also failed. Playwright's pinned Chromium headless she
 
 Before this full run, focused Node assertions reproduced the original defect and passed 22 distinct numeric/symbol pairs, 44 typed/fill-in session paths, 22 multiple-choice decks, 10 equivalent-format pairs, five prose checks and the original nine-step mixed Learn session. The Vitest regressions now run in the actual project suite. Independent focused review checked the numeric correction and the performance fix.
 
-Browser coverage, including the existing Learn keyboard, responsive and axe tests, remains required before this MR is considered finished. Keep it Draft until that gap is resolved.
+Browser coverage, including the existing Learn keyboard, responsive and axe tests, remains required before this MR is considered finished. Update (Claude, 2026-11-11): that gap is closed. The Learn browser specs, including keyboard, responsive and axe checks, passed in Chromium on current staging; see the MR description.
 
 ## Scope
 
@@ -42,4 +42,4 @@ No CI files, instruction files, migrations, sign-in code or deployment settings 
 ## Findings outside this task, deferred
 
 - The build reported CSP compatibility warnings for Shiki's inline syntax-highlighting styles and a bundle-size warning. Those concern existing configuration and other code, so they were recorded without a side fix.
-- An earlier read-only staging inspection found that deployed `public.delete_my_account()` lacked the `app_private.mfa_access_allowed()` guard present in `supabase/migrations/20261104170500_enforce_opt_in_mfa.sql`, although that migration was recorded as applied. This needs Christian's investigation. No account-deletion call was made, and no hosted function, authentication code, migration or deployment setting was changed.
+- An earlier read-only staging inspection found that deployed `public.delete_my_account()` lacked the `app_private.mfa_access_allowed()` guard present in `supabase/migrations/20261104170500_enforce_opt_in_mfa.sql`, although that migration was recorded as applied. This needs Christian's investigation (update 2026-11-11: addressed for staging by MR !41, merged). No account-deletion call was made, and no hosted function, authentication code, migration or deployment setting was changed.
