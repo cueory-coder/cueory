@@ -10,6 +10,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import Layout from '../../layouts/Layout.astro';
 import UnitCard from '../../components/UnitCard.astro';
+import EmptyState from '../../components/EmptyState.astro';
 import { parseLessonMap } from '../../islands/lessonmap';
 import { lessonCatalog } from '../../lessons/load';
 
@@ -21,7 +22,8 @@ if (problems.length) {
 }
 const lessonCount = units.reduce((sum, unit) =>
   sum + unit.topics.reduce((count, topic) => count + topic.lessons.length, 0), 0);
-const openLessons = await Promise.all((await lessonCatalog()).lessons.map(async (lesson) => {
+const catalog = await lessonCatalog();
+const openLessons = await Promise.all(catalog.lessons.map(async (lesson) => {
   const deck = lesson.cards ? await getEntry('cards', lesson.cards.id) : undefined;
   return {
     lesson,
@@ -30,11 +32,6 @@ const openLessons = await Promise.all((await lessonCatalog()).lessons.map(async 
     sampleCards: !!lesson.cards?.labeled,
   };
 }));
-const openByUnit = new Map<string, { href: string; name: string }[]>();
-for (const { lesson } of openLessons) {
-  if (!lesson.unitId) continue;
-  openByUnit.set(lesson.unitId, [...(openByUnit.get(lesson.unitId) ?? []), { href: lesson.href, name: lesson.name }]);
-}
 ---
 
 <Layout
@@ -54,7 +51,14 @@ for (const { lesson } of openLessons) {
 
       <section class="mt-6" aria-labelledby="available-lessons-title">
         <h2 id="available-lessons-title" class="sr-only">open lessons</h2>
-        <ul class="space-y-4" data-testid="open-lessons">
+        {openLessons.length === 0 ? (
+          <EmptyState
+            title="no lessons yet"
+            description="new lessons are coming soon. explore the planned units below."
+            headingLevel={3}
+          />
+        ) : (
+          <ul class="space-y-4" data-testid="open-lessons">
           {openLessons.map(({ lesson, deckId, cardIds, sampleCards }, index) => {
             const cardCount = cardIds.length;
             const progressId = `library-progress-${index + 1}`;
@@ -93,7 +97,8 @@ for (const { lesson } of openLessons) {
               </li>
             );
           })}
-        </ul>
+          </ul>
+        )}
       </section>
 
       <section class="mt-8" aria-labelledby="planned-units-title">
@@ -105,7 +110,7 @@ for (const { lesson } of openLessons) {
           data-testid="unit-grid" aria-label="planned nursing units">
           {units.map((unit, index) => (
             <li class="min-w-0">
-              <UnitCard unit={unit} position={index + 1} open={openByUnit.get(unit.id) ?? []} />
+              <UnitCard unit={unit} position={index + 1} lessons={catalog.lessons} />
             </li>
           ))}
         </ol>
