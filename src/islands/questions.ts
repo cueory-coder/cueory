@@ -110,12 +110,55 @@ export function next(state: QuestionState): QuestionState {
     : { ...state, index: state.index + 1, picked: [] };
 }
 export function summary(state: QuestionState): string {
-  return `right on ${Object.values(state.results).filter((result) => result.correct).length} of ${state.questions.length}.`;
+  return questionSummary(state).message;
 }
 export function retryMissed(state: QuestionState): QuestionState {
   if (!state.finished) return state;
   return startQuestions(state.questions.filter((question) => Object.hasOwn(state.results, question.id) && !state.results[question.id]!.correct));
 }
+/** A relative, same-origin JSON path with no URL scheme or dot segments. */
+export const isSampleQuestionsPath = (src: unknown): src is string =>
+  typeof src === 'string' && /^\/(?!\/)(?:[\w-]+\/)*[\w-]+\.json$/.test(src);
+
+/** Pure load states for the sample-only questions island. Never expose the fetch error to students. */
+export type SampleQuestionsView =
+  | { status: 'loading' | 'failed' | 'empty'; src: string; message: string }
+  | { status: 'ready'; src: string; questions: Question[]; check: Checker };
+
+export const sampleQuestionsLoading = (src: string): SampleQuestionsView =>
+  ({ status: 'loading', src, message: 'loading questions…' });
+export const sampleQuestionsFailed = (src: string): SampleQuestionsView =>
+  ({ status: 'failed', src, message: "couldn't load sample questions. please try again." });
+
+/** Converts only labeled samples into a safe player; malformed content is a calm failure, not an exception. */
+export function sampleQuestionsFromData(src: string, data: unknown): SampleQuestionsView {
+  if (!isSampleQuestionsPath(src)) return sampleQuestionsFailed(src);
+  try {
+    if (!record(data) || data.status !== 'sample' || !Array.isArray(data.items)) return sampleQuestionsFailed(src);
+    if (data.items.length === 0) {
+      return { status: 'empty', src, message: 'no sample questions are available yet.' };
+    }
+    if (data.items.length > 100) return sampleQuestionsFailed(src);
+    const items = data.items as SampleItem[];
+    const check = sampleChecker(items);
+    // Strip the sample-only checking data before handing a question to the public player.
+    const questions = startQuestions(items.map(({ id, type, stem, choices }) => ({ id, type, stem, choices }))).questions;
+    return { status: 'ready', src, questions, check };
+  } catch {
+    return sampleQuestionsFailed(src);
+  }
+}
+
+/** Pure progress and end-of-session score. The shared QuestionsPlayer keeps its current interface. */
+export const questionPhase = (state: QuestionState): 'ready' | 'answered' | 'finished' =>
+  state.finished ? 'finished' : currentResult(state) ? 'answered' : 'ready';
+
+export function questionSummary(state: QuestionState): { correct: number; total: number; incorrect: number; message: string } {
+  const total = state.questions.length;
+  const correct = Object.values(state.results).filter(result => result.correct).length;
+  return { correct, total, incorrect: total - correct, message: `right on ${correct} of ${total}.` };
+}
+
 export interface SampleItem extends Question {
   status: string;
   key: ChoiceId[];

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  allOrNothing, canCheck, choiceMarks, currentQuestion, currentResult, MARKS, next, pick,
+  allOrNothing, canCheck, choiceMarks, currentQuestion, currentResult, isSampleQuestionsPath, MARKS, next, pick, questionPhase, questionSummary,
+  sampleQuestionsFailed, sampleQuestionsFromData, sampleQuestionsLoading,
   recordResult, retryMissed, sampleChecker, startQuestions, summary, validateResult,
   type ChoiceId, type Question, type QuestionState, type SampleItem,
 } from '../../src/islands/questions';
@@ -162,5 +163,85 @@ describe('question sessions', () => {
     state = next(recordResult(state, await checker('fruit', state.picked)));
     expect(summary(state)).toBe('right on 1 of 1.');
     expect(retryMissed(state).questions).toEqual([]);
+  });
+});
+
+
+describe('W20-2 sample load and progress states', () => {
+  const path = '/learn/study-skills/questions/study-skills-01.json';
+
+  it('accepts only a local sample JSON path with no dot segments', () => {
+    expect(isSampleQuestionsPath(path)).toBe(true);
+    for (const bad of ['https://example.test/sample.json', '//example.test/a.json', '/../sample.json',
+      '/learn/../sample.json', '/sample.js', '/sample.json?next=x', '/a/%2e%2e/b.json', '']) {
+      expect(isSampleQuestionsPath(bad)).toBe(false);
+    }
+  });
+
+  it('describes loading and failed states without sharing a raw server error', () => {
+    expect(sampleQuestionsLoading(path)).toEqual({ status: 'loading', src: path, message: 'loading questions…' });
+    expect(sampleQuestionsFailed(path)).toEqual({
+      status: 'failed', src: path, message: "couldn't load sample questions. please try again.",
+    });
+    expect(sampleQuestionsFromData(path, { status: 'unexpected', items: samples }).status).toBe('failed');
+    expect(sampleQuestionsFromData(path, { status: 'sample', items: 'bad data' }).status).toBe('failed');
+    expect(sampleQuestionsFromData(path, null).status).toBe('failed');
+    expect(sampleQuestionsFromData('/other/path.js', { status: 'sample', items: samples }).status).toBe('failed');
+  });
+
+  it('distinguishes an empty sample set from a failed fetch', () => {
+    expect(sampleQuestionsFromData(path, { status: 'sample', items: [] })).toEqual({
+      status: 'empty', src: path, message: 'no sample questions are available yet.',
+    });
+  });
+
+  it('provides public questions only, a sample checker, and a ready state', async () => {
+    const loaded = sampleQuestionsFromData(path, { status: 'sample', items: samples });
+    expect(loaded.status).toBe('ready');
+    if (loaded.status !== 'ready') throw new Error('expected a ready sample');
+    expect(loaded.questions).toHaveLength(2);
+    expect(loaded.questions[0]).toEqual(single);
+    expect(Object.keys(loaded.questions[0]!)).toEqual(['id', 'type', 'stem', 'choices']);
+    expect(await loaded.check(single.id, ['a'])).toMatchObject({ correct: true, key: ['a'] });
+  });
+
+  it('rejects a non-sample item, duplicate ids or malformed keys', () => {
+    expect(sampleQuestionsFromData(path, { status: 'sample', items: [{ ...samples[0]!, status: 'published' }] }).status)
+      .toBe('failed');
+    expect(sampleQuestionsFromData(path, { status: 'sample', items: [samples[0], samples[0]] }).status)
+      .toBe('failed');
+    expect(sampleQuestionsFromData(path, { status: 'sample', items: [{ ...samples[0], key: ['z'] }] }).status)
+      .toBe('failed');
+  });
+
+  it('has pure ready, answered and finished progress, preserving the existing summary', async () => {
+    let state = startQuestions([single]);
+    expect(questionPhase(state)).toBe('ready');
+    state = recordResult(pick(state, 'a'), await sampleChecker(samples)('fruit', ['a']));
+    expect(questionPhase(state)).toBe('answered');
+    state = next(state);
+    expect(questionPhase(state)).toBe('finished');
+    expect(questionSummary(state)).toEqual({ correct: 1, total: 1, incorrect: 0, message: 'right on 1 of 1.' });
+    expect(summary(state)).toBe('right on 1 of 1.');
+    expect(questionSummary(startQuestions([]))).toEqual({
+      correct: 0, total: 0, incorrect: 0, message: 'right on 0 of 0.',
+    });
+  });
+
+  it('scores all right, all wrong, and select-all-that-apply as all-or-nothing', async () => {
+    const check = sampleChecker(samples);
+    let allRight = startQuestions([single, sata]);
+    allRight = next(recordResult(pick(allRight, 'a'), await check('fruit', ['a'])));
+    allRight = next(recordResult(choose(allRight, ['a', 'c']), await check('fruits', ['a', 'c'])));
+    expect(questionSummary(allRight)).toMatchObject({ correct: 2, total: 2, incorrect: 0 });
+
+    let allWrong = startQuestions([single, sata]);
+    allWrong = next(recordResult(pick(allWrong, 'b'), await check('fruit', ['b'])));
+    // Even a partially correct SATA pick counts as wrong.
+    allWrong = next(recordResult(pick(allWrong, 'a'), await check('fruits', ['a'])));
+    expect(questionSummary(allWrong)).toMatchObject({ correct: 0, total: 2, incorrect: 2 });
+    expect(summary(allWrong)).toBe('right on 0 of 2.');
+    expect(choiceMarks(['a'], ['a', 'c']).c).toBe('missed');
+    expect(MARKS.missed.symbol).toBe('○');
   });
 });
