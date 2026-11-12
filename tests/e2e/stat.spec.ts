@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import { TIMEOUT_KEEPS_PICK } from '../../src/islands/stat';
 import sample from '../../content/games/stat/sample.json' with { type: 'json' };
 
 // stat (Task 640). The page's clock is Playwright's fake clock, so 20 seconds pass in an instant and nothing is flaky.
@@ -127,10 +128,13 @@ test('review rows name timeouts with and without a pick, show times and rational
   const rows = page.getByTestId('stat-review-row');
   await expect(rows).toHaveCount(15);
   await expect(rows.first().getByRole('heading', { name: 'question 1', level: 4 })).toBeVisible();
+  // The row must not be named only by its heading: screen readers need its result, pick and answer.
+  await expect(rows.first()).not.toHaveAttribute('aria-labelledby', /.+/);
   await expect(rows.first()).toContainText('out of time');
   await expect(rows.first()).toContainText('time used: 20 s');
-  const keptPick = rows.first().getByText('your answer: ' + key[0]!.toUpperCase());
-  if (await keptPick.count()) {
+  // The rule determines the expected result, not the rendered page. Never make an incorrect timeout pass.
+  if (TIMEOUT_KEEPS_PICK) {
+    await expect(rows.first()).toContainText('your answer: ' + key[0]!.toUpperCase());
     await expect(rows.first()).toContainText('picked answer counted as right');
     await expect(rows.first()).not.toHaveClass(/border-dashed/);
   } else {
