@@ -87,6 +87,6 @@ describe('sitemap', () => {
   });
 
   it('escapes XML values in the generated loc', () => {
-    expect(sitemapXml(['/play?term=a&b'])).toContain('term=a&amp;b');
+    expect(sitemapXml(['/?term=a&b'])).toContain('term=a&amp;b');
   });
 });
