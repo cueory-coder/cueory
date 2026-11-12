@@ -1,1 +1,1 @@
-status: W08 (#8), Sudoku hardening: strict saved-settings fallback, blocked-storage tolerance, shared keyboard/tap editing logic, generator uniqueness and performance coverage across many seeds, and unusual-day regression tests.
+status: Task 708, Sudoku logic hardening (#8): robust saved-settings fallback, blocked-storage handling, keyboard/pad parity, unique puzzles across 24 seeds per level, and warmed 300 ms average generation-time coverage.
