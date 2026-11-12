@@ -17,6 +17,13 @@ describe('coming-soon and subscribed page shells', () => {
       expect(source).not.toMatch(/<script\b|<style\b|\sstyle=/i);
     });
 
+    it(`${name} has a clear lowercase meta description of 50–160 characters`, () => {
+      const description = source.match(/<Layout\\b[^>]*\\bdescription="([^"]+)"/)?.[1] ?? '';
+      expect(description.length).toBeGreaterThanOrEqual(50);
+      expect(description.length).toBeLessThanOrEqual(160);
+      expect(description).toBe(description.toLowerCase());
+    });
+
     it(`${name} next-step links point to real public routes`, () => {
       const hrefs = [...source.matchAll(/<a\b[^>]*\bhref="([^"]+)"/g)].map((match) => match[1]);
       expect(hrefs.length).toBeGreaterThan(0);
