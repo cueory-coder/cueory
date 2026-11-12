@@ -48,7 +48,9 @@ if (!lesson) {
     >
       <div data-testid="questions">
         {/* Only the address is in HTML. The public sample questions load after the page, never as island props. */}
-        <QuestionsSample client:only="react" src="/learn/study-skills/questions/study-skills-01.json" />
+        <QuestionsSample client:only="react" src="/learn/study-skills/questions/study-skills-01.json">
+          <p slot="fallback" class="text-sm text-ink-soft" role="status">loading questions…</p>
+        </QuestionsSample>
         <noscript>
           <p>
             questions need JavaScript. you can still read the lesson on the
