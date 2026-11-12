@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { browserStorage } from '../scripts/storage';
+import { printGame } from './gameprint';
 import { localDay } from './gameresults';
 import { LEVEL_RULES, candidates, conflictIndices, dailySudokuSeed, generateSudoku, getResult, type SudokuLevel } from './sudoku';
 
@@ -163,13 +164,8 @@ export default function SudokuGame() {
     if (key === 'autoCandidates') setHints(next.autoCandidates);
     return next;
   });
-  const printPuzzle = () => {
-    const root = document.documentElement;
-    root.dataset.printGame = 'sudoku';
-    const cleanup = () => { delete root.dataset.printGame; };
-    window.addEventListener('afterprint', cleanup, { once: true });
-    window.print();
-  };
+  // The shared print helper (Task 641): marks the page for sudoku's print rules and clears the mark after printing.
+  const printPuzzle = () => printGame('sudoku');
   const elapsed = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
   const selectedRow = Math.floor(selected / 9); const selectedColumn = selected % 9; const selectedValue = entries[selected];
 

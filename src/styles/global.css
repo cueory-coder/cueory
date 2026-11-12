@@ -2048,12 +2048,14 @@ html:has(dialog.mode-preview[open]) {
   .sudoku-cell.is-identical { background: var(--color-sudoku-identical); box-shadow: inset 0 0 0 var(--sudoku-line) var(--color-control); }
   .sudoku-cell.is-conflict::before { position: absolute; inset: calc(var(--spacing) * 1); border: var(--sudoku-line) dashed var(--color-sudoku-conflict); border-radius: var(--radius-sm); content: ""; }
   .sudoku-cell.is-selected { z-index: 1; outline: var(--focus-width) solid var(--color-focus); outline-offset: calc(-1 * var(--focus-width)); }
+  /* Keyboard focus on the selected square doubles its ring, so focus on the grid is visible apart from selection (Task 210). */
+  .sudoku-cell.is-selected:focus-visible { outline-width: calc(var(--focus-width) * 2); outline-offset: calc(-2 * var(--focus-width)); }
   .sudoku-candidates { display: grid; inline-size: 100%; block-size: 100%; grid-template-columns: repeat(3, 1fr); font-size: var(--sudoku-candidate-size); line-height: 1; }
   .sudoku-candidates i { display: flex; align-items: center; justify-content: center; font-style: normal; }
   .sudoku-mark { color: var(--color-ink-soft); }
   .sudoku-board.is-paused .sudoku-cell { background: var(--color-surface); color: var(--color-ink-soft); }
-  .sudoku-pad-wrap { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: calc(var(--spacing) * 3); inline-size: 100%; }
-  .sudoku-number-row { display: grid; grid-template-columns: repeat(10, minmax(var(--tap-min), 1fr)); gap: calc(var(--spacing) * 2); }
+  .sudoku-pad-wrap { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: calc(var(--spacing) * 3); inline-size: 100%; }
+  .sudoku-number-row { display: grid; grid-template-columns: repeat(10, minmax(var(--tap-min), 1fr)); gap: calc(var(--spacing) * 2); overflow-x: auto; }
   .sudoku-number-row button { min-inline-size: var(--tap-min); min-block-size: var(--tap-min); border: var(--sudoku-line) solid var(--color-control); border-radius: var(--radius-md); background: var(--color-page); color: var(--color-ink); font-weight: 700; }
   .sudoku-setting-button { display: inline-flex; min-block-size: var(--tap-min); align-items: center; gap: calc(var(--spacing) * 2); border: 0; background: transparent; color: var(--color-ink); cursor: pointer; white-space: nowrap; }
   .sudoku-solved { margin-block-start: calc(var(--spacing) * 6); padding: calc(var(--spacing) * 5); border: var(--sudoku-line) solid var(--color-line); border-radius: var(--radius-lg); text-align: center; }
@@ -2069,11 +2071,13 @@ html:has(dialog.mode-preview[open]) {
   .sudoku-option input { inline-size: calc(var(--spacing) * 6); block-size: calc(var(--spacing) * 6); accent-color: var(--color-button); }
   .sudoku-print-footer { display: none; }
   @media (orientation: portrait), (max-width: 50rem) {
-    .sudoku-pad-wrap { grid-template-columns: 1fr 1fr; }
-    .sudoku-number-row { grid-column: 1 / -1; grid-row: 1; overflow-x: auto; }
-    .sudoku-hints { justify-self: start; }
-    .sudoku-settings-trigger { justify-self: end; }
-    .sudoku-toolbar { grid-template-columns: 1fr 1fr; }
+    /* Numbers on their own line, then hints left and settings right; with large text the two wrap instead of pushing
+       the page sideways (Task 280). */
+    .sudoku-pad-wrap { display: flex; flex-wrap: wrap; justify-content: space-between; }
+    .sudoku-number-row { flex: 1 0 100%; order: -1; }
+    .sudoku-settings-trigger { margin-inline-start: auto; }
+    .sudoku-toolbar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .sudoku-time { flex-wrap: wrap; }
     .sudoku-toolbar .segmented { grid-column: 1 / -1; grid-row: 1; justify-self: center; }
   }
   @media print {
