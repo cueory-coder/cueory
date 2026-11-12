@@ -57,6 +57,25 @@ describe('anatomy worksheet: numbering', () => {
     expect(worksheetOrder(['b', 'a'], points)).toEqual(['a', 'b']);
   });
 
+  it('keeps row numbering identical for every input permutation', () => {
+    const points = [
+      { id: 'top', x: 100, y: 0 },
+      { id: 'middle', x: 50, y: 10 },
+      { id: 'bottom', x: 0, y: 20 },
+    ];
+    const permutations = [
+      ['top', 'middle', 'bottom'],
+      ['top', 'bottom', 'middle'],
+      ['middle', 'top', 'bottom'],
+      ['middle', 'bottom', 'top'],
+      ['bottom', 'top', 'middle'],
+      ['bottom', 'middle', 'top'],
+    ];
+    for (const ids of permutations) {
+      expect(worksheetOrder(ids, points)).toEqual(['middle', 'top', 'bottom']);
+    }
+  });
+
   it('draws numbers on the picture, never names', () => {
     expect(worksheetLabels(['x', 'y', 'z'])).toEqual([
       { id: 'x', text: '1' },

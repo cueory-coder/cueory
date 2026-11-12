@@ -36,15 +36,32 @@ export function worksheetOrder(
   rowTolerance = 12,
 ): string[] {
   const at = new Map(points.map((p) => [p.id, p]));
-  const placed = ids.filter((id) => at.has(id));
-  const rest = ids.filter((id) => !at.has(id));
+  const unique = [...new Set(ids)];
+  const placed = unique.filter((id) => at.has(id));
+  const rest = unique.filter((id) => !at.has(id));
+  const compareHorizontal = (a: string, b: string) => {
+    const pa = at.get(a)!;
+    const pb = at.get(b)!;
+    return pa.x - pb.x || (a < b ? -1 : a > b ? 1 : 0);
+  };
+
+  // Form rows from a y-sorted list before applying the within-row x order. Comparing row proximity directly inside
+  // Array.sort is not transitive (A can share a row with B and B with C while A does not share one with C), which
+  // makes numbering depend on the input permutation.
   placed.sort((a, b) => {
     const pa = at.get(a)!;
     const pb = at.get(b)!;
-    if (Math.abs(pa.y - pb.y) > rowTolerance) return pa.y - pb.y;
-    return pa.x - pb.x || (a < b ? -1 : a > b ? 1 : 0);
+    return pa.y - pb.y || compareHorizontal(a, b);
   });
-  return [...new Set([...placed, ...rest])];
+  const rows: Array<{ top: number; ids: string[] }> = [];
+  for (const id of placed) {
+    const point = at.get(id)!;
+    const row = rows.at(-1);
+    if (!row || point.y - row.top > rowTolerance) rows.push({ top: point.y, ids: [id] });
+    else row.ids.push(id);
+  }
+
+  return [...rows.flatMap((row) => row.ids.sort(compareHorizontal)), ...rest];
 }
 
 /** The labels the picture draws: each structure's number instead of its name. */
