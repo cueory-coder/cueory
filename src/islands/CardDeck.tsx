@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { cardKeyAction } from './cardkeys';
+import { CARD_ROUND_KEY as ROUND_KEY, restoreCardRound } from './cardresume';
 import { migrateLegacyStars, pileOf, PROGRESS_STORAGE_KEY, readProgress, saveSort, type Pile } from '../scripts/progress';
 import { browserStorage, type KeyValueStorage } from '../scripts/storage';
 import {
-  attachResumeLifecycle, clearResume, readResume, saveResume, type ResumeAnswer, type ResumeDraft, type ResumeSnapshot,
+  attachResumeLifecycle, clearResume, readResume, saveResume, type ResumeAnswer, type ResumeDraft,
 } from '../scripts/resume';
 import ResumePrompt from './ResumePrompt';
 import {
@@ -33,11 +34,6 @@ interface Card {
 
 const RESUME_PAGE = '/learn/study-skills/cards';
 
-/**
- * The round's own card order is saved under this answers key, so a later round is never rebuilt from piles that Back
- * or another sort changed since (Codex on #221). Card IDs are [a-z0-9-] (content.config.ts), so "_" can't clash.
- */
-const ROUND_KEY = 'round_ids';
 // resume.ts allows at most 50 strings of 500 characters in one answer; the IDs are packed space-separated into chunks.
 const CHUNK_TEXT = 500;
 const MAX_CHUNKS = 50;
@@ -83,35 +79,6 @@ function draftOf(state: CardsState, cards: readonly Card[], deckId: string, shuf
 function marksStillSaved(storage: KeyValueStorage | undefined, deckId: string, draft: ResumeDraft): boolean {
   const progress = readProgress(storage);
   return Object.keys(draft.answers).every((id) => id === ROUND_KEY || pileOf(progress, deckId, id) !== null);
-}
-
-/** Rebuilds the exact round from its saved card IDs; the marks must match the round's first cards, in order. */
-function restoreFrom(snapshot: ResumeSnapshot, deckId: string, cards: readonly Card[], page: string
-): { state: CardsState; shuffle: boolean; starredOnly: boolean } | null {
-  if (snapshot.tool !== 'cards' || snapshot.page !== page || snapshot.module !== deckId) return null;
-  const flags = /^r([1-9]\d*)-s([01])-t([01])$/.exec(snapshot.step ?? '');
-  if (!flags || !cards.length || snapshot.totalItems > cards.length) return null;
-  const roundNumber = Number(flags[1]);
-  if (!Number.isSafeInteger(roundNumber) || roundNumber > 9999) return null;
-  const shuffle = flags[2] === '1', starredOnly = flags[3] === '1';
-  const byId = new Map(cards.map((card, i) => [card.id, i]));
-  if (byId.size !== cards.length) return null;
-  const { [ROUND_KEY]: packed, ...marks } = snapshot.answers;
-  if (!Array.isArray(packed) || !packed.length) return null;
-  const roundIds = packed.join(' ').split(' ');
-  if (roundIds.length !== snapshot.totalItems || new Set(roundIds).size !== roundIds.length) return null;
-  const round = roundIds.map((id) => byId.get(id));
-  if (round.some((index) => index === undefined)) return null;
-  const pairs = Object.entries(marks);
-  if (pairs.some(([, value]) => value !== 'know' && value !== 'learning')) return null;
-  const finished = snapshot.phase === 'results';
-  if (finished && snapshot.itemIndex !== roundIds.length - 1) return null;
-  if (pairs.length !== (finished ? roundIds.length : snapshot.itemIndex)) return null;
-  if (pairs.some(([id], i) => id !== roundIds[i]) || snapshot.itemId !== roundIds[snapshot.itemIndex]) return null;
-  return { shuffle, starredOnly, state: {
-    round: round as number[], pos: pairs.length, flipped: false,
-    marks: pairs.map(([, pile]) => pile as Pile), roundNumber, touched: true,
-  } };
 }
 
 interface Props {
@@ -412,7 +379,7 @@ export default function CardDeck({ deckId, cards, page = RESUME_PAGE }: Props) {
   const resumeChoice = resumePending && (
     <div className="mb-stack">
       <ResumePrompt page={page} onContinue={snapshot => {
-        const saved = restoreFrom(snapshot, deckId, cards, page);
+        const saved = restoreCardRound(snapshot, deckId, cards, page);
         sorts.current = [];
         if (saved) {
           setState(saved.state);
