@@ -10,7 +10,7 @@ const game = (page: Page) => page.getByTestId('sudoku');
 const cells = (page: Page) => game(page).getByRole('gridcell');
 
 test.beforeEach(async ({ page }) => {
-  await page.clock.install({ time: new Date('2026-11-01T15:00:00Z') });
+  await page.clock.install({ time: new Date('2026-11-01T15:00:00') });
   await page.addInitScript(() => {
     try { localStorage.setItem('cueory-promo-seen', String(Date.now())); } catch { /* optional */ }
   });
@@ -70,3 +70,38 @@ for (const [size, width, height] of [['phone', 390, 844], ['tablet', 820, 1180],
     });
   }
 }
+
+
+test('paused keypad and keyboard cannot change entries, marks, errors, or the live message', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' });
+  await page.goto('/play');
+  await expect(cells(page)).toHaveCount(81);
+
+  await cells(page).nth(empty).click();
+  await page.keyboard.press('1');
+  await expect(cells(page).nth(empty)).toHaveText('1');
+  const errorsBefore = await game(page).locator('.sudoku-errors').innerText();
+
+  await game(page).getByRole('button', { name: 'pause puzzle' }).click();
+  await expect(game(page).locator('.sudoku-number-row button')).toHaveCount(10);
+  for (const button of await game(page).locator('.sudoku-number-row button').all()) {
+    await expect(button).toBeDisabled();
+  }
+  await expect(game(page).getByTestId('sudoku-live')).toHaveText('puzzle paused. given numbers remain visible.');
+  await expect(game(page).locator('[aria-live="polite"]')).toHaveCount(1);
+  await cells(page).nth(empty).click();
+  await page.keyboard.press('9');
+  await cells(page).nth(marked).click();
+  await page.keyboard.press('x');
+  await expect(cells(page).nth(empty)).toBeEmpty();
+  await expect(cells(page).nth(marked)).toBeEmpty();
+  await expect(game(page).locator('.sudoku-errors')).toHaveText(errorsBefore);
+  await expect(game(page).getByTestId('sudoku-live')).toHaveText('puzzle paused. given numbers remain visible.');
+
+  await game(page).getByRole('button', { name: 'resume puzzle' }).click();
+  await expect(cells(page).nth(empty)).toHaveText('1');
+  await expect(cells(page).nth(marked)).toBeEmpty();
+  await expect(game(page).locator('.sudoku-errors')).toHaveText(errorsBefore);
+  await expect(game(page).getByTestId('sudoku-live')).toHaveText('puzzle resumed.');
+});

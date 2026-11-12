@@ -182,3 +182,26 @@ describe('W08-2 pause and resume', () => {
     expect(advanceSudokuSeconds(19, false, false)).toBe(20);
   });
 });
+
+
+describe('W08-2: paused displays across all difficulty levels', () => {
+  it.each(levels)('%s keeps all and only its original givens visible while paused', (level) => {
+    const puzzle = generateSudoku('pause-every-square', level).puzzle;
+    const entries = puzzle.map((value) => value || 9);
+    const emptyIndices = puzzle.flatMap((value, index) => value === 0 ? [index] : []);
+    const marks = new Set(emptyIndices);
+    const preservedEntries = [...entries];
+    const preservedMarks = [...marks];
+
+    const cells = puzzle.map((_, index) => sudokuCellPresentation(entries, puzzle, marks, index, true));
+    expect(cells.filter((cell) => cell.value > 0)).toHaveLength(LEVEL_RULES[level].givens);
+    expect(cells.every((cell, index) =>
+      puzzle[index]
+        ? cell.given && cell.value === puzzle[index] && !cell.hidden && !cell.marked
+        : !cell.given && cell.value === 0 && cell.hidden && !cell.marked
+    )).toBe(true);
+    expect(entries).toEqual(preservedEntries);
+    expect([...marks]).toEqual(preservedMarks);
+    expect(emptyIndices.every((index) => sudokuCellPresentation(entries, puzzle, marks, index, false).value === 9)).toBe(true);
+  });
+});
