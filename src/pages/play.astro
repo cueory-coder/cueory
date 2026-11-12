@@ -26,7 +26,7 @@ const crosswordSamples = (await getCollection('cueword'))
   .sort((a, b) => a.id.localeCompare(b.id))
   .map(({ id, data }) => {
     try {
-      return parsePuzzle({ id, sample: true, grid: data.grid, clues: data.clues });
+      return parsePuzzle({ id, sample: true, level: data.level, grid: data.grid, clues: data.clues });
     } catch (error) {
       throw new Error(`content/games/cueword/${id}.json: ${(error as Error).message}`);
     }
@@ -84,10 +84,10 @@ const later = dailyGames.filter((game) => !game.ready);
       </div>
     </section>
 
-    <section class="mt-16" aria-labelledby="crossword-heading">
-      <h2 id="crossword-heading" class="text-2xl font-medium">{crossword.name}</h2>
+    <section class="mt-16" aria-labelledby="crossword-heading" data-game-print="crossword">
+      <h2 id="crossword-heading" class="display text-center text-title">{crossword.name}</h2>
       <p class="mt-2 text-ink-soft">{crossword.line}</p>
-      <div class="mt-6">
+      <div class="crossword-print-host mt-6">
         <CuewordToday client:only="react" puzzles={crosswordSamples} name={crossword.name} />
         <noscript>
           <p>{crossword.name} needs JavaScript.</p>

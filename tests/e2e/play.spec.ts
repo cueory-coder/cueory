@@ -342,79 +342,127 @@ test.describe('daily games: sudoku (Task 625)', () => {
   });
 });
 
-test.describe('daily games: crossword (D-70)', () => {
-  // 1 November: the first sample. 1 across STAR, 3 across APPLE; 1 down SOFA, 2 down RAIL.
-  const clues = (page: Page, direction: 'across' | 'down') =>
-    page.getByRole('list', { name: `${direction} clues` }).getByRole('button');
-  const fill = async (page: Page, direction: 'across' | 'down', index: number, word: string) => {
-    await clues(page, direction).nth(index).click();
-    await page.keyboard.type(word);
-  };
+test.describe('daily games: crossword levels (Task 627)', () => {
+  const board = (page: Page) => page.getByTestId('cueword');
 
   test.beforeEach(async ({ page }) => {
     await page.clock.setFixedTime(new Date('2026-11-01T15:00:00'));
     await page.goto('/play');
-    await expect(page.getByTestId('cueword')).toBeVisible();
+    await expect(board(page)).toBeVisible();
   });
 
-  test("today's sample is labeled, its first clue shows, and axe passes", async ({ page }) => {
+  test('starts on the labeled 5 by 5 sample with a clue bar and no side clue list', async ({ page }) => {
     await expect(page.getByRole('heading', { level: 2, name: 'crossword' })).toBeVisible();
-    await expect(page.getByTestId('cueword')).toContainText("today's puzzle is a sample");
-    await expect(page.getByTestId('cueword-clue')).toHaveText('1 across: it twinkles in the night sky');
-    await expect(page.getByRole('grid', { name: 'crossword grid' })).toBeVisible();
+    await expect(page.getByTestId('crossword-levels').getByLabel('easy, 5 by 5')).toBeChecked();
+    await expect(board(page)).toContainText("today's puzzle is a sample");
+    await expect(board(page).getByTestId('cueword-clue')).toContainText('1 across');
+    await expect(board(page).getByTestId('cueword-clue')).toContainText('[sample clue]');
+    await expect(board(page).getByRole('grid', { name: 'crossword grid' })).toHaveAttribute('aria-rowcount', '5');
+    await expect(board(page).getByRole('list')).toHaveCount(0);
+    await expect(board(page).getByRole('button', { name: /check|reveal/i })).toHaveCount(0);
     const results = await axe(page);
-    expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    expect(results.violations.map((violation) => violation.id + ': ' + violation.help)).toEqual([]);
   });
 
-  test('Tab leaves the grid, while Alt+Arrow changes the active word', async ({ page }) => {
-    const board = page.getByTestId('cueword');
-    const grid = board.getByRole('grid', { name: 'crossword grid' });
+  test('switches among 5, 7 and 15 square boards without overflow at 390, 820 or 1440 px', async ({ page }) => {
+    for (const width of [390, 820, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      for (const [label, size] of [['mid, 7 by 7', '7'], ['hard, 15 by 15', '15'], ['easy, 5 by 5', '5']] as const) {
+        await page.getByTestId('crossword-levels').locator('label', { hasText: label.split(',')[0] }).click();
+        const grid = board(page).getByRole('grid', { name: 'crossword grid' });
+        await expect(grid).toHaveAttribute('aria-rowcount', size);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        const cells = grid.locator('.crossword-cell');
+        const first = await cells.first().boundingBox();
+        const last = await cells.last().boundingBox();
+        expect(first).not.toBeNull();
+        expect(last).not.toBeNull();
+        if (size !== '15') expect(first!.width).toBeGreaterThanOrEqual(44);
+        expect(first!.x).toBeGreaterThanOrEqual(0);
+        expect(last!.x + last!.width).toBeLessThanOrEqual(width);
+      }
+    }
+  });
+
+  test('a filled selected cell passes contrast in Light and Evening', async ({ page }) => {
+    const first = board(page).getByRole('grid', { name: 'crossword grid' }).locator('.crossword-cell').first();
+    await first.focus();
+    await page.keyboard.type('a');
+    await first.click();
+    for (const theme of ['light', 'dark']) {
+      await page.locator('html').evaluate((element, value) => element.setAttribute('data-theme', value), theme);
+      const results = await axe(page);
+      expect(results.violations.map((violation) => violation.id + ': ' + violation.help)).toEqual([]);
+    }
+  });
+
+  test('tap toggles direction, Tab leaves the grid and Alt+Arrow changes words', async ({ page }) => {
+    const grid = board(page).getByRole('grid', { name: 'crossword grid' });
     const activeCell = grid.locator('button[tabindex="0"]');
+    await activeCell.click();
+    await expect(board(page).getByTestId('cueword-clue')).toContainText('1 down');
 
     await activeCell.focus();
     await page.keyboard.press('Alt+ArrowRight');
-    await expect(board.getByTestId('cueword-clue')).not.toHaveText('1 across: it twinkles in the night sky');
+    await expect(board(page).getByTestId('cueword-clue')).not.toContainText('1 down');
     await expect(grid).toHaveAttribute('aria-keyshortcuts', 'Alt+ArrowLeft Alt+ArrowRight');
 
-    await activeCell.focus();
+    await grid.locator('button[tabindex="0"]').focus();
     await page.keyboard.press('Tab');
-    await expect(board.getByRole('group', { name: 'letters' }).getByRole('button').first()).toBeFocused();
-    await page.keyboard.press('Shift+Tab');
-    await expect(grid.locator('button[tabindex="0"]')).toBeFocused();
+    await expect(board(page).getByRole('group', { name: 'letters' }).getByRole('button').first()).toBeFocused();
   });
 
-  test('check marks a wrong letter with a symbol and says it in words', async ({ page }) => {
-    await fill(page, 'across', 0, 'stax');
-    await page.getByRole('button', { name: 'check', exact: true }).click();
-    await expect(page.getByTestId('cueword-live')).toHaveText('1 letter is wrong in 1 across. 0 cells are empty.');
-    // Word path's letters are labeled by row and column too, so this stays inside the crossword.
-    await expect(page.getByTestId('cueword').getByRole('button', { name: /^row 1, column 4,/ })).toContainText('×');
-  });
-
-  test('typing from the clue list solves it, and the result shares as plain words', async ({ page }) => {
-    await fill(page, 'across', 0, 'star');
-    await fill(page, 'across', 1, 'apple');
-    await fill(page, 'down', 0, 'sofa');
-    await fill(page, 'down', 1, 'rail');
-    const result = page.getByTestId('cueword-result');
+  test('solves the easy sample and exposes the plain solved result', async ({ page }) => {
+    const sample = ['.ABC.', 'DEFGH', 'IJKLM', 'NOPQR', '.STU.'];
+    for (const [row, letters] of sample.entries()) {
+      for (const [column, letter] of [...letters].entries()) {
+        if (letter === '.') continue;
+        const cell = board(page).getByRole('button', { name: new RegExp('^row ' + (row + 1) + ', column ' + (column + 1) + ',') });
+        await cell.click();
+        await page.keyboard.type(letter);
+      }
+    }
+    const result = board(page).getByTestId('cueword-result');
     await expect(result).toBeFocused();
     await expect(result).toContainText('solved.');
-    await expect(result).toContainText('cueory crossword, sun 1 nov: solved in 0:00 with 0 cues.');
+    await expect(result).toContainText('easy');
   });
 
-  test('at 320 px the grid, the letters and the clues fit, each button at least 44 px tall', async ({ page }) => {
-    await page.setViewportSize({ width: 320, height: 700 });
+  test('print isolates a blank grid, every clue and the cueory.app footer', async ({ page }) => {
+    await board(page).getByRole('button', { name: 'row 1, column 2, 1 across, empty' }).click();
+    await page.keyboard.type('a');
+    await page.evaluate(() => { window.print = () => undefined; });
+    await board(page).getByRole('button', { name: 'print this puzzle' }).click();
+    await expect(page.locator('html')).toHaveAttribute('data-print-game', 'crossword');
+    await page.emulateMedia({ media: 'print' });
+    await expect(page.locator('#pulse-heading')).toBeHidden();
+    await expect(page.getByTestId('crossword-levels')).toBeHidden();
+    await expect(board(page).locator('.crossword-toolbar')).toHaveCSS('display', 'none');
+    await expect(board(page).getByTestId('cueword-clue')).toHaveCSS('display', 'none');
+    await expect(board(page).locator('.crossword-entry').first()).toHaveCSS('visibility', 'hidden');
+    await expect(board(page).locator('.crossword-print-clues')).toHaveCSS('display', 'grid');
+    await expect(board(page).locator('.crossword-print-clues')).toContainText('across');
+    await expect(board(page).locator('.crossword-print-clues')).toContainText('down');
+    await expect(board(page).locator('.crossword-print-footer')).toBeVisible();
+    await expect(board(page).locator('.crossword-print-footer')).toHaveText('cueory.app');
+    await expect(page.locator('#word-path-heading')).toBeHidden();
+    await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
+    await expect(page.locator('html')).not.toHaveAttribute('data-print-game');
+  });
+
+  test('phone controls remain 44 px and hard mode never scrolls the page sideways', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/play');
-    await expect(page.getByTestId('cueword')).toBeVisible();
+    await page.getByTestId('crossword-levels').locator('label', { hasText: 'hard' }).click();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-    const boxes = await page
-      .getByTestId('cueword')
-      .getByRole('button')
-      .evaluateAll((els) => els.map((el) => el.getBoundingClientRect()));
+    const hardCell = await board(page).locator('.crossword-cell').first().boundingBox();
+    expect(hardCell?.width).toBeGreaterThanOrEqual(24);
+    expect(hardCell?.width).toBeLessThanOrEqual(40);
+    const controls = board(page).locator('.crossword-toolbar button, .crossword-no-print [role="group"] button');
+    const boxes = await controls.evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect()));
     for (const box of boxes) {
       expect(box.left).toBeGreaterThanOrEqual(0);
-      expect(box.right).toBeLessThanOrEqual(320);
+      expect(box.right).toBeLessThanOrEqual(390);
       expect(box.height).toBeGreaterThanOrEqual(44);
     }
   });

@@ -45,7 +45,7 @@ describe('crossword parsing and numbering', () => {
     expect(() => parsePuzzle({ ...copy(), id: '' })).toThrow(/id/);
     expect(() => parsePuzzle({ ...copy(), sample: 'yes' })).toThrow(/sample/);
     expect(() => parsePuzzle({ ...copy(), grid: ['CAT', 'ARE'] })).toThrow(/rows/);
-    expect(() => parsePuzzle({ ...copy(), grid: Array(8).fill('CAT') })).toThrow(/rows/);
+    expect(() => parsePuzzle({ ...copy(), grid: Array(16).fill('CAT') })).toThrow(/rows/);
     const uneven = copy(); uneven.grid[0] = 'CAT';
     expect(() => parsePuzzle(uneven)).toThrow(/equal lengths/);
     const bad = copy(); bad.grid[0] = 'C@T..';
