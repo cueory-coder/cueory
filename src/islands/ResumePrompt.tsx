@@ -101,9 +101,9 @@ export function ResumeChoices({
 }) {
   const copy = resumePromptText(snapshot, Date.now());
   return (
-    <section aria-labelledby="cueory-resume-heading" className="rounded-lg border border-line bg-surface p-5 text-ink">
+    <section aria-labelledby="cueory-resume-heading" aria-describedby="cueory-resume-summary" className="rounded-lg border border-line bg-surface p-5 text-ink">
       <h2 id="cueory-resume-heading" className="text-lg">{copy.heading}</h2>
-      <p className="mt-2 text-sm text-ink-soft">{copy.summary}</p>
+      <p id="cueory-resume-summary" className="mt-2 text-sm text-ink-soft">{copy.summary}</p>
       <div className="mt-4 flex flex-wrap gap-3">
         <button
           type="button"

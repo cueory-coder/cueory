@@ -17,6 +17,7 @@ export function savedDayWords(savedAt: number, now: number): string {
   if (!Number.isFinite(savedAt) || !Number.isFinite(now)) return 'saved recently';
   const saved = new Date(savedAt);
   const current = new Date(now);
+  if (Number.isNaN(saved.getTime()) || Number.isNaN(current.getTime())) return 'saved recently';
   const calendarTime = (date: Date) => Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
   const days = Math.round((calendarTime(current) - calendarTime(saved)) / 86_400_000);
   if (days <= 0) return 'saved today';

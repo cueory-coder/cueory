@@ -44,6 +44,14 @@ describe('resume prompt words and safe page matching', () => {
     expect(resumePromptText(snapshot('fill-in', { savedAt: older }), NOW).summary).toContain('saved 4 days ago');
   });
 
+  it('uses a safe date fallback for malformed timestamps instead of displaying NaN', () => {
+    expect(savedDayWords(NaN, NOW)).toBe('saved recently');
+    expect(savedDayWords(Number.POSITIVE_INFINITY, NOW)).toBe('saved recently');
+    expect(savedDayWords(Number.MAX_VALUE, NOW)).toBe('saved recently');
+    expect(savedDayWords(NOW, Number.MAX_VALUE)).toBe('saved recently');
+    expect(savedDayWords(NOW, NOW)).toBe('saved today');
+  });
+
   it('only offers a save on its own path (an optional fragment is ignored)', () => {
     const current = snapshot('cards', { page: '/learn/study-skills/cards#sample' });
     expect(matchingResumePage(current, '/learn/study-skills/cards')).toBe(current);
@@ -83,12 +91,15 @@ describe('accessible shared prompt markup', () => {
       onStartOver: () => {},
     }));
     expect(html).toContain('aria-labelledby="cueory-resume-heading"');
+    expect(html).toContain('aria-describedby="cueory-resume-summary"');
+    expect(html).toContain('id="cueory-resume-summary"');
     expect(html).toContain('pick up where you left off?');
     expect(html).toContain('continue question 3');
     expect(html).toContain('start over');
     expect(html.match(/<button\b/g)).toHaveLength(2);
     expect(html.match(/min-h-11/g)).toHaveLength(2);
     expect(html).not.toContain('[sample response]');
+    expect(html).not.toContain('sample-item');
   });
 
   it('announces a failed start-over when storage cannot be cleared', () => {
