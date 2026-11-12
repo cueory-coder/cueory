@@ -1,0 +1,1 @@
+status: Task 722, Support page safe-link checks (W06 spare S2 #22): explicit 44px link target, unit checks for the configured HTTPS tip URL and safe external attributes, and browser tests for both palettes, three viewport sizes, reduced motion and accessibility. In review.

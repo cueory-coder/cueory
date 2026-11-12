@@ -1,5 +1,7 @@
+import '../styles/crossword.css';
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { localDay, reportRound } from './gameresults';
+import { printGame } from './gameprint';
 import ResultBrandMark from './ResultBrandMark';
 import { dayLabel } from './daily';
 import {
@@ -70,14 +72,8 @@ function Board({ puzzle, name }: Props) {
     setState(next);
   };
 
-  const printPuzzle = () => {
-    const root = document.documentElement;
-    root.dataset.printGame = 'crossword';
-    window.addEventListener('afterprint', () => {
-      if (root.dataset.printGame === 'crossword') delete root.dataset.printGame;
-    }, { once: true });
-    window.print();
-  };
+  // The shared print helper (Task 641): marks the page for the crossword's print rules and clears the mark after printing.
+  const printPuzzle = () => printGame('crossword');
 
   const key = (event: KeyboardEvent<HTMLDivElement>) => {
     if (solved || event.ctrlKey || event.metaKey) return;

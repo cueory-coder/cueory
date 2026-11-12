@@ -1,0 +1,1 @@
+STATUS: Spare S4 (#24), onboarding navigation: the existing two optional steps use pure next/back/skip helpers, keep saved fields unchanged, focus question headings, and have keyboard/unit/accessibility tests for phone, tablet and desktop in both palettes.

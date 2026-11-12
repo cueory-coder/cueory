@@ -1,0 +1,1 @@
+STATUS: Task 708, Sudoku logic hardening (#21): robust saved-settings fallback, blocked-storage handling, keyboard/pad parity, unique puzzles across 24 seeds per level, and warmed 300 ms average generation-time coverage.

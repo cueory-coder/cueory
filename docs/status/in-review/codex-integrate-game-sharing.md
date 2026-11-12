@@ -1,4 +1,4 @@
-STATUS: Draft integration of sharing !2 (c913535f) on crossword candidate !97 (09713d63). The original branches remain intact. No merge approval.
+STATUS: Draft sharing !100 integration on staging 2ff7d451 with source f959bb81 preserved. Browser and remaining review holds are not cleared.
 
 Resolved five textual conflicts: CuewordGame.tsx, play.astro, global.css, play.spec.ts and build-output.test.ts. Preserved the level-aware crossword getResult payload, the current Sudoku/stat/word-path behavior, the Sudoku/crossword/result style blocks, the game print marker and every route budget. Crossword completion now provides level/time chips instead of using removed cue state.
 
@@ -34,3 +34,11 @@ Validation on the repaired source: Astro check 0 errors / 0 warnings / 26 hints,
 Completed two explicit items from Claude's integration review. The Sudoku landing title, description, heading and introductory copy now read the Sudoku entry in src/config/games.ts, matching the other landing pages. Hello-cards results now say "a new card of the day comes out tomorrow." The other games keep their existing message.
 
 Validation: Astro check 0 errors / 0 warnings / 26 hints, build passed, full Vitest 214 files / 5491 tests passed with 3 existing skips. A readback of the built Sudoku HTML confirmed its title, description, heading and landing copy match the current shared configuration. No new browser result or full npm run verify pass is claimed. The remaining platform/share-format/stat/design and hard-grid/browser holds still apply. No new PR was opened.
+
+## Integration repair: preserve newly merged staging
+
+Staging advanced through the canonical crossword integration, Sudoku hardening, Stat review, resources, onboarding, content-map/index and other reviewed changes. Reconstructed staging 2ff7d451 and verified all 953 source blob hashes, and reconstructed sharing 936dd415 with all 942 hashes verified. A real local three-way merge reproduced five conflicts. Resolved them by retaining the canonical crossword stylesheet and shared printGame helper, new Sudoku edit/settings/key helpers, canonical crossword status/print tokens, queued result delivery and native image-sharing repair. Removed the obsolete duplicate crossword CSS from global.css. The f959bb81 Sudoku-copy and hello-cards update was then reviewed and carried forward unchanged.
+
+The final combined source passed Astro check with 0 errors / 0 warnings / 26 hints, build, and full Vitest: 222 files, 5611 tests passed, 3 existing skips. Whitespace and conflict-marker checks passed. Node 24.22.1, unchanged lockfile. This is a normal additive source-branch commit, with no history rewrite and no new PR. The final GitLab merge will record target ancestry.
+
+The initial !97 dependency is superseded by the canonical crossword already merged on staging. Review this final net diff against current staging rather than reapplying the old crossword candidate. Existing hard-grid decision history is preserved without asserting a new exception approval. Actual browser/axe/print/native-share checks and the remaining platform/share-format/stat/design review are still required before this draft can merge.

@@ -1,0 +1,170 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+// Only section navigation is live. All resource details wait for Christian's review.
+const sections = [
+  { href: '#how-to', label: 'how to use cueory' },
+  { href: '#learning', label: 'how learning works' },
+  { href: '#tips', label: 'tips' },
+  { href: '#pay', label: 'nurse pay by state' },
+  { href: '#adhd', label: 'adhd tools' },
+  { href: '#schools', label: 'rate my nursing school' },
+] as const;
+
+const learningCards = [
+  { name: '[resource name 1]', description: '[resource description 1]' },
+  { name: '[resource name 2]', description: '[resource description 2]' },
+  { name: '[resource name 3]', description: '[resource description 3]' },
+] as const;
+
+const toolCards = [
+  { name: '[tool name 1]', description: '[tool description 1]' },
+  { name: '[tool name 2]', description: '[tool description 2]' },
+  { name: '[tool name 3]', description: '[tool description 3]' },
+  { name: '[tool name 4]', description: '[tool description 4]' },
+] as const;
+---
+
+<Layout
+  title="resources"
+  description="A preview of cueory's resources page. Links and descriptions are awaiting review."
+  noindex
+  promo={false}
+>
+  <div class="grid min-w-0 gap-8 py-8 lg:grid-cols-4 lg:items-start">
+    <nav aria-label="on this page" class="veil min-w-0 p-3 lg:sticky lg:top-6">
+      <p class="px-3 pb-2 text-sm font-semibold text-ink-soft">on this page</p>
+      <ul class="m-0 list-none space-y-1 p-0">
+        {
+          sections.map((section) => (
+            <li>
+              <a
+                href={section.href}
+                class="flex min-h-11 items-center rounded-md px-3 py-2 text-sm text-ink hover:bg-surface"
+              >
+                {section.label}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+
+    <div class="min-w-0 space-y-7 lg:col-span-3">
+      <header class="space-y-3">
+        <h1 class="display text-title tracking-display sm:text-title-lg">resources.</h1>
+        <p class="text-sm text-ink-soft" data-placeholder="resource">[page introduction pending review]</p>
+      </header>
+
+      <section id="how-to" class="veil scroll-mt-6 p-5 sm:p-8" aria-labelledby="how-to-heading">
+        <h2 id="how-to-heading" class="display mb-5 text-2xl tracking-display">how to use cueory</h2>
+        <ol class="list-decimal space-y-3 pl-6">
+          <li data-placeholder="resource">[sample step 1]</li>
+          <li data-placeholder="resource">[sample step 2]</li>
+          <li data-placeholder="resource">[sample step 3]</li>
+          <li data-placeholder="resource">[sample step 4]</li>
+        </ol>
+      </section>
+
+      <section id="learning" class="veil scroll-mt-6 p-5 sm:p-8" aria-labelledby="learning-heading">
+        <h2 id="learning-heading" class="display mb-5 text-2xl tracking-display">how learning works</h2>
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {
+            learningCards.map((card) => (
+              <div class="min-w-0 rounded-lg bg-page p-5">
+                <h3 class="text-base font-semibold" data-placeholder="resource">{card.name}</h3>
+                <p class="mt-2 text-sm text-ink-soft" data-placeholder="resource">{card.description}</p>
+              </div>
+            ))
+          }
+        </div>
+        <p class="mt-5 text-sm text-ink-soft" data-placeholder="resource">[sources pending Christian's review]</p>
+      </section>
+
+      <section id="tips" class="veil scroll-mt-6 p-5 sm:p-8" aria-labelledby="tips-heading">
+        <h2 id="tips-heading" class="display mb-5 text-2xl tracking-display">tips</h2>
+        <p class="text-ink-soft" data-placeholder="resource">[study tips pending Christian's review]</p>
+      </section>
+
+      <section id="pay" class="veil scroll-mt-6 p-5 sm:p-8" aria-labelledby="pay-heading">
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div class="min-w-0">
+            <h2 id="pay-heading" class="display text-2xl tracking-display">nurse pay by state</h2>
+            <p class="mt-2 text-sm text-ink-soft" data-placeholder="resource">[pay data description pending review]</p>
+          </div>
+          <p class="text-sm font-semibold text-ink-soft" data-placeholder="resource">[submission link coming soon]</p>
+        </div>
+        <p class="mt-5 text-sm text-ink-soft">filters are not available yet.</p>
+        <fieldset disabled class="mt-3 grid gap-4 sm:grid-cols-3">
+          <legend class="sr-only">nurse pay filters (not available)</legend>
+          <label class="flex min-w-0 flex-col gap-2 text-sm font-semibold">
+            state
+            <select disabled class="min-h-11 w-full rounded-md border border-control bg-page px-3 text-sm text-ink">
+              <option>[state filter]</option>
+            </select>
+          </label>
+          <label class="flex min-w-0 flex-col gap-2 text-sm font-semibold">
+            unit / specialty
+            <select disabled class="min-h-11 w-full rounded-md border border-control bg-page px-3 text-sm text-ink">
+              <option>[unit filter]</option>
+            </select>
+          </label>
+          <label class="flex min-w-0 flex-col gap-2 text-sm font-semibold">
+            years of experience
+            <select disabled class="min-h-11 w-full rounded-md border border-control bg-page px-3 text-sm text-ink">
+              <option>[years filter]</option>
+            </select>
+          </label>
+        </fieldset>
+
+        <div class="mt-5 hidden overflow-hidden rounded-lg bg-page sm:block">
+          <table class="w-full table-fixed border-collapse text-left text-sm">
+            <caption class="sr-only">nurse pay placeholder data</caption>
+            <thead>
+              <tr class="border-b border-line">
+                <th scope="col" class="break-words p-3">state</th>
+                <th scope="col" class="break-words p-3">unit / specialty</th>
+                <th scope="col" class="break-words p-3">pay</th>
+                <th scope="col" class="break-words p-3">years</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="break-words p-3" data-placeholder="resource">[state]</td>
+                <td class="break-words p-3" data-placeholder="resource">[unit]</td>
+                <td class="break-words p-3" data-placeholder="resource">[pay]</td>
+                <td class="break-words p-3" data-placeholder="resource">[years]</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <dl data-pay-mobile class="mt-5 grid grid-cols-2 gap-4 rounded-lg bg-page p-5 text-sm sm:hidden">
+          <div><dt class="font-semibold">state</dt><dd data-placeholder="resource">[state]</dd></div>
+          <div><dt class="font-semibold">unit / specialty</dt><dd data-placeholder="resource">[unit]</dd></div>
+          <div><dt class="font-semibold">pay</dt><dd data-placeholder="resource">[pay]</dd></div>
+          <div><dt class="font-semibold">years</dt><dd data-placeholder="resource">[years]</dd></div>
+        </dl>
+      </section>
+
+      <section id="adhd" class="veil scroll-mt-6 p-5 sm:p-8" aria-labelledby="adhd-heading">
+        <h2 id="adhd-heading" class="display mb-5 text-2xl tracking-display">adhd tools</h2>
+        <div class="grid gap-4 sm:grid-cols-2">
+          {
+            toolCards.map((card) => (
+              <div class="min-w-0 rounded-lg bg-page p-5">
+                <h3 class="text-base font-semibold" data-placeholder="resource">{card.name}</h3>
+                <p class="mt-2 text-sm text-ink-soft" data-placeholder="resource">{card.description}</p>
+              </div>
+            ))
+          }
+        </div>
+      </section>
+
+      <section id="schools" class="veil scroll-mt-6 p-5 sm:p-8" aria-labelledby="schools-heading">
+        <p class="text-sm font-semibold uppercase tracking-label text-ink-soft">coming soon</p>
+        <h2 id="schools-heading" class="display mt-2 text-2xl tracking-display">rate my nursing school</h2>
+        <p class="mt-3 text-ink-soft" data-placeholder="resource">[school review description pending review]</p>
+      </section>
+    </div>
+  </div>
+</Layout>

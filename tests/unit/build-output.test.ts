@@ -83,6 +83,7 @@ const initialJsBudget = {
   'privacy.html': 148122,
   'progress.html': 153183,
   'reset-password.html': 167326,
+  'resources.html': 89662,
   'signin.html': 166433,
   'signup.html': 166433,
   'start.html': 152098,

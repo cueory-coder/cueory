@@ -226,7 +226,7 @@
   --crossword-number: clamp(0.45rem, 1.5vw, 0.75rem);
   --crossword-letter: clamp(0.75rem, 3vw, 1.5rem);
   --crossword-help: min(20rem, calc(100vw - var(--spacing-gutter) - var(--spacing-gutter)));
-  --crossword-print-cell: 2rem;
+  --crossword-print-cell: 2rem;      /* a printed square; colors on paper use --print-paper / --print-ink (Task 641) */
 }
 
 /* Pillo rules are a separate entry: always emit their shared theme variables. */

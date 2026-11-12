@@ -6,6 +6,7 @@ import {
   TIMEOUT_KEEPS_PICK,
   advanceTime,
   averageSeconds,
+  buildStatReviewRow,
   getResult,
   gradeRound,
   nextQuestion,
@@ -198,8 +199,102 @@ describe('stat grading and results', () => {
     const yes: StatGrader = async () => ({ right: true, key: 'a' });
     const rowsYes = await gradeRound(questions, playAll(Array(STAT_QUESTIONS).fill(null)).answers, yes);
     expect(scoreOf(rowsYes)).toBe(0);
-    expect(reviewWords(rows[14]!)).toEqual({ mark: '✕', result: 'not right', yours: 'no answer (time ran out)', answer: `answer: ${keyOrder[14]!.toUpperCase()}` });
+    expect(reviewWords(rows[14]!)).toEqual({
+      mark: '✕',
+      result: 'wrong',
+      yours: 'no answer (skipped)',
+      answer: `answer: ${keyOrder[14]!.toUpperCase()}`,
+      time: 'time used: 3 s',
+      counted: null,
+    });
     expect(reviewWords(rows[0]!).result).toBe('right');
+  });
+
+  it('makes a pure review row without changing answers or a score decision', () => {
+    const answer: StatAnswer = { questionId: questions[0]!.id, picked: 'a', seconds: 7, timedOut: false };
+    const grade = { right: true, key: 'a' as const };
+    const before = { ...answer };
+    expect(buildStatReviewRow(0, answer, grade)).toEqual({
+      number: 1,
+      questionId: questions[0]!.id,
+      picked: 'a',
+      key: 'a',
+      right: true,
+      seconds: 7,
+      timedOut: false,
+      status: 'right',
+    });
+    expect(answer).toEqual(before);
+    expect(grade).toEqual({ right: true, key: 'a' });
+    expect(buildStatReviewRow(0, { ...answer, picked: null }, grade)).toMatchObject({
+      picked: null, right: false, status: 'wrong',
+    });
+  });
+
+  it('shows all-right and all-wrong rounds with a word, symbol, pick, key and time in each row', async () => {
+    const rightRows = await gradeRound(questions, playAll(keyOrder).answers, sampleGrader(sampleKey));
+    expect(rightRows).toHaveLength(STAT_QUESTIONS);
+    expect(rightRows.map((row) => row.status)).toEqual(Array(STAT_QUESTIONS).fill('right'));
+    expect(rightRows.every((row) => row.seconds === 3)).toBe(true);
+    expect(rightRows.every((row) => reviewWords(row).mark === '✓')).toBe(true);
+
+    const wrongPicks = keyOrder.map((letter) => letter === 'a' ? 'b' : 'a');
+    const wrongRows = await gradeRound(questions, playAll(wrongPicks).answers, sampleGrader(sampleKey));
+    expect(scoreOf(wrongRows)).toBe(0);
+    expect(wrongRows.map((row) => row.status)).toEqual(Array(STAT_QUESTIONS).fill('wrong'));
+    expect(wrongRows.every((row) => reviewWords(row).result === 'wrong')).toBe(true);
+    expect(wrongRows.every((row) => reviewWords(row).mark === '✕')).toBe(true);
+    expect(reviewWords(wrongRows[0]!)).toMatchObject({
+      yours: 'your answer: ' + wrongPicks[0]!.toUpperCase(),
+      answer: 'answer: ' + keyOrder[0]!.toUpperCase(),
+      time: 'time used: 3 s',
+    });
+  });
+
+  it('keeps a mixed round in order and does not call a skipped answer a timeout', async () => {
+    const picks = keyOrder.map((letter, index) => index < 5 ? letter : index < 10 ? (letter === 'a' ? 'b' : 'a') : null);
+    const rows = await gradeRound(questions, playAll(picks).answers, sampleGrader(sampleKey));
+    expect(rows.map((row) => row.number)).toEqual(Array.from({ length: STAT_QUESTIONS }, (_, index) => index + 1));
+    expect(rows.map((row) => row.status)).toEqual([
+      ...Array(5).fill('right'), ...Array(10).fill('wrong'),
+    ]);
+    expect(scoreOf(rows)).toBe(5);
+    expect(reviewWords(rows[10]!)).toMatchObject({
+      result: 'wrong', yours: 'no answer (skipped)', time: 'time used: 3 s',
+    });
+  });
+
+  it('distinguishes timed-out picks and no picks while respecting TIMEOUT_KEEPS_PICK', async () => {
+    let state = pickAnswer(startStat(T0), keyOrder[0]!);
+    state = advanceTime(state, questions, T0 + 20 * S);
+    state = advanceTime(state, questions, T0 + 40 * S);
+    const rows = await gradeRound(questions, state.answers, sampleGrader(sampleKey));
+    expect(rows).toHaveLength(2);
+    expect(rows.map((row) => row.status)).toEqual(['timed-out', 'timed-out']);
+    expect(rows[0]!.picked).toBe(TIMEOUT_KEEPS_PICK ? keyOrder[0] : null);
+    expect(rows[0]!.right).toBe(TIMEOUT_KEEPS_PICK);
+    expect(rows[0]!.seconds).toBe(20);
+    expect(reviewWords(rows[0]!)).toMatchObject({
+      mark: '◷',
+      result: 'out of time',
+      time: 'time used: 20 s',
+      counted: TIMEOUT_KEEPS_PICK ? 'picked answer counted as right' : null,
+    });
+    expect(reviewWords(rows[1]!)).toMatchObject({
+      mark: '◷',
+      result: 'out of time',
+      yours: 'no answer (time ran out)',
+      time: 'time used: 20 s',
+      counted: null,
+    });
+
+    const wrongPick = keyOrder[0] === 'a' ? 'b' : 'a';
+    const missed = advanceTime(pickAnswer(startStat(T0), wrongPick), questions, T0 + 20 * S);
+    const missedRows = await gradeRound(questions, missed.answers, sampleGrader(sampleKey));
+    expect(missedRows[0]!.status).toBe('timed-out');
+    expect(missedRows[0]!.right).toBe(false);
+    expect(reviewWords(missedRows[0]!).counted).toBe(TIMEOUT_KEEPS_PICK ? 'picked answer counted as wrong' : null);
+    expect(reviewWords(buildStatReviewRow(0, missed.answers[0]!, { right: false, key: null })).answer).toBe('answer: unavailable');
   });
 
   it('refuses answers that do not match the questions', async () => {

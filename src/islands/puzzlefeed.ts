@@ -124,3 +124,69 @@ export function acceptPuzzle(payload: unknown, today: string): AcceptResult {
     }
   }
 }
+
+/**
+ * A date-indexed feed may have no entry for a game today, or may fail to load.
+ * Keep those outcomes separate from a usable, validated puzzle.
+ *
+ * Only today's real puzzle may reach the browser. This selector is a second
+ * check, not permission to send future content in a feed (D-61).
+ */
+export type PuzzleFeedResult =
+  | (Extract<AcceptResult, { ok: true }> & { status: 'puzzle' })
+  | { status: 'none-today' }
+  | { status: 'failed' };
+
+function isGameId(value: unknown): value is GameId {
+  return typeof value === 'string' && (GAME_IDS as readonly string[]).includes(value);
+}
+
+/**
+ * Selects one validated puzzle for today's game from dated payloads.
+ * [] or no matching date/game means no puzzle was published today.
+ * Unidentifiable entries, duplicate matches and invalid today's entries fail closed.
+ */
+export function selectTodayPuzzle(feed: unknown, today: string, game: GameId): PuzzleFeedResult {
+  try {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(today) || !isGameId(game) || !Array.isArray(feed)) {
+      return { status: 'failed' };
+    }
+    if (feed.length === 0) return { status: 'none-today' };
+
+    const matches: Record<string, unknown>[] = [];
+    for (const entry of feed) {
+      if (!isRecord(entry)) return { status: 'failed' };
+      // Ignore an unrelated row when its game or date conclusively differs.
+      // Do not inspect its puzzle, which may be malformed.
+      if (typeof entry.game === 'string' && entry.game !== game) continue;
+      if (typeof entry.date === 'string' && entry.date !== today) continue;
+      // Neither selector ruled it out, so require an exact match.
+      // Ambiguous entries could conceal today's puzzle and must fail closed.
+      if (entry.game !== game || entry.date !== today) return { status: 'failed' };
+      matches.push(entry);
+    }
+    if (matches.length === 0) return { status: 'none-today' };
+    if (matches.length !== 1) return { status: 'failed' };
+
+    const result = acceptPuzzle(matches[0], today);
+    return result.ok ? { ...result, status: 'puzzle' } : { status: 'failed' };
+  } catch {
+    return { status: 'failed' };
+  }
+}
+
+/**
+ * Accepts an injected loader, so callers can retry without this module owning
+ * network or database code. Never exposes an error's details to the student.
+ */
+export async function loadTodayPuzzle(
+  load: () => Promise<unknown>,
+  today: string,
+  game: GameId,
+): Promise<PuzzleFeedResult> {
+  try {
+    return selectTodayPuzzle(await load(), today, game);
+  } catch {
+    return { status: 'failed' };
+  }
+}

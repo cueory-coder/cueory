@@ -1,0 +1,1 @@
+status: Task 764, console-clean browser test (#50): added a full built-route desktop console, pageerror, first-party request, and CSP sweep with narrowly documented 404 allowances and a detector-failure fixture.
