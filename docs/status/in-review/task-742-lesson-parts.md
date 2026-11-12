@@ -1,0 +1,1 @@
+STATUS: Task 742, lesson reading parts (#36): Astro Container tests cover all callout variants, prose, content labels and placeholder blocks. No component changes needed by source inspection; Vitest's shared Astro Vite setup is requested on issue #36 for executable tests.
