@@ -45,13 +45,11 @@ const knownWithoutAxe: Readonly<Record<string, string>> = {
   "reduced-motion.spec.ts": "Animation suppression in motion-reduced mode; the global axe sweep covers the page DOM.",
   "reflow-640.spec.ts": "640px clipping and reflow checks; global axe inspects semantic markup separately.",
   "result-brand-mark.spec.ts": "Game result artwork timing/placement; play.spec.ts runs axe on the game UI.",
+  "search-retry.spec.ts": "Search module-download failure and retry fixture; the menu and missing-page UI receive separate axe coverage in the site-wide and 404 suites.",
   "resume-cleared-progress.spec.ts": "Cross-tab progress deletion and stale-save lifecycle test; progress, fill-in and matching/organizer suites run axe on those interfaces.",
   "sticky-header-overlap.spec.ts": "Cross-route heading and focused-control geometry; global axe audits the corresponding pages.",
   "storage-blocked-pages.spec.ts": "Deliberately disabled browser storage to expose crashes; normal pages have global axe.",
   "study-events.spec.ts": "Isolated RPC telemetry fixture and privacy checks; questions-page.spec.ts runs axe on the question UI.",
-  "tap-targets.spec.ts": "Cross-route 44px touch-target geometry test; full-page axe runs in the global sweep.",
-  "theme-navigation.spec.ts": "Theme persistence across history and reload; dark-mode.spec.ts runs axe on palette states.",
-  "visible-focus.spec.ts": "Focused keyboard-indicator geometry sweep; global axe handles full semantic checks.",
   "console-clean.spec.ts": "W15-2 issue #58 is a deliberate error/network/CSP detector, including failure fixtures; a11y-sweep.spec.ts runs axe.",
 };
 
