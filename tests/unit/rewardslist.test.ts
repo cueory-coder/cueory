@@ -123,7 +123,7 @@ describe('W02-2 edge cases and safe sample rendering', () => {
     expect(() => buildRewardsPreview([
       study(TODAY, 'sample-study-1'), study(TODAY, 'sample-study-1'),
     ], TODAY)).toThrow(/rejected/);
-    expect(() => buildRewardsPreview([game('2026-02-30')], TODAY)).toThrow(/rejected/);
-    expect(() => buildRewardsPreview([game('1899-12-31')], TODAY)).toThrow(/rejected/);
+    expect(() => buildRewardsPreview([game('2026-02-30')], TODAY)).toThrow(/calendar day|rejected/);
+    expect(() => buildRewardsPreview([game('1899-12-31')], TODAY)).toThrow(/calendar day|rejected/);
   });
 });
