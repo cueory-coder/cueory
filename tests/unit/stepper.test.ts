@@ -103,7 +103,7 @@ describe('sentence stepper', () => {
       stepAnnouncement(first, showAll(first), 'show-all', samples),
       stepAnnouncement(first, second, 'next', []),
     ]) {
-      expect(spoken).not.toMatch(/sentence \\d+ of/u);
+      expect(spoken).not.toMatch(/sentence [0-9]+ of/u);
     }
   });
 
