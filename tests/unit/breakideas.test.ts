@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { checkSharedIdea, MAX_IDEA_CHARACTERS, parseIdeas, pickIdea } from '../../src/islands/breakideas';
+import {
+  checkSharedIdea, ideasForLength, MAX_IDEA_CHARACTERS, parseIdeas, pickIdea, pickIdeaForLength,
+} from '../../src/islands/breakideas';
 
 const idea = (id = 'sample-one', text = 'sample wording') => ({ id, text });
 
@@ -99,7 +101,7 @@ describe('glove note idea files', () => {
   it.each([
     null, {}, { id: 'sample' }, { text: 'sample' }, { ...idea(), extra: true },
   ])('names a malformed entry by its position: %j', entry => {
-    expect(() => parseIdeas({ ideas: [idea(), entry] })).toThrow(/break idea 2 needs only an id and text/);
+    expect(() => parseIdeas({ ideas: [idea(), entry] })).toThrow(/break idea 2 needs an id, text and optional length only/);
   });
 
   it('refuses sparse entries and inherited fields', () => {
@@ -173,5 +175,90 @@ describe('glove note idea selection', () => {
 
   it.each([NaN, Infinity, -0.1, 1])('refuses a broken random source: %s', draw => {
     expect(() => pickIdea(ideas, null, () => draw)).toThrow(/random must return/);
+  });
+});
+
+describe('W19-2: length-aware break ideas', () => {
+  const tagged = Object.freeze([
+    Object.freeze({ id: 'sample-short', text: 'sample short', length: 'short' as const }),
+    Object.freeze({ id: 'sample-long', text: 'sample long', length: 'long' as const }),
+    Object.freeze({ id: 'sample-any', text: 'sample for either' }),
+    Object.freeze({ id: 'sample-short-two', text: 'sample short two', length: 'short' as const }),
+  ]);
+
+  it('parses optional short/long tags and retains legacy untagged records', () => {
+    expect(parseIdeas({ ideas: tagged })).toEqual(tagged);
+    expect(parseIdeas({ ideas: [idea('legacy')] })).toEqual([idea('legacy')]);
+  });
+
+  it.each([null, '', 'any', 'medium', 10, false])('refuses an invalid length: %j', length => {
+    expect(() => parseIdeas({ ideas: [{ ...idea('classified'), length }] }))
+      .toThrow(/short or long length/);
+  });
+
+  it('keeps strict file schema and refuses repeat IDs', () => {
+    expect(() => parseIdeas({ ideas: [{ ...tagged[0], extra: 'sample' }] })).toThrow(/optional length only/);
+    expect(() => parseIdeas({ ideas: [tagged[0], tagged[0]] })).toThrow(/repeats an earlier id/);
+  });
+
+  it('selects eligible short, long and all ideas without mutating the input', () => {
+    expect(ideasForLength(tagged, 'short').map(x => x.id))
+      .toEqual(['sample-short', 'sample-any', 'sample-short-two']);
+    expect(ideasForLength(tagged, 'long').map(x => x.id)).toEqual(['sample-long', 'sample-any']);
+    expect(ideasForLength(tagged, 'any').map(x => x.id)).toEqual(tagged.map(x => x.id));
+    expect(tagged).toHaveLength(4);
+  });
+
+  it('never immediately repeats an available idea, even across length changes', () => {
+    const random = seededRandom(51);
+    let previous: string | null = null;
+    for (let n = 0; n < 20; n++) {
+      const length = n % 2 === 0 ? 'short' : 'long';
+      const next = pickIdeaForLength(tagged, length, previous, random)!;
+      expect(ideasForLength(tagged, length).map(x => x.id)).toContain(next.id);
+      expect(next.id).not.toBe(previous);
+      previous = next.id;
+    }
+  });
+
+  it('is reproducible with a seeded source', () => {
+    const picks = (seed: number) => {
+      const random = seededRandom(seed);
+      let last: string | null = null;
+      return Array.from({ length: 20 }, () => {
+        const next = pickIdeaForLength(tagged, 'short', last, random)!;
+        last = next.id;
+        return next.id;
+      });
+    };
+    expect(picks(31)).toEqual(picks(31));
+    expect(picks(31)).not.toEqual(picks(32));
+  });
+
+  it('lets unclassified samples fit either duration', () => {
+    expect(pickIdeaForLength([tagged[0], tagged[1], tagged[2]], 'long', 'sample-long', () => 0))
+      .toEqual(tagged[2]);
+    expect(pickIdeaForLength([tagged[0], tagged[1], tagged[2]], 'short', 'sample-short', () => 0))
+      .toEqual(tagged[2]);
+  });
+
+  it('returns the sole matching idea even when it was already shown', () => {
+    const only = [tagged[0]];
+    const random = vi.fn(() => 0.5);
+    expect(pickIdeaForLength(only, 'short', only[0].id, random)).toEqual(only[0]);
+    expect(random).not.toHaveBeenCalled();
+  });
+
+  it('returns null for an empty list or no eligible ideas', () => {
+    const random = vi.fn(() => 0.5);
+    expect(pickIdeaForLength([], 'any', null, random)).toBeNull();
+    expect(pickIdeaForLength([tagged[0]], 'long', null, random)).toBeNull();
+    expect(random).not.toHaveBeenCalled();
+  });
+
+  it('returns a fresh selection and never changes the source objects', () => {
+    const picked = pickIdeaForLength(tagged, 'short', null, () => 0)!;
+    picked.text = 'changed';
+    expect(tagged.every(x => x.text.startsWith('sample'))).toBe(true);
   });
 });

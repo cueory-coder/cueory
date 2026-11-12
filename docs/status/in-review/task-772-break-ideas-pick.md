@@ -1,0 +1,1 @@
+status: Task 772 (W19-2) break ideas offer short/long selection with optional length tags, unclassified samples remain eligible for either length, and another idea avoids immediate repeats whenever possible.

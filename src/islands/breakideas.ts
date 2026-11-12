@@ -1,9 +1,14 @@
 /** Pure checks for glove-note ideas. Christian reviews the wording separately. */
 export const MAX_IDEA_CHARACTERS = 60;
 
+/** The director may classify reviewed ideas. Untagged samples fit any break. */
+export type BreakLength = 'short' | 'long';
+export type BreakLengthChoice = BreakLength | 'any';
+
 export interface BreakIdea {
   id: string;
   text: string;
+  length?: BreakLength;
 }
 
 export type SharedIdeaCheck = { ok: true; text: string } | { ok: false; message: string };
@@ -85,7 +90,12 @@ export function parseIdeas(data: unknown): BreakIdea[] {
   const seen = new Set<string>();
   return Array.from(data.ideas, (entry: unknown, index) => {
     const name = `break idea ${index + 1}`;
-    if (!exactRecord(entry, ['id', 'text'])) throw new Error(`${name} needs only an id and text.`);
+    if (!exactRecord(entry, ['id', 'text']) && !exactRecord(entry, ['id', 'text', 'length'])) {
+      throw new Error(`${name} needs an id, text and optional length only.`);
+    }
+    if (Object.hasOwn(entry, 'length') && entry.length !== 'short' && entry.length !== 'long') {
+      throw new Error(`${name} needs a short or long length when classified.`);
+    }
     if (typeof entry.id !== 'string' || entry.id.length > 40 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(entry.id)) {
       throw new Error(`${name} needs a short lowercase id, using letters, numbers and single hyphens.`);
     }
@@ -93,7 +103,10 @@ export function parseIdeas(data: unknown): BreakIdea[] {
     const checked = checkSharedIdea(entry.text);
     if (!checked.ok) throw new Error(`${name}: ${checked.message}`);
     seen.add(entry.id);
-    return { id: entry.id, text: checked.text };
+    return {
+      id: entry.id, text: checked.text,
+      ...(entry.length === 'short' || entry.length === 'long' ? { length: entry.length } : {}),
+    };
   });
 }
 
@@ -110,4 +123,16 @@ export function pickIdea(
   }
   const picked = choices[0];
   return picked ? { ...picked } : null;
+}
+
+/** Return eligible reviewed ideas in the original order, without changing the input. */
+export function ideasForLength(ideas: readonly BreakIdea[], length: BreakLengthChoice): BreakIdea[] {
+  return ideas.filter(idea => length === 'any' || idea.length === undefined || idea.length === length);
+}
+
+/** Seeded by the caller for tests. Avoid an immediate repeat whenever more than one choice exists. */
+export function pickIdeaForLength(
+  ideas: readonly BreakIdea[], length: BreakLengthChoice, lastId: string | null | undefined, random: () => number,
+): BreakIdea | null {
+  return pickIdea(ideasForLength(ideas, length), lastId, random);
 }

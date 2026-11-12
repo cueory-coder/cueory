@@ -5,6 +5,9 @@ import data from '../../content/breaks/ideas.json' with { type: 'json' };
 const list = (page: Page) => page.getByRole('list', { name: 'all the ideas' });
 const showOne = (page: Page) => page.getByRole('button', { name: 'show me one', exact: true });
 const shuffle = (page: Page) => page.getByRole('button', { name: 'shuffle the ideas', exact: true });
+const another = (page: Page) => page.getByRole('button', { name: 'another idea', exact: true });
+const lengthButton = (page: Page, length: 'any' | 'short' | 'long') =>
+  page.getByRole('button', { name: `${length} break`, exact: true });
 const expectedIdeas = data.ideas.map(idea => idea.text);
 
 async function tabTo(page: Page, target: Locator) {
@@ -85,7 +88,8 @@ for (const width of [320, 390, 820, 1440]) {
       await expect(timer.locator('svg')).toHaveCount(0); // no motion or ring, including reduced-motion mode
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       for (const control of [
-        showOne(page), shuffle(page),
+        showOne(page), shuffle(page), another(page),
+        lengthButton(page, 'any'), lengthButton(page, 'short'), lengthButton(page, 'long'),
         timer.getByRole('button', { name: 'turn off' }),
         timer.getByRole('button', { name: 'pause' }),
       ]) {
@@ -109,6 +113,9 @@ test('all sample ideas remain readable with JavaScript disabled', async ({ brows
     await expect(list(page).getByRole('listitem')).toHaveText(expectedIdeas);
     await expect(showOne(page)).toBeDisabled();
     await expect(shuffle(page)).toBeDisabled();
+    for (const length of ['any', 'short', 'long'] as const) {
+      await expect(lengthButton(page, length)).toBeDisabled();
+    }
     await expect(page.getByRole('button', { name: 'turn on' })).toBeDisabled();
     // Playwright skips NOSCRIPT in text matching; inspect the actual rendered paragraph.
     const instructions = page.locator('noscript p');
@@ -270,4 +277,48 @@ test('minute boundary updates promptly after a pause at partial minutes', async 
   await expect(timer.getByTestId('break-status')).toHaveText('studying: 25 minutes left.');
   await page.clock.fastForward(30_001);
   await expect(timer.getByTestId('break-status')).toHaveText('studying: 24 minutes left.');
+});
+
+test('short and long choices work by keyboard, and another idea keeps its focus', async ({ page }) => {
+  await page.goto('/breaks');
+  await tabTo(page, lengthButton(page, 'short'));
+  await page.keyboard.press('Enter');
+  await expect(lengthButton(page, 'short')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('list', { name: 'ideas for a short break' }).getByRole('listitem')).toHaveCount(20);
+  await tabTo(page, showOne(page));
+  await page.keyboard.press('Enter');
+  const first = await page.getByTestId('picked-break-idea').innerText();
+  expect(expectedIdeas).toContain(first);
+  await tabTo(page, another(page));
+  await page.keyboard.press('Enter');
+  await expect(another(page)).toBeFocused();
+  const second = await page.getByTestId('picked-break-idea').innerText();
+  expect(second).not.toBe(first);
+  await expect(page.getByRole('status', { name: 'break idea update' })).toHaveText(`one idea: ${second}`);
+  // Samples have no length tags yet, so each is eligible for either duration.
+  await lengthButton(page, 'long').click();
+  await expect(lengthButton(page, 'long')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('picked-break-idea')).toHaveCount(0);
+  await expect(page.getByRole('list', { name: 'ideas for a long break' }).getByRole('listitem')).toHaveCount(20);
+  await showOne(page).click();
+  await expect(page.getByTestId('picked-break-idea')).not.toHaveText(second);
+});
+
+test('break length and another-idea choices stay local to this visit', async ({ page }) => {
+  const posts: string[] = [];
+  await page.goto('/breaks');
+  const stored = () => page.evaluate(() => ({
+    local: { ...localStorage }, session: { ...sessionStorage },
+  }));
+  const before = await stored();
+  page.on('request', req => { if (!['GET', 'HEAD'].includes(req.method())) posts.push(req.method()); });
+  await lengthButton(page, 'short').click();
+  await showOne(page).click();
+  const first = await page.getByTestId('picked-break-idea').innerText();
+  await another(page).click();
+  await expect(page.getByTestId('picked-break-idea')).not.toHaveText(first);
+  await lengthButton(page, 'any').click();
+  await lengthButton(page, 'long').click();
+  expect(await stored()).toEqual(before);
+  expect(posts).toEqual([]);
 });
