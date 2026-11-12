@@ -169,7 +169,7 @@ function Board({ set }: Props) {
   const restart = () => {
     latestDraft.current = null;
     const storage = browserStorage();
-    if (ownsLabelResume(readResume(storage), LABEL_PAGE, set.id)) clearResume(storage);
+    if (ownsLabelResume(readResume(storage), LABEL_PAGE)) clearResume(storage);
     setResumePending(false);
     setState(start(set));
     setSaid('every label covered. starting over.');

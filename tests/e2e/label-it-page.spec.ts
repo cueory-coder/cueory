@@ -171,6 +171,23 @@ test.describe('complete label-it rounds', () => {
     await expect(board.locator('[tabindex="-1"]').first()).toBeFocused();
   });
 
+  test('failed resume clears a stale diagram save and lifecycle cannot put it back', async ({ page }) => {
+    const board = page.getByTestId('labelit');
+    await board.getByRole('button', { name: 'uncover label 1', exact: true }).click();
+    await board.getByRole('group', { name: 'mark label 1', exact: true }).getByRole('button', { name: 'know it', exact: true }).click();
+    const snapshot = await page.evaluate(() => JSON.parse(localStorage.getItem('cueory-resume') ?? 'null'));
+    expect(snapshot).not.toBeNull();
+    snapshot.module = 'old-sample';
+    // Seed the next document after this document's pagehide flush.
+    await page.addInitScript(snapshot => localStorage.setItem('cueory-resume', JSON.stringify(snapshot)), snapshot);
+    await page.reload();
+    await page.getByRole('button', { name: 'continue question 2', exact: true }).click();
+    await expect(page.getByTestId('cover-1')).toHaveAccessibleName('label 1, covered');
+    expect(await page.evaluate(() => localStorage.getItem('cueory-resume'))).toBeNull();
+    await page.evaluate(() => dispatchEvent(new Event('pagehide')));
+    expect(await page.evaluate(() => localStorage.getItem('cueory-resume'))).toBeNull();
+  });
+
   test('mid-round start over keeps a different study mode saved through reload', async ({ page }) => {
     await page.goto('/learn/study-skills/cards');
     await page.getByRole('button', { name: 'Show answer' }).click();

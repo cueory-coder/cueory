@@ -245,18 +245,20 @@ describe('restart saved-session ownership', () => {
   const page = '/learn/study-skills/label-it';
   const own = { tool: 'label-it', page, module: 'house' };
 
-  it('can clear the current diagram save', () => {
-    expect(ownsLabelResume(own, page, 'house')).toBe(true);
+  it.each([
+    ['current diagram', own],
+    ['stale diagram', { ...own, module: 'old-sample' }],
+    ['missing diagram id', { tool: 'label-it', page }],
+  ])('can clear this page save with %s', (_name, snapshot) => {
+    expect(ownsLabelResume(snapshot, page)).toBe(true);
   });
 
   it.each([
     ['no save', null],
     ['another tool', { ...own, tool: 'cards' }],
     ['another page', { ...own, page: '/learn/study-skills/cards' }],
-    ['another diagram', { ...own, module: 'other-sample' }],
-    ['no diagram id', { tool: 'label-it', page }],
   ])('keeps %s untouched', (_name, snapshot) => {
-    expect(ownsLabelResume(snapshot, page, 'house')).toBe(false);
+    expect(ownsLabelResume(snapshot, page)).toBe(false);
   });
 });
 

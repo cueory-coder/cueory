@@ -221,13 +221,12 @@ export function hasRoundProgress(state: LabelItState): boolean {
     state.revealed.length > 0 || Object.keys(state.marks).length > 0;
 }
 
-/** Restart only owns this page and diagram's save, never another study session. */
+/** Restart owns this tool and page's save, including stale diagram saves. */
 export function ownsLabelResume(
   snapshot: { tool: string; page: string; module?: string } | null,
   page: string,
-  setId: string,
 ): boolean {
-  return snapshot?.tool === 'label-it' && snapshot.page === page && snapshot.module === setId;
+  return snapshot?.tool === 'label-it' && snapshot.page === page;
 }
 
 /**
