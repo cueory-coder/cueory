@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
+import { sizeOf } from './projects';
 
 const missingPage = '/this-page-does-not-exist-task-89';
 
@@ -70,14 +71,43 @@ test('the missing-page experience passes accessibility and layout checks', async
 
 test('404 next steps work by keyboard and touch and pass axe in Light and Evening', async ({ page }, testInfo) => {
   test.setTimeout(120_000);
-  const width = testInfo.project.use.viewport?.width;
-  expect([390, 820, 1440]).toContain(width);
+  // Test every configured project at the required size for its phone, tablet or desktop class.
+  // This also covers new Playwright projects with different default viewport widths.
+  const viewports = {
+    phone: { width: 390, height: 844 },
+    tablet: { width: 820, height: 1180 },
+    desktop: { width: 1440, height: 900 },
+  } as const;
+  await page.setViewportSize(viewports[sizeOf(testInfo)]);
+
+  // Stored user preferences override device media. Clear them before navigation,
+  // then verify the computed palette so both axe runs audit distinct themes.
+  await page.addInitScript(() => {
+    try { localStorage.removeItem('cueory-theme'); } catch { /* device mode remains the fallback */ }
+  });
 
   for (const colorScheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme });
     const response = await page.goto(missingPage);
     expect(response?.status()).toBe(404);
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
+
+    const palette = await page.evaluate(() => {
+      const root = document.documentElement;
+      const computed = getComputedStyle(root);
+      return {
+        storedOverride: root.getAttribute('data-theme'),
+        mediaIsDark: matchMedia('(prefers-color-scheme: dark)').matches,
+        page: computed.getPropertyValue('--color-page').trim().toLowerCase(),
+        ink: computed.getPropertyValue('--color-ink').trim().toLowerCase(),
+      };
+    });
+    expect(palette, colorScheme + ' palette must actually be active').toEqual({
+      storedOverride: null,
+      mediaIsDark: colorScheme === 'dark',
+      page: colorScheme === 'dark' ? '#1c1917' : '#f9f5ef',
+      ink: colorScheme === 'dark' ? '#f9f5ef' : '#3e2c23',
+    });
     await expect(page.getByRole('searchbox', { name: 'search cueory' })).toBeVisible();
 
     const links = page.getByRole('navigation', { name: 'other places to go' }).getByRole('link');
