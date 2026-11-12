@@ -34,7 +34,7 @@ import Layout from '../../layouts/Layout.astro';
   </div>
 </Layout>
 
-<!-- Astro bundles this first-party script as an external module, not an inline script. -->
+<!-- Astro processes this first-party TypeScript module and applies its CSP script hashes. -->
 <script>
   import { createElement } from 'react';
   import { createRoot } from 'react-dom/client';

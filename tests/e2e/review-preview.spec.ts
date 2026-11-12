@@ -25,6 +25,12 @@ async function finish(page: Page, input: 'keyboard' | 'tap'): Promise<void> {
       await reveal.click();
     }
     await expect(region(page).getByText('[sample back]', { exact: true })).toBeVisible();
+    for (const button of await region(page).getByRole('button').all()) {
+      const box = await button.boundingBox();
+      expect(box, 'sample review controls must have measurable tap targets').not.toBeNull();
+      expect(box!.width).toBeGreaterThanOrEqual(44);
+      expect(box!.height).toBeGreaterThanOrEqual(44);
+    }
     const result = region(page).getByRole('button', { name: i % 2 === 0 ? 'know it' : 'still learning' });
     if (input === 'keyboard') {
       await result.focus();
@@ -96,6 +102,8 @@ for (const width of [390, 820, 1440]) {
         const results = await new AxeBuilder({ page }).withTags(axeTags).analyze();
         expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        expect(await root(page).evaluate((node) =>
+          node.getAnimations({ subtree: true }).filter((animation) => animation.playState === 'running').length)).toBe(0);
       };
       await audit();
       await finish(page, 'tap');
