@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 test.describe('coming soon page', () => {
@@ -33,3 +34,53 @@ test.describe('coming soon page', () => {
     await expect(footerLink).toHaveAttribute('href', '/coming-soon');
   });
 });
+
+
+test.describe('subscribed page', () => {
+  test('explains confirmation without claiming an email was sent just by visiting', async ({ page }) => {
+    await page.goto('/subscribed');
+    await expect(page.getByRole('heading', { level: 1, name: 'almost done: check your inbox' })).toBeVisible();
+    await expect(page.locator('main')).toContainText('if you signed up for launch updates');
+    await expect(page.locator('main')).toContainText('check your spam or promotions folder.');
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
+    await expect(page.getByRole('link', { name: 'back to home' })).toHaveAttribute('href', '/');
+  });
+});
+
+for (const route of ['/coming-soon', '/subscribed'] as const) {
+  for (const viewport of [
+    { label: 'phone', width: 390, height: 844 },
+    { label: 'tablet', width: 820, height: 1180 },
+    { label: 'desktop', width: 1440, height: 900 },
+  ]) {
+    for (const theme of ['light', 'dark'] as const) {
+      test(`${route} ${viewport.label} ${theme}: clear, accessible and without sideways scroll`, async ({ page }) => {
+        await page.setViewportSize({ width: viewport.width, height: viewport.height });
+        await page.emulateMedia({ colorScheme: theme });
+        await page.goto(route);
+
+        await expect(page.locator('main h1')).toHaveCount(1);
+        await expect(page.locator('main .veil').first()).toBeVisible();
+        await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
+
+        const link = page.locator('main').getByRole('link', { name: 'explore available lessons' });
+        await expect(link).toHaveAttribute('href', '/learn/study-skills');
+        await expect(link).toBeVisible();
+        await link.focus();
+        await expect(link).toBeFocused();
+
+        for (const control of await page.locator('main a').all()) {
+          const box = await control.boundingBox();
+          expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+          expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
+        }
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+        const result = await new AxeBuilder({ page })
+          .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'])
+          .analyze();
+        expect(result.violations.map((violation) => `${violation.id}: ${violation.help}`)).toEqual([]);
+      });
+    }
+  }
+}
