@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { browserStorage } from '../scripts/storage';
 import { printGame } from './gameprint';
 import { localDay } from './gameresults';
-import { DEFAULT_SUDOKU_SETTINGS, LEVEL_RULES, applySudokuEdit, candidates, conflictIndices, dailySudokuSeed, generateSudoku, getResult, loadSudokuSettings, saveSudokuSettings, sudokuKeyAction, type SudokuLevel, type SudokuSettings } from './sudoku';
+import { DEFAULT_SUDOKU_SETTINGS, LEVEL_RULES, advanceSudokuSeconds, applySudokuEdit, candidates, conflictIndices, dailySudokuSeed, generateSudoku, getResult, loadSudokuSettings, saveSudokuSettings, sudokuCellPresentation, sudokuKeyAction, type SudokuLevel, type SudokuSettings } from './sudoku';
 
 const LEVELS: SudokuLevel[] = ['easy', 'medium', 'hard'];
 const NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
@@ -56,7 +56,7 @@ export default function SudokuGame() {
 
   useEffect(() => {
     if (paused || solved) return;
-    const timer = window.setInterval(() => setSeconds((value) => value + 1), 1000);
+    const timer = window.setInterval(() => setSeconds((value) => advanceSudokuSeconds(value, paused, solved)), 1000);
     return () => window.clearInterval(timer);
   }, [paused, solved]);
 
@@ -88,6 +88,11 @@ export default function SudokuGame() {
     document.addEventListener('keydown', onKey);
     return () => { document.removeEventListener('keydown', onKey); (previous ?? settingsButton.current)?.focus(); };
   }, [settingsOpen]);
+
+  const togglePause = () => {
+    setPaused((current) => !current);
+    setSaid(paused ? 'puzzle resumed.' : 'puzzle paused. given numbers remain visible.');
+  };
 
   const enter = (value: number) => {
     if (paused || solved) return;
@@ -139,7 +144,7 @@ export default function SudokuGame() {
   // The shared print helper (Task 641): marks the page for sudoku's print rules and clears the mark after printing.
   const printPuzzle = () => printGame('sudoku');
   const elapsed = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
-  const selectedRow = Math.floor(selected / 9); const selectedColumn = selected % 9; const selectedValue = entries[selected];
+  const selectedRow = Math.floor(selected / 9); const selectedColumn = selected % 9; const selectedValue = paused ? 0 : entries[selected];
 
   return <section className="sudoku-game" data-testid="sudoku">
     <div className="sudoku-title-row">
@@ -154,23 +159,25 @@ export default function SudokuGame() {
     </div>
     <div className="sudoku-panel">
       <div className="sudoku-toolbar">
-        <div className="sudoku-time">{settings.showTimer && <span>time: <strong>{elapsed}</strong></span>}{settings.showTimer && ' '}<button type="button" className="sudoku-small-button" aria-label={paused ? 'resume puzzle' : 'pause puzzle'} onClick={() => setPaused((value) => !value)}><span aria-hidden="true">{paused ? '▶' : 'Ⅱ'}</span></button></div>
+        <div className="sudoku-time">{settings.showTimer && <span>time: <strong>{elapsed}</strong></span>}{settings.showTimer && ' '}<button type="button" className="sudoku-small-button" aria-label={paused ? 'resume puzzle' : 'pause puzzle'} onClick={togglePause}><span aria-hidden="true">{paused ? '▶' : 'Ⅱ'}</span></button></div>
         <div className="segmented" aria-label="difficulty">{LEVELS.map((choice) => <button key={choice} type="button" className="segmented-option" aria-pressed={level === choice} onClick={() => setLevel(choice)}>{choice}</button>)}</div>
         <span className="sudoku-errors">{settings.showErrors ? <>error: <strong>{errors}</strong></> : null}</span>
       </div>
       <div className="sudoku-board-scroll">
         <div className={`sudoku-board${paused ? ' is-paused' : ''}`} role="grid" aria-label="sudoku grid" aria-rowcount={9} aria-colcount={9}>
         {Array.from({ length: 9 }, (_, row) => <div key={row} className="sudoku-row" role="row">
-          {entries.slice(row * 9, row * 9 + 9).map((value, column) => {
-          const index = row * 9 + column; const given = puzzle.puzzle[index] !== 0;
-          const related = settings.highlightRowColumn && (row === selectedRow || column === selectedColumn);
-          const box = settings.highlightBox && Math.floor(row / 3) === Math.floor(selectedRow / 3) && Math.floor(column / 3) === Math.floor(selectedColumn / 3);
-          const identical = settings.highlightIdentical && Boolean(selectedValue) && value === selectedValue;
-          const options = !value && !marks.has(index) && hints ? candidates(entries, index) : [];
-          const classes = ['sudoku-cell', given && 'is-given', !given && value && 'is-entered', selected === index && 'is-selected', selected !== index && related && 'is-related', selected !== index && box && 'is-box-related', identical && 'is-identical', settings.highlightConflicts && conflicts.has(index) && 'is-conflict', (column === 2 || column === 5) && 'sudoku-box-right', (row === 2 || row === 5) && 'sudoku-box-bottom'].filter(Boolean).join(' ');
-          const spoken = paused ? 'hidden while paused' : marks.has(index) ? 'x mark' : value ? String(value) : options.length ? `empty, candidates ${options.join(', ')}` : 'empty';
+          {entries.slice(row * 9, row * 9 + 9).map((_, column) => {
+          const index = row * 9 + column;
+          const display = sudokuCellPresentation(entries, puzzle.puzzle, marks, index, paused);
+          const { given, value } = display;
+          const related = !paused && settings.highlightRowColumn && (row === selectedRow || column === selectedColumn);
+          const box = !paused && settings.highlightBox && Math.floor(row / 3) === Math.floor(selectedRow / 3) && Math.floor(column / 3) === Math.floor(selectedColumn / 3);
+          const identical = !paused && settings.highlightIdentical && Boolean(selectedValue) && value === selectedValue;
+          const options = !paused && !value && !display.marked && hints ? candidates(entries, index) : [];
+          const classes = ['sudoku-cell', given && 'is-given', !paused && !given && value && 'is-entered', selected === index && 'is-selected', selected !== index && related && 'is-related', selected !== index && box && 'is-box-related', identical && 'is-identical', !paused && settings.highlightConflicts && conflicts.has(index) && 'is-conflict', (column === 2 || column === 5) && 'sudoku-box-right', (row === 2 || row === 5) && 'sudoku-box-bottom'].filter(Boolean).join(' ');
+          const spoken = display.hidden ? 'hidden until resumed' : display.marked ? 'x mark' : value ? String(value) : options.length ? `empty, candidates ${options.join(', ')}` : 'empty';
           return <button ref={(element) => { if (element) cells.current.set(index, element); else cells.current.delete(index); }} key={index} type="button" role="gridcell" tabIndex={selected === index ? 0 : -1} className={classes} aria-rowindex={row + 1} aria-colindex={column + 1} aria-selected={selected === index} aria-label={`row ${row + 1}, column ${column + 1}, ${spoken}${given ? ', given' : ''}`} data-given={given ? 'true' : 'false'} onClick={() => setSelected(index)}>
-            {paused ? <span aria-hidden="true">x</span> : marks.has(index) ? <span className="sudoku-mark" aria-hidden="true">x</span> : value ? <span>{value}</span> : options.length ? <span className="sudoku-candidates" aria-hidden="true">{NUMBERS.map((number) => <i key={number}>{options.includes(number) ? number : ''}</i>)}</span> : null}
+            {display.marked ? <span className="sudoku-mark" aria-hidden="true">x</span> : value ? <span>{value}</span> : options.length ? <span className="sudoku-candidates" aria-hidden="true">{NUMBERS.map((number) => <i key={number}>{options.includes(number) ? number : ''}</i>)}</span> : null}
           </button>;
           })}
         </div>)}

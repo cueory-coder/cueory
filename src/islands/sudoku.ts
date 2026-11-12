@@ -83,6 +83,27 @@ export function saveSudokuSettings(storage: Pick<SudokuSettingsStorage, 'setItem
   }
 }
 
+
+/** A paused board displays only the puzzle's published givens. Student data stays untouched in memory. */
+export interface SudokuCellPresentation {
+  given: boolean;
+  value: number;
+  marked: boolean;
+  hidden: boolean;
+}
+export function sudokuCellPresentation(
+  entries: SudokuGrid, puzzle: SudokuGrid, marks: ReadonlySet<number>, index: number, paused: boolean,
+): SudokuCellPresentation {
+  const given = puzzle[index] !== 0;
+  if (paused) return { given, value: given ? puzzle[index]! : 0, marked: false, hidden: !given };
+  return { given, value: entries[index] ?? 0, marked: !given && marks.has(index), hidden: false };
+}
+
+/** The clock counts only active play. */
+export function advanceSudokuSeconds(seconds: number, paused: boolean, solved: boolean): number {
+  return paused || solved ? seconds : seconds + 1;
+}
+
 export type SudokuEdit = { kind: 'enter'; value: number } | { kind: 'mark' };
 export type SudokuKeyAction = SudokuEdit | { kind: 'select'; index: number };
 

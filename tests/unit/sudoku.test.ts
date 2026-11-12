@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   LEVEL_RULES,
+  advanceSudokuSeconds,
   candidates,
   conflictIndices,
   countSolutions,
@@ -9,6 +10,7 @@ import {
   getResult,
   isCompleteAndValid,
   solveSudoku,
+  sudokuCellPresentation,
   type SudokuLevel,
 } from '../../src/islands/sudoku';
 
@@ -130,5 +132,53 @@ describe('Sudoku generator performance and varied days (W08)', () => {
     expect(generateSudoku(seed, 'hard')).toEqual(first);
     expect(countSolutions(first.puzzle)).toBe(1);
     expect(first.givens).toBe(LEVEL_RULES.hard.givens);
+  });
+});
+
+describe('W08-2 pause and resume', () => {
+  it('shows only givens while paused and restores entries, X marks and conflicts', () => {
+    const { puzzle } = generateSudoku('pause-restore', 'easy');
+    const entryIndex = puzzle.indexOf(0);
+    const markIndex = puzzle.findIndex((value, index) => value === 0 && index !== entryIndex);
+    const givenIndex = puzzle.findIndex((value) => value !== 0);
+    const row = Math.floor(entryIndex / 9);
+    const conflictDigit = puzzle.slice(row * 9, row * 9 + 9).find((value) => value !== 0)!;
+    const entries = [...puzzle];
+    entries[entryIndex] = conflictDigit;
+    const marks = new Set([markIndex]);
+    const conflicts = conflictIndices(entries);
+    expect(conflicts).toContain(entryIndex);
+    const entry = sudokuCellPresentation(entries, puzzle, marks, entryIndex, false);
+    const mark = sudokuCellPresentation(entries, puzzle, marks, markIndex, false);
+    expect(entry).toEqual({ given: false, value: conflictDigit, marked: false, hidden: false });
+    expect(mark).toEqual({ given: false, value: 0, marked: true, hidden: false });
+    expect(sudokuCellPresentation(entries, puzzle, marks, givenIndex, true)).toEqual({
+      given: true, value: puzzle[givenIndex], marked: false, hidden: false,
+    });
+    for (const index of [entryIndex, markIndex]) {
+      expect(sudokuCellPresentation(entries, puzzle, marks, index, true)).toEqual({
+        given: false, value: 0, marked: false, hidden: true,
+      });
+    }
+    expect(sudokuCellPresentation(entries, puzzle, marks, entryIndex, false)).toEqual(entry);
+    expect(sudokuCellPresentation(entries, puzzle, marks, markIndex, false)).toEqual(mark);
+    expect(entries[entryIndex]).toBe(conflictDigit);
+    expect(marks.has(markIndex)).toBe(true);
+    expect(conflictIndices(entries)).toEqual(conflicts);
+  });
+
+  it('takes visible givens from the puzzle, not from mutable entries', () => {
+    const { puzzle } = generateSudoku('pause-givens', 'medium');
+    const index = puzzle.findIndex((value) => value !== 0);
+    const entries = [...puzzle];
+    entries[index] = 0;
+    expect(sudokuCellPresentation(entries, puzzle, new Set(), index, true).value).toBe(puzzle[index]);
+  });
+
+  it('stops the clock while paused or solved, resuming from its previous second', () => {
+    expect(advanceSudokuSeconds(19, true, false)).toBe(19);
+    expect(advanceSudokuSeconds(19, true, true)).toBe(19);
+    expect(advanceSudokuSeconds(19, false, true)).toBe(19);
+    expect(advanceSudokuSeconds(19, false, false)).toBe(20);
   });
 });
