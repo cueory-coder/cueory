@@ -99,3 +99,29 @@ describe('Sudoku validation and candidates', () => {
     expect(isCompleteAndValid(solved!)).toBe(true);
   });
 });
+
+
+describe('Sudoku generator performance and varied days (W08)', () => {
+  // 300 ms is a loose per-puzzle budget for a shared CI runner, not a user-device benchmark.
+  // Counting solutions is checked separately because the on-device generator does not do it.
+  const seeds = Array.from({ length: 24 }, (_, index) => `2026-11-${String(index + 1).padStart(2, '0')}`);
+  it.each(levels)('%s generates a unique puzzle for 24 days within 300 ms per board', (level) => {
+    for (const seed of seeds) {
+      const started = performance.now();
+      const puzzle = generateSudoku(dailySudokuSeed(seed, level), level);
+      const elapsed = performance.now() - started;
+      expect(elapsed, `${level} ${seed}: generator took ${elapsed.toFixed(1)} ms`).toBeLessThan(300);
+      expect(puzzle.givens).toBe(LEVEL_RULES[level].givens);
+      expect(countSolutions(puzzle.puzzle), `${level} ${seed} must have one solution`).toBe(1);
+      expect(solveSudoku(puzzle.puzzle)).toEqual(puzzle.solution);
+    }
+  });
+
+  it.each(['', 'not-a-day', '2026-02-30', '0000-00-00', '2026-11-01\\n'])('treats an unusual day %j as an opaque deterministic seed', (day) => {
+    const seed = dailySudokuSeed(day, 'hard');
+    const first = generateSudoku(seed, 'hard');
+    expect(generateSudoku(seed, 'hard')).toEqual(first);
+    expect(countSolutions(first.puzzle)).toBe(1);
+    expect(first.givens).toBe(LEVEL_RULES.hard.givens);
+  });
+});

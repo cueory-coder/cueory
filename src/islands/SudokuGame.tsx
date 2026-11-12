@@ -2,40 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { browserStorage } from '../scripts/storage';
 import { printGame } from './gameprint';
 import { localDay } from './gameresults';
-import { LEVEL_RULES, candidates, conflictIndices, dailySudokuSeed, generateSudoku, getResult, type SudokuLevel } from './sudoku';
+import { DEFAULT_SUDOKU_SETTINGS, LEVEL_RULES, applySudokuEdit, candidates, conflictIndices, dailySudokuSeed, generateSudoku, getResult, loadSudokuSettings, saveSudokuSettings, sudokuKeyAction, type SudokuLevel, type SudokuSettings } from './sudoku';
 
-interface Settings {
-  checkGuesses: boolean;
-  autoCandidates: boolean;
-  showErrors: boolean;
-  showTimer: boolean;
-  highlightConflicts: boolean;
-  highlightRowColumn: boolean;
-  highlightBox: boolean;
-  highlightIdentical: boolean;
-  playSound: boolean;
-}
-const SETTINGS_KEY = 'cueory-sudoku-settings';
-const DEFAULTS: Settings = {
-  checkGuesses: true, autoCandidates: false, showErrors: true, showTimer: true, highlightConflicts: true,
-  highlightRowColumn: true, highlightBox: true, highlightIdentical: true, playSound: true,
-};
 const LEVELS: SudokuLevel[] = ['easy', 'medium', 'hard'];
 const NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
-function loadSettings(): Settings {
-  try {
-    const saved = browserStorage()?.getItem(SETTINGS_KEY);
-    if (!saved) return DEFAULTS;
-    const parsed = JSON.parse(saved) as Partial<Settings>;
-    return Object.fromEntries(Object.entries(DEFAULTS).map(([key, fallback]) => [
-      key, typeof parsed[key as keyof Settings] === 'boolean' ? parsed[key as keyof Settings] : fallback,
-    ])) as unknown as Settings;
-  } catch { return DEFAULTS; }
-}
-function saveSettings(settings: Settings): void {
-  try { browserStorage()?.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch { /* The game still works. */ }
-}
 function firstOpen(puzzle: readonly number[]): number {
   const index = puzzle.findIndex((value) => value === 0);
   return index < 0 ? 0 : index;
@@ -65,7 +36,7 @@ export default function SudokuGame() {
   const [errors, setErrors] = useState(0);
   const [paused, setPaused] = useState(false);
   const [hints, setHints] = useState(false);
-  const [settings, setSettings] = useState<Settings>(loadSettings);
+  const [settings, setSettings] = useState<SudokuSettings>(() => loadSudokuSettings(browserStorage()));
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [howOpen, setHowOpen] = useState(false);
   const [said, setSaid] = useState('');
@@ -99,7 +70,7 @@ export default function SudokuGame() {
     setSaid(`solved in ${result.time} with ${errors} ${errors === 1 ? 'error' : 'errors'}.`);
   }, [solved, day, level, seconds, errors, settings.playSound]);
 
-  useEffect(() => { saveSettings(settings); }, [settings]);
+  useEffect(() => { saveSudokuSettings(browserStorage(), settings); }, [settings]);
 
   useEffect(() => {
     if (!settingsOpen) return;
@@ -119,12 +90,14 @@ export default function SudokuGame() {
   }, [settingsOpen]);
 
   const enter = (value: number) => {
-    if (paused || solved || puzzle.puzzle[selected]) {
+    if (paused || solved) return;
+    const next = applySudokuEdit(entries, puzzle.puzzle, marks, selected, { kind: 'enter', value });
+    if (!next) {
       if (puzzle.puzzle[selected]) setSaid('given numbers cannot be changed.');
       return;
     }
-    const next = [...entries]; next[selected] = value; setEntries(next);
-    setMarks((current) => { const copy = new Set(current); copy.delete(selected); return copy; });
+    setEntries(next.entries);
+    setMarks(next.marks);
     const wrong = value !== puzzle.solution[selected];
     if (wrong && settings.checkGuesses) setErrors((count) => count + 1);
     setSaid(wrong && settings.checkGuesses
@@ -132,34 +105,33 @@ export default function SudokuGame() {
       : `${value} entered.`);
   };
   const mark = () => {
-    if (paused || solved || puzzle.puzzle[selected]) return;
-    const removing = marks.has(selected);
-    const next = [...entries]; next[selected] = 0; setEntries(next);
-    setMarks((current) => { const copy = new Set(current); removing ? copy.delete(selected) : copy.add(selected); return copy; });
-    setSaid(removing ? 'mark removed.' : 'x mark added.');
+    if (paused || solved) return;
+    const next = applySudokuEdit(entries, puzzle.puzzle, marks, selected, { kind: 'mark' });
+    if (!next) return;
+    setEntries(next.entries);
+    setMarks(next.marks);
+    setSaid(next.markRemoved ? 'mark removed.' : 'x mark added.');
   };
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (settingsOpen || howOpen || paused || solved || event.metaKey || event.ctrlKey || event.altKey) return;
       if (!(event.target as HTMLElement | null)?.closest('.sudoku-board')) return;
-      const row = Math.floor(selected / 9); const column = selected % 9; let next = selected;
-      if (event.key === 'ArrowUp') next = row ? selected - 9 : selected;
-      else if (event.key === 'ArrowDown') next = row < 8 ? selected + 9 : selected;
-      else if (event.key === 'ArrowLeft') next = column ? selected - 1 : selected;
-      else if (event.key === 'ArrowRight') next = column < 8 ? selected + 1 : selected;
-      else if (/^[1-9]$/.test(event.key)) { event.preventDefault(); enter(Number(event.key)); return; }
-      else if (event.key.toLowerCase() === 'x' || event.key === 'Backspace' || event.key === 'Delete') { event.preventDefault(); mark(); return; }
-      else return;
+      const action = sudokuKeyAction(event.key, selected);
+      if (!action) return;
       event.preventDefault();
-      setSelected(next);
-      cells.current.get(next)?.focus();
+      if (action.kind === 'enter') enter(action.value);
+      else if (action.kind === 'mark') mark();
+      else {
+        setSelected(action.index);
+        cells.current.get(action.index)?.focus();
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   });
 
-  const updateSetting = (key: keyof Settings) => setSettings((current) => {
+  const updateSetting = (key: keyof SudokuSettings) => setSettings((current) => {
     const next = { ...current, [key]: !current[key] };
     if (key === 'autoCandidates') setHints(next.autoCandidates);
     return next;
@@ -214,8 +186,8 @@ export default function SudokuGame() {
     {settingsOpen && <div className="sudoku-overlay" onPointerDown={(event) => event.target === event.currentTarget && setSettingsOpen(false)}>
       <div ref={dialog} className="sudoku-settings" role="dialog" aria-modal="true" aria-labelledby="sudoku-settings-title">
         <div className="sudoku-settings-heading"><h3 id="sudoku-settings-title">settings</h3><button type="button" className="sudoku-icon-button" aria-label="close settings" onClick={() => setSettingsOpen(false)}>×</button></div>
-        <fieldset><legend>gameboard settings</legend>{(Object.keys(DEFAULTS) as Array<keyof Settings>).map((key) => {
-          const labels: Record<keyof Settings, string> = { checkGuesses: 'check guesses when entered', autoCandidates: 'start in auto candidate mode', showErrors: 'show error counter', showTimer: 'show timer', highlightConflicts: 'highlight conflicts', highlightRowColumn: 'highlight row and column', highlightBox: 'highlight box', highlightIdentical: 'highlight identical numbers', playSound: 'play sound on solve' };
+        <fieldset><legend>gameboard settings</legend>{(Object.keys(DEFAULT_SUDOKU_SETTINGS) as Array<keyof SudokuSettings>).map((key) => {
+          const labels: Record<keyof SudokuSettings, string> = { checkGuesses: 'check guesses when entered', autoCandidates: 'start in auto candidate mode', showErrors: 'show error counter', showTimer: 'show timer', highlightConflicts: 'highlight conflicts', highlightRowColumn: 'highlight row and column', highlightBox: 'highlight box', highlightIdentical: 'highlight identical numbers', playSound: 'play sound on solve' };
           return <label key={key} className="sudoku-option"><span>{labels[key]}</span><input type="checkbox" checked={settings[key]} onChange={() => updateSetting(key)} /></label>;
         })}</fieldset>
       </div>
