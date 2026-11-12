@@ -7,6 +7,7 @@ import {
   nextRefreshMs,
   roundedMinutesLeft,
   resume,
+  restoredBreakNeedsSave,
   skipBreak,
   snooze,
   startBreak,
@@ -61,7 +62,9 @@ export default function BreakTimer({ settings }: Props) {
       const initial = settings && restored.status === 'off' ? startBreaks(settings) : restored;
       // Persist a restored phase too: an elapsed saved break may now be a new focus period.
       // Without this, another reload would restore the old break and restart that focus deadline.
-      if (saved && !writeBreakState(available, initial, current)) setStorageUnavailable(true);
+      if (saved && restoredBreakNeedsSave(saved, initial) && !writeBreakState(available, initial, current)) {
+        setStorageUnavailable(true);
+      }
       lastSavedState.current = initial;
       setState(initial);
     } catch {

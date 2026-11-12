@@ -192,6 +192,52 @@ test('an expired saved break persists its new focus deadline across another relo
   expect((await saved()).state.endsAt).toBe(deadline);
 });
 
+test('hydration leaves an unchanged paused timer timestamp alone so its age limit still applies', async ({ page }) => {
+  const now = Date.UTC(2026, 10, 1, 12);
+  const savedAt = now - 90 * 60_000;
+  await page.clock.install({ time: new Date(now) });
+  await page.addInitScript(({ savedAt }) => {
+    if (sessionStorage.getItem('cueory-break-timer')) return;
+    sessionStorage.setItem('cueory-break-timer', JSON.stringify({
+      version: 1, savedAt,
+      state: {
+        settings: { focusMinutes: 25, breakMinutes: 5 },
+        status: 'paused', endsAt: null, pausedFrom: 'focusing', pausedRemainingMs: 60_000,
+      },
+    }));
+  }, { savedAt });
+  await page.goto('/breaks');
+  await expect(page.getByTestId('break-status')).toHaveText('studying paused: 1 minute left.');
+  const timestamp = () => page.evaluate(() => JSON.parse(sessionStorage.getItem('cueory-break-timer')!).savedAt);
+  expect(await timestamp()).toBe(savedAt);
+  await page.reload();
+  await expect(page.getByTestId('break-status')).toHaveText('studying paused: 1 minute left.');
+  expect(await timestamp()).toBe(savedAt);
+  await page.clock.fastForward(31 * 60_000);
+  await page.reload();
+  await expect(page.getByTestId('break-timer').getByRole('button', { name: 'turn on' })).toBeEnabled();
+  await expect(page.getByTestId('break-status')).toHaveCount(0);
+});
+
+test('an expired saved focus phase is persisted as break due', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-11-01T12:00:00Z') });
+  await page.addInitScript(() => {
+    const now = Date.now();
+    sessionStorage.setItem('cueory-break-timer', JSON.stringify({
+      version: 1, savedAt: now - 26 * 60_000,
+      state: {
+        settings: { focusMinutes: 25, breakMinutes: 5 },
+        status: 'focusing', endsAt: now - 60_000,
+        pausedFrom: null, pausedRemainingMs: 0,
+      },
+    }));
+  });
+  await page.goto('/breaks');
+  await expect(page.getByTestId('break-status')).toHaveText('time for a short break.');
+  await expect.poll(() => page.evaluate(() =>
+    JSON.parse(sessionStorage.getItem('cueory-break-timer')!).state.status)).toBe('break due');
+});
+
 test('sleep cannot stretch the countdown, and keyboard focus moves to a due-break choice', async ({ page }) => {
   await withSleepingClock(page);
   await page.goto('/breaks');

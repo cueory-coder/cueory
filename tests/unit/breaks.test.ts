@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { readBreakState, writeBreakState } from '../../src/scripts/breakstore';
+import { BREAK_STORAGE_KEY, readBreakState, writeBreakState } from '../../src/scripts/breakstore';
 import {
   DEFAULT_BREAK_SETTINGS,
   applyMove,
@@ -10,6 +10,7 @@ import {
   pause,
   remainingMs,
   resume,
+  restoredBreakNeedsSave,
   skipBreak,
   snooze,
   startBreak,
@@ -26,6 +27,66 @@ const settings = { focusMinutes: 20, breakMinutes: 4 };
 const at = 1_000_000;
 
 const dueAt = (now = at) => tick(turnOn(startBreaks(settings), now), now + 20 * MINUTE);
+
+describe('restored timer persistence decisions', () => {
+  function stored(state: BreakState, savedAt = at) {
+    const values = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => { values.set(key, value); },
+      removeItem: (key: string) => { values.delete(key); },
+    };
+    expect(writeBreakState(storage, state, savedAt)).toBe(true);
+    return { storage, raw: storage.getItem(BREAK_STORAGE_KEY)! };
+  }
+
+  it('keeps unchanged running, paused, due and off records without renewing their age', () => {
+    const running = turnOn(startBreaks(settings), at);
+    for (const state of [running, pause(running, at), dueAt(), startBreaks(settings)]) {
+      const { storage, raw } = stored(state);
+      const restored = readBreakState(storage, at + MINUTE);
+      expect(restoredBreakNeedsSave(raw, restored)).toBe(false);
+      expect(JSON.parse(storage.getItem(BREAK_STORAGE_KEY)!).savedAt).toBe(at);
+    }
+  });
+
+  it('ignores object property order when comparing an unchanged saved state', () => {
+    const { storage, raw } = stored(turnOn(startBreaks(settings), at));
+    const record = JSON.parse(raw);
+    record.state = Object.fromEntries(Object.entries(record.state).reverse());
+    record.state.settings = { breakMinutes: settings.breakMinutes, focusMinutes: settings.focusMinutes };
+    expect(restoredBreakNeedsSave(JSON.stringify(record), readBreakState(storage, at + MINUTE))).toBe(false);
+  });
+
+  it('requires saving the new focus phase after an elapsed saved break', () => {
+    const { storage, raw } = stored(startBreak(dueAt(), at));
+    const restored = readBreakState(storage, at + 5 * MINUTE);
+    expect(restored).toMatchObject({ status: 'focusing', endsAt: at + 25 * MINUTE });
+    expect(restoredBreakNeedsSave(raw, restored)).toBe(true);
+  });
+
+  it('requires saving a due phase after an elapsed saved focus', () => {
+    const { storage, raw } = stored(turnOn(startBreaks(settings), at));
+    const restored = readBreakState(storage, at + 21 * MINUTE);
+    expect(restored.status).toBe('break due');
+    expect(restoredBreakNeedsSave(raw, restored)).toBe(true);
+  });
+
+  it('requires saving changed explicit settings for an off timer', () => {
+    const { raw } = stored(startBreaks());
+    expect(restoredBreakNeedsSave(raw, startBreaks(settings))).toBe(true);
+  });
+
+  it('can replace malformed or expired state with the safe off state', () => {
+    for (const raw of ['invalid json', 'null', '[]', '{}', '{"state":null}', '{"state":{"settings":[]}}']) {
+      expect(restoredBreakNeedsSave(raw, startBreaks())).toBe(true);
+    }
+    const { storage, raw } = stored(pause(turnOn(startBreaks(settings), at), at));
+    const restored = readBreakState(storage, at + 121 * MINUTE);
+    expect(restored.status).toBe('off');
+    expect(restoredBreakNeedsSave(raw, restored)).toBe(true);
+  });
+});
 
 describe('break settings', () => {
   it('starts off with the gentle defaults', () => {

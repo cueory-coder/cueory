@@ -132,6 +132,28 @@ export function applyMove(change: BreakMove, state: BreakState, now: number): Br
   return change === pause ? pause(state, now) : change(tick(state, now), now);
 }
 
+/** Save a reconciled phase/settings change without renewing an unchanged record's age. */
+export function restoredBreakNeedsSave(raw: string, restored: BreakState): boolean {
+  try {
+    const saved: unknown = JSON.parse(raw);
+    if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return true;
+    const state = (saved as { state?: unknown }).state;
+    if (!state || typeof state !== 'object' || Array.isArray(state)) return true;
+    const value = state as Record<string, unknown>;
+    const settings = value.settings;
+    if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return true;
+    const previous = settings as Record<string, unknown>;
+    return previous.focusMinutes !== restored.settings.focusMinutes
+      || previous.breakMinutes !== restored.settings.breakMinutes
+      || value.status !== restored.status
+      || value.endsAt !== restored.endsAt
+      || value.pausedFrom !== restored.pausedFrom
+      || value.pausedRemainingMs !== restored.pausedRemainingMs;
+  } catch {
+    return true;
+  }
+}
+
 export function remainingMs(state: BreakState, now: number): number {
   if (state.status === 'paused') return state.pausedRemainingMs;
   if ((state.status === 'focusing' || state.status === 'on break') && state.endsAt !== null) {
