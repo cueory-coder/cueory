@@ -3,6 +3,59 @@
   display: none;
 }
 
+/* W09 lesson print rules: separate from site-wide and home reveal print styling. */
+@media print {
+  /* The lesson-reader hook belongs to both the sample hub and generated lesson hubs. */
+  body:has(main [data-testid="study-reader"]),
+  body:has(main [data-testid="study-reader"]) main,
+  body:has(main [data-testid="study-reader"]) main * {
+    color: black !important;
+    background-color: white !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* Print the reading, not the study-mode choices, video player, or form controls. */
+  body:has(main [data-testid="study-reader"]) main section[aria-labelledby="study-modes-heading"],
+  body:has(main [data-testid="study-reader"]) main section[aria-label="lesson video"],
+  body:has(main [data-testid="study-reader"]) main :is(button, [role="button"], [role="tab"], input, select, textarea) {
+    display: none !important;
+  }
+
+  /* Keep each diagram and its caption together when a printed page allows it. */
+  body:has(main [data-testid="study-reader"]) main :is(figure, [data-visual], [data-callout-kind]) {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Do not crop illustrations at their screen-only step-player boundary. */
+  body:has(main [data-testid="study-reader"]) main [data-visual] [data-step] {
+    overflow: visible !important;
+  }
+
+  body:has(main [data-testid="study-reader"]) main :is(img, svg) {
+    max-inline-size: 100% !important;
+    block-size: auto !important;
+  }
+
+  /* Visual credits are reading content, not controls. */
+  body:has(main [data-testid="study-reader"]) main :is(figcaption, [data-visual-credits]) {
+    display: block !important;
+  }
+
+  body:has(main [data-testid="study-reader"]) main {
+    overflow-wrap: anywhere;
+  }
+
+  /* Outside URLs remain usable on paper. Internal cueory links stay concise. */
+  body:has(main [data-testid="study-reader"]) main a[href^="https://"]:not([href^="https://cueory.app/"]):not([href^="https://www.cueory.app/"])::after,
+  body:has(main [data-testid="study-reader"]) main a[href^="http://"]::after {
+    content: " (" attr(href) ")";
+    overflow-wrap: anywhere;
+  }
+}
+
 /* Keep printed lessons focused on their reading content, not the interactive site chrome. */
 @media print {
   body {
