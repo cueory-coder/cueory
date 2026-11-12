@@ -149,11 +149,13 @@ describe('native share', () => {
     expect(buildShareData({ share: vi.fn(), canShare: () => true }, base, null)).toEqual(base);
   });
 
-  it.each([
+  const fileUnsupportedTargets: readonly [string, ShareTarget][] = [
     ['missing capability', { share: vi.fn() }],
-    ['false capability', { share: vi.fn(), canShare: () => false }],
+    ['false capability', { share: vi.fn(), canShare: (): boolean => false }],
     ['throwing capability', { share: vi.fn(), canShare: (): boolean => { throw new Error('no'); } }],
-  ] as const)('copies the exact line when file sharing has %s', async (_case, target) => {
+  ];
+
+  it.each(fileUnsupportedTargets)('copies the exact line when file sharing has %s', async (_case, target) => {
     const copy = vi.fn(async () => undefined);
     await expect(shareFileOrCopy(target, base, png(), copy)).resolves.toBe('copied');
     expect(copy).toHaveBeenCalledOnce();

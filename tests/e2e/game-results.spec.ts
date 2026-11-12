@@ -55,6 +55,20 @@ test('finished-game result announces the exact card and traps focus', async ({ p
   await expect(returnTo).toBeFocused();
 });
 
+test('first-visit promo waits while the result dialog owns focus', async ({ page }) => {
+  await page.evaluate(() => localStorage.removeItem('cueory-promo-seen'));
+  await page.reload();
+
+  const dialog = await openResult(page);
+  const close = dialog.getByRole('button', { name: 'close results' });
+  await expect(close).toBeFocused();
+
+  await page.waitForTimeout(5_500);
+
+  await expect(page.getByTestId('promo')).toBeHidden();
+  await expect(close).toBeFocused();
+});
+
 test('copy fallback and every platform link stay plain and tracker-free', async ({ page }) => {
   const dialog = await openResult(page);
   const line = 'pillo · nov 11, 2026 · 4 / 6 · cueory.app';
