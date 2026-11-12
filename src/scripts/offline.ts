@@ -195,16 +195,10 @@ export async function startOffline(env: OfflineEnvironment): Promise<void> {
     return;
   }
 
-  // The first visit happened before a worker controlled this page. Never await "ready" without a timeout.
+  // The first visit happened before a worker controlled this page. Installation can take over 3 seconds.
+  // Only controllerchange has a timeout: waiting for ready never blocks the already-loaded page.
   try {
-    const workerReady = await Promise.race([
-      container.ready.then(() => true, () => false),
-      env.wait(CONTROL_WAIT_MS).then(() => false, () => false),
-    ]);
-    if (!workerReady) {
-      report('unavailable');
-      return;
-    }
+    await container.ready;
     if (!container.controller) {
       await Promise.race([
         new Promise<void>((resolve) => container.addEventListener('controllerchange', resolve, { once: true })),
@@ -220,6 +214,20 @@ export async function startOffline(env: OfflineEnvironment): Promise<void> {
     return;
   }
   await saveThisVisit(env, report);
+}
+
+/** A missing/malformed response must not turn a failed offline copy into a false "ready" state. */
+export function offlineFetchSaved(value: unknown): boolean {
+  if (!value || typeof value !== 'object') return false;
+  const result = value as Partial<ResponseLike>;
+  if (typeof result.ok !== 'boolean' || typeof result.status !== 'number'
+    || typeof result.type !== 'string' || typeof result.redirected !== 'boolean'
+    || typeof result.headers?.get !== 'function') return false;
+  try {
+    return storable(result as ResponseLike);
+  } catch {
+    return false;
+  }
 }
 
 /** Fetches this visit's public addresses through the worker. A partial failure never reports "ready". */
@@ -240,13 +248,8 @@ async function saveThisVisit(env: OfflineEnvironment, report: (state: OfflineSta
   for (let i = 0; i < urls.length; i += 1) {
     try {
       const result = await env.fetchOne(urls[i]!);
-      // fetch() resolves for HTTP errors and redirects. The worker refuses private or incomplete responses too.
-      if (result && typeof result === 'object' && 'ok' in result) {
-        if (result.ok !== true) failed = true;
-        if ('status' in result && 'type' in result && 'redirected' in result && 'headers' in result) {
-          if (!storable(result as ResponseLike)) failed = true;
-        }
-      }
+      // fetch() also resolves for HTTP errors. Only a complete cacheable response counts as saved.
+      if (!offlineFetchSaved(result)) failed = true;
     } catch (error) {
       const failure = offlineFailureState(error, await safeEstimate(env));
       if (failure === 'storage-full') {
@@ -302,8 +305,7 @@ if (typeof document !== 'undefined' && typeof navigator !== 'undefined') {
       },
       wait: (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
       storageEstimate: () => navigator.storage?.estimate() ?? Promise.resolve(undefined),
-      onState: renderOfflineState,
-    }).catch(() => renderOfflineState('unavailable'));
+    }).catch(() => undefined);
   };
   if (document.readyState === 'complete') start();
   else window.addEventListener('load', start, { once: true });

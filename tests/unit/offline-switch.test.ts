@@ -1,7 +1,7 @@
 /** W07-2: readable offline states, including partial saves, quota errors and failed cleanup. */
 import { describe, expect, it } from 'vitest';
 import {
-  startOffline, firstVisitUrls, offlineStartState, offlineProgressState, offlineStorageFull,
+  startOffline, firstVisitUrls, offlineStartState, offlineProgressState, offlineStorageFull, offlineFetchSaved,
   offlineFailureState, offlineOffState, offlineStateText, renderOfflineState,
   type OfflineState, type OfflineEnvironment, type WorkerContainer,
 } from '../../src/scripts/offline';
@@ -9,6 +9,10 @@ import { cacheName } from '../../src/scripts/offlineplan';
 
 const ORIGIN = 'https://cueory.app';
 const PAGE = ORIGIN + '/learn/study-skills';
+const storableResponse = () => ({
+  ok: true, status: 200, type: 'basic', redirected: false,
+  headers: { get: (_name: string) => null },
+});
 
 function setup(options: {
   enabled?: boolean;
@@ -58,7 +62,7 @@ function setup(options: {
     resources: () => options.resources ?? ['/_astro/app.abc123.js'],
     fetchOne: async (url) => {
       calls.push('fetch:' + url);
-      return options.fetchOne?.(url);
+      return options.fetchOne ? options.fetchOne(url) : storableResponse();
     },
     clearCopies: async () => {
       order.push('clear');
@@ -122,6 +126,30 @@ describe('offline switch decisions', () => {
   });
 });
 
+describe('validating saved responses (W07-2 review)', () => {
+  it('recognizes a full cacheable success and refuses partial or redirected answers', () => {
+    expect(offlineFetchSaved(storableResponse())).toBe(true);
+    expect(offlineFetchSaved({ ...storableResponse(), status: 206 })).toBe(false);
+    expect(offlineFetchSaved({ ...storableResponse(), redirected: true })).toBe(false);
+  });
+
+  it.each([
+    ['undefined', undefined],
+    ['null', null],
+    ['non-response boolean', true],
+    ['empty object', {}],
+    ['only ok flag', { ok: true }],
+    ['missing headers', { ok: true, status: 200, type: 'basic', redirected: false }],
+    ['invalid headers', { ...storableResponse(), headers: { get: 5 } }],
+    ['default response type', { ...storableResponse(), type: 'default' }],
+  ])('does not report ready when fetch resolves to %s', async (_name, result) => {
+    expect(offlineFetchSaved(result)).toBe(false);
+    const x = setup({ fetchOne: async () => result });
+    await startOffline(x.env);
+    expect(x.statuses).toEqual(['saving', 'unavailable']);
+  });
+});
+
 describe('worker registration, save and cleanup fakes', () => {
   it('removes site caches first, then unregisters, without touching other caches', async () => {
     const x = setup({ enabled: false });
@@ -163,7 +191,7 @@ describe('worker registration, save and cleanup fakes', () => {
   it('a failed middle request never reports ready and does not skip later resources', async () => {
     const x = setup({
       resources: ['/_astro/a.js', '/_astro/b.css'],
-      fetchOne: async url => { if (url.endsWith('/a.js')) throw new Error('network'); },
+      fetchOne: async url => { if (url.endsWith('/a.js')) throw new Error('network'); return storableResponse(); },
     });
     await startOffline(x.env);
     expect(x.statuses).toEqual(['saving', 'unavailable']);
@@ -198,7 +226,7 @@ describe('worker registration, save and cleanup fakes', () => {
   it('stops after a mid-save quota error instead of reporting ready', async () => {
     const x = setup({
       resources: ['/_astro/a.js', '/_astro/b.css'],
-      fetchOne: async url => { if (url.endsWith('/a.js')) throw { name: 'QuotaExceededError' }; },
+      fetchOne: async url => { if (url.endsWith('/a.js')) throw { name: 'QuotaExceededError' }; return storableResponse(); },
     });
     await startOffline(x.env);
     expect(x.statuses).toEqual(['saving', 'storage-full']);
@@ -217,13 +245,23 @@ describe('worker registration, save and cleanup fakes', () => {
     expect(x.statuses).toEqual(['saving', 'storage-full']);
   });
 
-  it('handles registration rejection and pending worker readiness without a half-on state', async () => {
+  it('handles registration rejection without claiming readiness', async () => {
     const rejected = setup({ registerError: new Error('denied') });
     await startOffline(rejected.env);
     expect(rejected.statuses).toEqual(['saving', 'unavailable']);
-    const pending = setup({ ready: new Promise(() => undefined), wait: async () => undefined });
-    await startOffline(pending.env);
-    expect(pending.statuses).toEqual(['saving', 'unavailable']);
+  });
+
+  it('waits for a slow initial installation without prematurely reporting a failure', async () => {
+    let releaseReady: () => void = () => undefined;
+    const ready = new Promise<void>((resolve) => { releaseReady = resolve; });
+    const pending = setup({ ready, wait: async () => undefined });
+    const started = startOffline(pending.env);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(pending.statuses).toEqual(['saving']);
+    expect(pending.calls).toEqual(['register:/sw.js:/']);
+    releaseReady();
+    await started;
+    expect(pending.statuses).toEqual(['saving', 'ready']);
   });
 
   it('handles later worker activation and refreshes the saved visit', async () => {
