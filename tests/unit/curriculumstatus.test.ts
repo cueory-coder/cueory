@@ -23,8 +23,9 @@ const published = (curriculumId: string | undefined) => ({ curriculumId }) as Pi
 const builtPage = new URL('../../dist/preview/curriculum.html', import.meta.url);
 // The project's unit suite follows the ordinary build. Preview browser tests
 // build separately with the explicit draft flag.
-describe.skipIf(!existsSync(builtPage))('normal-build curriculum preview boundary', () => {
+describe('normal-build curriculum preview boundary', () => {
   it('shows only a closed notice without curriculum rows or serialized lesson IDs', () => {
+    expect(existsSync(builtPage), 'run npm run build with draft flags unset before this unit test').toBe(true);
     const html = readFileSync(builtPage, 'utf8');
     expect(html).toContain('data-testid="curriculum-preview-closed"');
     expect(html).not.toContain('data-curriculum-lesson-id');
