@@ -1,0 +1,1 @@
+STATUS: Task 736, home daily games device-local date (#49): display the visitor's current date, explain midnight refresh, and handle invalid clocks and DST through a pure tested helper, with browser tests for midnight and accessibility; stacked on !30.

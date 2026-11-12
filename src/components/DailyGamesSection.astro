@@ -15,6 +15,7 @@ const dailyList = new Intl.ListFormat('en', { style: 'long', type: 'conjunction'
   <div class="mx-auto max-w-prose px-gutter text-center" data-reveal-section>
     <h2 id="games-heading" class="display text-title sm:text-title-lg">daily games</h2>
     <p class="mt-4 text-ink-soft" data-testid="daily-games-summary">today's puzzles: {dailyList}. {statGame.name} is in preview.</p>
+    <p class="mt-2 text-sm text-ink-soft" data-testid="daily-games-day" data-daily-games-date>new puzzles arrive at midnight on your device.</p>
     <a
       href="/play"
       class="mt-8 inline-block rounded-pill bg-button px-6 py-3 text-on-button no-underline hover:bg-button-hover hover:text-on-button"
@@ -24,3 +25,6 @@ const dailyList = new Intl.ListFormat('en', { style: 'long', type: 'conjunction'
     </a>
   </div>
 </section>
+
+<!-- Astro bundles the external TypeScript module; no inline script runs under the CSP. -->
+<script src="../islands/dailyline.ts"></script>

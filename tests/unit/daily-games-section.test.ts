@@ -31,6 +31,13 @@ describe('home daily games summary', () => {
     expect(summary).toBe(summary.toLowerCase());
   });
 
+  it('has a no-JavaScript midnight message without a build-time date', () => {
+    const section = gamesSection();
+    expect(section).toContain('data-testid="daily-games-day"');
+    expect(section).toContain('data-daily-games-date');
+    expect(section).toContain('new puzzles arrive at midnight on your device.');
+  });
+
   it('keeps the single call to action on /play, without a direct stat link', () => {
     const section = gamesSection();
     const links = [...section.matchAll(/<a\b[^>]*\bhref="([^"]+)"[^>]*>/g)].map((match) => match[1]);

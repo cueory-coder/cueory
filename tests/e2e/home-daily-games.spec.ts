@@ -33,10 +33,14 @@ for (const width of widths) {
         const section = page.locator('#daily-games');
         const summary = section.getByTestId('daily-games-summary');
         const link = section.getByTestId('games-link');
+        const day = section.getByTestId('daily-games-day');
         await section.scrollIntoViewIfNeeded();
         await expect(summary).toBeVisible();
         await expect(link).toBeVisible();
         await expect(link).toHaveAttribute('href', '/play');
+        await expect(day).toBeVisible();
+        await expect(day).toContainText(/today's set: [a-z]{3} \d{1,2} [a-z]{3}/);
+        await expect(day).toContainText('new puzzles arrive at midnight on your device.');
 
         const bounds = await link.boundingBox();
         expect(bounds?.width ?? 0).toBeGreaterThanOrEqual(44);
@@ -77,3 +81,26 @@ for (const width of widths) {
     });
   }
 }
+
+
+test('the visitor day changes at local midnight, even without a page reload', async ({ browser }, testInfo) => {
+  test.skip(!isDesktopOfEachEngine(testInfo), 'a clock test runs once per browser engine');
+  const context = await browser.newContext({
+    baseURL: testInfo.project.use.baseURL,
+    timezoneId: 'America/New_York',
+    reducedMotion: 'reduce',
+  });
+  try {
+    const page = await context.newPage();
+    await page.clock.install({ time: new Date('2026-11-11T23:59:59-05:00') });
+    const response = await page.goto('/');
+    expect(response?.status()).toBe(200);
+    const day = page.getByTestId('daily-games-day');
+    await expect(day).toContainText("today's set: wed 11 nov.");
+    await page.clock.runFor(2_000);
+    await expect(day).toContainText("today's set: thu 12 nov.");
+    await expect(day).toContainText('new puzzles arrive at midnight on your device.');
+  } finally {
+    await context.close();
+  }
+});
