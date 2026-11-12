@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { inertOutside } from '../../src/islands/gameresults';
+import { inertOutside, lockPageScroll } from '../../src/islands/gameresults';
 
 interface FakeNode { name: string; inert: boolean; parentElement: FakeNode | null; children: FakeNode[] }
 function node(name: string, children: FakeNode[] = [], inert = false): FakeNode {
@@ -27,5 +27,54 @@ describe('result dialog keeps the page behind it unreachable', () => {
 
     restore();
     for (const branch of outside) expect(branch.inert, branch.name).toBe(branch === promo);
+  });
+});
+
+
+describe('result dialog locks the page behind it', () => {
+  it('uses an iOS-safe fixed-body lock and restores the exact inline state once', () => {
+    const root = { style: { overflow: 'clip', overscrollBehavior: 'contain' } };
+    const body = {
+      style: {
+        position: 'relative',
+        top: '2px',
+        left: '3px',
+        right: '4px',
+        width: '90%',
+        overflow: 'auto',
+        overscrollBehavior: 'auto',
+      },
+    };
+    const scrollTo = vi.fn();
+    const view = { scrollX: 12, scrollY: 345, scrollTo };
+
+    const restore = lockPageScroll(root, body, view);
+    expect(root.style).toEqual({ overflow: 'hidden', overscrollBehavior: 'none' });
+    expect(body.style).toEqual({
+      position: 'fixed',
+      top: '-345px',
+      left: '-12px',
+      right: '0',
+      width: '100%',
+      overflow: 'hidden',
+      overscrollBehavior: 'none',
+    });
+
+    restore();
+    expect(root.style).toEqual({ overflow: 'clip', overscrollBehavior: 'contain' });
+    expect(body.style).toEqual({
+      position: 'relative',
+      top: '2px',
+      left: '3px',
+      right: '4px',
+      width: '90%',
+      overflow: 'auto',
+      overscrollBehavior: 'auto',
+    });
+    expect(scrollTo).toHaveBeenCalledOnce();
+    expect(scrollTo).toHaveBeenCalledWith(12, 345);
+
+    restore();
+    expect(scrollTo).toHaveBeenCalledOnce();
   });
 });

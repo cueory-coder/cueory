@@ -4,6 +4,7 @@ import {
   discardPendingResultCard,
   GAME_RESULT_CARD_EVENT,
   inertOutside,
+  lockPageScroll,
   takePendingResultCards,
   type GameResultCard,
 } from './gameresults';
@@ -145,11 +146,16 @@ export default function GameResultsHost() {
     setStatus('image ready. tap share image to open your share options.');
   }
 
-  // While the dialog is open, the page behind it is inert: no focus, taps or screen-reader browsing.
+  // While the dialog is open, the page behind it is inert and cannot scroll.
   const open = card !== null;
   useEffect(() => {
     if (!open || !dialog.current) return;
-    return inertOutside(dialog.current, document.body);
+    const restoreInert = inertOutside(dialog.current, document.body);
+    const restoreScroll = lockPageScroll(document.documentElement, document.body, window);
+    return () => {
+      restoreScroll();
+      restoreInert();
+    };
   }, [open]);
 
   if (!card) return null;
