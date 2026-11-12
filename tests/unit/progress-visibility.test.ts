@@ -114,6 +114,39 @@ describe('progress page props respect canonical catalog visibility', () => {
     expect(visible.some((deck) => deck.id === 'hidden-owner-deck')).toBe(false);
   });
 
+  it('hides an unknown lesson status, even when its card companion is published', () => {
+    const changed: CatalogInput = {
+      ...input,
+      lessons: input.lessons.map((entry) => entry.id === 'u01-t01-l02'
+        ? { ...entry, data: { ...entry.data, status: 'unapproved' } }
+        : entry),
+    };
+    const safe = buildCatalog(changed);
+    expect(safe.problems).toEqual([]);
+    expect(safe.lessons.some((entry) => entry.id === 'u01-t01-l02')).toBe(false);
+    const decks = visibleProgressDecks(safe, cardSources);
+    const lessons = visibleProgressLessons(safe);
+    expect(JSON.stringify({ decks, lessons })).not.toContain('u01-t01-l02');
+    expect(JSON.stringify({ decks, lessons })).not.toContain('in-review-deck');
+  });
+
+  it('omits a catalog-authorized deck if its actual content file is missing', () => {
+    const missing = cardSources.filter((deck) => deck.id !== 'open-unit-deck');
+    const props = visibleProgressDecks(catalog, missing);
+    expect(props).toEqual([
+      { id: 'open-deck', title: '[sample visible deck]', cardIds: ['open-1'] },
+    ]);
+    expect(JSON.stringify(props)).not.toContain('unit-1');
+    // Lesson count remains truthful even if the card content cannot be loaded.
+    expect(visibleProgressLessons(catalog).some((entry) => entry.id === 'u01-t01-l03')).toBe(true);
+  });
+
+  it('handles an empty visible catalog without leaking orphan cards', () => {
+    const catalogEmpty = { lessons: [] };
+    expect(visibleProgressDecks(catalogEmpty, cardSources)).toEqual([]);
+    expect(visibleProgressLessons(catalogEmpty)).toEqual([]);
+  });
+
   it('ignores an unknown deck not attached to any catalog lesson', () => {
     const extra = { id: 'orphan', data: { title: '[sample orphan]', cards: [{ id: 'orphan-card' }] } };
     const props = visibleProgressDecks(catalog, [...cardSources, extra]);
