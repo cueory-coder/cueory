@@ -59,6 +59,7 @@ const initialJsBudget = {
   'learn/study-skills/learn-mode.html': 153947,
   'learn/study-skills/matching.html': 154728,
   'learn/study-skills/organizer.html': 153555,
+  'learn/study-skills/print-cards.html': 89731, // #46: measured on merge 3c918c0f with Node 24.22.1 and this scanner
   'learn/study-skills/questions.html': 151681,
   'learn/study-skills.html': 147632,
   'learn/video-sample.html': 148178,
