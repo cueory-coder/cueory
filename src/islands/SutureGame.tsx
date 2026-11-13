@@ -1,3 +1,4 @@
+import HowToPlay from './HowToPlay';
 import '../styles/wordpath.css';
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { dayLabel } from './daily';
@@ -124,6 +125,7 @@ function Board({ puzzle, name }: Props) {
     <section aria-labelledby={puzzle.theme ? title : undefined} aria-label={puzzle.theme ? undefined : `${name} puzzle`} data-testid="suture" data-print-area="suture" className="wordpath">
       {/* The round corner buttons (Task 641): print first, then the "?" (how to play) when the game has one. */}
       <div className="wordpath-corner" data-print-hidden>
+        <HowToPlay game={name}><p>find all {state.totalWords} words. they run up, down, left or right.</p><p>tap a word's first letter, then its last letter. tap the first letter again to start over.</p><p>on a keyboard, arrows move, enter or space picks, and escape clears.</p></HowToPlay>
         <button type="button" className="wordpath-round" aria-label="print" data-testid="suture-print" onClick={() => printGame('suture')}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
             <path d="M6 9V3h12v6" />

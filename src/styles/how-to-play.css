@@ -1,0 +1,8 @@
+@layer components {
+  .how-to-play-trigger, .how-to-play-close { display: inline-flex; min-inline-size: var(--tap-min); min-block-size: var(--tap-min); align-items: center; justify-content: center; padding: calc(var(--spacing) * 2); border: var(--border-share-icon) solid var(--color-control); border-radius: var(--radius-pill); background: var(--color-page); color: var(--color-ink); cursor: pointer; touch-action: manipulation; }
+  .how-to-play-dialog { position: fixed; inset: 0; inline-size: 100%; block-size: 100%; max-inline-size: none; max-block-size: none; margin: 0; padding: calc(var(--spacing) * 5); border: 0; background: rgb(var(--shadow-tint) / var(--scrim-alpha)); color: var(--color-ink); }
+  .how-to-play-dialog[open] { display: flex; align-items: center; justify-content: center; }
+  .how-to-play-dialog::backdrop { background: transparent; }
+  .how-to-play-card { inline-size: min(100%, var(--container-prose)); max-block-size: 100%; overflow: auto; overscroll-behavior: contain; padding: calc(var(--spacing) * 6); border-radius: var(--radius-xl); background: var(--color-page); box-shadow: var(--shadow-lift); overflow-wrap: anywhere; text-align: start; }
+  @media print { .how-to-play-trigger, .how-to-play-dialog { display: none !important; } }
+}

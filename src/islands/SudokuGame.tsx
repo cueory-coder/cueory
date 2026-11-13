@@ -1,3 +1,4 @@
+import HowToPlay from './HowToPlay';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { browserStorage } from '../scripts/storage';
 import { printGame } from './gameprint';
@@ -155,12 +156,12 @@ export default function SudokuGame() {
     <div className="sudoku-title-row">
       <div className="sudoku-corner-actions">
         <button type="button" className="sudoku-icon-button print-control" aria-label="print this puzzle" onClick={printPuzzle}><svg viewBox="0 0 24 24" className="size-6" aria-hidden="true" focusable="false"><path d="M7 9V4h10v5M7 17H5.5A2.5 2.5 0 0 1 3 14.5v-3A2.5 2.5 0 0 1 5.5 9h13a2.5 2.5 0 0 1 2.5 2.5v3a2.5 2.5 0 0 1-2.5 2.5H17M7 14h10v6H7z" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg></button>
-        <button type="button" className="sudoku-icon-button" aria-label="how to play" aria-expanded={howOpen} onClick={() => setHowOpen((open) => !open)}>?</button>
+        <HowToPlay game="sudoku" onOpenChange={setHowOpen}>
+          <p>fill each row, column and 3 by 3 box with 1 to 9, with no repeats.</p>
+          <p>pick a square, then type or tap a number. arrow keys move between squares.</p>
+          <p>use x for your own mark and hints to show possible numbers. pause hides the puzzle until you resume.</p>
+        </HowToPlay>
       </div>
-      {howOpen && <div className="sudoku-how" role="region" aria-label="how to play sudoku">
-        <p className="font-medium">how to play</p>
-        <ol><li>fill each row, column and 3 by 3 box with 1 to 9, with no repeats.</li><li>pick a square, then type or tap a number. arrow keys move between squares.</li><li>use x for your own mark and hints to show possible numbers.</li><li>pause hides the puzzle until you resume.</li></ol>
-      </div>}
     </div>
     <div className="sudoku-panel">
       <div className="sudoku-toolbar">

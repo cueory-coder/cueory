@@ -1,3 +1,4 @@
+import HowToPlay from './HowToPlay';
 import '../styles/crossword.css';
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { localDay, reportRound } from './gameresults';
@@ -100,15 +101,11 @@ function Board({ puzzle, name }: Props) {
         <button type="button" className="corner-button corner-button-quiet" aria-label="print this puzzle" onClick={printPuzzle}>
           <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="9" rx="2"/><path d="M7 14h10v7H7z"/></svg>
         </button>
-        <details className="crossword-help">
-          <summary className="corner-button corner-button-quiet" aria-label="how to play">?</summary>
-          <div className="crossword-help-panel">
-            <h3 className="font-medium">how to play</h3>
-            <p className="mt-2 text-sm text-ink-soft">{level} is {width} by {width}. tap a square and type, or use the letter buttons.</p>
-            <p className="mt-2 text-sm text-ink-soft">tap the selected square again to switch across and down. arrows move one square. alt plus left or right moves between words.</p>
-            <p className="mt-2 text-sm text-ink-soft">the printer button makes a blank grid with the complete clue list.</p>
-          </div>
-        </details>
+        <HowToPlay game={name}>
+          <p>{level} is {width} by {width}. tap a square and type, or use the letter buttons.</p>
+          <p>tap the selected square again to switch across and down. arrows move one square. alt plus left or right moves between words. tab leaves the grid.</p>
+          <p>the printer button makes a blank grid with the complete clue list.</p>
+        </HowToPlay>
       </div>
 
       {puzzle.sample && <p className="text-center text-sm text-ink-soft">today's puzzle is a sample</p>}

@@ -1,3 +1,4 @@
+import HowToPlay from './HowToPlay';
 import '../styles/pillo.css';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import {
@@ -146,6 +147,7 @@ export default function PulseGame({ puzzles }: Props) {
 
   return (
     <div className="pillo" data-testid="pulse">
+      <HowToPlay game="pillo"><p>guess the {WORD_LENGTH}-letter word in {GUESSES} guesses. type a word and submit your guess.</p><p>{MARK_SYMBOL.here} means in its place. {MARK_SYMBOL.elsewhere} means in the word, somewhere else. {MARK_SYMBOL.absent} means not in the word.</p></HowToPlay>
       <div className="pillo-top">
         <p className="pillo-status">
           guess the {WORD_LENGTH}-letter word · <strong>{leftWords}</strong>

@@ -1,3 +1,4 @@
+import HowToPlay from './HowToPlay';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { dayLabel } from './daily';
 import { helloResultCard, showResultCard } from './gameresults';
@@ -102,7 +103,8 @@ export default function HelloCards({ starters }: { starters: readonly HelloStart
   const count = startersFor(starters, 'all', depth).length;
 
   return (
-    <div className="text-ink">
+    <div className="text-ink" data-testid="hello-cards">
+      <HowToPlay game="hello cards"><p>choose small talk or deep convo with the switch.</p><p>tap the conversation card, or focus it and press enter or space, to turn it over. press it again to turn it face down.</p><p>choose next card for another card from the shuffled pile. share today's card with the share button.</p></HowToPlay>
       {daily && (
         <section aria-labelledby="hello-daily-heading" className="mb-8 rounded-xl border-2 border-control bg-surface p-6 text-center shadow-card sm:p-8" data-testid="hello-daily">
           <h2 id="hello-daily-heading" className="text-sm font-bold">prompt of the day · {dayLabel(today)} · {HELLO_DEPTH_LABELS[depth]}</h2>

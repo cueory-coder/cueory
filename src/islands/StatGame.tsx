@@ -1,3 +1,4 @@
+import HowToPlay from './HowToPlay';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ResultBrandMark from './ResultBrandMark';
 import { showResultCard, statResultCard } from './gameresults';
@@ -256,6 +257,7 @@ export default function StatGame({ questions, sampleKey }: Props) {
 
   return (
     <div className="text-ink" data-testid="stat">
+      <HowToPlay game="stat"><p>{STAT_QUESTIONS} questions, one at a time. you have {STAT_SECONDS} seconds for each.</p><p>pick an answer and press next, or the next question starts when the clock runs out. you can change your pick until you press next.</p><p>answers and your score stay hidden until the end. there is no pause, including while help is open. keys: a to d to pick, enter for next.</p></HowToPlay>
       <p role="status" aria-live="polite" className="sr-only" data-testid="stat-said">
         {said}
       </p>
