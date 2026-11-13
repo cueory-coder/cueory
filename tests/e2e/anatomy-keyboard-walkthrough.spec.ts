@@ -36,8 +36,9 @@ async function sweep(page: Page) {
   }
 }
 
+// Separate workflows keep each bounded while preserving every reachability and focus assertion.
 for (const colorScheme of ['light', 'dark'] as const) {
-  test(`whole lab keyboard walkthrough (${colorScheme})`, async ({ page }) => {
+  test(`keyboard view and keys (${colorScheme})`, async ({ page }) => {
     test.setTimeout(120_000);
     await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
     await page.goto('/preview/anatomy-lab?fixture');
@@ -59,12 +60,40 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await expect(keys).toBeFocused();
     await expect(page.getByRole('region', { name: 'keys for the 3D view' })).toHaveCount(0);
 
+  });
+  test(`keyboard selection and filtered selection (${colorScheme})`, async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+    await page.goto('/preview/anatomy-lab?fixture');
+    await activate(page, page.getByRole('button', { name: 'open the anatomy lab' }));
+    const canvas = page.locator('canvas');
+    await expect(canvas).toBeFocused();
+    await expect(page.getByRole('button', { name: 'fixture cube A', exact: true })).toBeEnabled({ timeout: 20_000 });
     await activate(page, page.getByRole('button', { name: 'fixture cube A', exact: true }));
     await sweep(page);
     await activate(page, page.getByRole('button', { name: 'clear selection', exact: true }));
     // Removing the card must leave focus on the structure that opened it.
     await expect(page.getByRole('button', { name: 'fixture cube A', exact: true })).toBeFocused();
 
+    await activate(page, page.getByRole('button', { name: 'fixture cube A', exact: true }));
+    const search = page.locator('#anatomy-search');
+    await focusByTab(page, search);
+    await page.keyboard.type('no matching fixture');
+    await activate(page, page.getByRole('button', { name: 'clear selection', exact: true }));
+    await expect(canvas).toBeFocused();
+    await focusByTab(page, search);
+    await page.keyboard.press('ControlOrMeta+A');
+    await page.keyboard.press('Backspace');
+
+  });
+  test(`keyboard study modes (${colorScheme})`, async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+    await page.goto('/preview/anatomy-lab?fixture');
+    await activate(page, page.getByRole('button', { name: 'open the anatomy lab' }));
+    const canvas = page.locator('canvas');
+    await expect(canvas).toBeFocused();
+    await expect(page.getByRole('button', { name: 'fixture cube A', exact: true })).toBeEnabled({ timeout: 20_000 });
     await activate(page, page.getByRole('button', { name: 'start the quiz' }));
     await sweep(page);
     await activate(page, page.getByRole('button', { name: 'stop the quiz' }));
@@ -72,6 +101,15 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await sweep(page);
     await activate(page, page.getByRole('button', { name: 'stop name it' }));
 
+  });
+  test(`keyboard worksheet (${colorScheme})`, async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+    await page.goto('/preview/anatomy-lab?fixture');
+    await activate(page, page.getByRole('button', { name: 'open the anatomy lab' }));
+    const canvas = page.locator('canvas');
+    await expect(canvas).toBeFocused();
+    await expect(page.getByRole('button', { name: 'fixture cube A', exact: true })).toBeEnabled({ timeout: 20_000 });
     const make = page.getByRole('button', { name: 'make a worksheet' });
     await activate(page, make);
     await expect(page.getByRole('heading', { name: 'worksheet: test shapes (fixture)' })).toBeFocused({ timeout: 20_000 });

@@ -221,6 +221,8 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts, mode
   const [worksheetNote, setWorksheetNote] = useState('');
   const [answersShown, setAnswersShown] = useState(false);
   const worksheetHeadingRef = useRef<HTMLHeadingElement>(null);
+  const worksheetButtonRef = useRef<HTMLButtonElement>(null);
+  const selectedStructureButtonRef = useRef<HTMLButtonElement>(null);
   const [transparent, setTransparent] = useState(false);
   const [exporting, setExporting] = useState<ExportSize | null>(null);
   const [exportNote, setExportNote] = useState('');
@@ -1402,7 +1404,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts, mode
                 <button type="button" className={secondaryButton} onClick={() => { visibilityIntent.bump(); setHidden((h) => toggleHidden(h, selected!)); }}>
                   {hidden.has(selected!) ? 'show it' : 'hide it'}
                 </button>
-                <button type="button" className={secondaryButton} onClick={() => setSelected(null)}>clear selection</button>
+                <button type="button" className={secondaryButton} onClick={() => { (selectedStructureButtonRef.current ?? canvasRef.current)?.focus(); setSelected(null); }}>clear selection</button>
               </div>
             </section>
           )}
@@ -1676,6 +1678,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts, mode
               type="button"
               className={secondaryButton}
               disabled={!ready || worksheetBusy || recall !== null || exporting !== null}
+              ref={worksheetButtonRef}
               onClick={() => void makeWorksheet()}
             >
               make a worksheet
@@ -1729,7 +1732,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts, mode
                 <a className={`${secondaryButton} inline-flex items-center`} href={worksheet.src} download={worksheet.fileName}>
                   save the picture
                 </a>
-                <button type="button" className={secondaryButton} onClick={() => setWorksheet(null)}>
+                <button type="button" className={secondaryButton} onClick={() => { worksheetButtonRef.current?.focus(); setWorksheet(null); }}>
                   close worksheet
                 </button>
               </div>
@@ -1784,6 +1787,7 @@ export default function AnatomyLab({ systems: baseSystems, fixture, drafts, mode
                       >
                         <button
                           type="button"
+                          ref={selected === item.id ? selectedStructureButtonRef : undefined}
                           aria-pressed={selected === item.id}
                           disabled={!ready || !inModel}
                           onClick={() => pickStructure(item.id)}

@@ -1,1 +1,1 @@
-status: T30 in progress: keyboard-only Anatomy Lab walkthrough, visible focus and panel-close focus restoration. Baseline reproduction and required full verification pending; not Ready.
+status: T30 in progress: actual Tab/Shift+Tab/Enter walkthrough reproduced selection-close focus loss on plain staging in Light and Evening. Restore focus on selection/worksheet close, with canvas fallback when search hides the selected row. Full final verification pending; not Ready.
