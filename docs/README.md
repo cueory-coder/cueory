@@ -11,6 +11,7 @@ Each link has a one-line summary and says whether Christian needs to read it. Gu
 - [Roadmap](ROADMAP.md) — See the planned features and their order. **Christian:** Read when deciding priorities.
 - [Setup](SETUP.md) — Follow step-by-step instructions for accounts and site setup. **Christian:** Read when setting up a service.
 - [Go-live steps](GO-LIVE.md) — Check what to do before launch, on launch day, and if a release fails. **Christian:** Read before launch.
+- [Games launch checklist](LAUNCH.md) — Check every gate before the games-only launch, the launch-day clicks, and the first week. **Christian:** Read before the games launch.
 - [Brand guide](BRAND.md) — See approved colors, fonts, the logo, and design rules. **Christian:** Read when approving designs.
 - [Content formats](CONTENT-FORMAT.md) — See the JSON fields and sample rules for lessons and study activities. **Christian:** Read when preparing content.
 - [Content map](CONTENT-MAP.md) — Find where public samples, lessons, and study-game files belong. **Christian:** Read when preparing content.
