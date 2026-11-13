@@ -46,7 +46,7 @@ For video details, keep both `captionsUrl` and `transcriptUrl` fields, even when
 
 | Collection | Allowed values | Editing consequence |
 | --- | --- | --- |
-| Lessons and cards | `placeholder`, `sample`, `draft`, `in_review`, `published` | Preserve visible sample/placeholder labels. Draft and review text stays private until approved for public release |
+| Lessons and cards | `placeholder`, `sample`, `draft`, `in_review`, `published` | Preserve visible sample/placeholder labels. Draft and review statuses keep text off the site, but committed files remain public in the repository |
 | Organizer, fill-in, label-it and public sample questions | `sample` | These files are sample activities; changing the word to `published` does not create a supported real-content format |
 | Pulse, triage, crossword and word-path samples | `sample` | Keep everyday samples labeled; real daily answers stay private |
 | Hello cards | `sample`, `approved` | Keep sample text labeled until approved |
