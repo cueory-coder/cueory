@@ -274,28 +274,43 @@ describe.skipIf(!existsSync(dist))('built site', () => {
     expect(csp!.replace(scriptSrc, '')).not.toContain('wasm-unsafe-eval');
   });
 
-  it('gives every indexable page complete, unique social metadata', () => {
-    const indexableTitles = new Map<string, string>();
+  it('gives every indexable page and about/support/404 complete, unique social metadata', () => {
+    const socialTitles = new Map<string, string>();
+    const informationPages = new Set(['about.html', 'support.html', '404.html']);
+    expect(pages.map((page) => relative(dist, page))).toEqual(expect.arrayContaining([...informationPages]));
     const meta = (html: string, property: string) =>
       new RegExp(`<meta property="${property}" content="([^"]*)"`).exec(html)?.[1];
+    const twitter = (html: string, name: string) =>
+      new RegExp(`<meta name="${name}" content="([^"]*)"`).exec(html)?.[1];
 
     for (const pagePath of pages) {
-      const page = pagePath.replace(`${dist}/`, '');
+      const page = relative(dist, pagePath);
       const html = readFileSync(pagePath, 'utf8');
-      if (html.includes('<meta name="robots" content="noindex')) continue;
+      // A page kept out of search still needs an image and identity when someone shares its link.
+      if (html.includes('<meta name="robots" content="noindex') && !informationPages.has(page)) continue;
 
       const title = /<title>([^<]+)<\/title>/.exec(html)?.[1];
       const description = /<meta name="description" content="([^"]*)"/.exec(html)?.[1];
       expect(title, `${page}: title`).toBeTruthy();
       expect(description, `${page}: description`).toBeTruthy();
-      expect(indexableTitles.has(title!), `${page}: duplicate title`).toBe(false);
-      indexableTitles.set(title!, page);
+      expect(socialTitles.has(title!), `${page}: duplicate title`).toBe(false);
+      socialTitles.set(title!, page);
 
       expect(html, `${page}: canonical`).toContain(`rel="canonical" href="https://cueory.app/`);
       expect(meta(html, 'og:title'), `${page}: og:title`).toBe(title);
       expect(meta(html, 'og:description'), `${page}: og:description`).toBe(description);
       expect(meta(html, 'og:image'), `${page}: og:image`).toBe('https://cueory.app/share/study-ivory.png');
       expect(existsSync(join(dist, 'share/study-ivory.png')), `${page}: og:image file`).toBe(true);
+      expect(twitter(html, 'twitter:card'), `${page}: twitter:card`).toBe('summary_large_image');
+      expect(twitter(html, 'twitter:title'), `${page}: twitter:title`).toBe(title);
+      expect(twitter(html, 'twitter:description'), `${page}: twitter:description`).toBe(description);
+      expect(twitter(html, 'twitter:image'), `${page}: twitter:image`).toBe(meta(html, 'og:image'));
+      if (informationPages.has(page)) {
+        const image = readFileSync(join(dist, 'share/study-ivory.png'));
+        expect(image.equals(readFileSync(join(process.cwd(), 'public/share/study-ivory.png')))).toBe(true);
+        expect([...image.subarray(0, 8)]).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
+        expect([image.readUInt32BE(16), image.readUInt32BE(20)]).toEqual([1200, 630]);
+      }
     }
   });
 

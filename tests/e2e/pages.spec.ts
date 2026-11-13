@@ -535,34 +535,38 @@ test.describe('marketing look (D-41)', () => {
     }
   });
   test('Open Graph and Twitter previews use the same page identity', async ({ page }) => {
-    for (const route of ['/', '/support']) {
-      await page.goto(route);
-      const title = await page.title();
-      const description = await page.locator('head meta[name="description"]').getAttribute('content');
-      const canonical = await page.locator('head link[rel="canonical"]').getAttribute('href');
-      const image = 'https://cueory.app/share/study-ivory.png';
-      expect(description).toBeTruthy();
-      expect(canonical).toBeTruthy();
-      for (const [property, content] of [
-        ['og:type', 'website'],
-        ['og:title', title],
-        ['og:description', description],
-        ['og:url', canonical],
-        ['og:image', image],
-      ]) {
-        const tag = page.locator(`head meta[property="${property}"]`);
-        await expect(tag).toHaveCount(1);
-        await expect(tag).toHaveAttribute('content', content!);
-      }
-      for (const [name, content] of [
-        ['twitter:card', 'summary_large_image'],
-        ['twitter:title', title],
-        ['twitter:description', description],
-        ['twitter:image', image],
-      ]) {
-        const tag = page.locator(`head meta[name="${name}"]`);
-        await expect(tag).toHaveCount(1);
-        await expect(tag).toHaveAttribute('content', content!);
+    for (const colorScheme of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme });
+      for (const [route, status] of [['/', 200], ['/about', 200], ['/support', 200], ['/social-preview-page-does-not-exist', 404]] as const) {
+        const response = await page.goto(route);
+        expect(response?.status()).toBe(status);
+        const title = await page.title();
+        const description = await page.locator('head meta[name="description"]').getAttribute('content');
+        const canonical = await page.locator('head link[rel="canonical"]').getAttribute('href');
+        const image = 'https://cueory.app/share/study-ivory.png';
+        expect(description).toBeTruthy();
+        expect(canonical).toBeTruthy();
+        for (const [property, content] of [
+          ['og:type', 'website'],
+          ['og:title', title],
+          ['og:description', description],
+          ['og:url', canonical],
+          ['og:image', image],
+        ]) {
+          const tag = page.locator(`head meta[property="${property}"]`);
+          await expect(tag).toHaveCount(1);
+          await expect(tag).toHaveAttribute('content', content!);
+        }
+        for (const [name, content] of [
+          ['twitter:card', 'summary_large_image'],
+          ['twitter:title', title],
+          ['twitter:description', description],
+          ['twitter:image', image],
+        ]) {
+          const tag = page.locator(`head meta[name="${name}"]`);
+          await expect(tag).toHaveCount(1);
+          await expect(tag).toHaveAttribute('content', content!);
+        }
       }
     }
   });
