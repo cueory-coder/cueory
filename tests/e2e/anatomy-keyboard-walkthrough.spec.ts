@@ -44,8 +44,8 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await page.goto('/preview/anatomy-lab?fixture');
     await activate(page, page.getByRole('button', { name: 'open the anatomy lab' }));
     const canvas = page.locator('canvas');
-    await expect(canvas).toBeFocused();
     await expect(page.getByRole('button', { name: 'fixture cube A', exact: true })).toBeEnabled({ timeout: 20_000 });
+    await expect(canvas).toBeFocused();
     await sweep(page);
     await focusByTab(page, canvas);
     for (const key of ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', '+', '-', '1', '2', '3', 'Home']) {
@@ -67,8 +67,8 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await page.goto('/preview/anatomy-lab?fixture');
     await activate(page, page.getByRole('button', { name: 'open the anatomy lab' }));
     const canvas = page.locator('canvas');
-    await expect(canvas).toBeFocused();
     await expect(page.getByRole('button', { name: 'fixture cube A', exact: true })).toBeEnabled({ timeout: 20_000 });
+    await expect(canvas).toBeFocused();
     await activate(page, page.getByRole('button', { name: 'fixture cube A', exact: true }));
     await sweep(page);
     await activate(page, page.getByRole('button', { name: 'clear selection', exact: true }));
@@ -92,8 +92,8 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await page.goto('/preview/anatomy-lab?fixture');
     await activate(page, page.getByRole('button', { name: 'open the anatomy lab' }));
     const canvas = page.locator('canvas');
-    await expect(canvas).toBeFocused();
     await expect(page.getByRole('button', { name: 'fixture cube A', exact: true })).toBeEnabled({ timeout: 20_000 });
+    await expect(canvas).toBeFocused();
     await activate(page, page.getByRole('button', { name: 'start the quiz' }));
     await sweep(page);
     await activate(page, page.getByRole('button', { name: 'stop the quiz' }));
@@ -108,8 +108,8 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await page.goto('/preview/anatomy-lab?fixture');
     await activate(page, page.getByRole('button', { name: 'open the anatomy lab' }));
     const canvas = page.locator('canvas');
-    await expect(canvas).toBeFocused();
     await expect(page.getByRole('button', { name: 'fixture cube A', exact: true })).toBeEnabled({ timeout: 20_000 });
+    await expect(canvas).toBeFocused();
     const make = page.getByRole('button', { name: 'make a worksheet' });
     await activate(page, make);
     await expect(page.getByRole('heading', { name: 'worksheet: test shapes (fixture)' })).toBeFocused({ timeout: 20_000 });
