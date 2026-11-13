@@ -123,9 +123,9 @@ function Board({ puzzle, name }: Props) {
 
   return (
     <section aria-labelledby={puzzle.theme ? title : undefined} aria-label={puzzle.theme ? undefined : `${name} puzzle`} data-testid="suture" data-print-area="suture" className="wordpath">
-      {/* The round corner buttons (Task 641): print first, then the "?" (how to play) when the game has one. */}
+      {/* Round corner controls: print, then help. */}
       <div className="wordpath-corner" data-print-hidden>
-        <HowToPlay game={name}><p>find all {state.totalWords} words. they run up, down, left or right.</p><p>tap a word's first letter, then its last letter. tap the first letter again to start over.</p><p>on a keyboard, arrows move, enter or space picks, and escape clears.</p></HowToPlay>
+
         <button type="button" className="wordpath-round" aria-label="print" data-testid="suture-print" onClick={() => printGame('suture')}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
             <path d="M6 9V3h12v6" />
@@ -133,6 +133,7 @@ function Board({ puzzle, name }: Props) {
             <path d="M7 14h10v7H7z" />
           </svg>
         </button>
+        <HowToPlay game={name}><p>find all {state.totalWords} words. they run up, down, left or right.</p><p>tap a word's first letter, then its last letter. tap the first letter again to start over.</p><p>on a keyboard, arrows move, enter or space picks, and escape clears.</p></HowToPlay>
       </div>
       {puzzle.theme && <h3 id={title} className="display text-center text-2xl text-ink sm:text-3xl" data-testid="suture-theme">{puzzle.theme}</h3>}
       <p className="mt-2 text-center text-ink-soft" data-print-hidden>find all {state.totalWords} words. they run up, down, left or right.</p>
