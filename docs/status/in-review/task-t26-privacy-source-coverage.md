@@ -1,0 +1,1 @@
+status: T26 Draft: documents Sudoku preferences, survey dismissal and cache names; classifies read database tables and adds source/browser disclosure checks. Build/check and 26 focused tests pass; lifecycle deletion coverage and baseline accessibility findings block readiness. Requires protected account repair before merge.

@@ -73,8 +73,14 @@ import { newsletter, promo, site } from '../config/site';
     <p>
       To let the lessons open without a connection, your browser may keep copies of the pages you visit (lessons
       and the home page; daily games are never kept) and of the site's own files, on your device. That is a normal browser feature, the
-      copies never leave your device, and nothing about your answers or progress is in them. Clearing this site's data
+      copies never leave your device, and nothing about your answers or progress is in them. These public-page caches use names beginning with <code>cueory-offline-</code>. Clearing this site's data
       in your browser removes them.
+    </p>
+
+    <p>
+      Sudoku remembers your checking, candidate, error, timer, highlighting and sound preferences on this device,
+      under <code>cueory-sudoku-settings</code>. These settings never reach us. Clearing this site's data in your
+      browser removes them.
     </p>
 
     <h2>Features that are still being built</h2>
@@ -83,6 +89,11 @@ import { newsletter, promo, site } from '../config/site';
       they launch, so you know what they will remember.
     </p>
     <ul>
+      <li>
+        <code>cueory-finals-survey-dismissed</code>: when this feature is on, it remembers on this device that you
+        dismissed the survey invitation. It saves only that choice, not survey answers. Clearing this site's data
+        in your browser removes it.
+      </li>
       <li>
         <code>cueory-glove-note</code>: when this feature is on, it will remember which glove notes have appeared
         during a visit in this browser tab.
@@ -99,6 +110,17 @@ import { newsletter, promo, site } from '../config/site';
         <code>cueory-break-timer</code>: when this feature is on, it will remember your break timer's current state
         in this browser tab, for up to two hours.
       </li>
+    </ul>
+
+    <h2>Study content and activity</h2>
+    <ul>
+      <li data-privacy-table="concepts">Public study topics group the questions you can read.</li>
+      <li data-privacy-table="items">Public study items identify each published question.</li>
+      <li data-privacy-table="item_versions">Published question versions hold the question text shown to you.</li>
+      <li data-privacy-table="item_choices">Published choices hold the answer options shown with a question.</li>
+      <li data-privacy-table="attempts">Your signed-in question attempts record your selected answers, results and when you answered.</li>
+      <li data-privacy-table="review_state">Your signed-in review schedule records what to review next and when you last reviewed it.</li>
+      <li data-privacy-table="study_events">Your signed-in study activity records answers, marks, skipped questions and time spent.</li>
     </ul>
 
     <h2>Launch-updates emails</h2>
@@ -128,10 +150,10 @@ import { newsletter, promo, site } from '../config/site';
     <p>An account is optional. When you create one, we store only:</p>
     <ul>
       <li>Your email address, so you can sign in.</li>
-      <li>A display name, if you choose one. To limit how often it can be changed, your profile also keeps when your current hour of name changes began and how many changes you've made in it. Each new hour replaces the last, and both are deleted with your account and included when you download your data.</li>
+      <li data-privacy-table="profiles">A display name, if you choose one. To limit how often it can be changed, your profile also keeps when your current hour of name changes began and how many changes you've made in it. Each new hour replaces the last, and both are deleted with your account and included when you download your data.</li>
       <li>If you sign in with Google, the details Google shares with us, listed below.</li>
       <li>Your sign-in sessions, with the IP address and browser of each, until you sign out.</li>
-      <li>Your answers to a few setup questions, such as your exam date.</li>
+      <li data-privacy-table="exam_plans">Your answers to a few setup questions, such as your exam date.</li>
       <li>Your study progress: what you've studied, your answers, how long you spent on each question, which ones you marked know it or still learning, and when to review next. We use it to show your progress and to find which lessons and questions need improving.</li>
       <li>
         Reports you send with the "Flag or comment" button: the page you were on, the question if there was one, the
