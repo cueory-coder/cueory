@@ -14,6 +14,7 @@ Each link has a one-line summary and says whether Christian needs to read it. Gu
 - [Games launch checklist](LAUNCH.md) — Check every gate before the games-only launch, the launch-day clicks, and the first week. **Christian:** Read before the games launch.
 - [Brand guide](BRAND.md) — See approved colors, fonts, the logo, and design rules. **Christian:** Read when approving designs.
 - [Content formats](CONTENT-FORMAT.md) — See the JSON fields and sample rules for lessons and study activities. **Christian:** Read when preparing content.
+- [Editing content](EDITING-CONTENT.md) — Choose the right content file, edit fields or columns, and understand the checks before review. **Christian:** Read before changing content.
 - [Content map](CONTENT-MAP.md) — Find where public samples, lessons, and study-game files belong. **Christian:** Read when preparing content.
 - [Content batches](BATCHES.md) — Learn how private question batches are checked, reviewed, and imported. **Christian:** Read before submitting a batch.
 - [Visuals kit](VISUALS.md) — See the plan for teaching pictures, sources, and approval checks. **Christian:** Read when approving visuals.

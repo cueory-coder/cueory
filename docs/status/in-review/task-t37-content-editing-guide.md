@@ -1,0 +1,1 @@
+status: T37, C8: adds a plain-language content editing guide based on existing collection schemas, lesson map, private batch checker and tests, with a docs index link; no content, runtime or publication changes.
