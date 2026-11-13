@@ -40,8 +40,12 @@ describe('video content files', () => {
   it.each(readdirSync(dir).filter((f) => f.endsWith('.json')))('%s is valid', (file) => {
     expect(videoSchema.safeParse(JSON.parse(readFileSync(new URL(file, dir), 'utf8'))).success).toBe(true);
   });
-  it('the placeholder entry stays a draft', () => {
+  it('the empty video is explicitly labeled as a placeholder and never shown', () => {
     const v = JSON.parse(readFileSync(new URL('study-skills-01.json', dir), 'utf8'));
+    expect(v.status).toBe('placeholder');
+    expect(v.videoId).toBe('xxxxxxxxxxx');
+    expect(v.captionsUrl).toBe('');
+    expect(v.transcriptUrl).toBe('');
     expect(isShowable(v.status)).toBe(false);
   });
 });

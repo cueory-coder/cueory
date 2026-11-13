@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 // LessonVideo island (D-82): lazy YouTube Nocookie embed. Nothing loads from YouTube before tap.
 
-// The lesson's own video is a draft until Christian publishes it, so the island is tested on a sample page.
+// The lesson's own video is an empty placeholder, so the island is tested on a sample page.
 const LESSON_URL = '/learn/video-sample';
 const LOCAL_HOSTS = ['localhost', '127.0.0.1'];
 
@@ -32,7 +32,7 @@ test('no request leaves localhost before the tap; after it only youtube-nocookie
   await expect.poll(() => [...hosts].filter((h) => !LOCAL_HOSTS.includes(h))).toEqual(['www.youtube-nocookie.com']);
 });
 
-test('a draft video does not appear on its lesson page', async ({ page }) => {
+test('the placeholder video does not appear on its lesson page', async ({ page }) => {
   await page.goto('/learn/study-skills');
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   await expect(page.getByRole('button', { name: /play video/i })).toHaveCount(0);
