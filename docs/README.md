@@ -36,6 +36,8 @@ Each link has a one-line summary and says whether Christian needs to read it. Gu
 
 ## Plans and history
 
+- [Sample-label audit](content-sample-label-audit.md) — See the public sample labels, CSV boundaries and empty-video label repair from T29. **Christian:** Read when reviewing public content labels.
+
 - [Decisions](DECISIONS.md) — Look up recorded product and technical decisions. **Christian:** Read when checking why something was chosen.
 - [GitLab migration](GITLAB-MIGRATION.md) — Read the proposed move from GitHub processes to GitLab. **Christian:** Read if reviewing migration decisions.
 
