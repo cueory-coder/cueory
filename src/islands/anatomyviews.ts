@@ -120,13 +120,27 @@ export function focusFromSearch(search: string): LabFocus {
   const params = new URLSearchParams(search);
   const system = params.get('system');
   const structure = params.get('structure');
+  const validSystem = system && system.length <= 64 && SYSTEM_KEY.test(system) ? system : null;
+  // An explicitly invalid system cannot turn into a structure-only link to the fallback system.
+  const invalidSystem = params.has('system') && validSystem === null;
   return {
-    system: system && system.length <= 64 && SYSTEM_KEY.test(system) ? system : null,
-    structure: structure && STRUCTURE_ID.test(structure) ? structure : null,
+    system: validSystem,
+    structure: !invalidSystem && structure && STRUCTURE_ID.test(structure) ? structure : null,
   };
 }
 
 /** The system the lab starts on: the linked one when this build has it, else the first. */
 export function initialSystemKey(keys: readonly string[], focus: LabFocus): string {
   return focus.system && keys.includes(focus.system) ? focus.system : (keys[0] ?? '');
+}
+
+/** A lesson's structure belongs to its requested system and that system's completed model load. */
+export function linkedStructureId(
+  focus: LabFocus,
+  systemKey: string,
+  loadedSystemKey: string,
+  found: readonly string[],
+): string | null {
+  if (loadedSystemKey !== systemKey || (focus.system && focus.system !== systemKey)) return null;
+  return focus.structure && found.includes(focus.structure) ? focus.structure : null;
 }
