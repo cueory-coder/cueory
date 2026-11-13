@@ -1,1 +1,1 @@
-STATUS: Task L6, games launch checklist (docs/LAUNCH.md): every gate between staging and the live site for the games-only launch, with the command or page that proves each (unknown where not confirmed), numbered launch-day clicks for Christian, and the first week. docs/README.md lists it.
+status: Task L6, games launch checklist (docs/LAUNCH.md): every gate between staging and the live site for the games-only launch, with the command or page that proves each (unknown where not confirmed), numbered launch-day clicks for Christian, and the first week. docs/README.md lists it.
