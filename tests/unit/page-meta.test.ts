@@ -121,6 +121,31 @@ function skipNavigationProblems(html: string): string[] {
 }
 
 describe('W18: page metadata', () => {
+
+  it('robots permits public indexing and advertises exactly one canonical sitemap', () => {
+    const lines = readFileSync(join(DIST_ROOT, 'robots.txt'), 'utf8').split(/\r?\n/)
+      .map(line => line.replace(/#.*$/, '').trim()).filter(Boolean);
+    expect(lines.filter(line => /^user-agent:\s*\*$/i.test(line))).toHaveLength(1);
+    expect(lines.filter(line => /^allow:\s*\/$/i.test(line))).toHaveLength(1);
+    expect(lines.some(line => /^disallow:\s*\S/i.test(line))).toBe(false);
+    expect(lines.filter(line => /^sitemap:/i.test(line)))
+      .toEqual([`Sitemap: ${new URL('/sitemap.xml', site.url).href}`]);
+  });
+
+  it('sitemap lists every built indexable page exactly once and no noindex page', () => {
+    const files = filesEndingIn(DIST_ROOT, '.html');
+    expect(files.length).toBeGreaterThan(0);
+    const indexable = files.filter(file => !pageMeta(readFileSync(file, 'utf8')).noindex);
+    expect(indexable.length).toBeGreaterThan(0);
+    const expected = indexable.map(file => new URL(routeFor(file), site.url).href).sort();
+    const xml = readFileSync(join(DIST_ROOT, 'sitemap.xml'), 'utf8');
+    expect(xml).toContain('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">');
+    const locations = [...xml.matchAll(/<loc>([^<]*)<\/loc>/g)].map(match => decoded(match[1]));
+    expect(new Set(locations).size, 'duplicate sitemap entries').toBe(locations.length);
+    expect(locations.every(value => new URL(value).origin === new URL(site.url).origin)).toBe(true);
+    expect(locations.sort()).toEqual(expected);
+  });
+
   it('declares Layout, a title and an explicit description on each page (except documented fallbacks)', () => {
     const problems: string[] = [];
     const sources = filesEndingIn(PAGES_ROOT, '.astro');
