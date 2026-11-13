@@ -1,4 +1,4 @@
-STATUS: Task 630 (!8), resume lifecycle clear guard: preserve cleared or replaced study checkpoints during background and page-exit saves. Browser checks passed on current staging (Claude, 2026-11-11); the Label It page-exit test was updated to match. Target: staging.
+status: Task 630 (!8), resume lifecycle clear guard: preserve cleared or replaced study checkpoints during background and page-exit saves. Browser checks passed on current staging (Claude, 2026-11-11); the Label It page-exit test was updated to match. Target: staging.
 
 ## Completed work
 

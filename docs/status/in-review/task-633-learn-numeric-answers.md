@@ -1,4 +1,4 @@
-STATUS: Task 633, Learn numeric-answer comparison: preserves meaningful notation in typed answers, fill-in recall and multiple-choice options. Type check, production build and all 200 unit-test files passed. MR !11 targets staging. Browser checks passed on current staging (Claude, 2026-11-11); ready for review.
+status: Task 633, Learn numeric-answer comparison: preserves meaningful notation in typed answers, fill-in recall and multiple-choice options. Type check, production build and all 200 unit-test files passed. MR !11 targets staging. Browser checks passed on current staging (Claude, 2026-11-11); ready for review.
 
 ## Problem and change
 

@@ -1,1 +1,1 @@
-STATUS: Task 747, resume-prompt states (W06-3 #41): shared pure wording and continue/start-over decisions for five study modes, saved-day labels, blocked-storage warning, focus recovery without overriding board focus, and new unit tests. In review.
+status: Task 747, resume-prompt states (W06-3 #41): shared pure wording and continue/start-over decisions for five study modes, saved-day labels, blocked-storage warning, focus recovery without overriding board focus, and new unit tests. In review.

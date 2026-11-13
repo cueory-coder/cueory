@@ -1,1 +1,1 @@
-STATUS: Task 774 (W20-2, #68): sample questions now have pure loading, failure, empty and ready states, keyboard-safe retry, pure progress and summary scoring, and targeted unit and browser coverage; existing shared player remains unchanged.
+status: Task 774 (W20-2, #68): sample questions now have pure loading, failure, empty and ready states, keyboard-safe retry, pure progress and summary scoring, and targeted unit and browser coverage; existing shared player remains unchanged.

@@ -1,1 +1,1 @@
-STATUS: Task 766 docs-index integration: preserves W16's index and regression tests from !52, adds the CONTENT-MAP.md entry required after !82, and retains the Contributing link. No application or settings changes.
+status: Task 766 docs-index integration: preserves W16's index and regression tests from !52, adds the CONTENT-MAP.md entry required after !82, and retains the Contributing link. No application or settings changes.
