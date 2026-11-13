@@ -4,6 +4,7 @@
  */
 export const indexablePages = [
   '/',
+  '/courses',
   '/learn',
   '/learn/study-skills',
   '/learn/study-skills/cards',
